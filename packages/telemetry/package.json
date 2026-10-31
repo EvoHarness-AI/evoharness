@@ -1,6 +1,6 @@
 {
 	"name": "@evoharness/telemetry",
-	"version": "0.0.1",
+	"version": "0.2.0",
 	"description": "Vendor-neutral telemetry contracts and typed schema utilities for evoharness",
 	"type": "module",
 	"main": "./dist/index.js",
