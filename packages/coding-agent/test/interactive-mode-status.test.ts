@@ -875,8 +875,9 @@ describe("InteractiveMode.showLoadedResources", () => {
 		});
 
 		expect(normalizeRenderedOutput(fakeThis.loadedResourcesContainer)).toMatchInlineSnapshot(`
-"[Extensions]
-  @scope/evoharness-scoped, answer.ts, cli-extension.ts, example-user/evoharness-interactive-subagents, example-user/evoharness-interactive-subagents:subagents, local-index, evoharness-markdown-preview, user-index"`);
+			"[Extensions]
+			  @scope/evoharness-scoped, answer.ts, cli-extension.ts, evoharness-markdown-preview, example-user/evoharness-interactive-subagents, example-user/evoharness-interactive-subagents:subagents, local-index, user-index"
+		`);
 	});
 
 	test("adds more parent folders until local extension labels are unique", () => {
