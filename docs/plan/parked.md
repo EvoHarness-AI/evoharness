@@ -34,27 +34,19 @@
 
 ### fd/rg 二进制的 npm 平台子包分发
 
-- 来源：首次启动工具自举在 GitHub Releases 直连下 120s 超时的真实遭遇（2026-10-31）
+- 来源：首次启动工具自举在 GitHub Releases 直连下 120s 超时的真实遭遇（2026-10-31）；同日已落地本地发现（winget/scoop/choco/VS Code 落点）、`EVOHARNESS_FD_PATH`/`EVOHARNESS_RG_PATH` 覆盖与失败指引，本条只覆盖"没有任何本地副本、也无法手动装"的环境
 - 条件：`仅复核`
 - 复核：`review_by 2027-06-01`
 - 前提：会出现无法用 winget/scoop 手动安装绕过、且 GitHub 直连不可达的场景（CI 环境、无管理员权限的用户、纯命令行环境）；在此之前 winget 路线已够用。
 - 判断依据：到点查 issue/反馈里是否有"工具下载失败且无法手动绕过"的报告。有 → 仿 esbuild/biome 发行模式建 `@evoharness/fd-win32-x64` 等平台子包走 npm registry（国内可配 npmmirror 镜像），并附带 fd(MIT/Apache)/ripgrep(MIT/Unlicense) 的许可声明；没有 → 作废，确认个人使用场景 winget 已覆盖。
 
-### management-http 代理支持
-
-- 来源：同上遭遇；`src/utils/management-http.ts` 的 fetchWithRetry 无任何代理处理（已核实）
-- 条件：`仅复核`
-- 复核：`review_by 2026-12-15`
-- 前提：自己已遇到一次超时（2026-10-31），靠 winget 手动绕过；会出现"无法用 winget 绕过、必须让 EvoHarness 自己走代理"的场景（最小权限环境、便携部署）。
-- 判断依据：到点看是否出现过第二个此类场景。有 → 在 management-http.ts 接 undici ProxyAgent，复用 `core/http-dispatcher.ts` 现成的 proxy 逻辑，暴露 `EVOHARNESS_HTTP_PROXY`；没有 → 作废，确认 winget 路线稳定。
-
 ### EVOHARNESS_TOOLS_MIRROR 镜像源
 
-- 来源：与上一条同源；npmmirror/ghproxy 类加速是国内网络下的另一条现实路径
+- 来源：与上一条同源；npmmirror/ghproxy 类加速是国内网络下的另一条现实路径。2026-10-31 已落地本地发现与环境变量覆盖，但下载源仍写死为 `github.com` 与 `objects.githubusercontent.com`，一条替换 URL 前缀都做不到
 - 条件：`仅复核`
 - 复核：`review_by 2027-06-01`
-- 前提：代理支持（上一条）实施后仍不够——存在"镜像前缀可解决、但代理不可用"的用户环境；或上游选择直接做镜像方案。
-- 判断依据：上一条作废时本条自动重新评估；上一条做了 → 看其反馈里是否有"代理失败但镜像可用"的证据。有 → 给 tools-manager 加下载 URL 前缀可替换（环境变量），列出兼容的镜像形态；没有 → 作废。
+- 前提：本地发现覆盖不到"机器上没有副本、只能联网下"的环境，而这类环境下代理又不可用；即存在"镜像前缀能解决、本地副本和代理都不能解决"的用户。
+- 判断依据：到点看 2026-10-31 的本地发现落地后是否还收到"装不上也下不来"的反馈。有 → 给 tools-manager 加下载 URL 前缀可替换（环境变量），并列兼容的镜像形态；上镜像前必须先补 sha256 校验（当前下载零完整性校验，无校验的镜像等于把供应链信任外包），否则收益为负。没有 → 作废，确认本地发现已够。
 
 ### badlogic/pi 上游内核对比
 

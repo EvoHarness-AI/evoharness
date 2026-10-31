@@ -81,6 +81,8 @@ These variables are read by EvoHarness itself:
 | `EVOHARNESS_CODING_AGENT_DIR` | Override the config directory; default is `~/.evoharness/agent` |
 | `EVOHARNESS_CODING_AGENT_SESSION_DIR` | Override session storage; overridden by `--session-dir` |
 | `EVOHARNESS_PACKAGE_DIR` | Override the package directory, useful for Nix/Guix store paths |
+| `EVOHARNESS_FD_PATH` | Point the `find` tool and file autocomplete at an existing `fd` binary instead of the managed copy in `~/.evoharness/agent/bin`. Checked before PATH and before any download |
+| `EVOHARNESS_RG_PATH` | Point the `grep` tool at an existing `ripgrep` binary instead of the managed copy. Checked before PATH and before any download |
 | `EVOHARNESS_OFFLINE` | Disable automatic network activity, including model catalog refreshes |
 | `EVOHARNESS_SKIP_VERSION_CHECK` | Disable the `evoharness.dev` latest-version request |
 | `EVOHARNESS_SELF_UPDATE_COMMAND` | Command `evoharness update` runs to update EvoHarness itself, split on whitespace, with `{packageName}`, `{version}`, and `{installSpec}` placeholders. Takes precedence over the `selfUpdateCommand` setting. See [Custom update command](cli.md#custom-update-command) |

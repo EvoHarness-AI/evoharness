@@ -1,11 +1,21 @@
 import type * as ChildProcess from "node:child_process";
 import type * as Fs from "node:fs";
+import { existsSync } from "node:fs";
 import type * as Os from "node:os";
+import { join } from "node:path";
 import { arch, platform } from "os";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ensureTool, getLatestVersion, type ToolStatus } from "../src/utils/tools-manager.ts";
+import {
+	clearToolDownloadFailuresForTests,
+	ensureTool,
+	getLatestVersion,
+	getToolPath,
+	type ToolStatus,
+} from "../src/utils/tools-manager.ts";
 
 const originalOffline = process.env.EVOHARNESS_OFFLINE;
+const originalFdPath = process.env.EVOHARNESS_FD_PATH;
+const originalLocalAppData = process.env.LOCALAPPDATA;
 
 vi.mock("fs", async (importOriginal) => {
 	const actual = await importOriginal<typeof Fs>();
@@ -35,9 +45,15 @@ vi.mock("child_process", async (importOriginal) => {
 afterEach(() => {
 	if (originalOffline === undefined) delete process.env.EVOHARNESS_OFFLINE;
 	else process.env.EVOHARNESS_OFFLINE = originalOffline;
+	if (originalFdPath === undefined) delete process.env.EVOHARNESS_FD_PATH;
+	else process.env.EVOHARNESS_FD_PATH = originalFdPath;
+	if (originalLocalAppData === undefined) delete process.env.LOCALAPPDATA;
+	else process.env.LOCALAPPDATA = originalLocalAppData;
 	vi.unstubAllGlobals();
 	vi.mocked(arch).mockReturnValue("x64");
 	vi.mocked(platform).mockReturnValue("linux");
+	vi.mocked(existsSync).mockReturnValue(false);
+	clearToolDownloadFailuresForTests();
 });
 
 function redirectResponse(location: string): Response {
@@ -111,6 +127,26 @@ describe("getLatestVersion", () => {
 	});
 });
 
+describe("getToolPath", () => {
+	it("prefers an explicit binary path from the environment", () => {
+		process.env.EVOHARNESS_FD_PATH = "/opt/tools/fd";
+		vi.mocked(existsSync).mockImplementation((candidate) => candidate === "/opt/tools/fd");
+
+		expect(getToolPath("fd")).toBe("/opt/tools/fd");
+	});
+
+	// A winget/scoop install lands next to PATH: a shell started before the install
+	// cannot see it, so the download would run again on top of an existing binary.
+	it("finds a Windows install that is not on PATH", () => {
+		vi.mocked(platform).mockReturnValue("win32");
+		process.env.LOCALAPPDATA = "C:\\Users\\test\\AppData\\Local";
+		const installed = join(process.env.LOCALAPPDATA, "Microsoft", "WinGet", "Links", "rg.exe");
+		vi.mocked(existsSync).mockImplementation((candidate) => candidate === installed);
+
+		expect(getToolPath("rg")).toBe(installed);
+	});
+});
+
 describe("ensureTool", () => {
 	it("reports status through a callback without writing to the console", async () => {
 		process.env.EVOHARNESS_OFFLINE = "1";
@@ -144,11 +180,36 @@ describe("ensureTool", () => {
 		const result = await ensureTool("fd", (status) => statuses.push(status));
 
 		expect(result).toBeUndefined();
-		expect(statuses).toEqual([
+		expect(statuses.slice(0, 2)).toEqual([
 			{ type: "info", message: "fd not found. Downloading..." },
 			{
 				type: "warning",
 				message: "Failed to download fd: fetch failed: connect ETIMEDOUT 140.82.113.3:443",
+			},
+		]);
+		// The failure is actionable: how to install it without the network.
+		expect(statuses[2]).toEqual({ type: "info", message: expect.stringContaining("EVOHARNESS_FD_PATH") });
+	});
+
+	it("does not retry the download on every tool call after a failure", async () => {
+		delete process.env.EVOHARNESS_OFFLINE;
+		const fetchMock = vi.fn(async () => {
+			throw new TypeError("fetch failed");
+		});
+		vi.stubGlobal("fetch", fetchMock);
+		await ensureTool("fd", () => {});
+		const attemptsAfterFailure = fetchMock.mock.calls.length;
+
+		const statuses: ToolStatus[] = [];
+		const second = await ensureTool("fd", (status) => statuses.push(status));
+
+		expect(second).toBeUndefined();
+		expect(fetchMock).toHaveBeenCalledTimes(attemptsAfterFailure);
+		expect(statuses).toEqual([
+			{
+				type: "warning",
+				message:
+					"fd not found. Skipping the download: the previous attempt failed less than 5 minutes ago. Restart EvoHarness to retry now.",
 			},
 		]);
 	});

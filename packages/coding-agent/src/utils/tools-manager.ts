@@ -1,16 +1,21 @@
 import { type SpawnSyncReturns, spawnSync } from "child_process";
 import { chmodSync, createWriteStream, existsSync, mkdirSync, readdirSync, renameSync, rmSync } from "fs";
-import { arch, platform } from "os";
+import { arch, homedir, platform } from "os";
 import { join } from "path";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
-import { getBinDir, VERSION } from "../config.ts";
+import { expandTildePath, getBinDir, VERSION } from "../config.ts";
 import { getEvoharnessUserAgent } from "./evoharness-user-agent.ts";
 import { fetchWithRetry } from "./management-http.ts";
 
 const TOOLS_DIR = getBinDir();
 const NETWORK_TIMEOUT_MS = 10_000;
 const DOWNLOAD_TIMEOUT_MS = 120_000;
+// grep and find call ensureTool on every invocation, so a failed download must not
+// be retried per tool call: each attempt spends the whole network budget (version
+// resolution plus download) while the tool stays unusable anyway.
+const DOWNLOAD_FAILURE_COOLDOWN_MS = 5 * 60_000;
+const DOWNLOAD_FAILURE_COOLDOWN_MINUTES = DOWNLOAD_FAILURE_COOLDOWN_MS / 60_000;
 
 function isOfflineModeEnabled(): boolean {
 	const value = process.env.EVOHARNESS_OFFLINE;
@@ -57,6 +62,65 @@ const TOOLS: Record<string, ToolConfig> = {
 	},
 };
 
+const TOOL_PATH_ENV_VARS: Record<"fd" | "rg", string> = {
+	fd: "EVOHARNESS_FD_PATH",
+	rg: "EVOHARNESS_RG_PATH",
+};
+
+/** Tools whose download failed, mapped to the time after which a new attempt is allowed. */
+const downloadFailures = new Map<"fd" | "rg", number>();
+
+export function clearToolDownloadFailuresForTests(): void {
+	downloadFailures.clear();
+}
+
+/** VS Code ships ripgrep, which is the same binary the grep tool needs. */
+const VSCODE_RIPGREP_DIR = join("resources", "app", "node_modules.asar.unpacked", "@vscode", "ripgrep", "bin");
+
+/**
+ * Directories where package managers and bundled tools put binaries that are not
+ * guaranteed to be on PATH: a shell started before the install, or a GUI launch
+ * with a minimal PATH, both keep the binary invisible to `commandExists`.
+ */
+function getKnownInstallDirs(): string[] {
+	const home = homedir();
+	if (platform() === "win32") {
+		const dirs: string[] = [];
+		const localAppData = process.env.LOCALAPPDATA;
+		const userProfile = process.env.USERPROFILE;
+		const programData = process.env.ProgramData;
+		const programFiles = process.env.ProgramFiles;
+		if (localAppData) {
+			dirs.push(join(localAppData, "Microsoft", "WinGet", "Links"));
+			dirs.push(join(localAppData, "Programs", "Microsoft VS Code", VSCODE_RIPGREP_DIR));
+		}
+		if (programFiles) dirs.push(join(programFiles, "Microsoft VS Code", VSCODE_RIPGREP_DIR));
+		if (userProfile) dirs.push(join(userProfile, "scoop", "shims"));
+		if (programData) dirs.push(join(programData, "chocolatey", "bin"));
+		return dirs;
+	}
+	if (platform() === "darwin") {
+		return ["/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin", join(home, ".local", "bin")];
+	}
+	return [join(home, ".local", "bin"), "/usr/local/bin", "/usr/bin", "/snap/bin", "/home/linuxbrew/.linuxbrew/bin"];
+}
+
+/** Actionable recovery text shown after a download fails. */
+function getManualInstallHint(tool: "fd" | "rg"): string {
+	const plat = platform();
+	const name = TOOLS[tool].name;
+	let command: string;
+	if (plat === "win32") {
+		command = tool === "fd" ? "winget install sharkdp.fd" : "winget install BurntSushi.ripgrep.MSVC";
+	} else if (plat === "darwin") {
+		command = tool === "fd" ? "brew install fd" : "brew install ripgrep";
+	} else {
+		command = tool === "fd" ? "apt install fd-find" : "apt install ripgrep";
+	}
+	const binary = TOOLS[tool].binaryName + (plat === "win32" ? ".exe" : "");
+	return `Install ${name} manually: ${command}. Or put ${binary} in ${TOOLS_DIR}, or set ${TOOL_PATH_ENV_VARS[tool]} to an existing binary. The download is retried after ${DOWNLOAD_FAILURE_COOLDOWN_MINUTES} minutes, or immediately after a restart.`;
+}
+
 // Check if a command exists in PATH by trying to run it
 function commandExists(cmd: string): boolean {
 	try {
@@ -73,8 +137,20 @@ export function getToolPath(tool: "fd" | "rg"): string | null {
 	const config = TOOLS[tool];
 	if (!config) return null;
 
+	const binaryExt = platform() === "win32" ? ".exe" : "";
+
+	// An explicit override wins: it is the only way to use a binary that sits
+	// somewhere no scanner looks.
+	const override = process.env[TOOL_PATH_ENV_VARS[tool]]?.trim();
+	if (override) {
+		const overridePath = expandTildePath(override);
+		if (existsSync(overridePath)) {
+			return overridePath;
+		}
+	}
+
 	// Check our tools directory first
-	const localPath = join(TOOLS_DIR, config.binaryName + (platform() === "win32" ? ".exe" : ""));
+	const localPath = join(TOOLS_DIR, config.binaryName + binaryExt);
 	if (existsSync(localPath)) {
 		return localPath;
 	}
@@ -84,6 +160,16 @@ export function getToolPath(tool: "fd" | "rg"): string | null {
 	for (const systemBinaryName of systemBinaryNames) {
 		if (commandExists(systemBinaryName)) {
 			return systemBinaryName;
+		}
+	}
+
+	// Last resort before downloading: install locations that PATH can miss.
+	for (const dir of getKnownInstallDirs()) {
+		for (const systemBinaryName of systemBinaryNames) {
+			const candidate = join(dir, systemBinaryName + binaryExt);
+			if (existsSync(candidate)) {
+				return candidate;
+			}
 		}
 	}
 
@@ -368,11 +454,21 @@ export async function ensureTool(
 		return undefined;
 	}
 
+	const failedAt = downloadFailures.get(tool);
+	if (failedAt !== undefined && Date.now() - failedAt < DOWNLOAD_FAILURE_COOLDOWN_MS) {
+		onStatus?.({
+			type: "warning",
+			message: `${config.name} not found. Skipping the download: the previous attempt failed less than ${DOWNLOAD_FAILURE_COOLDOWN_MINUTES} minutes ago. Restart EvoHarness to retry now.`,
+		});
+		return undefined;
+	}
+
 	// Tool not found - download it
 	onStatus?.({ type: "info", message: `${config.name} not found. Downloading...` });
 
 	try {
 		const path = await downloadTool(tool);
+		downloadFailures.delete(tool);
 		onStatus?.({ type: "info", message: `${config.name} installed to ${path}` });
 		return path;
 	} catch (e) {
@@ -388,10 +484,12 @@ export async function ensureTool(
 		) {
 			if (!messages.includes(current.message)) messages.push(current.message);
 		}
+		downloadFailures.set(tool, Date.now());
 		onStatus?.({
 			type: "warning",
 			message: `Failed to download ${config.name}: ${messages.length > 0 ? messages.join(": ") : String(e)}`,
 		});
+		onStatus?.({ type: "info", message: getManualInstallHint(tool) });
 		return undefined;
 	}
 }
