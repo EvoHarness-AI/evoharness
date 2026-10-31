@@ -79,6 +79,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "evoharness-env"
+version = "0.0.1"
+dependencies = [
+ "encoding_rs",
+ "ignore",
+ "libc",
+ "notify",
+ "serde_json",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "fsevent-sys"
 version = "4.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -223,18 +235,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "42b8cfee0e339a0337359f3c88165702ac6e600dc01c0cc9579a92d62b08477a"
 dependencies = [
  "bitflags",
-]
-
-[[package]]
-name = "evoharness-env"
-version = "0.1.0"
-dependencies = [
- "encoding_rs",
- "ignore",
- "libc",
- "notify",
- "serde_json",
- "windows-sys 0.61.2",
 ]
 
 [[package]]
