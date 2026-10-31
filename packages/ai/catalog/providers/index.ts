@@ -32,7 +32,6 @@ import openrouter from "./openrouter.ts";
 import qwenTokenPlan from "./qwen-token-plan.ts";
 import qwenTokenPlanCn from "./qwen-token-plan-cn.ts";
 import qwenTokenPlanIndividual from "./qwen-token-plan-individual.ts";
-import radius from "./radius.ts";
 import together from "./together.ts";
 import typesafe from "./typesafe.ts";
 import vercelAiGateway from "./vercel-ai-gateway.ts";
@@ -76,7 +75,6 @@ export const PROVIDERS: readonly ProviderDefinition[] = [
 	qwenTokenPlanCn,
 	qwenTokenPlanIndividual,
 	qwenTokenPlan,
-	radius,
 	together,
 	typesafe,
 	vercelAiGateway,

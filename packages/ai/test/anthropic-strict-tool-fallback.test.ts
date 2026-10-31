@@ -3,7 +3,7 @@ import type { BetaTool, MessageCreateParamsStreaming } from "@anthropic-ai/sdk/r
 import { Type } from "typebox";
 import { describe, expect, it, vi } from "vitest";
 import { type AnthropicOptions, stream as streamAnthropic } from "../src/api/anthropic-messages.ts";
-import { stream as streamPiMessages } from "../src/api/evoharness-messages.ts";
+import { stream as streamEvoharnessMessages } from "../src/api/evoharness-messages.ts";
 import type { Model, Tool, TranscriptContext } from "../src/types.ts";
 import { normalizeContext } from "../src/utils/transcript.ts";
 
@@ -266,12 +266,12 @@ describe("Anthropic preferred strict tool fallback", () => {
 		const gatewayModel: Model<"evoharness-messages"> = {
 			...model,
 			api: "evoharness-messages",
-			provider: "radius",
-			baseUrl: "https://radius.example/v1",
+			provider: "acme-gw",
+			baseUrl: "https://acme.example/v1",
 			compat: undefined,
 		};
-		const result = await streamPiMessages(gatewayModel, transcript, {
-			apiKey: "radius-test",
+		const result = await streamEvoharnessMessages(gatewayModel, transcript, {
+			apiKey: "acme-test",
 			fetch: async (_input, init) => {
 				const request = JSON.parse(init?.body as string) as { context: TranscriptContext };
 				expect(request.context).toEqual(JSON.parse(JSON.stringify(transcript)));

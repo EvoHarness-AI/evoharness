@@ -265,7 +265,7 @@ describe("constrained tool sampling", () => {
 				{
 					role: "assistant",
 					api: "evoharness-messages",
-					provider: "radius",
+					provider: "acme-gw",
 					model: "gpt-other",
 					content: [{ type: "toolCall", id: "call_1|ctc_1", name: "sample_tool", arguments: { payload: "abc" } }],
 					usage: makeUsage(),

@@ -2,13 +2,13 @@ import type { TelemetrySpan } from "@evoharness/telemetry";
 import type { AnthropicOptions } from "./api/anthropic-messages.ts";
 import type { AzureOpenAIResponsesOptions } from "./api/azure-openai-responses.ts";
 import type { BedrockOptions } from "./api/bedrock-converse-stream.ts";
+import type { EvoHarnessMessagesOptions } from "./api/evoharness-messages.ts";
 import type { GoogleOptions } from "./api/google-generative-ai.ts";
 import type { GoogleVertexOptions } from "./api/google-vertex.ts";
 import type { MistralOptions } from "./api/mistral-conversations.ts";
 import type { OpenAICodexResponsesOptions } from "./api/openai-codex-responses.ts";
 import type { OpenAICompletionsOptions } from "./api/openai-completions.ts";
 import type { OpenAIResponsesOptions } from "./api/openai-responses.ts";
-import type { EvoHarnessMessagesOptions } from "./api/evoharness-messages.ts";
 import type {
 	AnthropicMessagesCompat,
 	BedrockCompat,
@@ -96,7 +96,6 @@ export type KnownProvider =
 	| "openai"
 	| "azure"
 	| "openai-codex"
-	| "radius"
 	| "typesafe"
 	| "nvidia"
 	| "deepseek"

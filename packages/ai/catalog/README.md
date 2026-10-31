@@ -10,7 +10,7 @@
 
 | Path | Contents |
 | --- | --- |
-| `sources/` | Upstream fetchers. `models-dev.ts` normalizes the [models.dev v2](https://models.dev/experimental/v2.0/api.json) catalog; OpenRouter, Vercel AI Gateway, NVIDIA NIM, and Radius have their own modules. All sources are fetched before anything is built. |
+| `sources/` | Upstream fetchers. `models-dev.ts` normalizes the [models.dev v2](https://models.dev/experimental/v2.0/api.json) catalog; OpenRouter, Vercel AI Gateway, and NVIDIA NIM have their own modules. All sources are fetched before anything is built. |
 | `providers/<id>.ts` | One file per built-in provider: where its models come from, its API and base URL, compat defaults, corrections, and models upstream does not list. Register new files in `providers/index.ts`. |
 | `families/` | Facts about a model family that hold on every host, such as Claude effort levels or GPT-6 thinking levels. They apply to every provider's models. |
 | `define.ts` | `defineProvider()` and the helpers provider files use. |

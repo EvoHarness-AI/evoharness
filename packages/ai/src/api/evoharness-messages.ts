@@ -5,7 +5,7 @@
  * single POST of `{ model, context, options }` to `<baseUrl>/messages`, the
  * response is an SSE stream of serialized assistant-message events plus a
  * terminal `done`/`error` event. This is the wire protocol spoken by the
- * Radius gateway, but any backend implementing it can be used, e.g. via a
+ * gateway service, but any backend implementing it can be used, e.g. via a
  * models.json custom provider with `"api": "evoharness-messages"`.
  */
 
@@ -111,7 +111,7 @@ export class EvoHarnessMessagesResponseError extends Error {
 	}
 }
 
-function parsePiMessagesErrorBody(body: string): EvoHarnessMessagesErrorBody | undefined {
+function parseEvoharnessMessagesErrorBody(body: string): EvoHarnessMessagesErrorBody | undefined {
 	try {
 		const parsed = JSON.parse(body) as EvoHarnessMessagesErrorBody | null;
 		const error = parsed?.error;
@@ -126,7 +126,7 @@ function truncateDiagnosticString(value: string): string {
 	return value.length > maxLength ? `${ownedSlice(value, 0, maxLength)}…` : value;
 }
 
-function formatPiMessagesResponseError(
+function formatEvoharnessMessagesResponseError(
 	response: Response,
 	body: string,
 	errorBody: EvoHarnessMessagesErrorBody | undefined,
@@ -138,15 +138,15 @@ function formatPiMessagesResponseError(
 	return `${response.status} ${response.statusText}: ${suffix}${codeSuffix}`;
 }
 
-function createPiMessagesResponseError(
+function createEvoharnessMessagesResponseError(
 	model: Model<"evoharness-messages">,
 	url: URL,
 	response: Response,
 	body: string,
 ): EvoHarnessMessagesResponseError {
-	const errorBody = parsePiMessagesErrorBody(body);
+	const errorBody = parseEvoharnessMessagesErrorBody(body);
 	const code = typeof errorBody?.error?.code === "string" ? errorBody.error.code : undefined;
-	return new EvoHarnessMessagesResponseError(formatPiMessagesResponseError(response, body, errorBody), code, {
+	return new EvoHarnessMessagesResponseError(formatEvoharnessMessagesResponseError(response, body, errorBody), code, {
 		version: 1,
 		provider: model.provider,
 		model: model.id,
@@ -170,12 +170,15 @@ function createEmptyUsage(): EvoHarnessMessagesUsage {
 	};
 }
 
-function appendRewriteDiagnostic(message: AssistantMessage, rewrite: EvoHarnessMessagesRewriteImpact | undefined): void {
+function appendRewriteDiagnostic(
+	message: AssistantMessage,
+	rewrite: EvoHarnessMessagesRewriteImpact | undefined,
+): void {
 	if (!rewrite) {
 		return;
 	}
 	appendAssistantMessageDiagnostic(message, {
-		type: "pi_messages_rewrite",
+		type: "evoharness_messages_rewrite",
 		timestamp: Date.now(),
 		details: { ...rewrite },
 	});
@@ -291,7 +294,9 @@ function createEventConverter(model: Model<"evoharness-messages">) {
 	};
 }
 
-async function* readPiMessagesEvents(stream: ReadableStream<Uint8Array>): AsyncGenerator<EvoHarnessMessagesEvent> {
+async function* readEvoharnessMessagesEvents(
+	stream: ReadableStream<Uint8Array>,
+): AsyncGenerator<EvoHarnessMessagesEvent> {
 	const decoder = new TextDecoder();
 	const reader = stream.getReader();
 	let buffer = "";
@@ -304,7 +309,7 @@ async function* readPiMessagesEvents(stream: ReadableStream<Uint8Array>): AsyncG
 
 			let split = buffer.indexOf("\n\n");
 			while (split !== -1) {
-				const event = parsePiMessagesEvent(buffer.slice(0, split));
+				const event = parseEvoharnessMessagesEvent(buffer.slice(0, split));
 				if (event) {
 					yield event;
 				}
@@ -318,7 +323,7 @@ async function* readPiMessagesEvents(stream: ReadableStream<Uint8Array>): AsyncG
 		}
 
 		if (buffer.trim()) {
-			const event = parsePiMessagesEvent(buffer);
+			const event = parseEvoharnessMessagesEvent(buffer);
 			if (event) {
 				yield event;
 			}
@@ -328,7 +333,7 @@ async function* readPiMessagesEvents(stream: ReadableStream<Uint8Array>): AsyncG
 	}
 }
 
-function parsePiMessagesEvent(raw: string): EvoHarnessMessagesEvent | undefined {
+function parseEvoharnessMessagesEvent(raw: string): EvoHarnessMessagesEvent | undefined {
 	const data = raw
 		.split("\n")
 		.find((line) => line.startsWith("data:"))
@@ -338,7 +343,11 @@ function parsePiMessagesEvent(raw: string): EvoHarnessMessagesEvent | undefined 
 	return data && data !== "[DONE]" ? (JSON.parse(data) as EvoHarnessMessagesEvent) : undefined;
 }
 
-function createErrorEvent(model: Model<"evoharness-messages">, error: unknown, aborted: boolean): AssistantMessageEvent {
+function createErrorEvent(
+	model: Model<"evoharness-messages">,
+	error: unknown,
+	aborted: boolean,
+): AssistantMessageEvent {
 	const reason = aborted ? "aborted" : "error";
 	const assistantMessage: AssistantMessage = {
 		role: "assistant",
@@ -355,7 +364,7 @@ function createErrorEvent(model: Model<"evoharness-messages">, error: unknown, a
 	if (!aborted && error instanceof EvoHarnessMessagesResponseError) {
 		appendAssistantMessageDiagnostic(
 			assistantMessage,
-			createAssistantMessageDiagnostic("pi_messages_response_failure", error, error.diagnosticDetails),
+			createAssistantMessageDiagnostic("evoharness_messages_response_failure", error, error.diagnosticDetails),
 		);
 	}
 
@@ -367,7 +376,7 @@ function resolveCacheRetention(cacheRetention?: CacheRetention, env?: ProviderEn
 		return cacheRetention;
 	}
 	// Backend defaults apply when unset; only the legacy env opt-in is mapped.
-	return getProviderEnvValue("PI_CACHE_RETENTION", env) === "long" ? "long" : undefined;
+	return getProviderEnvValue("EVOHARNESS_CACHE_RETENTION", env) === "long" ? "long" : undefined;
 }
 
 export const stream: StreamFunction<"evoharness-messages", EvoHarnessMessagesOptions> = (
@@ -426,13 +435,13 @@ export const stream: StreamFunction<"evoharness-messages", EvoHarnessMessagesOpt
 
 			if (!response.ok) {
 				const body = await response.text();
-				throw createPiMessagesResponseError(model, url, response, body);
+				throw createEvoharnessMessagesResponseError(model, url, response, body);
 			}
 			if (!response.body) {
 				throw new Error(`${model.provider} response has no body`);
 			}
 
-			for await (const evoharnessEvent of readPiMessagesEvents(response.body)) {
+			for await (const evoharnessEvent of readEvoharnessMessagesEvents(response.body)) {
 				await options?.onProviderStreamEvent?.(evoharnessEvent, model);
 				const event = convertEvent(evoharnessEvent);
 				eventStream.push(event);

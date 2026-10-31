@@ -69,9 +69,9 @@ async function startServer(options: ResponderOptions): Promise<{ baseUrl: string
 function createModel(baseUrl: string): Model<"evoharness-messages"> {
 	return {
 		id: "auto",
-		name: "Radius Auto",
+		name: "Acme Auto",
 		api: "evoharness-messages",
-		provider: "radius",
+		provider: "acme-gw",
 		baseUrl,
 		reasoning: false,
 		input: ["text"],
@@ -147,7 +147,7 @@ describe("evoharness-messages", () => {
 		expect(message.providerThinkingLevel).toBe("high");
 		expect(message.model).toBe("auto");
 		expect(message.responseModel).toBe("claude-opus-5-5");
-		expect(message.provider).toBe("radius");
+		expect(message.provider).toBe("acme-gw");
 		expect(message.content).toEqual([
 			{ type: "text", text: "Hello", textSignature: undefined },
 			{ type: "toolCall", id: "call_1", name: "read", arguments: { path: "a.txt" } },
@@ -231,7 +231,7 @@ describe("evoharness-messages", () => {
 		expect(message.errorMessage).toContain("401");
 		expect(message.errorMessage).toContain("Token expired");
 		expect(message.errorMessage).toContain("unauthorized");
-		expect(message.diagnostics?.[0]?.type).toBe("pi_messages_response_failure");
+		expect(message.diagnostics?.[0]?.type).toBe("evoharness_messages_response_failure");
 		expect(message.diagnostics?.[0]?.details?.status).toBe(401);
 	});
 

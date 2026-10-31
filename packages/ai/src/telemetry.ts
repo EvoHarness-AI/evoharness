@@ -65,7 +65,10 @@ export const AI_TELEMETRY_SCHEMA = defineTelemetrySchema({
 	version: 1,
 	spans: {
 		"evoharness.ai.request": request,
-		"evoharness.ai.poll": { ...request, description: "One deferred-response poll, not the deferred request's lifetime." },
+		"evoharness.ai.poll": {
+			...request,
+			description: "One deferred-response poll, not the deferred request's lifetime.",
+		},
 	},
 	metrics: {
 		"evoharness.ai.request.duration": {

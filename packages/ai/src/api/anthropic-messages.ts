@@ -70,13 +70,13 @@ import { splitErrorToolResultImages, transformMessages } from "./transform-messa
 
 /**
  * Resolve cache retention preference.
- * Defaults to "short" and uses PI_CACHE_RETENTION for backward compatibility.
+ * Defaults to "short" and uses EVOHARNESS_CACHE_RETENTION for backward compatibility.
  */
 function resolveCacheRetention(cacheRetention?: CacheRetention, env?: ProviderEnv): CacheRetention {
 	if (cacheRetention) {
 		return cacheRetention;
 	}
-	if (getProviderEnvValue("PI_CACHE_RETENTION", env) === "long") {
+	if (getProviderEnvValue("EVOHARNESS_CACHE_RETENTION", env) === "long") {
 		return "long";
 	}
 	return "short";
@@ -102,7 +102,7 @@ function getCacheControl(
 const claudeCodeVersion = "2.1.280";
 
 // Claude Code 2.x tool names (canonical casing)
-// Source: https://cchistory.mariozechner.at/data/prompts-2.1.11.md
+// Source: public Claude Code system-prompt history snapshot (v2.1.11)
 // To update: https://github.com/EvoHarness-AI/cchistory
 const claudeCodeTools = [
 	"Read",

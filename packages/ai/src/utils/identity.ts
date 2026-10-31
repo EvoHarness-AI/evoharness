@@ -1,5 +1,5 @@
 import type { Models, MutableModels } from "../models.ts";
-import { PI_AI_VERSION } from "./version.ts";
+import { EVOHARNESS_AI_VERSION } from "./version.ts";
 
 /**
  * The `User-Agent` sent to providers:
@@ -21,7 +21,11 @@ export interface ClientAttribution {
 }
 
 /** evoharness's attribution, used by evoharness-agent-core, evoharness-durable, and the coding agent. */
-export const PI_ATTRIBUTION: ClientAttribution = { name: "evoharness", url: "https://evoharness.dev", categories: ["cli-agent"] };
+export const EVOHARNESS_ATTRIBUTION: ClientAttribution = {
+	name: "evoharness",
+	url: "https://evoharness.dev",
+	categories: ["cli-agent"],
+};
 
 /**
  * How evoharness-ai identifies the calling app to providers. Every field is optional; absent fields use evoharness-ai's defaults:
@@ -60,7 +64,7 @@ export function mergeClientIdentity(...sources: (ClientIdentity | undefined)[]):
 
 /** The version in the detailed `User-Agent`. */
 export function getClientVersion(identity?: ClientIdentity): string {
-	return identity?.version ?? PI_AI_VERSION;
+	return identity?.version ?? EVOHARNESS_AI_VERSION;
 }
 
 function runtimeDescription(): string | undefined {

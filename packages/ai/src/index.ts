@@ -9,6 +9,11 @@ export { Type } from "typebox";
 export type { AnthropicEffort, AnthropicOptions, AnthropicThinkingDisplay } from "./api/anthropic-messages.ts";
 export type { AzureOpenAIResponsesOptions } from "./api/azure-openai-responses.ts";
 export type { BedrockOptions, BedrockThinkingDisplay } from "./api/bedrock-converse-stream.ts";
+export type {
+	EvoHarnessMessagesEvent,
+	EvoHarnessMessagesOptions,
+	EvoHarnessMessagesRewriteImpact,
+} from "./api/evoharness-messages.ts";
 export type { GoogleOptions } from "./api/google-generative-ai.ts";
 export type { GoogleApiThinkingLevel, ResolvedGoogleThinkingLevel } from "./api/google-shared.ts";
 export type { GoogleVertexOptions } from "./api/google-vertex.ts";
@@ -17,7 +22,6 @@ export type { MistralOptions } from "./api/mistral-conversations.ts";
 export type { OpenAICodexResponsesOptions, OpenAICodexWebSocketDebugStats } from "./api/openai-codex-responses.ts";
 export type { OpenAICompletionsOptions } from "./api/openai-completions.ts";
 export type { OpenAIResponsesOptions } from "./api/openai-responses.ts";
-export type { EvoHarnessMessagesEvent, EvoHarnessMessagesOptions, EvoHarnessMessagesRewriteImpact } from "./api/evoharness-messages.ts";
 export * from "./auth/context.ts";
 export * from "./auth/credential-store.ts";
 export * from "./auth/helpers.ts";
@@ -47,4 +51,4 @@ export * from "./utils/transcript.ts";
 export * from "./utils/typebox-helpers.ts";
 export { uuidv7 } from "./utils/uuid.ts";
 export * from "./utils/validation.ts";
-export { PI_AI_VERSION } from "./utils/version.ts";
+export { EVOHARNESS_AI_VERSION } from "./utils/version.ts";

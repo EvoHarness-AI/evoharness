@@ -65,7 +65,6 @@ Unified LLM API with provider collections, automatic auth resolution, token and 
 - **Ant Ling**
 - **Azure OpenAI (Responses)**
 - **OpenAI Codex (legacy)** (ChatGPT Plus/Pro subscription, requires OAuth, see below)
-- **Radius** (API key or OAuth, with a dynamically refreshed gateway catalog)
 - **TypeSafe** (System One classifier API)
 - **DeepSeek**
 - **NVIDIA NIM**
@@ -349,7 +348,7 @@ import {
 } from '@evoharness/ai/providers/all';
 
 const model = getBuiltinModel('openai', 'gpt-4o-mini'); // typed Model<'openai-responses'>
-const radius = getBuiltinModel('radius', 'balanced');   // typed Model<'evoharness-messages'>
+const model = getBuiltinModel('openai', 'gpt-6.1-sol');   // typed Model<'openai-completions'>
 const flux = getBuiltinImageModel('openrouter', 'black-forest-labs/flux.2-pro');
 const jev = getBuiltinClassifierModel('typesafe', 'jev-latest');
 const providers = getBuiltinProviders();
@@ -370,7 +369,6 @@ await models.refresh();                            // refresh all providers conc
 const fresh = models.getModel('llamacpp', 'qwen3-30b');
 ```
 
-Static built-in providers are no-ops for `refresh()`. Radius is both static and dynamic: it ships the public `radius.evoharness.dev` catalog for synchronous API lookup, then overlays cached and freshly fetched `/v1/config` models when refreshed with configured auth. See [createProvider()](#createprovider) for building a dynamic provider.
 
 ## Auth
 
@@ -453,7 +451,7 @@ await models.completeSimple(model, context, { identity: { attribution: null } })
   - NVIDIA NIM: `X-BILLING-INVOKE-ORIGIN: <name>` with its first letter upper-cased.
   - OpenCode: `x-opencode-client: <name>`.
 
-  `PI_ATTRIBUTION` is evoharness's: `{ name: "evoharness", url: "https://evoharness.dev", categories: ["cli-agent"] }`.
+  `EVOHARNESS_ATTRIBUTION` is evoharness's: `{ name: "evoharness", url: "https://evoharness.dev", categories: ["cli-agent"] }`.
 
 Identity headers are defaults below provider, model, and request headers, so configured headers win and a `null` request header removes one. Providers that send a fixed client identity, such as GitHub Copilot and Anthropic OAuth, keep it. `withClientIdentity(models, identity)` returns a wrapper of a `Models` (or `MutableModels`) whose requests use `identity` over the one the `Models` was created with, for libraries that receive a `Models` from their host. `identity` is plain JSON, so it can be persisted with other request options.
 
@@ -494,7 +492,6 @@ Built-in providers resolve these env vars (Node.js; in browsers pass `apiKey` ex
 | Ant Ling | `ANT_LING_API_KEY` |
 | Azure OpenAI | `AZURE_OPENAI_API_KEY` + `AZURE_OPENAI_BASE_URL` (e.g. `https://{resource}.ai.azure.com`) or `AZURE_OPENAI_RESOURCE_NAME`. Supports `*.openai.azure.com`, `*.cognitiveservices.azure.com` and `*.ai.azure.com`; root endpoints auto-normalize to `/openai/v1`. Optional: `AZURE_OPENAI_API_VERSION` (default `v1`), `AZURE_OPENAI_DEPLOYMENT_NAME_MAP`. |
 | Anthropic | `ANTHROPIC_API_KEY` or `ANTHROPIC_OAUTH_TOKEN` |
-| Radius | `RADIUS_API_KEY` |
 | TypeSafe | `TYPESAFE_API_KEY` |
 | DeepSeek | `DEEPSEEK_API_KEY` |
 | NVIDIA NIM | `NVIDIA_API_KEY` |
@@ -1769,7 +1766,7 @@ That explicit override bundles the AWS SDK. Without it, Bedrock's opaque runtime
 
 ### Provider-Scoped Environment Overrides
 
-Pass `env` in stream options to scope provider configuration to a request. Values in `env` are used before process environment variables for provider auth and configuration such as Cloudflare account IDs, Azure OpenAI settings, Vertex project/location, Bedrock settings, `PI_CACHE_RETENTION`, and `HTTP_PROXY`/`HTTPS_PROXY`.
+Pass `env` in stream options to scope provider configuration to a request. Values in `env` are used before process environment variables for provider auth and configuration such as Cloudflare account IDs, Azure OpenAI settings, Vertex project/location, Bedrock settings, `EVOHARNESS_CACHE_RETENTION`, and `HTTP_PROXY`/`HTTPS_PROXY`.
 
 ```typescript
 const models = builtinModels();
