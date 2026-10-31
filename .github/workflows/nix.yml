@@ -2,12 +2,11 @@ name: Nix
 
 # The flake builds with the model catalog revision pinned in
 # nix/model-catalog.json. This workflow keeps that pin usable independently of
-# releases: after evoharness.dev publishes a catalog from main, it replaces the pin with
-# the newest catalog only if the current one no longer hydrates main (for
-# example after a provider was added) or its provider/type/API model groups
-# differ from the newest catalog for one of main's providers (for example after
-# a provider gained classifier models or switched APIs), builds the flake, and
-# commits the new pin to main.
+# releases: it replaces the pin with the newest catalog only if the current one no
+# longer hydrates main (for example after a provider was added) or its
+# provider/type/API model groups differ from the newest catalog for one of main's
+# providers (for example after a provider gained classifier models or switched
+# APIs), builds the flake, and commits the new pin to main.
 #
 # Release tags are built exactly as tagged, with their committed pin. Once all
 # systems build, the stable branch is fast-forwarded to the tag so that
@@ -29,11 +28,6 @@ on:
       - 'packages/coding-agent/install-lock/**'
       - 'packages/ai/scripts/hydrate-model-catalog.ts'
       - 'scripts/update-model-catalog-pin.mjs'
-  workflow_run:
-    workflows:
-      - Publish Model Catalog
-    types:
-      - completed
   # Catches packaging drift from changes pushed to main without a pull request.
   schedule:
     - cron: '43 5 * * *'
@@ -47,7 +41,10 @@ concurrency:
 
 jobs:
   pin:
-    if: ${{ github.event_name != 'workflow_run' || (github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.head_branch == 'main') }}
+    # Opt-in: the flake build needs Nix on every matrix runner and a catalog pin that is
+    # refreshed by hand or by this job. Disabled by default so the scheduled run cannot go
+    # red on a repository that does not ship Nix builds yet.
+    if: ${{ vars.EVOHARNESS_NIX == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -80,14 +77,12 @@ jobs:
           else
             echo "updated=true" >> "${GITHUB_OUTPUT}"
             if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-              echo "::warning::The model catalog pin on main is stale; this build uses ${revision}. The pin is refreshed on main after evoharness.dev publishes a catalog."
+              echo "::warning::The model catalog pin on main is stale; this build uses ${revision}. Run npm run update:model-catalog-pin on main to refresh it."
             fi
           fi
 
   build:
     needs: pin
-    # After a catalog publication, only build when the pin changed.
-    if: ${{ github.event_name != 'workflow_run' || needs.pin.outputs.updated == 'true' }}
     strategy:
       fail-fast: false
       matrix:

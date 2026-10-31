@@ -20,10 +20,9 @@ jobs:
             const TO_DISCUSS_LABEL = 'to-discuss';
             const INPROGRESS_LABEL = 'inprogress';
             // Applying one of these labels assigns the user and reopens the issue if it is closed.
+            // Add entries here once those accounts exist; assigning an unknown user or an org
+            // makes the GitHub API call fail, which turns this workflow red.
             const LABEL_ASSIGNEES = new Map([
-              ['mcp', 'mitsuhiko'],
-              ['codemode', 'mitsuhiko'],
-              ['durable', 'EvoHarness-AI'],
             ]);
 
             function issueHasLabel(issue, labelName) {

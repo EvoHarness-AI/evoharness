@@ -1,4 +1,4 @@
-name: evoharness-env daemons
+name: Env Daemons
 
 # Builds the evoharness-env daemon for every remote system @evoharness/env supports, on native runners, as artifacts
 # named evoharness-env-<platform>-<arch>. Build Binaries calls this before publishing npm packages; the Environments workflow

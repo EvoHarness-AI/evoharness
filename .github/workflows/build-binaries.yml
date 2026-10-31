@@ -312,6 +312,11 @@ jobs:
   publish-npm:
     runs-on: ubuntu-latest
     needs: [stage-github-release, env-daemons]
+    # Publishing needs npm trusted publishing (environment `npm-publish`) and the R2
+    # credentials used by the release announcement. Both are opt-in: set the repository
+    # variable EVOHARNESS_RELEASE_PUBLISH to `true` once they exist, otherwise the job is
+    # skipped and the run stays green.
+    if: ${{ vars.EVOHARNESS_RELEASE_PUBLISH == 'true' }}
     environment: npm-publish
     permissions:
       contents: read
@@ -386,20 +391,20 @@ jobs:
       - name: Publish npm packages
         run: node scripts/publish.mjs
 
-  announce-evoharness-dev-release:
+  announce-release:
     runs-on: ubuntu-latest
     needs: publish-npm
     environment: evoharness-model-upload
     concurrency:
-      group: announce-evoharness-dev-release
+      group: announce-release
       cancel-in-progress: false
     permissions:
       contents: read
     env:
       RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
       SOURCE_REF: ${{ github.event.inputs.source_ref || github.event.inputs.tag || github.ref_name }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.PI_ARTIFACTS_R2_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.PI_ARTIFACTS_R2_SECRET_ACCESS_KEY }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.EVOHARNESS_ARTIFACTS_R2_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.EVOHARNESS_ARTIFACTS_R2_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: auto
       AWS_EC2_METADATA_DISABLED: 'true'
       R2_ENDPOINT: https://67c0d357268b0fca6e0b465bb9d01b84.r2.cloudflarestorage.com
@@ -418,7 +423,7 @@ jobs:
       - name: Verify AWS CLI
         run: aws --version
 
-      - name: Announce verified release on evoharness.dev
+      - name: Announce verified release
         run: |
           node scripts/publish-release-announcement.mjs \
             --version "${RELEASE_TAG#v}" \
@@ -432,7 +437,7 @@ jobs:
     needs:
       - stage-github-release
       - publish-npm
-      - announce-evoharness-dev-release
+      - announce-release
     permissions:
       contents: write
     env:
@@ -463,9 +468,9 @@ jobs:
       - build
       - stage-github-release
       - publish-npm
-      - announce-evoharness-dev-release
+      - announce-release
       - publish-github-release
-    if: ${{ always() && needs.stage-github-release.result != 'skipped' && (needs.stage-github-release.result != 'success' || needs.publish-npm.result != 'success' || needs.announce-evoharness-dev-release.result != 'success' || needs.publish-github-release.result != 'success') }}
+    if: ${{ always() && needs.stage-github-release.result != 'skipped' && (needs.stage-github-release.result != 'success' || needs.publish-npm.result != 'success' || needs.announce-release.result != 'success' || needs.publish-github-release.result != 'success') }}
     permissions:
       contents: write
     env:

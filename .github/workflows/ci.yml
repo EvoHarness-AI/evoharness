@@ -27,9 +27,9 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Build
-        run: npm run build
+        run: npm run build:offline
 
-      # Previews are published for main and PRs from branches of this repo only (see preview-packages.yml).
+      # Packed tarballs are kept as a build artifact for manual testing; nothing publishes them.
       - name: Pack preview packages
         if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
         env:
@@ -82,7 +82,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Build
-        run: npm run build
+        run: npm run build:offline
 
       - name: Build the evoharness-env daemon
         if: matrix.name == 'other'

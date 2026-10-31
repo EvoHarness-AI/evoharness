@@ -1,4 +1,4 @@
-name: npm audit
+name: npm Audit
 
 on:
   schedule:

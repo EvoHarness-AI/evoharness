@@ -1,11 +1,11 @@
 name: Package Report
-description: Report a problematic EvoHarness package listed on evoharness.dev
+description: Report a problematic EvoHarness package
 labels: ["package-report"]
 body:
   - type: markdown
     attributes:
       value: |
-        Use this form to report a package listed on evoharness.dev. For EvoHarness core bugs, use the bug report template instead.
+        Use this form to report a published EvoHarness package. For EvoHarness core bugs, use the bug report template instead.
 
         New issues from new contributors are auto-closed by default. Maintainers review auto-closed issues daily. Issues that do not meet the quality bar in [CONTRIBUTING.md](https://github.com/EvoHarness-AI/evoharness/blob/main/CONTRIBUTING.md) will not be reopened or receive a reply.
 
@@ -15,7 +15,7 @@ body:
     id: package-name
     attributes:
       label: Package name
-      description: The npm package name from evoharness.dev.
+      description: The npm package name.
       placeholder: "@scope/package"
     validations:
       required: true
@@ -24,7 +24,7 @@ body:
     id: package-version
     attributes:
       label: Version
-      description: The package version shown on evoharness.dev.
+      description: The published package version.
       placeholder: "0.1.0"
     validations:
       required: false

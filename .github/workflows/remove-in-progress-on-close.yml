@@ -1,4 +1,4 @@
-name: Remove In Progress Label On Close
+name: Remove In Progress Label on Close
 
 on:
   issues:
