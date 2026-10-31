@@ -130,3 +130,13 @@
 **影响面**：Node 侧语义零变化（原生动态 import 原样保留，Node 自行解析 `node:` 内建）；浏览器侧不执行该路径，`fileExists` 在浏览器由调用方的 try/catch 兜住。打包含义：webpack/Turbopack 不再为它建上下文，`node:fs/promises`、`node:os` 由运行时解析。
 
 **兜底**：`apps/evoharness-web` 的 3030 个单测全量通过；浏览器冒烟覆盖 `/api/sessions`、`/api/home`、模型列表与调度器启动（`check:web` 之外的运行时验证）。
+
+## D-010 · A · 根 TypeScript 7.0.2 → 6.0.3
+
+**改了什么**：根 devDependencies 的 `typescript` 从 7.0.2 降到 6.0.3；`check-ts-relative-imports.mjs` 与 `check-runtime-deps.mjs` 两个守卫从 `typescript/unstable/ast` + tsgo transformer API（`API.updateSnapshot`）重写为 TS 稳定 API（`createSourceFile` / `createProgram` + 经典 is* 守卫）。
+
+**为什么**：`@evoharness/web` 的 eslint 链（eslint-config-next 内嵌 typescript-eslint 8.72）peer 上限 `<6.1.0`，在 TS 7 下拒绝加载，4.8 万行移植代码从未被 lint。权衡过三条路：降级根 TS（本条）、npm overrides 强制 peer（实测无效）、eslint 永久豁免（守卫缺口）。上游桌面仓（pi-web）独立成仓就是为了避开这个冲突——它整仓只有 TS 5.9.3。
+
+**影响面**：根 `tsc --noEmit` 在 TS 6 下零错误（实测）；两个守卫语义不变（同一批 AST 检查，换 API 实现）；packages 构建由 TS 6 编译（erasure 语义一致）。失去 TS 7 的构建加速与 `unstable/ast` API——若未来需要，回到 TS 7 的前提是 typescript-eslint 发布 TS 7 支持。
+
+**兜底**：全链 `npm run check`（含重写后的两守卫与 app eslint）；`npm run test:web` 3030 用例；`build:offline` 以 TS 6 重编全部包。
