@@ -3,7 +3,7 @@
  * and the desktop WebView so prefs survive reloads. Theme is additionally
  * mirrored into the desktop app config dir (see `lib/host.ts` `setUiTheme`)
  * so cold starts keep the choice even if the local server port / origin
- * changes. Key namespace rules live in `lib/app-keys.ts`.
+ * changes. The evoharness-* namespace is guarded by scripts/check-web-names.mjs.
  */
 
 export const APP_PREF_KEYS = {
