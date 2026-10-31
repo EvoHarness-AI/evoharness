@@ -17,6 +17,7 @@
 | `tui` | `@evoharness/tui` | 终端渲染原语：差分渲染、editor、layout、keybindings | `platform`；应用壳是 `surface-tui` |
 | `telemetry` | `@evoharness/telemetry` | 遥测契约与 typed schema，含内存 / 测试 adapter | `platform`，不迁移 |
 | `evals` | `@evoharness/evals` | 评测夹具与运行器：`evals/*.eval.ts`、docker 沙箱、报告 | `platform` |
+| （app）`apps/evoharness-web` | `@evoharness/web`（private） | Web UI：本地 Next.js 服务，浏览器里跑完整 agent（会话 / 流式 / 定时任务 / MCP / 终端）；只经 `@evoharness/*` 公共导出消费内核（dist-first，见 `apps/evoharness-web/docs/spec.md`） | vendored 移植体，不适用逐行迁移表；桌面壳（Electron）是后续阶段 |
 
 ## `coding-agent` 内部（日常改动最常落到这里）
 

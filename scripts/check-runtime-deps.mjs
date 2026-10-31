@@ -2,20 +2,9 @@
 
 import { existsSync, readFileSync } from "node:fs";
 import { isBuiltin } from "node:module";
-import { isAbsolute, join, relative, resolve } from "node:path";
-import { SyntaxKind } from "typescript/unstable/ast";
-import {
-	isCallExpression,
-	isExportDeclaration,
-	isIdentifier,
-	isImportDeclaration,
-	isNamedExports,
-	isNamedImports,
-	isNoSubstitutionTemplateLiteral,
-	isPropertyAccessExpression,
-	isStringLiteral,
-} from "typescript/unstable/ast/is";
-import { API } from "typescript/unstable/sync";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import ts from "typescript";
+import process from "node:process";
 import { getPublicWorkspacePackages } from "./release-packages.mjs";
 
 // Packages without tsconfig.build.json are checked against a synthetic config.
@@ -33,7 +22,7 @@ function checkSource(source, manifest) {
 	]);
 
 	function checkSpecifier(node) {
-		if (!node || !(isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node))) return;
+		if (!node || !(ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node))) return;
 		const specifier = node.text;
 		// `cloudflare:` modules are built into the Workers runtime, like `node:` modules are into Node.
 		if (
@@ -51,35 +40,35 @@ function checkSource(source, manifest) {
 	}
 
 	function visit(node) {
-		if (isImportDeclaration(node)) {
+		if (ts.isImportDeclaration(node)) {
 			const clause = node.importClause;
 			const bindings = clause?.namedBindings;
 			if (
 				!clause ||
-				(clause.phaseModifier !== SyntaxKind.TypeKeyword &&
+				(!clause.isTypeOnly &&
 					(clause.name ||
 						!bindings ||
-						!isNamedImports(bindings) ||
+						!ts.isNamedImports(bindings) ||
 						bindings.elements.length === 0 ||
 						bindings.elements.some((element) => !element.isTypeOnly)))
 			) {
 				checkSpecifier(node.moduleSpecifier);
 			}
-		} else if (isExportDeclaration(node) && !node.isTypeOnly) {
+		} else if (ts.isExportDeclaration(node) && !node.isTypeOnly) {
 			const clause = node.exportClause;
 			if (
 				!clause ||
-				!isNamedExports(clause) ||
+				!ts.isNamedExports(clause) ||
 				clause.elements.length === 0 ||
 				clause.elements.some((element) => !element.isTypeOnly)
 			) {
 				checkSpecifier(node.moduleSpecifier);
 			}
 		} else if (
-			isCallExpression(node) &&
-			(node.expression.kind === SyntaxKind.ImportKeyword ||
-				(isIdentifier(node.expression) && node.expression.text === "require") ||
-				(isPropertyAccessExpression(node.expression) && node.expression.getText(source) === "require.resolve"))
+			ts.isCallExpression(node) &&
+			(node.expression.kind === ts.SyntaxKind.ImportKeyword ||
+				(ts.isIdentifier(node.expression) && node.expression.text === "require") ||
+				(ts.isPropertyAccessExpression(node.expression) && node.expression.getText(source) === "require.resolve"))
 		) {
 			checkSpecifier(node.arguments[0]);
 		}
@@ -94,43 +83,54 @@ const packages = getPublicWorkspacePackages()
 	.map(({ directory, sourceDirectory }) => {
 		const configPath = resolve(directory, "tsconfig.build.json");
 		return {
+			directory,
 			sourceDirectory,
 			manifest: JSON.parse(readFileSync(join(directory, "package.json"), "utf8")),
 			configPath: existsSync(configPath) ? configPath : resolve(directory, fallbackConfigName),
 		};
 	});
 
-const fallbackConfigs = new Set(
-	packages.map(({ configPath }) => configPath).filter((path) => path.endsWith(fallbackConfigName)),
-);
-const api = new API({
-	cwd: process.cwd(),
-	fs: {
-		fileExists: (fileName) => (fallbackConfigs.has(resolve(fileName)) ? true : undefined),
-		readFile: (fileName) => (fallbackConfigs.has(resolve(fileName)) ? fallbackConfig : undefined),
-	},
-});
-try {
-	const snapshot = api.updateSnapshot({ openProjects: packages.map(({ configPath }) => configPath) });
-	for (const { sourceDirectory, manifest, configPath } of packages) {
-		const project = snapshot.getProject(configPath);
-		const diagnostics = project.program.getConfigFileParsingDiagnostics();
-		if (diagnostics.length > 0) throw new Error(diagnostics.map((diagnostic) => diagnostic.text).join("\n"));
-		const roots = new Set(project.rootFiles.map((file) => resolve(file)));
-		for (const fileName of project.program.getSourceFileNames()) {
-			if (fileName.endsWith(".d.ts") || fileName.endsWith(".json")) continue;
-			const path = relative(sourceDirectory, resolve(fileName));
-			if (path.startsWith("..") || isAbsolute(path)) continue;
-			// TypeScript's exclude only filters roots: imports can pull excluded files
-			// back into the build. Reject that too, including type-only imports.
-			if (!roots.has(resolve(fileName))) {
-				failures.push(`${fileName} is excluded from ${manifest.name}'s build but imported by it`);
-			}
-			checkSource(project.program.getSourceFile(fileName), manifest);
+for (const { directory, sourceDirectory, manifest, configPath } of packages) {
+	const configFileParsingDiagnostics = [];
+	let fileNames;
+	let options;
+	if (configPath.endsWith(fallbackConfigName)) {
+		// Synthetic config (never on disk): the include pattern is relative to the package.
+		const parsed = ts.parseJsonConfigFileContent(
+			JSON.parse(fallbackConfig),
+			ts.sys,
+			directory,
+			/* existingErrors */ undefined,
+			configPath,
+		);
+		fileNames = parsed.fileNames;
+		options = parsed.options;
+	} else {
+		const readResult = ts.readConfigFile(configPath, ts.sys.readFile);
+		if (readResult.error) {
+			throw new Error(ts.flattenDiagnosticMessageText(readResult.error.messageText, "\n"));
 		}
+		const parsed = ts.parseJsonConfigFileContent(readResult.config, ts.sys, dirname(configPath));
+		fileNames = parsed.fileNames;
+		options = parsed.options;
 	}
-} finally {
-	api.close();
+	if (configFileParsingDiagnostics.length > 0) {
+		throw new Error(configFileParsingDiagnostics.join("\n"));
+	}
+	const program = ts.createProgram(fileNames, { ...options, noEmit: true });
+	const roots = new Set(program.getRootFileNames().map((file) => resolve(file)));
+	for (const sourceFile of program.getSourceFiles()) {
+		const fileName = resolve(sourceFile.fileName);
+		if (fileName.endsWith(".d.ts") || fileName.endsWith(".json")) continue;
+		const path = relative(sourceDirectory, fileName);
+		if (path.startsWith("..") || isAbsolute(path)) continue;
+		// TypeScript's exclude only filters roots: imports can pull excluded files
+		// back into the build. Reject that too, including type-only imports.
+		if (!roots.has(fileName)) {
+			failures.push(`${sourceFile.fileName} is excluded from ${manifest.name}'s build but imported by it`);
+		}
+		checkSource(sourceFile, manifest);
+	}
 }
 
 if (failures.length > 0) {

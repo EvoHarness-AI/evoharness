@@ -174,7 +174,7 @@ bottom. Touch sizing changes the shared `--composer-send-size`, so both radii up
 
 ## After an upstream merge
 
-1. `npm test`. A failing `upstream-css-baseline` test means fork rules crept back into an
+1. 保留上游语境：上游用 `npm test` + `upstream-css-baseline` 测试拦截（该基线工具未随移植带入）；本地对应的守卫是根仓 `check:web` 与 `check-file-size` 的 vendored 豁免注释。A failing rule means fork rules crept back into an
    upstream file: move them here and restore the file. `fork-extractions.test.mjs` catches a
    dropped `native-theme.css` import or a reverted component.
 2. Any new upstream UI renders with upstream defaults. Attach classNames and style it here.

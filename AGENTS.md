@@ -42,6 +42,31 @@ Binding for `packages/chord/src/next/` and its tests, when writing and when revi
 - `docs/next/` was deleted by the rebrand commit `9990dcb` and restored from `9990dcb^`. The omitted `*/book.md` concatenations and `index.html` renders stay in git history: take them from there when needed instead of re-adding generated files. In `slices.md`, "What exists" is a ledger; the code and `git log` decide what exists.
 - Before reporting: re-read every changed file top to bottom as a stranger would; each file must be understandable without jumping around. Then `npm run check` and the layer's tests.
 
+## Web app (apps/evoharness-web)
+
+`apps/evoharness-web` is a vendored port of a Next.js web UI on top of the
+`@evoharness/*` packages (governing spec: `apps/evoharness-web/docs/spec.md`).
+Rules that differ from the rest of the repo:
+
+- **dist-first**: the app consumes only the `@evoharness/*` public exports,
+  which resolve to built `dist/`. Run the root `npm run build` after changing
+  anything under `packages/*/src`, or the app runs stale code. Never import
+  `packages/*/src` (guarded by `check:web-boundary`).
+- **packages/\*\* is read-only** for app work; the reverse import (packages →
+  app) is also forbidden. Both directions are guarded.
+- **Own toolchain**: the app has its own eslint/tsconfig/node-test setup; root
+  Biome and root tsc do not cover it. Gates: `npm run check:web` (static) and
+  `npm run test:web` (~3000 ported unit tests). The rename-residue and
+  boundary guards fail on upstream tokens (`pi-web`, `PI_*`, `@earendil-works`,
+  …); deliberate allowances live in `scripts/check-web-names.mjs` with reasons.
+- **dev is webpack, not Turbopack**: `next dev --webpack`. Turbopack bundles
+  workspace-symlinked packages listed in `serverExternalPackages` instead of
+  externalizing them, which breaks the server graph at runtime.
+- File-size ratchet and ts-import conventions do not apply inside the app
+  (vendored subtree; see the exemption comments in the guard scripts).
+- The Electron desktop shell is a deliberate later phase; `lib/host.ts` is the
+  only seam allowed to talk to a shell.
+
 ## Commands
 
 - After code changes (not docs): `npm run check` (full output, no tail). Fix all errors, warnings, and infos before committing. Does not run tests.

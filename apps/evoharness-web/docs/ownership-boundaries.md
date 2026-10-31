@@ -40,7 +40,7 @@ What is dangerous is **structural** drift: rewritten JSX trees, new components s
 into upstream files, and logic moved across file boundaries. Those merge *cleanly* while
 being wrong.
 
-`npm run drift` measures the split and flags any file whose recorded risk no longer
+上游用 `npm run drift` 量化分离度（脚本未随移植带入）。本仓的对应约束：packages 侧零 diff 由评审执行，app 侧由 `check-web-boundary` 守。上游原文：`npm run drift` measures the split and flags any file whose recorded risk no longer
 matches:
 
 ```
@@ -127,7 +127,7 @@ In order of preference:
    inline style is unavoidable (a stylesheet cannot override it) and is not a boundary
    violation; leaving the JSX shape untouched is the part that matters.
    `app/globals.css` and `app/settings.css` stay byte-identical to upstream — never edit
-   them; `scripts/upstream-css-baseline.test.mjs` enforces it. `native-theme.css` is
+   them; （上游以 `scripts/upstream-css-baseline.test.mjs` 强制，未随移植带入。） `native-theme.css` is
    imported after both in `app/layout.tsx` so equal-specificity rules win. Where a rule
    goes inside the theme, and the design intent to restore after a merge, is in
    [native-theme.md](native-theme.md).

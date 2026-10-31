@@ -106,6 +106,8 @@ jobs:
           done
           npm run test:scripts
           npm run test --if-present "${args[@]}"
+          # The vendored web app (apps/evoharness-web) is outside the packages loop.
+          npm run test:web
 
   mcp-conformance:
     runs-on: ubuntu-latest

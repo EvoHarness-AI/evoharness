@@ -1,16 +1,9 @@
-import { readdirSync } from "node:fs";
+#!/usr/bin/env node
+
+import { readFileSync, readdirSync } from "node:fs";
 import { join, relative, resolve, sep } from "node:path";
-import { SyntaxKind } from "typescript/unstable/ast";
-import {
-	isCallExpression,
-	isExportDeclaration,
-	isImportDeclaration,
-	isImportTypeNode,
-	isLiteralTypeNode,
-	isNoSubstitutionTemplateLiteral,
-	isStringLiteral,
-} from "typescript/unstable/ast/is";
-import { API } from "typescript/unstable/sync";
+import ts from "typescript";
+import process from "node:process";
 
 const ignoredDirectories = new Set([".git", "coverage", "dist", "node_modules"]);
 // apps/evoharness-web is a vendored fork port (docs/plan/web-frontend-spec.md):
@@ -39,71 +32,52 @@ function collectTypescriptFiles(directory) {
 }
 
 function isStringLiteralLike(node) {
-	return node !== undefined && (isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node));
+	return node !== undefined && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node));
 }
 
 function isRelativeJavaScriptSpecifier(specifier) {
 	return /^\.\.?\//.test(specifier) && /\.js(?:[?#].*)?$/.test(specifier);
 }
 
-function getImportTypeSpecifier(node) {
-	if (!isLiteralTypeNode(node.argument)) return undefined;
-	if (!isStringLiteralLike(node.argument.literal)) return undefined;
-	return node.argument.literal;
-}
-
 const failures = [];
 
 collectTypescriptFiles(".");
 
-// Parse every file through one synthetic project. noResolve keeps the program to exactly these files.
-const configPath = resolve("tsconfig.check-ts-relative-imports.json");
-const config = JSON.stringify({
-	compilerOptions: { noResolve: true, noLib: true, types: [] },
-	files: files.map((file) => resolve(file)),
-});
-const api = new API({
-	cwd: process.cwd(),
-	fs: {
-		fileExists: (fileName) => (resolve(fileName) === configPath ? true : undefined),
-		readFile: (fileName) => (resolve(fileName) === configPath ? config : undefined),
-	},
-});
+for (const file of files.sort()) {
+	const sourceFile = ts.createSourceFile(
+		file,
+		readFileSync(file, "utf8"),
+		ts.ScriptTarget.Latest,
+		/* setParentNodes */ true,
+	);
 
-try {
-	const program = api.updateSnapshot({ openProjects: [configPath] }).getProject(configPath).program;
-	for (const file of files.sort()) {
-		const sourceFile = program.getSourceFile(resolve(file));
-
-		function checkSpecifier(node) {
-			if (!isRelativeJavaScriptSpecifier(node.text)) return;
-			const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
-			failures.push(`${relative(".", file)}:${line + 1}:${character + 1}: ${node.text}`);
-		}
-
-		function visit(node) {
-			if (isImportDeclaration(node) && isStringLiteralLike(node.moduleSpecifier)) {
-				checkSpecifier(node.moduleSpecifier);
-			} else if (isExportDeclaration(node) && isStringLiteralLike(node.moduleSpecifier)) {
-				checkSpecifier(node.moduleSpecifier);
-			} else if (
-				isCallExpression(node) &&
-				node.expression.kind === SyntaxKind.ImportKeyword &&
-				isStringLiteralLike(node.arguments[0])
-			) {
-				checkSpecifier(node.arguments[0]);
-			} else if (isImportTypeNode(node)) {
-				const specifier = getImportTypeSpecifier(node);
-				if (specifier) checkSpecifier(specifier);
-			}
-
-			node.forEachChild(visit);
-		}
-
-		visit(sourceFile);
+	function checkSpecifier(node) {
+		if (!isRelativeJavaScriptSpecifier(node.text)) return;
+		const { line, character } = sourceFile.getLineAndCharacterOfPosition(node.getStart(sourceFile));
+		failures.push(`${relative(".", file)}:${line + 1}:${character + 1}: ${node.text}`);
 	}
-} finally {
-	api.close();
+
+	function visit(node) {
+		if (ts.isImportDeclaration(node) && isStringLiteralLike(node.moduleSpecifier)) {
+			checkSpecifier(node.moduleSpecifier);
+		} else if (ts.isExportDeclaration(node) && isStringLiteralLike(node.moduleSpecifier)) {
+			checkSpecifier(node.moduleSpecifier);
+		} else if (
+			ts.isCallExpression(node) &&
+			node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+			isStringLiteralLike(node.arguments[0])
+		) {
+			checkSpecifier(node.arguments[0]);
+		} else if (ts.isImportTypeNode(node)) {
+			if (isStringLiteralLike(node.argument) && ts.isLiteralTypeNode(node.argument)) {
+				checkSpecifier(node.argument.literal);
+			}
+		}
+
+		node.forEachChild(visit);
+	}
+
+	visit(sourceFile);
 }
 
 if (failures.length > 0) {
