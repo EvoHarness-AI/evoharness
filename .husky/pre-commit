@@ -41,7 +41,7 @@ fi
 if [ -d apps/evoharness-web ]; then
   for file in $STAGED_FILES; do
     case "$file" in
-      apps/evoharness-web/*|package.json|package-lock.json|scripts/check-web-*.mjs)
+      apps/evoharness-web/*|scripts/check-web-*.mjs)
         echo "Checking apps/evoharness-web..."
         npm run check:web
         if [ $? -ne 0 ]; then

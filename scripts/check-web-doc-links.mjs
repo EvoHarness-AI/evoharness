@@ -47,7 +47,8 @@ for (const docPath of docs) {
 		if (target.startsWith("#") || target.startsWith("/")) continue;
 		const withoutAnchor = target.split("#")[0];
 		if (withoutAnchor === "") continue;
-		const resolved = join(APP, docPath, "..", decodeURIComponent(withoutAnchor));
+		const docDir = docPath.includes("/") ? join(APP, docPath, "..") : APP;
+		const resolved = join(docDir, decodeURIComponent(withoutAnchor));
 		if (!existsSync(resolved) || !statSync(resolved).isFile()) {
 			failures.push(`${docPath}: ${target} (resolved to ${relative(APP, resolved).split(sep).join("/")})`);
 		}
