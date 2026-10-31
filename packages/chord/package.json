@@ -1,6 +1,6 @@
 {
 	"name": "@evoharness/chord",
-	"version": "0.2.0",
+	"version": "0.0.2",
 	"description": "Typed host runtime for plugins, contracts, replicated state, and RPC over JSON links",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -90,7 +90,7 @@
 		"node": ">=22.19.0"
 	},
 	"dependencies": {
-		"@evoharness/telemetry": "0.2.0",
+		"@evoharness/telemetry": "0.0.2",
 		"typebox": "1.3.27"
 	},
 	"peerDependencies": {

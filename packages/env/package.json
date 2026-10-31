@@ -1,6 +1,6 @@
 {
 	"name": "@evoharness/env",
-	"version": "0.2.0",
+	"version": "0.0.2",
 	"description": "Remote execution environments for EvoHarness Durable: a small daemon deployed over SSH and its ExecutionEnv client",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -45,8 +45,8 @@
 		"node": ">=22.19.0"
 	},
 	"dependencies": {
-		"@evoharness/chord": "0.2.0",
-		"@evoharness/durable": "0.2.0"
+		"@evoharness/chord": "0.0.2",
+		"@evoharness/durable": "0.0.2"
 	},
 	"devDependencies": {
 		"shx": "0.3.4",
