@@ -80,7 +80,7 @@ function commonBuildOptions() {
 		absWorkingDir: repoRoot,
 		banner,
 		bundle: true,
-		define: { PI_BUNDLED_NODE: "true" },
+		define: { EVOHARNESS_BUNDLED_NODE: "true" },
 		external: ["@silvia-odwyer/photon-node"],
 		format: "esm",
 		legalComments: "none",
@@ -188,7 +188,6 @@ const lazyEntryPoints = {
 	"openai-chatgpt": join(aiDistDir, "auth", "oauth", "openai-chatgpt.js"),
 	"openai-codex": join(aiDistDir, "auth", "oauth", "openai-codex.js"),
 	openrouter: join(aiDistDir, "auth", "oauth", "openrouter.js"),
-	radius: join(aiDistDir, "auth", "oauth", "radius.js"),
 	xai: join(aiDistDir, "auth", "oauth", "xai.js"),
 };
 
