@@ -5,7 +5,11 @@ let _join: typeof import("node:path").join | null = null;
 
 type DynamicImport = (specifier: string) => Promise<unknown>;
 
-const dynamicImport: DynamicImport = (specifier) => import(specifier);
+// The ignore comments keep webpack/Turbopack from building an empty dynamic
+// context for the variable specifier on the server (evoharness-web's routes
+// hit it on every load); Node resolves the `node:` builtins natively.
+const dynamicImport: DynamicImport = (specifier) =>
+	import(/* webpackIgnore: true */ /* turbopackIgnore: true */ specifier);
 const NODE_FS_SPECIFIER = "node:" + "fs";
 const NODE_OS_SPECIFIER = "node:" + "os";
 const NODE_PATH_SPECIFIER = "node:" + "path";

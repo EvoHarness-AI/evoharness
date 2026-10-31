@@ -9,7 +9,11 @@ interface NodeOsModule {
 }
 
 // Variable specifier so browser bundlers do not try to resolve node builtins.
-const importNodeModule = (specifier: string): Promise<unknown> => import(specifier);
+// The ignore comments keep webpack/Turbopack from building an empty dynamic
+// context for it on the server, where `node:` builtins must stay native
+// dynamic imports (evoharness-web's instrumentation and routes hit this).
+const importNodeModule = (specifier: string): Promise<unknown> =>
+	import(/* webpackIgnore: true */ /* turbopackIgnore: true */ specifier);
 
 function getProcessEnv(): Record<string, string | undefined> | undefined {
 	const proc = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process;
