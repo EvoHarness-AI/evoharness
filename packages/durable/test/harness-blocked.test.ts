@@ -9,7 +9,7 @@ import {
 	type Storage,
 	type TaskId,
 	type Wake,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it } from "vitest";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";
 import { commitWrites } from "../src/testing/commit-writes.ts";

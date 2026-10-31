@@ -2,7 +2,7 @@ import { createHash } from "node:crypto";
 import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type OAuthChallenge, OAuthIssuerMismatchError } from "@earendil-works/pi-mcp/oauth";
+import { type OAuthChallenge, OAuthIssuerMismatchError } from "@evoharness/mcp/oauth";
 import { afterEach, describe, expect, it } from "vitest";
 import { InMemoryAuthStorageBackend } from "../src/core/auth-storage.ts";
 import {
@@ -196,19 +196,19 @@ describe("MCP OAuth client ID metadata documents", () => {
 		const { server, store, signIn } = await startServer({ cimd: true, issParameter: true });
 		await signIn({});
 		const [authorization] = server.authorizations;
-		expect(authorization.get("client_id")).toBe("https://pi.dev/oauth/client.json");
+		expect(authorization.get("client_id")).toBe("https://evoharness.dev/oauth/client.json");
 		const redirect = new URL(authorization.get("redirect_uri") ?? "");
 		expect(`${redirect.hostname}${redirect.pathname}`).toBe("127.0.0.1/callback");
 		expect(redirect.port).not.toBe("");
 		expect(server.registrations).toEqual([]);
-		expect(server.tokenRequests[0].get("client_id")).toBe("https://pi.dev/oauth/client.json");
+		expect(server.tokenRequests[0].get("client_id")).toBe("https://evoharness.dev/oauth/client.json");
 		expect(server.tokenRequests[0].get("redirect_uri")).toBe(redirect.href);
 		// The document is not stored, so signing in again refreshes the tokens instead of discarding them.
 		expect((await store.load())?.clientInformation).toBeUndefined();
 		await signIn({});
 		expect(server.authorizations).toHaveLength(1);
 		expect(server.tokenRequests[1].get("grant_type")).toBe("refresh_token");
-		expect(server.tokenRequests[1].get("client_id")).toBe("https://pi.dev/oauth/client.json");
+		expect(server.tokenRequests[1].get("client_id")).toBe("https://evoharness.dev/oauth/client.json");
 	});
 
 	// #11426
@@ -244,7 +244,7 @@ describe("MCP OAuth client ID metadata documents", () => {
 		// Computed like Codex: the first 9 bytes of the SHA-256 of the MCP server URL.
 		const id = createHash("sha256").update(server.url).digest().subarray(0, 9).toString("base64url");
 		const [authorization] = server.authorizations;
-		expect(authorization.get("client_id")).toBe(`https://pi.dev/oauth/${id}/client.json`);
+		expect(authorization.get("client_id")).toBe(`https://evoharness.dev/oauth/${id}/client.json`);
 		const redirect = new URL(authorization.get("redirect_uri") ?? "");
 		expect(redirect.pathname).toBe(`/callback/${id}`);
 		expect(server.registrations).toEqual([]);
@@ -259,7 +259,7 @@ describe("MCP OAuth client ID metadata documents", () => {
 		// The registered client's tokens are not refreshed with another client.
 		expect(server.authorizations.map((authorization) => authorization.get("client_id"))).toEqual([
 			"client-1",
-			"https://pi.dev/oauth/client.json",
+			"https://evoharness.dev/oauth/client.json",
 		]);
 		expect((await store.load())?.clientInformation).toBeUndefined();
 	});

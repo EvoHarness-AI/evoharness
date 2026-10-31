@@ -10,7 +10,7 @@ import {
 	type Storage,
 	type TaskId,
 	type TaskRuntime,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it } from "vitest";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";
 import { context } from "./session-support.ts";

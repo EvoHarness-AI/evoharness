@@ -22,7 +22,7 @@ Call `pi.registerProvider()` from the extension factory. Pi waits for asynchrono
 
 There are two registration forms:
 
-- Register a complete `Provider` from `@earendil-works/pi-ai` for native authentication, filtering, discovery, refresh, and streaming behavior.
+- Register a complete `Provider` from `@evoharness/ai` for native authentication, filtering, discovery, refresh, and streaming behavior.
 - Register a provider name with `ProviderConfig` for the legacy configuration form used by existing extensions.
 
 Prefer a complete provider for new integrations that own more than static endpoint and model metadata. Pi composes `models.json` overrides above a registered native provider.
@@ -34,7 +34,7 @@ Registering only `baseUrl` or `headers` for an existing provider preserves its b
 Register only the fields that should change. This keeps the provider's built-in catalog, authentication, API implementation, and compatibility settings:
 
 ```typescript
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 
 export default function (pi: ExtensionAPI) {
   pi.registerProvider("anthropic", {
@@ -53,7 +53,7 @@ Use this form for a proxy or gateway that preserves the upstream protocol. Do no
 When a service implements a supported protocol but has its own model catalog, register the endpoint and only the models the service actually exposes:
 
 ```typescript
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 
 export default function (pi: ExtensionAPI) {
   pi.registerProvider("acme", {
@@ -173,7 +173,7 @@ This is safer than copying a stream implementation because it preserves Pi’s m
 
 ## Implement custom streaming
 
-Implement `streamSimple` only when no existing API implementation can represent the service. Study the implementations under [`packages/ai/src/api`](https://github.com/earendil-works/pi/tree/main/packages/ai/src/api) first.
+Implement `streamSimple` only when no existing API implementation can represent the service. Study the implementations under [`packages/ai/src/api`](https://github.com/EvoHarness-AI/evoharness/tree/main/packages/ai/src/api) first.
 
 The stream receives a normalized `TranscriptContext`. System prompts and tool declarations live in transcript system messages, so read them with `getCurrentSystemPrompt(context.messages)` and `getCurrentTools(context.messages)` rather than expecting `context.systemPrompt` or `context.tools`. A model that supports mid-conversation system messages can receive them in place; otherwise call `collapseSystemMessages(context)` to fold later system messages into the leading one.
 
@@ -222,6 +222,6 @@ Test at least:
 - cross-provider session handoff
 - authentication refresh and cancellation
 
-The provider tests under [`packages/ai/test`](https://github.com/earendil-works/pi/tree/main/packages/ai/test) define the behavior expected from built-in providers. Adapt the relevant suites rather than relying only on manual prompts.
+The provider tests under [`packages/ai/test`](https://github.com/EvoHarness-AI/evoharness/tree/main/packages/ai/test) define the behavior expected from built-in providers. Adapt the relevant suites rather than relying only on manual prompts.
 
 Run the extension directly while developing, then move it to a discovered extension location or distribute it through a [Pi package](packages.md). Use `/reload` after changing a discovered provider extension in an active session.

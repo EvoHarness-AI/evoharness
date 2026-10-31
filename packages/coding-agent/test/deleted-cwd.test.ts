@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { main } from "../src/main.ts";
 
-// Regression test for https://github.com/earendil-works/pi/issues/11509
+// Regression test for https://github.com/EvoHarness-AI/evoharness/issues/11509
 describe("startup in a deleted working directory", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();

@@ -6,7 +6,7 @@ import type {
 	StoredSpan,
 	StoredTrace,
 	TraceQuery,
-} from "@earendil-works/pi-telemetry";
+} from "@evoharness/telemetry";
 import type { SqliteDatabase, SqliteValue } from "../sqlite/index.ts";
 
 type SpanRow = {

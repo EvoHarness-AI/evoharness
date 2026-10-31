@@ -7,8 +7,8 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { AuthEvent, AuthPrompt } from "@earendil-works/pi-ai";
+import type { AgentMessage, ThinkingLevel } from "@evoharness/agent-core";
+import type { AuthEvent, AuthPrompt } from "@evoharness/ai";
 import {
 	type AssistantMessage,
 	type ImageContent,
@@ -16,7 +16,7 @@ import {
 	type Message,
 	type Model,
 	type Usage,
-} from "@earendil-works/pi-ai/compat";
+} from "@evoharness/ai/compat";
 import type {
 	AutocompleteItem,
 	AutocompleteProvider,
@@ -28,8 +28,8 @@ import type {
 	OverlayOptions,
 	SlashCommand,
 	TuiMainScreenRenderState,
-} from "@earendil-works/pi-tui";
-import * as TuiLayouts from "@earendil-works/pi-tui";
+} from "@evoharness/tui";
+import * as TuiLayouts from "@evoharness/tui";
 import {
 	CombinedAutocompleteProvider,
 	type Component,
@@ -51,7 +51,7 @@ import {
 	type TuiMouseEvent,
 	type TuiMouseEventResult,
 	visibleWidth,
-} from "@earendil-works/pi-tui";
+} from "@evoharness/tui";
 import chalk from "chalk";
 import { spawn } from "child_process";
 import {
@@ -1452,7 +1452,7 @@ export class InteractiveMode {
 			return;
 		}
 
-		void fetch(`https://pi.dev/api/report-install?version=${encodeURIComponent(version)}`, {
+		void fetch(`https://evoharness.dev/api/report-install?version=${encodeURIComponent(version)}`, {
 			headers: {
 				"User-Agent": getPiUserAgent(version),
 			},
@@ -4734,7 +4734,7 @@ export class InteractiveMode {
 		const updateInstruction = () =>
 			theme.fg("muted", `New version ${release.version} is available. Run `) +
 			theme.fg("accent", `${APP_NAME} update`);
-		const changelogUrl = "https://pi.dev/changelog";
+		const changelogUrl = "https://evoharness.dev/changelog";
 		const changelogLine = () => {
 			const changelogLink = getCapabilities().hyperlinks
 				? hyperlink(theme.fg("accent", changelogUrl), changelogUrl)

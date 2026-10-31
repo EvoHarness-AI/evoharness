@@ -15,9 +15,9 @@ import { mkdtemp, readdir, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { BACKGROUND_CONTEXT as context } from "@earendil-works/chord/context";
-import type { ImageContent } from "@earendil-works/pi-ai";
-import { createModels } from "@earendil-works/pi-ai/models";
-import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
+import type { ImageContent } from "@evoharness/ai";
+import { createModels } from "@evoharness/ai/models";
+import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@evoharness/ai/providers/faux";
 import { Type } from "typebox";
 import {
 	createRegistry,

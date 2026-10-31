@@ -14,7 +14,7 @@ import {
 	type Models,
 	type ToolResultMessage,
 	Type,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	defineTool,
 	type GenerationCheckpoint,
@@ -26,7 +26,7 @@ import {
 	type Storage,
 	type SubmissionId,
 	type TaskId,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it } from "vitest";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";
 import { commitWrites } from "../src/testing/commit-writes.ts";

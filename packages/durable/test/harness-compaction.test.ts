@@ -11,7 +11,7 @@ import {
 	type TranscriptContext,
 	Type,
 	type UserMessage,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	type CompactionPolicy,
 	type CompactionResult,
@@ -32,7 +32,7 @@ import {
 	type SubmissionId,
 	type TaskId,
 	UsageDoc,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it } from "vitest";
 import { selectCut, serializeConversation } from "../src/harness/compaction.ts";
 import { orderToolResults } from "../src/harness/context.ts";

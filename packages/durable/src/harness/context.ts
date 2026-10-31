@@ -1,5 +1,5 @@
 import type { Context } from "@earendil-works/chord";
-import type { AssistantMessage, Message, ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
+import type { AssistantMessage, Message, ToolCall, ToolResultMessage } from "@evoharness/ai";
 import { SystemEntry } from "../entries.ts";
 import { idFromNumber } from "../ids.ts";
 import type { SessionImpl } from "../session/session.ts";

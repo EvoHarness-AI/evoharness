@@ -94,11 +94,11 @@ function mockPiDev({ live = liveRevision, failure } = {}) {
 test("pins the newest typed catalog after verifying its immutable URL", async () => {
 	const requests = mockPiDev();
 	assert.deepEqual(await pinned(updateModelCatalogPin(root)), { revision: liveRevision, updated: true });
-	// No pi-version: main's version is the last release, which pi.dev answers
+	// No pi-version: main's version is the last release, which evoharness.dev answers
 	// with the catalog for released clients (#10985).
 	assert.deepEqual(requests, [
-		`https://pi.dev/api/models?${typed}`,
-		`https://pi.dev/api/models/revisions/${liveRevision}?${typed}`,
+		`https://evoharness.dev/api/models?${typed}`,
+		`https://evoharness.dev/api/models/revisions/${liveRevision}?${typed}`,
 	]);
 	assert.equal(readPin(), pinFile(liveRevision));
 });
@@ -110,9 +110,9 @@ test("keeps a pin that still hydrates the checkout and has the live model groups
 		updated: false,
 	});
 	assert.deepEqual(requests, [
-		`https://pi.dev/api/models/revisions/${currentRevision}?${typed}`,
-		`https://pi.dev/api/models?${typed}`,
-		`https://pi.dev/api/models/revisions/${liveRevision}?${typed}`,
+		`https://evoharness.dev/api/models/revisions/${currentRevision}?${typed}`,
+		`https://evoharness.dev/api/models?${typed}`,
+		`https://evoharness.dev/api/models/revisions/${liveRevision}?${typed}`,
 	]);
 	assert.equal(readPin(), pinFile(currentRevision));
 });

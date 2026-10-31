@@ -11,7 +11,7 @@ import {
 	type ToolResultMessage,
 	Type,
 	type Usage,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	type Conversation,
 	defineTool,
@@ -28,7 +28,7 @@ import {
 	type ToolExecutionResult,
 	ToolTask,
 	UsageDoc,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it } from "vitest";
 import { recordUsage } from "../src/harness/usage.ts";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";

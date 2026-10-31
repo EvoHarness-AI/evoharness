@@ -7,8 +7,8 @@ import * as fs from "node:fs";
 import { createRequire } from "node:module";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { Provider } from "@earendil-works/pi-ai";
-import type { KeyId } from "@earendil-works/pi-tui";
+import type { Provider } from "@evoharness/ai";
+import type { KeyId } from "@evoharness/tui";
 import type { createJiti } from "jiti";
 import { CONFIG_DIR_NAME, getAgentDir, isBunBinary, isBundledNode } from "../../config.ts";
 import { pathsEqual, resolvePath } from "../../utils/paths.ts";
@@ -86,28 +86,28 @@ function getAliases(): Record<string, string> {
 	};
 
 	const piCodingAgentEntry = packageIndex;
-	const piAgentCoreEntry = resolveWorkspaceOrImport("agent/dist/index.js", "@earendil-works/pi-agent-core");
-	const piTuiEntry = resolveWorkspaceOrImport("tui/dist/index.js", "@earendil-works/pi-tui");
+	const piAgentCoreEntry = resolveWorkspaceOrImport("agent/dist/index.js", "@evoharness/agent-core");
+	const piTuiEntry = resolveWorkspaceOrImport("tui/dist/index.js", "@evoharness/tui");
 	// Extensions resolve the pi-ai root to the compat entrypoint (a strict
 	// superset of the core entrypoint): existing extensions using the old
 	// global API keep working at runtime until compat is removed.
-	const piAiCompatEntry = resolveWorkspaceOrImport("ai/dist/compat.js", "@earendil-works/pi-ai/compat");
-	const piAiModelsEntry = resolveWorkspaceOrImport("ai/dist/models.js", "@earendil-works/pi-ai/models");
-	const piAiOauthEntry = resolveWorkspaceOrImport("ai/dist/oauth.js", "@earendil-works/pi-ai/oauth");
+	const piAiCompatEntry = resolveWorkspaceOrImport("ai/dist/compat.js", "@evoharness/ai/compat");
+	const piAiModelsEntry = resolveWorkspaceOrImport("ai/dist/models.js", "@evoharness/ai/models");
+	const piAiOauthEntry = resolveWorkspaceOrImport("ai/dist/oauth.js", "@evoharness/ai/oauth");
 	const piAiProvidersEntry = resolveWorkspaceOrImport(
 		"ai/dist/providers/all.js",
-		"@earendil-works/pi-ai/providers/all",
+		"@evoharness/ai/providers/all",
 	);
 
 	_aliases = {
-		"@earendil-works/pi-coding-agent": piCodingAgentEntry,
-		"@earendil-works/pi-agent-core": piAgentCoreEntry,
-		"@earendil-works/pi-tui": piTuiEntry,
-		"@earendil-works/pi-ai/providers/all": piAiProvidersEntry,
-		"@earendil-works/pi-ai/compat": piAiCompatEntry,
-		"@earendil-works/pi-ai/models": piAiModelsEntry,
-		"@earendil-works/pi-ai/oauth": piAiOauthEntry,
-		"@earendil-works/pi-ai": piAiCompatEntry,
+		"@evoharness/coding-agent": piCodingAgentEntry,
+		"@evoharness/agent-core": piAgentCoreEntry,
+		"@evoharness/tui": piTuiEntry,
+		"@evoharness/ai/providers/all": piAiProvidersEntry,
+		"@evoharness/ai/compat": piAiCompatEntry,
+		"@evoharness/ai/models": piAiModelsEntry,
+		"@evoharness/ai/oauth": piAiOauthEntry,
+		"@evoharness/ai": piAiCompatEntry,
 		"@mariozechner/pi-coding-agent": piCodingAgentEntry,
 		"@mariozechner/pi-agent-core": piAgentCoreEntry,
 		"@mariozechner/pi-tui": piTuiEntry,

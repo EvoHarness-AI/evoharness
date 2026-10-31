@@ -11,7 +11,7 @@ import {
 	SessionFailed,
 	type StorageWrite,
 	type TaskId,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { idFromNumber } from "../src/ids.ts";
 import { CachedStorage } from "../src/session/cached-storage.ts";

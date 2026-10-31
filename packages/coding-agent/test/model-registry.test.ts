@@ -1,9 +1,9 @@
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { normalizeContext } from "@earendil-works/pi-ai";
-import type { AnthropicMessagesCompat, Api, Model, OpenAICompletionsCompat } from "@earendil-works/pi-ai/compat";
-import { getApiProvider, getModels, getSupportedThinkingLevels } from "@earendil-works/pi-ai/compat";
+import { normalizeContext } from "@evoharness/ai";
+import type { AnthropicMessagesCompat, Api, Model, OpenAICompletionsCompat } from "@evoharness/ai/compat";
+import { getApiProvider, getModels, getSupportedThinkingLevels } from "@evoharness/ai/compat";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AuthStorage } from "../src/core/auth-storage.ts";
 import type { ModelsJsonProvider } from "../src/core/model-config.ts";
@@ -833,7 +833,7 @@ describe("ModelRegistry", () => {
 			expect(registry.find("anthropic", "claude-sonnet-4-6")?.promptCache).toEqual({ short: 300, long: 1800 });
 		});
 
-		// Regression test for https://github.com/earendil-works/pi/issues/9631
+		// Regression test for https://github.com/EvoHarness-AI/evoharness/issues/9631
 		test("model override deep-merges image resize limits", async () => {
 			writeRawModelsJson({
 				test: {

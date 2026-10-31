@@ -13,8 +13,8 @@
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { oauthErrorHtml, oauthSuccessHtml } from "@earendil-works/pi-ai/utils/oauth-page";
-import type { AuthProvider, McpFetch } from "@earendil-works/pi-mcp";
+import { oauthErrorHtml, oauthSuccessHtml } from "@evoharness/ai/utils/oauth-page";
+import type { AuthProvider, McpFetch } from "@evoharness/mcp";
 import {
 	type AuthorizationServerMetadata,
 	authorizeMcp,
@@ -30,7 +30,7 @@ import {
 	type OAuthClientMetadataDocument,
 	parseWwwAuthenticate,
 	stepUpScope,
-} from "@earendil-works/pi-mcp/oauth";
+} from "@evoharness/mcp/oauth";
 import lockfile from "proper-lockfile";
 import { APP_NAME, getAgentDir } from "../../config.ts";
 import { type AuthStorageBackend, FileAuthStorageBackend } from "../../core/auth-storage.ts";
@@ -38,8 +38,8 @@ import { isClientMetadataDocumentCallback, mcpNamespace } from "../../core/mcp-s
 
 const CALLBACK_HOST = "127.0.0.1";
 const CALLBACK_PATH = "/callback";
-/** Where pi.dev serves pi's Client ID Metadata Documents: `client.json` and `<callback ID>/client.json`. */
-const CLIENT_METADATA_BASE_URL = "https://pi.dev/oauth";
+/** Where evoharness.dev serves pi's Client ID Metadata Documents: `client.json` and `<callback ID>/client.json`. */
+const CLIENT_METADATA_BASE_URL = "https://evoharness.dev/oauth";
 /** Redirect URI for refreshes when none is stored. Refreshing never redirects the user. */
 const FALLBACK_REDIRECT_URL = `http://${CALLBACK_HOST}${CALLBACK_PATH}`;
 /** Access tokens this close to expiry are refreshed before they are sent. */

@@ -11,7 +11,7 @@ import {
 	type Observation,
 	type Observer,
 	type ReportInfo,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { SessionImpl } from "../src/session/session.ts";
 import { ControlledStorage, context, createConversation, flush } from "./session-support.ts";

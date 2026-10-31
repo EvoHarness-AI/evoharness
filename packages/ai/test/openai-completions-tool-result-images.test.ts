@@ -69,7 +69,7 @@ function buildEmptyToolResult(toolCallId: string, timestamp: number, text = ""):
 }
 
 describe("openai-completions convertMessages", () => {
-	// Regression test for https://github.com/earendil-works/pi/issues/9797
+	// Regression test for https://github.com/EvoHarness-AI/evoharness/issues/9797
 	it("omits empty text parts from user messages with images", () => {
 		const { compat: _compat, ...baseModel } = getModel("openai", "gpt-4o-mini");
 		const model: Model<"openai-completions"> = {
@@ -144,7 +144,7 @@ describe("openai-completions convertMessages", () => {
 		expect(imageParts.length).toBe(2);
 	});
 
-	// Whitespace-only cases: https://github.com/earendil-works/pi/issues/8720
+	// Whitespace-only cases: https://github.com/EvoHarness-AI/evoharness/issues/8720
 	it.each(["", "\r\n", " \n\t"])(
 		"uses '(no tool output)' placeholder for tool result text %j without images",
 		(text) => {

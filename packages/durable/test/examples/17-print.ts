@@ -3,10 +3,10 @@
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/17-print.ts "What is in this directory?"
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { AssistantMessage } from "@earendil-works/pi-ai";
-import { createModels } from "@earendil-works/pi-ai/models";
-import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
-import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
+import type { AssistantMessage } from "@evoharness/ai";
+import { createModels } from "@evoharness/ai/models";
+import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@evoharness/ai/providers/faux";
+import { openaiProvider } from "@evoharness/ai/providers/openai";
 import { NodeExecutionEnv } from "../../src/env/node.ts";
 import { AssistantEntry, createRegistry, defineExtension, Harness, MemoryStorage, section } from "../../src/index.ts";
 import { createBashTool, createReadTool } from "../../src/tools/index.ts";

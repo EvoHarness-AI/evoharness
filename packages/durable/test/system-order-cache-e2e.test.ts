@@ -6,8 +6,8 @@ import {
 	normalizeContext,
 	Type,
 	uuidv7,
-} from "@earendil-works/pi-ai";
-import { builtinModels } from "@earendil-works/pi-ai/providers/all";
+} from "@evoharness/ai";
+import { builtinModels } from "@evoharness/ai/providers/all";
 import {
 	AssistantEntry,
 	createRegistry,
@@ -17,7 +17,7 @@ import {
 	Harness,
 	hook,
 	MemoryStorage,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { streamSimple as streamSimpleAnthropic } from "../../ai/src/api/anthropic-messages.ts";
 import { resolveApiKey } from "../../ai/test/oauth.ts";

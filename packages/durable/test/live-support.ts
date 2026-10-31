@@ -12,7 +12,7 @@ import {
 	type TaskGraphNode,
 	type TaskId,
 	type ToolSlot,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { context, documentChanges, followCommits } from "./session-support.ts";
 
 /**

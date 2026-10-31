@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
 import { applyImmutable, type Op } from "@earendil-works/chord/delta";
-import { type AssistantMessage, type FauxResponseStep, fauxAssistantMessage, fauxText } from "@earendil-works/pi-ai";
+import { type AssistantMessage, type FauxResponseStep, fauxAssistantMessage, fauxText } from "@evoharness/ai";
 import {
 	AgentDoc,
 	type Conversation,
@@ -18,7 +18,7 @@ import {
 	MemoryStorage,
 	ProviderDoc,
 	UsageDoc,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";
 import { allEntries, chatSetup, openChat, waitFor } from "./chat-support.ts";

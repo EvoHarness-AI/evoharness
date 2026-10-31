@@ -2386,7 +2386,7 @@ revisions).
 
 ## 29. Telemetry
 
-Chord reports traces, events and metrics through `@earendil-works/pi-telemetry`; one adapter per host
+Chord reports traces, events and metrics through `@evoharness/telemetry`; one adapter per host
 (`createHost({ telemetry })`, NOOP by default) decides sampling, buffering, export and filtering.
 
 - **Types:** the adapter is a `TelemetryContext` (`startSpan` plus optional readonly `metrics` and `propagation`

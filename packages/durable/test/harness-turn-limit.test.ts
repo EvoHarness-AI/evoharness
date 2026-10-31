@@ -2,7 +2,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type AssistantMessage, fauxAssistantMessage, fauxText, fauxToolCall, Type } from "@earendil-works/pi-ai";
+import { type AssistantMessage, fauxAssistantMessage, fauxText, fauxToolCall, Type } from "@evoharness/ai";
 import {
 	type AfterFailedRun,
 	type Conversation,
@@ -15,7 +15,7 @@ import {
 	type ToolRegistration,
 	ToolResultEntry,
 	ToolTask,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it } from "vitest";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";
 import { allEntries, type ChatSetup, chatSetup, openChat, textOf } from "./chat-support.ts";

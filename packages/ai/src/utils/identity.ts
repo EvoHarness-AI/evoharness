@@ -21,7 +21,7 @@ export interface ClientAttribution {
 }
 
 /** pi's attribution, used by pi-agent-core, pi-durable, and the coding agent. */
-export const PI_ATTRIBUTION: ClientAttribution = { name: "pi", url: "https://pi.dev", categories: ["cli-agent"] };
+export const PI_ATTRIBUTION: ClientAttribution = { name: "pi", url: "https://evoharness.dev", categories: ["cli-agent"] };
 
 /**
  * How pi-ai identifies the calling app to providers. Every field is optional; absent fields use pi-ai's defaults:

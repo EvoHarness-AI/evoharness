@@ -9,7 +9,7 @@ const IMPORT_SPECIFIER = /(?:import|export)\s+(?:type\s+)?(?:[^;]*?\sfrom\s*)?["
 
 describe("package boundary", () => {
 	// pi-telemetry is the one allowed Pi package: a leaf without dependencies, needed for Context.telemetry.
-	const ALLOWED = new Set(["@earendil-works/pi-telemetry"]);
+	const ALLOWED = new Set(["@evoharness/telemetry"]);
 
 	test("does not depend on Pi packages other than pi-telemetry, or on files outside Chord", async () => {
 		const manifest = JSON.parse(await readFile(resolve(packageDirectory, "package.json"), "utf8")) as {
@@ -17,7 +17,7 @@ describe("package boundary", () => {
 		};
 		expect(
 			Object.keys(manifest.dependencies ?? {}).filter(
-				(name) => name.startsWith("@earendil-works/pi-") && !ALLOWED.has(name),
+				(name) => name.startsWith("@evoharness/") && !ALLOWED.has(name),
 			),
 		).toEqual([]);
 
@@ -29,7 +29,7 @@ describe("package boundary", () => {
 			for (const match of source.matchAll(IMPORT_SPECIFIER)) {
 				const specifier = match[1]!;
 				const pkg = specifier.split("/").slice(0, 2).join("/");
-				if (specifier.startsWith("@earendil-works/pi-") && !ALLOWED.has(pkg))
+				if (specifier.startsWith("@evoharness/") && !ALLOWED.has(pkg))
 					violations.push(`${path}: ${specifier}`);
 				if (specifier.startsWith(".") && !resolve(dirname(file), specifier).startsWith(`${sourceDirectory}/`)) {
 					violations.push(`${path}: ${specifier}`);

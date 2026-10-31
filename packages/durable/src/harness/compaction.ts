@@ -1,7 +1,7 @@
 import type { Context, Draft } from "@earendil-works/chord";
-import type { AssistantMessage, Message, ModelThinkingLevel, SimpleStreamOptions } from "@earendil-works/pi-ai";
-import { calculateContextTokens, estimateMessageTokens } from "@earendil-works/pi-ai/utils/estimate";
-import { isRetryableAssistantError, retryDelayMs } from "@earendil-works/pi-ai/utils/retry";
+import type { AssistantMessage, Message, ModelThinkingLevel, SimpleStreamOptions } from "@evoharness/ai";
+import { calculateContextTokens, estimateMessageTokens } from "@evoharness/ai/utils/estimate";
+import { isRetryableAssistantError, retryDelayMs } from "@evoharness/ai/utils/retry";
 import { CompactionEntry } from "../entries.ts";
 import { defineTask } from "../tasks.ts";
 import type {

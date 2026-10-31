@@ -6,10 +6,10 @@
 //   node --conditions=source --experimental-strip-types test/examples/21-subagent-foreground.ts
 import type { Context } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { type AssistantMessage, type FauxResponseStep, Type } from "@earendil-works/pi-ai";
-import { createModels } from "@earendil-works/pi-ai/models";
-import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai/providers/faux";
-import { openaiProvider } from "@earendil-works/pi-ai/providers/openai";
+import { type AssistantMessage, type FauxResponseStep, Type } from "@evoharness/ai";
+import { createModels } from "@evoharness/ai/models";
+import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@evoharness/ai/providers/faux";
+import { openaiProvider } from "@evoharness/ai/providers/openai";
 import {
 	AssistantEntry,
 	type ConversationId,

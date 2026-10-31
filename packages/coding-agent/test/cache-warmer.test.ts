@@ -6,8 +6,8 @@ import {
 	type ModelsSimpleStreamOptions,
 	normalizeContext,
 	type Usage,
-} from "@earendil-works/pi-ai";
-import { getBuiltinModel } from "@earendil-works/pi-ai/providers/all";
+} from "@evoharness/ai";
+import { getBuiltinModel } from "@evoharness/ai/providers/all";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthStorage } from "../src/core/auth-storage.ts";
 import {

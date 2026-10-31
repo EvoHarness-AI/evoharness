@@ -70,7 +70,7 @@ See [examples/extensions/](../examples/extensions/) for working implementations.
 Create `~/.pi/agent/extensions/my-extension.ts`:
 
 ```typescript
-import { type ExtensionAPI, isToolCallEventType } from "@earendil-works/pi-coding-agent";
+import { type ExtensionAPI, isToolCallEventType } from "@evoharness/coding-agent";
 import { Type } from "typebox";
 
 export default function (pi: ExtensionAPI) {
@@ -156,12 +156,12 @@ Settings also accept built-in extensions as `builtin:<name>` entries; see [Setti
 
 | Package | Purpose |
 |---------|---------|
-| `@earendil-works/pi-coding-agent` | Extension types (`ExtensionAPI`, `ExtensionContext`, events) and helpers |
-| `@earendil-works/pi-agent-core` | Agent message and tool types |
+| `@evoharness/coding-agent` | Extension types (`ExtensionAPI`, `ExtensionContext`, events) and helpers |
+| `@evoharness/agent-core` | Agent message and tool types |
 | `typebox`, `typebox/compile`, `typebox/value` | Schema definitions for tool parameters |
-| `@earendil-works/pi-ai` | AI utilities (`StringEnum` for string enums, transcript helpers, model types) |
-| `@earendil-works/pi-ai/compat`, `/models`, `/oauth`, `/providers/all` | Provider construction, built-in APIs, and OAuth helpers |
-| `@earendil-works/pi-tui` | TUI components for custom rendering |
+| `@evoharness/ai` | AI utilities (`StringEnum` for string enums, transcript helpers, model types) |
+| `@evoharness/ai/compat`, `/models`, `/oauth`, `/providers/all` | Provider construction, built-in APIs, and OAuth helpers |
+| `@evoharness/tui` | TUI components for custom rendering |
 
 Pi maps these imports to its own copies, so extensions share Pi's classes and registries. The legacy `@mariozechner/*` and `@sinclair/typebox` names map to the same modules.
 
@@ -176,7 +176,7 @@ Node.js built-ins (`node:fs`, `node:path`, etc.) are also available.
 An extension exports a default factory function that receives `ExtensionAPI`. The factory can be synchronous or asynchronous:
 
 ```typescript
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 
 export default function (pi: ExtensionAPI) {
   // Subscribe to events
@@ -205,7 +205,7 @@ If the factory returns a `Promise`, Pi awaits it before continuing startup. That
 Use an async factory for one-time startup work such as fetching remote configuration or dynamically discovering available models.
 
 ```typescript
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 
 export default async function (pi: ExtensionAPI) {
   const response = await fetch("http://localhost:1234/v1/models");
@@ -819,7 +819,7 @@ pi.on("context", async (event, ctx) => {
 Fired before each LLM call, after every `context` handler has run and Pi has restored the prompt and tool state. `event.messages` is the full transcript, including the leading system message and any mid-conversation prompt or tool patches (see [Session Format](session-format.md#sessionmessageentry)). The returned messages are sent as they are: this hook owns the prompt and tool declarations for the request.
 
 ```typescript
-import { getCurrentSystemMessage } from "@earendil-works/pi-ai";
+import { getCurrentSystemMessage } from "@evoharness/ai";
 
 pi.on("context_with_system", async (event, ctx) => {
   const cut = findCutIndex(event.messages);
@@ -829,7 +829,7 @@ pi.on("context_with_system", async (event, ctx) => {
 });
 ```
 
-Rules: keep a system message at index 0 (providers read the prompt and initial tool declarations there; Pi reports an error if a handler drops it). Removing a system message removes the tool declarations and section patches it carries. Check your output with `getCurrentSystemPrompt()` and `getCurrentTools()` from `@earendil-works/pi-ai`. Handlers run in extension load order; a `systemPrompt` forced from `before_agent_start` is still projected onto the request afterwards.
+Rules: keep a system message at index 0 (providers read the prompt and initial tool declarations there; Pi reports an error if a handler drops it). Removing a system message removes the tool declarations and section patches it carries. Check your output with `getCurrentSystemPrompt()` and `getCurrentTools()` from `@evoharness/ai`. Handlers run in extension load order; a `systemPrompt` forced from `before_agent_start` is still projected onto the request afterwards.
 
 #### before_provider_headers
 
@@ -974,7 +974,7 @@ Behavior guarantees:
 - `terminate` only applies to a blocked call; the agent stops early only when every finalized result in the batch is terminating
 
 ```typescript
-import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
+import { isToolCallEventType } from "@evoharness/coding-agent";
 
 pi.on("tool_call", async (event, ctx) => {
   // event.toolName - "bash", "read", "write", "edit", etc.
@@ -1013,7 +1013,7 @@ export type MyToolInput = Static<typeof myToolSchema>;
 Use `isToolCallEventType` with explicit type parameters:
 
 ```typescript
-import { isToolCallEventType } from "@earendil-works/pi-coding-agent";
+import { isToolCallEventType } from "@evoharness/coding-agent";
 import type { MyToolInput } from "./my-tool.ts";
 
 pi.on("tool_call", (event) => {
@@ -1038,7 +1038,7 @@ In parallel tool mode, `tool_result` and `tool_execution_end` may interleave in 
 Use `ctx.signal` for nested async work inside the handler. This lets Esc cancel model calls, `fetch()`, and other abort-aware operations started by the extension.
 
 ```typescript
-import { isBashToolResult } from "@earendil-works/pi-coding-agent";
+import { isBashToolResult } from "@evoharness/coding-agent";
 
 pi.on("tool_result", async (event, ctx) => {
   // event.toolName, event.toolCallId, event.input, event.parentToolCallId
@@ -1066,7 +1066,7 @@ pi.on("tool_result", async (event, ctx) => {
 Fired when user executes `!` or `!!` commands. **Can intercept.**
 
 ```typescript
-import { createLocalBashOperations } from "@earendil-works/pi-coding-agent";
+import { createLocalBashOperations } from "@evoharness/coding-agent";
 
 pi.on("user_bash", (event, ctx) => {
   // event.command - the bash command
@@ -1169,7 +1169,7 @@ Current working directory.
 Use `CONFIG_DIR_NAME` instead of hardcoding `.pi` when constructing project-local config paths. Rebranded distributions can use a different config directory name.
 
 ```typescript
-import { CONFIG_DIR_NAME, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { CONFIG_DIR_NAME, type ExtensionAPI } from "@evoharness/coding-agent";
 import { join } from "node:path";
 
 export default function (pi: ExtensionAPI) {
@@ -1432,7 +1432,7 @@ Options:
 To discover available sessions, use the static `SessionManager.list()` or `SessionManager.listAll()` methods:
 
 ```typescript
-import { SessionManager } from "@earendil-works/pi-coding-agent";
+import { SessionManager } from "@evoharness/coding-agent";
 
 pi.registerCommand("switch", {
   description: "Switch to another session",
@@ -1581,7 +1581,7 @@ See [dynamic-tools.ts](../examples/extensions/dynamic-tools.ts) for a full examp
 
 ```typescript
 import { Type } from "typebox";
-import { StringEnum } from "@earendil-works/pi-ai";
+import { StringEnum } from "@evoharness/ai";
 
 pi.registerTool({
   name: "my_tool",
@@ -1739,7 +1739,7 @@ pi.registerCommand("stats", {
 Optional: add argument auto-completion for `/command ...`. `getArgumentCompletions` can also return a `Promise`:
 
 ```typescript
-import type { AutocompleteItem } from "@earendil-works/pi-tui";
+import type { AutocompleteItem } from "@evoharness/tui";
 
 pi.registerCommand("deploy", {
   description: "Deploy to an environment",
@@ -1819,7 +1819,7 @@ If a transformer throws, Pi keeps the Markdown produced so far and continues wit
 Register a custom TUI renderer for custom entries with your `customType`. Custom entries are created with `pi.appendEntry()` and do not participate in LLM context.
 
 ```typescript
-import { Box, Text } from "@earendil-works/pi-tui";
+import { Box, Text } from "@evoharness/tui";
 
 pi.registerEntryRenderer("status-card", (entry, { expanded }, theme) => {
   const data = entry.data as { title: string; count: number };
@@ -1953,10 +1953,10 @@ Dynamic providers can implement `refreshModels`. Pi calls it during model refres
 
 `context.signal` is always a concrete signal and provider callbacks must pass it to blocking I/O. Public `ModelRuntime.refresh()` and `ModelRegistry.refresh()` calls accept an optional signal and are unbounded when it is omitted; extensions and applications choose their own deadlines. Cancellation stops the caller waiting even if a provider ignores the signal, but cooperation is still required to stop the underlying work.
 
-Extensions that need native provider auth, filtering, refresh, or stream behavior can register a complete `Provider` from `@earendil-works/pi-ai`. The provider becomes the composition base and `models.json` overrides still apply above it.
+Extensions that need native provider auth, filtering, refresh, or stream behavior can register a complete `Provider` from `@evoharness/ai`. The provider becomes the composition base and `models.json` overrides still apply above it.
 
 ```typescript
-import { createProvider, openAICompletionsApi } from "@earendil-works/pi-ai/compat";
+import { createProvider, openAICompletionsApi } from "@evoharness/ai/compat";
 
 const provider = createProvider({
   id: "local-server",
@@ -2170,7 +2170,7 @@ Pass the real target file path to `withFileMutationQueue()`, not the raw user ar
 Queue the entire mutation window on that target path. That includes read-modify-write logic, not just the final write.
 
 ```typescript
-import { withFileMutationQueue } from "@earendil-works/pi-coding-agent";
+import { withFileMutationQueue } from "@evoharness/coding-agent";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 
@@ -2195,7 +2195,7 @@ async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 
 ```typescript
 import { type Static, Type } from "typebox";
-import { StringEnum } from "@earendil-works/pi-ai";
+import { StringEnum } from "@evoharness/ai";
 
 const myToolSchema = Type.Object({
   action: StringEnum(["list", "add"] as const),
@@ -2270,7 +2270,7 @@ async execute(toolCallId, params) {
 }
 ```
 
-**String enums:** Prefer `StringEnum` from `@earendil-works/pi-ai`. It produces a plain `enum` schema that every provider accepts.
+**String enums:** Prefer `StringEnum` from `@evoharness/ai`. It produces a plain `enum` schema that every provider accepts.
 
 **Structured output:** Declare `outputSchema` and return a matching `structuredContent` when the result is data. The model still receives `content`; programmatic callers such as codemode scripts receive `structuredContent` instead of the text. Tools without `outputSchema` are passed to scripts as their text content. To report a failure that still carries data, return the result with `isError: true` instead of throwing: the model sees an error, and scripts still receive `structuredContent`.
 
@@ -2351,21 +2351,21 @@ See [examples/extensions/tool-override.ts](../examples/extensions/tool-override.
 **Your implementation must match the exact result shape**, including the `details` type. The UI and session logic depend on these shapes for rendering and state tracking.
 
 Built-in tool implementations:
-- [read.ts](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/tools/read.ts) - `ReadToolDetails`
-- [bash.ts](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/tools/bash.ts) - `BashToolDetails`
-- [powershell.ts](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/tools/powershell.ts) - `PowerShellToolDetails`
-- [edit.ts](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/tools/edit.ts)
-- [write.ts](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/tools/write.ts)
-- [grep.ts](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/tools/grep.ts) - `GrepToolDetails`
-- [find.ts](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/tools/find.ts) - `FindToolDetails`
-- [ls.ts](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/core/tools/ls.ts) - `LsToolDetails`
+- [read.ts](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/src/core/tools/read.ts) - `ReadToolDetails`
+- [bash.ts](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/src/core/tools/bash.ts) - `BashToolDetails`
+- [powershell.ts](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/src/core/tools/powershell.ts) - `PowerShellToolDetails`
+- [edit.ts](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/src/core/tools/edit.ts)
+- [write.ts](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/src/core/tools/write.ts)
+- [grep.ts](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/src/core/tools/grep.ts) - `GrepToolDetails`
+- [find.ts](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/src/core/tools/find.ts) - `FindToolDetails`
+- [ls.ts](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/src/core/tools/ls.ts) - `LsToolDetails`
 
 ### Remote Execution
 
 Built-in tools support pluggable operations for delegating to remote systems (SSH, containers, etc.):
 
 ```typescript
-import { createReadTool, type ReadOperations } from "@earendil-works/pi-coding-agent";
+import { createReadTool, type ReadOperations } from "@evoharness/coding-agent";
 
 const localRead = createReadTool(cwd);
 
@@ -2395,7 +2395,7 @@ For `user_bash`, extensions can reuse Pi's local shell backend via `createLocalB
 The `bash` and `powershell` tools also support a spawn hook to adjust the command, cwd, or env before execution:
 
 ```typescript
-import { createBashTool } from "@earendil-works/pi-coding-agent";
+import { createBashTool } from "@evoharness/coding-agent";
 
 const bashTool = createBashTool(cwd, {
   spawnHook: ({ command, cwd, env }) => ({
@@ -2433,7 +2433,7 @@ import {
   formatSize,        // Human-readable size (e.g., "50KB", "1.5MB")
   DEFAULT_MAX_BYTES, // 50KB
   DEFAULT_MAX_LINES, // 2000
-} from "@earendil-works/pi-coding-agent";
+} from "@evoharness/coding-agent";
 
 async execute(toolCallId, params, signal, onUpdate, ctx) {
   const output = await runCommand();
@@ -2490,7 +2490,7 @@ export default function (pi: ExtensionAPI) {
 
 ### Custom Rendering
 
-Tools can provide `renderCall` and `renderResult` for custom TUI display. See [tui.md](tui.md) for the full component API and [tool-execution.ts](https://github.com/earendil-works/pi/blob/main/packages/coding-agent/src/modes/interactive/components/tool-execution.ts) for how tool rows are composed.
+Tools can provide `renderCall` and `renderResult` for custom TUI display. See [tui.md](tui.md) for the full component API and [tool-execution.ts](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/src/modes/interactive/components/tool-execution.ts) for how tool rows are composed.
 
 By default, tool output is wrapped in a `Box` that handles background and horizontal padding from the `outputPad` setting. Tool renderers are also used in HTML exports. A defined `renderCall` or `renderResult` must return a `Component`. If a slot renderer is not defined, `tool-execution.ts` uses fallback rendering for that slot.
 
@@ -2529,7 +2529,7 @@ Use `context.state` for cross-slot shared state. Keep slot-local caches on the r
 Renders the tool call or header:
 
 ```typescript
-import { Text } from "@earendil-works/pi-tui";
+import { Text } from "@evoharness/tui";
 
 renderCall(args, theme, context) {
   const text = (context.lastComponent as Text | undefined) ?? new Text("", 0, 0);
@@ -2588,7 +2588,7 @@ The same functions are available as `options.keyHint()`/`options.keyText()` in m
 - `keyHint(keybinding, description)` - Formats a configured keybinding id such as `"app.tools.expand"` or `"tui.select.confirm"`, followed by the description
 - `keyText(keybinding)` - Returns the raw configured key text for a keybinding id, or `""` if the id has no keys
 
-In renderers, use these instead of importing `keyHint()` or `keyText()` from `@earendil-works/pi-coding-agent`. An extension can resolve its own copy of the package, for example from its own `node_modules`, and that copy does not see pi's configured keybindings: `app.*` ids then format as `""`. `rawKeyHint(key, description)` formats a literal key string and is safe to import.
+In renderers, use these instead of importing `keyHint()` or `keyText()` from `@evoharness/coding-agent`. An extension can resolve its own copy of the package, for example from its own `node_modules`, and that copy does not see pi's configured keybindings: `app.*` ids then format as `""`. `rawKeyHint(key, description)` formats a literal key string and is safe to import.
 
 Use namespaced keybinding ids:
 - Coding-agent ids use the `app.*` namespace, for example `app.tools.expand`, `app.editor.external`, `app.session.rename`
@@ -2633,7 +2633,7 @@ Pi also ships a built-in `tool_search` tool. Register tools with `exposure: "def
 The following extension registers two inactive searchable tools and keeps `search_tools` active as their loader. The example uses simple keyword matching, but the search implementation could use BM25, embeddings, a remote catalog, or project-specific routing.
 
 ```typescript
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { Type } from "typebox";
 
 const SEARCHABLE_TOOL_NAMES = new Set(["lookup_weather", "search_issues"]);
@@ -3018,7 +3018,7 @@ See [github-issue-autocomplete.ts](../examples/extensions/github-issue-autocompl
 For complex UI, use `ctx.ui.custom()`. This temporarily replaces the editor with your component until `done()` is called:
 
 ```typescript
-import { truncateToWidth } from "@earendil-works/pi-tui";
+import { truncateToWidth } from "@evoharness/tui";
 
 const result = await ctx.ui.custom<boolean>((tui, theme, keybindings, done) => ({
   render(width: number): string[] {
@@ -3077,15 +3077,15 @@ const result = await ctx.ui.custom<string | null>(
 
 A focused visible overlay can reclaim input after temporary non-overlay custom UI closes. If you intentionally want another component to keep input while the overlay stays visible, call `handle.unfocus({ target })`. Passing `{ target: null }` releases the overlay without focusing another component.
 
-See [`OverlayOptions` and `OverlayHandle`](https://github.com/earendil-works/pi/blob/main/packages/tui/src/tui.ts) for the full API and [overlay-qa-tests.ts](../examples/extensions/overlay-qa-tests.ts) for examples.
+See [`OverlayOptions` and `OverlayHandle`](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/tui/src/tui.ts) for the full API and [overlay-qa-tests.ts](../examples/extensions/overlay-qa-tests.ts) for examples.
 
 ### Custom Editor
 
 Replace the main input editor with a custom implementation (vim mode, emacs mode, etc.):
 
 ```typescript
-import { CustomEditor, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { matchesKey } from "@earendil-works/pi-tui";
+import { CustomEditor, type ExtensionAPI } from "@evoharness/coding-agent";
+import { matchesKey } from "@evoharness/tui";
 
 class VimEditor extends CustomEditor {
   private mode: "normal" | "insert" = "insert";
@@ -3136,7 +3136,7 @@ See [modal-editor.ts](../examples/extensions/modal-editor.ts) for a complete exa
 Register a custom renderer for messages with your `customType`. Use message renderers for content that should participate in LLM context:
 
 ```typescript
-import { Text } from "@earendil-works/pi-tui";
+import { Text } from "@evoharness/tui";
 
 pi.registerMessageRenderer("my-extension", (message, options, theme) => {
   const { expanded, outputPad } = options;
@@ -3203,7 +3203,7 @@ theme.style(text, { fg: "success", bg: "toolSuccessBg", bold: true })
 For syntax highlighting in custom tool renderers:
 
 ```typescript
-import { highlightCode, getLanguageFromPath } from "@earendil-works/pi-coding-agent";
+import { highlightCode, getLanguageFromPath } from "@evoharness/coding-agent";
 
 // Highlight code with an explicit language; returns one string per line
 const lines = highlightCode("const x = 1;", "typescript");

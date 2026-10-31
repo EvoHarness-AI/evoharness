@@ -7,7 +7,7 @@ import {
 	type Models,
 	type SimpleStreamOptions,
 	Type,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	type Conversation,
 	createRegistry,
@@ -18,7 +18,7 @@ import {
 	type HarnessSettings,
 	MemoryStorage,
 	type Registry,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { allEntries, textOf } from "./chat-support.ts";
 import { context } from "./session-support.ts";

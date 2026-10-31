@@ -65,7 +65,7 @@ describe("ProjectTrustStore", () => {
 		}
 	});
 
-	// Regression test for https://github.com/earendil-works/pi/issues/10488
+	// Regression test for https://github.com/EvoHarness-AI/evoharness/issues/10488
 	it("ignores the user .agents/skills dir when HOME differs only by case on Windows", () => {
 		const originalHome = process.env.HOME;
 		const originalPlatform = Object.getOwnPropertyDescriptor(process, "platform");
@@ -87,7 +87,7 @@ describe("ProjectTrustStore", () => {
 		}
 	});
 
-	// Regression test for https://github.com/earendil-works/pi/issues/10488
+	// Regression test for https://github.com/EvoHarness-AI/evoharness/issues/10488
 	it("matches saved decisions regardless of casing on Windows", () => {
 		const originalPlatform = Object.getOwnPropertyDescriptor(process, "platform");
 		const projectDir = join(tempDir, "Project-Mixed");

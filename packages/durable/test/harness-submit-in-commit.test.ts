@@ -8,7 +8,7 @@ import {
 	fauxText,
 	fauxToolCall,
 	Type,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	type Conversation,
 	ConversationBusy,
@@ -25,8 +25,8 @@ import {
 	type SubmissionId,
 	type Tx,
 	UserEntry,
-} from "@earendil-works/pi-durable";
-import { InMemoryTelemetryContext } from "@earendil-works/pi-telemetry";
+} from "@evoharness/durable";
+import { InMemoryTelemetryContext } from "@evoharness/telemetry";
 import { describe, expect, it } from "vitest";
 import { type ChatSetup, chatSetup, openChat, unanswered, waitFor } from "./chat-support.ts";
 import { addTask, addTool } from "./harness-support.ts";

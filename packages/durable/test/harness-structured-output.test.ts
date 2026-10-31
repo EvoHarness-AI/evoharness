@@ -9,7 +9,7 @@ import {
 	fauxToolCall,
 	type ToolResultMessage,
 	Type,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	defineTool,
 	MemoryStorage,
@@ -20,7 +20,7 @@ import {
 	type ToolRegistration,
 	ToolResultEntry,
 	ToolTask,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { NodeExecutionEnv } from "../src/env/node.ts";
 import { createBashTool } from "../src/tools/index.ts";

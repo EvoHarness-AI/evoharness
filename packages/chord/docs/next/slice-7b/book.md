@@ -87,7 +87,7 @@ plugins/notes/
   "type": "module",
   "peerDependencies": {
     "@earendil-works/chord": "^2",
-    "@earendil-works/pi-durable": "^1",
+    "@evoharness/durable": "^1",
     "react": "^19"
   },
   "dependencies": {
@@ -176,7 +176,7 @@ second copy of Chord, and an old version is garbage-collected once nothing holds
 import { buildFacet, evaluateFacet } from "@earendil-works/chord/next/loader";
 
 const HOST_PACKAGES = {                                     // the app's base bundle exports these
-  "@earendil-works/chord/next": chordNext, "@earendil-works/pi-durable": durable,
+  "@earendil-works/chord/next": chordNext, "@evoharness/durable": durable,
   "@app/core": core, react, "react/jsx-runtime": jsxRuntime,
 };
 const script = await buildFacet({ plugin: "/data/plugins/notes", facet: "worker.ts", hostPackages: Object.keys(HOST_PACKAGES), platform: "node" });

@@ -10,9 +10,9 @@ import {
 	fauxText,
 	fauxToolCall,
 	type MutableModels,
-} from "@earendil-works/pi-ai";
-import { CodemodeSandbox } from "@earendil-works/pi-codemode";
-import { MemoryStorage, ToolResultEntry, UsageDoc } from "@earendil-works/pi-durable";
+} from "@evoharness/ai";
+import { CodemodeSandbox } from "@evoharness/codemode";
+import { MemoryStorage, ToolResultEntry, UsageDoc } from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { createCodemodeExtension } from "../src/codemode/codemode.ts";
 import type { ExecutionEnv } from "../src/env/index.ts";

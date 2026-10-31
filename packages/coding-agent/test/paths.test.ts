@@ -41,7 +41,7 @@ describe("path comparison", () => {
 		Object.defineProperty(process, "platform", { value: platform });
 	}
 
-	// Regression test for https://github.com/earendil-works/pi/issues/10488
+	// Regression test for https://github.com/EvoHarness-AI/evoharness/issues/10488
 	it("treats drive letters and path components case-insensitively on Windows", () => {
 		simulatePlatform("win32");
 		expect(getPathComparisonKey("c:\\Users\\me\\.agents\\skills")).toBe(

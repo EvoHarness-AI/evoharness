@@ -12,7 +12,7 @@ import {
 	type Observer,
 	type TaskGraph,
 	type TaskId,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";
 import { ControlledStorage, context, flush, onValue } from "./session-support.ts";

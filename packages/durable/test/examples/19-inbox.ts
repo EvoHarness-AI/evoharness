@@ -2,9 +2,9 @@
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/19-inbox.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { FauxResponseStep } from "@earendil-works/pi-ai";
-import { createModels } from "@earendil-works/pi-ai/models";
-import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai/providers/faux";
+import type { FauxResponseStep } from "@evoharness/ai";
+import { createModels } from "@evoharness/ai/models";
+import { fauxAssistantMessage, fauxProvider } from "@evoharness/ai/providers/faux";
 import { createRegistry, Harness, InboxDoc, MemoryStorage, type Submission } from "../../src/index.ts";
 
 const context = BACKGROUND_CONTEXT;

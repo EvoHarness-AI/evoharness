@@ -494,7 +494,7 @@ Observations:
 ## Slice 6b: Durable on the store, persisted jobs (2026-10-28)
 
 Node 24.4.1, one CPU (`taskset -c 6`), SQLite files in `tmpdir()`. HEAD is `b2fcfee08`, extracted at a path of the same
-length (`/home/badlogic/pi-6h`); runs alternate HEAD and the build.
+length (`/home/EvoHarness-AI/evoharness-6h`); runs alternate HEAD and the build.
 
 **Durable's storage benchmark** (`packages/durable/test/storage.bench.ts`, `TIMING_SCALE`), `StoreStorage` (outbox off)
 against `SqliteStorage` in the same process, mean ms per operation over three runs (p75 where the mean is one outlier):
@@ -587,8 +587,8 @@ outcome).
 ## Slice 8: registries and `host.root` (2026-10-28)
 
 Node 24.4.1, one CPU (`taskset -c 6`), runs alternating. HEAD is `391e83fb1`, extracted at a path of the same length
-(`/home/badlogic/pi-h8`); the build was measured in the worktree and, where the worktree itself skewed a result (below),
-in an extract of the same sources at `/home/badlogic/pi-x8`.
+(`/home/EvoHarness-AI/evoharness-h8`); the build was measured in the worktree and, where the worktree itself skewed a result (below),
+in an extract of the same sources at `/home/EvoHarness-AI/evoharness-x8`.
 
 **Paths under every object** (`test/next/bench/calls.ts`, new: runs on HEAD as it is), median per operation over nine
 bursts, heap allocated per operation, three alternating runs each, HEAD → build:
@@ -623,7 +623,7 @@ to one watch 0.81-0.91 µs (2.9 KB allocated: the batch and the watch's call); a
 changed while the registry is watched 0.74-0.77 µs, of 100 1.52-1.59 µs (the table built again over every entry, one
 compose per set: the counted `chord.registry.composes` is 1.00 per set).
 
-**Fix round 1** (2026-10-28), HEAD extract → build extract (`/home/badlogic/pi-x8`), CPU 6. `calls.ts`, two runs: local
+**Fix round 1** (2026-10-28), HEAD extract → build extract (`/home/EvoHarness-AI/evoharness-x8`), CPU 6. `calls.ts`, two runs: local
 method call 2.80 → 2.80-2.81 µs, 6,894 B both; commit through a watched derive 10.51-10.65 → 10.72 µs; activation churn
 57.9-59.0 → 59.3-60.0 µs, 43,714 → 43,769-43,787 B. The derive diamond (five runs): median 9.4-9.8 → 9.5 µs, pooled p95
 16.4-16.7 → 19.0-19.2 µs. Per run, both have one slow run while V8 tiers the commit path up (HEAD its second, median/p95
@@ -637,7 +637,7 @@ in six 3.4 µs on either variant tried: JIT).
 ## Slice 7a: the dependency model (2026-10-29)
 
 Node 24.4.1, one CPU (`taskset -c 6`), runs alternating. HEAD is `babe30a7e`, extracted at a path of the same length
-(`/home/badlogic/pi-h7`); the build in the worktree (`/home/badlogic/pi-7a`).
+(`/home/EvoHarness-AI/evoharness-h7`); the build in the worktree (`/home/EvoHarness-AI/evoharness-7a`).
 
 **Paths under every object** (`test/next/bench/calls.ts`), median per operation over nine bursts, heap allocated per
 operation, three alternating runs each, HEAD → build:
@@ -677,7 +677,7 @@ retry's operation id is made per `ref.retry()`, and an object keeps its handled 
 ## Slice 7b: reload in the kernel (2026-10-29)
 
 Node 24.4.1, one CPU (`taskset -c 6`), runs alternating. HEAD is `0c3675e64`, extracted at a path of the same length
-(`/home/badlogic/pi-hb`); the build in the worktree (`/home/badlogic/pi-7b`).
+(`/home/EvoHarness-AI/evoharness-hb`); the build in the worktree (`/home/EvoHarness-AI/evoharness-7b`).
 
 **Paths under every object** (`test/next/bench/calls.ts`), median per operation over nine bursts, heap allocated per
 operation, alternating runs (the last two after the fixes below), HEAD → build:
@@ -754,7 +754,7 @@ derive commit 10.44-10.58 → 10.65-10.81 µs (15,309 → 14,969 B), activation 
 
 **Fix round 3: the commit-to-frame gap is V8's young generation, not frame work.** Astra (CPU 22, five pairs) measured
 binary append commit-to-frame 132 → 161 µs, changed field 148 → 168, removal 112 → 121 on the stock `links.ts`.
-- *Path length.* The HEAD copy `/home/badlogic/pi-hb` measured append 0.155 ms; Astra's `/tmp/s7b-hd-astra`, with
+- *Path length.* The HEAD copy `/home/EvoHarness-AI/evoharness-hb` measured append 0.155 ms; Astra's `/tmp/s7b-hd-astra`, with
   identical sources, 0.129 ms. A copy of the same tree at a path of Astra's length (17 characters) measured 0.130 ms,
   at a longer one 0.155 ms: on the same code the result depends on the checkout path alone. Compare copies at paths of
   equal length.

@@ -2,7 +2,7 @@
 
 // Checks that released pi versions can use the model catalog we are about to publish.
 //
-// Problem: pi.dev serves each published catalog to every released pi at or above
+// Problem: evoharness.dev serves each published catalog to every released pi at or above
 // MINIMUM_PI_VERSION. Released clients use it right away, without updating pi.
 // If the catalog needs code they don't have, they break.
 //
@@ -31,7 +31,7 @@ import { parseArgs } from "node:util";
 import { MINIMUM_PI_VERSION } from "./model-catalog-minimum-version.mjs";
 import { compareModelCatalogPiVersions } from "./model-catalog-protocol.ts";
 
-const PI_AI_PACKAGE = "@earendil-works/pi-ai";
+const PI_AI_PACKAGE = "@evoharness/ai";
 
 /** Read a release's built-in model data (`dist/providers/data`) as model lists by provider. */
 function readBuiltinModels(dataDir) {
@@ -121,7 +121,7 @@ function main() {
 					error.message,
 					"",
 					`The model catalog does not type-check against pi ${release}'s pi-ai (errors above).`,
-					`pi.dev serves it to released pi >= ${MINIMUM_PI_VERSION}, so those clients would receive models`,
+					`evoharness.dev serves it to released pi >= ${MINIMUM_PI_VERSION}, so those clients would receive models`,
 					"their code cannot handle, e.g. a model whose api its provider does not implement.",
 					"If the change is intended, set MINIMUM_PI_VERSION in scripts/model-catalog-minimum-version.mjs",
 					"to the next release in the same commit.",

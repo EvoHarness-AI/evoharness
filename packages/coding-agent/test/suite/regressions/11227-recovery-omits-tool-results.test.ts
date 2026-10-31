@@ -1,8 +1,8 @@
-import { type AssistantMessage, fauxAssistantMessage, fauxToolCall, type Message } from "@earendil-works/pi-ai";
+import { type AssistantMessage, fauxAssistantMessage, fauxToolCall, type Message } from "@evoharness/ai";
 import { afterEach, describe, expect, it } from "vitest";
 import { createHarness, type Harness } from "../harness.ts";
 
-// https://github.com/earendil-works/pi/issues/11227
+// https://github.com/EvoHarness-AI/evoharness/issues/11227
 describe("issue #11227 recovery omits tool results with their tool call", () => {
 	const harnesses: Harness[] = [];
 

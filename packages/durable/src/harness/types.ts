@@ -16,8 +16,8 @@ import type {
 	TSchema,
 	Usage,
 	UserMessage,
-} from "@earendil-works/pi-ai";
-import type { TelemetryContext } from "@earendil-works/pi-telemetry";
+} from "@evoharness/ai";
+import type { TelemetryContext } from "@evoharness/telemetry";
 import type { ExecutionEnv, ShellOutputSkip, ShellOutputWindow } from "../env/index.ts";
 import type {
 	CommitOptions,

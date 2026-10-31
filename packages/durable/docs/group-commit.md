@@ -78,7 +78,7 @@ commit(
 
 `receive` is a durability receipt, not publication: the Session publishes later (§5.3). It is Storage's only write
 method (it replaced the earlier one-batch `commit(writes, adopt, context)`, and took its name): every backend implements
-it natively. Tests and suites that write one batch directly use `commitWrites()` (`@earendil-works/pi-durable/testing`),
+it natively. Tests and suites that write one batch directly use `commitWrites()` (`@evoharness/durable/testing`),
 which throws the refusal.
 
 Example: `[A, B, C, D]`, C refused. A and B are durable and published; C rejects with the refusal; D rejects with

@@ -1,14 +1,14 @@
 <p align="center">
-  <a href="https://pi.dev">
-    <img alt="Pi logo" src="https://pi.dev/logo-auto.svg" width="128">
+  <a href="https://evoharness.dev">
+    <img alt="Pi logo" src="https://evoharness.dev/logo-auto.svg" width="128">
   </a>
 </p>
 <p align="center">
   <a href="https://discord.com/invite/3cU7Bz4UPx"><img alt="Discord" src="https://img.shields.io/badge/discord-community-5865F2?style=flat-square&logo=discord&logoColor=white" /></a>
-  <a href="https://www.npmjs.com/package/@earendil-works/pi-coding-agent"><img alt="npm" src="https://img.shields.io/npm/v/@earendil-works/pi-coding-agent?style=flat-square&logo=npm&logoColor=white" /></a>
+  <a href="https://www.npmjs.com/package/@evoharness/coding-agent"><img alt="npm" src="https://img.shields.io/npm/v/@evoharness/coding-agent?style=flat-square&logo=npm&logoColor=white" /></a>
 </p>
 
-> New issues and PRs from new contributors are closed automatically. Maintainers review closed submissions daily. See [CONTRIBUTING.md](https://github.com/earendil-works/pi/blob/main/CONTRIBUTING.md).
+> New issues and PRs from new contributors are closed automatically. Maintainers review closed submissions daily. See [CONTRIBUTING.md](https://github.com/EvoHarness-AI/evoharness/blob/main/CONTRIBUTING.md).
 
 # Pi
 
@@ -25,24 +25,24 @@ Use Pi [interactively](docs/usage.md), automate it in [print or JSON mode](docs/
 Install the command-line interface:
 
 ```bash
-curl -fsSL https://pi.dev/install.sh | sh
+curl -fsSL https://evoharness.dev/install.sh | sh
 ```
 
 On Windows:
 
 ```shell
-powershell -c "irm https://pi.dev/install.ps1 | iex"
+powershell -c "irm https://evoharness.dev/install.ps1 | iex"
 ```
 
 The installer pins all dependencies and updates Pi with `pi update`. Alternatively, install directly with npm, which does not pin transitive dependencies:
 
 ```bash
-npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+npm install -g --ignore-scripts @evoharness/coding-agent
 ```
 
 Pi requires Node.js 22.19 or newer. The macOS, Linux, and Windows installers can install it if needed. Pi does not require dependency lifecycle scripts for a normal npm installation.
 
-On macOS and Linux, Nix users can install the latest release with `nix profile add github:earendil-works/pi/stable`. See the [quickstart](docs/quickstart.md#1-install-pi) for updating and pinning releases.
+On macOS and Linux, Nix users can install the latest release with `nix profile add github:EvoHarness-AI/evoharness/stable`. See the [quickstart](docs/quickstart.md#1-install-pi) for updating and pinning releases.
 
 Start Pi in the directory where you want it to work:
 
@@ -63,7 +63,7 @@ Public OSS session data helps improve models, prompts, tools, and evaluations us
 
 For the full explanation, see [this post on X](https://x.com/badlogicgames/status/2037811643774652911).
 
-To publish sessions, use [`badlogic/pi-share-hf`](https://github.com/badlogic/pi-share-hf) using a Hugging Face account and the Hugging Face CLI.
+To publish sessions, use [`EvoHarness-AI/evoharness-share-hf`](https://github.com/EvoHarness-AI/evoharness-share-hf) using a Hugging Face account and the Hugging Face CLI.
 
 - [Demo video](https://x.com/badlogicgames/status/2041151967695634619) on how to publish Pi sessions
 - Published Pi development sessions: [`badlogicgames/pi-mono` on Hugging Face](https://huggingface.co/datasets/badlogicgames/pi-mono).
@@ -73,7 +73,7 @@ To publish sessions, use [`badlogic/pi-share-hf`](https://github.com/badlogic/pi
 Clone the repository, install its dependencies, and run Pi from source:
 
 ```bash
-git clone https://github.com/earendil-works/pi
+git clone https://github.com/EvoHarness-AI/evoharness
 cd pi
 npm install --ignore-scripts
 ./pi-test.sh
@@ -88,7 +88,7 @@ npm run check
 ./test.sh
 ```
 
-Read [CONTRIBUTING.md](https://github.com/earendil-works/pi/blob/main/CONTRIBUTING.md) before opening an issue or pull request. It defines the contribution gate, issue quality bar, and required checks. Read [AGENTS.md](https://github.com/earendil-works/pi/blob/main/AGENTS.md) for repository-specific implementation, testing, dependency, and release rules.
+Read [CONTRIBUTING.md](https://github.com/EvoHarness-AI/evoharness/blob/main/CONTRIBUTING.md) before opening an issue or pull request. It defines the contribution gate, issue quality bar, and required checks. Read [AGENTS.md](https://github.com/EvoHarness-AI/evoharness/blob/main/AGENTS.md) for repository-specific implementation, testing, dependency, and release rules.
 
 ## License
 

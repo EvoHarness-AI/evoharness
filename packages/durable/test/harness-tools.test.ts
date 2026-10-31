@@ -12,7 +12,7 @@ import {
 	type SystemMessage,
 	type ToolResultMessage,
 	Type,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	AgentDoc,
 	type Conversation,
@@ -31,7 +31,7 @@ import {
 	type ToolRegistration,
 	ToolResultEntry,
 	ToolTask,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { NodeExecutionEnv } from "../src/env/node.ts";
 import { createBashTool, createEditTool, createReadTool } from "../src/tools/index.ts";

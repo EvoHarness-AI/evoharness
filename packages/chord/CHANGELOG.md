@@ -24,18 +24,18 @@
 - `Watchable<T>`: a value that changes and can be watched (`value`, `watch(context)` returning a `WatchHandle<T>`), the common interface of documents, derives and other observable values.
 - `NativeWatchHandle<T>` and its implementation `NativeWatch<T>`: the same lifecycle for in-process values, with listener `({ value }, context)` (`NativeWatchChange<T>`) and no ops: one call per value in order, and past 100 pending values one call with the value of the optional `replace()` or the newest value.
 - `PendingOps` and `PendingTake` in `@earendil-works/chord/delta`: the pending ops of one slow consumer, kept raw and folded while they wait (appends to one path join, a primitive set replaces earlier leaf ops on its path, `r` drops everything before it); `size` counts the pending ops after folding; `take()` empties the queue and hands over the folded ops, or `replace` past 10,000 pending ops. Received batches and op tuples are never mutated.
-- `ownedSlice(text, start, end?)` in `@earendil-works/chord/delta`: a slice of a string that does not keep the whole string alive ([#9265](https://github.com/earendil-works/pi/issues/9265))
-- `appendText(draft, key, text)` in `@earendil-works/chord/delta`: append to a string in a draft at O(text) cost, recorded as an append op without comparing the old and new strings (a plain `draft[key] += text` makes `prepare()` read the whole string, O(length) per change); `StringKeys<T>` names the keys it accepts ([#9265](https://github.com/earendil-works/pi/issues/9265))
+- `ownedSlice(text, start, end?)` in `@earendil-works/chord/delta`: a slice of a string that does not keep the whole string alive ([#9265](https://github.com/EvoHarness-AI/evoharness/issues/9265))
+- `appendText(draft, key, text)` in `@earendil-works/chord/delta`: append to a string in a draft at O(text) cost, recorded as an append op without comparing the old and new strings (a plain `draft[key] += text` makes `prepare()` read the whole string, O(length) per change); `StringKeys<T>` names the keys it accepts ([#9265](https://github.com/EvoHarness-AI/evoharness/issues/9265))
 
 ### Changed
 
 - The delta tracker keeps its one open change in a plain field and needs a `WeakRef` only for a second change open at the same time (one per change before). A `WeakRef` target survives the scavenges of its job, so a run of changes in one job promoted every change's overlay to old space: 200,000 small changes in one job now promote 2 MB instead of 47.5 MB and take 3.1 µs each instead of 3.8 µs (3.0 instead of 3.5 µs when they span jobs). A draft dropped without `prepare()` or `abort()` now stays referenced by its tracker until the tracker's next `beginChange()` or `adopt()`.
-- `applyImmutable()`, `applyImmutableBatches()` and tracker revisions copy each container on a changed path with spread (or `Object.assign()` onto a null-prototype object) instead of one `Object.defineProperty()` per key, about 25 times faster per container ([#9265](https://github.com/earendil-works/pi/issues/9265))
+- `applyImmutable()`, `applyImmutableBatches()` and tracker revisions copy each container on a changed path with spread (or `Object.assign()` onto a null-prototype object) instead of one `Object.defineProperty()` per key, about 25 times faster per container ([#9265](https://github.com/EvoHarness-AI/evoharness/issues/9265))
 
 ### Fixed
 
 - The Node SQLite driver keeps the 256 most recently used prepared statements per connection instead of every statement it ever prepared, so callers generating SQL of unbounded shapes (a query builder) no longer grow memory without bound.
-- Fixed append ops from the delta tracker and `diffRevisions()` keeping the whole string they were cut from alive (V8 represents a slice as a view of its source), so a delta chain, a watch backlog or a replica built from appends to a growing text held one copy of the text per commit ([#9265](https://github.com/earendil-works/pi/issues/9265))
+- Fixed append ops from the delta tracker and `diffRevisions()` keeping the whole string they were cut from alive (V8 represents a slice as a view of its source), so a delta chain, a watch backlog or a replica built from appends to a growing text held one copy of the text per commit ([#9265](https://github.com/EvoHarness-AI/evoharness/issues/9265))
 
 ## [1.4.0] - 2026-10-21
 
@@ -74,7 +74,7 @@
 
 ### Added
 
-- `@earendil-works/chord/output`: `OutputBuffer`, which keeps a head or tail window of a stream at a cost proportional to each chunk, `Progress`, which paces commits of a changing value by their size, plus `boundOutput`, `sanitizeOutput`, `characterEnd`, `utf8ByteLength`, and the `OutputLimits`, `BoundedOutput`, `OutputSlice`, and `OutputSkip` types. Moved from `@earendil-works/pi-durable`, which now uses them from here.
+- `@earendil-works/chord/output`: `OutputBuffer`, which keeps a head or tail window of a stream at a cost proportional to each chunk, `Progress`, which paces commits of a changing value by their size, plus `boundOutput`, `sanitizeOutput`, `characterEnd`, `utf8ByteLength`, and the `OutputLimits`, `BoundedOutput`, `OutputSlice`, and `OutputSkip` types. Moved from `@evoharness/durable`, which now uses them from here.
 - Remote references to one object share one binding per host and key (type, normalized input identity, principal key, contract fingerprint): one hold, one stream per state member, calls over the same hold; every reference keeps its own status, observers and `release`. `HostOptions.linger` (`{ types: { [typeName]: ms }, cap }`, cap default 4) keeps a binding held and hydrated after its last reference is released, so a reference taken again meanwhile costs nothing on the link
 - Holds from clients carry an opaque `origin`: the id the accepting host gave the client connection, forwarded by relays and honored only from the parent link, so a host can tell client connections apart; a disconnect releases that client's holds at once
 - Flow control by units: the first unit of a new reference passes the window, so a `get` never waits behind other references' state; units for reloads and re-holds wait, built lazily from the current values; waiting ops are capped per link (`LinkOptions.pendingCap`, default four windows), beyond which the oldest streams become resets (a relay asks downstream with `resync`)
@@ -106,7 +106,7 @@
 - A relayed call ran under the origin's cancel signal only, so a forced retirement of the relaying host could not cancel it before closing the old code's resources; it now follows its root's signal
 - A resource kept across a reload closed with the `close` of the factory run that first opened it, and kept that run's code reachable; it now adopts the newest declaration at commit
 - `forkDriver` passed its own `CHORD2_LOCK` to forked children, so a child host that forked its own children made those without a lock of their own fail with `locked`
-- A call through a remote reference accepted a ctx from another host, or an object not made by Chord, and carried its root over the link; it now rejects it with `invalid/foreign_ctx` like a local reference ([#10959](https://github.com/earendil-works/pi/issues/10959))
+- A call through a remote reference accepted a ctx from another host, or an object not made by Chord, and carried its root over the link; it now rejects it with `invalid/foreign_ctx` like a local reference ([#10959](https://github.com/EvoHarness-AI/evoharness/issues/10959))
 
 ## [1.2.0] - 2026-10-12
 
@@ -115,7 +115,7 @@
 - Replaced the facet and service runtime with a typed host runtime: contracts (`local`, `remote`, `method`, `opaque`) are runtime values described with TypeBox schemas, objects are served by hosts (`createHost`, `defineFacet`, `defineRegistry`) and reached through handles, and hosts exchange JSON frames over memory, Node IPC, or WebSocket links (`memoryLinkPair`, `ipcLink`, `webSocketLink`, `acceptWebSockets`), with hot reload of plugins. See `docs/tutorial.md` and `docs/guide.md`
 - Removed `defineService`, `createFacetHost`, `createRemoteServiceBinding`, `createStaticFacetLoader`, `combineFacetLoaders`, the remote-service endpoint, provider, error, and wire helpers, and their types. The old `defineFacet`, `Facet`, and `FacetLoader` are replaced by the new runtime's names of the same spelling
 - Removed the `./bundler` export and the facet bundle loaders of `./node`; `./node` now exports the child host manager (`createHostManager`, `forkDriver`, `childControl`, `processLock`) and the facet module loader `nodeLoader`
-- Removed `@earendil-works/pi-client`, `@earendil-works/pi-protocol`, and `@earendil-works/pi-server`, which served only the old runtime; they are no longer released
+- Removed `@evoharness/client`, `@evoharness/protocol`, and `@evoharness/server`, which served only the old runtime; they are no longer released
 
 ### Changed
 

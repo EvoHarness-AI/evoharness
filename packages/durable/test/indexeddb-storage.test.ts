@@ -2,7 +2,7 @@
 
 import type { Context, JsonValue } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { registerStorageConformance } from "@earendil-works/pi-durable/testing";
+import { registerStorageConformance } from "@evoharness/durable/testing";
 import { IDBKeyRange as FakeIDBKeyRange, IDBObjectStore as FakeIDBObjectStore, IDBFactory } from "fake-indexeddb";
 import { describe, expect, it, vi } from "vitest";
 import { idFromNumber } from "../src/ids.ts";

@@ -23,7 +23,7 @@
 - `NOOP_TELEMETRY_CONTEXT` is typed as `TelemetrySpan`, matching the shared inert span it provides.
 - Metric schema definitions and `createTypedMetrics()` with exact instrument names, kinds, and required/optional low-cardinality attributes.
 - In-memory propagation across processes, link and measurement snapshots, and adapter conformance cases for propagation, links, and optional metrics.
-- `StoredSpan`, `StoredTrace`, and `TelemetryStore` define backend-independent trace discovery, trace retrieval, and metric queries. `@earendil-works/pi-telemetry/render` exports `renderTrace()` for plain-text span trees with attributes, durations, errors, events, and cross-trace links; merged spans are deduplicated by ID and links are never followed.
+- `StoredSpan`, `StoredTrace`, and `TelemetryStore` define backend-independent trace discovery, trace retrieval, and metric queries. `@evoharness/telemetry/render` exports `renderTrace()` for plain-text span trees with attributes, durations, errors, events, and cross-trace links; merged spans are deduplicated by ID and links are never followed.
 
 ## [1.3.0] - 2026-10-15
 

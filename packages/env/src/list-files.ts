@@ -9,8 +9,8 @@ import {
 	type ListFilesOptions,
 	ok,
 	type Result,
-} from "@earendil-works/pi-durable/env";
-import { NodeExecutionEnv } from "@earendil-works/pi-durable/env/node";
+} from "@evoharness/durable/env";
+import { NodeExecutionEnv } from "@evoharness/durable/env/node";
 import type { Connection } from "./connection.ts";
 import { abortResult, toFileError } from "./errors.ts";
 

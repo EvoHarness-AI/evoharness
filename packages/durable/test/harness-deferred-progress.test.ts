@@ -3,7 +3,7 @@
 // by failing the Harness: from that moment nothing more reaches Storage, as when the process dies; the reopened Harness
 // resumes from what was stored.
 import { applyImmutable } from "@earendil-works/chord/delta";
-import { fauxAssistantMessage, fauxText, fauxToolCall, Type } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage, fauxText, fauxToolCall, Type } from "@evoharness/ai";
 import {
 	AssistantEntry,
 	type ConversationId,
@@ -14,7 +14,7 @@ import {
 	LiveDoc,
 	type LiveState,
 	ToolResultEntry,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import type { PartialMessage } from "../src/harness/partial-changes.ts";
 import type { SessionImpl } from "../src/session/session.ts";

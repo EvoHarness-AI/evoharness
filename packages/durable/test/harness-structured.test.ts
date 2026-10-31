@@ -9,7 +9,7 @@ import {
 	type Models,
 	type ToolResultMessage,
 	Type,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	type Conversation,
 	type ConversationId,
@@ -34,7 +34,7 @@ import {
 	type ToolRegistration,
 	ToolResultEntry,
 	type Tx,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it } from "vitest";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";
 import { allEntries, chatSetup, openChat, waitFor } from "./chat-support.ts";

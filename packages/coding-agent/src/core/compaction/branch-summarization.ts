@@ -5,10 +5,10 @@
  * a summary of the branch being left so context isn't lost.
  */
 
-import type { AgentMessage, StreamFn, ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { RetryCallbacks, RetryPolicy } from "@earendil-works/pi-ai";
-import { contentText, normalizeContext } from "@earendil-works/pi-ai";
-import type { Model, SimpleStreamOptions, Usage } from "@earendil-works/pi-ai/compat";
+import type { AgentMessage, StreamFn, ThinkingLevel } from "@evoharness/agent-core";
+import type { RetryCallbacks, RetryPolicy } from "@evoharness/ai";
+import { contentText, normalizeContext } from "@evoharness/ai";
+import type { Model, SimpleStreamOptions, Usage } from "@evoharness/ai/compat";
 import {
 	convertToLlm,
 	createBranchSummaryMessage,

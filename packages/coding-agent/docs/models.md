@@ -12,7 +12,7 @@ For a built-in provider, start with `/login`, then choose a model with `/model`.
 | An OpenAI-, Anthropic-, or Google-compatible endpoint | Add it to `models.json` |
 | A provider with a custom protocol or authentication flow | Build or install a provider extension |
 
-Browse the [model catalog](https://pi.dev/models) for current providers, model IDs, capabilities, context limits, and pricing. Pi starts with its bundled catalog and can overlay newer catalog data from pi.dev. Cached catalog data remains available offline; run `pi update --models` to force a refresh.
+Browse the [model catalog](https://evoharness.dev/models) for current providers, model IDs, capabilities, context limits, and pricing. Pi starts with its bundled catalog and can overlay newer catalog data from evoharness.dev. Cached catalog data remains available offline; run `pi update --models` to force a refresh.
 
 ## Authenticate
 
@@ -48,7 +48,7 @@ Use [`models.json`](configuration.md#agent-directory) when an endpoint speaks an
 
 ```json
 {
-  "$schema": "https://pi.dev/schemas/models.schema.json",
+  "$schema": "https://evoharness.dev/schemas/models.schema.json",
   "providers": {
     "ollama": {
       "baseUrl": "http://localhost:11434/v1",

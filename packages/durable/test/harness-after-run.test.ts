@@ -2,7 +2,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { Draft, JsonValue } from "@earendil-works/chord";
-import { fauxAssistantMessage, fauxToolCall, Type } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage, fauxToolCall, Type } from "@evoharness/ai";
 import {
 	CompactionTask,
 	ConversationBusy,
@@ -24,7 +24,7 @@ import {
 	type Storage,
 	type TaskId,
 	type Tx,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it } from "vitest";
 import { endRun } from "../src/harness/live.ts";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";

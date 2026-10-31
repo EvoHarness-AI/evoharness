@@ -4,7 +4,7 @@ import {
 	setKeybindings,
 	type TUI,
 	TuiMainScreen,
-} from "@earendil-works/pi-tui";
+} from "@evoharness/tui";
 import { existsSync } from "fs";
 import { APP_NAME, CONFIG_DIR_NAME, ENV_AGENT_DIR, getAgentDir, getSettingsPath, PACKAGE_NAME } from "../config.ts";
 import { areExperimentalFeaturesEnabled } from "../core/experimental.ts";
@@ -31,7 +31,7 @@ import {
 } from "../modes/interactive/theme/theme.ts";
 import { requestTerminalColors } from "../modes/interactive/theme/theme-controller.ts";
 
-const OFFICIAL_PACKAGE_NAME = "@earendil-works/pi-coding-agent";
+const OFFICIAL_PACKAGE_NAME = "@evoharness/coding-agent";
 const OFFICIAL_APP_NAME = "pi";
 const OFFICIAL_CONFIG_DIR_NAME = ".pi";
 

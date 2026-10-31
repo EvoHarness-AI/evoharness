@@ -3,15 +3,15 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { renderToolOutputType } from "@earendil-works/pi-codemode/declarations";
+import { renderToolOutputType } from "@evoharness/codemode/declarations";
 import {
 	type JsonRpcMessage,
 	LATEST_PROTOCOL_VERSION,
 	McpAuthRequiredError,
 	McpHttpError,
 	McpSessionExpiredError,
-} from "@earendil-works/pi-mcp";
-import { createInMemoryTransportPair, type InMemoryTransport } from "@earendil-works/pi-mcp/testing";
+} from "@evoharness/mcp";
+import { createInMemoryTransportPair, type InMemoryTransport } from "@evoharness/mcp/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import { InMemoryAuthStorageBackend } from "../src/core/auth-storage.ts";
 import { truncateMiddle } from "../src/core/tools/truncate.ts";

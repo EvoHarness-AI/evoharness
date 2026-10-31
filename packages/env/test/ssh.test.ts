@@ -14,7 +14,7 @@ import { createServer, Socket } from "node:net";
 import { tmpdir, userInfo } from "node:os";
 import { join } from "node:path";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { getOrThrow } from "@earendil-works/pi-durable/env";
+import { getOrThrow } from "@evoharness/durable/env";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Connection } from "../src/connection.ts";
 import { LocalExecutionEnv } from "../src/list-files.ts";

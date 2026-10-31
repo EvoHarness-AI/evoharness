@@ -99,7 +99,7 @@ function run(tools: Tool[], onPayload?: (payload: unknown) => unknown) {
 	).result();
 }
 
-// Regression tests for https://github.com/earendil-works/pi/issues/11416.
+// Regression tests for https://github.com/EvoHarness-AI/evoharness/issues/11416.
 describe("Bedrock preferred strict tool fallback", () => {
 	beforeEach(() => {
 		bedrockMock.inputs = [];

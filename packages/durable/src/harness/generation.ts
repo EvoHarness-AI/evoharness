@@ -8,10 +8,10 @@ import type {
 	ModelThinkingLevel,
 	SimpleStreamOptions,
 	ToolCall,
-} from "@earendil-works/pi-ai";
-import { isContextOverflow } from "@earendil-works/pi-ai/utils/overflow";
-import { isRetryableAssistantError, retryDelayMs } from "@earendil-works/pi-ai/utils/retry";
-import { getCurrentTools } from "@earendil-works/pi-ai/utils/transcript";
+} from "@evoharness/ai";
+import { isContextOverflow } from "@evoharness/ai/utils/overflow";
+import { isRetryableAssistantError, retryDelayMs } from "@evoharness/ai/utils/retry";
+import { getCurrentTools } from "@evoharness/ai/utils/transcript";
 import { AssistantEntry, ResetEntry, SystemEntry, UserEntry } from "../entries.ts";
 import type { ExecutionEnv } from "../env/index.ts";
 import type { TaskCreationOptions } from "../session/transaction.ts";

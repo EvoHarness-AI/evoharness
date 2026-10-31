@@ -64,7 +64,7 @@ function harness(respond: (payload: MessageCreateParamsStreaming, attempt: numbe
 	return { payloads, options: { apiKey: "test-key", fetch, maxRetries: 0 } satisfies AnthropicOptions };
 }
 
-// Regression tests for https://github.com/earendil-works/pi/issues/10409.
+// Regression tests for https://github.com/EvoHarness-AI/evoharness/issues/10409.
 describe("Anthropic preferred strict tool fallback", () => {
 	it.each([
 		grammarError,

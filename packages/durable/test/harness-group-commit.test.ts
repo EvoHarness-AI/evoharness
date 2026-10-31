@@ -10,7 +10,7 @@ import {
 	type TaskId,
 	type TaskRecord,
 	type TaskRuntime,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it } from "vitest";
 import { SCHEDULER_INDEX_SIZES } from "../src/harness/harness.ts";
 import { ownedKey, ROOTS_KEY } from "../src/session/keys.ts";

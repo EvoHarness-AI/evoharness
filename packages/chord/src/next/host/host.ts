@@ -4,7 +4,7 @@
 // (slice 7b: staging, the commit, each object's fate, the report), closing; one batch per host, the backoff map and the
 // endings new instances wait for.
 
-import type { TelemetryContext } from "@earendil-works/pi-telemetry";
+import type { TelemetryContext } from "@evoharness/telemetry";
 import {
 	awaitWithContext,
 	BACKGROUND_CONTEXT,

@@ -75,7 +75,7 @@ Use an explicit manifest when resources live elsewhere or need filtering:
 
 Paths are relative to the package root. Arrays accept glob patterns and exclusions. List dot-prefixed or symlinked resource roots directly when traversal through a glob would not discover them.
 
-The `pi-package` keyword makes an npm package eligible for discovery in the [Pi package gallery](https://pi.dev/packages). Optional `pi.image` and `pi.video` fields add gallery previews.
+The `pi-package` keyword makes an npm package eligible for discovery in the [Pi package gallery](https://evoharness.dev/packages). Optional `pi.image` and `pi.video` fields add gallery previews.
 
 ## Show a changelog
 
@@ -103,10 +103,10 @@ Put runtime packages imported by extensions in `dependencies`. Pi installs packa
 
 Pi supplies these packages to extensions and skills:
 
-- `@earendil-works/pi-ai`
-- `@earendil-works/pi-agent-core`
-- `@earendil-works/pi-coding-agent`
-- `@earendil-works/pi-tui`
+- `@evoharness/ai`
+- `@evoharness/agent-core`
+- `@evoharness/coding-agent`
+- `@evoharness/tui`
 - `typebox`
 
 Declare the host-provided packages listed above in `peerDependencies` with a `"*"` range and do not bundle them. Pi suppresses automatic peer installation for managed npm packages and git packages installed with npm, pnpm, or Bun. Local packages are not installed or modified, so their dependency tree remains the package author's responsibility.

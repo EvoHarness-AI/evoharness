@@ -2,8 +2,8 @@
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/05-harness.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { Type } from "@earendil-works/pi-ai";
-import { createModels } from "@earendil-works/pi-ai/models";
+import { Type } from "@evoharness/ai";
+import { createModels } from "@evoharness/ai/models";
 import {
 	AgentDoc,
 	createRegistry,

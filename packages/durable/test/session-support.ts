@@ -16,7 +16,7 @@ import {
 	type Session,
 	type Storage,
 	type StorageWrite,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { type ObservedCommit, SessionImpl } from "../src/session/session.ts";
 
 export const context: Context = BACKGROUND_CONTEXT;

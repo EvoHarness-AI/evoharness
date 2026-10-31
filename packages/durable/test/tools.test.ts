@@ -11,7 +11,7 @@ import type {
 	ToolExecutionApi,
 	ToolExecutionResult,
 	ToolRegistration,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { applyPatch } from "diff";
 import { afterAll, describe, expect, it } from "vitest";
 import {

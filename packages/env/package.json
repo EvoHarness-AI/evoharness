@@ -1,5 +1,5 @@
 {
-	"name": "@earendil-works/pi-env",
+	"name": "@evoharness/env",
 	"version": "1.4.0",
 	"description": "Remote execution environments for Pi Durable: a small daemon deployed over SSH and its ExecutionEnv client",
 	"type": "module",
@@ -38,7 +38,7 @@
 	"license": "MIT",
 	"repository": {
 		"type": "git",
-		"url": "git+https://github.com/earendil-works/pi.git",
+		"url": "git+https://github.com/EvoHarness-AI/evoharness.git",
 		"directory": "packages/env"
 	},
 	"engines": {
@@ -46,7 +46,7 @@
 	},
 	"dependencies": {
 		"@earendil-works/chord": "1.4.0",
-		"@earendil-works/pi-durable": "1.4.0"
+		"@evoharness/durable": "1.4.0"
 	},
 	"devDependencies": {
 		"shx": "0.3.4",

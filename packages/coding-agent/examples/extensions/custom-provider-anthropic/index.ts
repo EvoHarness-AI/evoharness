@@ -45,8 +45,8 @@ import {
 	ToolCallArgumentsStream,
 	type ToolResultMessage,
 	type TranscriptContext,
-} from "@earendil-works/pi-ai";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+} from "@evoharness/ai";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 
 // =============================================================================
 // OAuth implementation adapted for the legacy extension compatibility interface.

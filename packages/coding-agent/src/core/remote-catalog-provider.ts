@@ -6,12 +6,12 @@ import {
 	type ModelType,
 	type Provider,
 	type RefreshModelsContext,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import { VERSION } from "../config.ts";
 import { fetchWithRetry } from "../utils/management-http.ts";
 import { getPiUserAgent } from "../utils/pi-user-agent.ts";
 
-const DEFAULT_CATALOG_BASE_URL = "https://pi.dev";
+const DEFAULT_CATALOG_BASE_URL = "https://evoharness.dev";
 const REMOTE_CATALOG_ATTEMPT_TIMEOUT_MS = 4_000;
 export const REMOTE_CATALOG_REFRESH_INTERVAL_MS = 4 * 60 * 60 * 1000;
 /**
@@ -50,7 +50,7 @@ function parseCatalog(providerId: string, value: unknown): AnyModel[] {
 		.map((model) => ({ ...model, provider: providerId }) as AnyModel);
 }
 
-/** Read a successful pi.dev catalog response. A missing or invalid Last-Modified header is 0. */
+/** Read a successful evoharness.dev catalog response. A missing or invalid Last-Modified header is 0. */
 async function readCatalog(
 	providerId: string,
 	response: Response,
@@ -63,7 +63,7 @@ async function readCatalog(
 	};
 }
 
-/** Whether a pi.dev catalog is newer than the model data shipped with pi. */
+/** Whether a evoharness.dev catalog is newer than the model data shipped with pi. */
 function isNewer(lastModified: number | undefined, localGeneratedAt: number | undefined): boolean {
 	return localGeneratedAt === undefined || (lastModified !== undefined && lastModified > localGeneratedAt);
 }
@@ -100,7 +100,7 @@ export type PersonalizeCatalog = (
 	context: RefreshModelsContext,
 ) => Promise<readonly AnyModel[]>;
 
-/** Add a persisted pi.dev catalog overlay to a static built-in provider. */
+/** Add a persisted evoharness.dev catalog overlay to a static built-in provider. */
 export function withRemoteCatalog(
 	provider: Provider,
 	catalogBaseUrl: string = DEFAULT_CATALOG_BASE_URL,
@@ -129,7 +129,7 @@ export function withRemoteCatalog(
 				return;
 			}
 			if (!context.allowNetwork || context.signal.aborted) return;
-			// Skip the request if pi.dev was checked less than REMOTE_CATALOG_REFRESH_INTERVAL_MS ago.
+			// Skip the request if evoharness.dev was checked less than REMOTE_CATALOG_REFRESH_INTERVAL_MS ago.
 			// An entry without lastModified (saved by an older pi, or after a failed first request) is
 			// always refetched: remoteModels() ignores it, so waiting would leave the overlay empty.
 			if (
@@ -186,10 +186,10 @@ export function withRemoteCatalog(
 
 /**
  * Like `withRemoteCatalog`, but on each network refresh the catalog (built-in models plus a newer
- * pi.dev catalog) is passed through `personalize` and the result is saved. The saved entry holds
- * the personalized list, not the pi.dev catalog, and replaces the catalog, including offline.
+ * evoharness.dev catalog) is passed through `personalize` and the result is saved. The saved entry holds
+ * the personalized list, not the evoharness.dev catalog, and replaces the catalog, including offline.
  * The refresh interval and etag revalidation are skipped. An empty list (nothing saved yet, or an
- * empty catalog saved by an older pi after a failed or missing pi.dev catalog) falls back to the
+ * empty catalog saved by an older pi after a failed or missing evoharness.dev catalog) falls back to the
  * built-in models.
  */
 export function withPersonalizedCatalog(

@@ -1,19 +1,19 @@
 import type { Context, JsonValue } from "@earendil-works/chord";
 import { withAbortSignal, withoutAbortSignal } from "@earendil-works/chord/context";
-import type { Models } from "@earendil-works/pi-ai";
+import type { Models } from "@evoharness/ai";
 import {
 	type ClientIdentity,
 	mergeClientIdentity,
 	PI_ATTRIBUTION,
 	withClientIdentity,
-} from "@earendil-works/pi-ai/utils/identity";
+} from "@evoharness/ai/utils/identity";
 import {
 	createTypedMetrics,
 	NOOP_TELEMETRY_CONTEXT,
 	NOOP_TELEMETRY_METRICS,
 	type SpanAttributes,
 	type TelemetryContext,
-} from "@earendil-works/pi-telemetry";
+} from "@evoharness/telemetry";
 import { ResetEntry } from "../entries.ts";
 import type { ExecutionEnv } from "../env/index.ts";
 import { contained, SessionImpl } from "../session/session.ts";

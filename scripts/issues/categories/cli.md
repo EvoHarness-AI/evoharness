@@ -15,4 +15,4 @@ In:
 
 Examples: #6600, #7756, #10202, #10519, #10288, #10168, #9972, #10272, #7772.
 
-Usually not worth opening: pi.dev package catalog listing problems (not this repo).
+Usually not worth opening: evoharness.dev package catalog listing problems (not this repo).

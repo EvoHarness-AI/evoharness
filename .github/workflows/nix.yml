@@ -2,7 +2,7 @@ name: Nix
 
 # The flake builds with the model catalog revision pinned in
 # nix/model-catalog.json. This workflow keeps that pin usable independently of
-# releases: after pi.dev publishes a catalog from main, it replaces the pin with
+# releases: after evoharness.dev publishes a catalog from main, it replaces the pin with
 # the newest catalog only if the current one no longer hydrates main (for
 # example after a provider was added) or its provider/type/API model groups
 # differ from the newest catalog for one of main's providers (for example after
@@ -11,7 +11,7 @@ name: Nix
 #
 # Release tags are built exactly as tagged, with their committed pin. Once all
 # systems build, the stable branch is fast-forwarded to the tag so that
-# `nix run github:earendil-works/pi/stable` runs the latest release.
+# `nix run github:EvoHarness-AI/evoharness/stable` runs the latest release.
 
 on:
   push:
@@ -80,7 +80,7 @@ jobs:
           else
             echo "updated=true" >> "${GITHUB_OUTPUT}"
             if [[ "${GITHUB_EVENT_NAME}" == "pull_request" ]]; then
-              echo "::warning::The model catalog pin on main is stale; this build uses ${revision}. The pin is refreshed on main after pi.dev publishes a catalog."
+              echo "::warning::The model catalog pin on main is stale; this build uses ${revision}. The pin is refreshed on main after evoharness.dev publishes a catalog."
             fi
           fi
 

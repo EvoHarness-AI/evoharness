@@ -5,7 +5,7 @@ import {
 	type EntryId,
 	type JsonObject,
 	type StorageWrite,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import {
 	context,

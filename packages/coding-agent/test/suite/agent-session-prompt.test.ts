@@ -1,14 +1,14 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AgentTool } from "@earendil-works/pi-agent-core";
+import type { AgentTool } from "@evoharness/agent-core";
 import {
 	fauxAssistantMessage,
 	fauxToolCall,
 	getCurrentSystemPrompt,
 	type Model,
 	type TranscriptContext,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { BeforeAgentStartEvent, ExtensionAPI, InputEvent } from "../../src/core/extensions/index.ts";
@@ -165,7 +165,7 @@ describe("AgentSession prompt characterization", () => {
 		expect(sawImage).toBe(true);
 	});
 
-	// Regression test for https://github.com/earendil-works/pi/issues/9631
+	// Regression test for https://github.com/EvoHarness-AI/evoharness/issues/9631
 	it("uses the model selected by before_agent_start for image normalization", async () => {
 		let strictModel: Model<string> | undefined;
 		const harness = await createHarness({

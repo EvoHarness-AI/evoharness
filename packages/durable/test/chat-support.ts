@@ -7,7 +7,7 @@ import {
 	type Message,
 	type Models,
 	type RegisterFauxProviderOptions,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	type Conversation,
 	createRegistry,
@@ -19,7 +19,7 @@ import {
 	type ReportInfo,
 	type Storage,
 	type ToolRegistration,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import type { ExecutionEnv } from "../src/env/index.ts";
 import { context } from "./session-support.ts";
 

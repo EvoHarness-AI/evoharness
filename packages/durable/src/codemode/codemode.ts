@@ -36,16 +36,16 @@
  */
 import { type Context, copyJson, type JsonValue } from "@earendil-works/chord";
 import { ownedSlice } from "@earendil-works/chord/delta";
-import type { TextContent } from "@earendil-works/pi-ai";
-import { toCodemodeIdentifier } from "@earendil-works/pi-codemode/declarations";
+import type { TextContent } from "@evoharness/ai";
+import { toCodemodeIdentifier } from "@evoharness/codemode/declarations";
 import type {
 	CodemodeHostCall,
 	CodemodeOutcome,
 	CodemodeResult,
 	CodemodeRun,
 	CodemodeSandboxBase,
-} from "@earendil-works/pi-codemode/portable";
-import { CODEMODE_SOURCE_GRAMMAR, parseCodemodeSource } from "@earendil-works/pi-codemode/source";
+} from "@evoharness/codemode/portable";
+import { CODEMODE_SOURCE_GRAMMAR, parseCodemodeSource } from "@evoharness/codemode/source";
 import { type Static, Type } from "typebox";
 import { defineDoc } from "../documents.ts";
 import type { ExecutionEnv } from "../env/index.ts";

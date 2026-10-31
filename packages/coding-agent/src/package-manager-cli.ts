@@ -9,7 +9,7 @@ import {
 	writeFileSync,
 } from "node:fs";
 import { join, resolve } from "node:path";
-import { Markdown, type MarkdownTheme } from "@earendil-works/pi-tui";
+import { Markdown, type MarkdownTheme } from "@evoharness/tui";
 import chalk from "chalk";
 import lockfile from "proper-lockfile";
 import { selectConfig } from "./cli/config-selector.ts";
@@ -51,7 +51,7 @@ export type PackageCommand = "install" | "remove" | "update" | "list";
 
 type UpdateTarget = { type: "all" } | { type: "self" } | { type: "extensions"; source?: string } | { type: "models" };
 
-const DEFAULT_INSTALLER_API_BASE = "https://pi.dev/api/installer/releases";
+const DEFAULT_INSTALLER_API_BASE = "https://evoharness.dev/api/installer/releases";
 const MANAGED_INSTALL_MARKER = "managed-install.json";
 const MANAGED_RELEASE_VERSION_RE = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 
@@ -1183,13 +1183,13 @@ export async function handlePackageCommand(
 						return true;
 					}
 					console.log(chalk.green(`Updated ${APP_NAME} from ${VERSION} to ${selfUpdatePlan.version}`));
-					// The pi.dev installer migrates global npm installs to a managed install
+					// The evoharness.dev installer migrates global npm installs to a managed install
 					// that pins all dependencies. It does not migrate pnpm, yarn, or bun installs.
 					if (installMethod === "npm") {
 						const installerCommand =
 							process.platform === "win32"
-								? 'powershell -c "irm https://pi.dev/install.ps1 | iex"'
-								: "curl -fsSL https://pi.dev/install.sh | sh";
+								? 'powershell -c "irm https://evoharness.dev/install.ps1 | iex"'
+								: "curl -fsSL https://evoharness.dev/install.sh | sh";
 						console.log();
 						console.log(chalk.yellow(`This npm installation of ${APP_NAME} does not pin its dependencies.`));
 						console.log(chalk.yellow("Run the installer to migrate to a managed installation that does:"));

@@ -6,7 +6,7 @@ import {
 	PI_ATTRIBUTION,
 	type SimpleStreamOptions,
 	type SystemMessage,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	AssistantEntry,
 	type Conversation,
@@ -24,7 +24,7 @@ import {
 	type TaskId,
 	UserEntry,
 	wrapSection,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { resolveSettings } from "../src/harness/agent.ts";
 import type { SessionImpl } from "../src/session/session.ts";

@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getModel } from "@earendil-works/pi-ai/compat";
-import type { TUI } from "@earendil-works/pi-tui";
+import { getModel } from "@evoharness/ai/compat";
+import type { TUI } from "@evoharness/tui";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { ToolDefinition } from "../src/core/extensions/types.ts";
 import { DefaultResourceLoader } from "../src/core/resource-loader.ts";
@@ -80,7 +80,7 @@ describe("tool renderer examples", () => {
 			tools: ["read", "bash", "write", "edit", "find", "grep", "ls"],
 		},
 	])("keeps the system prompt unchanged for the $name example", async ({ extensionPath, tools }) => {
-		// Regression test for https://github.com/earendil-works/pi/issues/10072
+		// Regression test for https://github.com/EvoHarness-AI/evoharness/issues/10072
 		const baseline = await getSessionState(undefined, tools);
 		const withRenderer = await getSessionState(extensionPath, tools);
 
@@ -88,7 +88,7 @@ describe("tool renderer examples", () => {
 	});
 
 	it("keeps minimal mode's edit tool in the default shell", async () => {
-		// Regression test for https://github.com/earendil-works/pi/issues/10072
+		// Regression test for https://github.com/EvoHarness-AI/evoharness/issues/10072
 		const minimalMode = await getSessionState(join(examplesDir, "minimal-mode.ts"), ["edit"]);
 		const editToolDefinition = minimalMode.editToolDefinition;
 		if (!editToolDefinition) throw new Error("minimal mode did not register the edit tool");

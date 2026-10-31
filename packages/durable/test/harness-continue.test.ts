@@ -11,7 +11,7 @@ import {
 	fauxToolCall,
 	type Message,
 	Type,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	AssistantEntry,
 	type Conversation,
@@ -25,8 +25,8 @@ import {
 	type SettledSubmissionRecord,
 	type Storage,
 	UserEntry,
-} from "@earendil-works/pi-durable";
-import { InMemoryTelemetryContext } from "@earendil-works/pi-telemetry";
+} from "@evoharness/durable";
+import { InMemoryTelemetryContext } from "@evoharness/telemetry";
 import { afterEach, describe, expect, it } from "vitest";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";
 import { allEntries, type ChatSetup, chatSetup, openChat, textOf, unanswered, waitFor } from "./chat-support.ts";

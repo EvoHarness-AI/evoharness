@@ -5,7 +5,7 @@ import { DatabaseSync } from "node:sqlite";
 import type { Context, JsonValue } from "@earendil-works/chord";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
 import type { SqliteDatabase } from "@earendil-works/chord/sqlite";
-import { registerStorageConformance } from "@earendil-works/pi-durable/testing";
+import { registerStorageConformance } from "@evoharness/durable/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import { idFromNumber } from "../src/ids.ts";
 import { type SqliteStorage, SqliteStorage as SqliteStorageClass } from "../src/storage/sqlite/index.ts";

@@ -1,4 +1,4 @@
-import { formatUserAgent } from "@earendil-works/pi-ai";
+import { formatUserAgent } from "@evoharness/ai";
 
 /** pi's `User-Agent` for its own network requests; the same detailed form pi-ai sends to providers. */
 export function getPiUserAgent(version: string): string {

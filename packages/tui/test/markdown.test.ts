@@ -966,7 +966,7 @@ Inline \(A_{sf}\)`,
 			);
 		});
 
-		// Regression test for https://github.com/earendil-works/pi/issues/11483
+		// Regression test for https://github.com/EvoHarness-AI/evoharness/issues/11483
 		it("falls back to raw source when display math is wider than the content width", () => {
 			const source = [
 				"\\[",
@@ -989,7 +989,7 @@ Inline \(A_{sf}\)`,
 			assert.ok(narrow.every((line) => line.length <= 30));
 		});
 
-		// Regression tests for https://github.com/earendil-works/pi/issues/11159
+		// Regression tests for https://github.com/EvoHarness-AI/evoharness/issues/11159
 		describe("unclosed display math before tables (#11159)", () => {
 			const table = ["| A | B |", "|---|---|", "| 1 | 2 |"];
 			const renderedTable = ["┌───┬───┐", "│ A │ B │", "├───┼───┤", "│ 1 │ 2 │", "└───┴───┘"];
@@ -1391,7 +1391,7 @@ again, hello world`,
 	});
 
 	describe("Deeply nested blockquotes", () => {
-		// Regression test for https://github.com/earendil-works/pi/issues/11272
+		// Regression test for https://github.com/EvoHarness-AI/evoharness/issues/11272
 		it("should render quotes nested deeper than the width allows without exploding", () => {
 			const markdown = new Markdown(`${">".repeat(60)}x`, 1, 0, defaultMarkdownTheme);
 			const lines = markdown.render(80);

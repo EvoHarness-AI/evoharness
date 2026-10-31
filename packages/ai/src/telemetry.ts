@@ -7,7 +7,7 @@ import {
 	type SchemaTelemetrySpan,
 	type TelemetryMetrics,
 	type TelemetrySpan,
-} from "@earendil-works/pi-telemetry";
+} from "@evoharness/telemetry";
 import type { LazyStreamObserver } from "./api/lazy.ts";
 import type { Api, Model } from "./types.ts";
 import { ownedSlice } from "./utils/text.ts";

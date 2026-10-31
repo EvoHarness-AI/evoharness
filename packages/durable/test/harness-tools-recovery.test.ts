@@ -9,7 +9,7 @@ import {
 	fauxToolCall,
 	type ToolResultMessage,
 	Type,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	defineTool,
 	type EntryRecord,
@@ -20,7 +20,7 @@ import {
 	type ToolRegistration,
 	ToolResultEntry,
 	ToolTask,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ExecutionEnv } from "../src/env/index.ts";
 import { NodeExecutionEnv } from "../src/env/node.ts";

@@ -9,7 +9,7 @@ import {
 	withContextValue,
 } from "@earendil-works/chord/context";
 import { applyImmutable } from "@earendil-works/chord/delta";
-import { type DocumentWatch, defineDoc, defineDocFamily, MemoryStorage } from "@earendil-works/pi-durable";
+import { type DocumentWatch, defineDoc, defineDocFamily, MemoryStorage } from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { SessionImpl } from "../src/session/session.ts";
 import { context, createConversation, documentValues, flush, onValue, openTestSession } from "./session-support.ts";

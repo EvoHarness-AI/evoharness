@@ -301,7 +301,7 @@ jobs:
             exit 1
           fi
 
-  # The pi-env daemon for every remote system @earendil-works/pi-env supports; the npm package ships them all.
+  # The pi-env daemon for every remote system @evoharness/env supports; the npm package ships them all.
   env-daemons:
     uses: ./.github/workflows/env-daemons.yml
     permissions:
@@ -418,7 +418,7 @@ jobs:
       - name: Verify AWS CLI
         run: aws --version
 
-      - name: Announce verified release on pi.dev
+      - name: Announce verified release on evoharness.dev
         run: |
           node scripts/publish-release-announcement.mjs \
             --version "${RELEASE_TAG#v}" \

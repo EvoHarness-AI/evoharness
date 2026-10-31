@@ -25,9 +25,9 @@ import {
 	str,
 } from "@earendil-works/chord/next";
 import { openNodeSqliteDatabase } from "@earendil-works/chord/sqlite/node";
-import { createModels } from "@earendil-works/pi-ai";
-import { registerStorageConformance } from "@earendil-works/pi-durable/testing";
-import { InMemoryTelemetryContext } from "@earendil-works/pi-telemetry";
+import { createModels } from "@evoharness/ai";
+import { registerStorageConformance } from "@evoharness/durable/testing";
+import { InMemoryTelemetryContext } from "@evoharness/telemetry";
 import { describe, expect, it } from "vitest";
 import { StorageRequestError } from "../src/errors.ts";
 import { idFromNumber } from "../src/ids.ts";

@@ -12,7 +12,7 @@ import {
 	type Observer,
 	type TaskGraph,
 	type TaskId,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import type { SessionImpl } from "../src/session/session.ts";
 import { ControlledStorage, context, flush, onValue } from "./session-support.ts";

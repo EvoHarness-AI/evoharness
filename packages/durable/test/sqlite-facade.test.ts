@@ -5,7 +5,7 @@ import {
 	NodeSqliteDatabase as ChordNodeSqliteDatabase,
 	openNodeSqliteDatabase as chordOpenNodeSqliteDatabase,
 } from "@earendil-works/chord/sqlite/node";
-import { DurableObjectSqliteDatabase } from "@earendil-works/pi-durable/storage/sqlite/cloudflare";
+import { DurableObjectSqliteDatabase } from "@evoharness/durable/storage/sqlite/cloudflare";
 import { describe, expect, it } from "vitest";
 import { idFromNumber } from "../src/ids.ts";
 import type { SqliteDatabase, SqliteExecutor, SqliteValue } from "../src/storage/sqlite/index.ts";

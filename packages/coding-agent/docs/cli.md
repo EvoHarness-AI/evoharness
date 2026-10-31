@@ -290,7 +290,7 @@ If a wrapper or another package manager provides Pi, set `PI_SELF_UPDATE_COMMAND
 export PI_SELF_UPDATE_COMMAND="mise use -g npm:{packageName}@{version}"
 ```
 
-`pi update` runs it only when pi.dev has a newer release, replacing `{packageName}`, `{version}`, and `{installSpec}` (`{packageName}@{version}`) with that release. The value is split on spaces. For arguments with spaces, use the `selfUpdateCommand` setting in `~/.pi/agent/settings.json` instead, an argv array such as `["nix", "profile", "upgrade", "pi"]`.
+`pi update` runs it only when evoharness.dev has a newer release, replacing `{packageName}`, `{version}`, and `{installSpec}` (`{packageName}@{version}`) with that release. The value is split on spaces. For arguments with spaces, use the `selfUpdateCommand` setting in `~/.pi/agent/settings.json` instead, an argv array such as `["nix", "profile", "upgrade", "pi"]`.
 
 ### Aliases and command options
 

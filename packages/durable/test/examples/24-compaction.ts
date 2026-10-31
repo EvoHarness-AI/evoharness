@@ -2,9 +2,9 @@
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/24-compaction.ts
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import type { AssistantMessage, Message, TranscriptContext } from "@earendil-works/pi-ai";
-import { createModels } from "@earendil-works/pi-ai/models";
-import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai/providers/faux";
+import type { AssistantMessage, Message, TranscriptContext } from "@evoharness/ai";
+import { createModels } from "@evoharness/ai/models";
+import { fauxAssistantMessage, fauxProvider } from "@evoharness/ai/providers/faux";
 import {
 	CompactionEntry,
 	type Conversation,

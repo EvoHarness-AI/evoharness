@@ -9,7 +9,7 @@ import {
 	MemoryStorage,
 	type Seq,
 	type StorageWrite,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FileError, Result } from "../src/env/index.ts";
 import { NodeExecutionEnv } from "../src/env/node.ts";

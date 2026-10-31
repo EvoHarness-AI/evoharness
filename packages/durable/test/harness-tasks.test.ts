@@ -1,6 +1,6 @@
 import type { Context } from "@earendil-works/chord";
 import { withAbortSignal, withCancel } from "@earendil-works/chord/context";
-import { createModels, Type } from "@earendil-works/pi-ai";
+import { createModels, Type } from "@evoharness/ai";
 import {
 	type CommitPublication,
 	type Conversation,
@@ -17,8 +17,8 @@ import {
 	type StorageWrite,
 	type TaskId,
 	type TaskRuntime,
-} from "@earendil-works/pi-durable";
-import { InMemoryTelemetryContext } from "@earendil-works/pi-telemetry";
+} from "@evoharness/durable";
+import { InMemoryTelemetryContext } from "@evoharness/telemetry";
 import { describe, expect, it } from "vitest";
 import type { SessionImpl } from "../src/session/session.ts";
 import { addHooks, addTask, addTool, user } from "./harness-support.ts";

@@ -127,7 +127,7 @@ function containsTableStart(source: string): boolean {
 
 function tokenizeBlockLatex(source: string): LatexToken | undefined {
 	// Display math never spans a table. Without this check, an unclosed "$$" or "\[" pairs with a later
-	// opener or stays pending, swallowing the table. See https://github.com/earendil-works/pi/issues/11159.
+	// opener or stays pending, swallowing the table. See https://github.com/EvoHarness-AI/evoharness/issues/11159.
 	const dollarMatch = /^ {0,3}\$\$[ \t]*(?:\n)?([\s\S]*?)\$\$[ \t]*(?:\n|$)/.exec(source);
 	if (dollarMatch?.[1] && !containsTableStart(dollarMatch[1])) {
 		return { type: "latexBlock", raw: dollarMatch[0], text: dollarMatch[1].trim() };
@@ -187,7 +187,7 @@ function trimPartialClosingFences(tokens: readonly Token[]): void {
 	}
 
 	// Trim streamed partial closing fences so code blocks do not shrink/flicker
-	// when the final fence character arrives. See https://github.com/earendil-works/pi/issues/5825.
+	// when the final fence character arrives. See https://github.com/EvoHarness-AI/evoharness/issues/5825.
 	const marker = /^(`{3,}|~{3,})/.exec(token.raw)?.[1];
 	const lastLine = token.raw.split("\n").pop();
 	if (!marker || !lastLine || lastLine.length >= marker.length || lastLine !== marker[0]?.repeat(lastLine.length)) {

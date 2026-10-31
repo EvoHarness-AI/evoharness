@@ -85,7 +85,7 @@ describe("rankDocuments", () => {
 		expect(rankDocuments("kubernetes", namespaced, 8)).toEqual(["mcp__x__run"]);
 	});
 
-	// https://github.com/earendil-works/pi/issues/11331
+	// https://github.com/EvoHarness-AI/evoharness/issues/11331
 	it("ranks a tool first when the query is its name", () => {
 		const named = [
 			doc("mcp__app__queue_read", "Read a queued message of this thread."),
@@ -101,7 +101,7 @@ describe("rankDocuments", () => {
 		expect(rankDocuments("read", named, 1)).toEqual(["mcp__app__queue_read"]);
 	});
 
-	// https://github.com/earendil-works/pi/issues/11331
+	// https://github.com/EvoHarness-AI/evoharness/issues/11331
 	it("ranks a name match above mentions in descriptions", () => {
 		const ci = [
 			doc("mcp__ci__status", "Deploy status: last deploy, deploy log, deploy errors."),
@@ -113,7 +113,7 @@ describe("rankDocuments", () => {
 		expect(rankDocuments("deploy", ci, 1)).toEqual(["mcp__ci__deploy_release"]);
 	});
 
-	// https://github.com/earendil-works/pi/issues/11331
+	// https://github.com/EvoHarness-AI/evoharness/issues/11331
 	it("ranks a tool first when the query contains its whole name", () => {
 		const peekaboo = "mcp__peekaboo Peekaboo controls macOS apps by app name.";
 		const named = [
@@ -137,7 +137,7 @@ describe("rankDocuments", () => {
 		expect(rankDocuments("describe window", named, 1)).toEqual(["mcp__peekaboo__see"]);
 	});
 
-	// https://github.com/earendil-works/pi/issues/11331
+	// https://github.com/EvoHarness-AI/evoharness/issues/11331
 	it("ranks a tool matching more query terms first, whatever the scores", () => {
 		const peekaboo = [
 			doc("mcp__peekaboo__app", "Launch, quit, focus, or switch applications by name or bundle identifier."),

@@ -9,8 +9,8 @@ import {
 	Progress,
 	type ProgressClock,
 } from "@earendil-works/chord/output";
-import type { ImageContent, TextContent, ToolCall, ToolResultMessage } from "@earendil-works/pi-ai";
-import { validateToolArguments } from "@earendil-works/pi-ai/utils/validation";
+import type { ImageContent, TextContent, ToolCall, ToolResultMessage } from "@evoharness/ai";
+import { validateToolArguments } from "@evoharness/ai/utils/validation";
 import { Compile } from "typebox/compile";
 import { defineDocFamily } from "../documents.ts";
 import { AssistantEntry, ToolResultEntry } from "../entries.ts";

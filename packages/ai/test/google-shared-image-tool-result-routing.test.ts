@@ -101,7 +101,7 @@ describe("google-shared image tool result routing", () => {
 		expect(imageResponse?.parts?.[0]?.inlineData).toBeTruthy();
 	});
 
-	// https://github.com/earendil-works/pi/issues/8720
+	// https://github.com/EvoHarness-AI/evoharness/issues/8720
 	it("treats whitespace-only tool result text as no text", () => {
 		const model = makeModel("google-generative-ai", "google", "gemini-3-pro-preview");
 		const context = makeContext(model);

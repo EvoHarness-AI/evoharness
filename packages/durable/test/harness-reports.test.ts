@@ -1,4 +1,4 @@
-import { createModels, fauxAssistantMessage, Type } from "@earendil-works/pi-ai";
+import { createModels, fauxAssistantMessage, Type } from "@evoharness/ai";
 import {
 	type AnyTask,
 	createRegistry,
@@ -13,7 +13,7 @@ import {
 	type SetTimer,
 	section,
 	wrapTool,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { chatSetup } from "./chat-support.ts";
 import { ControlledStorage, context } from "./session-support.ts";

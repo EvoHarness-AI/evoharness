@@ -1,5 +1,5 @@
 import { getHeapStatistics } from "node:v8";
-import { InMemoryTelemetryContext, type TelemetrySpan } from "@earendil-works/pi-telemetry";
+import { InMemoryTelemetryContext, type TelemetrySpan } from "@evoharness/telemetry";
 import { describe, expect, it, vi } from "vitest";
 import { lazyStream } from "../src/api/lazy.ts";
 import { AI_TELEMETRY_SCHEMA, createModels, createProvider } from "../src/models.ts";

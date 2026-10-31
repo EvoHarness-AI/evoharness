@@ -111,7 +111,7 @@ Radius also has an MCP server, so Pi can manage Radius for you.
 
 Radius is currently in early alpha and evolving quickly. See [radius.earendil.com](https://radius.earendil.com) for more.
 
-Radius authentication uses its gateway catalog and caches refreshed model metadata for later offline startup. A custom Radius gateway configured in `models.json` uses its own catalog rather than inheriting the public `radius.pi.dev` catalog.
+Radius authentication uses its gateway catalog and caches refreshed model metadata for later offline startup. A custom Radius gateway configured in `models.json` uses its own catalog rather than inheriting the public `radius.evoharness.dev` catalog.
 
 ### OpenRouter
 

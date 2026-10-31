@@ -2,7 +2,7 @@ import type { OAuthCredential } from "../auth/types.ts";
 import type { Model, ThinkingLevelMap } from "../types.ts";
 import { ownedSlice } from "../utils/text.ts";
 
-export const DEFAULT_RADIUS_GATEWAY = "https://radius.pi.dev";
+export const DEFAULT_RADIUS_GATEWAY = "https://radius.evoharness.dev";
 
 export type RadiusGatewayModel = {
 	id: string;

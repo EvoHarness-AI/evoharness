@@ -56,9 +56,9 @@ import {
 	type ProviderRequestOptions,
 	type SimpleStreamOptions,
 	type StreamOptions,
-} from "@earendil-works/pi-ai";
-import * as builtinProviderCatalog from "@earendil-works/pi-ai/providers/all";
-import { personalizeOpenRouterCatalog } from "@earendil-works/pi-ai/providers/openrouter";
+} from "@evoharness/ai";
+import * as builtinProviderCatalog from "@evoharness/ai/providers/all";
+import { personalizeOpenRouterCatalog } from "@evoharness/ai/providers/openrouter";
 import {
 	assertChatModel,
 	assertClassifierInputSupported,
@@ -66,7 +66,7 @@ import {
 	assertImageModel,
 	classifierErrorResult,
 	imageErrorResult,
-} from "@earendil-works/pi-ai/utils/model-operations";
+} from "@evoharness/ai/utils/model-operations";
 import { getAgentDir } from "../config.ts";
 import { operationSignal, raceWithAbortSignal } from "../utils/abort.ts";
 import { AuthStorage as DefaultAuthStorage } from "./auth-storage.ts";

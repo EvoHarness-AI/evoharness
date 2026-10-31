@@ -5,7 +5,7 @@
 		"paths": {
 			"@earendil-works/chord": ["../chord/dist/index.d.ts"],
 			"@earendil-works/chord/context": ["../chord/dist/context/index.d.ts"],
-			"@earendil-works/pi-durable/env": ["../durable/dist/env/index.d.ts"]
+			"@evoharness/durable/env": ["../durable/dist/env/index.d.ts"]
 		},
 		"rootDir": "./src"
 	},

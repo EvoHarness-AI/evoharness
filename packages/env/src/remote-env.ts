@@ -27,7 +27,7 @@ import {
 	type TextLine,
 	type TextLineReader,
 	type WatchTarget,
-} from "@earendil-works/pi-durable/env";
+} from "@evoharness/durable/env";
 import { type Connection, type Json, nodePlatform, RemoteError, type RemoteInfo } from "./connection.ts";
 import { abortResult, toFileError } from "./errors.ts";
 import { listFilesOver } from "./list-files.ts";

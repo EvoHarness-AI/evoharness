@@ -76,7 +76,7 @@ await host.root(async (ctx) => {
 
 ```ts
 import { BACKGROUND_CONTEXT, traceIn, withTelemetry } from '@earendil-works/chord/context';
-import { InMemoryTelemetryContext } from '@earendil-works/pi-telemetry';
+import { InMemoryTelemetryContext } from '@evoharness/telemetry';
 
 const telemetry = new InMemoryTelemetryContext();
 await telemetry.startSpan({ name: 'app.request' }, async (span) => {
@@ -101,7 +101,7 @@ These helpers operate on the standalone `Context` API. They do not yet instrumen
 ```ts
 import { createSqliteTelemetry } from '@earendil-works/chord/telemetry-sqlite';
 import { openNodeSqliteDatabase } from '@earendil-works/chord/sqlite/node';
-import { renderTrace } from '@earendil-works/pi-telemetry/render';
+import { renderTrace } from '@evoharness/telemetry/render';
 
 const db = await openNodeSqliteDatabase('telemetry.db');
 const telemetry = await createSqliteTelemetry(db);

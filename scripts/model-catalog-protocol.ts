@@ -1,14 +1,14 @@
 /**
- * Model catalog protocol shared by pi and pi.dev.
+ * Model catalog protocol shared by pi and evoharness.dev.
  *
  * This file is copied verbatim into two repositories. Change both copies in
  * the same pair of pull requests and keep them byte for byte identical:
  *
- *   earendil-works/pi      scripts/model-catalog-protocol.ts
- *   earendil-works/pi.dev  src/shared/models/protocol.ts
+ *   EvoHarness-AI/evoharness      scripts/model-catalog-protocol.ts
+ *   EvoHarness-AI/evoharness.dev  src/shared/models/protocol.ts
  *
  * pi uses it to publish catalog revisions and to test clients against the
- * catalog selection pi.dev performs. pi.dev uses it to serve catalog requests.
+ * catalog selection evoharness.dev performs. evoharness.dev uses it to serve catalog requests.
  * Keep it free of imports and runtime specific APIs so it runs unchanged in
  * Node.js and Cloudflare Workers.
  *

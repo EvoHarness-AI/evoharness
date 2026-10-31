@@ -4,7 +4,7 @@
  * patterns end to end.
  */
 import type { Context, Draft } from "@earendil-works/chord";
-import { type AssistantMessage, type Models, type ToolCall, Type } from "@earendil-works/pi-ai";
+import { type AssistantMessage, type Models, type ToolCall, Type } from "@evoharness/ai";
 import {
 	type Conversation,
 	type ConversationId,
@@ -33,7 +33,7 @@ import {
 	type Tx,
 	type UserInput,
 	wrapTool,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { expect, expectTypeOf, it } from "vitest";
 import type { ExecutionEnv } from "../src/env/index.ts";
 import { CodingTools, createBashTool, createEditTool, createReadTool } from "../src/tools/index.ts";

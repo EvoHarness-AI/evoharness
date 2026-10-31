@@ -12,7 +12,7 @@ import { BACKGROUND_CONTEXT, withTelemetry } from "@earendil-works/chord/context
 import { type ChordStore, createHost, openStore, sqliteBackend } from "@earendil-works/chord/next";
 import type { SqliteDatabase, SqliteExecutor } from "@earendil-works/chord/sqlite";
 import { openNodeSqliteDatabase } from "@earendil-works/chord/sqlite/node";
-import { InMemoryTelemetryContext } from "@earendil-works/pi-telemetry";
+import { InMemoryTelemetryContext } from "@evoharness/telemetry";
 import { afterEach, describe, expect, it } from "vitest";
 import { idFromNumber } from "../src/ids.ts";
 import { MemoryStorage } from "../src/index.ts";

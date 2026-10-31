@@ -271,7 +271,7 @@ first and win until the design is updated.
   (`pi.ai.*`, `pi.durable.*`); the OTel GenAI conventions (development status, renames, streaming still `TODO`) are not
   followed. An OTel adapter may translate pi's names to `gen_ai.*` at export. Model stream details are span events, never
   per delta. The pi part of telemetry (propagation, links, metrics, typed metric schemas, `chord/context` telemetry
-  member, `HarnessOptions.telemetry` type) is approved as diffed in `/home/badlogic/pi-telemetry`.
+  member, `HarnessOptions.telemetry` type) is approved as diffed in `/home/EvoHarness-AI/evoharness-telemetry`.
 - **Durable and AI spans (owner, 2026-10-18), partly open:** (**superseded in part** by pi-ai's option is `telemetry` (a span), not `telemetryContext` ("Telemetry types and review cleanup")) every span is short and in one process. Spans:
   `pi.durable.submit` (admission), `pi.durable.phase` (one invocation of any task's phase; fixed name, `task.name`,
   `phase`, `kind`, `attempt`, `resumed`, outcome as attributes), `pi.ai.request` (one model request). Events:

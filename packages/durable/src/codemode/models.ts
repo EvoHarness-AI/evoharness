@@ -16,7 +16,7 @@ import type {
 	ModelType,
 	ModelTypeMap,
 	Usage,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import { Type } from "typebox";
 import { defineTool } from "../harness/define.ts";
 import type { ToolRegistration } from "../harness/types.ts";

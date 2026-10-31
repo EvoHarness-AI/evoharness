@@ -11,7 +11,7 @@ import {
 	type RegistryTable,
 	str,
 } from "@earendil-works/chord/next";
-import { createModels } from "@earendil-works/pi-ai/models";
+import { createModels } from "@evoharness/ai/models";
 import { describe, expect, it } from "vitest";
 import {
 	createRegistry,

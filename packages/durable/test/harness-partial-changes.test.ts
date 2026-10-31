@@ -5,7 +5,7 @@ import {
 	type AssistantMessageEvent,
 	type ToolCall,
 	ToolCallArgumentsStream,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import { describe, expect, it } from "vitest";
 import type { LiveState } from "../src/harness/live.ts";
 import { PartialChanges, type PartialMessage } from "../src/harness/partial-changes.ts";

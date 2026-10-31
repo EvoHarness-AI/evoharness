@@ -12,7 +12,7 @@ import {
 	type ToolResultMessage,
 	Type,
 	type Usage,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	AssistantEntry,
 	type ConversationView,
@@ -32,7 +32,7 @@ import {
 	type ToolTaskInput,
 	type ToolTaskResult,
 	UsageDoc,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it } from "vitest";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";
 import { commitWrites } from "../src/testing/commit-writes.ts";

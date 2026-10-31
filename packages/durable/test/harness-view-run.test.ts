@@ -12,7 +12,7 @@ import {
 	fauxThinking,
 	fauxToolCall,
 	Type,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	type Conversation,
 	type ConversationView,
@@ -21,7 +21,7 @@ import {
 	LiveDoc,
 	type LiveState,
 	MemoryStorage,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { type ChatSetup, chatSetup, openChat, textOf, waitFor } from "./chat-support.ts";
 import { addTool } from "./harness-support.ts";

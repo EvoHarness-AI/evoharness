@@ -21,7 +21,7 @@ import {
 	str,
 } from "@earendil-works/chord/next";
 import { openNodeSqliteDatabase } from "@earendil-works/chord/sqlite/node";
-import { createModels } from "@earendil-works/pi-ai";
+import { createModels } from "@evoharness/ai";
 import {
 	createRegistry,
 	defineExtension,

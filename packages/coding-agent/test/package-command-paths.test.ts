@@ -100,7 +100,7 @@ if (process.platform !== "win32") fs.chmodSync(piPath, 0o755);
 			"fetch",
 			vi.fn(async (input: string | URL | Request) => {
 				const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-				if (url === "https://pi.dev/api/latest-version") {
+				if (url === "https://evoharness.dev/api/latest-version") {
 					return Response.json({ packageName: PACKAGE_NAME, version: targetVersion });
 				}
 				const releaseUrl = `https://example.test/api/installer/releases/${targetVersion}`;
@@ -716,7 +716,7 @@ if (process.platform !== "win32") fs.chmodSync(piPath, 0o755);
 	});
 
 	it("removes older managed releases after an update", async () => {
-		// https://github.com/earendil-works/pi/issues/10392
+		// https://github.com/EvoHarness-AI/evoharness/issues/10392
 		const targetVersion = getNewerPatchVersion();
 		const { managedRoot } = prepareManagedInstall(targetVersion);
 		const releasesRoot = join(managedRoot, "releases");

@@ -2,7 +2,7 @@
 // through `onWake`. Tests drive it with `runInDurableObject()`, evict it, and run its alarm.
 import { DurableObject, type DurableObjectState } from "cloudflare:workers";
 import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { createModels, type FauxResponseStep, fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai";
+import { createModels, type FauxResponseStep, fauxAssistantMessage, fauxProvider } from "@evoharness/ai";
 import {
 	type Conversation,
 	createRegistry,
@@ -11,8 +11,8 @@ import {
 	Harness,
 	type TaskId,
 	type Wake,
-} from "@earendil-works/pi-durable";
-import { openDurableObjectSqliteStorage } from "@earendil-works/pi-durable/storage/sqlite/cloudflare";
+} from "@evoharness/durable";
+import { openDurableObjectSqliteStorage } from "@evoharness/durable/storage/sqlite/cloudflare";
 
 const context = BACKGROUND_CONTEXT;
 

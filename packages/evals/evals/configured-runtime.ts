@@ -1,5 +1,5 @@
-import { type Api, type Context, contentText, type Model, type ModelsSimpleStreamOptions } from "@earendil-works/pi-ai";
-import { ModelRuntime } from "@earendil-works/pi-coding-agent";
+import { type Api, type Context, contentText, type Model, type ModelsSimpleStreamOptions } from "@evoharness/ai";
+import { ModelRuntime } from "@evoharness/coding-agent";
 
 type ModelFields = {
 	id: string;

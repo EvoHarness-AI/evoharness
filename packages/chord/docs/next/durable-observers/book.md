@@ -9,7 +9,7 @@ stats:
   - 7 | things that change for hosts compared with HEAD
   - 5 | decisions for the owner
 note: |
-  Written for the owner from the build of `/home/badlogic/pi-observers` (uncommitted), the four reviews
+  Written for the owner from the build of `/home/EvoHarness-AI/evoharness-observers` (uncommitted), the four reviews
   (`/tmp/observers-review-{astra,fable,opus,sol}.md`) and the four checks of the proposal
   (`/tmp/observers-proposal-{astra,fable,opus,sol}.md`), whose probes ran against HEAD, the first build and the
   proposal. Code is Durable's `session/session.ts` and `harness/*.ts` at HEAD, simplified. Nothing here is decided
@@ -424,7 +424,7 @@ Chord-like reentrancy, telemetry throws), a rebuild by a fresh builder, and the 
 | what | where |
 | --- | --- |
 | HEAD code | `packages/durable/src/session/session.ts` (`#runCommit`, `#publish`), `harness/view.ts`, `harness/task-graph.ts`, `harness/scheduler.ts`, `harness/submissions.ts`, `storage/jsonl/storage.ts` |
-| first build | `/home/badlogic/pi-observers` (uncommitted) |
+| first build | `/home/EvoHarness-AI/evoharness-observers` (uncommitted) |
 | reviews of the first build | `/tmp/observers-review-{astra,fable,opus,sol}.md` |
 | the proposal | `/tmp/observers-proposal.md` |
 | checks of the proposal | `/tmp/observers-proposal-{astra,fable,opus,sol}.md`; probes in `/tmp/obsprobe-*` |

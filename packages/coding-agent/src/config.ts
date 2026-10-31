@@ -173,7 +173,7 @@ function getSelfUpdateCommandForMethod(
 			const [command = "npm", ...npmArgs] = npmCommand ?? [];
 			const inferred = npmCommand?.length ? undefined : getInferredNpmInstall();
 			const prefixArgs = [...npmArgs, ...(inferred ? ["--prefix", inferred.prefix] : [])];
-			// pi.dev advertises releases immediately, so a configured npm age gate would
+			// evoharness.dev advertises releases immediately, so a configured npm age gate would
 			// block the update. npm has no per-package age gate, so this also lets new
 			// transitive dependency releases through. Managed installs avoid this.
 			const installStep = makeSelfUpdateCommandStep(command, [
@@ -368,7 +368,7 @@ export function getSelfUpdateUnavailableInstruction(
 	const method = detectInstallMethod();
 	const target = normalizeSelfUpdatePackageTarget(updatePackageTarget);
 	if (method === "bun-binary") {
-		return `Download from: https://github.com/earendil-works/pi/releases/latest`;
+		return `Download from: https://github.com/EvoHarness-AI/evoharness/releases/latest`;
 	}
 	const command = getSelfUpdateCommandForMethod(method, packageName, target, npmCommand);
 	// Path-based detection also matches installs that only live under a package manager's directory,
@@ -600,7 +600,7 @@ try {
 }
 
 const piConfigName: string | undefined = pkg.piConfig?.name;
-export const PACKAGE_NAME: string = pkg.name || "@earendil-works/pi-coding-agent";
+export const PACKAGE_NAME: string = pkg.name || "@evoharness/coding-agent";
 export const APP_NAME: string = piConfigName || "pi";
 export const APP_TITLE: string = piConfigName ? APP_NAME : "π";
 export const CONFIG_DIR_NAME: string = pkg.piConfig?.configDir || ".pi";
@@ -614,7 +614,7 @@ export function expandTildePath(path: string): string {
 	return normalizePath(path);
 }
 
-const DEFAULT_SHARE_VIEWER_URL = "https://pi.dev/session/";
+const DEFAULT_SHARE_VIEWER_URL = "https://evoharness.dev/session/";
 
 /** Get the share viewer URL for a gist ID. */
 export function getShareViewerUrl(gistId: string): string {

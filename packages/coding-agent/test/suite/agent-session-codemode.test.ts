@@ -1,6 +1,6 @@
 import { readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import type { AgentTool } from "@earendil-works/pi-agent-core";
+import type { AgentTool } from "@evoharness/agent-core";
 import {
 	type AssistantImages,
 	type ClassifierModel,
@@ -12,8 +12,8 @@ import {
 	type ImageModel,
 	type ImagesContext,
 	type TranscriptContext,
-} from "@earendil-works/pi-ai";
-import type { ToolResultMessage, Usage } from "@earendil-works/pi-ai/compat";
+} from "@evoharness/ai";
+import type { ToolResultMessage, Usage } from "@evoharness/ai/compat";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ExtensionAPI } from "../../src/core/extensions/types.ts";
@@ -395,7 +395,7 @@ describe("AgentSession codemode tool", () => {
 		expect(JSON.parse(resultText(codemodeResult(harness)))).toEqual({ files: 0, names: [] });
 	});
 
-	// Saved images: https://github.com/earendil-works/pi/issues/10310
+	// Saved images: https://github.com/EvoHarness-AI/evoharness/issues/10310
 	it("attaches only the images the script passes to image(), in output order, each after its saved path", async () => {
 		const harness = await setup();
 		harness.setResponses([
@@ -620,7 +620,7 @@ describe("codemode options and store", () => {
 		expect(resultText(result)).toBe('["out\\n",3,"number"]');
 	});
 
-	// https://github.com/earendil-works/pi/issues/10251
+	// https://github.com/EvoHarness-AI/evoharness/issues/10251
 	it("resolves read calls to text for text files and to image blocks that image() shows", async () => {
 		const harness = await createHarness({
 			initialActiveToolNames: ["codemode", "read"],

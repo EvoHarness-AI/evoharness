@@ -17,7 +17,7 @@ function sha256(bytes) {
 }
 
 async function fetchRevision(revision) {
-	const response = await fetch(`https://pi.dev/api/models/revisions/${revision}?${MODEL_TYPES}`);
+	const response = await fetch(`https://evoharness.dev/api/models/revisions/${revision}?${MODEL_TYPES}`);
 	if (!response.ok) throw new Error(`Catalog revision ${revision} is unavailable: HTTP ${response.status}`);
 	const bytes = Buffer.from(await response.arrayBuffer());
 	if (sha256(bytes) !== revision) throw new Error(`Catalog revision ${revision} does not match its content`);
@@ -27,11 +27,11 @@ async function fetchRevision(revision) {
 /**
  * Discover the newest published catalog. It is generated from main, which is
  * what this checkout builds. Do not send `pi-version`: on main it is the last
- * released version, and pi.dev answers it with the catalog for released
+ * released version, and evoharness.dev answers it with the catalog for released
  * clients, which predates any `MINIMUM_PI_VERSION` bump main depends on.
  */
 async function fetchLiveCatalog() {
-	const response = await fetch(`https://pi.dev/api/models?${MODEL_TYPES}`);
+	const response = await fetch(`https://evoharness.dev/api/models?${MODEL_TYPES}`);
 	if (!response.ok) throw new Error(`Catalog discovery failed: HTTP ${response.status}`);
 	const revision = response.headers.get("x-pi-model-catalog-revision");
 	if (typeof revision !== "string" || !REVISION_RE.test(revision)) {

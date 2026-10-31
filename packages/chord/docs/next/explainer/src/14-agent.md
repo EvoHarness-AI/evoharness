@@ -17,7 +17,7 @@ members without conversion. Only plain data crosses between Durable and Chord ob
 
 ```ts
 // studio/src/core/harness.ts (base code)
-import { Harness as DurableHarness } from "@earendil-works/pi-durable";
+import { Harness as DurableHarness } from "@evoharness/durable";
 
 export const ChordHostKey = createContextKey<Host<P>>("studio.chord-host");
 export const HarnessModels = defineRegistry<Models, Models>("studio.harness-models", { version: 1, compose: firstModels });

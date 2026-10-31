@@ -4,7 +4,7 @@
 
 - `src/providers/data/<provider>.json`: model values, grouped by API (gitignored)
 - `src/providers/<provider>.models.ts` and `src/models.generated.ts`: typed wrappers (committed)
-- with `--json-output <dir>`: the public catalog JSON served by pi.dev
+- with `--json-output <dir>`: the public catalog JSON served by evoharness.dev
 
 ## Layout
 

@@ -11,7 +11,7 @@ import {
 	type TelemetryPropagation,
 	type TelemetrySpan,
 	type TelemetryStore,
-} from "@earendil-works/pi-telemetry";
+} from "@evoharness/telemetry";
 import { applySqliteMigrations, type SqliteDatabase, type SqliteValue } from "../sqlite/index.ts";
 import { findMetrics, findTraces, getTrace } from "./store.ts";
 

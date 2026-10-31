@@ -1,4 +1,4 @@
-import { type ClientIdentity, PI_ATTRIBUTION } from "@earendil-works/pi-ai";
+import { type ClientIdentity, PI_ATTRIBUTION } from "@evoharness/ai";
 import { VERSION } from "../config.ts";
 import type { SettingsManager } from "./settings-manager.ts";
 import { isInstallTelemetryEnabled } from "./telemetry.ts";

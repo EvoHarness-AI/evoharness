@@ -1,6 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
-import { InMemoryCredentialStore } from "@earendil-works/pi-ai";
+import { InMemoryCredentialStore } from "@evoharness/ai";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import {
 	getModelCatalogProviderKey,
@@ -14,7 +14,7 @@ import { VERSION } from "../src/config.ts";
 import { ModelRuntime } from "../src/core/model-runtime.ts";
 import { allowNetwork } from "./test-network-env.ts";
 
-// Runs the current client against the catalog selection pi.dev performs, using
+// Runs the current client against the catalog selection evoharness.dev performs, using
 // the shared protocol in scripts/model-catalog-protocol.ts. Regression test for #9099.
 
 const legacyRevision = `sha256-${"a".repeat(64)}`;
@@ -52,7 +52,7 @@ const objects = new Map<string, unknown>([
 	[getModelCatalogProviderKey(mixedApiRevision, "openrouter", "typed"), [{ type: "chat", ...mixedApiModel }]],
 ]);
 
-/** Minimal stand-in for pi.dev's /api/models/providers/:provider route. */
+/** Minimal stand-in for evoharness.dev's /api/models/providers/:provider route. */
 function startCatalogServer(requests: string[]): Promise<Server> {
 	const server = createServer((request, response) => {
 		const url = new URL(request.url ?? "/", `http://${request.headers.host}`);

@@ -10,7 +10,7 @@ import {
 	normalizeContext,
 	PI_ATTRIBUTION,
 	type SimpleStreamOptions,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { VERSION } from "../src/config.ts";
 import { AuthStorage } from "../src/core/auth-storage.ts";
@@ -149,7 +149,7 @@ describe("createAgentSession client identity", () => {
 			attribution: PI_ATTRIBUTION,
 		});
 		expect(getAttributionHeaders(model, options?.identity)).toEqual({
-			"HTTP-Referer": "https://pi.dev",
+			"HTTP-Referer": "https://evoharness.dev",
 			"X-OpenRouter-Title": "pi",
 			"X-OpenRouter-Categories": "cli-agent",
 		});

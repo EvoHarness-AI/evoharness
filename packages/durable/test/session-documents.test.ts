@@ -5,7 +5,7 @@ import {
 	defineDocFamily,
 	type JsonObject,
 	type TaskId,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { idFromNumber } from "../src/ids.ts";
 import {

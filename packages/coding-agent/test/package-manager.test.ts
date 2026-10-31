@@ -2911,7 +2911,7 @@ export default function(api) { api.registerTool({ name: "test", description: "te
 			expect(refreshTemporaryGitSourceSpy).not.toHaveBeenCalled();
 		});
 
-		// https://github.com/earendil-works/pi/issues/9982
+		// https://github.com/EvoHarness-AI/evoharness/issues/9982
 		it("should load a new checkout when a pinned temporary git source changes ref", async () => {
 			const managerWithInternals = packageManager as unknown as PackageManagerInternals;
 			const oldSource = "git:github.com/example/repo@aaaaaaa";
@@ -2940,7 +2940,7 @@ export default function(api) { api.registerTool({ name: "test", description: "te
 			expect(result.extensions.some((r) => pathEndsWith(r.path, "extensions/old.ts"))).toBe(false);
 		});
 
-		// https://github.com/earendil-works/pi/issues/11375
+		// https://github.com/EvoHarness-AI/evoharness/issues/11375
 		it("should refresh temporary git sources with a branch ref", async () => {
 			const managerWithInternals = packageManager as unknown as PackageManagerInternals;
 			const source = "git:github.com/example/repo@main";

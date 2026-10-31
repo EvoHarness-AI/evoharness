@@ -17,7 +17,7 @@ import { getPublicWorkspacePackages } from "./release-packages.mjs";
 const BASE_URL = "https://pkg.earendil.com";
 const FULL_SHA = /^[0-9a-f]{40}$/;
 // Its daemon binaries are cross-compiled only by the release workflow; previews would ship without them.
-const EXCLUDED = new Set(["@earendil-works/pi-env"]);
+const EXCLUDED = new Set(["@evoharness/env"]);
 
 class UsageError extends Error {}
 

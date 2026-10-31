@@ -10,7 +10,7 @@ import {
 	fauxToolCall,
 	type Context as ModelContext,
 	Type,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	type Conversation,
 	ConversationBusy,
@@ -22,7 +22,7 @@ import {
 	type LiveState,
 	MemoryStorage,
 	type SubmissionDraft,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";
 import { allEntries, type ChatSetup, chatSetup, openChat, textOf, waitFor } from "./chat-support.ts";

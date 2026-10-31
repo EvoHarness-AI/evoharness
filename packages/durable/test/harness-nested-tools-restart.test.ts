@@ -9,7 +9,7 @@ import {
 	fauxToolCall,
 	type ToolResultMessage,
 	Type,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	defineExtension,
 	defineTask,
@@ -22,7 +22,7 @@ import {
 	ToolResultEntry,
 	ToolTask,
 	type ToolTaskInput,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { afterEach, describe, expect, it } from "vitest";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";
 import { allEntries, type ChatSetup, chatSetup, openChat } from "./chat-support.ts";

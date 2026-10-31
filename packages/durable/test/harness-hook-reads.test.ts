@@ -1,4 +1,4 @@
-import { fauxAssistantMessage } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage } from "@evoharness/ai";
 import {
 	defineExtension,
 	defineTask,
@@ -7,7 +7,7 @@ import {
 	hook,
 	MemoryStorage,
 	UserEntry,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { allEntries, chatSetup, openChat } from "./chat-support.ts";
 import { context } from "./session-support.ts";

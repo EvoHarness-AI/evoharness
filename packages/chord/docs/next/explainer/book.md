@@ -2355,7 +2355,7 @@ members without conversion. Only plain data crosses between Durable and Chord ob
 
 ```ts
 // studio/src/core/harness.ts (base code)
-import { Harness as DurableHarness } from "@earendil-works/pi-durable";
+import { Harness as DurableHarness } from "@evoharness/durable";
 
 export const ChordHostKey = createContextKey<Host<P>>("studio.chord-host");
 export const HarnessModels = defineRegistry<Models, Models>("studio.harness-models", { version: 1, compose: firstModels });
@@ -3163,7 +3163,7 @@ does no walks, no copies, one encode per hold part at its origin and none at rel
 
 ## Telemetry
 
-Chord reports traces, events and metrics through `@earendil-works/pi-telemetry`. Each host gets **one adapter**,
+Chord reports traces, events and metrics through `@evoharness/telemetry`. Each host gets **one adapter**,
 `createHost({ telemetry })`, NOOP by default; the adapter decides sampling, buffering, export and filtering. Only hosts
 hold the adapter, to start root spans. Code sees spans:
 

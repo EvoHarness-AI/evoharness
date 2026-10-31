@@ -1,4 +1,4 @@
-import { type ClientIdentity, PI_ATTRIBUTION } from "@earendil-works/pi-ai";
+import { type ClientIdentity, PI_ATTRIBUTION } from "@evoharness/ai";
 import {
 	type AssistantMessage,
 	createAssistantMessageEventStream,
@@ -6,7 +6,7 @@ import {
 	getModel,
 	toToolDeclaration,
 	type UserMessage,
-} from "@earendil-works/pi-ai/compat";
+} from "@evoharness/ai/compat";
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 import {

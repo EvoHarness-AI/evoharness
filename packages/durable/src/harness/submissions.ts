@@ -5,7 +5,7 @@ import {
 	NOOP_TELEMETRY_CONTEXT,
 	type TelemetryContext,
 	type TelemetrySpan,
-} from "@earendil-works/pi-telemetry";
+} from "@evoharness/telemetry";
 import { ConversationBusy, ConversationIdle, ReadAfterWrite } from "../errors.ts";
 import type { ObservedCommit, SessionImpl } from "../session/session.ts";
 import type { ConversationId, JsonObject, SubmissionId, SubmissionRecord, Tx } from "../types.ts";

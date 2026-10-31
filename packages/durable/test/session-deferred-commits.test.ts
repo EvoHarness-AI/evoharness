@@ -15,7 +15,7 @@ import {
 	ReadOnlySession,
 	type SetTimer,
 	type StorageWrite,
-} from "@earendil-works/pi-durable";
+} from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { type ObservedCommit, SessionImpl } from "../src/session/session.ts";
 import { ControlledStorage, context, createConversation, flush, onValue } from "./session-support.ts";

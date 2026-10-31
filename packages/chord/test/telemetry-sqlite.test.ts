@@ -4,7 +4,7 @@ import type {
 	SpanStatus,
 	TelemetryCarrier,
 	TelemetrySpan,
-} from "@earendil-works/pi-telemetry";
+} from "@evoharness/telemetry";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createTelemetryAdapterConformance } from "../../telemetry/src/testing/index.ts";
 import type { SqliteDatabase } from "../src/sqlite/index.ts";

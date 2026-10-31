@@ -6,7 +6,7 @@
 //   taskset -c 6 node --conditions=source --experimental-strip-types --expose-gc test/next/bench/registries.ts
 import { performance } from "node:perf_hooks";
 import { GCProfiler } from "node:v8";
-import { InMemoryTelemetryContext } from "@earendil-works/pi-telemetry";
+import { InMemoryTelemetryContext } from "@evoharness/telemetry";
 import { BACKGROUND_CONTEXT as context } from "../../../src/context/index.ts";
 import { int, local } from "../../../src/next/contracts/index.ts";
 import { createHost, defineFacet } from "../../../src/next/host/index.ts";

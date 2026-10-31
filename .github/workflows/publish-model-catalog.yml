@@ -67,7 +67,7 @@ jobs:
       - name: Validate model catalog JSON
         run: npm run check:model-catalog
 
-      # pi.dev serves the catalog to released pi >= MINIMUM_PI_VERSION. Fail before
+      # evoharness.dev serves the catalog to released pi >= MINIMUM_PI_VERSION. Fail before
       # publishing if the latest release's code cannot handle it.
       - name: Check the model catalog against the latest release
         run: npm run check:model-catalog-compat
