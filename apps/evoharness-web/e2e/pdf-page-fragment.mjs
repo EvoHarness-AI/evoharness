@@ -18,6 +18,10 @@ import { dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
+import { createRequire } from "node:module";
+// next hoists to the repository root node_modules in the monorepo.
+const nextBin = () => createRequire(import.meta.url).resolve("next/dist/bin/next");
+
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const mode = process.env.E2E_SERVER_MODE || "dev";
@@ -149,7 +153,7 @@ try {
 
   server = spawn(
     process.execPath,
-    [join(root, "node_modules/next/dist/bin/next"), mode, "-H", "127.0.0.1", "-p", String(port)],
+    [nextBin(), ...(mode === "dev" ? ["dev", "--webpack"] : [mode]), "-H", "127.0.0.1", "-p", String(port)],
     {
       cwd: root,
       env: { ...process.env, EVOHARNESS_CODING_AGENT_DIR: agentDir, EVOHARNESS_WEB_PASSWORD: "", NEXT_TELEMETRY_DISABLED: "1" },

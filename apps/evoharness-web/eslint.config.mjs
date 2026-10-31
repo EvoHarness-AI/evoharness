@@ -23,6 +23,11 @@ const eslintConfig = [
       "react-hooks/immutability": "off",
       "react-hooks/refs": "off",
       "react-hooks/set-state-in-effect": "off",
+      // Newer than the vendored code: the manual useMemo/useCallback patterns
+      // upstream shipped predate the React Compiler rules. Restructuring them
+      // would be an upstream rewrite; the sibling rules above are disabled for
+      // the same reason.
+      "react-hooks/preserve-manual-memoization": "off",
     },
   },
 ];

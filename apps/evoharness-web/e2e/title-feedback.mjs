@@ -7,6 +7,10 @@ import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { createE2EServerEnv } from "../scripts/e2e-server-env.mjs";
+import { createRequire } from "node:module";
+// next hoists to the repository root node_modules in the monorepo.
+const nextBin = () => createRequire(import.meta.url).resolve("next/dist/bin/next");
+
 
 // Real AppShell and notice shelf; only the title model response is synthetic.
 // All session writes go to this test's private agent directory, never user data.
@@ -43,7 +47,7 @@ for (const key of ["HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME", "XDG_DATA_HOME",
 const resources = process.env.TITLE_FEEDBACK_RESOURCES && resolve(root, process.env.TITLE_FEEDBACK_RESOURCES);
 const node = resources ? join(resources, "node/node.exe") : process.execPath;
 const args = resources ? ["desktop-server.cjs"]
-  : [join(root, "node_modules/next/dist/bin/next"), mode, "-H", "127.0.0.1", "-p", String(port)];
+  : [nextBin(), ...(mode === "dev" ? ["dev", "--webpack"] : [mode]), "-H", "127.0.0.1", "-p", String(port)];
 Object.assign(env, { PORT: String(port), HOSTNAME: "127.0.0.1", EVOHARNESS_WEB_PARENT_PID: String(process.pid),
   EVOHARNESS_DESKTOP_API_TOKEN: "title-test", EVOHARNESS_DESKTOP_INSTANCE_ID: "title-test",
   EVOHARNESS_DESKTOP_COMPILE_CACHE_DIR: join(agent, "compile-cache") });

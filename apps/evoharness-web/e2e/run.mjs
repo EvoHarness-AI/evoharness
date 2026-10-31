@@ -17,6 +17,10 @@ import { checkMcpManager } from "./mcp-manager.mjs";
 import { checkMissingWorkspace, MISSING_WORKSPACE, missingWorkspaceReply } from "./missing-workspace.mjs";
 import { checkCodeBackground } from "./code-background.mjs";
 import { createE2EServerEnv } from "../scripts/e2e-server-env.mjs";
+import { createRequire } from "node:module";
+// next hoists to the repository root node_modules in the monorepo.
+const nextBin = () => createRequire(import.meta.url).resolve("next/dist/bin/next");
+
 
 const root = dirname(dirname(fileURLToPath(import.meta.url)));
 const mode = process.env.E2E_SERVER_MODE || "dev";
@@ -157,7 +161,7 @@ try {
   const port = probe.address().port;
   await new Promise((resolve, reject) => probe.close((error) => error ? reject(error) : resolve()));
   const base = `http://127.0.0.1:${port}`;
-  server = spawn(process.execPath, [join(root, "node_modules/next/dist/bin/next"), mode, "-H", "127.0.0.1", "-p", String(port)], {
+  server = spawn(process.execPath, [nextBin(), ...(mode === "dev" ? ["dev", "--webpack"] : [mode]), "-H", "127.0.0.1", "-p", String(port)], {
     cwd: root,
     env: serverEnv,
     stdio: ["ignore", "pipe", "pipe"],
