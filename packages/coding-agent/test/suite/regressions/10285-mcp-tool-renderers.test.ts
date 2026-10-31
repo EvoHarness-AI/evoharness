@@ -44,7 +44,9 @@ describe("MCP tool renderers", () => {
 			sessionManager.appendMessage({ role: "user", content: "search", timestamp: 1 });
 			sessionManager.appendMessage({
 				role: "assistant",
-				content: [{ type: "toolCall", id: "call-1", name: "mcp__my_docs__search", arguments: { query: "evoharness" } }],
+				content: [
+					{ type: "toolCall", id: "call-1", name: "mcp__my_docs__search", arguments: { query: "evoharness" } },
+				],
 				api: "anthropic-messages",
 				provider: "anthropic",
 				model: "test",

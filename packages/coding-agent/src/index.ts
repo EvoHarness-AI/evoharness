@@ -436,7 +436,6 @@ export {
 } from "./modes/index.ts";
 // UI components for extensions
 export {
-	ArminComponent,
 	AssistantMessageComponent,
 	BashExecutionComponent,
 	BorderedLoader,

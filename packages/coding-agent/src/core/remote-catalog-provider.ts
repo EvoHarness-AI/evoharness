@@ -8,8 +8,8 @@ import {
 	type RefreshModelsContext,
 } from "@evoharness/ai";
 import { VERSION } from "../config.ts";
+import { getEvoharnessUserAgent } from "../utils/evoharness-user-agent.ts";
 import { fetchWithRetry } from "../utils/management-http.ts";
-import { getPiUserAgent } from "../utils/evoharness-user-agent.ts";
 
 const DEFAULT_CATALOG_BASE_URL = "https://evoharness.dev";
 const REMOTE_CATALOG_ATTEMPT_TIMEOUT_MS = 4_000;
@@ -85,7 +85,7 @@ function requestCatalog(
 		{
 			headers: {
 				accept: "application/json",
-				"User-Agent": getPiUserAgent(VERSION),
+				"User-Agent": getEvoharnessUserAgent(VERSION),
 				...(validator ? { "if-none-match": validator } : {}),
 			},
 			signal,

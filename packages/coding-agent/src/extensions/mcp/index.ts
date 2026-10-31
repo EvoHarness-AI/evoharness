@@ -778,7 +778,9 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 					.map((tool) => tool.name),
 			);
 			const tools = serverTools.get(server.entry.name) ?? new Set<string>();
-			evoharness.setActiveTools(evoharness.getActiveTools().filter((name) => !tools.has(name) || !indirect.has(name)));
+			evoharness.setActiveTools(
+				evoharness.getActiveTools().filter((name) => !tools.has(name) || !indirect.has(name)),
+			);
 			emitChange();
 			return undefined;
 		};

@@ -1,12 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-	type Api,
-	createAssistantMessageEventStream,
-	type Model,
-	type SimpleStreamOptions,
-} from "@evoharness/ai";
+import { type Api, createAssistantMessageEventStream, type Model, type SimpleStreamOptions } from "@evoharness/ai";
 import { afterEach, describe, expect, it } from "vitest";
 import { AuthStorage } from "../../../src/core/auth-storage.ts";
 import { ModelRuntime } from "../../../src/core/model-runtime.ts";

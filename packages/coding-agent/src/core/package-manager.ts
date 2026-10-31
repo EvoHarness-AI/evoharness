@@ -51,8 +51,8 @@ import {
 	resolvePath,
 } from "../utils/paths.ts";
 import { stripBom } from "../utils/text.ts";
+import { type EvoHarnessManifest, readEvoharnessManifest } from "./evoharness-manifest.ts";
 import { isStdoutTakenOver } from "./output-guard.ts";
-import { type EvoHarnessManifest, readPiManifest } from "./evoharness-manifest.ts";
 import type { PackageSource, SettingsManager } from "./settings-manager.ts";
 import { BUILTIN_PATH_PREFIX, getResourcePathKey } from "./source-info.ts";
 
@@ -61,7 +61,7 @@ const UPDATE_CHECK_CONCURRENCY = 4;
 const GIT_UPDATE_CONCURRENCY = 4;
 
 function isOfflineModeEnabled(): boolean {
-	const value = process.env.PI_OFFLINE;
+	const value = process.env.EVOHARNESS_OFFLINE;
 	if (!value) return false;
 	return value === "1" || value.toLowerCase() === "true" || value.toLowerCase() === "yes";
 }
@@ -586,7 +586,7 @@ function collectAutoThemeEntries(dir: string): string[] {
 function resolveExtensionEntries(dir: string): string[] | null {
 	const packageJsonPath = join(dir, "package.json");
 	if (existsSync(packageJsonPath)) {
-		const manifest = readPiManifest(packageJsonPath);
+		const manifest = readEvoharnessManifest(packageJsonPath);
 		if (manifest?.extensions?.length) {
 			const entries: string[] = [];
 			for (const extPath of manifest.extensions) {
@@ -2345,7 +2345,7 @@ export class DefaultPackageManager implements PackageManager {
 		filter: PackageFilter | undefined,
 		metadata: PathMetadata,
 	): boolean {
-		const manifest = readPiManifest(join(packageRoot, "package.json"));
+		const manifest = readEvoharnessManifest(join(packageRoot, "package.json"));
 		const changelogPath = resolvePackageChangelogPath(packageRoot, manifest);
 		if (changelogPath) {
 			metadata.changelogPath = changelogPath;
@@ -2403,7 +2403,7 @@ export class DefaultPackageManager implements PackageManager {
 		target: Map<string, { metadata: PathMetadata; enabled: boolean }>,
 		metadata: PathMetadata,
 	): void {
-		const manifest = readPiManifest(join(packageRoot, "package.json"));
+		const manifest = readEvoharnessManifest(join(packageRoot, "package.json"));
 		const entries = manifest?.[resourceType];
 		if (entries) {
 			this.addManifestEntries(entries, packageRoot, resourceType, target, metadata);
@@ -2472,7 +2472,7 @@ export class DefaultPackageManager implements PackageManager {
 		packageRoot: string,
 		resourceType: ResourceType,
 	): { allFiles: string[]; enabledByManifest: Set<string> } {
-		const manifest = readPiManifest(join(packageRoot, "package.json"));
+		const manifest = readEvoharnessManifest(join(packageRoot, "package.json"));
 		const entries = manifest?.[resourceType];
 		if (entries && entries.length > 0) {
 			const allFiles = this.collectFilesFromManifestEntries(entries, packageRoot, resourceType);

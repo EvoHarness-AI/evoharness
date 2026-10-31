@@ -579,7 +579,6 @@ describe("InteractiveMode.createBaseAutocompleteProvider", () => {
 				{ id: "anthropic", name: "Anthropic", authType: "oauth", subscription: true },
 				{ id: "anthropic", name: "Anthropic", authType: "api_key", subscription: true },
 				{ id: "openai", name: "OpenAI", authType: "api_key" },
-				{ id: "radius", name: "Radius", authType: "oauth", subscription: false },
 			],
 		};
 
@@ -596,13 +595,6 @@ describe("InteractiveMode.createBaseAutocompleteProvider", () => {
 				description: "Anthropic · subscription/API key",
 			},
 		]);
-
-		// OAuth sign-in without a subscription, such as Radius, is an account.
-		const radiusLine = "/login radius";
-		const radiusSuggestions = await provider.getSuggestions([radiusLine], 0, radiusLine.length, {
-			signal: new AbortController().signal,
-		});
-		expect(radiusSuggestions?.items).toEqual([{ value: "radius", label: "radius", description: "Radius · account" }]);
 	});
 });
 describe("InteractiveMode.showLoadedResources", () => {
@@ -746,43 +738,49 @@ describe("InteractiveMode.showLoadedResources", () => {
 			},
 			{
 				path: "/tmp/project/.evoharness/npm/node_modules/evoharness-markdown-preview/extensions/index.ts",
-				sourceInfo: createSourceInfo("/tmp/project/.evoharness/npm/node_modules/evoharness-markdown-preview/extensions/index.ts", {
-					source: "npm:evoharness-markdown-preview",
-					scope: "project",
-					origin: "package",
-					baseDir: "/tmp/project/.evoharness/npm/node_modules/evoharness-markdown-preview",
-				}),
-			},
-			{
-				path: "/tmp/project/.evoharness/npm/node_modules/@scope/evoharness-scoped/extensions/index.ts",
-				sourceInfo: createSourceInfo("/tmp/project/.evoharness/npm/node_modules/@scope/evoharness-scoped/extensions/index.ts", {
-					source: "npm:@scope/evoharness-scoped",
-					scope: "project",
-					origin: "package",
-					baseDir: "/tmp/project/.evoharness/npm/node_modules/@scope/evoharness-scoped",
-				}),
-			},
-			{
-				path: "/tmp/project/.evoharness/git/github.com/HazAT/evoharness-interactive-subagents/extensions/index.ts",
 				sourceInfo: createSourceInfo(
-					"/tmp/project/.evoharness/git/github.com/HazAT/evoharness-interactive-subagents/extensions/index.ts",
+					"/tmp/project/.evoharness/npm/node_modules/evoharness-markdown-preview/extensions/index.ts",
 					{
-						source: "git:github.com/HazAT/evoharness-interactive-subagents",
+						source: "npm:evoharness-markdown-preview",
 						scope: "project",
 						origin: "package",
-						baseDir: "/tmp/project/.evoharness/git/github.com/HazAT/evoharness-interactive-subagents",
+						baseDir: "/tmp/project/.evoharness/npm/node_modules/evoharness-markdown-preview",
 					},
 				),
 			},
 			{
-				path: "/tmp/project/.evoharness/git/github.com/HazAT/evoharness-interactive-subagents/extensions/subagents/index.ts",
+				path: "/tmp/project/.evoharness/npm/node_modules/@scope/evoharness-scoped/extensions/index.ts",
 				sourceInfo: createSourceInfo(
-					"/tmp/project/.evoharness/git/github.com/HazAT/evoharness-interactive-subagents/extensions/subagents/index.ts",
+					"/tmp/project/.evoharness/npm/node_modules/@scope/evoharness-scoped/extensions/index.ts",
 					{
-						source: "git:github.com/HazAT/evoharness-interactive-subagents",
+						source: "npm:@scope/evoharness-scoped",
 						scope: "project",
 						origin: "package",
-						baseDir: "/tmp/project/.evoharness/git/github.com/HazAT/evoharness-interactive-subagents",
+						baseDir: "/tmp/project/.evoharness/npm/node_modules/@scope/evoharness-scoped",
+					},
+				),
+			},
+			{
+				path: "/tmp/project/.evoharness/git/github.com/example-user/evoharness-interactive-subagents/extensions/index.ts",
+				sourceInfo: createSourceInfo(
+					"/tmp/project/.evoharness/git/github.com/example-user/evoharness-interactive-subagents/extensions/index.ts",
+					{
+						source: "git:github.com/example-user/evoharness-interactive-subagents",
+						scope: "project",
+						origin: "package",
+						baseDir: "/tmp/project/.evoharness/git/github.com/example-user/evoharness-interactive-subagents",
+					},
+				),
+			},
+			{
+				path: "/tmp/project/.evoharness/git/github.com/example-user/evoharness-interactive-subagents/extensions/subagents/index.ts",
+				sourceInfo: createSourceInfo(
+					"/tmp/project/.evoharness/git/github.com/example-user/evoharness-interactive-subagents/extensions/subagents/index.ts",
+					{
+						source: "git:github.com/example-user/evoharness-interactive-subagents",
+						scope: "project",
+						origin: "package",
+						baseDir: "/tmp/project/.evoharness/git/github.com/example-user/evoharness-interactive-subagents",
 					},
 				),
 			},
@@ -878,7 +876,7 @@ describe("InteractiveMode.showLoadedResources", () => {
 
 		expect(normalizeRenderedOutput(fakeThis.loadedResourcesContainer)).toMatchInlineSnapshot(`
 "[Extensions]
-  @scope/evoharness-scoped, answer.ts, cli-extension.ts, HazAT/evoharness-interactive-subagents, HazAT/evoharness-interactive-subagents:subagents, local-index, evoharness-markdown-preview, user-index"`);
+  @scope/evoharness-scoped, answer.ts, cli-extension.ts, example-user/evoharness-interactive-subagents, example-user/evoharness-interactive-subagents:subagents, local-index, evoharness-markdown-preview, user-index"`);
 	});
 
 	test("adds more parent folders until local extension labels are unique", () => {
@@ -1126,12 +1124,15 @@ describe("InteractiveMode.showLoadedResources", () => {
 		const extensions: ExtensionFixture[] = [
 			{
 				path: "/tmp/project/.evoharness/npm/node_modules/evoharness-markdown-preview/extensions/index.ts",
-				sourceInfo: createSourceInfo("/tmp/project/.evoharness/npm/node_modules/evoharness-markdown-preview/extensions/index.ts", {
-					source: "npm:evoharness-markdown-preview",
-					scope: "project",
-					origin: "package",
-					baseDir: "/tmp/project/.evoharness/npm/node_modules/evoharness-markdown-preview",
-				}),
+				sourceInfo: createSourceInfo(
+					"/tmp/project/.evoharness/npm/node_modules/evoharness-markdown-preview/extensions/index.ts",
+					{
+						source: "npm:evoharness-markdown-preview",
+						scope: "project",
+						origin: "package",
+						baseDir: "/tmp/project/.evoharness/npm/node_modules/evoharness-markdown-preview",
+					},
+				),
 			},
 		];
 
@@ -1244,7 +1245,7 @@ describe("InteractiveMode.showLoadedResources", () => {
   project
     /tmp/project/.evoharness/extensions/answer.ts
     /tmp/project/.evoharness/extensions/local-index
-    git:github.com/HazAT/evoharness-interactive-subagents
+    git:github.com/example-user/evoharness-interactive-subagents
       extensions
       extensions/subagents
     npm:@scope/evoharness-scoped
@@ -1263,7 +1264,10 @@ describe("InteractiveMode.showLoadedResources", () => {
 		const fakeThis = createShowLoadedResourcesThis({
 			quietStartup: false,
 			cwd,
-			contextFiles: [{ path: path.join(home, ".evoharness", "agent", "AGENTS.md") }, { path: path.join(cwd, "AGENTS.md") }],
+			contextFiles: [
+				{ path: path.join(home, ".evoharness", "agent", "AGENTS.md") },
+				{ path: path.join(cwd, "AGENTS.md") },
+			],
 		});
 
 		(InteractiveMode as any).prototype.showLoadedResources.call(fakeThis, {
@@ -1302,7 +1306,10 @@ describe("InteractiveMode.showLoadedResources", () => {
 			quietStartup: false,
 			toolOutputExpanded: true,
 			cwd,
-			contextFiles: [{ path: path.join(home, ".evoharness", "agent", "AGENTS.md") }, { path: path.join(cwd, "AGENTS.md") }],
+			contextFiles: [
+				{ path: path.join(home, ".evoharness", "agent", "AGENTS.md") },
+				{ path: path.join(cwd, "AGENTS.md") },
+			],
 		});
 
 		(InteractiveMode as any).prototype.showLoadedResources.call(fakeThis, {

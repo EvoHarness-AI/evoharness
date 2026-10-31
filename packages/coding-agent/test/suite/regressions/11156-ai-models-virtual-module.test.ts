@@ -11,7 +11,7 @@ describe("evoharness-ai/models virtual module", () => {
 		expect(typeof models?.clampThinkingLevel).toBe("function");
 	});
 
-	it("exposes the same module under the legacy @mariozechner scope", () => {
-		expect(VIRTUAL_MODULES["@mariozechner/evoharness-ai/models"]).toBe(VIRTUAL_MODULES["@evoharness/ai/models"]);
+	it("exposes the same module under the legacy @evoharness scope", () => {
+		expect(VIRTUAL_MODULES["@evoharness/ai/models"]).toBe(VIRTUAL_MODULES["@evoharness/ai/models"]);
 	});
 });

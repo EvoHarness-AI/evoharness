@@ -76,8 +76,8 @@ describe("DefaultPackageManager", () => {
 	let previousOfflineEnv: string | undefined;
 
 	beforeEach(() => {
-		previousOfflineEnv = process.env.PI_OFFLINE;
-		delete process.env.PI_OFFLINE;
+		previousOfflineEnv = process.env.EVOHARNESS_OFFLINE;
+		delete process.env.EVOHARNESS_OFFLINE;
 		tempDir = join(tmpdir(), `pm-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 		mkdirSync(tempDir, { recursive: true });
 		agentDir = join(tempDir, "agent");
@@ -93,9 +93,9 @@ describe("DefaultPackageManager", () => {
 
 	afterEach(() => {
 		if (previousOfflineEnv === undefined) {
-			delete process.env.PI_OFFLINE;
+			delete process.env.EVOHARNESS_OFFLINE;
 		} else {
-			process.env.PI_OFFLINE = previousOfflineEnv;
+			process.env.EVOHARNESS_OFFLINE = previousOfflineEnv;
 		}
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
@@ -2167,7 +2167,11 @@ Content`,
 			writeFileSync(join(pkgDir, "extensions", "bar.ts"), "export default function() {}");
 			writeFileSync(join(pkgDir, "skills", "foo", "SKILL.md"), "# Foo\n");
 			settingsManager.setProjectPackages([
-				{ source: relative(join(tempDir, ".evoharness"), pkgDir), autoload: false, extensions: ["+extensions/foo.ts"] },
+				{
+					source: relative(join(tempDir, ".evoharness"), pkgDir),
+					autoload: false,
+					extensions: ["+extensions/foo.ts"],
+				},
 			]);
 
 			const result = await packageManager.resolve();
@@ -2884,7 +2888,7 @@ export default function(api) { api.registerTool({ name: "test", description: "te
 		});
 
 		it("should skip installing missing package sources when offline", async () => {
-			process.env.PI_OFFLINE = "1";
+			process.env.EVOHARNESS_OFFLINE = "1";
 			settingsManager.setProjectPackages(["npm:missing-package", "git:github.com/example/missing-repo"]);
 
 			const installParsedSourceSpy = vi.spyOn(packageManager as any, "installParsedSource");
@@ -2896,7 +2900,7 @@ export default function(api) { api.registerTool({ name: "test", description: "te
 		});
 
 		it("should skip refreshing temporary git sources when offline", async () => {
-			process.env.PI_OFFLINE = "1";
+			process.env.EVOHARNESS_OFFLINE = "1";
 			const gitSource = "git:github.com/example/repo";
 			const parsedGitSource = (packageManager as any).parseSource(gitSource);
 			const installedPath = (packageManager as any).getGitInstallPath(parsedGitSource, "temporary") as string;
@@ -3016,7 +3020,7 @@ export default function(api) { api.registerTool({ name: "test", description: "te
 		});
 
 		it("should not run npm view during resolve for installed unpinned packages", async () => {
-			process.env.PI_OFFLINE = "1";
+			process.env.EVOHARNESS_OFFLINE = "1";
 			const installedPath = join(tempDir, ".evoharness", "npm", "node_modules", "example");
 			mkdirSync(join(installedPath, "extensions"), { recursive: true });
 			writeFileSync(join(installedPath, "package.json"), JSON.stringify({ name: "example", version: "1.0.0" }));
@@ -3045,7 +3049,7 @@ export default function(api) { api.registerTool({ name: "test", description: "te
 		});
 
 		it("should not check package updates when offline", async () => {
-			process.env.PI_OFFLINE = "1";
+			process.env.EVOHARNESS_OFFLINE = "1";
 			const runCommandCaptureSpy = vi.spyOn(packageManager as any, "runCommandCapture");
 
 			const updates = await packageManager.checkForAvailableUpdates();

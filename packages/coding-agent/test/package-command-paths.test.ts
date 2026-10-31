@@ -31,7 +31,7 @@ describe("package commands", () => {
 	let packageDir: string;
 	let originalCwd: string;
 	let originalAgentDir: string | undefined;
-	let originalPiPackageDir: string | undefined;
+	let originalEvoharnessPackageDir: string | undefined;
 	let originalPath: string | undefined;
 	let originalExitCode: typeof process.exitCode;
 	let originalExecPath: string;
@@ -88,9 +88,9 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 		);
 		chmodSync(npmPath, 0o755);
 
-		vi.stubEnv("PI_INSTALLER_API_BASE", "https://example.test/api/installer/releases");
-		vi.stubEnv("PI_MANAGED_INSTALL_ROOT", managedRoot);
-		process.env.PI_PACKAGE_DIR = selfPackageDir;
+		vi.stubEnv("EVOHARNESS_INSTALLER_API_BASE", "https://example.test/api/installer/releases");
+		vi.stubEnv("EVOHARNESS_MANAGED_INSTALL_ROOT", managedRoot);
+		process.env.EVOHARNESS_PACKAGE_DIR = selfPackageDir;
 		process.env.PATH = `${binDir}${delimiter}${originalPath ?? ""}`;
 		return { managedRoot, npmRecordPath };
 	}
@@ -146,7 +146,7 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 
 		originalCwd = process.cwd();
 		originalAgentDir = process.env[ENV_AGENT_DIR];
-		originalPiPackageDir = process.env.PI_PACKAGE_DIR;
+		originalEvoharnessPackageDir = process.env.EVOHARNESS_PACKAGE_DIR;
 		originalPath = process.env.PATH;
 		originalExitCode = process.exitCode;
 		originalExecPath = process.execPath;
@@ -174,10 +174,10 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 		} else {
 			process.env[ENV_AGENT_DIR] = originalAgentDir;
 		}
-		if (originalPiPackageDir === undefined) {
-			delete process.env.PI_PACKAGE_DIR;
+		if (originalEvoharnessPackageDir === undefined) {
+			delete process.env.EVOHARNESS_PACKAGE_DIR;
 		} else {
-			process.env.PI_PACKAGE_DIR = originalPiPackageDir;
+			process.env.EVOHARNESS_PACKAGE_DIR = originalEvoharnessPackageDir;
 		}
 		if (originalPath === undefined) {
 			delete process.env.PATH;
@@ -217,7 +217,10 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 
 	it("skips untrusted project package settings", async () => {
 		mkdirSync(join(projectDir, ".evoharness"), { recursive: true });
-		writeFileSync(join(projectDir, ".evoharness", "settings.json"), JSON.stringify({ packages: ["npm:@project/pkg"] }));
+		writeFileSync(
+			join(projectDir, ".evoharness", "settings.json"),
+			JSON.stringify({ packages: ["npm:@project/pkg"] }),
+		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		try {
@@ -233,7 +236,10 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 
 	it("uses remembered project trust for list", async () => {
 		mkdirSync(join(projectDir, ".evoharness"), { recursive: true });
-		writeFileSync(join(projectDir, ".evoharness", "settings.json"), JSON.stringify({ packages: ["npm:@project/pkg"] }));
+		writeFileSync(
+			join(projectDir, ".evoharness", "settings.json"),
+			JSON.stringify({ packages: ["npm:@project/pkg"] }),
+		);
 		new ProjectTrustStore(agentDir).set(projectDir, true);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -252,7 +258,10 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 
 	it("overrides remembered trust for list with --no-approve", async () => {
 		mkdirSync(join(projectDir, ".evoharness"), { recursive: true });
-		writeFileSync(join(projectDir, ".evoharness", "settings.json"), JSON.stringify({ packages: ["npm:@project/pkg"] }));
+		writeFileSync(
+			join(projectDir, ".evoharness", "settings.json"),
+			JSON.stringify({ packages: ["npm:@project/pkg"] }),
+		);
 		new ProjectTrustStore(agentDir).set(projectDir, true);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -270,7 +279,10 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 
 	it("approves project trust for list with --approve", async () => {
 		mkdirSync(join(projectDir, ".evoharness"), { recursive: true });
-		writeFileSync(join(projectDir, ".evoharness", "settings.json"), JSON.stringify({ packages: ["npm:@project/pkg"] }));
+		writeFileSync(
+			join(projectDir, ".evoharness", "settings.json"),
+			JSON.stringify({ packages: ["npm:@project/pkg"] }),
+		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		try {
@@ -289,7 +301,10 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 	it("uses default project trust for list", async () => {
 		mkdirSync(join(projectDir, ".evoharness"), { recursive: true });
 		writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ defaultProjectTrust: "always" }));
-		writeFileSync(join(projectDir, ".evoharness", "settings.json"), JSON.stringify({ packages: ["npm:@project/pkg"] }));
+		writeFileSync(
+			join(projectDir, ".evoharness", "settings.json"),
+			JSON.stringify({ packages: ["npm:@project/pkg"] }),
+		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		try {
@@ -307,7 +322,10 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 
 	it("uses project_trust extensions for package commands", async () => {
 		mkdirSync(join(projectDir, ".evoharness"), { recursive: true });
-		writeFileSync(join(projectDir, ".evoharness", "settings.json"), JSON.stringify({ packages: ["npm:@project/pkg"] }));
+		writeFileSync(
+			join(projectDir, ".evoharness", "settings.json"),
+			JSON.stringify({ packages: ["npm:@project/pkg"] }),
+		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
 		try {
@@ -397,7 +415,10 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 	it("lets trust.json override default project trust", async () => {
 		mkdirSync(join(projectDir, ".evoharness"), { recursive: true });
 		writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ defaultProjectTrust: "always" }));
-		writeFileSync(join(projectDir, ".evoharness", "settings.json"), JSON.stringify({ packages: ["npm:@project/pkg"] }));
+		writeFileSync(
+			join(projectDir, ".evoharness", "settings.json"),
+			JSON.stringify({ packages: ["npm:@project/pkg"] }),
+		);
 		new ProjectTrustStore(agentDir).set(projectDir, false);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
@@ -595,7 +616,9 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 
 			const stderr = errorSpy.mock.calls.map(([message]) => String(message)).join("\n");
 			expect(stderr).toContain('Unknown option --unknown for "install".');
-			expect(stderr).toContain('Use "evoharness --help" or "evoharness install <source> [-l] [--approve|--no-approve]".');
+			expect(stderr).toContain(
+				'Use "evoharness --help" or "evoharness install <source> [-l] [--approve|--no-approve]".',
+			);
 			expect(process.exitCode).toBe(1);
 		} finally {
 			errorSpy.mockRestore();
@@ -619,8 +642,8 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 	});
 
 	it("allows explicit self-update checks when automatic version checks are disabled", async () => {
-		const previousSkipVersionCheck = process.env.PI_SKIP_VERSION_CHECK;
-		process.env.PI_SKIP_VERSION_CHECK = "1";
+		const previousSkipVersionCheck = process.env.EVOHARNESS_SKIP_VERSION_CHECK;
+		process.env.EVOHARNESS_SKIP_VERSION_CHECK = "1";
 		const fetchMock = vi.fn(async () => Response.json({ version: VERSION }));
 		vi.stubGlobal("fetch", fetchMock);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -637,16 +660,16 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 			expect(process.exitCode).toBeUndefined();
 		} finally {
 			if (previousSkipVersionCheck === undefined) {
-				delete process.env.PI_SKIP_VERSION_CHECK;
+				delete process.env.EVOHARNESS_SKIP_VERSION_CHECK;
 			} else {
-				process.env.PI_SKIP_VERSION_CHECK = previousSkipVersionCheck;
+				process.env.EVOHARNESS_SKIP_VERSION_CHECK = previousSkipVersionCheck;
 			}
 		}
 	});
 
 	it("retries a transient self-update version check", async () => {
-		const previousSkipVersionCheck = process.env.PI_SKIP_VERSION_CHECK;
-		delete process.env.PI_SKIP_VERSION_CHECK;
+		const previousSkipVersionCheck = process.env.EVOHARNESS_SKIP_VERSION_CHECK;
+		delete process.env.EVOHARNESS_SKIP_VERSION_CHECK;
 		const fetchMock = vi
 			.fn()
 			.mockRejectedValueOnce(new Error("fetch failed"))
@@ -661,8 +684,8 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 			expect(fetchMock).toHaveBeenCalledTimes(3);
 			expect(errorSpy).not.toHaveBeenCalled();
 		} finally {
-			if (previousSkipVersionCheck === undefined) delete process.env.PI_SKIP_VERSION_CHECK;
-			else process.env.PI_SKIP_VERSION_CHECK = previousSkipVersionCheck;
+			if (previousSkipVersionCheck === undefined) delete process.env.EVOHARNESS_SKIP_VERSION_CHECK;
+			else process.env.EVOHARNESS_SKIP_VERSION_CHECK = previousSkipVersionCheck;
 			logSpy.mockRestore();
 			errorSpy.mockRestore();
 		}
@@ -786,7 +809,10 @@ if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 	}
 
 	/** Put a `evoharness-wrapper` update command and a `evoharness` that prints `evoharnessVersion` first on PATH. */
-	function prepareSelfUpdateCommand(evoharnessVersion: string, exitCode = 0): { scriptPath: string; recordPath: string } {
+	function prepareSelfUpdateCommand(
+		evoharnessVersion: string,
+		exitCode = 0,
+	): { scriptPath: string; recordPath: string } {
 		const binDir = join(tempDir, "self-update-bin");
 		const scriptPath = join(tempDir, "self-update.cjs");
 		const evoharnessScriptPath = join(tempDir, "fake-evoharness.cjs");
@@ -805,7 +831,7 @@ process.exit(${exitCode});
 		return { scriptPath, recordPath };
 	}
 
-	it("runs PI_SELF_UPDATE_COMMAND instead of the managed update and the selfUpdateCommand setting", async () => {
+	it("runs EVOHARNESS_SELF_UPDATE_COMMAND instead of the managed update and the selfUpdateCommand setting", async () => {
 		const targetVersion = getNewerPatchVersion();
 		const { npmRecordPath } = prepareManagedInstall(targetVersion);
 		const { scriptPath, recordPath } = prepareSelfUpdateCommand(targetVersion);
@@ -814,10 +840,12 @@ process.exit(${exitCode});
 			join(agentDir, "settings.json"),
 			JSON.stringify({ selfUpdateCommand: [originalExecPath, scriptPath, settingRecordPath] }),
 		);
-		vi.stubEnv("PI_SELF_UPDATE_COMMAND", "evoharness-wrapper upgrade {installSpec} {version}");
+		vi.stubEnv("EVOHARNESS_SELF_UPDATE_COMMAND", "evoharness-wrapper upgrade {installSpec} {version}");
 		vi.stubGlobal(
 			"fetch",
-			vi.fn(async () => Response.json({ packageName: "@new-scope/evoharness", version: targetVersion, note: "Read me" })),
+			vi.fn(async () =>
+				Response.json({ packageName: "@new-scope/evoharness", version: targetVersion, note: "Read me" }),
+			),
 		);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -851,7 +879,7 @@ process.exit(${exitCode});
 			join(projectDir, ".evoharness", "settings.json"),
 			JSON.stringify({ selfUpdateCommand: [originalExecPath, scriptPath, projectRecordPath] }),
 		);
-		vi.stubEnv("PI_SELF_UPDATE_COMMAND", "");
+		vi.stubEnv("EVOHARNESS_SELF_UPDATE_COMMAND", "");
 		const fetchMock = vi.fn(async () => Response.json({ version: VERSION }));
 		vi.stubGlobal("fetch", fetchMock);
 		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
@@ -872,7 +900,7 @@ process.exit(${exitCode});
 	it("warns when the evoharness on PATH does not report the new version", async () => {
 		const targetVersion = getNewerPatchVersion();
 		prepareSelfUpdateCommand(VERSION);
-		vi.stubEnv("PI_SELF_UPDATE_COMMAND", "evoharness-wrapper upgrade");
+		vi.stubEnv("EVOHARNESS_SELF_UPDATE_COMMAND", "evoharness-wrapper upgrade");
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async () => Response.json({ version: targetVersion })),
@@ -891,7 +919,7 @@ process.exit(${exitCode});
 
 	it("fails when the configured self-update command fails", async () => {
 		prepareSelfUpdateCommand(VERSION, 23);
-		vi.stubEnv("PI_SELF_UPDATE_COMMAND", "evoharness-wrapper upgrade");
+		vi.stubEnv("EVOHARNESS_SELF_UPDATE_COMMAND", "evoharness-wrapper upgrade");
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async () => Response.json({ version: getNewerPatchVersion() })),
@@ -937,7 +965,7 @@ process.exit(${exitCode});
 			join(inheritedManagedRoot, "managed-install.json"),
 			JSON.stringify({ kind: "evoharness-managed-install", schemaVersion: 1, layout: "releases-v1" }),
 		);
-		vi.stubEnv("PI_MANAGED_INSTALL_ROOT", inheritedManagedRoot);
+		vi.stubEnv("EVOHARNESS_MANAGED_INSTALL_ROOT", inheritedManagedRoot);
 		const fakeNpmPath = join(tempDir, "fake-npm.cjs");
 		const recordPath = join(tempDir, "self-update.json");
 		mkdirSync(selfPackageDir, { recursive: true });
@@ -957,7 +985,7 @@ else fs.writeFileSync(${JSON.stringify(recordPath)},JSON.stringify(args));
 			join(projectDir, ".evoharness", "settings.json"),
 			JSON.stringify({ npmCommand: [originalExecPath, fakeNpmPath, "--prefix", projectPrefix] }, null, 2),
 		);
-		process.env.PI_PACKAGE_DIR = selfPackageDir;
+		process.env.EVOHARNESS_PACKAGE_DIR = selfPackageDir;
 		Object.defineProperty(process, "execPath", {
 			value: join(selfPackageDir, "dist", "cli.js"),
 			configurable: true,
@@ -989,7 +1017,7 @@ else fs.writeFileSync(${JSON.stringify(recordPath)},JSON.stringify(args));
 
 	it("uses the current package name when the update check omits packageName", async () => {
 		const globalPrefix = join(tempDir, "global-prefix");
-		const selfPackageDir = join(globalPrefix, "lib", "node_modules", "@mariozechner", "evoharness-coding-agent");
+		const selfPackageDir = join(globalPrefix, "lib", "node_modules", "@evoharness", "evoharness-coding-agent");
 		const fakeNpmPath = join(tempDir, "fake-npm.cjs");
 		const recordPath = join(tempDir, "self-update.json");
 		mkdirSync(selfPackageDir, { recursive: true });
@@ -1004,7 +1032,7 @@ else fs.writeFileSync(${JSON.stringify(recordPath)},JSON.stringify(args));
 			join(agentDir, "settings.json"),
 			JSON.stringify({ npmCommand: [originalExecPath, fakeNpmPath, "--prefix", globalPrefix] }, null, 2),
 		);
-		process.env.PI_PACKAGE_DIR = selfPackageDir;
+		process.env.EVOHARNESS_PACKAGE_DIR = selfPackageDir;
 		Object.defineProperty(process, "execPath", {
 			value: join(selfPackageDir, "dist", "cli.js"),
 			configurable: true,
@@ -1035,7 +1063,7 @@ else fs.writeFileSync(${JSON.stringify(recordPath)},JSON.stringify(args));
 
 	it("installs the active package name from the update check during self-update", async () => {
 		const globalPrefix = join(tempDir, "global-prefix");
-		const selfPackageDir = join(globalPrefix, "lib", "node_modules", "@mariozechner", "evoharness-coding-agent");
+		const selfPackageDir = join(globalPrefix, "lib", "node_modules", "@evoharness", "evoharness-coding-agent");
 		const fakeNpmPath = join(tempDir, "fake-npm.cjs");
 		const recordPath = join(tempDir, "self-update.json");
 		mkdirSync(selfPackageDir, { recursive: true });
@@ -1054,12 +1082,13 @@ else {
 			join(agentDir, "settings.json"),
 			JSON.stringify({ npmCommand: [originalExecPath, fakeNpmPath, "--prefix", globalPrefix] }, null, 2),
 		);
-		process.env.PI_PACKAGE_DIR = selfPackageDir;
+		process.env.EVOHARNESS_PACKAGE_DIR = selfPackageDir;
 		Object.defineProperty(process, "execPath", {
 			value: join(selfPackageDir, "dist", "cli.js"),
 			configurable: true,
 		});
-		const activePackageName = PACKAGE_NAME === "@new-scope/evoharness" ? "@newer-scope/evoharness" : "@new-scope/evoharness";
+		const activePackageName =
+			PACKAGE_NAME === "@new-scope/evoharness" ? "@newer-scope/evoharness" : "@new-scope/evoharness";
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async () => Response.json({ packageName: activePackageName, version: "0.73.0" })),
@@ -1099,7 +1128,7 @@ else {
 		writeFileSync(fakePnpmPath, fakePnpmScript);
 		chmodSync(fakePnpmPath, 0o755);
 		process.env.PATH = `${fakeBinDir}${process.env.PATH ? `${delimiter}${process.env.PATH}` : ""}`;
-		process.env.PI_PACKAGE_DIR = selfPackageDir;
+		process.env.EVOHARNESS_PACKAGE_DIR = selfPackageDir;
 		Object.defineProperty(process, "execPath", {
 			value: join(tempDir, "pnpm", "bin", "node"),
 			configurable: true,
@@ -1130,7 +1159,7 @@ else {
 
 	it("fails self-update when renamed npm package installation fails", async () => {
 		const globalPrefix = join(tempDir, "global-prefix");
-		const selfPackageDir = join(globalPrefix, "lib", "node_modules", "@mariozechner", "evoharness-coding-agent");
+		const selfPackageDir = join(globalPrefix, "lib", "node_modules", "@evoharness", "evoharness-coding-agent");
 		const fakeNpmPath = join(tempDir, "fake-npm-fail.cjs");
 		const recordPath = join(tempDir, "self-update-fail.json");
 		mkdirSync(selfPackageDir, { recursive: true });
@@ -1151,12 +1180,13 @@ if(args.includes("install")) process.exit(23);
 			join(agentDir, "settings.json"),
 			JSON.stringify({ npmCommand: [originalExecPath, fakeNpmPath, "--prefix", globalPrefix] }, null, 2),
 		);
-		process.env.PI_PACKAGE_DIR = selfPackageDir;
+		process.env.EVOHARNESS_PACKAGE_DIR = selfPackageDir;
 		Object.defineProperty(process, "execPath", {
 			value: join(selfPackageDir, "dist", "cli.js"),
 			configurable: true,
 		});
-		const activePackageName = PACKAGE_NAME === "@new-scope/evoharness" ? "@newer-scope/evoharness" : "@new-scope/evoharness";
+		const activePackageName =
+			PACKAGE_NAME === "@new-scope/evoharness" ? "@newer-scope/evoharness" : "@new-scope/evoharness";
 		vi.stubGlobal(
 			"fetch",
 			vi.fn(async () => Response.json({ packageName: activePackageName, version: "0.73.0" })),

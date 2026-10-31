@@ -57,13 +57,13 @@ See [Compaction Reference](compaction.md) for thresholds, retained boundaries, b
 
 ## Control session storage
 
-By default, EvoHarness stores sessions under `~/.evoharness/agent/sessions/`, grouped by working directory. Use `--session-dir`, `PI_CODING_AGENT_SESSION_DIR`, or the `sessionDir` setting to choose another location. The CLI option has highest precedence.
+By default, EvoHarness stores sessions under `~/.evoharness/agent/sessions/`, grouped by working directory. Use `--session-dir`, `EVOHARNESS_CODING_AGENT_SESSION_DIR`, or the `sessionDir` setting to choose another location. The CLI option has highest precedence.
 
 Use `--no-session` for an ephemeral run. An ephemeral session cannot be resumed after EvoHarness exits.
 
 ## Export or share a session
 
-Use `/export` to write the current session as HTML or JSONL. Use `/share` to upload it and get a viewer link. By default, EvoHarness uses a Radius artifact when Radius authentication is configured; otherwise, it uses a private GitHub gist. Set [`sessionShareDestination`](settings.md#sessions-and-context) to `gist` or `radius` to force one destination.
+Use `/export` to write the current session as HTML or JSONL. Use `/share` to upload it and get a viewer link. EvoHarness shares the session as a private GitHub gist through the GitHub CLI.
 
 Review exported or shared sessions first. They can contain prompts, model responses, tool arguments, command output, file contents, and extension messages.
 
@@ -71,4 +71,4 @@ Review exported or shared sessions first. They can contain prompts, model respon
 
 Run `/bug [description]` to prepare a private report for the EvoHarness developers. You can include the session transcript, omit it, or ask the current model to summarize the problem. Review any transcript or generated summary because it can contain sensitive conversation data.
 
-The report includes environment and provider configuration without credential values, plus recorded error diagnostics. Upload it through `radius.evoharness.dev` or export the same report as a zip to inspect and share yourself. Uploads do not require a login; Radius authentication attributes the report to your account so the developers can follow up. If an upload fails, EvoHarness offers to export the zip.
+The report includes environment and provider configuration without credential values, plus recorded error diagnostics. Export the report as a zip to inspect and share yourself.

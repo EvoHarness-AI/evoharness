@@ -15,12 +15,12 @@
  *   evoharness -e /path/to/evoharness/packages/coding-agent/examples/extensions/gondolin
  *
  * Requirements:
- *   - Node.js >= 23.6.0 for @evoharness/gondolin
+ *   - Node.js >= 23.6.0 for @earendil-works/gondolin
  *   - QEMU installed (for example, `brew install qemu` on macOS)
  */
 
 import path from "node:path";
-import { RealFSProvider, VM } from "@evoharness/gondolin";
+import { RealFSProvider, VM } from "@earendil-works/gondolin";
 import type { ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
 import {
 	type BashOperations,

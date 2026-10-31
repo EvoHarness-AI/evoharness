@@ -5,15 +5,15 @@ import { join } from "path";
 import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 import { getBinDir, VERSION } from "../config.ts";
+import { getEvoharnessUserAgent } from "./evoharness-user-agent.ts";
 import { fetchWithRetry } from "./management-http.ts";
-import { getPiUserAgent } from "./evoharness-user-agent.ts";
 
 const TOOLS_DIR = getBinDir();
 const NETWORK_TIMEOUT_MS = 10_000;
 const DOWNLOAD_TIMEOUT_MS = 120_000;
 
 function isOfflineModeEnabled(): boolean {
-	const value = process.env.PI_OFFLINE;
+	const value = process.env.EVOHARNESS_OFFLINE;
 	if (!value) return false;
 	return value === "1" || value.toLowerCase() === "true" || value.toLowerCase() === "yes";
 }
@@ -100,7 +100,7 @@ export async function getLatestVersion(repo: string): Promise<string> {
 	const response = await fetchWithRetry(
 		`https://github.com/${repo}/releases/latest`,
 		{
-			headers: { "User-Agent": getPiUserAgent(VERSION) },
+			headers: { "User-Agent": getEvoharnessUserAgent(VERSION) },
 			redirect: "manual",
 		},
 		{ timeoutMs: NETWORK_TIMEOUT_MS },

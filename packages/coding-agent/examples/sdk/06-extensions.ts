@@ -13,12 +13,7 @@
  *   export default function (evoharness: ExtensionAPI) { ... }
  */
 
-import {
-	createAgentSession,
-	DefaultResourceLoader,
-	getAgentDir,
-	SessionManager,
-} from "@evoharness/coding-agent";
+import { createAgentSession, DefaultResourceLoader, getAgentDir, SessionManager } from "@evoharness/coding-agent";
 
 // Extensions are discovered automatically from standard locations.
 // You can also add paths via settings.json or DefaultResourceLoader options.

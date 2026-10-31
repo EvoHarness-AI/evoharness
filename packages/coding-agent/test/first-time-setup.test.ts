@@ -7,7 +7,7 @@ import { ENV_AGENT_DIR } from "../src/config.ts";
 import { SettingsManager } from "../src/core/settings-manager.ts";
 
 describe("shouldRunFirstTimeSetup", () => {
-	const originalPiExperimental = process.env.PI_EXPERIMENTAL;
+	const originalEvoharnessExperimental = process.env.EVOHARNESS_EXPERIMENTAL;
 	const originalAgentDir = process.env[ENV_AGENT_DIR];
 	let tempDir: string;
 	let settingsPath: string;
@@ -15,16 +15,16 @@ describe("shouldRunFirstTimeSetup", () => {
 	beforeEach(() => {
 		tempDir = mkdtempSync(join(tmpdir(), "evoharness-first-time-setup-"));
 		settingsPath = join(tempDir, "settings.json");
-		process.env.PI_EXPERIMENTAL = "1";
+		process.env.EVOHARNESS_EXPERIMENTAL = "1";
 		delete process.env[ENV_AGENT_DIR];
 	});
 
 	afterEach(() => {
 		rmSync(tempDir, { recursive: true, force: true });
-		if (originalPiExperimental === undefined) {
-			delete process.env.PI_EXPERIMENTAL;
+		if (originalEvoharnessExperimental === undefined) {
+			delete process.env.EVOHARNESS_EXPERIMENTAL;
 		} else {
-			process.env.PI_EXPERIMENTAL = originalPiExperimental;
+			process.env.EVOHARNESS_EXPERIMENTAL = originalEvoharnessExperimental;
 		}
 		if (originalAgentDir === undefined) {
 			delete process.env[ENV_AGENT_DIR];
@@ -38,7 +38,7 @@ describe("shouldRunFirstTimeSetup", () => {
 	});
 
 	it("returns false when experimental features are disabled", () => {
-		delete process.env.PI_EXPERIMENTAL;
+		delete process.env.EVOHARNESS_EXPERIMENTAL;
 
 		expect(shouldRunFirstTimeSetup(settingsPath)).toBe(false);
 	});

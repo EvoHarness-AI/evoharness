@@ -42,7 +42,8 @@ describe("AgentSessionRuntime characterization", () => {
 		options?: { cwd?: string; bootstrapModel?: boolean; bootstrapThinkingLevel?: boolean },
 	) {
 		const tempDir =
-			options?.cwd ?? join(tmpdir(), `evoharness-runtime-suite-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+			options?.cwd ??
+			join(tmpdir(), `evoharness-runtime-suite-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 		mkdirSync(tempDir, { recursive: true });
 
 		const faux = registerFauxProvider({
@@ -429,7 +430,10 @@ describe("AgentSessionRuntime characterization", () => {
 	});
 
 	it("duplicates the current active branch in-memory when forking at the current position", async () => {
-		const tempDir = join(tmpdir(), `evoharness-runtime-suite-in-memory-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+		const tempDir = join(
+			tmpdir(),
+			`evoharness-runtime-suite-in-memory-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+		);
 		mkdirSync(tempDir, { recursive: true });
 
 		const faux = registerFauxProvider({

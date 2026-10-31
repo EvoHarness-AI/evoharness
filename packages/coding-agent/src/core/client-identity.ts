@@ -1,4 +1,4 @@
-import { type ClientIdentity, PI_ATTRIBUTION } from "@evoharness/ai";
+import { type ClientIdentity, EVOHARNESS_ATTRIBUTION } from "@evoharness/ai";
 import { VERSION } from "../config.ts";
 import type { SettingsManager } from "./settings-manager.ts";
 import { isInstallTelemetryEnabled } from "./telemetry.ts";
@@ -11,6 +11,6 @@ export function getClientIdentity(settingsManager: SettingsManager): ClientIdent
 	return {
 		userAgent: "detailed",
 		version: VERSION,
-		attribution: isInstallTelemetryEnabled(settingsManager) ? PI_ATTRIBUTION : null,
+		attribution: isInstallTelemetryEnabled(settingsManager) ? EVOHARNESS_ATTRIBUTION : null,
 	};
 }

@@ -3,7 +3,7 @@ import type { AgentMessage, StreamFn, ThinkingLevel } from "@evoharness/agent-co
 import { contentText, normalizeContext, type RetryPolicy, uuidv7 } from "@evoharness/ai";
 import type { Api, Model, Provider, SimpleStreamOptions } from "@evoharness/ai/compat";
 import { VERSION } from "../config.ts";
-import { getPiUserAgent } from "../utils/evoharness-user-agent.ts";
+import { getEvoharnessUserAgent } from "../utils/evoharness-user-agent.ts";
 import { writeZipArchive } from "../utils/zip.ts";
 import { completeSummarization, estimateTokens, getSummarizationFailure } from "./compaction/compaction.ts";
 import { serializeConversation } from "./compaction/utils.ts";
@@ -67,7 +67,7 @@ function collectEnvironment() {
 	const env = (name: string): string | null => process.env[name] || null;
 	return {
 		version: VERSION,
-		userAgent: getPiUserAgent(VERSION),
+		userAgent: getEvoharnessUserAgent(VERSION),
 		runtime: process.versions.bun ? `bun/${process.versions.bun}` : `node/${process.version}`,
 		platform: process.platform,
 		arch: process.arch,

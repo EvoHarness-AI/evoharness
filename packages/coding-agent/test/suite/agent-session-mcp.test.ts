@@ -1235,7 +1235,9 @@ describe("AgentSession MCP tools after resume and reload", () => {
 
 			// Like plan mode restoring its tools, or an extension adding one to the current loadout.
 			const setLoadout: ExtensionFactory = (evoharness) => {
-				evoharness.on("session_start", () => evoharness.setActiveTools(loadout ? [...loadout] : [...evoharness.getActiveTools(), "read"]));
+				evoharness.on("session_start", () =>
+					evoharness.setActiveTools(loadout ? [...loadout] : [...evoharness.getActiveTools(), "read"]),
+				);
 			};
 			const second = await setup(first.harness.sessionManager, [setLoadout]);
 			await vi.waitFor(() =>

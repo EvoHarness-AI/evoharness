@@ -115,7 +115,10 @@ describe("SettingsManager", () => {
 		it("creates one global device ID and reuses it in later processes", async () => {
 			const settingsPath = join(agentDir, "settings.json");
 			writeFileSync(settingsPath, JSON.stringify({ theme: "dark" }));
-			writeFileSync(join(projectDir, ".evoharness", "settings.json"), JSON.stringify({ deviceId: "project-device" }));
+			writeFileSync(
+				join(projectDir, ".evoharness", "settings.json"),
+				JSON.stringify({ deviceId: "project-device" }),
+			);
 			const first = SettingsManager.create(projectDir, agentDir);
 
 			const deviceId = first.getOrCreateDeviceId();
@@ -292,7 +295,10 @@ describe("SettingsManager", () => {
 
 		it("should read default project trust from global settings only", () => {
 			writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ defaultProjectTrust: "always" }));
-			writeFileSync(join(projectDir, ".evoharness", "settings.json"), JSON.stringify({ defaultProjectTrust: "never" }));
+			writeFileSync(
+				join(projectDir, ".evoharness", "settings.json"),
+				JSON.stringify({ defaultProjectTrust: "never" }),
+			);
 
 			const manager = SettingsManager.create(projectDir, agentDir);
 
@@ -678,7 +684,10 @@ describe("SettingsManager", () => {
 		});
 
 		it("applies project modifiers to the built-in defaults without a global setting", () => {
-			writeFileSync(join(projectDir, ".evoharness", "settings.json"), JSON.stringify({ defaultTools: ["+codemode"] }));
+			writeFileSync(
+				join(projectDir, ".evoharness", "settings.json"),
+				JSON.stringify({ defaultTools: ["+codemode"] }),
+			);
 
 			expect(SettingsManager.create(projectDir, agentDir).getDefaultTools()).toEqual([
 				"read",

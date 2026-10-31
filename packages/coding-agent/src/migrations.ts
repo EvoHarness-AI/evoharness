@@ -11,7 +11,8 @@ import { stripBom } from "./utils/text.ts";
 
 const MIGRATION_GUIDE_URL =
 	"https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/CHANGELOG.md#extensions-migration";
-const EXTENSIONS_DOC_URL = "https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/docs/extensions.md";
+const EXTENSIONS_DOC_URL =
+	"https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/docs/extensions.md";
 
 /**
  * Migrate legacy oauth.json and settings.json apiKeys to auth.json.

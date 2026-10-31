@@ -104,7 +104,6 @@ const ProviderConfigSchema = Type.Object({
 				'API for the provider\'s models, such as "openai-completions", "openai-responses", "anthropic-messages", or "google-generative-ai".',
 		}),
 	),
-	oauth: Type.Optional(Type.Literal("radius", { description: "OAuth login flow. Requires baseUrl." })),
 	headers: Type.Optional(HeadersSchema),
 	compat: Type.Optional(ProviderCompatSchema),
 	authHeader: Type.Optional(

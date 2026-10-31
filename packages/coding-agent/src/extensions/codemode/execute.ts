@@ -57,9 +57,9 @@ const CODEMODE_MEMORY_LIMIT_BYTES = 256 * 1024 * 1024;
 // Shared across calls and sessions. Allow one replacement while a cancelled worker is still exiting.
 const DEFAULT_MAX_CODEMODE_WORKERS = 2;
 
-/** `PI_CODEMODE_MAX_WORKERS` if it is a positive integer. Read per call so SDK hosts can set it at runtime. */
+/** `EVOHARNESS_CODEMODE_MAX_WORKERS` if it is a positive integer. Read per call so SDK hosts can set it at runtime. */
 function maxCodemodeWorkers(): number {
-	const value = Number(process.env.PI_CODEMODE_MAX_WORKERS);
+	const value = Number(process.env.EVOHARNESS_CODEMODE_MAX_WORKERS);
 	return Number.isInteger(value) && value > 0 ? value : DEFAULT_MAX_CODEMODE_WORKERS;
 }
 /**
@@ -653,7 +653,7 @@ export async function executeCodemode(
 
 /**
  * Whether `query` names the namespace: its name or one of its aliases, as written or as the same
- * script identifier (`dev-radius` and `dev_radius` are both `dev_radius`).
+ * script identifier (`dev-gateway` and `dev_gateway` are both `dev_gateway`).
  */
 function isNamespaceName(namespace: ToolNamespace, query: string): boolean {
 	const queryId = toCodemodeIdentifier(query);

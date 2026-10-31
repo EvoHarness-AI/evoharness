@@ -5,15 +5,7 @@
  */
 
 import type { ExtensionAPI } from "@evoharness/coding-agent";
-import {
-	Editor,
-	type EditorTheme,
-	Key,
-	matchesKey,
-	Text,
-	visibleWidth,
-	wrapTextWithAnsi,
-} from "@evoharness/tui";
+import { Editor, type EditorTheme, Key, matchesKey, Text, visibleWidth, wrapTextWithAnsi } from "@evoharness/tui";
 import { Type } from "typebox";
 
 interface OptionWithDesc {

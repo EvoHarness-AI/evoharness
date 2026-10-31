@@ -83,7 +83,7 @@ describe("SettingsSelectorComponent", () => {
 
 		for (let i = 0; i < 3; i++) list.handleInput("\r");
 
-		expect(onSessionShareDestinationChange.mock.calls.flat()).toEqual(["gist", "radius", "auto"]);
+		expect(onSessionShareDestinationChange.mock.calls.flat()).toEqual(["gist", "auto", "gist"]);
 	});
 
 	it("keeps the configured fixed theme marked while browsing", () => {

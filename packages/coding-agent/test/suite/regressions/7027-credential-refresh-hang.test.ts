@@ -162,7 +162,7 @@ describe("post-login model discovery", () => {
 			maybeWarnAboutAnthropicSubscriptionAuth: vi.fn(),
 			ui: { requestRender: vi.fn() },
 		};
-		await complete.call(context, "radius", "Radius", "oauth", unknownModel);
+		await complete.call(context, "anthropic", "Anthropic", "oauth", unknownModel);
 		expect(context.showStatus).toHaveBeenCalledWith(expect.stringContaining("Credentials saved"));
 		expect(context.showError).not.toHaveBeenCalled();
 		expect(setModel).not.toHaveBeenCalled();
@@ -172,25 +172,25 @@ describe("post-login model discovery", () => {
 			setModel,
 			currentModel,
 			async discover(ids: string[]) {
-				availableModels.mockReturnValue(ids.map((id) => ({ ...model, provider: "radius", id })));
+				availableModels.mockReturnValue(ids.map((id) => ({ ...model, provider: "anthropic", id })));
 				finishRefresh();
 				await vi.advanceTimersByTimeAsync(0);
 			},
 		};
 	}
 
-	it.each([
-		{ models: ["fast", "balanced"], selected: "balanced" },
-		{ models: ["fast", "powerful"], selected: "fast" },
-	])("selects $selected from the refreshed catalog $models", async ({ models, selected }) => {
-		expect(defaultModelPerProvider.radius).toBe("balanced");
-		const login = await startLogin();
-		await login.discover(models);
-		expect(login.setModel).toHaveBeenCalledWith(expect.objectContaining({ provider: "radius", id: selected }), {
-			persist: true,
-		});
-		expect(login.showError).not.toHaveBeenCalled();
-	});
+	it.each([{ models: ["claude-opus-4-8", "fast"], selected: "claude-opus-4-8" }])(
+		"selects $selected from the refreshed catalog $models",
+		async ({ models, selected }) => {
+			expect(defaultModelPerProvider.anthropic).toBe("claude-opus-4-8");
+			const login = await startLogin();
+			await login.discover(models);
+			expect(login.setModel).toHaveBeenCalledWith(expect.objectContaining({ provider: "anthropic", id: selected }), {
+				persist: true,
+			});
+			expect(login.showError).not.toHaveBeenCalled();
+		},
+	);
 
 	it("reports an empty catalog only after refresh", async () => {
 		const login = await startLogin();

@@ -3,13 +3,7 @@
  */
 
 import type { ThinkingLevel } from "@evoharness/agent-core";
-import {
-	type Api,
-	type AuthOperationOptions,
-	type KnownProvider,
-	type Model,
-	modelsAreEqual,
-} from "@evoharness/ai";
+import { type Api, type AuthOperationOptions, type KnownProvider, type Model, modelsAreEqual } from "@evoharness/ai";
 import chalk from "chalk";
 import { minimatch } from "minimatch";
 import { isValidThinkingLevel } from "../cli/args.ts";
@@ -24,7 +18,6 @@ export const defaultModelPerProvider: Partial<Record<KnownProvider, string>> = {
 	openai: "gpt-6.1-sol",
 	azure: "gpt-5.4",
 	"openai-codex": "gpt-6.1-sol",
-	radius: "balanced",
 	nvidia: "nvidia/nemotron-3.5-super-vl-120b-a12b",
 	deepseek: "deepseek-v4-pro",
 	google: "gemini-3.1-pro-preview",

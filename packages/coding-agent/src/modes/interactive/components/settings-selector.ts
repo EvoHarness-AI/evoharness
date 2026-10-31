@@ -515,10 +515,9 @@ export class SettingsSelectorComponent extends Container {
 			{
 				id: "share-destination",
 				label: "Session share destination",
-				description:
-					"Where to upload sessions with /share (auto prefers Radius when authenticated, otherwise GitHub Gist)",
+				description: "Where to upload sessions with /share (creates a GitHub Gist)",
 				currentValue: config.sessionShareDestination,
-				values: ["auto", "gist", "radius"],
+				values: ["auto", "gist"],
 			},
 			{
 				id: "http-idle-timeout",

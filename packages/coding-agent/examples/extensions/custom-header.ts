@@ -9,8 +9,8 @@ import type { ExtensionAPI, Theme } from "@evoharness/coding-agent";
 import { VERSION } from "@evoharness/coding-agent";
 
 // --- EVOHARNESS MASCOT ---
-// Based on pi_mascot.ts - the evoharness agent character
-function getPiMascot(theme: Theme): string[] {
+// Based on evoharness_mascot.ts - the evoharness agent character
+function getEvoharnessMascot(theme: Theme): string[] {
 	// --- COLORS ---
 	// 3b1b Blue: R=80, G=180, B=230
 	const evoharnessBlue = (text: string) => theme.fg("accent", text);
@@ -51,7 +51,7 @@ export default function (evoharness: ExtensionAPI) {
 			ctx.ui.setHeader((_tui, theme) => {
 				return {
 					render(_width: number): string[] {
-						const mascotLines = getPiMascot(theme);
+						const mascotLines = getEvoharnessMascot(theme);
 						// Add a subtitle with hint
 						const subtitle = `${theme.fg("muted", "   shitty coding agent")}${theme.fg("dim", ` v${VERSION}`)}`;
 						return [...mascotLines, subtitle];

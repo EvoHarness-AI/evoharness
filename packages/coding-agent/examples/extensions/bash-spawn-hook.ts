@@ -17,7 +17,7 @@ export default function (evoharness: ExtensionAPI) {
 		spawnHook: ({ command, cwd, env }) => ({
 			command: `source ~/.profile\n${command}`,
 			cwd,
-			env: { ...env, PI_SPAWN_HOOK: "1" },
+			env: { ...env, EVOHARNESS_SPAWN_HOOK: "1" },
 		}),
 	});
 

@@ -9,7 +9,7 @@
 
 set -e
 
-AGENT_DIR="${PI_AGENT_DIR:-$HOME/.evoharness/agent}"
+AGENT_DIR="${EVOHARNESS_AGENT_DIR:-$HOME/.evoharness/agent}"
 DRY_RUN=false
 
 if [[ "$1" == "--dry-run" ]]; then

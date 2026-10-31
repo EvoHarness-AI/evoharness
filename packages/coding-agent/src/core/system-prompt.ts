@@ -153,7 +153,7 @@ export function buildSystemPromptSections(input: BuildSystemPromptOptions): Syst
 		promptSections.preamble = customPrompt;
 	} else {
 		promptSections.preamble =
-			"You are an expert coding assistant operating inside evoharness, a coding agent harness. You help users by reading files, executing commands, editing code, and writing new files.";
+			"You are an expert coding assistant operating inside evoharness, a coding agent harness. You help users by reading files, executing commands, editing code, and writing new files. evoharness is not pi: environment variables use the EVOHARNESS_ prefix (for example EVOHARNESS_PROVIDER and EVOHARNESS_MODEL), and the selected provider and model are shown by /model.";
 		const visibleTools = declaredTools.filter((name) => !!toolSnippets[name]);
 		const tools =
 			visibleTools.length > 0 ? visibleTools.map((name) => `- ${name}: ${toolSnippets[name]}`).join("\n") : "(none)";

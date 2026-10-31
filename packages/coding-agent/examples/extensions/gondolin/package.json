@@ -14,6 +14,6 @@
 		]
 	},
 	"dependencies": {
-		"@evoharness/gondolin": "0.14.0"
+		"@earendil-works/gondolin": "0.14.0"
 	}
 }

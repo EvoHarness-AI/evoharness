@@ -38,10 +38,10 @@ import { DefaultResourceLoader, formatPackageInstallWarning, isBuiltinExtension 
 import { SettingsManager } from "./core/settings-manager.ts";
 import { hasTrustRequiringProjectResources, ProjectTrustStore } from "./core/trust-manager.ts";
 import { spawnProcess, spawnProcessSync, waitForChildProcess } from "./utils/child-process.ts";
+import { getEvoharnessUserAgent } from "./utils/evoharness-user-agent.ts";
 import { canonicalizePath, getCwdRelativePath } from "./utils/paths.ts";
-import { getPiUserAgent } from "./utils/evoharness-user-agent.ts";
 import { stripBom } from "./utils/text.ts";
-import { formatVersionCheckError, getLatestPiRelease, isNewerPackageVersion } from "./utils/version-check.ts";
+import { formatVersionCheckError, getLatestEvoharnessRelease, isNewerPackageVersion } from "./utils/version-check.ts";
 import {
 	cleanupWindowsSelfUpdateQuarantine,
 	quarantineWindowsNativeDependencies,
@@ -56,7 +56,7 @@ const MANAGED_INSTALL_MARKER = "managed-install.json";
 const MANAGED_RELEASE_VERSION_RE = /^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
 
 function getActiveManagedInstallRoot(): string | undefined {
-	const configuredRoot = process.env.PI_MANAGED_INSTALL_ROOT?.trim();
+	const configuredRoot = process.env.EVOHARNESS_MANAGED_INSTALL_ROOT?.trim();
 	if (!configuredRoot) return undefined;
 
 	const managedRoot = resolve(configuredRoot);
@@ -72,7 +72,11 @@ function getActiveManagedInstallRoot(): string | undefined {
 			layout?: unknown;
 			schemaVersion?: unknown;
 		};
-		if (marker.kind !== "evoharness-managed-install" || marker.schemaVersion !== 1 || marker.layout !== "releases-v1") {
+		if (
+			marker.kind !== "evoharness-managed-install" ||
+			marker.schemaVersion !== 1 ||
+			marker.layout !== "releases-v1"
+		) {
 			throw new Error();
 		}
 	} catch {
@@ -83,7 +87,7 @@ function getActiveManagedInstallRoot(): string | undefined {
 }
 
 async function fetchInstallerArtifact(url: string, label: string): Promise<string> {
-	const response = await fetch(url, { headers: { "User-Agent": getPiUserAgent(VERSION) } });
+	const response = await fetch(url, { headers: { "User-Agent": getEvoharnessUserAgent(VERSION) } });
 	if (!response.ok) {
 		throw new Error(`Could not download managed installer ${label} from ${url}: HTTP ${response.status}`);
 	}
@@ -124,7 +128,9 @@ function verifyManagedRelease(releaseDir: string, expectedVersion: string): void
 	}
 	const installedVersion = result.stdout.trim();
 	if (installedVersion !== expectedVersion) {
-		throw new Error(`Managed EvoHarness smoke test returned version ${installedVersion}; expected ${expectedVersion}.`);
+		throw new Error(
+			`Managed EvoHarness smoke test returned version ${installedVersion}; expected ${expectedVersion}.`,
+		);
 	}
 }
 
@@ -211,10 +217,9 @@ async function runManagedSelfUpdate(managedRoot: string, version: string): Promi
 	let stageDir: string | undefined;
 	try {
 		cleanupManagedStaging(managedRoot);
-		const installerApiBase = (process.env.PI_INSTALLER_API_BASE?.trim() || DEFAULT_INSTALLER_API_BASE).replace(
-			/\/+$/,
-			"",
-		);
+		const installerApiBase = (
+			process.env.EVOHARNESS_INSTALLER_API_BASE?.trim() || DEFAULT_INSTALLER_API_BASE
+		).replace(/\/+$/, "");
 		const releaseUrl = `${installerApiBase}/${encodeURIComponent(version)}`;
 		const stagingRoot = join(managedRoot, "staging");
 		const releasesRoot = join(managedRoot, "releases");
@@ -642,7 +647,7 @@ function printSelfUpdateUnavailable(
 	console.error(`error: ${APP_NAME} cannot self-update this installation.`);
 	console.error(getSelfUpdateUnavailableInstruction(PACKAGE_NAME, npmCommand, updatePackageTarget));
 	console.error(
-		`To make \`${APP_NAME} update\` run your own update command, set PI_SELF_UPDATE_COMMAND or the selfUpdateCommand setting.`,
+		`To make \`${APP_NAME} update\` run your own update command, set EVOHARNESS_SELF_UPDATE_COMMAND or the selfUpdateCommand setting.`,
 	);
 
 	const entrypoint = process.argv[1];
@@ -690,9 +695,9 @@ interface SelfUpdatePlan {
 }
 
 async function getSelfUpdatePlan(force: boolean): Promise<SelfUpdatePlan> {
-	let latestRelease: Awaited<ReturnType<typeof getLatestPiRelease>>;
+	let latestRelease: Awaited<ReturnType<typeof getLatestEvoharnessRelease>>;
 	try {
-		latestRelease = await getLatestPiRelease(VERSION, { retry: true });
+		latestRelease = await getLatestEvoharnessRelease(VERSION, { retry: true });
 	} catch (error: unknown) {
 		throw new Error(`Could not determine latest ${APP_NAME} version: ${formatVersionCheckError(error)}`, {
 			cause: error,
@@ -773,8 +778,8 @@ async function runConfiguredSelfUpdate(argv: string[], plan: SelfUpdatePlan): Pr
 
 /** Version printed by `evoharness --version` as resolved from PATH, the evoharness the user runs next. */
 function readVersionOnPath(): string | undefined {
-	// PI_PACKAGE_DIR points at this installation and would make the new evoharness report the old version.
-	const { PI_PACKAGE_DIR: _, ...env } = process.env;
+	// EVOHARNESS_PACKAGE_DIR points at this installation and would make the new evoharness report the old version.
+	const { EVOHARNESS_PACKAGE_DIR: _, ...env } = process.env;
 	const result = spawnProcessSync(APP_NAME, ["--version"], {
 		encoding: "utf-8",
 		stdio: ["ignore", "pipe", "pipe"],

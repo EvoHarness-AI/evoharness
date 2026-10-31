@@ -39,8 +39,8 @@ const index: ModelCatalogIndex = {
 	schemaVersion: 1,
 	defaultRevision: mixedApiRevision,
 	catalogs: [
-		{ minimumPiVersion: "0.80.7", revision: legacyRevision },
-		{ minimumPiVersion: "0.85.0", revision: mixedApiRevision },
+		{ minimumEvoharnessVersion: "0.80.7", revision: legacyRevision },
+		{ minimumEvoharnessVersion: "0.85.0", revision: mixedApiRevision },
 	],
 };
 

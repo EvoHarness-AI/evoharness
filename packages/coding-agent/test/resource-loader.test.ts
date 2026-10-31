@@ -86,7 +86,7 @@ describe("DefaultResourceLoader", () => {
 
 		// #11088
 		it("should warn and keep loading when a configured package cannot be installed", async () => {
-			vi.stubEnv("PI_OFFLINE", "");
+			vi.stubEnv("EVOHARNESS_OFFLINE", "");
 			const loader = new DefaultResourceLoader({
 				cwd,
 				agentDir,
@@ -103,12 +103,14 @@ describe("DefaultResourceLoader", () => {
 			expect(warnings).toHaveLength(1);
 			expect(warnings[0].path).toBe("npm:broken-package");
 			expect(warnings[0].warning).toMatch(/^failed to install \(.*failed with code 1\)\./);
-			expect(warnings[0].warning).toContain('Run "evoharness remove npm:broken-package" to remove it from settings.json.');
+			expect(warnings[0].warning).toContain(
+				'Run "evoharness remove npm:broken-package" to remove it from settings.json.',
+			);
 		});
 
 		// #11088
 		it("should point temporary extension sources at the source instead of evoharness remove", async () => {
-			vi.stubEnv("PI_OFFLINE", "");
+			vi.stubEnv("EVOHARNESS_OFFLINE", "");
 			const loader = new DefaultResourceLoader({
 				cwd,
 				agentDir,
@@ -129,7 +131,7 @@ describe("DefaultResourceLoader", () => {
 
 		// #11088
 		it("should point project extension packages at evoharness remove --local", async () => {
-			vi.stubEnv("PI_OFFLINE", "");
+			vi.stubEnv("EVOHARNESS_OFFLINE", "");
 			writeFileSync(
 				join(agentDir, "settings.json"),
 				JSON.stringify({ npmCommand: [process.execPath, "-e", "process.exit(1)"] }),
@@ -151,7 +153,7 @@ describe("DefaultResourceLoader", () => {
 
 		// #11088
 		it("should warn once about a failing install when project trust is resolved", async () => {
-			vi.stubEnv("PI_OFFLINE", "");
+			vi.stubEnv("EVOHARNESS_OFFLINE", "");
 			const loader = new DefaultResourceLoader({
 				cwd,
 				agentDir,
@@ -1142,7 +1144,8 @@ export default function(evoharness: ExtensionAPI) {
 					{
 						name: "mcp",
 						replaceable: true,
-						factory: (evoharness) => evoharness.registerCommand("mcp", { description: "built-in mcp", handler: async () => {} }),
+						factory: (evoharness) =>
+							evoharness.registerCommand("mcp", { description: "built-in mcp", handler: async () => {} }),
 					},
 					{
 						name: "llama",

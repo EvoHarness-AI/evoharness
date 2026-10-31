@@ -109,7 +109,7 @@ return config
 If CJK IME candidates do not follow EvoHarness's text cursor in WSL, show the hardware cursor:
 
 ```bash
-export PI_HARDWARE_CURSOR=1
+export EVOHARNESS_HARDWARE_CURSOR=1
 evoharness
 ```
 
@@ -202,7 +202,7 @@ IntelliJ IDEA's built-in terminal cannot reliably distinguish `Shift+Enter` from
 If an IME candidate window does not follow the text cursor, show the hardware cursor:
 
 ```bash
-export PI_HARDWARE_CURSOR=1
+export EVOHARNESS_HARDWARE_CURSOR=1
 evoharness
 ```
 
@@ -212,9 +212,9 @@ EvoHarness automatically detects OSC 8 hyperlinks, inline image protocols, and t
 
 | Capability | Environment variable | Setting |
 |---|---|---|
-| Hyperlinks | `PI_HYPERLINKS=1\|0\|auto` | `terminal.hyperlinks: true\|false\|"auto"` |
-| Inline images | `PI_IMAGE_PROTOCOL=kitty\|iterm2\|none\|auto` | `terminal.images: "kitty"\|"iterm2"\|false\|"auto"` |
-| Truecolor | `PI_TRUE_COLOR=1\|0\|auto` | `terminal.trueColor: true\|false\|"auto"` |
+| Hyperlinks | `EVOHARNESS_HYPERLINKS=1\|0\|auto` | `terminal.hyperlinks: true\|false\|"auto"` |
+| Inline images | `EVOHARNESS_IMAGE_PROTOCOL=kitty\|iterm2\|none\|auto` | `terminal.images: "kitty"\|"iterm2"\|false\|"auto"` |
+| Truecolor | `EVOHARNESS_TRUE_COLOR=1\|0\|auto` | `terminal.trueColor: true\|false\|"auto"` |
 
 Settings take precedence over environment variables. An unset value or `auto` preserves automatic detection.
 
@@ -232,4 +232,4 @@ EvoHarness reports its state with the [Program Status Protocol (OSC 7501)](https
 | `error` | A run ended with an error that is not retried. The message is the first line of the error. |
 | `idle` | EvoHarness started, or you cancelled the run. |
 
-Reports never contain prompts or model output. EvoHarness sends them only after the terminal answers the protocol's support query; tmux and screen do not forward them. Set `PI_PROGRAM_STATUS=1` to send reports without asking, or `PI_PROGRAM_STATUS=0` to turn them off.
+Reports never contain prompts or model output. EvoHarness sends them only after the terminal answers the protocol's support query; tmux and screen do not forward them. Set `EVOHARNESS_PROGRAM_STATUS=1` to send reports without asking, or `EVOHARNESS_PROGRAM_STATUS=0` to turn them off.

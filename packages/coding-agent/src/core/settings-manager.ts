@@ -819,9 +819,7 @@ export class SettingsManager {
 
 	getSessionShareDestination(): SessionShareDestination {
 		const destination = this.settings.sessionShareDestination;
-		return destination === "gist" || destination === "radius"
-			? destination
-			: SETTINGS_DEFAULTS.sessionShareDestination;
+		return destination === "gist" ? destination : SETTINGS_DEFAULTS.sessionShareDestination;
 	}
 
 	setSessionShareDestination(destination: SessionShareDestination): void {
@@ -1240,7 +1238,7 @@ export class SettingsManager {
 		if (this.settings.terminal?.clearOnShrink !== undefined) {
 			return this.settings.terminal.clearOnShrink;
 		}
-		if (process.env.PI_CLEAR_ON_SHRINK === "1") return true;
+		if (process.env.EVOHARNESS_CLEAR_ON_SHRINK === "1") return true;
 		return SETTINGS_DEFAULTS.terminal.clearOnShrink;
 	}
 
@@ -1389,7 +1387,7 @@ export class SettingsManager {
 	}
 
 	getShowHardwareCursor(): boolean {
-		return this.settings.showHardwareCursor ?? process.env.PI_HARDWARE_CURSOR === "1";
+		return this.settings.showHardwareCursor ?? process.env.EVOHARNESS_HARDWARE_CURSOR === "1";
 	}
 
 	setShowHardwareCursor(enabled: boolean): void {

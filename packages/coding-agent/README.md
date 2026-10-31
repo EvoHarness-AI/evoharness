@@ -1,10 +1,4 @@
 <p align="center">
-  <a href="https://evoharness.dev">
-    <img alt="EvoHarness logo" src="https://evoharness.dev/logo-auto.svg" width="128">
-  </a>
-</p>
-<p align="center">
-  <a href="https://discord.com/invite/3cU7Bz4UPx"><img alt="Discord" src="https://img.shields.io/badge/discord-community-5865F2?style=flat-square&logo=discord&logoColor=white" /></a>
   <a href="https://www.npmjs.com/package/@evoharness/coding-agent"><img alt="npm" src="https://img.shields.io/npm/v/@evoharness/coding-agent?style=flat-square&logo=npm&logoColor=white" /></a>
 </p>
 
@@ -22,27 +16,19 @@ Use EvoHarness [interactively](docs/usage.md), automate it in [print or JSON mod
 
 ## Getting started
 
-Install the command-line interface:
+EvoHarness is not published to npm and has no hosted installer yet. Build it from a checkout:
 
 ```bash
-curl -fsSL https://evoharness.dev/install.sh | sh
+git clone https://github.com/EvoHarness-AI/evoharness
+cd evoharness
+npm ci --ignore-scripts
+npm run build:offline
+node packages/coding-agent/dist/bundle/cli.js
 ```
 
-On Windows:
+Use `npm link -w @evoharness/coding-agent` (or a shell alias) to run it as `evoharness` from any directory. `npm install -g --ignore-scripts @evoharness/coding-agent`, the hosted installers, and the Nix flake are documented here once they are published.
 
-```shell
-powershell -c "irm https://evoharness.dev/install.ps1 | iex"
-```
-
-The installer pins all dependencies and updates EvoHarness with `evoharness update`. Alternatively, install directly with npm, which does not pin transitive dependencies:
-
-```bash
-npm install -g --ignore-scripts @evoharness/coding-agent
-```
-
-EvoHarness requires Node.js 22.19 or newer. The macOS, Linux, and Windows installers can install it if needed. EvoHarness does not require dependency lifecycle scripts for a normal npm installation.
-
-On macOS and Linux, Nix users can install the latest release with `nix profile add github:EvoHarness-AI/evoharness/stable`. See the [quickstart](docs/quickstart.md#1-install-evoharness) for updating and pinning releases.
+EvoHarness requires Node.js 22.19 or newer. EvoHarness does not require dependency lifecycle scripts for a normal npm installation.
 
 Start EvoHarness in the directory where you want it to work:
 

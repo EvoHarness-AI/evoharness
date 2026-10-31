@@ -212,7 +212,8 @@ describe("AgentSession codemode tool", () => {
 		const count = outputTool("count", Type.Number());
 		const harness = await setup([
 			(evoharness: ExtensionAPI) => {
-				for (const tool of [process, entries, count]) evoharness.registerTool(createToolDefinitionFromAgentTool(tool));
+				for (const tool of [process, entries, count])
+					evoharness.registerTool(createToolDefinitionFromAgentTool(tool));
 			},
 		]);
 		harness.session.setActiveToolsByName(["process", "entries", "count", "codemode"]);
@@ -346,7 +347,9 @@ describe("AgentSession codemode tool", () => {
 			parameters: Type.Object({}),
 			execute: async () => ({ content: [{ type: "text", text: "ran" }], details: {}, usage: usage(100, 0.25) }),
 		};
-		const harness = await setup([(evoharness) => evoharness.registerTool(createToolDefinitionFromAgentTool(billedTool))]);
+		const harness = await setup([
+			(evoharness) => evoharness.registerTool(createToolDefinitionFromAgentTool(billedTool)),
+		]);
 		harness.setResponses([
 			fauxAssistantMessage(
 				[
@@ -382,7 +385,9 @@ describe("AgentSession codemode tool", () => {
 						: undefined,
 				);
 				// A later handler that only touches details keeps what the first one set.
-				evoharness.on("tool_result", (event) => (event.toolName === "stats" ? { details: { audited: true } } : undefined));
+				evoharness.on("tool_result", (event) =>
+					event.toolName === "stats" ? { details: { audited: true } } : undefined,
+				);
 			},
 		]);
 		harness.setResponses([

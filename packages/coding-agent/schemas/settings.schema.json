@@ -68,13 +68,9 @@
         {
           "type": "string",
           "const": "gist"
-        },
-        {
-          "type": "string",
-          "const": "radius"
         }
       ],
-      "description": "Destination used by /share. \"auto\" uses Radius when authenticated and otherwise creates a GitHub gist.",
+      "description": "Destination used by /share. Creates a GitHub gist.",
       "default": "auto"
     },
     "steeringMode": {
@@ -273,7 +269,7 @@
         "type": "string"
       },
       "minItems": 1,
-      "description": "Command `evoharness update` runs to update EvoHarness itself, in argv form such as [\"mise\", \"use\", \"-g\", \"npm:{packageName}@{version}\"]. Placeholders: {packageName}, {version}, {installSpec}. PI_SELF_UPDATE_COMMAND takes precedence. Global setting only."
+      "description": "Command `evoharness update` runs to update EvoHarness itself, in argv form such as [\"mise\", \"use\", \"-g\", \"npm:{packageName}@{version}\"]. Placeholders: {packageName}, {version}, {installSpec}. EVOHARNESS_SELF_UPDATE_COMMAND takes precedence. Global setting only."
     },
     "collapseChangelog": {
       "type": "boolean",
@@ -283,7 +279,7 @@
     "enableInstallTelemetry": {
       "type": "boolean",
       "description": "Send an anonymous version and update ping after changelog-detected updates.",
-      "default": true
+      "default": false
     },
     "enableAnalytics": {
       "type": "boolean",

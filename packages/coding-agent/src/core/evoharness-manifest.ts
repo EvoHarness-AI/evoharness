@@ -15,7 +15,7 @@ function isObject(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-export function readPiManifest(packageJsonPath: string): EvoHarnessManifest | null {
+export function readEvoharnessManifest(packageJsonPath: string): EvoHarnessManifest | null {
 	try {
 		const pkg: unknown = JSON.parse(stripBom(readFileSync(packageJsonPath, "utf-8")));
 		if (!isObject(pkg) || !isObject(pkg.evoharness)) {

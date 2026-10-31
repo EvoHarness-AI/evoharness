@@ -99,7 +99,7 @@ function isChatModel(model: LlamaModelInfo): boolean {
  * System One endpoint (`/v1/systemone`). Chat models fall back to `llama-cpp-classify`, which reads
  * answers from next-token label probabilities.
  */
-function toPiClassifierModel(
+function toEvoharnessClassifierModel(
 	model: LlamaModelInfo,
 	serverUrl: string,
 	cachedContextWindow?: number,
@@ -124,7 +124,7 @@ function isLlamaClassifierModel(model: AnyModel): model is ClassifierModel<Llama
 	);
 }
 
-function toPiModel(
+function toEvoharnessModel(
 	model: LlamaModelInfo,
 	serverUrl: string,
 	props?: LlamaServerProps,
@@ -175,8 +175,8 @@ export function createLlamaProvider(): LlamaProviderController {
 		options: { routerAutoload?: boolean } = {},
 	): void => {
 		const selectable = catalog.filter((model) => modelIsSelectable(model, options.routerAutoload === true));
-		models = selectable.filter(isChatModel).map((model) => toPiModel(model, serverUrl));
-		classifiers = selectable.map((model) => toPiClassifierModel(model, serverUrl));
+		models = selectable.filter(isChatModel).map((model) => toEvoharnessModel(model, serverUrl));
+		classifiers = selectable.map((model) => toEvoharnessClassifierModel(model, serverUrl));
 	};
 
 	const provider: Provider<"openai-completions"> = {
@@ -268,13 +268,14 @@ export function createLlamaProvider(): LlamaProviderController {
 			const refreshed = await Promise.all(
 				selectable.filter(isChatModel).map(async (model) => {
 					const cachedContextWindow = cachedContextWindows.get(model.id);
-					if (model.status.value !== "loaded") return toPiModel(model, serverUrl, undefined, cachedContextWindow);
+					if (model.status.value !== "loaded")
+						return toEvoharnessModel(model, serverUrl, undefined, cachedContextWindow);
 					const props = await client.props({ model: model.id, signal: context.signal });
-					return toPiModel(model, serverUrl, props, cachedContextWindow);
+					return toEvoharnessModel(model, serverUrl, props, cachedContextWindow);
 				}),
 			);
 			const refreshedClassifiers = selectable.map((model) =>
-				toPiClassifierModel(model, serverUrl, cachedContextWindows.get(model.id)),
+				toEvoharnessClassifierModel(model, serverUrl, cachedContextWindows.get(model.id)),
 			);
 			if (context.signal.aborted) return;
 			await context.publish({

@@ -15,7 +15,7 @@ import {
 
 const execPathDescriptor = Object.getOwnPropertyDescriptor(process, "execPath");
 const originalPath = process.env.PATH;
-const originalPiPackageDir = process.env.PI_PACKAGE_DIR;
+const originalEvoharnessPackageDir = process.env.EVOHARNESS_PACKAGE_DIR;
 const originalArgv1 = process.argv[1];
 let tempDir: string | undefined;
 
@@ -35,10 +35,10 @@ afterEach(() => {
 	} else {
 		process.env.PATH = originalPath;
 	}
-	if (originalPiPackageDir === undefined) {
-		delete process.env.PI_PACKAGE_DIR;
+	if (originalEvoharnessPackageDir === undefined) {
+		delete process.env.EVOHARNESS_PACKAGE_DIR;
 	} else {
-		process.env.PI_PACKAGE_DIR = originalPiPackageDir;
+		process.env.EVOHARNESS_PACKAGE_DIR = originalEvoharnessPackageDir;
 	}
 	if (originalArgv1 === undefined) {
 		process.argv.splice(1, 1);
@@ -59,7 +59,7 @@ function createNpmPrefixInstall(template = "evoharness-prefix-"): { prefix: stri
 	const packageDir = join(scopeDir, "evoharness-coding-agent");
 	mkdirSync(packageDir, { recursive: true });
 	tempDir = prefix;
-	process.env.PI_PACKAGE_DIR = packageDir;
+	process.env.EVOHARNESS_PACKAGE_DIR = packageDir;
 	setExecPath(join(packageDir, "dist", "cli.js"));
 	return { prefix, packageDir };
 }
@@ -68,21 +68,21 @@ function createPnpmGlobalInstall(): { root: string; packageDir: string } {
 	const temp = mkdtempSync(join(tmpdir(), "evoharness-pnpm-"));
 	const binDir = join(temp, "bin");
 	const root = join(temp, "pnpm", "global", "5", "node_modules");
-	const packageDir = join(root, "@mariozechner", "evoharness-coding-agent");
+	const packageDir = join(root, "@evoharness", "evoharness-coding-agent");
 	mkdirSync(packageDir, { recursive: true });
 	mkdirSync(binDir, { recursive: true });
 	writeFileSync(join(binDir, process.platform === "win32" ? "pnpm.cmd" : "pnpm"), createFakePnpmScript(root));
 	chmodSync(join(binDir, process.platform === "win32" ? "pnpm.cmd" : "pnpm"), 0o755);
 	tempDir = temp;
 	process.env.PATH = `${binDir}${delimiter}${originalPath ?? ""}`;
-	process.env.PI_PACKAGE_DIR = packageDir;
+	process.env.EVOHARNESS_PACKAGE_DIR = packageDir;
 	setExecPath(
 		join(
 			root,
 			".pnpm",
-			"@mariozechner+evoharness-coding-agent@0.0.0",
+			"@evoharness+evoharness-coding-agent@0.0.0",
 			"node_modules",
-			"@mariozechner",
+			"@evoharness",
 			"evoharness-coding-agent",
 			"dist",
 			"cli.js",
@@ -95,15 +95,15 @@ function createYarnGlobalInstall(): { globalDir: string; packageDir: string } {
 	const temp = mkdtempSync(join(tmpdir(), "evoharness-yarn-"));
 	const binDir = join(temp, "bin");
 	const globalDir = join(temp, "yarn", "global");
-	const packageDir = join(globalDir, "node_modules", "@mariozechner", "evoharness-coding-agent");
+	const packageDir = join(globalDir, "node_modules", "@evoharness", "evoharness-coding-agent");
 	mkdirSync(packageDir, { recursive: true });
 	mkdirSync(binDir, { recursive: true });
 	writeFileSync(join(binDir, process.platform === "win32" ? "yarn.cmd" : "yarn"), createFakeYarnScript(globalDir));
 	chmodSync(join(binDir, process.platform === "win32" ? "yarn.cmd" : "yarn"), 0o755);
 	tempDir = temp;
 	process.env.PATH = `${binDir}${delimiter}${originalPath ?? ""}`;
-	process.env.PI_PACKAGE_DIR = packageDir;
-	setExecPath(join(globalDir, ".yarn", "@mariozechner", "evoharness-coding-agent", "dist", "cli.js"));
+	process.env.EVOHARNESS_PACKAGE_DIR = packageDir;
+	setExecPath(join(globalDir, ".yarn", "@evoharness", "evoharness-coding-agent", "dist", "cli.js"));
 	return { globalDir, packageDir };
 }
 
@@ -120,7 +120,7 @@ function createBunGlobalInstall(): { packageDir: string } {
 	chmodSync(join(bunBin, process.platform === "win32" ? "bun.cmd" : "bun"), 0o755);
 	tempDir = temp;
 	process.env.PATH = `${bunBin}${delimiter}${originalPath ?? ""}`;
-	process.env.PI_PACKAGE_DIR = packageDir;
+	process.env.EVOHARNESS_PACKAGE_DIR = packageDir;
 	setExecPath(join(packageDir, "dist", "cli.js"));
 	return { packageDir };
 }
@@ -199,7 +199,7 @@ describe("detectInstallMethod", () => {
 			"evoharness-coding-agent",
 		);
 		mkdirSync(packageDir, { recursive: true });
-		process.env.PI_PACKAGE_DIR = packageDir;
+		process.env.EVOHARNESS_PACKAGE_DIR = packageDir;
 		process.env.PATH = "";
 		process.argv[1] = join(packageDir, "dist", "cli.js");
 		setExecPath(join(packageDir, "dist", "cli.js"));
@@ -258,21 +258,37 @@ describe("detectInstallMethod", () => {
 	test("self-updates renamed packages from the current install prefix", () => {
 		const { prefix } = createNpmPrefixInstall();
 
-		const command = getSelfUpdateCommand("@mariozechner/evoharness-coding-agent", undefined, "@new-scope/evoharness");
+		const command = getSelfUpdateCommand("@evoharness/coding-agent", undefined, "@new-scope/evoharness");
 
 		expect(command).toEqual({
 			command: "npm",
-			args: ["--prefix", prefix, "install", "-g", "--ignore-scripts", "--min-release-age=0", "@new-scope/evoharness"],
-			display: `npm --prefix ${prefix} uninstall -g @mariozechner/evoharness-coding-agent && npm --prefix ${prefix} install -g --ignore-scripts --min-release-age=0 @new-scope/evoharness`,
+			args: [
+				"--prefix",
+				prefix,
+				"install",
+				"-g",
+				"--ignore-scripts",
+				"--min-release-age=0",
+				"@new-scope/evoharness",
+			],
+			display: `npm --prefix ${prefix} uninstall -g @evoharness/coding-agent && npm --prefix ${prefix} install -g --ignore-scripts --min-release-age=0 @new-scope/evoharness`,
 			steps: [
 				{
 					command: "npm",
-					args: ["--prefix", prefix, "uninstall", "-g", "@mariozechner/evoharness-coding-agent"],
-					display: `npm --prefix ${prefix} uninstall -g @mariozechner/evoharness-coding-agent`,
+					args: ["--prefix", prefix, "uninstall", "-g", "@evoharness/coding-agent"],
+					display: `npm --prefix ${prefix} uninstall -g @evoharness/coding-agent`,
 				},
 				{
 					command: "npm",
-					args: ["--prefix", prefix, "install", "-g", "--ignore-scripts", "--min-release-age=0", "@new-scope/evoharness"],
+					args: [
+						"--prefix",
+						prefix,
+						"install",
+						"-g",
+						"--ignore-scripts",
+						"--min-release-age=0",
+						"@new-scope/evoharness",
+					],
 					display: `npm --prefix ${prefix} install -g --ignore-scripts --min-release-age=0 @new-scope/evoharness`,
 				},
 			],
@@ -327,7 +343,7 @@ describe("detectInstallMethod", () => {
 
 	test("does not infer Windows npm custom prefixes from package paths", () => {
 		const packageDir = "C:\\Users\\Admin\\npm prefix\\node_modules\\@EvoHarness-AI\\evoharness-coding-agent";
-		process.env.PI_PACKAGE_DIR = packageDir;
+		process.env.EVOHARNESS_PACKAGE_DIR = packageDir;
 		setExecPath(`${packageDir}\\dist\\cli.js`);
 
 		expect(detectInstallMethod()).toBe("npm");
@@ -352,19 +368,19 @@ describe("detectInstallMethod", () => {
 	test("self-updates renamed pnpm global installs by removing the old package first", () => {
 		createPnpmGlobalInstall();
 
-		const command = getSelfUpdateCommand("@mariozechner/evoharness-coding-agent", undefined, "@new-scope/evoharness");
+		const command = getSelfUpdateCommand("@evoharness/coding-agent", undefined, "@new-scope/evoharness");
 
 		expect(detectInstallMethod()).toBe("pnpm");
 		expect(command).toEqual({
 			command: "pnpm",
 			args: ["install", "-g", "--ignore-scripts", "--config.minimumReleaseAge=0", "@new-scope/evoharness"],
 			display:
-				"pnpm remove -g @mariozechner/evoharness-coding-agent && pnpm install -g --ignore-scripts --config.minimumReleaseAge=0 @new-scope/evoharness",
+				"pnpm remove -g @evoharness/coding-agent && pnpm install -g --ignore-scripts --config.minimumReleaseAge=0 @new-scope/evoharness",
 			steps: [
 				{
 					command: "pnpm",
-					args: ["remove", "-g", "@mariozechner/evoharness-coding-agent"],
-					display: "pnpm remove -g @mariozechner/evoharness-coding-agent",
+					args: ["remove", "-g", "@evoharness/coding-agent"],
+					display: "pnpm remove -g @evoharness/coding-agent",
 				},
 				{
 					command: "pnpm",
@@ -404,7 +420,7 @@ describe("detectInstallMethod", () => {
 		chmodSync(join(binDir, process.platform === "win32" ? "pnpm.cmd" : "pnpm"), 0o755);
 		tempDir = temp;
 		process.env.PATH = `${binDir}${delimiter}${originalPath ?? ""}`;
-		process.env.PI_PACKAGE_DIR = storePackageDir;
+		process.env.EVOHARNESS_PACKAGE_DIR = storePackageDir;
 		process.argv[1] = join(globalPackageDir, "dist", "cli.js");
 		setExecPath(join(storePackageDir, "dist", "cli.js"));
 
@@ -421,18 +437,19 @@ describe("detectInstallMethod", () => {
 	test("self-updates renamed yarn global installs by removing the old package first", () => {
 		createYarnGlobalInstall();
 
-		const command = getSelfUpdateCommand("@mariozechner/evoharness-coding-agent", undefined, "@new-scope/evoharness");
+		const command = getSelfUpdateCommand("@evoharness/coding-agent", undefined, "@new-scope/evoharness");
 
 		expect(detectInstallMethod()).toBe("yarn");
 		expect(command).toEqual({
 			command: "yarn",
 			args: ["global", "add", "--ignore-scripts", "@new-scope/evoharness"],
-			display: "yarn global remove @mariozechner/evoharness-coding-agent && yarn global add --ignore-scripts @new-scope/evoharness",
+			display:
+				"yarn global remove @evoharness/coding-agent && yarn global add --ignore-scripts @new-scope/evoharness",
 			steps: [
 				{
 					command: "yarn",
-					args: ["global", "remove", "@mariozechner/evoharness-coding-agent"],
-					display: "yarn global remove @mariozechner/evoharness-coding-agent",
+					args: ["global", "remove", "@evoharness/coding-agent"],
+					display: "yarn global remove @evoharness/coding-agent",
 				},
 				{
 					command: "yarn",
@@ -446,19 +463,19 @@ describe("detectInstallMethod", () => {
 	test("self-updates renamed bun global installs by removing the old package first", () => {
 		createBunGlobalInstall();
 
-		const command = getSelfUpdateCommand("@mariozechner/evoharness-coding-agent", undefined, "@new-scope/evoharness");
+		const command = getSelfUpdateCommand("@evoharness/coding-agent", undefined, "@new-scope/evoharness");
 
 		expect(detectInstallMethod()).toBe("bun");
 		expect(command).toEqual({
 			command: "bun",
 			args: ["install", "-g", "--ignore-scripts", "--minimum-release-age=0", "@new-scope/evoharness"],
 			display:
-				"bun uninstall -g @mariozechner/evoharness-coding-agent && bun install -g --ignore-scripts --minimum-release-age=0 @new-scope/evoharness",
+				"bun uninstall -g @evoharness/coding-agent && bun install -g --ignore-scripts --minimum-release-age=0 @new-scope/evoharness",
 			steps: [
 				{
 					command: "bun",
-					args: ["uninstall", "-g", "@mariozechner/evoharness-coding-agent"],
-					display: "bun uninstall -g @mariozechner/evoharness-coding-agent",
+					args: ["uninstall", "-g", "@evoharness/coding-agent"],
+					display: "bun uninstall -g @evoharness/coding-agent",
 				},
 				{
 					command: "bun",
@@ -493,24 +510,24 @@ describe("detectInstallChange", () => {
 });
 
 describe("configured self-update command", () => {
-	const originalSelfUpdateCommand = process.env.PI_SELF_UPDATE_COMMAND;
+	const originalSelfUpdateCommand = process.env.EVOHARNESS_SELF_UPDATE_COMMAND;
 
 	afterEach(() => {
 		if (originalSelfUpdateCommand === undefined) {
-			delete process.env.PI_SELF_UPDATE_COMMAND;
+			delete process.env.EVOHARNESS_SELF_UPDATE_COMMAND;
 		} else {
-			process.env.PI_SELF_UPDATE_COMMAND = originalSelfUpdateCommand;
+			process.env.EVOHARNESS_SELF_UPDATE_COMMAND = originalSelfUpdateCommand;
 		}
 	});
 
-	test("prefers PI_SELF_UPDATE_COMMAND over the setting and splits it on whitespace", () => {
-		process.env.PI_SELF_UPDATE_COMMAND = "  nub   upgrade {installSpec} ";
+	test("prefers EVOHARNESS_SELF_UPDATE_COMMAND over the setting and splits it on whitespace", () => {
+		process.env.EVOHARNESS_SELF_UPDATE_COMMAND = "  nub   upgrade {installSpec} ";
 
 		expect(getConfiguredSelfUpdateArgv(["mise", "upgrade"])).toEqual(["nub", "upgrade", "{installSpec}"]);
 	});
 
-	test("uses the setting when PI_SELF_UPDATE_COMMAND is unset or blank", () => {
-		process.env.PI_SELF_UPDATE_COMMAND = " ";
+	test("uses the setting when EVOHARNESS_SELF_UPDATE_COMMAND is unset or blank", () => {
+		process.env.EVOHARNESS_SELF_UPDATE_COMMAND = " ";
 
 		expect(getConfiguredSelfUpdateArgv(["mise", "upgrade", "npm:{packageName}"])).toEqual([
 			"mise",

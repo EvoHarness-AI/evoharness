@@ -13,10 +13,10 @@ import type { createJiti } from "jiti";
 import { CONFIG_DIR_NAME, getAgentDir, isBunBinary, isBundledNode } from "../../config.ts";
 import { pathsEqual, resolvePath } from "../../utils/paths.ts";
 import { createEventBus, type EventBus } from "../event-bus.ts";
+import { readEvoharnessManifest } from "../evoharness-manifest.ts";
 import type { ExecOptions } from "../exec.ts";
 import { execCommand } from "../exec.ts";
 import { type McpServerConfig, McpServerRegistry, mcpNamespace, validateMcpServerConfig } from "../mcp-servers.ts";
-import { readPiManifest } from "../evoharness-manifest.ts";
 import { createSyntheticSourceInfo, getSyntheticPathSource, isSyntheticPath } from "../source-info.ts";
 import { time } from "../timings.ts";
 import type { ModelRouteRequest, VirtualModelDefinition } from "../virtual-models.ts";
@@ -108,14 +108,6 @@ function getAliases(): Record<string, string> {
 		"@evoharness/ai/models": evoharnessAiModelsEntry,
 		"@evoharness/ai/oauth": evoharnessAiOauthEntry,
 		"@evoharness/ai": evoharnessAiCompatEntry,
-		"@mariozechner/evoharness-coding-agent": evoharnessCodingAgentEntry,
-		"@mariozechner/evoharness-agent-core": evoharnessAgentCoreEntry,
-		"@mariozechner/evoharness-tui": evoharnessTuiEntry,
-		"@mariozechner/evoharness-ai/providers/all": evoharnessAiProvidersEntry,
-		"@mariozechner/evoharness-ai/compat": evoharnessAiCompatEntry,
-		"@mariozechner/evoharness-ai/models": evoharnessAiModelsEntry,
-		"@mariozechner/evoharness-ai/oauth": evoharnessAiOauthEntry,
-		"@mariozechner/evoharness-ai": evoharnessAiCompatEntry,
 		typebox: typeboxEntry,
 		"typebox/compile": typeboxCompileEntry,
 		"typebox/value": typeboxValueEntry,
@@ -753,7 +745,7 @@ function resolveExtensionEntries(dir: string): string[] | null {
 	// Check for package.json with "evoharness" field first
 	const packageJsonPath = path.join(dir, "package.json");
 	if (fs.existsSync(packageJsonPath)) {
-		const manifest = readPiManifest(packageJsonPath);
+		const manifest = readEvoharnessManifest(packageJsonPath);
 		if (manifest?.extensions?.length) {
 			const entries: string[] = [];
 			for (const extPath of manifest.extensions) {

@@ -61,10 +61,6 @@ const HOST_PROVIDED_EXTENSION_PACKAGES = new Set([
 	"@evoharness/ai",
 	"@evoharness/coding-agent",
 	"@evoharness/tui",
-	"@mariozechner/evoharness-agent-core",
-	"@mariozechner/evoharness-ai",
-	"@mariozechner/evoharness-coding-agent",
-	"@mariozechner/evoharness-tui",
 	"@sinclair/typebox",
 	"typebox",
 ]);

@@ -112,7 +112,7 @@ export function hasAuthForProvider(provider: string): boolean {
 }
 
 /** Path to the real evoharness agent config directory */
-export const PI_AGENT_DIR = join(homedir(), ".evoharness", "agent");
+export const EVOHARNESS_AGENT_DIR = join(homedir(), ".evoharness", "agent");
 
 /**
  * Get an AuthStorage instance backed by ~/.evoharness/agent/auth.json

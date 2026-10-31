@@ -14,22 +14,22 @@ vi.mock("../src/config.ts", async (importOriginal) => {
 import { shouldRunFirstTimeSetup } from "../src/cli/startup-ui.ts";
 
 describe("shouldRunFirstTimeSetup in forked distributions", () => {
-	const originalPiExperimental = process.env.PI_EXPERIMENTAL;
+	const originalEvoharnessExperimental = process.env.EVOHARNESS_EXPERIMENTAL;
 	let tempDir: string;
 	let settingsPath: string;
 
 	beforeEach(() => {
 		tempDir = mkdtempSync(join(tmpdir(), "evoharness-first-time-setup-fork-"));
 		settingsPath = join(tempDir, "settings.json");
-		process.env.PI_EXPERIMENTAL = "1";
+		process.env.EVOHARNESS_EXPERIMENTAL = "1";
 	});
 
 	afterEach(() => {
 		rmSync(tempDir, { recursive: true, force: true });
-		if (originalPiExperimental === undefined) {
-			delete process.env.PI_EXPERIMENTAL;
+		if (originalEvoharnessExperimental === undefined) {
+			delete process.env.EVOHARNESS_EXPERIMENTAL;
 		} else {
-			process.env.PI_EXPERIMENTAL = originalPiExperimental;
+			process.env.EVOHARNESS_EXPERIMENTAL = originalEvoharnessExperimental;
 		}
 	});
 

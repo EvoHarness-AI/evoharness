@@ -25,8 +25,8 @@ export const isBunBinary =
 export const isBunRuntime = !!process.versions.bun;
 
 /** Detect the esbuild-bundled Node.js distribution. */
-declare const PI_BUNDLED_NODE: boolean;
-export const isBundledNode = typeof PI_BUNDLED_NODE !== "undefined" && PI_BUNDLED_NODE;
+declare const EVOHARNESS_BUNDLED_NODE: boolean;
+export const isBundledNode = typeof EVOHARNESS_BUNDLED_NODE !== "undefined" && EVOHARNESS_BUNDLED_NODE;
 
 // =============================================================================
 // Install Method Detection
@@ -335,11 +335,11 @@ export function getSelfUpdateCommand(
 }
 
 /**
- * The self-update command configured by the user: `PI_SELF_UPDATE_COMMAND` (whitespace-separated
+ * The self-update command configured by the user: `EVOHARNESS_SELF_UPDATE_COMMAND` (whitespace-separated
  * argv, no quoting), else the global `selfUpdateCommand` setting. Overrides install-method detection.
  */
 export function getConfiguredSelfUpdateArgv(setting: string[] | undefined): string[] | undefined {
-	const fromEnv = process.env.PI_SELF_UPDATE_COMMAND?.trim().split(/\s+/).filter(Boolean);
+	const fromEnv = process.env.EVOHARNESS_SELF_UPDATE_COMMAND?.trim().split(/\s+/).filter(Boolean);
 	if (fromEnv?.length) return fromEnv;
 	return setting?.length ? setting : undefined;
 }
@@ -417,7 +417,7 @@ export function findNodePackageDir(startDir: string): string {
 
 export function getPackageDir(): string {
 	// Allow override via environment variable (useful for Nix/Guix where store paths tokenize poorly)
-	const envDir = process.env.PI_PACKAGE_DIR;
+	const envDir = process.env.EVOHARNESS_PACKAGE_DIR;
 	if (envDir) {
 		return normalizePath(envDir);
 	}
@@ -606,7 +606,7 @@ export const APP_TITLE: string = evoharnessConfigName ? APP_NAME : "EvoHarness";
 export const CONFIG_DIR_NAME: string = pkg.evoharnessConfig?.configDir || ".evoharness";
 export const VERSION: string = pkg.version || "0.0.0";
 
-// e.g., PI_CODING_AGENT_DIR or TAU_CODING_AGENT_DIR
+// e.g., EVOHARNESS_CODING_AGENT_DIR or TAU_CODING_AGENT_DIR
 export const ENV_AGENT_DIR = `${APP_NAME.toUpperCase()}_CODING_AGENT_DIR`;
 export const ENV_SESSION_DIR = `${APP_NAME.toUpperCase()}_CODING_AGENT_SESSION_DIR`;
 
@@ -618,7 +618,7 @@ const DEFAULT_SHARE_VIEWER_URL = "https://evoharness.dev/session/";
 
 /** Get the share viewer URL for a gist ID. */
 export function getShareViewerUrl(gistId: string): string {
-	const baseUrl = process.env.PI_SHARE_VIEWER_URL || DEFAULT_SHARE_VIEWER_URL;
+	const baseUrl = process.env.EVOHARNESS_SHARE_VIEWER_URL || DEFAULT_SHARE_VIEWER_URL;
 	return `${baseUrl}#${gistId}`;
 }
 

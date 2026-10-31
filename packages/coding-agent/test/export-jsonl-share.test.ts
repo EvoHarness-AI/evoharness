@@ -69,9 +69,9 @@ describe("JSONL share export", () => {
 				.trim()
 				.split("\n")
 				.map((line) => JSON.parse(line) as Record<string, unknown>);
-			expect(normalRecords.some((record) => record.type === "custom" && record.customType === "evoharness.share")).toBe(
-				false,
-			);
+			expect(
+				normalRecords.some((record) => record.type === "custom" && record.customType === "evoharness.share"),
+			).toBe(false);
 
 			const sharePath = join(tempDir, "share.jsonl");
 			exportSessionForShare(sharePath, session);

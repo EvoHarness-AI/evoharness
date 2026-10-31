@@ -23,7 +23,10 @@ describe("tool renderer examples", () => {
 	});
 
 	beforeEach(() => {
-		tempDir = join(tmpdir(), `evoharness-tool-renderer-example-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+		tempDir = join(
+			tmpdir(),
+			`evoharness-tool-renderer-example-test-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+		);
 		agentDir = join(tempDir, "agent");
 		mkdirSync(agentDir, { recursive: true });
 	});

@@ -163,7 +163,7 @@ Settings also accept built-in extensions as `builtin:<name>` entries; see [Setti
 | `@evoharness/ai/compat`, `/models`, `/oauth`, `/providers/all` | Provider construction, built-in APIs, and OAuth helpers |
 | `@evoharness/tui` | TUI components for custom rendering |
 
-EvoHarness maps these imports to its own copies, so extensions share EvoHarness's classes and registries. The legacy `@mariozechner/*` and `@sinclair/typebox` names map to the same modules.
+EvoHarness maps these imports to its own copies, so extensions share EvoHarness's classes and registries. The legacy `@evoharness/*` and `@sinclair/typebox` names map to the same modules.
 
 npm dependencies work too. Add a `package.json` next to your extension (or in a parent directory), run `npm install`, and imports from `node_modules/` are resolved automatically.
 
@@ -2406,7 +2406,7 @@ const bashTool = createBashTool(cwd, {
 });
 ```
 
-`createBashTool()` and `createPowerShellTool()` expose the current session to commands through `PI_SESSION_ID`, `PI_SESSION_FILE`, `PI_PROVIDER`, `PI_MODEL`, and `PI_REASONING_LEVEL`. Injection happens before `spawnHook`, so hooks receive these values in `env` and preserve them when they spread the existing environment as above. Set `exposeSessionEnvironment: false` to disable them:
+`createBashTool()` and `createPowerShellTool()` expose the current session to commands through `EVOHARNESS_SESSION_ID`, `EVOHARNESS_SESSION_FILE`, `EVOHARNESS_PROVIDER`, `EVOHARNESS_MODEL`, and `EVOHARNESS_REASONING_LEVEL`. Injection happens before `spawnHook`, so hooks receive these values in `env` and preserve them when they spread the existing environment as above. Set `exposeSessionEnvironment: false` to disable them:
 
 ```typescript
 const bashTool = createBashTool(cwd, {

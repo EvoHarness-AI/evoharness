@@ -94,7 +94,7 @@ See [Sessions and Context](sessions.md) for resuming, forking, naming, and stori
 - `--fork <path|id>`<br>
   Forks a session, chosen by file path or full/partial ID, into a new session in the current directory.
 - `--session-dir <dir>`<br>
-  Overrides storage and lookup. It takes precedence over `PI_CODING_AGENT_SESSION_DIR` and the `sessionDir` setting.
+  Overrides storage and lookup. It takes precedence over `EVOHARNESS_CODING_AGENT_SESSION_DIR` and the `sessionDir` setting.
 - `--no-session`<br>
   Uses an in-memory session that is not persisted.
 - `-n`, `--name <name>`<br>
@@ -129,10 +129,10 @@ Default enabled tools are `read`, `bash`, `edit`, and `write`, unless `defaultTo
 
 <a id="mcp-tools"></a>
 
-`--tools` selects the tools declared to the model. It does not remove MCP tools, whose reach is set by their [exposure](mcp.md#control-tool-exposure): `evoharness --tools read,codemode` keeps every MCP tool callable from codemode scripts. An MCP tool that no entry names or matches is never declared directly, whatever its exposure; only `tool_search`, if listed, can load it. Once an entry starts with `mcp__`, `--tools` filters MCP tools too, so this keeps only the tools of the `radius` server:
+`--tools` selects the tools declared to the model. It does not remove MCP tools, whose reach is set by their [exposure](mcp.md#control-tool-exposure): `evoharness --tools read,codemode` keeps every MCP tool callable from codemode scripts. An MCP tool that no entry names or matches is never declared directly, whatever its exposure; only `tool_search`, if listed, can load it. Once an entry starts with `mcp__`, `--tools` filters MCP tools too, so this keeps only the tools of the `myserver` server:
 
 ```sh
-evoharness --tools read,bash,codemode,'mcp__radius__*'
+evoharness --tools read,bash,codemode,'mcp__myserver__*'
 ```
 
 The MCP resource tools (`list_mcp_resources`, `list_mcp_resource_templates`, `read_mcp_resource`) count as MCP tools. To remove MCP tools, use `--exclude-tools 'mcp__*'` or [`--no-mcp`](#resource-options).
@@ -239,7 +239,7 @@ See [Configuration](configuration.md) for saved configuration, [Security](securi
 - `-na`, `--no-approve`<br>
   Ignores trust-gated project-local configuration and resources for this process.
 - `--offline`<br>
-  Disables automatic network activity, including model catalog refreshes. Equivalent to `PI_OFFLINE=1`.
+  Disables automatic network activity, including model catalog refreshes. Equivalent to `EVOHARNESS_OFFLINE=1`.
 - `-h`, `--help`<br>
   Shows help, including flags registered by loaded extensions, then exits.
 - `-v`, `--version`<br>
@@ -284,10 +284,10 @@ Add `--force` to reinstall EvoHarness when the selected update includes EvoHarne
 
 #### Custom update command
 
-If a wrapper or another package manager provides EvoHarness, set `PI_SELF_UPDATE_COMMAND` so `evoharness update` runs its update command:
+If a wrapper or another package manager provides EvoHarness, set `EVOHARNESS_SELF_UPDATE_COMMAND` so `evoharness update` runs its update command:
 
 ```sh
-export PI_SELF_UPDATE_COMMAND="mise use -g npm:{packageName}@{version}"
+export EVOHARNESS_SELF_UPDATE_COMMAND="mise use -g npm:{packageName}@{version}"
 ```
 
 `evoharness update` runs it only when evoharness.dev has a newer release, replacing `{packageName}`, `{version}`, and `{installSpec}` (`{packageName}@{version}`) with that release. The value is split on spaces. For arguments with spaces, use the `selfUpdateCommand` setting in `~/.evoharness/agent/settings.json` instead, an argv array such as `["nix", "profile", "upgrade", "evoharness"]`.

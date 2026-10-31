@@ -897,7 +897,8 @@ describe("ExtensionRunner", () => {
 		const eventBus = createEventBus();
 		const renderCall = () => ({ render: () => [], invalidate: () => {} });
 		const first = await loadExtensionFromFactory(
-			(evoharness) => evoharness.registerToolRenderer((toolName, next) => (toolName === "a" ? { renderCall } : next())),
+			(evoharness) =>
+				evoharness.registerToolRenderer((toolName, next) => (toolName === "a" ? { renderCall } : next())),
 			tempDir,
 			eventBus,
 			runtime,
