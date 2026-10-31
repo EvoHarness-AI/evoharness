@@ -35,6 +35,25 @@ if [ -d apps/p2 ]; then
   done
 fi
 
+# apps/evoharness-web has its own toolchain (own eslint, tsconfig, node:test); root
+# Biome and root tsc do not cover it (docs/plan/web-frontend-spec.md §3.2). Static
+# checks only — the unit tests run through `npm run test:web`, not per commit.
+if [ -d apps/evoharness-web ]; then
+  for file in $STAGED_FILES; do
+    case "$file" in
+      apps/evoharness-web/*|package.json|package-lock.json|scripts/check-web-*.mjs)
+        echo "Checking apps/evoharness-web..."
+        npm run check:web
+        if [ $? -ne 0 ]; then
+          echo "❌ apps/evoharness-web checks failed."
+          exit 1
+        fi
+        break
+        ;;
+    esac
+  done
+fi
+
 RUN_BROWSER_SMOKE=0
 for file in $STAGED_FILES; do
   case "$file" in
