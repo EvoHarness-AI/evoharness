@@ -1,9 +1,9 @@
 import {
 	type AssistantMessage,
+	EVOHARNESS_ATTRIBUTION,
 	fauxAssistantMessage,
 	type Message,
 	type Models,
-	PI_ATTRIBUTION,
 	type SimpleStreamOptions,
 	type SystemMessage,
 } from "@evoharness/ai";
@@ -99,7 +99,11 @@ describe("generation", () => {
 		const answer = await root.commit((tx) => tx.entry(AssistantEntry, settled.answer), context);
 		expect(textOf(answer?.model?.[0])).toBe("Hello there");
 		const entries = await allEntries(root);
-		expect(entries.map((entry) => entry.kind)).toEqual(["evoharness.user", "evoharness.system", "evoharness.assistant"]);
+		expect(entries.map((entry) => entry.kind)).toEqual([
+			"evoharness.user",
+			"evoharness.system",
+			"evoharness.assistant",
+		]);
 		expect(entries[0]!.id).toBe(settled.entry);
 		expect(entries[1]!.model).toEqual([
 			{ role: "system", content: "", sections: { preamble: "You are helpful." }, timestamp: expect.any(Number) },
@@ -211,7 +215,12 @@ describe("generation", () => {
 		const settled = await (await root.submit({ type: "input", content: "hi" }, context)).wait(context);
 		expect(settled.status).toBe("done");
 		const entries = await allEntries(root);
-		expect(entries.map((entry) => entry.kind)).toEqual(["evoharness.user", "evoharness.system", "evoharness.assistant", "evoharness.assistant"]);
+		expect(entries.map((entry) => entry.kind)).toEqual([
+			"evoharness.user",
+			"evoharness.system",
+			"evoharness.assistant",
+			"evoharness.assistant",
+		]);
 		expect((entries[2]!.model![0] as AssistantMessage).stopReason).toBe("error");
 		expect(values.some((value) => value.generation?.retry?.error === "503 Service Unavailable")).toBe(true);
 		expect(values.some((value) => value.generation?.attempt === 2)).toBe(true);
@@ -227,7 +236,11 @@ describe("generation", () => {
 		harness.resume();
 		const settled = await (await root.submit({ type: "input", content: "hi" }, context)).wait(context);
 		expect(settled).toMatchObject({ status: "unanswered", reason: "model_error", detail: "503 Service Unavailable" });
-		expect((await allEntries(root)).map((entry) => entry.kind)).toEqual(["evoharness.user", "evoharness.assistant", "evoharness.assistant"]);
+		expect((await allEntries(root)).map((entry) => entry.kind)).toEqual([
+			"evoharness.user",
+			"evoharness.assistant",
+			"evoharness.assistant",
+		]);
 		expect(setup.faux.getPendingResponseCount()).toBe(1);
 		await harness.close(context);
 	});
@@ -441,7 +454,7 @@ describe("generation", () => {
 			await (await root.submit({ type: "input", content: "hi" }, context)).wait(context);
 			await harness.close(context);
 		}
-		expect(seen).toEqual([{ attribution: PI_ATTRIBUTION }, { attribution: acme, userAgent: "short" }]);
+		expect(seen).toEqual([{ attribution: EVOHARNESS_ATTRIBUTION }, { attribution: acme, userAgent: "short" }]);
 	});
 
 	// Regression coverage for #10424.

@@ -1,6 +1,6 @@
 // The notes plugin's worker facet: its label.
 
-import { constant, defineFacet } from "@@evoharness/chord/next";
+import { constant, defineFacet } from "@evoharness/chord/next";
 import { labelOf } from "../contracts/contract.ts";
 import { label } from "./label.ts";
 

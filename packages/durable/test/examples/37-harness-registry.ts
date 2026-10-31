@@ -6,7 +6,8 @@
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/37-harness-registry.ts
 
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+import { createModels } from "@evoharness/ai";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import {
 	arr,
 	createHost,
@@ -19,9 +20,8 @@ import {
 	type RegistryTable,
 	sqliteBackend,
 	str,
-} from "@@evoharness/chord/next";
-import { openNodeSqliteDatabase } from "@@evoharness/chord/sqlite/node";
-import { createModels } from "@evoharness/ai";
+} from "@evoharness/chord/next";
+import { openNodeSqliteDatabase } from "@evoharness/chord/sqlite/node";
 import {
 	createRegistry,
 	defineExtension,

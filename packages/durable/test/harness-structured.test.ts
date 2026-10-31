@@ -1,7 +1,6 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Context, JsonValue } from "@@evoharness/chord";
 import {
 	fauxAssistantMessage,
 	fauxText,
@@ -10,6 +9,7 @@ import {
 	type ToolResultMessage,
 	Type,
 } from "@evoharness/ai";
+import type { Context, JsonValue } from "@evoharness/chord";
 import {
 	type Conversation,
 	type ConversationId,
@@ -1227,7 +1227,10 @@ describe("tool rounds", () => {
 		expect((await (await root.submit({ type: "input", content: "go" }, context)).wait(context)).status).toBe("done");
 		const tasks = (await harness.commit((tx) => tx.scanTasks({ conversationId: root.id }, 20), context)).items;
 		const [first, second] = tasks.filter((task) => task.kind === "evoharness.generation");
-		expect(tasks.filter((task) => task.kind === "evoharness.tool").map((task) => task.owner)).toEqual([first!.id, first!.id]);
+		expect(tasks.filter((task) => task.kind === "evoharness.tool").map((task) => task.owner)).toEqual([
+			first!.id,
+			first!.id,
+		]);
 		expect(first!.owner).toBeUndefined();
 		expect(second!.owner).toBeUndefined();
 		const assistant = (await allEntries(root)).find((entry) => entry.kind === "evoharness.assistant")!;
@@ -1315,7 +1318,8 @@ describe("tool rounds", () => {
 		const graph = await graphHistory(harness);
 		const history = await viewHistory(harness, root.id);
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
-		const first = (await harness.commit((tx) => tx.scanTasks({ kind: "evoharness.generation" }, 1), context)).items[0]!;
+		const first = (await harness.commit((tx) => tx.scanTasks({ kind: "evoharness.generation" }, 1), context))
+			.items[0]!;
 		expect((await state(harness, first.id)).status).toBe("completing");
 		// The first generation's outcome is committed at its hold: the successor already runs the run, and the graph shows
 		// the first one completing beside it.
@@ -1412,7 +1416,10 @@ describe("tool rounds", () => {
 				first: expect.any(Number),
 			},
 		});
-		expect((await allEntries(reopened.root)).map((entry) => entry.kind)).toEqual(["evoharness.user", "evoharness.assistant"]);
+		expect((await allEntries(reopened.root)).map((entry) => entry.kind)).toEqual([
+			"evoharness.user",
+			"evoharness.assistant",
+		]);
 		await reopened.harness.close(context);
 	});
 });

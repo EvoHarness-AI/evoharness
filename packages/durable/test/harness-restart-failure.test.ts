@@ -166,7 +166,11 @@ describe("a generation interrupted while the model answers (#11139)", () => {
 		});
 		expect(values.some((value) => value.generation?.attempt === 2)).toBe(true);
 		const entries = await allEntries(opened.root);
-		expect(entries.map((entry) => entry.kind)).toEqual(["evoharness.user", "evoharness.assistant", "evoharness.assistant"]);
+		expect(entries.map((entry) => entry.kind)).toEqual([
+			"evoharness.user",
+			"evoharness.assistant",
+			"evoharness.assistant",
+		]);
 		const converted = entries[1]!.model![0] as AssistantMessage;
 		expect(converted.stopReason).toBe("aborted");
 		expect(textOf(converted)).toBe(partial);
@@ -228,7 +232,11 @@ describe("a generation interrupted while the model answers (#11139)", () => {
 			error: { message: text, detail: { reason: "interrupted" } },
 		});
 		const entries = await allEntries(opened.root);
-		expect(entries.map((entry) => entry.kind)).toEqual(["evoharness.user", "evoharness.assistant", "evoharness.assistant"]);
+		expect(entries.map((entry) => entry.kind)).toEqual([
+			"evoharness.user",
+			"evoharness.assistant",
+			"evoharness.assistant",
+		]);
 		expect(entries.slice(1).map((entry) => (entry.model![0] as AssistantMessage).stopReason)).toEqual([
 			"aborted",
 			"aborted",
@@ -420,7 +428,8 @@ describe("other tasks cut off restartLimit times in a row (#11139)", () => {
 		});
 		// The slot's partial output is kept, as for an interrupted call.
 		expect(textOf(message)).toContain("partial");
-		const toolTask = (await opened.harness.commit((tx) => tx.scanTasks({ kind: "evoharness.tool" }, 10), context)).items[0]!;
+		const toolTask = (await opened.harness.commit((tx) => tx.scanTasks({ kind: "evoharness.tool" }, 10), context))
+			.items[0]!;
 		expect(toolTask.state).toMatchObject({
 			status: "terminal",
 			outcome: { status: "failed", error: { detail: { reason: "restart_limit" } } },

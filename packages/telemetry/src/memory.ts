@@ -310,7 +310,11 @@ export class InMemoryTelemetryContext
 		const span = carrier?.["evoharness-memory-span"];
 		const traceId = carrier?.["evoharness-memory-trace"];
 		if (typeof scope !== "string" || typeof span !== "string" || typeof traceId !== "string") return this;
-		const context = { "evoharness-memory-scope": scope, "evoharness-memory-span": span, "evoharness-memory-trace": traceId };
+		const context = {
+			"evoharness-memory-scope": scope,
+			"evoharness-memory-span": span,
+			"evoharness-memory-trace": traceId,
+		};
 		const localId = scope === this.state.scope ? Number(span) : null;
 		const parent: TelemetryContext = {
 			metrics: this,

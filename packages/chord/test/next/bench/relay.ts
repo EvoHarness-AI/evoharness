@@ -47,7 +47,7 @@ const View = remote("bench.view", {
 type Start = { readonly id: string; readonly entries: "notes" | "document" };
 
 function entry(id: number, length: number): Entry {
-	return { id, text: "x".repeat(length), author: "mario", at: 1_700_000_000_000 + id };
+	return { id, text: "x".repeat(length), author: "alice", at: 1_700_000_000_000 + id };
 }
 
 /** The notes list (1,000 entries of 80 characters, 134 KiB) or a 500 KB conversation document (500 of 960). */

@@ -47,7 +47,7 @@ describe("evaluating a facet", () => {
 		const root = await tempRoot();
 		await writePlugin(root, "p", "@test/p", {
 			"worker.ts": [
-				'import { ChordError, defineFacet } from "@@evoharness/chord/next";',
+				'import { ChordError, defineFacet } from "@evoharness/chord/next";',
 				"const facet = defineFacet(() => {});",
 				'export default { ...facet, made: new ChordError({ code: "unavailable", message: "m" }), is: (e: unknown) => e instanceof ChordError };',
 			].join("\n"),
@@ -102,7 +102,7 @@ describe("evaluating a facet", () => {
 		await host.close(context);
 		await writePlugin(root, "escape", "@test/escape", {
 			"worker.ts":
-				'import { pluginFile } from "@@evoharness/chord/next/plugins";\nexport default { setup: () => {}, escape: () => pluginFile("../files/assets/data.txt") };',
+				'import { pluginFile } from "@evoharness/chord/next/plugins";\nexport default { setup: () => {}, escape: () => pluginFile("../files/assets/data.txt") };',
 		});
 		const escaping = await built(root, "@test/escape");
 		const probe = evaluateFacet(escaping.script, {
@@ -141,7 +141,7 @@ describe("evaluating a facet", () => {
 		const root = await tempRoot();
 		await writePlugin(root, "dynamic", "@test/dynamic", {
 			"worker.ts": [
-				'import { defineFacet } from "@@evoharness/chord/next";',
+				'import { defineFacet } from "@evoharness/chord/next";',
 				"const later = (specifier: string) => import(specifier);",
 				"export default { ...defineFacet(() => {}), later };",
 			].join("\n"),

@@ -4,12 +4,13 @@
 // Uses OpenAI when OPENAI_API_KEY is set, and a scripted faux model otherwise.
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/21-subagent-foreground.ts
-import type { Context } from "@@evoharness/chord";
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+
 import { type AssistantMessage, type FauxResponseStep, Type } from "@evoharness/ai";
 import { createModels } from "@evoharness/ai/models";
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@evoharness/ai/providers/faux";
 import { openaiProvider } from "@evoharness/ai/providers/openai";
+import type { Context } from "@evoharness/chord";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import {
 	AssistantEntry,
 	type ConversationId,

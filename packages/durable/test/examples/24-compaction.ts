@@ -1,10 +1,11 @@
 // Compaction: a long trip-planning chat whose older messages are summarized so the model context stays small.
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/24-compaction.ts
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+
 import type { AssistantMessage, Message, TranscriptContext } from "@evoharness/ai";
 import { createModels } from "@evoharness/ai/models";
 import { fauxAssistantMessage, fauxProvider } from "@evoharness/ai/providers/faux";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import {
 	CompactionEntry,
 	type Conversation,

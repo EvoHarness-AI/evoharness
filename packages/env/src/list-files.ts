@@ -1,4 +1,4 @@
-import type { Context } from "@@evoharness/chord";
+import type { Context } from "@evoharness/chord";
 import {
 	type ExecutionEnv,
 	err,

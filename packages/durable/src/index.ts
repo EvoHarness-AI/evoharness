@@ -1,4 +1,4 @@
-export type { NativeWatchCall, WatchCall, WatchEnd, WatchHandle } from "@@evoharness/chord";
+export type { NativeWatchCall, WatchCall, WatchEnd, WatchHandle } from "@evoharness/chord";
 export { defineDoc, defineDocFamily } from "./documents.ts";
 export {
 	AssistantEntry,

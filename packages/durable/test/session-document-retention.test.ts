@@ -70,9 +70,9 @@ const Failing = defineDoc<Counter>({
 
 /** The default retention of this run, as the setup file set it. */
 const defaultForRun =
-	process.env.PI_DURABLE_DOCUMENT_RETENTION_MS === undefined
+	process.env.EVOHARNESS_DURABLE_DOCUMENT_RETENTION_MS === undefined
 		? 600_000
-		: Number(process.env.PI_DURABLE_DOCUMENT_RETENTION_MS);
+		: Number(process.env.EVOHARNESS_DURABLE_DOCUMENT_RETENTION_MS);
 
 /** A conversation document any Harness test can read. */
 const TestDoc = defineDoc<Counter>({

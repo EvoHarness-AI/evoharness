@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BACKGROUND_CONTEXT, withAbortSignal } from "@@evoharness/chord/context";
+import { BACKGROUND_CONTEXT, withAbortSignal } from "@evoharness/chord/context";
 import { getOrThrow, type ShellOutputInfo } from "@evoharness/durable/env";
 import { afterAll, describe, expect, it } from "vitest";
 import { Connection, nodePlatform } from "../src/connection.ts";

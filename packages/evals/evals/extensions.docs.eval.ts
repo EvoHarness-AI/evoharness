@@ -1,12 +1,12 @@
 import { contentText } from "@evoharness/ai";
 import { describeEval, StructuredOutputJudge, ToolCallJudge } from "vitest-evals";
-import { createPiDocumentationEvalHarness, DOCUMENTATION_EVAL_TOOLS } from "../src/harness.ts";
+import { createEvoharnessDocumentationEvalHarness, DOCUMENTATION_EVAL_TOOLS } from "../src/harness.ts";
 
 const TOOL_NAME = "hello";
 const TOOL_ARGUMENTS = { name: "Bob" };
 const TOOL_RESULT = "Hello, Bob!";
 
-const harness = createPiDocumentationEvalHarness({
+const harness = createEvoharnessDocumentationEvalHarness({
 	tools: [...DOCUMENTATION_EVAL_TOOLS, TOOL_NAME],
 	output: ({ response, session }) => {
 		const extensions = session.resourceLoader.getExtensions();

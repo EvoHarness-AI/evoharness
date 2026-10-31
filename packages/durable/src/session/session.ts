@@ -1,6 +1,6 @@
-import { type Context, type JsonValue, Watch, type WatchEnd } from "@@evoharness/chord";
-import { awaitWithContext, BACKGROUND_CONTEXT, withoutAbortSignal } from "@@evoharness/chord/context";
-import { type Op, PendingOps, track } from "@@evoharness/chord/delta";
+import { type Context, type JsonValue, Watch, type WatchEnd } from "@evoharness/chord";
+import { awaitWithContext, BACKGROUND_CONTEXT, withoutAbortSignal } from "@evoharness/chord/context";
+import { type Op, PendingOps, track } from "@evoharness/chord/delta";
 import type { SpanAttributes } from "@evoharness/telemetry";
 import {
 	type AnyDocToken,
@@ -1337,7 +1337,11 @@ export class SessionImpl implements Session {
 		for (const write of writes) {
 			switch (write.type) {
 				case "entry":
-					this.#event("evoharness.durable.entry", { "entry.id": write.value.id, "entry.kind": write.value.kind }, context);
+					this.#event(
+						"evoharness.durable.entry",
+						{ "entry.id": write.value.id, "entry.kind": write.value.kind },
+						context,
+					);
 					changes?.push(write);
 					break;
 				case "submission":

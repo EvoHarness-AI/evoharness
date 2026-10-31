@@ -1,4 +1,3 @@
-import type { Context, JsonValue, WatchHandle } from "@@evoharness/chord";
 import type {
 	Api,
 	AssistantMessage,
@@ -17,6 +16,7 @@ import type {
 	Usage,
 	UserMessage,
 } from "@evoharness/ai";
+import type { Context, JsonValue, WatchHandle } from "@evoharness/chord";
 import type { TelemetryContext } from "@evoharness/telemetry";
 import type { ExecutionEnv, ShellOutputSkip, ShellOutputWindow } from "../env/index.ts";
 import type {
@@ -682,7 +682,7 @@ export type HarnessOptions<Tool extends ToolRegistration = ToolRegistration> = {
 	readonly models: Models | (() => Models);
 	/**
 	 * How model requests identify the app to providers, merged field by field over `DEFAULT_HARNESS_IDENTITY`
-	 * (`{ attribution: PI_ATTRIBUTION }`, provider attribution to evoharness). It applies to every request through the Harness's
+	 * (`{ attribution: EVOHARNESS_ATTRIBUTION }`, provider attribution to evoharness). It applies to every request through the Harness's
 	 * models, including hooks and tools, and overrides the identity the `Models` was created with; a request's own
 	 * `identity` overrides it. Pass `{ attribution: null }` to send no attribution headers.
 	 */

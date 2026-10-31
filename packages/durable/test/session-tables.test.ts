@@ -1,4 +1,4 @@
-import type { JsonValue } from "@@evoharness/chord";
+import type { JsonValue } from "@evoharness/chord";
 import {
 	type ConversationId,
 	defineDoc,

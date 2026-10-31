@@ -32,7 +32,7 @@ import {
 	type UsageSummary,
 } from "vitest-evals/harness";
 import type { DocumentationVariant } from "./plan.ts";
-import { PI_SESSION_SNAPSHOT_ARTIFACT } from "./report.ts";
+import { EVOHARNESS_SESSION_SNAPSHOT_ARTIFACT } from "./report.ts";
 
 type EvoHarnessRunDiagnostics = {
 	events: TranscriptEvent[];
@@ -55,7 +55,7 @@ export type EvoHarnessCodingAgentHarnessOptions = {
 	customTools?: CreateAgentSessionOptions["customTools"];
 	workspaceFiles?: Readonly<Record<string, string>>;
 	transformSystemPrompt?: (defaultPrompt: string) => string;
-	expectedPiDocumentation?: boolean;
+	expectedEvoharnessDocumentation?: boolean;
 };
 
 export type EvoHarnessCodingAgentHarnessWithOutput<TOutput extends JsonValue> = EvoHarnessCodingAgentHarnessOptions & {
@@ -69,21 +69,23 @@ export type EvoHarnessCodingAgentHarnessWithOutput<TOutput extends JsonValue> = 
 
 export function resolveModelSelection(
 	explicitModel: EvoHarnessCodingAgentModelSelection | undefined,
-	environment: { PI_PROVIDER?: string; PI_MODEL?: string } = process.env,
+	environment: { EVOHARNESS_PROVIDER?: string; EVOHARNESS_MODEL?: string } = process.env,
 ): EvoHarnessCodingAgentModelSelection {
-	const provider = (explicitModel?.provider ?? environment.PI_PROVIDER)?.trim();
-	const id = (explicitModel?.id ?? environment.PI_MODEL)?.trim();
+	const provider = (explicitModel?.provider ?? environment.EVOHARNESS_PROVIDER)?.trim();
+	const id = (explicitModel?.id ?? environment.EVOHARNESS_MODEL)?.trim();
 	if (!provider || !id) {
-		throw new Error("Select a harness model explicitly or set both PI_PROVIDER and PI_MODEL as defaults.");
+		throw new Error(
+			"Select a harness model explicitly or set both EVOHARNESS_PROVIDER and EVOHARNESS_MODEL as defaults.",
+		);
 	}
 	return { provider, id };
 }
 
 export function applyIsolatedEnvironment(home: string, agentDir: string): () => void {
-	const overrides = { HOME: home, USERPROFILE: home, PI_CODING_AGENT_DIR: agentDir };
+	const overrides = { HOME: home, USERPROFILE: home, EVOHARNESS_CODING_AGENT_DIR: agentDir };
 	const previous = new Map<string, string | undefined>();
 	for (const name of Object.keys(process.env)) {
-		if (!name.startsWith("PI_EVAL_")) continue;
+		if (!name.startsWith("EVOHARNESS_EVAL_")) continue;
 		previous.set(name, process.env[name]);
 		delete process.env[name];
 	}
@@ -101,7 +103,7 @@ export function applyIsolatedEnvironment(home: string, agentDir: string): () => 
 
 type SandboxIdentity = { uid: number; gid: number };
 
-function parseSandboxId(name: "PI_EVAL_SANDBOX_UID" | "PI_EVAL_SANDBOX_GID"): number | undefined {
+function parseSandboxId(name: "EVOHARNESS_EVAL_SANDBOX_UID" | "EVOHARNESS_EVAL_SANDBOX_GID"): number | undefined {
 	const value = process.env[name];
 	if (value === undefined) return undefined;
 	const id = Number(value);
@@ -110,11 +112,11 @@ function parseSandboxId(name: "PI_EVAL_SANDBOX_UID" | "PI_EVAL_SANDBOX_GID"): nu
 }
 
 function resolveSandboxIdentity(): SandboxIdentity | undefined {
-	const uid = parseSandboxId("PI_EVAL_SANDBOX_UID");
-	const gid = parseSandboxId("PI_EVAL_SANDBOX_GID");
+	const uid = parseSandboxId("EVOHARNESS_EVAL_SANDBOX_UID");
+	const gid = parseSandboxId("EVOHARNESS_EVAL_SANDBOX_GID");
 	if (uid === undefined && gid === undefined) return undefined;
 	if (uid === undefined || gid === undefined) {
-		throw new Error("Set both PI_EVAL_SANDBOX_UID and PI_EVAL_SANDBOX_GID, or neither.");
+		throw new Error("Set both EVOHARNESS_EVAL_SANDBOX_UID and EVOHARNESS_EVAL_SANDBOX_GID, or neither.");
 	}
 	return { uid, gid };
 }
@@ -256,20 +258,20 @@ async function promptAgent(session: AgentSession, input: string, signal: AbortSi
 
 export function verifySystemPrompt(
 	systemPrompt: string,
-	options: Pick<EvoHarnessCodingAgentHarnessOptions, "name" | "expectedPiDocumentation">,
+	options: Pick<EvoHarnessCodingAgentHarnessOptions, "name" | "expectedEvoharnessDocumentation">,
 ): string {
-	if (options.expectedPiDocumentation === undefined) return systemPrompt;
+	if (options.expectedEvoharnessDocumentation === undefined) return systemPrompt;
 	if (!systemPrompt.includes("\n<rules>\n")) {
 		throw new Error(`EvoHarness system prompt lost its rules in the ${options.name} eval variant.`);
 	}
-	const hasDocumentation = systemPrompt.includes("\n<docs>\nPi documentation (read only");
-	if (hasDocumentation !== options.expectedPiDocumentation) {
+	const hasDocumentation = systemPrompt.includes("\n<docs>\nEvoHarness documentation (read only");
+	if (hasDocumentation !== options.expectedEvoharnessDocumentation) {
 		throw new Error(`EvoHarness system prompt does not match the ${options.name} eval variant.`);
 	}
 	return systemPrompt;
 }
 
-async function runPiCodingAgent<TOutput extends JsonValue>(
+async function runEvoharnessCodingAgent<TOutput extends JsonValue>(
 	input: EvoHarnessCodingAgentInput,
 	signal: AbortSignal | undefined,
 	setArtifact: HarnessContext["setArtifact"],
@@ -423,7 +425,7 @@ async function runPiCodingAgent<TOutput extends JsonValue>(
 				cleanupErrors.push(new Error("EvoHarness eval produced no session file."));
 			} else {
 				try {
-					setArtifact(PI_SESSION_SNAPSHOT_ARTIFACT, await readFile(sessionPath, "utf8"));
+					setArtifact(EVOHARNESS_SESSION_SNAPSHOT_ARTIFACT, await readFile(sessionPath, "utf8"));
 				} catch (error) {
 					cleanupErrors.push(error);
 				}
@@ -468,16 +470,18 @@ async function runPiCodingAgent<TOutput extends JsonValue>(
 	return { ...result, timings: { totalMs: performance.now() - startedAt } };
 }
 
-export function createPiCodingAgentHarness<TOutput extends JsonValue>(
+export function createEvoharnessCodingAgentHarness<TOutput extends JsonValue>(
 	options: EvoHarnessCodingAgentHarnessWithOutput<TOutput>,
 ): Harness<EvoHarnessCodingAgentInput, TOutput>;
-export function createPiCodingAgentHarness(options?: EvoHarnessCodingAgentHarnessOptions): Harness<EvoHarnessCodingAgentInput, string>;
-export function createPiCodingAgentHarness<TOutput extends JsonValue>(
+export function createEvoharnessCodingAgentHarness(
+	options?: EvoHarnessCodingAgentHarnessOptions,
+): Harness<EvoHarnessCodingAgentInput, string>;
+export function createEvoharnessCodingAgentHarness<TOutput extends JsonValue>(
 	options: EvoHarnessCodingAgentHarnessOptions | EvoHarnessCodingAgentHarnessWithOutput<TOutput> = {},
 ): Harness<EvoHarnessCodingAgentInput, string | TOutput> {
 	return createHarness<EvoHarnessCodingAgentInput, string | TOutput>({
 		name: options.name ?? "evoharness-coding-agent",
-		run: ({ input, signal, setArtifact }) => runPiCodingAgent(input, signal, setArtifact, options),
+		run: ({ input, signal, setArtifact }) => runEvoharnessCodingAgent(input, signal, setArtifact, options),
 	});
 }
 
@@ -485,21 +489,24 @@ export function createPiCodingAgentHarness<TOutput extends JsonValue>(
 export const DOCUMENTATION_EVAL_TOOLS = ["read", "write", "edit", "grep", "find", "ls"] as const;
 
 export function resolveDocumentationVariant(
-	value: string | undefined = process.env.PI_EVAL_VARIANT,
+	value: string | undefined = process.env.EVOHARNESS_EVAL_VARIANT,
 ): DocumentationVariant {
 	if (value === "without_docs" || value === "with_docs") return value;
-	throw new TypeError('PI_EVAL_VARIANT must be "without_docs" or "with_docs".');
+	throw new TypeError('EVOHARNESS_EVAL_VARIANT must be "without_docs" or "with_docs".');
 }
 
-export function excludePiDocumentation(defaultPrompt: string): string {
+export function excludeEvoharnessDocumentation(defaultPrompt: string): string {
 	const documentationStartMarker = "\n<docs>\n";
 	const documentationEndMarker = "\n</docs>";
 	const documentationStart = defaultPrompt.indexOf(documentationStartMarker);
-	if (documentationStart === -1) throw new Error("Default EvoHarness system prompt has no EvoHarness documentation section.");
+	if (documentationStart === -1)
+		throw new Error("Default EvoHarness system prompt has no EvoHarness documentation section.");
 	const documentationEnd = defaultPrompt.indexOf(documentationEndMarker, documentationStart);
-	if (documentationEnd === -1) throw new Error("Default EvoHarness system prompt has no complete EvoHarness documentation section.");
+	if (documentationEnd === -1)
+		throw new Error("Default EvoHarness system prompt has no complete EvoHarness documentation section.");
 	const cwdStart = defaultPrompt.lastIndexOf("\n<cwd>\n");
-	if (cwdStart < documentationEnd) throw new Error("Default EvoHarness system prompt has no working-directory section.");
+	if (cwdStart < documentationEnd)
+		throw new Error("Default EvoHarness system prompt has no working-directory section.");
 	return (
 		defaultPrompt.slice(0, documentationStart) + defaultPrompt.slice(documentationEnd + documentationEndMarker.length)
 	);
@@ -507,31 +514,31 @@ export function excludePiDocumentation(defaultPrompt: string): string {
 
 type DocumentationHarnessOptions = Omit<
 	EvoHarnessCodingAgentHarnessOptions,
-	"name" | "transformSystemPrompt" | "expectedPiDocumentation"
+	"name" | "transformSystemPrompt" | "expectedEvoharnessDocumentation"
 >;
 type DocumentationHarnessWithOutput<TOutput extends JsonValue> = Omit<
 	EvoHarnessCodingAgentHarnessWithOutput<TOutput>,
-	"name" | "transformSystemPrompt" | "expectedPiDocumentation"
+	"name" | "transformSystemPrompt" | "expectedEvoharnessDocumentation"
 >;
 
-export function createPiDocumentationEvalHarness<TOutput extends JsonValue>(
+export function createEvoharnessDocumentationEvalHarness<TOutput extends JsonValue>(
 	options: DocumentationHarnessWithOutput<TOutput>,
 ): Harness<EvoHarnessCodingAgentInput, TOutput>;
-export function createPiDocumentationEvalHarness(
+export function createEvoharnessDocumentationEvalHarness(
 	options?: DocumentationHarnessOptions,
 ): Harness<EvoHarnessCodingAgentInput, string>;
-export function createPiDocumentationEvalHarness<TOutput extends JsonValue>(
+export function createEvoharnessDocumentationEvalHarness<TOutput extends JsonValue>(
 	options: DocumentationHarnessOptions | DocumentationHarnessWithOutput<TOutput> = {},
 ) {
-	if (process.env.PI_EVAL_CONTAINER !== "1" || !resolveSandboxIdentity()) {
+	if (process.env.EVOHARNESS_EVAL_CONTAINER !== "1" || !resolveSandboxIdentity()) {
 		throw new Error("Documentation evals must run in the isolated container sandbox.");
 	}
 	const variant = resolveDocumentationVariant();
-	return createPiCodingAgentHarness({
+	return createEvoharnessCodingAgentHarness({
 		...options,
 		name: variant,
 		tools: options.tools ?? [...DOCUMENTATION_EVAL_TOOLS],
-		...(variant === "without_docs" ? { transformSystemPrompt: excludePiDocumentation } : {}),
-		expectedPiDocumentation: variant === "with_docs",
+		...(variant === "without_docs" ? { transformSystemPrompt: excludeEvoharnessDocumentation } : {}),
+		expectedEvoharnessDocumentation: variant === "with_docs",
 	});
 }

@@ -1,5 +1,5 @@
-import type { JsonValue } from "@@evoharness/chord";
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+import type { JsonValue } from "@evoharness/chord";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import type {
 	ConversationId,
 	DocumentCreate,

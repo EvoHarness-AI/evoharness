@@ -10,7 +10,7 @@ import {
 	createAgentSessionFromServices,
 } from "@evoharness/coding-agent";
 import { createJudge, describeEval } from "vitest-evals";
-import { createPiDocumentationEvalHarness, type EvoHarnessCodingAgentInput } from "../src/harness.ts";
+import { createEvoharnessDocumentationEvalHarness, type EvoHarnessCodingAgentInput } from "../src/harness.ts";
 
 const CONTEXT_WINDOW = 272_000;
 const BUILT_IN_CONTEXT_PATTERN = /\d+(?:\.\d+)?%\/272k(?: \(auto\))?/;
@@ -151,8 +151,8 @@ async function inspectContextFooter(session: AgentSession, agentDir: string): Pr
 	});
 	const terminal = new RecordingTerminal();
 	const mode = new InteractiveMode(runtime, { tuiMode: "regular", terminal });
-	const previousOffline = process.env.PI_OFFLINE;
-	process.env.PI_OFFLINE = "1";
+	const previousOffline = process.env.EVOHARNESS_OFFLINE;
+	process.env.EVOHARNESS_OFFLINE = "1";
 	try {
 		oracleSession.sessionManager.appendMessage({
 			...createContextMessage(model, 0),
@@ -193,14 +193,14 @@ async function inspectContextFooter(session: AgentSession, agentDir: string): Pr
 			try {
 				await runtime.dispose();
 			} finally {
-				if (previousOffline === undefined) delete process.env.PI_OFFLINE;
-				else process.env.PI_OFFLINE = previousOffline;
+				if (previousOffline === undefined) delete process.env.EVOHARNESS_OFFLINE;
+				else process.env.EVOHARNESS_OFFLINE = previousOffline;
 			}
 		}
 	}
 }
 
-const harness = createPiDocumentationEvalHarness({
+const harness = createEvoharnessDocumentationEvalHarness({
 	output: ({ session, agentDir }) => inspectContextFooter(session, agentDir),
 });
 

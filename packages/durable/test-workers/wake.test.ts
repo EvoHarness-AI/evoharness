@@ -1,6 +1,6 @@
 import { evictDurableObject, runDurableObjectAlarm, runInDurableObject } from "cloudflare:test";
 import { type DurableObjectState, type DurableObjectStub, env } from "cloudflare:workers";
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import { AssistantEntry, type TaskId } from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { nativeTimer } from "../src/timers.ts";

@@ -23,13 +23,13 @@ const RUNS = 7;
 const RELOADS = 100;
 
 const gc = (globalThis as { gc?: () => void }).gc!;
-const HOST_PACKAGES = { "@@evoharness/chord/next": chordNext };
+const HOST_PACKAGES = { "@evoharness/chord/next": chordNext };
 const KINDS = ["server", "worker"];
 
 /** A plugin's worker facet: a store over a document, a derive, a method, a helper module and the shared contract. */
 function worker(index: number, label: string): string {
 	return [
-		'import { constant, defineFacet, defineState, int, local, method, obj, str } from "@@evoharness/chord/next";',
+		'import { constant, defineFacet, defineState, int, local, method, obj, str } from "@evoharness/chord/next";',
 		'import { Shared } from "../contracts/contract.ts";',
 		'import { format } from "./format.ts";',
 		`const Store = local("bench.store${index}", { version: 1, params: {}, members: { label: str(), n: int(), bump: method(undefined, int()) } });`,
@@ -52,7 +52,7 @@ async function pluginSet(): Promise<string> {
 	await write("contracts", {
 		"package.json": JSON.stringify({ name: "@bench/contracts", type: "module" }),
 		"contract.ts":
-			'import { local, str } from "@@evoharness/chord/next";\nexport const Shared = local("bench.shared", { version: 1, params: {}, members: { name: str() } });',
+			'import { local, str } from "@evoharness/chord/next";\nexport const Shared = local("bench.shared", { version: 1, params: {}, members: { name: str() } });',
 	});
 	for (let index = 0; index < PLUGINS; index++) {
 		await write(`p${index}`, {

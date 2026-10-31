@@ -53,7 +53,7 @@ const facet = defineFacet((host) => {
 const host = createHost({ onError: (error) => console.error("background error:", error) });
 await host.load([{ name: "@example/notes", facet }], context);
 const notes = await host.get(Notes, {}, context);
-const badge = await host.get(Badge, { user: "mario" }, context);
+const badge = await host.get(Badge, { user: "alice" }, context);
 
 await notes.add({ text: "buy milk and bread" }, context);
 await notes.add({ text: "call Anna" }, context);

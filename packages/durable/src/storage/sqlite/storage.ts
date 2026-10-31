@@ -1,6 +1,6 @@
-import type { Context, JsonValue } from "@@evoharness/chord";
-import { apply, type Op } from "@@evoharness/chord/delta";
-import type { SqliteDatabase, SqliteExecutor, SqliteValue } from "@@evoharness/chord/sqlite";
+import type { Context, JsonValue } from "@evoharness/chord";
+import { apply, type Op } from "@evoharness/chord/delta";
+import type { SqliteDatabase, SqliteExecutor, SqliteValue } from "@evoharness/chord/sqlite";
 import { StorageRequestError } from "../../errors.ts";
 import { idFromNumber, seqFromNumber } from "../../ids.ts";
 import type {

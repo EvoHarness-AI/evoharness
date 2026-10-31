@@ -1,4 +1,4 @@
-import { utf8ByteLength } from "@@evoharness/chord/output";
+import { utf8ByteLength } from "@evoharness/chord/output";
 /**
  * Shared truncation utilities for tool outputs.
  *
@@ -6,7 +6,7 @@ import { utf8ByteLength } from "@@evoharness/chord/output";
  * - Line limit (default: 2000 lines)
  * - Byte limit (default: 50KB)
  *
- * Never returns partial lines. Tool output streams are bounded by `OutputBuffer` from `@@evoharness/chord/output` instead.
+ * Never returns partial lines. Tool output streams are bounded by `OutputBuffer` from `@evoharness/chord/output` instead.
  */
 
 export const DEFAULT_MAX_LINES = 2000;

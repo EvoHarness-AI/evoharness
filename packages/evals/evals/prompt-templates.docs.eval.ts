@@ -2,7 +2,7 @@ import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { contentText } from "@evoharness/ai";
 import { describeEval, StructuredOutputJudge } from "vitest-evals";
-import { createPiDocumentationEvalHarness } from "../src/harness.ts";
+import { createEvoharnessDocumentationEvalHarness } from "../src/harness.ts";
 
 const TEMPLATE_NAME = "current-time";
 const COMMAND = `/${TEMPLATE_NAME}`;
@@ -22,7 +22,7 @@ const SCENARIOS = [
 ] as const;
 
 function registerScenario(scenario: (typeof SCENARIOS)[number]): void {
-	const harness = createPiDocumentationEvalHarness({
+	const harness = createEvoharnessDocumentationEvalHarness({
 		output: ({ session, agentDir }) => {
 			const workspace = session.sessionManager.getCwd();
 			const projectPath = join(workspace, ".evoharness", "prompts", `${TEMPLATE_NAME}.md`);

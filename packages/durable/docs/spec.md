@@ -12,8 +12,8 @@ import type {
   WatchCall,
   WatchEnd,
   WatchHandle,
-} from "@@evoharness/chord";
-import type { Op } from "@@evoharness/chord/delta";
+} from "@evoharness/chord";
+import type { Op } from "@evoharness/chord/delta";
 import type {
   AssistantMessage,
   CacheRetention,
@@ -5381,7 +5381,7 @@ aborted directly (section 8.3).
 ### 9.1 Watches
 
 Durable exposes committed state only through watches: Chord's `WatchHandle`
-and its end type `WatchEnd`, exported by `@@evoharness/chord` (Durable
+and its end type `WatchEnd`, exported by `@evoharness/chord` (Durable
 re-exports both):
 
 ```ts

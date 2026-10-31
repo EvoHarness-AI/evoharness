@@ -1,12 +1,12 @@
-import { validateSqliteSchemaPrefix } from "@@evoharness/chord/sqlite";
-import { type NodeSqliteDatabaseOptions, openNodeSqliteDatabase } from "@@evoharness/chord/sqlite/node";
+import { validateSqliteSchemaPrefix } from "@evoharness/chord/sqlite";
+import { type NodeSqliteDatabaseOptions, openNodeSqliteDatabase } from "@evoharness/chord/sqlite/node";
 import { SqliteStorage, type SqliteStorageOptions } from "./storage.ts";
 
 export {
 	NodeSqliteDatabase,
 	type NodeSqliteDatabaseOptions,
 	openNodeSqliteDatabase,
-} from "@@evoharness/chord/sqlite/node";
+} from "@evoharness/chord/sqlite/node";
 
 /** Node SQLite connection settings plus durable storage options. */
 export type NodeSqliteStorageOptions = NodeSqliteDatabaseOptions & SqliteStorageOptions;

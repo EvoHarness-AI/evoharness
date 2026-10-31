@@ -1,4 +1,4 @@
-import type { Context } from "@@evoharness/chord";
+import type { Context } from "@evoharness/chord";
 
 /** Result of a fallible operation. Expected failures are returned instead of thrown. */
 export type Result<TValue, TError> = { ok: true; value: TValue } | { ok: false; error: TError };
@@ -337,7 +337,7 @@ export interface ShellOutputWindow {
  * Output an environment omitted, measured on the decoded text `onOutput` would have received: every U+FFFD counts as
  * three bytes, and no sanitizing is applied.
  */
-/** The shape of `OutputSkip` from `@@evoharness/chord/output`, which `OutputBuffer.push()` accepts. */
+/** The shape of `OutputSkip` from `@evoharness/chord/output`, which `OutputBuffer.push()` accepts. */
 export interface ShellOutputSkip {
 	/** UTF-8 byte length of the omitted text. */
 	bytes: number;

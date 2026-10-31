@@ -1,4 +1,4 @@
-import type { Context } from "@@evoharness/chord";
+import type { Context } from "@evoharness/chord";
 import { idFromNumber } from "../ids.ts";
 import type { Cursor, EntryId, EntryQuery, EntryRecord, Page } from "../types.ts";
 import type { ConversationView, ConversationWindow } from "./view.ts";

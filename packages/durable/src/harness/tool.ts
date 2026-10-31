@@ -1,6 +1,8 @@
-import { type Context, copyJson, type Draft, type JsonRepresentation, type JsonValue } from "@@evoharness/chord";
-import { awaitWithContext } from "@@evoharness/chord/context";
-import { overlap, ownedSlice } from "@@evoharness/chord/delta";
+import type { ImageContent, TextContent, ToolCall, ToolResultMessage } from "@evoharness/ai";
+import { validateToolArguments } from "@evoharness/ai/utils/validation";
+import { type Context, copyJson, type Draft, type JsonRepresentation, type JsonValue } from "@evoharness/chord";
+import { awaitWithContext } from "@evoharness/chord/context";
+import { overlap, ownedSlice } from "@evoharness/chord/delta";
 import {
 	boundOutput,
 	OutputBuffer,
@@ -8,9 +10,7 @@ import {
 	PROGRESS_BYTES_PER_SECOND,
 	Progress,
 	type ProgressClock,
-} from "@@evoharness/chord/output";
-import type { ImageContent, TextContent, ToolCall, ToolResultMessage } from "@evoharness/ai";
-import { validateToolArguments } from "@evoharness/ai/utils/validation";
+} from "@evoharness/chord/output";
 import { Compile } from "typebox/compile";
 import { defineDocFamily } from "../documents.ts";
 import { AssistantEntry, ToolResultEntry } from "../entries.ts";

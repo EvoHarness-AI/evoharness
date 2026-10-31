@@ -53,4 +53,4 @@ const localConfig = mergeConfig(
 	}),
 );
 
-export default process.env.PI_EVAL_CONTAINER === "1" ? evalConfig : mergeConfig(localConfig, evalConfig);
+export default process.env.EVOHARNESS_EVAL_CONTAINER === "1" ? evalConfig : mergeConfig(localConfig, evalConfig);

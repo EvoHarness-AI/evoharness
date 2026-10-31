@@ -1,7 +1,6 @@
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { JsonValue } from "@@evoharness/chord";
 import {
 	type AssistantMessage,
 	type FauxResponseStep,
@@ -13,6 +12,7 @@ import {
 	type ToolResultMessage,
 	Type,
 } from "@evoharness/ai";
+import type { JsonValue } from "@evoharness/chord";
 import {
 	AgentDoc,
 	type Conversation,
@@ -746,7 +746,12 @@ describe("generation hooks", () => {
 		expect(status).toBe("done");
 		expect(requests[0]!.slice(-2)).toEqual(["user:go", "user:injected"]);
 		expect(responses).toEqual(["answer 1", "answer 2"]);
-		expect(entries.map((entry) => entry.kind)).toEqual(["evoharness.user", "evoharness.assistant", "evoharness.user", "evoharness.assistant"]);
+		expect(entries.map((entry) => entry.kind)).toEqual([
+			"evoharness.user",
+			"evoharness.assistant",
+			"evoharness.user",
+			"evoharness.assistant",
+		]);
 		// The injected message was used for the request only.
 		expect(entries.some((entry) => textOf(entry.model?.[0]) === "injected")).toBe(false);
 		await harness.close(context);

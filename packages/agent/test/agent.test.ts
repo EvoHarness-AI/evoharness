@@ -1,4 +1,4 @@
-import { type ClientIdentity, PI_ATTRIBUTION } from "@evoharness/ai";
+import { type ClientIdentity, EVOHARNESS_ATTRIBUTION } from "@evoharness/ai";
 import {
 	type AssistantMessage,
 	createAssistantMessageEventStream,
@@ -1221,9 +1221,9 @@ describe("Agent", () => {
 		await agent.prompt("and again");
 
 		expect(received).toEqual([
-			{ attribution: PI_ATTRIBUTION },
+			{ attribution: EVOHARNESS_ATTRIBUTION },
 			{ attribution: acme, userAgent: "short" },
-			{ attribution: PI_ATTRIBUTION, userAgent: "short" },
+			{ attribution: EVOHARNESS_ATTRIBUTION, userAgent: "short" },
 		]);
 	});
 });

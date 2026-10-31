@@ -37,7 +37,7 @@ Chord builds applications out of **objects** that live in several processes (a s
 
 ```ts
 import { Type } from "typebox";
-import { createHost, method, remote } from "@@evoharness/chord";
+import { createHost, method, remote } from "@evoharness/chord";
 
 // contract.ts: shared by provider and consumers
 export const Counter = remote("demo.counter", {
@@ -591,7 +591,7 @@ plugins/chat/
 
 ```ts
 // plugins/chat/worker.ts
-import { defineFacet } from "@@evoharness/chord";
+import { defineFacet } from "@evoharness/chord";
 import { Chat, Conversation } from "./contract.ts";
 
 export default defineFacet((host) => {

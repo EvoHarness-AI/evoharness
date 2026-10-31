@@ -2,7 +2,7 @@ import type * as Fs from "node:fs";
 import { mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getOrThrow } from "../src/env/index.ts";
 import { NodeExecutionEnv } from "../src/env/node.ts";
@@ -53,7 +53,10 @@ describe("NodeExecutionEnv spill backpressure", () => {
 	it.skipIf(process.platform === "win32")(
 		"keeps inherited stdio open past the exit grace period while a spill write is pending",
 		async () => {
-			const root = join(tmpdir(), `evoharness-durable-env-spill-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+			const root = join(
+				tmpdir(),
+				`evoharness-durable-env-spill-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+			);
 			mkdirSync(root, { recursive: true });
 			tempDirs.push(root);
 			const env = new NodeExecutionEnv({ cwd: root });

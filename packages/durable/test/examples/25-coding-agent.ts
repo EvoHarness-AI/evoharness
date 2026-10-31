@@ -5,10 +5,10 @@
 import { mkdir, mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
 import type { ToolResultMessage } from "@evoharness/ai";
 import { createModels } from "@evoharness/ai/models";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from "@evoharness/ai/providers/faux";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import { NodeExecutionEnv } from "../../src/env/node.ts";
 import {
 	createRegistry,

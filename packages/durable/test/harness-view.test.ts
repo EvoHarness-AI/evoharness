@@ -3,8 +3,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
-import { applyImmutable, type Op } from "@@evoharness/chord/delta";
 import { type AssistantMessage, type FauxResponseStep, fauxAssistantMessage, fauxText } from "@evoharness/ai";
+import { applyImmutable, type Op } from "@evoharness/chord/delta";
 import {
 	AgentDoc,
 	type Conversation,
@@ -137,7 +137,9 @@ describe("conversation view", () => {
 		const { initial, frames, stop } = await record(root);
 		const touching = touches(harness, root);
 		const submission = await root.submit({ type: "input", content: "hi" }, context);
-		await waitFor(() => frames.some((frame) => (frame.value.docs["evoharness.live"] as { generation?: unknown }).generation));
+		await waitFor(() =>
+			frames.some((frame) => (frame.value.docs["evoharness.live"] as { generation?: unknown }).generation),
+		);
 		release.resolve();
 		await submission.wait(context);
 		await harness.waitForIdle(context);
@@ -146,7 +148,13 @@ describe("conversation view", () => {
 		expect(frames).toHaveLength(touching.count + 1);
 		const last = replay(initial, frames);
 		expect(last).toEqual(await committed(harness, root, initial.conversation, last.entries.length));
-		expect(frames[0]!.ops).toContainEqual(["p", ["entries"], 0, 0, [expect.objectContaining({ kind: "evoharness.user" })]]);
+		expect(frames[0]!.ops).toContainEqual([
+			"p",
+			["entries"],
+			0,
+			0,
+			[expect.objectContaining({ kind: "evoharness.user" })],
+		]);
 		// Document operations keep their exact shape under the mount path.
 		expect(frames.flatMap((frame) => frame.ops)).toContainEqual([
 			"s",

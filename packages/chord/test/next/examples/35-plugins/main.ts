@@ -30,12 +30,12 @@ async function until(ready: () => boolean): Promise<void> {
 }
 
 // 1. The component: the roots, the facet kinds, and the host packages every script gets (this process's Chord: a
-//    plugin's `import { defineFacet } from "@@evoharness/chord/next"` is the app's own instance).
+//    plugin's `import { defineFacet } from "@evoharness/chord/next"` is the app's own instance).
 const plugins = createPlugins(
 	{
 		roots: [root],
 		kinds: ["server", "worker"],
-		hostPackages: { "@@evoharness/chord/next": chordNext },
+		hostPackages: { "@evoharness/chord/next": chordNext },
 		onError: (error) => console.log("plugins:", error.kind),
 	},
 	context,

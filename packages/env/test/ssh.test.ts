@@ -13,7 +13,7 @@ import {
 import { createServer, Socket } from "node:net";
 import { tmpdir, userInfo } from "node:os";
 import { join } from "node:path";
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import { getOrThrow } from "@evoharness/durable/env";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Connection } from "../src/connection.ts";
@@ -135,9 +135,9 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 			const deployed = readFileSync(join(home, ".evoharness/mobile/tools", deployedName));
 			expect(deployed.equals(readFileSync(daemon))).toBe(true);
 			// Daemons of other contents are removed.
-			expect(readdirSync(join(home, ".evoharness/mobile/tools")).filter((name) => name.startsWith("evoharness-env-"))).toEqual([
-				deployedName,
-			]);
+			expect(
+				readdirSync(join(home, ".evoharness/mobile/tools")).filter((name) => name.startsWith("evoharness-env-")),
+			).toEqual([deployedName]);
 			const env = new RemoteExecutionEnv({ connection, id: "evoharness-env:test", cwd: home });
 			getOrThrow(await env.writeFile("over-ssh.txt", "hello", context));
 			expect(getOrThrow(await env.readTextFile("over-ssh.txt", context))).toBe("hello");
@@ -220,8 +220,8 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 
 	it("starts the daemon through the login shell only when asked", async () => {
 		// The login shell is the account's shell: sh and bash read .profile, zsh (the macOS default) reads .zprofile.
-		writeFileSync(join(home, ".profile"), "export PI_ENV_LOGIN=yes\n");
-		writeFileSync(join(home, ".zprofile"), "export PI_ENV_LOGIN=yes\n");
+		writeFileSync(join(home, ".profile"), "export EVOHARNESS_ENV_LOGIN=yes\n");
+		writeFileSync(join(home, ".zprofile"), "export EVOHARNESS_ENV_LOGIN=yes\n");
 		const login = async (loginShell: boolean) => {
 			const { connection } = await connectSsh({ ...target, binary: daemon, loginShell });
 			try {
@@ -229,7 +229,7 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 				const output: string[] = [];
 				getOrThrow(
 					await env.exec(
-						["sh", "-c", 'printf "%s" "$PI_ENV_LOGIN"'],
+						["sh", "-c", 'printf "%s" "$EVOHARNESS_ENV_LOGIN"'],
 						{ onOutput: (text) => output.push(text) },
 						context,
 					),
@@ -280,7 +280,9 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 			acceptHostKey(scoped, [`evoharness-env-test ${first}`]),
 		]);
 		expect(readFileSync(knownHosts, "utf8")).toBe(`evoharness-env-test ${first}\n`);
-		await expect(acceptHostKey(scoped, [`evoharness-env-test ${second}`])).rejects.toBeInstanceOf(HostKeyChangedError);
+		await expect(acceptHostKey(scoped, [`evoharness-env-test ${second}`])).rejects.toBeInstanceOf(
+			HostKeyChangedError,
+		);
 		await forgetHostKey(scoped);
 		await acceptHostKey(scoped, [`evoharness-env-test ${second}`]);
 		expect(readFileSync(knownHosts, "utf8")).toBe(`evoharness-env-test ${second}\n`);

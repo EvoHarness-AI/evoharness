@@ -3,8 +3,8 @@
 	"compilerOptions": {
 		"outDir": "./dist",
 		"paths": {
-			"@@evoharness/chord": ["../chord/dist/index.d.ts"],
-			"@@evoharness/chord/context": ["../chord/dist/context/index.d.ts"],
+			"@evoharness/chord": ["../chord/dist/index.d.ts"],
+			"@evoharness/chord/context": ["../chord/dist/context/index.d.ts"],
 			"@evoharness/durable/env": ["../durable/dist/env/index.d.ts"]
 		},
 		"rootDir": "./src"

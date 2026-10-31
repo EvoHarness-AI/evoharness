@@ -1,4 +1,3 @@
-import type { Context } from "@@evoharness/chord";
 import {
 	createModels,
 	type FauxProviderHandle,
@@ -8,6 +7,7 @@ import {
 	type Models,
 	type RegisterFauxProviderOptions,
 } from "@evoharness/ai";
+import type { Context } from "@evoharness/chord";
 import {
 	type Conversation,
 	createRegistry,

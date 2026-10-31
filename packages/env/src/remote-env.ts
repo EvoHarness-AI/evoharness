@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 import { type PlatformPath, posix, win32 } from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { fileURLToPath } from "node:url";
-import type { Context } from "@@evoharness/chord";
+import type { Context } from "@evoharness/chord";
 import {
 	type BinaryReader,
 	type DirReader,

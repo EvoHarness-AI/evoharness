@@ -1,5 +1,5 @@
-import type { Context } from "@@evoharness/chord";
 import type { AssistantMessage, Message, ToolCall, ToolResultMessage } from "@evoharness/ai";
+import type { Context } from "@evoharness/chord";
 import { SystemEntry } from "../entries.ts";
 import { idFromNumber } from "../ids.ts";
 import type { SessionImpl } from "../session/session.ts";

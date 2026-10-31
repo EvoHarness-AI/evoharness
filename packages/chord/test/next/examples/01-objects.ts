@@ -44,7 +44,7 @@ await host.load([{ name: "@example/greeter", facet }], context);
 // A reference is live once its get resolves: its state members have values, its methods can be called.
 const german = await host.get(Greeter, { language: "de" }, context);
 console.log("language:", german.language.value);
-console.log("greet:", await german.greet({ name: "Mario" }, context));
+console.log("greet:", await german.greet({ name: "Alice" }, context));
 
 // Arguments are checked against the contract at the object.
 try {

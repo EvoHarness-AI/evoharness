@@ -1,12 +1,12 @@
-import type { Context, JsonValue } from "@@evoharness/chord";
-import { withAbortSignal, withoutAbortSignal } from "@@evoharness/chord/context";
 import type { Models } from "@evoharness/ai";
 import {
 	type ClientIdentity,
+	EVOHARNESS_ATTRIBUTION,
 	mergeClientIdentity,
-	PI_ATTRIBUTION,
 	withClientIdentity,
 } from "@evoharness/ai/utils/identity";
+import type { Context, JsonValue } from "@evoharness/chord";
+import { withAbortSignal, withoutAbortSignal } from "@evoharness/chord/context";
 import {
 	createTypedMetrics,
 	NOOP_TELEMETRY_CONTEXT,
@@ -187,7 +187,7 @@ class ConversationImpl<Tool extends ToolRegistration> implements Conversation {
 }
 
 /** Request identity of a Harness's model requests: evoharness-ai's defaults with provider attribution to evoharness. */
-export const DEFAULT_HARNESS_IDENTITY: ClientIdentity = { attribution: PI_ATTRIBUTION };
+export const DEFAULT_HARNESS_IDENTITY: ClientIdentity = { attribution: EVOHARNESS_ATTRIBUTION };
 
 /**
  * `HarnessOptions.models` as a function with `HarnessOptions.identity` applied. A plain `Models` is wrapped once; a

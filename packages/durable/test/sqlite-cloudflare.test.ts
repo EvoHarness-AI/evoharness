@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import { registerStorageConformance } from "@evoharness/durable/testing";
 import { describe, expect, it } from "vitest";
 import { durableObjectStorage } from "../../chord/test/sqlite/helpers.ts";

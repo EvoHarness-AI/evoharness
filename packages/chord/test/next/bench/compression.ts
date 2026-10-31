@@ -48,7 +48,7 @@ function prose(seed: number, length: number): string {
 const entries = Array.from({ length: 500 }, (_, id) => ({
 	id,
 	text: prose(id, 960),
-	author: "mario",
+	author: "alice",
 	at: 1_700_000_000 + id,
 }));
 

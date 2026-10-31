@@ -1,4 +1,4 @@
-// Chord v2's plugins component (`@@evoharness/chord/next/plugins` once v2 has its entry point; slice 7c): plugin
+// Chord v2's plugins component (`@evoharness/chord/next/plugins` once v2 has its entry point; slice 7c): plugin
 // directories found, built into scripts, evaluated, loaded and reloaded per plugin, watched and rolled out. Node-only
 // (`fs`, esbuild, `vm`); esbuild is an optional peer dependency, imported only here.
 

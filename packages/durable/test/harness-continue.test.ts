@@ -2,7 +2,6 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { withTelemetry } from "@@evoharness/chord/context";
 import {
 	type AssistantMessage,
 	type FauxResponseStep,
@@ -12,6 +11,7 @@ import {
 	type Message,
 	Type,
 } from "@evoharness/ai";
+import { withTelemetry } from "@evoharness/chord/context";
 import {
 	AssistantEntry,
 	type Conversation,

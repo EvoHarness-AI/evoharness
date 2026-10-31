@@ -67,7 +67,7 @@ const plugins = createPlugins(
 	{
 		roots: [root],
 		kinds: ["server"],
-		hostPackages: { "@@evoharness/chord/next": chordNext },
+		hostPackages: { "@evoharness/chord/next": chordNext },
 		onError: (error) => console.log("plugins:", error.kind),
 	},
 	context,

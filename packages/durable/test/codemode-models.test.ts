@@ -1,7 +1,6 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Context } from "@@evoharness/chord";
 import {
 	type AssistantImages,
 	type ClassifierResult,
@@ -11,6 +10,7 @@ import {
 	fauxToolCall,
 	type MutableModels,
 } from "@evoharness/ai";
+import type { Context } from "@evoharness/chord";
 import { CodemodeSandbox } from "@evoharness/codemode";
 import { MemoryStorage, ToolResultEntry, UsageDoc } from "@evoharness/durable";
 import { describe, expect, it } from "vitest";

@@ -6,8 +6,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
-import type { Context } from "@@evoharness/chord";
-import { BACKGROUND_CONTEXT, withTelemetry } from "@@evoharness/chord/context";
+import { createModels } from "@evoharness/ai";
+import type { Context } from "@evoharness/chord";
+import { BACKGROUND_CONTEXT, withTelemetry } from "@evoharness/chord/context";
 import {
 	applyBatch,
 	type ChordStore,
@@ -23,9 +24,8 @@ import {
 	type Store,
 	sqliteBackend,
 	str,
-} from "@@evoharness/chord/next";
-import { openNodeSqliteDatabase } from "@@evoharness/chord/sqlite/node";
-import { createModels } from "@evoharness/ai";
+} from "@evoharness/chord/next";
+import { openNodeSqliteDatabase } from "@evoharness/chord/sqlite/node";
 import { registerStorageConformance } from "@evoharness/durable/testing";
 import { InMemoryTelemetryContext } from "@evoharness/telemetry";
 import { describe, expect, it } from "vitest";

@@ -1,6 +1,6 @@
 // The notes plugin's worker facet: serves `Notes`, its count kept in a document.
 
-import { constant, defineFacet, defineState, int, obj } from "@@evoharness/chord/next";
+import { constant, defineFacet, defineState, int, obj } from "@evoharness/chord/next";
 import { Notes } from "../contracts/contract.ts";
 import { label } from "./label.ts";
 

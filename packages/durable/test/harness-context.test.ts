@@ -1,5 +1,5 @@
-import type { Context } from "@@evoharness/chord";
 import { createModels, type Message } from "@evoharness/ai";
+import type { Context } from "@evoharness/chord";
 import {
 	type ContextView,
 	createRegistry,

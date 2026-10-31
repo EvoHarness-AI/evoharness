@@ -92,6 +92,6 @@ await attempt("mirror", () => host.get(Mirror, { id: 1 }, context));
 await attempt("stuck", () => host.get(Stuck, { id: 1 }, context, { readyTimeout: 700 }));
 
 // Transient failures keep a get waiting through the retries, up to its deadline: the inbox goes live with the remote.
-await attempt("inbox", () => host.get(Inbox, { user: "mario" }, context, { readyTimeout: 10_000 }));
+await attempt("inbox", () => host.get(Inbox, { user: "alice" }, context, { readyTimeout: 10_000 }));
 
 await host.close(context);

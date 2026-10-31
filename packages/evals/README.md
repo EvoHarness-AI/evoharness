@@ -21,10 +21,10 @@ Eval suites and their fixtures live under `evals/`. Image build files live in `d
 
 ## Run evals
 
-The host smoke eval, on-demand documentation audit, and documentation-lift evals need `PI_PROVIDER` and `PI_MODEL`.
+The host smoke eval, on-demand documentation audit, and documentation-lift evals need `EVOHARNESS_PROVIDER` and `EVOHARNESS_MODEL`.
 
 ```bash
-PI_PROVIDER=openai-codex PI_MODEL=gpt-5.6-sol npm run eval -w packages/evals
+EVOHARNESS_PROVIDER=openai-codex EVOHARNESS_MODEL=gpt-5.6-sol npm run eval -w packages/evals
 ```
 
 That runs the host smoke eval, then the documentation comparison. The documentation audit remains explicit because it scans every documentation page. Extra CLI flags after `--` go to `eval:docs` only.
@@ -32,13 +32,13 @@ That runs the host smoke eval, then the documentation comparison. The documentat
 Host smoke only:
 
 ```bash
-PI_PROVIDER=openai-codex PI_MODEL=gpt-5.6-sol npm run eval:host -w packages/evals
+EVOHARNESS_PROVIDER=openai-codex EVOHARNESS_MODEL=gpt-5.6-sol npm run eval:host -w packages/evals
 ```
 
 Documentation audit:
 
 ```bash
-PI_PROVIDER=openai-codex PI_MODEL=gpt-5.6-sol \
+EVOHARNESS_PROVIDER=openai-codex EVOHARNESS_MODEL=gpt-5.6-sol \
   npm run eval:audit -w packages/evals
 ```
 
@@ -52,7 +52,7 @@ npm run eval:docs -w packages/evals -- \
   --model gpt-5.6-sol
 ```
 
-`PI_PROVIDER` and `PI_MODEL` provide the same defaults. Both values are required.
+`EVOHARNESS_PROVIDER` and `EVOHARNESS_MODEL` provide the same defaults. Both values are required.
 
 The default is one run per variant. Increase repetitions explicitly when measuring stability:
 
@@ -62,7 +62,7 @@ npm run eval:docs -w packages/evals -- \
   --runs-per-variant 5
 ```
 
-`PI_EVAL_RUNS_PER_VARIANT=5` is equivalent. Vitest filters are applied during discovery:
+`EVOHARNESS_EVAL_RUNS_PER_VARIANT=5` is equivalent. Vitest filters are applied during discovery:
 
 ```bash
 npm run eval:docs -w packages/evals -- -t "adds the model"
@@ -112,9 +112,9 @@ Use one ordinary `describeEval(...)` suite and one explicit `run(...)` call per 
 
 ```ts
 import { describeEval, StructuredOutputJudge } from "vitest-evals";
-import { createPiDocumentationEvalHarness } from "../src/harness.ts";
+import { createEvoharnessDocumentationEvalHarness } from "../src/harness.ts";
 
-const harness = createPiDocumentationEvalHarness();
+const harness = createEvoharnessDocumentationEvalHarness();
 const judge = StructuredOutputJudge({ expected: { ok: true }, match: "strict", allowExtras: false });
 
 describeEval("Target workflow", { harness, judges: [judge], judgeThreshold: null }, (it) => {

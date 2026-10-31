@@ -6,12 +6,12 @@
 import {
 	type AssistantMessage,
 	type ClientIdentity,
+	EVOHARNESS_ATTRIBUTION,
 	EventStream,
 	getCurrentTools,
 	getToolStateChanges,
 	mergeClientIdentity,
 	normalizeContext,
-	PI_ATTRIBUTION,
 	type SystemMessage,
 	type ToolResultMessage,
 	type ToolStateChanges,
@@ -38,7 +38,7 @@ export type AgentEventSink = (event: AgentEvent) => Promise<void> | void;
  * Request identity of agent loops: evoharness-ai's defaults with provider attribution to evoharness. `AgentLoopConfig.identity`
  * overrides it field by field.
  */
-export const DEFAULT_AGENT_IDENTITY: ClientIdentity = { attribution: PI_ATTRIBUTION };
+export const DEFAULT_AGENT_IDENTITY: ClientIdentity = { attribution: EVOHARNESS_ATTRIBUTION };
 
 /**
  * Start an agent loop with a new prompt message.

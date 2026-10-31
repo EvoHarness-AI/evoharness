@@ -1,7 +1,7 @@
-import type { Context, Draft } from "@@evoharness/chord";
 import type { AssistantMessage, Message, ModelThinkingLevel, SimpleStreamOptions } from "@evoharness/ai";
 import { calculateContextTokens, estimateMessageTokens } from "@evoharness/ai/utils/estimate";
 import { isRetryableAssistantError, retryDelayMs } from "@evoharness/ai/utils/retry";
+import type { Context, Draft } from "@evoharness/chord";
 import { CompactionEntry } from "../entries.ts";
 import { defineTask } from "../tasks.ts";
 import type {

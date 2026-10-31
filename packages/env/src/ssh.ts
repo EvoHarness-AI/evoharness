@@ -407,13 +407,15 @@ export async function deployDaemon(
 	remote: RemotePlatform,
 	binary = packagedDaemon(remote),
 ): Promise<string> {
-	if (!existsSync(binary)) throw new Error(`No evoharness-env daemon for ${remote.platform}-${remote.arch} at ${binary}`);
+	if (!existsSync(binary))
+		throw new Error(`No evoharness-env daemon for ${remote.platform}-${remote.arch} at ${binary}`);
 	const bytes = await readFile(binary);
 	const sha256 = createHash("sha256").update(bytes).digest("hex");
 	const file = daemonPath(remote, sha256);
 	const state = await checkDaemon(target, remote, file, sha256);
 	if (state === "present") return file;
-	if (state === "nohash") throw new Error(`${target.host} has no sha256sum, shasum or openssl to verify evoharness-env`);
+	if (state === "nohash")
+		throw new Error(`${target.host} has no sha256sum, shasum or openssl to verify evoharness-env`);
 	if (remote.platform === "windows") {
 		const upload = powershell(
 			[
@@ -437,7 +439,10 @@ export async function deployDaemon(
 			].join("; "),
 		);
 		const lines = bytes.toString("base64").replace(/.{1,76}/g, "$&\n");
-		await runSsh(target, upload, { stdin: Buffer.from(`${lines}EVOHARNESS-ENV-END\n`), timeoutMs: UPLOAD_TIMEOUT_MS });
+		await runSsh(target, upload, {
+			stdin: Buffer.from(`${lines}EVOHARNESS-ENV-END\n`),
+			timeoutMs: UPLOAD_TIMEOUT_MS,
+		});
 		return file;
 	}
 	const upload = [

@@ -1,4 +1,4 @@
-import type { Context } from "@@evoharness/chord";
+import type { Context } from "@evoharness/chord";
 import { SessionFailed } from "../errors.ts";
 import type { ConversationId, Cursor, EntryQuery, Page } from "../types.ts";
 

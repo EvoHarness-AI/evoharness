@@ -163,7 +163,7 @@ function stem(term: string): string {
 	return term;
 }
 
-/** Lowercase with characters invalid in script identifiers as `_`, so `dev-radius` matches `dev_radius`. */
+/** Lowercase with characters invalid in script identifiers as `_`, so `dev-gateway` matches `dev_gateway`. */
 function normalizeName(name: string): string {
 	return name
 		.trim()

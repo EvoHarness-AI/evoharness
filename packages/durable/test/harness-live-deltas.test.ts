@@ -1,5 +1,5 @@
-import type { Op } from "@@evoharness/chord/delta";
 import { fauxAssistantMessage, fauxText, fauxToolCall, Type } from "@evoharness/ai";
+import type { Op } from "@evoharness/chord/delta";
 import {
 	type CommitPublication,
 	defineTool,
@@ -439,7 +439,12 @@ describe("evoharness.live deltas", () => {
 		const kinds = changes.flatMap((change) =>
 			change.type === "entry" ? [change.value.kind] : change.type === "task" ? [change.value.kind] : [],
 		);
-		expect(kinds.sort()).toEqual(["evoharness.assistant", "evoharness.generation", "evoharness.tool", "evoharness.tool"]);
+		expect(kinds.sort()).toEqual([
+			"evoharness.assistant",
+			"evoharness.generation",
+			"evoharness.tool",
+			"evoharness.tool",
+		]);
 		await harness.close(context);
 	});
 

@@ -1,5 +1,5 @@
-import type { JsonValue } from "@@evoharness/chord";
-import { appendText, type Draft } from "@@evoharness/chord/delta";
+import type { JsonValue } from "@evoharness/chord";
+import { appendText, type Draft } from "@evoharness/chord/delta";
 
 /** How `assignJson()` writes one value instead of assigning it leaf by leaf. */
 export type AssignPlan =

@@ -1,6 +1,6 @@
 // Fixture plugin (slice 7c): contracts only, no facet; the other fixtures import (copy) it.
 
-import { hostKind, int, local, method, remote, str } from "@@evoharness/chord/next";
+import { hostKind, int, local, method, remote, str } from "@evoharness/chord/next";
 
 /** The host kind of the fixtures' worker. */
 export const Worker = hostKind("test.worker");

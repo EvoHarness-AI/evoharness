@@ -156,7 +156,11 @@ describe("generation recovery", () => {
 		expect((await (await opened.harness.submission(id, context))!.wait(context)).status).toBe("done");
 		expect(sent).toEqual([["user"]]);
 		const entries = await allEntries(opened.root);
-		expect(entries.map((entry) => entry.kind)).toEqual(["evoharness.user", "evoharness.assistant", "evoharness.assistant"]);
+		expect(entries.map((entry) => entry.kind)).toEqual([
+			"evoharness.user",
+			"evoharness.assistant",
+			"evoharness.assistant",
+		]);
 		const converted = entries[1]!.model![0] as AssistantMessage;
 		expect(converted.stopReason).toBe("aborted");
 		expect(textOf(converted)).toBe(partial);

@@ -125,7 +125,7 @@
 	"scripts": {
 		"clean": "shx rm -rf dist",
 		"build": "tsc -p tsconfig.build.json",
-		"test": "vitest --run && PI_DURABLE_DOCUMENT_RETENTION_MS=0 vitest --run && npm run test:store && npm run test:workers",
+		"test": "vitest --run && EVOHARNESS_DURABLE_DOCUMENT_RETENTION_MS=0 vitest --run && npm run test:store && npm run test:workers",
 		"test:store": "vitest --run --config vitest.store.config.ts",
 		"test:workers": "vitest --run --config test-workers/vitest.config.ts",
 		"bench:storage": "vitest bench --config vitest.benchmark.config.ts",
@@ -147,7 +147,7 @@
 		"conversations",
 		"tasks"
 	],
-	"author": "Earendil Works",
+	"author": "EvoHarness-AI",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -158,7 +158,7 @@
 		"node": ">=22.19.0"
 	},
 	"dependencies": {
-		"@@evoharness/chord": "0.0.1",
+		"@evoharness/chord": "0.0.1",
 		"@evoharness/ai": "0.0.1",
 		"@evoharness/codemode": "0.0.1",
 		"@evoharness/telemetry": "0.0.1",

@@ -1,6 +1,6 @@
 import { runInNewContext } from "node:vm";
-import type { Context } from "@@evoharness/chord";
 import { createModels } from "@evoharness/ai";
+import type { Context } from "@evoharness/chord";
 import {
 	createRegistry,
 	defineExtension,

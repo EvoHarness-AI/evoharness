@@ -7,7 +7,8 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+import { createModels } from "@evoharness/ai";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import {
 	createHost,
 	defineFacet,
@@ -17,9 +18,8 @@ import {
 	openStore,
 	sqliteBackend,
 	str,
-} from "@@evoharness/chord/next";
-import { openNodeSqliteDatabase } from "@@evoharness/chord/sqlite/node";
-import { createModels } from "@evoharness/ai";
+} from "@evoharness/chord/next";
+import { openNodeSqliteDatabase } from "@evoharness/chord/sqlite/node";
 import { createRegistry, Harness, ROOT_CONVERSATION_ID } from "../../src/index.ts";
 import { StoreStorage } from "../../src/storage/store/index.ts";
 

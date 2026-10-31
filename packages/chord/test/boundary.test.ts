@@ -29,8 +29,7 @@ describe("package boundary", () => {
 			for (const match of source.matchAll(IMPORT_SPECIFIER)) {
 				const specifier = match[1]!;
 				const pkg = specifier.split("/").slice(0, 2).join("/");
-				if (specifier.startsWith("@evoharness/") && !ALLOWED.has(pkg))
-					violations.push(`${path}: ${specifier}`);
+				if (specifier.startsWith("@evoharness/") && !ALLOWED.has(pkg)) violations.push(`${path}: ${specifier}`);
 				if (specifier.startsWith(".") && !resolve(dirname(file), specifier).startsWith(`${sourceDirectory}/`)) {
 					violations.push(`${path}: ${specifier}`);
 				}

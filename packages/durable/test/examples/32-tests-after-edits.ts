@@ -2,10 +2,11 @@
 // tests, a failure starts a fix run, and input sent meanwhile waits for them too.
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/32-tests-after-edits.ts
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+
 import { Type } from "@evoharness/ai";
 import { createModels } from "@evoharness/ai/models";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from "@evoharness/ai/providers/faux";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import {
 	createRegistry,
 	defineExtension,

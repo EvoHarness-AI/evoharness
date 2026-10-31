@@ -1,7 +1,7 @@
 /// <reference lib="dom" />
 
-import type { Context, JsonValue } from "@@evoharness/chord";
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+import type { Context, JsonValue } from "@evoharness/chord";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import { registerStorageConformance } from "@evoharness/durable/testing";
 import { IDBKeyRange as FakeIDBKeyRange, IDBObjectStore as FakeIDBObjectStore, IDBFactory } from "fake-indexeddb";
 import { describe, expect, it, vi } from "vitest";

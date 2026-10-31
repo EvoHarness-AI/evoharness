@@ -2,8 +2,8 @@
 // each kind of listener then sees.
 import { setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
-import type { JsonValue } from "@@evoharness/chord";
-import { applyImmutable } from "@@evoharness/chord/delta";
+import type { JsonValue } from "@evoharness/chord";
+import { applyImmutable } from "@evoharness/chord/delta";
 import {
 	type CommitChange,
 	type CommitOptions,

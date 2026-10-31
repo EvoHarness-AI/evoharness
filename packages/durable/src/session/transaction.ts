@@ -1,6 +1,6 @@
-import { type Context, copyJson, type Draft, type JsonValue } from "@@evoharness/chord";
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
-import { type Change, type Op, type PendingOps, type Prepared, type Tracker, track } from "@@evoharness/chord/delta";
+import { type Context, copyJson, type Draft, type JsonValue } from "@evoharness/chord";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
+import { type Change, type Op, type PendingOps, type Prepared, type Tracker, track } from "@evoharness/chord/delta";
 import type { TelemetryCarrier } from "@evoharness/telemetry";
 import {
 	type AnyDocDefinition,

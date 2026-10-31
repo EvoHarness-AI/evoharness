@@ -1,5 +1,5 @@
-import { copyJson, type JsonValue } from "@@evoharness/chord";
-import type { Op } from "@@evoharness/chord/delta";
+import { copyJson, type JsonValue } from "@evoharness/chord";
+import type { Op } from "@evoharness/chord/delta";
 import { idFromNumber } from "./ids.ts";
 import type {
 	CheckpointInfo,

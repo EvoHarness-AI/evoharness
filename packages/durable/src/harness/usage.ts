@@ -1,5 +1,5 @@
-import { copyJson, type Draft, type JsonRepresentation } from "@@evoharness/chord";
 import type { Usage } from "@evoharness/ai";
+import { copyJson, type Draft, type JsonRepresentation } from "@evoharness/chord";
 import { defineDoc } from "../documents.ts";
 import type { ConversationId, Tx } from "../types.ts";
 

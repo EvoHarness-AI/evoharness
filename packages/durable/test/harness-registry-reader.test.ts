@@ -1,4 +1,5 @@
-import { BACKGROUND_CONTEXT as context } from "@@evoharness/chord/context";
+import { createModels } from "@evoharness/ai/models";
+import { BACKGROUND_CONTEXT as context } from "@evoharness/chord/context";
 import {
 	arr,
 	createHost,
@@ -10,8 +11,7 @@ import {
 	type Native,
 	type RegistryTable,
 	str,
-} from "@@evoharness/chord/next";
-import { createModels } from "@evoharness/ai/models";
+} from "@evoharness/chord/next";
 import { describe, expect, it } from "vitest";
 import {
 	createRegistry,

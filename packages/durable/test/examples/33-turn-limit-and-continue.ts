@@ -2,10 +2,11 @@
 // message, with a fresh budget. A host learns that a run stopped from `evoharness.live.runFailure`.
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/33-turn-limit-and-continue.ts
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+
 import { Type } from "@evoharness/ai";
 import { createModels } from "@evoharness/ai/models";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from "@evoharness/ai/providers/faux";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import {
 	ConversationBusy,
 	createRegistry,

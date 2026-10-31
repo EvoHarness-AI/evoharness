@@ -2,8 +2,6 @@
 // commit makes, rebuilt from operations alone. This replaced the event stream (`watchEvents`, #11327).
 import { GCProfiler, getHeapStatistics, setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
-import type { Draft } from "@@evoharness/chord";
-import { applyImmutable, type Op } from "@@evoharness/chord/delta";
 import {
 	type AssistantMessage,
 	type FauxResponseStep,
@@ -13,6 +11,8 @@ import {
 	fauxToolCall,
 	Type,
 } from "@evoharness/ai";
+import type { Draft } from "@evoharness/chord";
+import { applyImmutable, type Op } from "@evoharness/chord/delta";
 import {
 	type Conversation,
 	type ConversationView,
@@ -462,7 +462,9 @@ describe("a run as the conversation view shows it", () => {
 		});
 		await drained();
 		const update = frames.at(-1)!;
-		expect(update.ops).toEqual([["a", ["docs", "evoharness.live", "generation", "message", "content", 0, "text"], "lo"]]);
+		expect(update.ops).toEqual([
+			["a", ["docs", "evoharness.live", "generation", "message", "content", 0, "text"], "lo"],
+		]);
 		const rebuilt = applyImmutable(frames[0]!.value, update.ops);
 		expect(liveOf(rebuilt).generation?.message?.content).toEqual([{ type: "text", text: "hello" }]);
 		await watch.stop();

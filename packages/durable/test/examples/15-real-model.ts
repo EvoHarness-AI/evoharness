@@ -1,9 +1,10 @@
 // A real model: stream an answer from OpenAI.
 // Run from packages/durable (needs OPENAI_API_KEY):
 //   node --conditions=source --experimental-strip-types test/examples/15-real-model.ts
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+
 import { createModels } from "@evoharness/ai/models";
 import { openaiProvider } from "@evoharness/ai/providers/openai";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import {
 	AssistantEntry,
 	createRegistry,

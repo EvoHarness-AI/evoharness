@@ -1,5 +1,5 @@
-import type { JsonValue } from "@@evoharness/chord";
 import type { TSchema } from "@evoharness/ai";
+import type { JsonValue } from "@evoharness/chord";
 import type { Task } from "../types.ts";
 import type {
 	AnyTask,

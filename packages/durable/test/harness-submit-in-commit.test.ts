@@ -1,6 +1,6 @@
 // Admission for hosts that must not start runs: `whenIdle: "reject"`, and `submit(tx, draft)` inside the caller's
 // commit (#11149).
-import { withTelemetry } from "@@evoharness/chord/context";
+
 import {
 	type AssistantMessage,
 	type FauxResponseStep,
@@ -9,6 +9,7 @@ import {
 	fauxToolCall,
 	Type,
 } from "@evoharness/ai";
+import { withTelemetry } from "@evoharness/chord/context";
 import {
 	type Conversation,
 	ConversationBusy,
@@ -424,7 +425,9 @@ describe("submit inside the caller's commit", () => {
 		const { harness, root } = await openTraced(setup, telemetry);
 		await root.submit({ type: "input", content: "work" }, context);
 		await busy.reached;
-		const run = (await harness.inspect(context)).tasks.find((task) => task.record.kind === "evoharness.generation")!.record;
+		const run = (await harness.inspect(context)).tasks.find(
+			(task) => task.record.kind === "evoharness.generation",
+		)!.record;
 		const id = await telemetry.startSpan({ name: "caller" }, (caller) =>
 			harness.commit(
 				(tx) => root.submit(tx, { type: "input", content: "steer", whenBusy: "steer" }),
@@ -461,7 +464,9 @@ describe("submit inside the caller's commit", () => {
 			.find((span) => span.name === "evoharness.durable.submit" && span.attributes["submission.id"] === id)!;
 		const record = await (await harness.submission(id, context))!.status(context);
 		expect(record.trace).toEqual(submit.context);
-		const run = (await harness.inspect(context)).tasks.find((task) => task.record.kind === "evoharness.generation")!.record;
+		const run = (await harness.inspect(context)).tasks.find(
+			(task) => task.record.kind === "evoharness.generation",
+		)!.record;
 		expect(run.trace).toEqual(record.trace);
 		await harness.close(context);
 	});
@@ -486,7 +491,10 @@ describe("submit inside the caller's commit", () => {
 			attributes: { "submission.id": id, result: "done" },
 			events: [],
 		});
-		expect(caller.events.map((event) => event.name)).toEqual(["evoharness.durable.entry", "evoharness.durable.submission"]);
+		expect(caller.events.map((event) => event.name)).toEqual([
+			"evoharness.durable.entry",
+			"evoharness.durable.submission",
+		]);
 		await harness.close(context);
 	});
 
@@ -629,7 +637,9 @@ describe("submit inside the caller's commit", () => {
 		other = await harness.createConversation({ ownership: { kind: "ownerless" }, agent: { model: MODEL } }, context);
 		const run = await root.submit({ type: "input", content: "go" }, context);
 		await started.promise;
-		const tool = (await harness.inspect(context)).tasks.find((task) => task.record.kind === "evoharness.tool")!.record;
+		const tool = (await harness.inspect(context)).tasks.find(
+			(task) => task.record.kind === "evoharness.tool",
+		)!.record;
 		const aborting = harness.abortTask(tool.id, context);
 		await abortSeen.promise;
 		const draft = { type: "input", content: "late" } as const;

@@ -3,8 +3,8 @@ import { appendFileSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from
 import { createRequire } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BACKGROUND_CONTEXT as context } from "@@evoharness/chord/context";
 import type { Model } from "@evoharness/ai";
+import { BACKGROUND_CONTEXT as context } from "@evoharness/chord/context";
 import type { ToolDiagnostic, ToolExecutionApi, ToolExecutionResult } from "@evoharness/durable";
 import { createNodePhotonImages } from "@evoharness/durable/images/node";
 import { createCodingTools } from "@evoharness/durable/tools";

@@ -4,7 +4,7 @@ import { Type } from "@evoharness/ai";
 import { defineTool } from "@evoharness/coding-agent";
 import { expect } from "vitest";
 import { describeEval, toolCalls } from "vitest-evals";
-import { createPiCodingAgentHarness } from "../src/harness.ts";
+import { createEvoharnessCodingAgentHarness } from "../src/harness.ts";
 
 const TOOL_NAME = "submit_documentation_audit";
 const submitAudit = defineTool({
@@ -35,7 +35,7 @@ const sourceRoot = resolve(repositoryRoot, "packages/coding-agent/src");
 const pages = globSync("**/*.md", { cwd: docsRoot })
 	.map((path) => ({ path: path.replaceAll("\\", "/") }))
 	.sort((left, right) => left.path.localeCompare(right.path));
-const harness = createPiCodingAgentHarness({
+const harness = createEvoharnessCodingAgentHarness({
 	name: "documentation-page-audit",
 	tools: ["read", "grep", "find", "ls", TOOL_NAME],
 	customTools: [submitAudit],

@@ -1,9 +1,10 @@
 // Transcript history and model context.
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/08-context.ts
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+
 import type { AssistantMessage, Message, StopReason, ToolResultMessage } from "@evoharness/ai";
 import { createModels } from "@evoharness/ai/models";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
 import { createRegistry, Harness, MemoryStorage } from "../../src/index.ts";
 
 const context = BACKGROUND_CONTEXT;

@@ -2,8 +2,9 @@
 // the next commit that reads or writes `evoharness.live` or within `settings.progress.persistWithinMs`. Crashes are simulated
 // by failing the Harness: from that moment nothing more reaches Storage, as when the process dies; the reopened Harness
 // resumes from what was stored.
-import { applyImmutable } from "@@evoharness/chord/delta";
+
 import { fauxAssistantMessage, fauxText, fauxToolCall, Type } from "@evoharness/ai";
+import { applyImmutable } from "@evoharness/chord/delta";
 import {
 	AssistantEntry,
 	type ConversationId,
@@ -330,7 +331,8 @@ describe("tool output", () => {
 			);
 			await crash(opened.harness);
 			opened = await open(storage, setup);
-			const tool = (await opened.harness.commit((tx) => tx.scanTasks({ kind: "evoharness.tool" }, 1), context)).items[0]!;
+			const tool = (await opened.harness.commit((tx) => tx.scanTasks({ kind: "evoharness.tool" }, 1), context))
+				.items[0]!;
 			expect(tool.restarts).toBe(crashes);
 		}
 		await opened.harness.close(context);
@@ -418,7 +420,9 @@ describe("compaction", () => {
 		setup.faux.setResponses([fauxAssistantMessage("SUMMARY")]);
 		opened = await open(storage, setup);
 		expect((await opened.harness.waitForTask(id, context)).state.outcome.status).toBe("completed");
-		await waitFor(async () => (await allEntries(opened.root)).some((entry) => entry.kind === "evoharness.compaction"));
+		await waitFor(async () =>
+			(await allEntries(opened.root)).some((entry) => entry.kind === "evoharness.compaction"),
+		);
 		expect(await opened.harness.snapshot(LiveDoc, opened.root.id, context)).toEqual({});
 		await opened.harness.close(context);
 	});

@@ -34,7 +34,7 @@
 		"ssh",
 		"remote"
 	],
-	"author": "Earendil Works",
+	"author": "EvoHarness-AI",
 	"license": "MIT",
 	"repository": {
 		"type": "git",
@@ -45,7 +45,7 @@
 		"node": ">=22.19.0"
 	},
 	"dependencies": {
-		"@@evoharness/chord": "0.0.1",
+		"@evoharness/chord": "0.0.1",
 		"@evoharness/durable": "0.0.1"
 	},
 	"devDependencies": {

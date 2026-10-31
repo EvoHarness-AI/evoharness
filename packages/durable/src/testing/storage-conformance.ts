@@ -1,6 +1,6 @@
-import type { JsonValue } from "@@evoharness/chord";
-import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
-import type { Op } from "@@evoharness/chord/delta";
+import type { JsonValue } from "@evoharness/chord";
+import { BACKGROUND_CONTEXT } from "@evoharness/chord/context";
+import type { Op } from "@evoharness/chord/delta";
 import { idFromNumber } from "../ids.ts";
 import {
 	type ConversationId,

@@ -71,7 +71,11 @@ export const DURABLE_TELEMETRY_SCHEMA = defineTelemetrySchema({
 					description: "Admission result; stale writes report done.",
 				},
 			},
-			events: { "evoharness.durable.entry": entry, "evoharness.durable.submission": submission, "evoharness.durable.report": report },
+			events: {
+				"evoharness.durable.entry": entry,
+				"evoharness.durable.submission": submission,
+				"evoharness.durable.report": report,
+			},
 			status: { default: "ok", errorWhen: "Admission failed." },
 		},
 		"evoharness.durable.phase": {

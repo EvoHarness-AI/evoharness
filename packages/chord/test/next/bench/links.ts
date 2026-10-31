@@ -128,7 +128,7 @@ const encodes = (): number =>
 type Entry = { id: number; text: string; author: string; at: number };
 
 function entry(id: number, length: number): Entry {
-	return { id, text: "x".repeat(length), author: "mario", at: 1_700_000_000_000 + id };
+	return { id, text: "x".repeat(length), author: "alice", at: 1_700_000_000_000 + id };
 }
 
 const notes = (length = 1_000): Entry[] => Array.from({ length }, (_, id) => entry(id, 80));

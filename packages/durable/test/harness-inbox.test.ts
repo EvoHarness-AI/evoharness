@@ -1,7 +1,6 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Op } from "@@evoharness/chord/delta";
 import {
 	type AssistantMessage,
 	type FauxResponseStep,
@@ -12,6 +11,7 @@ import {
 	Type,
 	type Usage,
 } from "@evoharness/ai";
+import type { Op } from "@evoharness/chord/delta";
 import {
 	type Conversation,
 	defineTool,
@@ -281,7 +281,11 @@ describe("inbox", () => {
 		await input.wait(context);
 		await harness.waitForIdle(context);
 		expect(await status(input)).toMatchObject({ status: "done" });
-		expect(transcript(await allEntries(root))).toEqual(["evoharness.user:a", "evoharness.assistant:first", "evoharness.reset:handoff"]);
+		expect(transcript(await allEntries(root))).toEqual([
+			"evoharness.user:a",
+			"evoharness.assistant:first",
+			"evoharness.reset:handoff",
+		]);
 		expect((await root.context(context)).messages).toEqual([
 			{ role: "user", content: "handoff", timestamp: expect.any(Number) },
 		]);
@@ -513,7 +517,12 @@ describe("inbox", () => {
 		const entries = await allEntries(root);
 		const calling = entries.find((entry) => entry.kind === "evoharness.assistant")!;
 		expect(settled).toMatchObject({ status: "done", answer: calling.id });
-		expect(transcript(entries)).toEqual(["evoharness.user:a", "evoharness.assistant", "evoharness.tool-result", "evoharness.reset:continue here"]);
+		expect(transcript(entries)).toEqual([
+			"evoharness.user:a",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.reset:continue here",
+		]);
 		expect(setup.faux.state.callCount).toBe(1);
 		expect(await harness.snapshot(LiveDoc, root.id, context)).toEqual({});
 		await harness.close(context);
@@ -603,7 +612,10 @@ describe("inbox", () => {
 		opened = await openChat(await openNodeSqliteStorage(path), setup);
 		const settled = await (await opened.harness.submission(f, context))!.wait(context);
 		expect(settled).toMatchObject({ status: "done" });
-		expect(transcript(await allEntries(opened.root)).slice(-2)).toEqual(["evoharness.user:f", "evoharness.assistant:f"]);
+		expect(transcript(await allEntries(opened.root)).slice(-2)).toEqual([
+			"evoharness.user:f",
+			"evoharness.assistant:f",
+		]);
 		await opened.harness.close(context);
 	});
 
@@ -708,7 +720,11 @@ describe("inbox", () => {
 		await input.wait(context);
 		await harness.waitForIdle(context);
 		expect(await status(input)).toMatchObject({ status: "done" });
-		expect(transcript(await allEntries(root))).toEqual(["evoharness.user:a", "evoharness.assistant:first", "evoharness.reset"]);
+		expect(transcript(await allEntries(root))).toEqual([
+			"evoharness.user:a",
+			"evoharness.assistant:first",
+			"evoharness.reset",
+		]);
 		expect(setup.faux.state.callCount).toBe(1);
 		await harness.close(context);
 	});
@@ -759,7 +775,11 @@ describe("inbox", () => {
 		const steer = await root.submit({ type: "input", content: "s", whenBusy: "steer" }, context);
 		const settled = await steer.wait(context);
 		expect(await status(f)).toMatchObject({ status: "done", answer: settled.status === "done" && settled.answer });
-		expect(transcript(await allEntries(root)).slice(-3)).toEqual(["evoharness.user:f", "evoharness.user:s", "evoharness.assistant:both"]);
+		expect(transcript(await allEntries(root)).slice(-3)).toEqual([
+			"evoharness.user:f",
+			"evoharness.user:s",
+			"evoharness.assistant:both",
+		]);
 		await harness.close(context);
 	});
 

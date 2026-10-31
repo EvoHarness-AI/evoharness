@@ -1,4 +1,4 @@
-import type { Context } from "@@evoharness/chord";
+import type { Context } from "@evoharness/chord";
 import { addressId } from "../documents.ts";
 import type {
 	ConversationId,

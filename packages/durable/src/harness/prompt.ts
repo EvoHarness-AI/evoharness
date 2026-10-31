@@ -1,6 +1,6 @@
-import type { Context } from "@@evoharness/chord";
 import type { Message, SystemMessage, Tool, ToolReference } from "@evoharness/ai";
 import { declarationsEqual, getCurrentTools, toToolDeclaration } from "@evoharness/ai/utils/transcript";
+import type { Context } from "@evoharness/chord";
 import { SystemEntry } from "../entries.ts";
 import type { ContextEdit, TypedEntryDraft } from "../types.ts";
 import type { ContextView, PromptInput, PromptSection, ToolRegistration } from "./types.ts";

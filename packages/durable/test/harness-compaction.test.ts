@@ -460,7 +460,11 @@ describe("manual compaction", () => {
 		const placed = await (await chat.harness.submission(submissionId!, context))!.wait(context);
 		expect(placed.status).toBe("done");
 		// The summary follows the answer; the kept range still includes the busy turn.
-		expect((await kinds(chat.root)).slice(-3)).toEqual(["evoharness.user", "evoharness.assistant", "evoharness.compaction"]);
+		expect((await kinds(chat.root)).slice(-3)).toEqual([
+			"evoharness.user",
+			"evoharness.assistant",
+			"evoharness.compaction",
+		]);
 		await chat.harness.close(context);
 	});
 
@@ -572,7 +576,11 @@ describe("manual compaction", () => {
 		answerGate.resolve();
 		expect((await input.wait(context)).status).toBe("done");
 		expect((await submission.wait(context)).status).toBe("done");
-		expect((await kinds(chat.root)).slice(-3)).toEqual(["evoharness.user", "evoharness.assistant", "evoharness.compaction"]);
+		expect((await kinds(chat.root)).slice(-3)).toEqual([
+			"evoharness.user",
+			"evoharness.assistant",
+			"evoharness.compaction",
+		]);
 		await chat.harness.close(context);
 	});
 
@@ -1092,7 +1100,11 @@ describe("blocking threshold compaction", () => {
 		gate.resolve();
 		expect((await input.wait(context)).status).toBe("done");
 		expect((await result(chat, child!.id as TaskId<CompactionResult>)).status).toBe("completed");
-		expect((await kinds(chat.root)).slice(-3)).toEqual(["evoharness.compaction", "evoharness.system", "evoharness.assistant"]);
+		expect((await kinds(chat.root)).slice(-3)).toEqual([
+			"evoharness.compaction",
+			"evoharness.system",
+			"evoharness.assistant",
+		]);
 		const request = chat.faux.agentRequests.at(-1)!.messages;
 		expect(firstUserText(request)).toContain("SUMMARY");
 		const systems = request.filter((message) => message.role === "system");
@@ -1393,7 +1405,9 @@ describe("compaction estimates and interactions", () => {
 		chat.faux.summaries.push(summary());
 		await result(chat, await chat.root.compact(undefined, context));
 		// The kept range holds the delta for the terse mood; the next request has one complete baseline.
-		expect((await chat.root.context(context)).entries.some((record) => record.kind === "evoharness.system")).toBe(true);
+		expect((await chat.root.context(context)).entries.some((record) => record.kind === "evoharness.system")).toBe(
+			true,
+		);
 		await turn(chat, "next", "ok");
 		const systems = chat.faux.agentRequests.at(-1)!.messages.filter((message) => message.role === "system");
 		expect(systems).toHaveLength(1);
@@ -1777,7 +1791,11 @@ describe("compaction recovery", () => {
 		chat.faux.summaries.push(summary());
 		chat.faux.agent.push(answer("a4"));
 		expect((await (await chat.harness.submission(input.id, context))!.wait(context)).status).toBe("done");
-		expect((await kinds(chat.root)).slice(-3)).toEqual(["evoharness.compaction", "evoharness.system", "evoharness.assistant"]);
+		expect((await kinds(chat.root)).slice(-3)).toEqual([
+			"evoharness.compaction",
+			"evoharness.system",
+			"evoharness.assistant",
+		]);
 		await chat.harness.close(context);
 	});
 

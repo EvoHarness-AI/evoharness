@@ -1,11 +1,5 @@
-import type { Draft, JsonValue } from "@@evoharness/chord";
-import {
-	type ConversationId,
-	defineDoc,
-	defineDocFamily,
-	type JsonObject,
-	type TaskId,
-} from "@evoharness/durable";
+import type { Draft, JsonValue } from "@evoharness/chord";
+import { type ConversationId, defineDoc, defineDocFamily, type JsonObject, type TaskId } from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { idFromNumber } from "../src/ids.ts";
 import {

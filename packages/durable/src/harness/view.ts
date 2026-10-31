@@ -5,9 +5,9 @@ import {
 	type WatchCall,
 	type WatchEnd,
 	type WatchHandle,
-} from "@@evoharness/chord";
-import { withoutAbortSignal } from "@@evoharness/chord/context";
-import { applyImmutable, type NonEmptyPath, type Op, type Path } from "@@evoharness/chord/delta";
+} from "@evoharness/chord";
+import { withoutAbortSignal } from "@evoharness/chord/context";
+import { applyImmutable, type NonEmptyPath, type Op, type Path } from "@evoharness/chord/delta";
 import { idFromNumber } from "../ids.ts";
 import {
 	closeEndOf,

@@ -1,6 +1,6 @@
-import { type Context, type JsonValue, Watch, type WatchCall, type WatchHandle } from "@@evoharness/chord";
-import { BACKGROUND_CONTEXT, withoutAbortSignal } from "@@evoharness/chord/context";
-import { applyImmutable, type Op } from "@@evoharness/chord/delta";
+import { type Context, type JsonValue, Watch, type WatchCall, type WatchHandle } from "@evoharness/chord";
+import { BACKGROUND_CONTEXT, withoutAbortSignal } from "@evoharness/chord/context";
+import { applyImmutable, type Op } from "@evoharness/chord/delta";
 import {
 	closeEndOf,
 	closeEnds,

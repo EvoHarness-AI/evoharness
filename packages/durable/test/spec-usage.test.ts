@@ -3,8 +3,9 @@
  * the names the spec leaves to the application declared below. Keep the two in sync; `test/examples/` runs the same
  * patterns end to end.
  */
-import type { Context, Draft } from "@@evoharness/chord";
+
 import { type AssistantMessage, type Models, type ToolCall, Type } from "@evoharness/ai";
+import type { Context, Draft } from "@evoharness/chord";
 import {
 	type Conversation,
 	type ConversationId,

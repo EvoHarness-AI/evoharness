@@ -66,7 +66,9 @@ function environment(name: string, value: string): string[] {
 
 export function requireEvalAuthFile(provider: string): string {
 	const path = join(
-		process.env.PI_CODING_AGENT_DIR ? resolve(process.env.PI_CODING_AGENT_DIR) : join(homedir(), ".evoharness", "agent"),
+		process.env.EVOHARNESS_CODING_AGENT_DIR
+			? resolve(process.env.EVOHARNESS_CODING_AGENT_DIR)
+			: join(homedir(), ".evoharness", "agent"),
 		"auth.json",
 	);
 	if (!existsSync(path) || !statSync(path).isFile())
@@ -105,17 +107,17 @@ function dockerArgs(
 		"/repo/node_modules/.vite-temp:rw,exec,mode=1777",
 		"--mount",
 		`type=bind,source=${outputDirectory},target=/artifacts`,
-		...environment("PI_EVAL_ARTIFACT_DIR", "/artifacts"),
-		...environment("PI_EVAL_RUNS_PER_VARIANT", String(context.runsPerVariant)),
-		...environment("PI_EVAL_SANDBOX_UID", "65532"),
-		...environment("PI_EVAL_SANDBOX_GID", "65532"),
-		...environment("PI_PROVIDER", context.provider),
-		...environment("PI_MODEL", context.model),
+		...environment("EVOHARNESS_EVAL_ARTIFACT_DIR", "/artifacts"),
+		...environment("EVOHARNESS_EVAL_RUNS_PER_VARIANT", String(context.runsPerVariant)),
+		...environment("EVOHARNESS_EVAL_SANDBOX_UID", "65532"),
+		...environment("EVOHARNESS_EVAL_SANDBOX_GID", "65532"),
+		...environment("EVOHARNESS_PROVIDER", context.provider),
+		...environment("EVOHARNESS_MODEL", context.model),
 	];
 	if (typeof process.getuid === "function" && typeof process.getgid === "function") {
 		args.push(
-			...environment("PI_EVAL_ARTIFACT_UID", String(process.getuid())),
-			...environment("PI_EVAL_ARTIFACT_GID", String(process.getgid())),
+			...environment("EVOHARNESS_EVAL_ARTIFACT_UID", String(process.getuid())),
+			...environment("EVOHARNESS_EVAL_ARTIFACT_GID", String(process.getgid())),
 		);
 	}
 	args.push("--mount", `type=bind,source=${context.authPath},target=/run/evoharness-eval-secrets/auth.json,readonly`);

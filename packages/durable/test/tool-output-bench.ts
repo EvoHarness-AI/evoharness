@@ -13,9 +13,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
-import { BACKGROUND_CONTEXT as context } from "@@evoharness/chord/context";
 import { createModels } from "@evoharness/ai/models";
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@evoharness/ai/providers/faux";
+import { BACKGROUND_CONTEXT as context } from "@evoharness/chord/context";
 import { Type } from "typebox";
 import { NodeExecutionEnv } from "../src/env/node.ts";
 import { createRegistry, defineTool, Harness, LiveDoc, MemoryStorage, type Storage } from "../src/index.ts";
@@ -198,7 +198,11 @@ async function runScenario(scenario: Scenario): Promise<Metrics> {
 			target.observeCommits({
 				advance: (publication) => {
 					for (const change of publication.changes) {
-						if (change.type !== "document" || change.kind !== "change" || change.record.kind !== "evoharness.live")
+						if (
+							change.type !== "document" ||
+							change.kind !== "change" ||
+							change.record.kind !== "evoharness.live"
+						)
 							continue;
 						liveCommits++;
 						liveOpBytes += JSON.stringify(change.ops).length;

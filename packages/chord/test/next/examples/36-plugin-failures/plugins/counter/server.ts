@@ -1,6 +1,6 @@
 // The counter plugin's server facet: serves `Counter`. The example makes its factory throw.
 
-import { constant, defineFacet, int, local } from "@@evoharness/chord/next";
+import { constant, defineFacet, int, local } from "@evoharness/chord/next";
 
 const Counter = local("example.counter", { version: 1, params: {}, members: { start: int() } });
 

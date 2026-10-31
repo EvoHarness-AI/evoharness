@@ -1,8 +1,8 @@
 [package]
-name = "pi-env"
-version = "0.1.0"
+name = "evoharness-env"
+version = "0.0.1"
 edition = "2024"
-description = "Remote execution environment daemon for Pi Durable"
+description = "Remote execution environment daemon for EvoHarness Durable"
 publish = false
 
 [dependencies]

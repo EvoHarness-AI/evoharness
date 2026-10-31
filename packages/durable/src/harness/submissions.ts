@@ -1,5 +1,5 @@
-import { type Context, copyJson, type JsonRepresentation } from "@@evoharness/chord";
-import { withTelemetry } from "@@evoharness/chord/context";
+import { type Context, copyJson, type JsonRepresentation } from "@evoharness/chord";
+import { withTelemetry } from "@evoharness/chord/context";
 import {
 	createTypedSpanStarter,
 	NOOP_TELEMETRY_CONTEXT,

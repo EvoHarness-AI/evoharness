@@ -1,6 +1,6 @@
-import { validateSqliteSchemaPrefix } from "@@evoharness/chord/sqlite";
+import { validateSqliteSchemaPrefix } from "@evoharness/chord/sqlite";
 
-export { validateSqliteSchemaPrefix } from "@@evoharness/chord/sqlite";
+export { validateSqliteSchemaPrefix } from "@evoharness/chord/sqlite";
 
 /**
  * Immutable identifier history for migrations and runtime queries. Never change or remove an existing value; a
