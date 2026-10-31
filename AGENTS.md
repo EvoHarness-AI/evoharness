@@ -39,6 +39,7 @@ Binding for `packages/chord/src/next/` and its tests, when writing and when revi
 - Tests: one test file per source file, one `describe` per mechanism, the layer spec's test list case by case; cost guards through the in-memory telemetry adapter; GC tests for every cache and binding. Every slice also adds one or more runnable examples in `packages/chord/test/next/examples/NN-topic.ts`, one topic each, numbered across slices, written as references for Chord's users (Durable's `test/examples/` format: header with what it shows and how to run it, commented steps, printed results).
 - Slices: Chord v2 is built in vertical slices (`packages/chord/docs/next/slices.md`). Implementers and reviewers read the slice spec, the feature map in `slices.md` and the whole of `packages/chord/docs/next/design.md` in full, and check the work against all three; slice specs cite design sections for orientation, not as a reading limit.
 - Deferred work: anything left to a later slice goes into the section "Carry-over" of `packages/chord/docs/next/slices.md` under that slice, in the same change; a slice's spec and build include every entry of its section.
+- `docs/next/` was deleted by the rebrand commit `9990dcb` and restored from `9990dcb^`. The omitted `*/book.md` concatenations and `index.html` renders stay in git history: take them from there when needed instead of re-adding generated files. In `slices.md`, "What exists" is a ledger; the code and `git log` decide what exists.
 - Before reporting: re-read every changed file top to bottom as a stranger would; each file must be understandable without jumping around. Then `npm run check` and the layer's tests.
 
 ## Commands
@@ -50,10 +51,13 @@ Binding for `packages/chord/src/next/` and its tests, when writing and when revi
 - Never run the full vitest suite directly: it includes e2e tests that activate when endpoint/auth env vars are present. For all non-e2e tests, run `./test.sh` from the repo root. Otherwise run specific tests from the package root:
   - Vitest: `node "$(git rev-parse --show-toplevel)/node_modules/vitest/dist/cli.js" --run test/specific.test.ts`
   - `packages/tui` (`node:test`): `node --test test/specific.test.ts`
+- On Windows, `test.sh` needs bash: run it from Git Bash or WSL, not from PowerShell. `evoharness-test.ps1` / `.bat` launch the interactive CLI in an isolated home; they are not the test runner. Without bash, run the package tests directly instead of `npm test`.
 - If you create or modify a test file, run it and iterate on test or implementation until it passes.
 - For `packages/coding-agent/test/suite/`, use `test/suite/harness.ts` + the faux provider. No real provider APIs, keys, or paid tokens.
 - When regressions tests for fixing a github issue, add a comment with the github issue number next to the test.
 - For ad-hoc scripts, `write` them to a temp file (e.g. `/tmp`), run, edit if needed, remove when done. Don't embed multi-line scripts in `bash` commands.
+- Frozen files: `scripts/file-size.baseline.json` lists files above 1500 lines and `check:file-size` fails on any net gain in them, one line included. Never raise a recorded size with `--write`. Put the new logic in a new file, rewrite in place, or move a block out in the same change; deliberate growth needs `--write --allow-grow` and a reason in the change description (see `docs/structure.md` §1).
+- The repo docs are UTF-8 without BOM. On Windows, `Get-Content`, `Select-String` and `git grep` decode them as ANSI and print mojibake: read them with the editor tools or `Get-Content -Encoding UTF8`, and set `[Console]::OutputEncoding` to UTF-8 before grepping.
 - Never commit unless the user asks.
 
 ## Dependency and Install Security

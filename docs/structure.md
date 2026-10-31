@@ -4,6 +4,7 @@
 > 运行时怎么跑见 [`architecture.md`](./architecture.md)；内核能不能改见根目录 [`KERNEL.md`](../KERNEL.md)；与上游的差异见 [`kernel/divergence.md`](./kernel/divergence.md)。
 >
 > 结构是**目标态**。当前代码与目标的差距只出现在 §9 条件表，且该节在条件满足后逐行销账 —— 台账是过渡物，不是常驻文档。
+> 想知道**现在**有什么、改一个需求落在哪个目录，看 [`packages/README.md`](../packages/README.md)；本文的树不要当成现状读。
 
 范围约定：正文用中文描述职责；目录名、包名、文件路径、标识符一律英文。
 
@@ -16,7 +17,7 @@
 3. **依赖单向**：`apps → surfaces → features → capabilities → runtime-kit → kernel → platform`。反向 import 即架构破损。
 4. **能力自描述**：能力通过 `Capability` descriptor 声明自己，由装配层统一注册。禁止在 kernel 或表面里写 `if (name === "browser")`。
 5. **入口不动、实现可搬**：`bin`、`exports`、CLI 参数、配置文件格式保持稳定；内部实现随时可搬，搬家不改变行为。
-6. **文件与包都要小**：单文件 ≤ 1500 行；禁止纯转发包与桶文件（包公共入口的 `index.ts` 只做导出，不算桶文件）。拆分必须让人少犯错，否则维持原状并把理由写进注释。
+6. **文件与包都要小**：新文件 ≤ 1500 行；已经超限的存量记在 `scripts/file-size.baseline.json`，由 `check:file-size` 守着**只降不跟涨**（涨一行即红；降到阈值下要显式 `--write` 才销账）。**冻结文件里非加不可的逻辑只有三条路**：新文件承接、改动处缩成一次调用；原地重写让净行数不变；同一次改动里把一段内聚代码搬出去，让文件反而变小。`--write` 只销账与登记新超限文件，不提高已有条目；确有必要的增长走 `--write --allow-grow`，那是人拍板的例外，必须在改动说明里写明理由（baseline 的 diff 就是留痕）。禁止纯转发包与桶文件（包公共入口的 `index.ts` 只做导出，不算桶文件）。拆分必须让人少犯错，否则维持原状并把理由写进注释。
 
 ---
 
@@ -92,6 +93,7 @@ evoharness/
 │
 ├── docs/
 │   ├── README.md  structure.md  architecture.md
+│   ├── ai-failure-modes.md                   失效模式与对策库：问题 → 解 → 出处 → 为何最优
 │   ├── kernel/divergence.md                  内核决策与偏离账本（D-xxx）
 │   ├── plan/parked.md                        现在不做的点子 + 叫醒条件（`check:parked` 守）
 │   ├── capabilities.md                       [未建] 能力清单与状态
@@ -289,7 +291,7 @@ packages/feature-memory/
 | `docs/decisions` | 第一条 ADR 真的要写时 |
 | `docs/plan/` | 出现第一条"现在不做、将来要判断"的点子时（已发生）；没有条目的空文件应删除，不留占位 |
 | `docs/capabilities.md` | 能力数量超过一屏、且需要对外呈现状态时 |
-| `packages/README.md`（包索引，按层分组的表） | 包数超过一屏时（现在已接近），加包时加一行 |
+| `packages/README.md`（包索引：现状表 + 目标态去向） | 已建；加包时加一行，拆包时改那一行 |
 | `packages/<layer>/`（分类目录，如 `packages/cap/`） | 满足任一条：① `cap-*` 与 `feature-*` 各超过 8–10 个（总包数 > 30）；② 需要按层配不同的 `tsconfig` / lint / 发布策略；③ 守卫必须靠路径而非包名判断层 |
 
 ---
@@ -357,13 +359,13 @@ node -e "console.log(Object.keys(require('./package.json').scripts).filter(k => 
 | `check:pinned-deps` / `check:runtime-deps` | 依赖未钉版或运行时依赖未声明 |
 | `check:browser-smoke` / `check:package-install` | 浏览器构建与打包安装的冒烟 |
 | `scripts/check-lockfile-commit.mjs`（pre-commit 直接调用） | 锁文件变更需要显式开关 |
-| `check:package-layers` | 层间反向依赖（已建）。同时锁三条现状规则：① `coding-agent` 只能依赖它现有的内部包；② `ai`/`telemetry`/`chord`/`mcp`/`tui`/`codemode` 不得依赖 `coding-agent`/`durable`/`env`；③ 除 `runtime-kit`/`env` 外任何包 import `durable/src/harness` 即失败 |
-| `check:capability-boundaries` | 能力 descriptor 的注册与依赖。未建，`packages/capability` 落地时建 |
-| `check:file-size` | 单文件 > 1500 行。未建，任一源文件接近阈值时建 |
-| `check:doc-links` | `docs/` 死链。未建，`docs/` 手写文件超过 5 篇时建 |
+| `check:package-layers` | 层间反向依赖。同时锁三条现状规则：① `coding-agent` 只能依赖它现有的内部包；② `ai`/`telemetry`/`chord`/`mcp`/`tui`/`codemode` 不得依赖 `coding-agent`/`durable`/`env`；③ 除 `runtime-kit`/`env` 外任何包 import `durable/src/harness` 即失败 |
+| `check:capability-boundaries` | 能力 descriptor 的注册与依赖。出现条件：`packages/capability` 落地 |
+| `check:file-size` | 新文件 > 1500 行即红；存量按 `scripts/file-size.baseline.json` 只降不跟涨（涨一行即红，降到阈值下需显式 `--write` 销账）；基线条目对应的文件消失也算红，防止账本腐烂。`--write` 不提高已有条目，必要的增长走 `--write --allow-grow` 并在改动说明里写理由。生成物（`*.generated.*`）豁免 |
+| `check:doc-links` | `docs/` 与根级 md 里的相对链接必须解析到存在的文件；外链、纯锚点、目录链接不拦 |
 | `check:parked` | `docs/plan/parked.md` 每条必须有 条件/复核/前提/判断依据 四行；触发条件成立或复核日期到点即红，逼一次决策（做 / 改条件 / 作废） |
 
-未建守卫不是待办清单，是带触发条件的规则。**不写生成器**：守卫读事实（manifest、文件图），不读语义。
+守卫的**现状**是机器可读的，不要手写第二份；下表只写“这条守卫拦什么语义、在什么条件下才存在”，不再标“已建/未建”—— 建没建看 `package.json` 的 `check*` 脚本。带条件的规则不是待办清单：条件未满足就不做。**不写生成器**：守卫读事实（manifest、文件图），不读语义。
 
 ---
 
