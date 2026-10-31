@@ -46,3 +46,9 @@ plans/
 .evoharness/settings.json
 collect.sh
 packages/agent/docs/extensions/evoharness-server-artifact/index.md
+
+# Web app (apps/evoharness-web) build and runtime artifacts
+.next/
+.next-desktop/
+apps/evoharness-web/.smoke-agent/
+apps/evoharness-web/next-env.d.ts
