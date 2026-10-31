@@ -18,8 +18,10 @@
 		"build:native:darwin": "npm --prefix packages/tui run build:native:darwin",
 		"build:native:linux": "npm --prefix packages/tui run build:native:linux",
 		"build:native:win32": "npm --prefix packages/tui run build:native:win32",
-		"check": "node scripts/biome-check.mjs && npm run check:parked && npm run check:pinned-deps && npm run check:runtime-deps && npm run check:ts-imports && npm run check:entry-graphs && npm run check:package-layers && npm run check:file-size && npm run check:doc-links && npm run check:install-lock:coding-agent && tsc --noEmit && npm run check:browser-smoke",
+		"check": "node scripts/biome-check.mjs && npm run check:parked && npm run check:pinned-deps && npm run check:runtime-deps && npm run check:ts-imports && npm run check:entry-graphs && npm run check:package-layers && npm run check:file-size && npm run check:doc-links && npm run check:install-lock:coding-agent && tsc --noEmit && npm run check:browser-smoke && npm run check:web",
 		"check:fix": "node scripts/biome-check.mjs --write && npm run check",
+		"check:web": "npm --prefix apps/evoharness-web run check && node scripts/check-web-names.mjs && node scripts/check-web-boundary.mjs && node scripts/check-web-doc-links.mjs",
+		"test:web": "npm --prefix apps/evoharness-web run test:unit",
 		"check:browser-smoke": "node scripts/check-browser-smoke.mjs",
 		"check:pinned-deps": "node scripts/check-pinned-deps.mjs",
 		"check:runtime-deps": "node scripts/check-runtime-deps.mjs",
@@ -80,7 +82,11 @@
 	},
 	"version": "0.0.2",
 	"overrides": {
-		"protobufjs": "7.6.6"
+		"protobufjs": "7.6.6",
+		"katex": "0.19.0",
+		"mammoth": {
+			"argparse": "^2.0.1"
+		}
 	},
 	"optionalDependencies": {
 		"canvas": "3.2.3"
