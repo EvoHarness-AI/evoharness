@@ -357,7 +357,7 @@ node -e "console.log(Object.keys(require('./package.json').scripts).filter(k => 
 | `check:pinned-deps` / `check:runtime-deps` | 依赖未钉版或运行时依赖未声明 |
 | `check:browser-smoke` / `check:package-install` | 浏览器构建与打包安装的冒烟 |
 | `scripts/check-lockfile-commit.mjs`（pre-commit 直接调用） | 锁文件变更需要显式开关 |
-| `check:package-layers` | 层间反向依赖。**未建**，首次出现跨层 import 前必须建；建时同时锁三条现状规则：① `coding-agent` 只能依赖它现有的内部包；② `ai`/`telemetry`/`chord`/`mcp`/`tui`/`codemode` 不得依赖 `coding-agent`/`durable`/`env`；③ 除 `runtime-kit`/`env` 外任何包 import `durable/src/harness` 即失败 |
+| `check:package-layers` | 层间反向依赖（已建）。同时锁三条现状规则：① `coding-agent` 只能依赖它现有的内部包；② `ai`/`telemetry`/`chord`/`mcp`/`tui`/`codemode` 不得依赖 `coding-agent`/`durable`/`env`；③ 除 `runtime-kit`/`env` 外任何包 import `durable/src/harness` 即失败 |
 | `check:capability-boundaries` | 能力 descriptor 的注册与依赖。未建，`packages/capability` 落地时建 |
 | `check:file-size` | 单文件 > 1500 行。未建，任一源文件接近阈值时建 |
 | `check:doc-links` | `docs/` 死链。未建，`docs/` 手写文件超过 5 篇时建 |
