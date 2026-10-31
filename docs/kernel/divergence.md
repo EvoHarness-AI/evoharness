@@ -23,6 +23,7 @@
 | D-006 | A | latex 符号表恢复 `pi` / `Pi` | `packages/tui/src/latex.ts` |
 | D-007 | A | vendored marked 的 `\p{Pi}` 修复 | `coding-agent/src/core/export-html/vendor/marked.min.js` |
 | D-008 | B | install telemetry 默认值恢复为开启 | `coding-agent/core/settings-defaults.ts` |
+| D-009 | A | node 内建动态 import 加打包器豁免注释（auth context 与 env-api-keys 两处） | `packages/ai/src/auth/context.ts`、`packages/ai/src/env-api-keys.ts` |
 
 ---
 
@@ -119,3 +120,13 @@
 **影响面**：默认向 provider 发送 attribution 头；若将来去掉该端点，这条要重新评估。
 
 **兜底**：`packages/ai/test/identity.test.ts`、`packages/coding-agent/test/sdk-client-identity.test.ts`。
+
+## D-009 · A · auth 的 node 内建动态 import 加打包器豁免注释
+
+**改了什么**：`packages/ai` 两处变量形式的动态 import（`auth/context.ts` 的 `importNodeModule`、`env-api-keys.ts` 的 `dynamicImport`，后者还用字符串拼接躲静态分析）加上 `/* webpackIgnore: true */ /* turbopackIgnore: true */` 注释。
+
+**为什么**：`@evoharness/web`（apps/evoharness-web，vendored Next.js 前端）的服务端 bundle 会把这个变量 import 编译成 webpack 动态上下文；上下文里没有 `node:` 内建，运行时每次路由加载都抛 `Cannot find module 'node:fs'`，后端 API 全部 500。上游 pi-web 以真实 npm 包安装 SDK（external，不进 bundle），从未触发；本仓 workspace 符号链接包被 Turbopack/webpack 一视同仁地打包，问题首次显形。
+
+**影响面**：Node 侧语义零变化（原生动态 import 原样保留，Node 自行解析 `node:` 内建）；浏览器侧不执行该路径，`fileExists` 在浏览器由调用方的 try/catch 兜住。打包含义：webpack/Turbopack 不再为它建上下文，`node:fs/promises`、`node:os` 由运行时解析。
+
+**兜底**：`apps/evoharness-web` 的 3030 个单测全量通过；浏览器冒烟覆盖 `/api/sessions`、`/api/home`、模型列表与调度器启动（`check:web` 之外的运行时验证）。
