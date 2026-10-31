@@ -8,9 +8,9 @@ export const liveRunnerDeps: RunnerDeps = {
   now: () => new Date(),
   async startSession(cwd, options) {
     const [{ startRpcSession }, { allowFileRoot }, { invalidateSessionListCache }] = await Promise.all([
-      import("../rpc-manager"),
-      import("../file-access"),
-      import("../session-reader"),
+      import("../rpc-manager.ts"),
+      import("../file-access.ts"),
+      import("../session-reader.ts"),
     ]);
     // A one-time key: concurrent starts sharing a key would be merged into one session.
     const { session, realSessionId } = await startRpcSession(`__scheduled__${crypto.randomUUID()}`, "", cwd, {
