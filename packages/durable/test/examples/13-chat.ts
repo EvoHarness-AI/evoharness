@@ -1,7 +1,7 @@
 // A chat turn.
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/13-chat.ts
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
 import { createModels } from "@evoharness/ai/models";
 import { fauxAssistantMessage, fauxProvider } from "@evoharness/ai/providers/faux";
 import { AssistantEntry, createRegistry, defineExtension, Harness, MemoryStorage, section } from "../../src/index.ts";

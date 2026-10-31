@@ -73,7 +73,7 @@ one-document transactions). **Transactions:** `tx.draft(handle, key?, { tags? })
 | `broken(error)` | a failure that is not retried by the backoff | VI |
 | `inVariant(ref, …)`, `expectVariant(ref, …)`, `RefIn<…>` | narrowing a reference by variant | III |
 | `mapShared(fn)` | an array map that keeps unchanged items identical (planned in Delta) | VIII |
-| `OutputBuffer`, `Progress` | bounded output and throttled progress (`@earendil-works/chord/output`) | XI |
+| `OutputBuffer`, `Progress` | bounded output and throttled progress (`@@evoharness/chord/output`) | XI |
 | `memoryLinkPair()`, `ipcLink(child)`, `webSocketLink(ws)` | link adapters | I |
 | `DocumentStorage`, `registerDocumentStorageConformance` | the storage port and its shared test suite | V |
 

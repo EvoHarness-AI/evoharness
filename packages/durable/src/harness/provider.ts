@@ -1,4 +1,4 @@
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@@evoharness/chord";
 import { uuidv7 } from "@evoharness/ai/utils/uuid";
 import { defineDoc } from "../documents.ts";
 import type { TaskRuntime } from "../types.ts";

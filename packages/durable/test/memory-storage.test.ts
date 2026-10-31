@@ -1,4 +1,4 @@
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
 import { registerStorageConformance } from "@evoharness/durable/testing";
 import { describe, expect, it } from "vitest";
 import { idFromNumber, seqFromNumber } from "../src/ids.ts";

@@ -2,7 +2,7 @@
 // the next commit that reads or writes `evoharness.live` or within `settings.progress.persistWithinMs`. Crashes are simulated
 // by failing the Harness: from that moment nothing more reaches Storage, as when the process dies; the reopened Harness
 // resumes from what was stored.
-import { applyImmutable } from "@earendil-works/chord/delta";
+import { applyImmutable } from "@@evoharness/chord/delta";
 import { fauxAssistantMessage, fauxText, fauxToolCall, Type } from "@evoharness/ai";
 import {
 	AssistantEntry,

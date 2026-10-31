@@ -1,8 +1,8 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Context, JsonValue } from "@earendil-works/chord";
-import { withAbortSignal } from "@earendil-works/chord/context";
+import type { Context, JsonValue } from "@@evoharness/chord";
+import { withAbortSignal } from "@@evoharness/chord/context";
 import { createModels, fauxAssistantMessage, fauxText, fauxToolCall, Type } from "@evoharness/ai";
 import {
 	type Conversation,

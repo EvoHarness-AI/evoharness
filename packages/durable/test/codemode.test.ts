@@ -1,7 +1,7 @@
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@@evoharness/chord";
 import { type AssistantMessage, fauxAssistantMessage, fauxText, fauxToolCall, Type } from "@evoharness/ai";
 import { type CodemodeRun, CodemodeSandbox } from "@evoharness/codemode";
 import {

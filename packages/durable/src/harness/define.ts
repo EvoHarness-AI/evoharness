@@ -1,4 +1,4 @@
-import type { JsonValue } from "@earendil-works/chord";
+import type { JsonValue } from "@@evoharness/chord";
 import type { TSchema } from "@evoharness/ai";
 import type { Task } from "../types.ts";
 import type {

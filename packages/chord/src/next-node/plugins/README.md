@@ -4,8 +4,8 @@ The plugins component (slice 7c, design §21 "Loading plugins and the reload loo
 facet built into a script by esbuild and evaluated on Node, loaded and reloaded per plugin, watched and rolled out. A
 Chord app modifies itself (the owner or an agent edits a plugin while it runs), so this is core machinery, no dev mode.
 Node-only (`fs`, esbuild, `vm`); the kernel in `src/next` stays portable and takes facets however they were made.
-esbuild is an optional peer dependency of `@earendil-works/chord`, imported only here. Exported as
-`@earendil-works/chord/next/plugins` once v2 has its entry point.
+esbuild is an optional peer dependency of `@@evoharness/chord`, imported only here. Exported as
+`@@evoharness/chord/next/plugins` once v2 has its entry point.
 
 ## For apps (`index.ts`)
 
@@ -29,7 +29,7 @@ await plugins.rollout([plugins.step("server", server), ...workerSteps], built, c
 - `buildFacet(plugin, kind, { hostPackages, platform, plugins?, publicPath? }, ctx)`: one esbuild build from cold.
   Inlined: the plugin's own files, files of other discovered plugins (copies, listed in `copied`; they may import only
   host packages and files of their own plugin: contracts and side-effect-free modules), packages of its
-  `dependencies`. External: host packages, `@earendil-works/chord/next/plugins`, `chord.external` packages and Node
+  `dependencies`. External: host packages, `@@evoharness/chord/next/plugins`, `chord.external` packages and Node
   builtins (Node builds; a browser build refuses both). Browser builds collect CSS into one stylesheet (`css`) and
   assets (`import url from "./icon.svg?url"`, `.wasm`) into content-hashed files (`assets`) under `publicPath`.
   Refused, with the file and line: `import.meta`, `__dirname`, `__filename` (each use, found through the script's
@@ -41,7 +41,7 @@ await plugins.rollout([plugins.step("server", server), ...workerSteps], built, c
 - `evaluateFacet(built, { hostPackages, plugin })`: `vm.Script` in this context under a stable filename per (plugin,
   kind, digest), the default export checked to be a facet. Its `require` answers the host packages (a CommonJS
   package's exports as they are, an ESM namespace wrapped once with `__esModule` so default and named imports both
-  work), `@earendil-works/chord/next/plugins` with `pluginFile` bound to the plugin's directory, `chord.external`
+  work), `@@evoharness/chord/next/plugins` with `pluginFile` bound to the plugin's directory, `chord.external`
   packages and Node builtins from the plugin's directory; anything else throws naming the facet. No module map, no
   cache: an old facet's closures are collected once nothing holds them.
 - `pluginFile(path)` (inside a facet script): the absolute path of a file of its own plugin; `..` out of it refused.

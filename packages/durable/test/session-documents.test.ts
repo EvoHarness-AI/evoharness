@@ -1,4 +1,4 @@
-import type { Draft, JsonValue } from "@earendil-works/chord";
+import type { Draft, JsonValue } from "@@evoharness/chord";
 import {
 	type ConversationId,
 	defineDoc,

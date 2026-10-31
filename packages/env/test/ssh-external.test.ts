@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
 import { getOrThrow } from "@evoharness/durable/env";
 import { registerEnvConformance } from "@evoharness/durable/testing";
 import { afterAll, describe, expect, it } from "vitest";

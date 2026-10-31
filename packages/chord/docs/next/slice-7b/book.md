@@ -86,7 +86,7 @@ plugins/notes/
   "version": "0.0.1",
   "type": "module",
   "peerDependencies": {
-    "@earendil-works/chord": "^2",
+    "@@evoharness/chord": "^2",
     "@evoharness/durable": "^1",
     "react": "^19"
   },
@@ -114,7 +114,7 @@ returns nothing.
 
 ```ts
 // plugins/notes/contract.ts
-import { defineRegistry, local, remote, str, obj, arr, method } from "@earendil-works/chord/next";
+import { defineRegistry, local, remote, str, obj, arr, method } from "@@evoharness/chord/next";
 import { Session } from "@app/core";                        // the app's host kinds, a host package
 export const NoteStore = local("notes.store", { version: 1, params: {}, members: { /* … */ } });
 export const Notes = remote("notes", {
@@ -152,7 +152,7 @@ Each facet is built on its own, as one script. The bundler starts at the facet f
 | another plugin's contract (`../sessions/contract.ts`, or `@evoharness/sessions/contract` for an installed package) | inlined too: a copy, so a plugin carries the contract version it was built against (`accepts` needs that); only contracts and side-effect-free modules may be imported across plugins |
 | an npm package in `dependencies` (`marked`) | inlined, resolved from the plugin's own `node_modules` |
 | an npm package listed in `chord.external` (Node facets only) | external: `require`d from the plugin's own `node_modules` at evaluation |
-| a host package (`@earendil-works/chord/next`, `react`, `@app/core`, …) | **external**: a parameter of the script, the host's instance at load time |
+| a host package (`@@evoharness/chord/next`, `react`, `@app/core`, …) | **external**: a parameter of the script, the host's instance at load time |
 | a Node builtin (`node:fs`) | external, through the `require` the loader passes (server and worker facets only; a web facet that imports one fails to build) |
 | CSS (`import "./notes.css"`) | collected into one stylesheet per web facet |
 | an asset by URL (`import iconUrl from "./assets/icon.svg?url"`) | a content-hashed file served by the app; the import is its URL |
@@ -164,7 +164,7 @@ second copy of Chord, and an old version is garbage-collected once nothing holds
 // what the bundler emits for plugins/notes/worker.ts (simplified)
 (function (require, __files) {
   const { defineFacet } = require("@app/core");             // the host's instance
-  const { local, remote, str } = require("@earendil-works/chord/next");
+  const { local, remote, str } = require("@@evoharness/chord/next");
   const { marked } = /* marked's code, inlined */;
   /* contract.ts, store.ts, inlined */
   return defineFacet((host) => { /* … */ });
@@ -172,11 +172,11 @@ second copy of Chord, and an old version is garbage-collected once nothing holds
 ```
 
 ```ts
-// the loader (proposed @earendil-works/chord/next/loader), Node side
-import { buildFacet, evaluateFacet } from "@earendil-works/chord/next/loader";
+// the loader (proposed @@evoharness/chord/next/loader), Node side
+import { buildFacet, evaluateFacet } from "@@evoharness/chord/next/loader";
 
 const HOST_PACKAGES = {                                     // the app's base bundle exports these
-  "@earendil-works/chord/next": chordNext, "@evoharness/durable": durable,
+  "@@evoharness/chord/next": chordNext, "@evoharness/durable": durable,
   "@app/core": core, react, "react/jsx-runtime": jsxRuntime,
 };
 const script = await buildFacet({ plugin: "/data/plugins/notes", facet: "worker.ts", hostPackages: Object.keys(HOST_PACKAGES), platform: "node" });
@@ -220,7 +220,7 @@ inside it, refusing `..` out of it:
 
 ```ts
 // plugins/notes/worker.ts
-import { pluginFile } from "@earendil-works/chord/next/loader";   // reads the directory the loader passed
+import { pluginFile } from "@@evoharness/chord/next/loader";   // reads the directory the loader passed
 const template = await readFile(pluginFile("assets/template.md"), "utf8");
 ```
 
@@ -248,7 +248,7 @@ own plugin's directory; nothing gives it another plugin's files.
 
 # HTTP {#http lede="What Chord provides, what p2 has, and what p3 needs."}
 
-**Chord v2 has no HTTP server today.** Design §23 designs one (`@earendil-works/chord/next/http`) and defers it until
+**Chord v2 has no HTTP server today.** Design §23 designs one (`@@evoharness/chord/next/http`) and defers it until
 "the kernel fixes and a first real proof" are done. p2's HTTP is its own, about 30 lines of helpers plus the server host:
 
 ```ts
@@ -314,13 +314,13 @@ subpath an app imports only if it wants it, none of them in Chord's kernel.
 
 ```ts
 // server.ts: a whole app with plugins, a web and a TUI surface
-import { createHost } from "@earendil-works/chord/next";
-import { discoverPlugins, pluginLoader } from "@earendil-works/chord/next/loader";
-import { httpServer } from "@earendil-works/chord/next/http";
-import { workerRoute } from "@earendil-works/chord/next/workers";
-import { webSurface } from "@earendil-works/chord/next/web";
-import { tuiSurface } from "@earendil-works/chord/next/tui";
-import { devReload } from "@earendil-works/chord/next/dev";
+import { createHost } from "@@evoharness/chord/next";
+import { discoverPlugins, pluginLoader } from "@@evoharness/chord/next/loader";
+import { httpServer } from "@@evoharness/chord/next/http";
+import { workerRoute } from "@@evoharness/chord/next/workers";
+import { webSurface } from "@@evoharness/chord/next/web";
+import { tuiSurface } from "@@evoharness/chord/next/tui";
+import { devReload } from "@@evoharness/chord/next/dev";
 import { Server, Session, core } from "./core.ts";              // the app's base code: host kinds, principals, core facet
 
 const plugins = await discoverPlugins(["./plugins", join(dataDir, "plugins")]);
@@ -338,7 +338,7 @@ devReload({ server, loader, plugins, watch: true });                            
 
 ```ts
 // worker.ts
-import { workerMain } from "@earendil-works/chord/next/workers";
+import { workerMain } from "@@evoharness/chord/next/workers";
 await workerMain(async ({ address, init, parent }) => {
   const worker = createHost<P>({ address, principal: { kind: "worker", session: init.id }, onError });
   worker.connect(parent, { principal: { kind: "server" }, trusted: true }, ctx);
@@ -381,7 +381,7 @@ the core facet and core objects (catalog, harness); the web shell's layout and t
 contribute to beyond `Http`. That is roughly what p3's base code should be: a few hundred lines, not ten thousand.
 
 :::review | Open 6: the app kit
-(a) Chord ships these six components as optional subpaths of `@earendil-works/chord`, built in this order: `loader`
+(a) Chord ships these six components as optional subpaths of `@@evoharness/chord`, built in this order: `loader`
 and `dev` with 7b (reload needs them), `http` and `workers` next (p3 needs them first), `web` and `tui` after (lifted
 from p2's code, which works today). (b) Chord ships only `loader`; the rest is p3's base code. Recommended: (a), as the
 owner asked; each component gets its own slice spec and review, after 7b and before slice 9 or alongside p3's base.

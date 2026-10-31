@@ -126,7 +126,7 @@ retention limit would let a retried key rerun its effect. The owner knows which 
   recorded, `finish` not yet committed) or `blocked` (with the reason). `concurrency` counts only active runs. The
   panel shows a progress bar from it.
 - **Progress** is in memory, throttled and sent as deltas. For output, use `OutputBuffer` and `Progress` from
-  `@earendil-works/chord/output`: bounded windows, adaptive throttling, no write amplification.
+  `@@evoharness/chord/output`: bounded windows, adaptive throttling, no write amplification.
 - **Waiting:** `start` returns a run with `outcome(ctx)`. The caller's abort ends only its wait, never the run.
 - **Abort is a request:** `job.abort(id)` fires the run's `ctx.signal`; the run decides what it returns (a result
   that already arrived stays a success). A run that ignores the signal keeps its slot until it ends. `finish` runs in

@@ -19,7 +19,7 @@ const server = createHost<P, Revocation>({
   address: Server(), principal: { kind: "server" }, onError,
   revokedBy: (p) => p.kind === "guest" ? [{ grant: p.grant }, { session: p.session }]
     : p.kind === "owner" && p.access === "device" ? [{ device: p.device }] : [],
-  compression: nodeCompression,                      // from `@earendil-works/chord/next/node`
+  compression: nodeCompression,                      // from `@@evoharness/chord/next/node`
 });
 server.revoke({ grant: "g1" }, ctx);                 // ends g1's objects here and on every worker, closes g1's links
 

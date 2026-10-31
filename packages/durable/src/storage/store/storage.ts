@@ -2,7 +2,7 @@
 // allocator), commits as one composite write of the store's commit step, and the reads, each one guarded read of the
 // store (several queries at one state in a read transaction), its request errors in a tagged result told after it.
 
-import type { Context, JsonValue } from "@earendil-works/chord";
+import type { Context, JsonValue } from "@@evoharness/chord";
 import {
 	type ChordStore,
 	type Claimant,
@@ -11,8 +11,8 @@ import {
 	type SeriesCommit,
 	type Store,
 	StoreOwnerTables,
-} from "@earendil-works/chord/next";
-import type { SqliteExecutor } from "@earendil-works/chord/sqlite";
+} from "@@evoharness/chord/next";
+import type { SqliteExecutor } from "@@evoharness/chord/sqlite";
 import { StorageRequestError } from "../../errors.ts";
 import { idFromNumber, seqFromNumber } from "../../ids.ts";
 import type {

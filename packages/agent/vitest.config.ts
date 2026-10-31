@@ -17,10 +17,10 @@ export default defineConfig({
 	resolve: {
 		conditions: ["source"],
 		alias: [
-			{ find: /^@earendil-works\/evoharness-telemetry$/, replacement: telemetrySrcIndex },
-			{ find: /^@earendil-works\/evoharness-agent-core$/, replacement: agentSrcIndex },
-			{ find: /^@earendil-works\/evoharness-ai$/, replacement: aiSrcIndex },
-			{ find: /^@earendil-works\/evoharness-ai\/compat$/, replacement: aiSrcCompat },
+			{ find: /^@evoharness\/telemetry$/, replacement: telemetrySrcIndex },
+			{ find: /^@evoharness\/agent-core$/, replacement: agentSrcIndex },
+			{ find: /^@evoharness\/ai$/, replacement: aiSrcIndex },
+			{ find: /^@evoharness\/ai\/compat$/, replacement: aiSrcCompat },
 		],
 	},
 	ssr: { resolve: { conditions: ["source"] } },

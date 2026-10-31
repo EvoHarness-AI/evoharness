@@ -109,7 +109,7 @@ table is empty and radius works.
 
 ## The HTTP component
 
-HTTP is an optional Chord component (`@earendil-works/chord/next/http`) built on a registry. A route gets a plain
+HTTP is an optional Chord component (`@@evoharness/chord/next/http`) built on a registry. A route gets a plain
 request summary (method, path params, query, principal, provenance such as local or relayed, selected headers, parsed
 and capped JSON bodies, uploads in chunks) and a `ctx` whose `principal` is the request's, so `ctx.get(Notes, …)` gives
 exactly the view that person may see. The route returns a description; the component does the HTTP work once (ranges

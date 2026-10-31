@@ -286,7 +286,7 @@ The adapter is safe to use as an ordinary `TelemetryContext`, but storage is unb
 
 ## Stored Telemetry
 
-`TelemetryStore` separates querying from recording. Both `InMemoryTelemetryContext` and `@earendil-works/chord/telemetry-sqlite` implement it:
+`TelemetryStore` separates querying from recording. Both `InMemoryTelemetryContext` and `@@evoharness/chord/telemetry-sqlite` implement it:
 
 - `findTraces(query?)` returns complete locally stored traces, newest trace start first. Filters include the earliest stored span's `name`, inclusive `startMin`/`startMax`, `errors: true`, and scalar `attributes`. All requested attributes must match one span, anywhere in the trace. Pages default to 20 traces; pass the returned opaque `cursor` with the same filters to continue. Equal start times are ordered by trace ID.
 - `getTrace(traceId)` returns a trace or `undefined`.

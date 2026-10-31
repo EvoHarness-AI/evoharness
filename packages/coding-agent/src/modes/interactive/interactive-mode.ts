@@ -161,7 +161,7 @@ import {
 	formatAuthSelectorProviderType,
 	OAuthSelectorComponent,
 } from "./components/oauth-selector.ts";
-import { evoharnessLogoLines, evoharnessWordmark, supportsPiLogo } from "./components/evoharness-logo.ts";
+import { evoharnessLogoLines, evoharnessWordmark, supportsEvoharnessLogo } from "./components/evoharness-logo.ts";
 import { createLoginMenuSelector } from "./components/radius-login-selector.ts";
 import { ScopedModelsSelectorComponent } from "./components/scoped-models-selector.ts";
 import { SessionSelectorComponent } from "./components/session-selector.ts";
@@ -1035,7 +1035,7 @@ export class InteractiveMode {
 			// Built on demand so the header follows theme changes. The logo's first line carries the version,
 			// its second line the first line of key hints. Terminals that cannot render the logo get a
 			// "EvoHarness vX" line instead, with the key hints below it.
-			const showLogo = supportsPiLogo();
+			const showLogo = supportsEvoharnessLogo();
 			const withLogo = (hints: string) => {
 				if (!showLogo) return `${evoharnessWordmark()} ${theme.fg("dim", `v${this.version}`)}\n${hints}`;
 				const [top, bottom] = evoharnessLogoLines();

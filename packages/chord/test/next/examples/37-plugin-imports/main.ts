@@ -36,7 +36,7 @@ const plugins = createPlugins(
 		roots: [root],
 		kinds: ["server"],
 		hostPackages: {
-			"@earendil-works/chord/next": chordNext,
+			"@@evoharness/chord/next": chordNext,
 			"@example/app": app,
 			"@example/legacy": createRequire(import.meta.url)("./app/legacy.cjs"),
 		},

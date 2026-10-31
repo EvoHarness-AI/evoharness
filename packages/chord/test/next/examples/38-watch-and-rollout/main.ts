@@ -58,7 +58,7 @@ const plugins = createPlugins(
 	{
 		roots: [root],
 		kinds: ["server", "worker"],
-		hostPackages: { "@earendil-works/chord/next": chordNext },
+		hostPackages: { "@@evoharness/chord/next": chordNext },
 		// The app's own code: a change marks `base`.
 		base: [join(copy, "app")],
 		// A stand-in for npm (no network; these plugins have no dependencies).

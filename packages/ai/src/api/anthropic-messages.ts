@@ -103,7 +103,7 @@ const claudeCodeVersion = "2.1.280";
 
 // Claude Code 2.x tool names (canonical casing)
 // Source: https://cchistory.mariozechner.at/data/prompts-2.1.11.md
-// To update: https://github.com/badlogic/cchistory
+// To update: https://github.com/EvoHarness-AI/cchistory
 const claudeCodeTools = [
 	"Read",
 	"Write",

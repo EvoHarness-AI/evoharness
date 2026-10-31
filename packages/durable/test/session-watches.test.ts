@@ -1,14 +1,14 @@
 import { setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
-import type { Context, WatchCall, WatchEnd } from "@earendil-works/chord";
+import type { Context, WatchCall, WatchEnd } from "@@evoharness/chord";
 import {
 	BACKGROUND_CONTEXT,
 	createContextKey,
 	withAbortSignal,
 	withCancel,
 	withContextValue,
-} from "@earendil-works/chord/context";
-import { applyImmutable } from "@earendil-works/chord/delta";
+} from "@@evoharness/chord/context";
+import { applyImmutable } from "@@evoharness/chord/delta";
 import { type DocumentWatch, defineDoc, defineDocFamily, MemoryStorage } from "@evoharness/durable";
 import { describe, expect, it } from "vitest";
 import { SessionImpl } from "../src/session/session.ts";

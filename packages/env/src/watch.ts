@@ -1,4 +1,4 @@
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@@evoharness/chord";
 import { type FileChange, FileError, type FileWatcher, type WatchTarget } from "@evoharness/durable/env";
 import { type Connection, isConnectionLost } from "./connection.ts";
 import { toFileError } from "./errors.ts";

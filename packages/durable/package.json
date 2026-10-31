@@ -158,7 +158,7 @@
 		"node": ">=22.19.0"
 	},
 	"dependencies": {
-		"@earendil-works/chord": "0.0.1",
+		"@@evoharness/chord": "0.0.1",
 		"@evoharness/ai": "0.0.1",
 		"@evoharness/codemode": "0.0.1",
 		"@evoharness/telemetry": "0.0.1",

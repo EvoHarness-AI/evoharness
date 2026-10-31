@@ -1,7 +1,7 @@
 // Run a durable task.
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/11-tasks.ts
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
 import { createModels } from "@evoharness/ai/models";
 import { createRegistry, defineExtension, defineTask, Harness, MemoryStorage } from "../../src/index.ts";
 

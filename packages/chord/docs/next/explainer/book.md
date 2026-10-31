@@ -9,7 +9,7 @@ stats:
   - 6–7k | target size of Chord v2, without tests
   - 0.004 ms | Delta's apply per small change
 note: |
-  This guide teaches the **designed** API of Chord v2 (`packages/chord/src/next`, export `@earendil-works/chord/next`)
+  This guide teaches the **designed** API of Chord v2 (`packages/chord/src/next`, export `@@evoharness/chord/next`)
   from `packages/chord/docs/next/design.md` and the newer decision log `packages/chord/docs/next/decisions.md`, which wins
   where the two differ. Most of it is **not built yet**: a first kernel of about 10k lines is frozen as a reference and
   Chord v2 is being rebuilt layer by layer; only the L1 contract layer exists (`src/next/contracts/`, commit
@@ -164,7 +164,7 @@ Every addressable host has a typed address. The app declares its **host kinds** 
 
 ```ts
 // studio/src/hosts.ts
-import { hostKind, obj, str } from "@earendil-works/chord/next";
+import { hostKind, obj, str } from "@@evoharness/chord/next";
 
 export const Server = hostKind("server");
 export const Session = hostKind("session", obj({ id: str() }));
@@ -192,7 +192,7 @@ chapter III explains why that matters.
 
 ```ts
 // studio/src/server.ts
-import { createHost, ipcLink, webSocketLink } from "@earendil-works/chord/next";
+import { createHost, ipcLink, webSocketLink } from "@@evoharness/chord/next";
 import { fork } from "node:child_process";
 import { WebSocketServer } from "ws";
 import { Server, Session } from "./hosts.ts";
@@ -384,7 +384,7 @@ An object type is a contract: a name, an **input** (the object's key among objec
 
 ```ts
 // notes/contract.ts
-import { arr, int, method, obj, remote, str, type Static } from "@earendil-works/chord/next";
+import { arr, int, method, obj, remote, str, type Static } from "@@evoharness/chord/next";
 import { Session } from "@studio/core/hosts";
 
 export const Note = obj({ id: str(), text: str({ max: 2000 }), by: str(), at: int() });
@@ -435,7 +435,7 @@ host which object types it serves:
 
 ```ts
 // notes/worker.ts
-import { defineState } from "@earendil-works/chord/next";
+import { defineState } from "@@evoharness/chord/next";
 import { defineFacet } from "@studio/core";          // Studio's defineFacet: principals typed as Studio's P (chapter III)
 import { Note, Notes } from "./contract.ts";
 
@@ -648,7 +648,7 @@ facet of every plugin imports that one instead of Chord's:
 
 ```ts
 // studio/src/facet.ts (base code, exported as @studio/core)
-import { bindFacet } from "@earendil-works/chord/next";
+import { bindFacet } from "@@evoharness/chord/next";
 import type { P } from "./principal.ts";
 
 export const defineFacet = bindFacet<P>();         // a facet's principals are Studio's P
@@ -1086,12 +1086,12 @@ interface DocumentStorage {
 }
 ```
 
-Chord ships a memory storage and a SQLite storage (over `@earendil-works/chord/sqlite`, the driver layer that moved
+Chord ships a memory storage and a SQLite storage (over `@@evoharness/chord/sqlite`, the driver layer that moved
 from Durable; Node and Durable Object drivers). Storages check only metadata (incarnation, version, sequence, address
 occupancy, fingerprint) and write the supplied delta or base; they never rebuild or validate content on a commit.
 Chord documents never commit together with Durable transcripts: Chord has its own storage, not an adapter over
 Durable's. Your own storage can prove itself with `registerDocumentStorageConformance(runner, name, withStorage)` from
-`@earendil-works/chord/testing`.
+`@@evoharness/chord/testing`.
 
 Keyed persisted documents that nobody reads, writes or watches for 10 minutes leave memory and reload on the next
 access. A storage error ends the store and closes the host; `onError` receives `{ kind: "storage_failed" }` and the
@@ -1462,7 +1462,7 @@ self.derive("public", [list], ([l]) => ({ items: l.items.map((n) => ({ id: n.id,
 return their previous result object.
 
 ```ts
-import { mapShared } from "@earendil-works/chord/delta";
+import { mapShared } from "@@evoharness/chord/delta";
 
 const stripAuthor = mapShared((n: Note): PublicNote => ({ id: n.id, text: n.text, at: n.at }));
 self.derive("public", [list], ([l]) => ({ items: l.items.map(stripAuthor) }));
@@ -1470,7 +1470,7 @@ self.derive("public", [list], ([l]) => ({ items: l.items.map(stripAuthor) }));
 ```
 
 :::review | Review: mapShared is planned, not available
-Design §12 introduces `mapShared` as coming "from `@earendil-works/chord/delta`", but nothing in `packages/chord/src`
+Design §12 introduces `mapShared` as coming "from `@@evoharness/chord/delta`", but nothing in `packages/chord/src`
 defines it yet, and Delta does not yet treat bytes as atomic leaves in `diffRevisions`. Design §28 lists both as the
 step "Delta in evoharness", before the layered rebuild. Until then, keep a `Map` from source element to result yourself, which
 is what `mapShared` will do.
@@ -1967,7 +1967,7 @@ retention limit would let a retried key rerun its effect. The owner knows which 
   recorded, `finish` not yet committed) or `blocked` (with the reason). `concurrency` counts only active runs. The
   panel shows a progress bar from it.
 - **Progress** is in memory, throttled and sent as deltas. For output, use `OutputBuffer` and `Progress` from
-  `@earendil-works/chord/output`: bounded windows, adaptive throttling, no write amplification.
+  `@@evoharness/chord/output`: bounded windows, adaptive throttling, no write amplification.
 - **Waiting:** `start` returns a run with `outcome(ctx)`. The caller's abort ends only its wait, never the run.
 - **Abort is a request:** `job.abort(id)` fires the run's `ctx.signal`; the run decides what it returns (a result
   that already arrived stays a success). A run that ignores the signal keeps its slot until it ends. `finish` runs in
@@ -2262,7 +2262,7 @@ table is empty and radius works.
 
 ## The HTTP component
 
-HTTP is an optional Chord component (`@earendil-works/chord/next/http`) built on a registry. A route gets a plain
+HTTP is an optional Chord component (`@@evoharness/chord/next/http`) built on a registry. A route gets a plain
 request summary (method, path params, query, principal, provenance such as local or relayed, selected headers, parsed
 and capped JSON bodies, uploads in chunks) and a `ctx` whose `principal` is the request's, so `ctx.get(Notes, …)` gives
 exactly the view that person may see. The route returns a description; the component does the HTTP work once (ranges
@@ -2695,7 +2695,7 @@ flag and editors get a `pin` method. Instead of editing the declaration, the plu
 
 ```ts
 // notes/contract.ts
-import { bool, evolve, nul } from "@earendil-works/chord/next";
+import { bool, evolve, nul } from "@@evoharness/chord/next";
 
 export const NoteV2 = obj({ id: str(), text: str({ max: 2000 }), by: str(), at: int(), pinned: bool() });
 export const PublicNoteV2 = obj({ id: str(), text: str(), at: int(), pinned: bool() });
@@ -2740,7 +2740,7 @@ mappings that live in its own code, never in the contract. The worker facet decl
 
 ```ts
 // notes/worker.ts
-import { checkAccepts } from "@earendil-works/chord/next";
+import { checkAccepts } from "@@evoharness/chord/next";
 
 const toV1 = ({ pinned, ...note }: Static<typeof NoteV2>) => note;
 const toPublicV1 = ({ pinned, ...note }: Static<typeof PublicNoteV2>) => note;
@@ -3201,7 +3201,7 @@ already has are reported. Errors carry a fixed category and a message cut to 500
 error. Chord ships a typed telemetry schema, as evoharness-ai (`AI_TELEMETRY_SCHEMA`) and Durable
 (`DURABLE_TELEMETRY_SCHEMA`) do.
 
-**Storing and reading:** `@earendil-works/chord/telemetry-sqlite` over `chord/sqlite` (Node and Cloudflare) stores one
+**Storing and reading:** `@@evoharness/chord/telemetry-sqlite` over `chord/sqlite` (Node and Cloudflare) stores one
 row per settled span (events and links inline) and metrics aggregated per series per 10 s, flushes in batches every
 second, keeps 7 days, and drops (and counts) beyond a bounded queue. The read interface `TelemetryStore` is shared:
 `findTraces` (by name, attributes, errors, time window, with limit and cursor) returns complete traces, `getTrace`
@@ -4390,7 +4390,7 @@ one-document transactions). **Transactions:** `tx.draft(handle, key?, { tags? })
 | `broken(error)` | a failure that is not retried by the backoff | VI |
 | `inVariant(ref, …)`, `expectVariant(ref, …)`, `RefIn<…>` | narrowing a reference by variant | III |
 | `mapShared(fn)` | an array map that keeps unchanged items identical (planned in Delta) | VIII |
-| `OutputBuffer`, `Progress` | bounded output and throttled progress (`@earendil-works/chord/output`) | XI |
+| `OutputBuffer`, `Progress` | bounded output and throttled progress (`@@evoharness/chord/output`) | XI |
 | `memoryLinkPair()`, `ipcLink(child)`, `webSocketLink(ws)` | link adapters | I |
 | `DocumentStorage`, `registerDocumentStorageConformance` | the storage port and its shared test suite | V |
 

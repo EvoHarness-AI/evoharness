@@ -930,7 +930,7 @@ process.exit(${exitCode});
 	it("keeps npm self-updates non-managed when the managed environment is inherited", async () => {
 		const globalPrefix = join(tempDir, "global-prefix");
 		const projectPrefix = join(tempDir, "project-prefix");
-		const selfPackageDir = join(globalPrefix, "lib", "node_modules", "@earendil-works", "evoharness-coding-agent");
+		const selfPackageDir = join(globalPrefix, "lib", "node_modules", "@EvoHarness-AI", "evoharness-coding-agent");
 		const inheritedManagedRoot = join(tempDir, "inherited-managed-install");
 		mkdirSync(join(inheritedManagedRoot, "releases"), { recursive: true });
 		writeFileSync(
@@ -1086,7 +1086,7 @@ else {
 
 	it("prints a pnpm metadata hint when self-update fails", async () => {
 		const globalRoot = join(tempDir, "pnpm", "global", "v11");
-		const selfPackageDir = join(globalRoot, "node_modules", "@earendil-works", "evoharness-coding-agent");
+		const selfPackageDir = join(globalRoot, "node_modules", "@EvoHarness-AI", "evoharness-coding-agent");
 		const fakeBinDir = join(tempDir, "bin");
 		const fakePnpmPath = join(fakeBinDir, process.platform === "win32" ? "pnpm.cmd" : "pnpm");
 		mkdirSync(selfPackageDir, { recursive: true });

@@ -53,7 +53,7 @@ Every addressable host has a typed address. The app declares its **host kinds** 
 
 ```ts
 // studio/src/hosts.ts
-import { hostKind, obj, str } from "@earendil-works/chord/next";
+import { hostKind, obj, str } from "@@evoharness/chord/next";
 
 export const Server = hostKind("server");
 export const Session = hostKind("session", obj({ id: str() }));
@@ -81,7 +81,7 @@ chapter III explains why that matters.
 
 ```ts
 // studio/src/server.ts
-import { createHost, ipcLink, webSocketLink } from "@earendil-works/chord/next";
+import { createHost, ipcLink, webSocketLink } from "@@evoharness/chord/next";
 import { fork } from "node:child_process";
 import { WebSocketServer } from "ws";
 import { Server, Session } from "./hosts.ts";

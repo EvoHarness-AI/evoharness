@@ -34,8 +34,8 @@
  * or when the script diverges: it makes another call, or calls in another order, than the journal says. Each ends the
  * call with an error result.
  */
-import { type Context, copyJson, type JsonValue } from "@earendil-works/chord";
-import { ownedSlice } from "@earendil-works/chord/delta";
+import { type Context, copyJson, type JsonValue } from "@@evoharness/chord";
+import { ownedSlice } from "@@evoharness/chord/delta";
 import type { TextContent } from "@evoharness/ai";
 import { toCodemodeIdentifier } from "@evoharness/codemode/declarations";
 import type {

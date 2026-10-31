@@ -1,6 +1,6 @@
 import { runInDurableObject } from "cloudflare:test";
 import { env } from "cloudflare:workers";
-import { DurableObjectSqliteDatabase } from "@earendil-works/chord/sqlite/cloudflare";
+import { DurableObjectSqliteDatabase } from "@@evoharness/chord/sqlite/cloudflare";
 import { registerStorageConformance } from "@evoharness/durable/testing";
 import { describe, expect, it } from "vitest";
 import { openDurableObjectSqliteStorage } from "../src/storage/sqlite/cloudflare.ts";

@@ -1,7 +1,7 @@
 // The inbox: what happens to submissions while a conversation is busy.
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/19-inbox.ts
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
 import type { FauxResponseStep } from "@evoharness/ai";
 import { createModels } from "@evoharness/ai/models";
 import { fauxAssistantMessage, fauxProvider } from "@evoharness/ai/providers/faux";

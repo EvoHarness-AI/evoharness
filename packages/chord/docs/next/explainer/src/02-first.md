@@ -27,7 +27,7 @@ An object type is a contract: a name, an **input** (the object's key among objec
 
 ```ts
 // notes/contract.ts
-import { arr, int, method, obj, remote, str, type Static } from "@earendil-works/chord/next";
+import { arr, int, method, obj, remote, str, type Static } from "@@evoharness/chord/next";
 import { Session } from "@studio/core/hosts";
 
 export const Note = obj({ id: str(), text: str({ max: 2000 }), by: str(), at: int() });
@@ -78,7 +78,7 @@ host which object types it serves:
 
 ```ts
 // notes/worker.ts
-import { defineState } from "@earendil-works/chord/next";
+import { defineState } from "@@evoharness/chord/next";
 import { defineFacet } from "@studio/core";          // Studio's defineFacet: principals typed as Studio's P (chapter III)
 import { Note, Notes } from "./contract.ts";
 

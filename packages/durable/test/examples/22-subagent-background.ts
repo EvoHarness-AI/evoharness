@@ -8,7 +8,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
 import { type AssistantMessage, type FauxResponseStep, Type } from "@evoharness/ai";
 import { createModels } from "@evoharness/ai/models";
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@evoharness/ai/providers/faux";

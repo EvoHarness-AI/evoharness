@@ -2,7 +2,7 @@
 // view, and then only what changes after that.
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/20-late-join.ts
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
 import { Type } from "@evoharness/ai";
 import { createModels } from "@evoharness/ai/models";
 import { fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@evoharness/ai/providers/faux";

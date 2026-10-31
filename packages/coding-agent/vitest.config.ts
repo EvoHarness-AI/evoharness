@@ -21,8 +21,8 @@ export default mergeConfig(
 		},
 		resolve: {
 			alias: [
-				{ find: /^@earendil-works\/evoharness-ai$/, replacement: workspaceSourcePaths.aiIndex },
-				{ find: /^@earendil-works\/evoharness-agent-core$/, replacement: workspaceSourcePaths.agentIndex },
+				{ find: /^@evoharness\/ai$/, replacement: workspaceSourcePaths.aiIndex },
+				{ find: /^@evoharness\/agent-core$/, replacement: workspaceSourcePaths.agentIndex },
 				{ find: /^@mariozechner\/evoharness-ai$/, replacement: workspaceSourcePaths.aiIndex },
 				{ find: /^@mariozechner\/evoharness-ai\/oauth$/, replacement: workspaceSourcePaths.aiOAuth },
 				{ find: /^@mariozechner\/evoharness-agent-core$/, replacement: workspaceSourcePaths.agentIndex },

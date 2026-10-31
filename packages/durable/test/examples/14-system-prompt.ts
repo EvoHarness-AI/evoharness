@@ -1,7 +1,7 @@
 // System prompt sections and per-conversation instructions.
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/14-system-prompt.ts
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
 import { createModels } from "@evoharness/ai/models";
 import { fauxAssistantMessage, fauxProvider } from "@evoharness/ai/providers/faux";
 import { NodeExecutionEnv } from "../../src/env/node.ts";

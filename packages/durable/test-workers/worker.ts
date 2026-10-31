@@ -1,7 +1,7 @@
 // A Durable Object that hosts a Harness the way an application would: opened in the constructor, woken by its alarm
 // through `onWake`. Tests drive it with `runInDurableObject()`, evict it, and run its alarm.
 import { DurableObject, type DurableObjectState } from "cloudflare:workers";
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
 import { createModels, type FauxResponseStep, fauxAssistantMessage, fauxProvider } from "@evoharness/ai";
 import {
 	type Conversation,

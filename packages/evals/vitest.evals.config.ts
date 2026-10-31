@@ -48,7 +48,7 @@ const localConfig = mergeConfig(
 	baseConfig,
 	defineConfig({
 		resolve: {
-			alias: [{ find: /^@earendil-works\/evoharness-coding-agent$/, replacement: workspaceSourcePaths.codingAgentIndex }],
+			alias: [{ find: /^@evoharness\/coding-agent$/, replacement: workspaceSourcePaths.codingAgentIndex }],
 		},
 	}),
 );

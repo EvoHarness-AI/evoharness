@@ -1,5 +1,5 @@
 // Write-through cache of hot Storage record reads for the Session that owns the Storage.
-import type { Context, JsonValue } from "@earendil-works/chord";
+import type { Context, JsonValue } from "@@evoharness/chord";
 import type {
 	CommitResult,
 	ConversationId,

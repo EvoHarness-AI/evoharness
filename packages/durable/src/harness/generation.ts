@@ -1,4 +1,4 @@
-import { type Context, copyJson, type Draft, type JsonValue } from "@earendil-works/chord";
+import { type Context, copyJson, type Draft, type JsonValue } from "@@evoharness/chord";
 import type {
 	Api,
 	AssistantMessage,

@@ -1,5 +1,5 @@
-import type { Context, Draft, JsonValue, WatchCall, WatchEnd, WatchHandle } from "@earendil-works/chord";
-import type { Op } from "@earendil-works/chord/delta";
+import type { Context, Draft, JsonValue, WatchCall, WatchEnd, WatchHandle } from "@@evoharness/chord";
+import type { Op } from "@@evoharness/chord/delta";
 import type { Message, Models } from "@evoharness/ai";
 import type { TelemetryCarrier } from "@evoharness/telemetry";
 import type { ExecutionEnv } from "./env/index.ts";

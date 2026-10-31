@@ -3,7 +3,7 @@
 // state; `whenIdle: "reject"` refuses it when no run is working.
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/34-submit-in-commit.ts
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
 import { Type } from "@evoharness/ai";
 import { createModels } from "@evoharness/ai/models";
 import { fauxAssistantMessage, fauxProvider, fauxToolCall } from "@evoharness/ai/providers/faux";

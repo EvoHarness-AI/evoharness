@@ -14,8 +14,8 @@ export default defineConfig({
 	resolve: {
 		conditions: ["source"],
 		alias: [
-			{ find: /^@earendil-works\/evoharness-durable$/, replacement: durableSrcIndex },
-			{ find: /^@earendil-works\/evoharness-durable\/testing$/, replacement: durableSrcTesting },
+			{ find: /^@evoharness\/durable$/, replacement: durableSrcIndex },
+			{ find: /^@evoharness\/durable\/testing$/, replacement: durableSrcTesting },
 		],
 	},
 	ssr: { resolve: { conditions: ["source"] } },

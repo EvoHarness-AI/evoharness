@@ -2,7 +2,7 @@
 // so a restart resumes unfinished triage runs and keeps every decision.
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
 import { type ModelThinkingLevel, StringEnum, Type } from "@evoharness/ai";
 import { createModels } from "@evoharness/ai/models";
 import { anthropicProvider } from "@evoharness/ai/providers/anthropic";

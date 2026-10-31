@@ -14,7 +14,7 @@ import { inlineSourceMap } from "./stack.ts";
 
 /** What `buildFacet` takes besides the plugin and the kind. */
 export type BuildOptions = {
-	/** The host packages' specifiers (`@earendil-works/chord/next`, `react`, `react/jsx-runtime`, `@app/core`): external. */
+	/** The host packages' specifiers (`@@evoharness/chord/next`, `react`, `react/jsx-runtime`, `@app/core`): external. */
 	readonly hostPackages: readonly string[];
 	/** Where the script runs: Node (a server, a worker, a TUI) or a browser (a page). */
 	readonly platform: "node" | "browser";
@@ -49,7 +49,7 @@ export type BuiltFacet =
 	| { readonly kind: "failed"; readonly plugin: string; readonly facet: string; readonly errors: readonly string[] };
 
 /** The one specifier of this component a script imports (`pluginFile`): external always, answered per facet. */
-export const PLUGINS_SPECIFIER = "@earendil-works/chord/next/plugins";
+export const PLUGINS_SPECIFIER = "@@evoharness/chord/next/plugins";
 
 /** What a free `__dirname` and `__filename` become in a build: names no script has, found again by `freeGlobals`. */
 const GLOBAL_MARKERS = { __dirname: "__chord_plugin_dirname", __filename: "__chord_plugin_filename" };

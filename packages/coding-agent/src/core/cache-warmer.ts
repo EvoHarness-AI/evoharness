@@ -101,7 +101,7 @@ export interface CacheWarmingDecision {
 	expectedSavings: number;
 	/** False when the prompt size or the model's prices are unknown. */
 	economicsAvailable: boolean;
-	/** Pi's decision: "warm" when `expectedSavings` is at least $0.05. */
+	/** EvoHarness's decision: "warm" when `expectedSavings` is at least $0.05. */
 	action: CacheWarmingAction;
 }
 

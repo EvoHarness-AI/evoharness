@@ -220,12 +220,12 @@ interface DocumentStorage {
 }
 ```
 
-Chord ships a memory storage and a SQLite storage (over `@earendil-works/chord/sqlite`, the driver layer that moved
+Chord ships a memory storage and a SQLite storage (over `@@evoharness/chord/sqlite`, the driver layer that moved
 from Durable; Node and Durable Object drivers). Storages check only metadata (incarnation, version, sequence, address
 occupancy, fingerprint) and write the supplied delta or base; they never rebuild or validate content on a commit.
 Chord documents never commit together with Durable transcripts: Chord has its own storage, not an adapter over
 Durable's. Your own storage can prove itself with `registerDocumentStorageConformance(runner, name, withStorage)` from
-`@earendil-works/chord/testing`.
+`@@evoharness/chord/testing`.
 
 Keyed persisted documents that nobody reads, writes or watches for 10 minutes leave memory and reload on the next
 access. A storage error ends the store and closes the host; `onError` receives `{ kind: "storage_failed" }` and the

@@ -1,6 +1,6 @@
-import { type Context, copyJson, type JsonValue } from "@earendil-works/chord";
-import { awaitWithContext, withAbortSignal, withoutAbortSignal, withTelemetry } from "@earendil-works/chord/context";
-import { ownedSlice } from "@earendil-works/chord/delta";
+import { type Context, copyJson, type JsonValue } from "@@evoharness/chord";
+import { awaitWithContext, withAbortSignal, withoutAbortSignal, withTelemetry } from "@@evoharness/chord/context";
+import { ownedSlice } from "@@evoharness/chord/delta";
 import type { Models } from "@evoharness/ai";
 import {
 	createTypedMetrics,

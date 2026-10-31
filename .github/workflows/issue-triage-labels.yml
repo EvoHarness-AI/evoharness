@@ -23,7 +23,7 @@ jobs:
             const LABEL_ASSIGNEES = new Map([
               ['mcp', 'mitsuhiko'],
               ['codemode', 'mitsuhiko'],
-              ['durable', 'badlogic'],
+              ['durable', 'EvoHarness-AI'],
             ]);
 
             function issueHasLabel(issue, labelName) {

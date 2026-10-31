@@ -2,8 +2,8 @@
 // commit makes, rebuilt from operations alone. This replaced the event stream (`watchEvents`, #11327).
 import { GCProfiler, getHeapStatistics, setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
-import type { Draft } from "@earendil-works/chord";
-import { applyImmutable, type Op } from "@earendil-works/chord/delta";
+import type { Draft } from "@@evoharness/chord";
+import { applyImmutable, type Op } from "@@evoharness/chord/delta";
 import {
 	type AssistantMessage,
 	type FauxResponseStep,

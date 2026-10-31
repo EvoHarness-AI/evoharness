@@ -1,4 +1,4 @@
-import type { Context, JsonValue, WatchHandle } from "@earendil-works/chord";
+import type { Context, JsonValue, WatchHandle } from "@@evoharness/chord";
 import type {
 	Api,
 	AssistantMessage,

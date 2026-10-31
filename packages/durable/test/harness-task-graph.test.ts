@@ -1,8 +1,8 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { JsonValue } from "@earendil-works/chord";
-import { applyImmutable, type Op } from "@earendil-works/chord/delta";
+import type { JsonValue } from "@@evoharness/chord";
+import { applyImmutable, type Op } from "@@evoharness/chord/delta";
 import {
 	type ConversationId,
 	type ConversationView,

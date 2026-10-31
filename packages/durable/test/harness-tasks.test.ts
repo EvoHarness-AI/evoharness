@@ -1,5 +1,5 @@
-import type { Context } from "@earendil-works/chord";
-import { withAbortSignal, withCancel } from "@earendil-works/chord/context";
+import type { Context } from "@@evoharness/chord";
+import { withAbortSignal, withCancel } from "@@evoharness/chord/context";
 import { createModels, Type } from "@evoharness/ai";
 import {
 	type CommitPublication,

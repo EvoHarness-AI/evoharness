@@ -13,7 +13,7 @@ import type { HostPackages } from "../../../src/next-node/plugins/index.ts";
 export const FIXTURES = fileURLToPath(new URL("../fixtures/plugins/", import.meta.url));
 
 /** The host packages the fixtures import: this process's Chord. */
-export const HOST_PACKAGES: HostPackages = { "@earendil-works/chord/next": chordNext };
+export const HOST_PACKAGES: HostPackages = { "@@evoharness/chord/next": chordNext };
 
 /** The facet kinds of the fixtures' app. */
 export const KINDS = ["server", "worker", "web"] as const;

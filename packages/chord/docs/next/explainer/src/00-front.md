@@ -9,7 +9,7 @@ stats:
   - 6–7k | target size of Chord v2, without tests
   - 0.004 ms | Delta's apply per small change
 note: |
-  This guide teaches the **designed** API of Chord v2 (`packages/chord/src/next`, export `@earendil-works/chord/next`)
+  This guide teaches the **designed** API of Chord v2 (`packages/chord/src/next`, export `@@evoharness/chord/next`)
   from `packages/chord/docs/next/design.md` and the newer decision log `packages/chord/docs/next/decisions.md`, which wins
   where the two differ. Most of it is **not built yet**: a first kernel of about 10k lines is frozen as a reference and
   Chord v2 is being rebuilt layer by layer; only the L1 contract layer exists (`src/next/contracts/`, commit

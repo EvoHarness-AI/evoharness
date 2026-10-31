@@ -61,12 +61,12 @@ If you use EvoHarness for open source work, please share your coding agent sessi
 
 Public OSS session data helps improve models, prompts, tools, and evaluations using real development workflows.
 
-For the full explanation, see [this post on X](https://x.com/badlogicgames/status/2037811643774652911).
+For the full explanation, see [this post on X](https://x.com/EvoHarness-AIgames/status/2037811643774652911).
 
 To publish sessions, use [`EvoHarness-AI/evoharness-share-hf`](https://github.com/EvoHarness-AI/evoharness-share-hf) using a Hugging Face account and the Hugging Face CLI.
 
-- [Demo video](https://x.com/badlogicgames/status/2041151967695634619) on how to publish EvoHarness sessions
-- Published EvoHarness development sessions: [`badlogicgames/evoharness-mono` on Hugging Face](https://huggingface.co/datasets/badlogicgames/evoharness-mono).
+- [Demo video](https://x.com/EvoHarness-AIgames/status/2041151967695634619) on how to publish EvoHarness sessions
+- Published EvoHarness development sessions: [`EvoHarness-AIgames/evoharness-mono` on Hugging Face](https://huggingface.co/datasets/EvoHarness-AIgames/evoharness-mono).
 
 ## Development
 

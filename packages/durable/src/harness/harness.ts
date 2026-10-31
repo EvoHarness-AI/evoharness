@@ -1,5 +1,5 @@
-import type { Context, JsonValue } from "@earendil-works/chord";
-import { withAbortSignal, withoutAbortSignal } from "@earendil-works/chord/context";
+import type { Context, JsonValue } from "@@evoharness/chord";
+import { withAbortSignal, withoutAbortSignal } from "@@evoharness/chord/context";
 import type { Models } from "@evoharness/ai";
 import {
 	type ClientIdentity,

@@ -1,7 +1,7 @@
 // Conversation handles, typed entries, created conversations, and forks.
 // Run from packages/durable:
 //   node --conditions=source --experimental-strip-types test/examples/07-harness-conversations.ts
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
+import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
 import { createModels } from "@evoharness/ai/models";
 import { createRegistry, defineEntry, Harness, MemoryStorage } from "../../src/index.ts";
 

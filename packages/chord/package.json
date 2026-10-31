@@ -1,5 +1,5 @@
 {
-	"name": "@earendil-works/chord",
+	"name": "@@evoharness/chord",
 	"version": "0.0.1",
 	"description": "Typed host runtime for plugins, contracts, replicated state, and RPC over JSON links",
 	"type": "module",

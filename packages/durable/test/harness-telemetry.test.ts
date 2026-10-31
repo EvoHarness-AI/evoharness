@@ -1,4 +1,4 @@
-import { withTelemetry } from "@earendil-works/chord/context";
+import { withTelemetry } from "@@evoharness/chord/context";
 import { fauxAssistantMessage, fauxToolCall, Type } from "@evoharness/ai";
 import { CodemodeSandbox } from "@evoharness/codemode";
 import {

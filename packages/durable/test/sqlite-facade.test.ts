@@ -1,10 +1,10 @@
 import { DatabaseSync, type StatementSync } from "node:sqlite";
-import { BACKGROUND_CONTEXT } from "@earendil-works/chord/context";
-import { DurableObjectSqliteDatabase as ChordDurableObjectSqliteDatabase } from "@earendil-works/chord/sqlite/cloudflare";
+import { BACKGROUND_CONTEXT } from "@@evoharness/chord/context";
+import { DurableObjectSqliteDatabase as ChordDurableObjectSqliteDatabase } from "@@evoharness/chord/sqlite/cloudflare";
 import {
 	NodeSqliteDatabase as ChordNodeSqliteDatabase,
 	openNodeSqliteDatabase as chordOpenNodeSqliteDatabase,
-} from "@earendil-works/chord/sqlite/node";
+} from "@@evoharness/chord/sqlite/node";
 import { DurableObjectSqliteDatabase } from "@evoharness/durable/storage/sqlite/cloudflare";
 import { describe, expect, it } from "vitest";
 import { idFromNumber } from "../src/ids.ts";

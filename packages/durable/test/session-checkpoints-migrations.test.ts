@@ -1,4 +1,4 @@
-import type { Op } from "@earendil-works/chord/delta";
+import type { Op } from "@@evoharness/chord/delta";
 import {
 	defineDoc,
 	defineDocFamily,

@@ -40,7 +40,7 @@ self.derive("public", [list], ([l]) => ({ items: l.items.map((n) => ({ id: n.id,
 return their previous result object.
 
 ```ts
-import { mapShared } from "@earendil-works/chord/delta";
+import { mapShared } from "@@evoharness/chord/delta";
 
 const stripAuthor = mapShared((n: Note): PublicNote => ({ id: n.id, text: n.text, at: n.at }));
 self.derive("public", [list], ([l]) => ({ items: l.items.map(stripAuthor) }));
@@ -48,7 +48,7 @@ self.derive("public", [list], ([l]) => ({ items: l.items.map(stripAuthor) }));
 ```
 
 :::review | Review: mapShared is planned, not available
-Design §12 introduces `mapShared` as coming "from `@earendil-works/chord/delta`", but nothing in `packages/chord/src`
+Design §12 introduces `mapShared` as coming "from `@@evoharness/chord/delta`", but nothing in `packages/chord/src`
 defines it yet, and Delta does not yet treat bytes as atomic leaves in `diffRevisions`. Design §28 lists both as the
 step "Delta in evoharness", before the layered rebuild. Until then, keep a `Map` from source element to result yourself, which
 is what `mapShared` will do.

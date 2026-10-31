@@ -1,7 +1,7 @@
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Op } from "@earendil-works/chord/delta";
+import type { Op } from "@@evoharness/chord/delta";
 import {
 	type AssistantMessage,
 	type FauxResponseStep,

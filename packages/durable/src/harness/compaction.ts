@@ -1,4 +1,4 @@
-import type { Context, Draft } from "@earendil-works/chord";
+import type { Context, Draft } from "@@evoharness/chord";
 import type { AssistantMessage, Message, ModelThinkingLevel, SimpleStreamOptions } from "@evoharness/ai";
 import { calculateContextTokens, estimateMessageTokens } from "@evoharness/ai/utils/estimate";
 import { isRetryableAssistantError, retryDelayMs } from "@evoharness/ai/utils/retry";

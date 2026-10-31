@@ -1,4 +1,4 @@
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@@evoharness/chord";
 import { createModels, type Message } from "@evoharness/ai";
 import {
 	type ContextView,

@@ -3,7 +3,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setFlagsFromString } from "node:v8";
 import { runInNewContext } from "node:vm";
-import { applyImmutable, type Op } from "@earendil-works/chord/delta";
+import { applyImmutable, type Op } from "@@evoharness/chord/delta";
 import { type AssistantMessage, type FauxResponseStep, fauxAssistantMessage, fauxText } from "@evoharness/ai";
 import {
 	AgentDoc,

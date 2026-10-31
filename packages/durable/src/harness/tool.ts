@@ -1,6 +1,6 @@
-import { type Context, copyJson, type Draft, type JsonRepresentation, type JsonValue } from "@earendil-works/chord";
-import { awaitWithContext } from "@earendil-works/chord/context";
-import { overlap, ownedSlice } from "@earendil-works/chord/delta";
+import { type Context, copyJson, type Draft, type JsonRepresentation, type JsonValue } from "@@evoharness/chord";
+import { awaitWithContext } from "@@evoharness/chord/context";
+import { overlap, ownedSlice } from "@@evoharness/chord/delta";
 import {
 	boundOutput,
 	OutputBuffer,
@@ -8,7 +8,7 @@ import {
 	PROGRESS_BYTES_PER_SECOND,
 	Progress,
 	type ProgressClock,
-} from "@earendil-works/chord/output";
+} from "@@evoharness/chord/output";
 import type { ImageContent, TextContent, ToolCall, ToolResultMessage } from "@evoharness/ai";
 import { validateToolArguments } from "@evoharness/ai/utils/validation";
 import { Compile } from "typebox/compile";

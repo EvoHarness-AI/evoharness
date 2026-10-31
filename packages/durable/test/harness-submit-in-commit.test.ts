@@ -1,6 +1,6 @@
 // Admission for hosts that must not start runs: `whenIdle: "reject"`, and `submit(tx, draft)` inside the caller's
 // commit (#11149).
-import { withTelemetry } from "@earendil-works/chord/context";
+import { withTelemetry } from "@@evoharness/chord/context";
 import {
 	type AssistantMessage,
 	type FauxResponseStep,

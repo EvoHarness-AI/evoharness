@@ -34,7 +34,7 @@ flag and editors get a `pin` method. Instead of editing the declaration, the plu
 
 ```ts
 // notes/contract.ts
-import { bool, evolve, nul } from "@earendil-works/chord/next";
+import { bool, evolve, nul } from "@@evoharness/chord/next";
 
 export const NoteV2 = obj({ id: str(), text: str({ max: 2000 }), by: str(), at: int(), pinned: bool() });
 export const PublicNoteV2 = obj({ id: str(), text: str(), at: int(), pinned: bool() });
@@ -79,7 +79,7 @@ mappings that live in its own code, never in the contract. The worker facet decl
 
 ```ts
 // notes/worker.ts
-import { checkAccepts } from "@earendil-works/chord/next";
+import { checkAccepts } from "@@evoharness/chord/next";
 
 const toV1 = ({ pinned, ...note }: Static<typeof NoteV2>) => note;
 const toPublicV1 = ({ pinned, ...note }: Static<typeof PublicNoteV2>) => note;

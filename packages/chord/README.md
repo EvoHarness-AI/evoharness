@@ -1,4 +1,4 @@
-# @earendil-works/chord
+# @@evoharness/chord
 
 Chord builds applications out of **objects** that live in several processes (a server, workers, browser tabs) and can be **hot reloaded** while they run.
 
@@ -14,21 +14,21 @@ Contracts are runtime values described with [TypeBox](https://github.com/sinclai
 
 | Import | Contents | Runs in |
 |--------|----------|---------|
-| `@earendil-works/chord` | Contracts (`local`, `remote`, `method`, `opaque`), declarations (through the factory's `self`: `state`, `derive`, `resource`, `on`, `task`), hosts (`createHost`, `defineFacet`, `defineRegistry`), links (`memoryLinkPair`, `ipcLink`, `webSocketLink`, `acceptWebSockets`), errors (`ChordError`, `isChordError`, `forbidden`, `invalid`). Also the shared base: `Context`, `JsonValue`, `JsonRepresentation`, `Draft`, `copyJson`, `isJsonValue`, `replicatedState` with its types, and the watch types `WatchHandle`, `NativeWatchHandle`, `WatchCall`, `NativeWatchCall`, and `WatchEnd` with their implementations `Watch` and `NativeWatch`. | Node and browsers |
-| `@earendil-works/chord/node` | Child host processes: `createHostManager`, `forkDriver`, `childControl`, `processLock`; the facet module loader `nodeLoader`. | Node |
-| `@earendil-works/chord/context` | Explicit cancellation, telemetry, and invocation values: `BACKGROUND_CONTEXT`, `withCancel`, `withAbortSignal`, `withoutAbortSignal`, `withTelemetry`, `traceIn`, `withContextValue`, `awaitWithContext`. | Node and browsers |
-| `@earendil-works/chord/delta` | The transactional JSON tracker, structural diff, immutable apply, and the wire encoder/decoder for operation batches. | Node and browsers |
-| `@earendil-works/chord/output` | Bounded output streams and paced progress: `OutputBuffer` (head or tail window of a stream, `OutputLimits`, `OutputSkip`), `boundOutput`, `sanitizeOutput`, `utf8ByteLength`, and `Progress` (adaptive commits of a changing value). | Node and browsers |
-| `@earendil-works/chord/telemetry-sqlite` | `createSqliteTelemetry(db, { retentionMs?, maxQueuedSpans? })`: buffered recording and backend-independent `TelemetryStore` queries. | Any SQLite adapter |
-| `@earendil-works/chord/sqlite` | Portable `SqliteDatabase`, `SqliteExecutor`, and `SqliteValue`, atomic `applySqliteMigrations(database, migrations, { table })`, and `validateSqliteSchemaPrefix`. The metadata table must be a valid, non-reserved SQLite identifier; migration versions start at 1 and are contiguous. | Any SQLite adapter |
-| `@earendil-works/chord/sqlite/node` | `NodeSqliteDatabase`, `openNodeSqliteDatabase`, and `NodeSqliteDatabaseOptions`. | Node |
-| `@earendil-works/chord/sqlite/cloudflare` | `DurableObjectSqliteDatabase` and the structural `DurableObjectSqliteStorage` binding type. | Cloudflare Durable Objects |
+| `@@evoharness/chord` | Contracts (`local`, `remote`, `method`, `opaque`), declarations (through the factory's `self`: `state`, `derive`, `resource`, `on`, `task`), hosts (`createHost`, `defineFacet`, `defineRegistry`), links (`memoryLinkPair`, `ipcLink`, `webSocketLink`, `acceptWebSockets`), errors (`ChordError`, `isChordError`, `forbidden`, `invalid`). Also the shared base: `Context`, `JsonValue`, `JsonRepresentation`, `Draft`, `copyJson`, `isJsonValue`, `replicatedState` with its types, and the watch types `WatchHandle`, `NativeWatchHandle`, `WatchCall`, `NativeWatchCall`, and `WatchEnd` with their implementations `Watch` and `NativeWatch`. | Node and browsers |
+| `@@evoharness/chord/node` | Child host processes: `createHostManager`, `forkDriver`, `childControl`, `processLock`; the facet module loader `nodeLoader`. | Node |
+| `@@evoharness/chord/context` | Explicit cancellation, telemetry, and invocation values: `BACKGROUND_CONTEXT`, `withCancel`, `withAbortSignal`, `withoutAbortSignal`, `withTelemetry`, `traceIn`, `withContextValue`, `awaitWithContext`. | Node and browsers |
+| `@@evoharness/chord/delta` | The transactional JSON tracker, structural diff, immutable apply, and the wire encoder/decoder for operation batches. | Node and browsers |
+| `@@evoharness/chord/output` | Bounded output streams and paced progress: `OutputBuffer` (head or tail window of a stream, `OutputLimits`, `OutputSkip`), `boundOutput`, `sanitizeOutput`, `utf8ByteLength`, and `Progress` (adaptive commits of a changing value). | Node and browsers |
+| `@@evoharness/chord/telemetry-sqlite` | `createSqliteTelemetry(db, { retentionMs?, maxQueuedSpans? })`: buffered recording and backend-independent `TelemetryStore` queries. | Any SQLite adapter |
+| `@@evoharness/chord/sqlite` | Portable `SqliteDatabase`, `SqliteExecutor`, and `SqliteValue`, atomic `applySqliteMigrations(database, migrations, { table })`, and `validateSqliteSchemaPrefix`. The metadata table must be a valid, non-reserved SQLite identifier; migration versions start at 1 and are contiguous. | Any SQLite adapter |
+| `@@evoharness/chord/sqlite/node` | `NodeSqliteDatabase`, `openNodeSqliteDatabase`, and `NodeSqliteDatabaseOptions`. | Node |
+| `@@evoharness/chord/sqlite/cloudflare` | `DurableObjectSqliteDatabase` and the structural `DurableObjectSqliteStorage` binding type. | Cloudflare Durable Objects |
 
 ## Quick start
 
 ```ts
 import { Type } from "typebox";
-import { createHost, hostNamed, method, remote } from "@earendil-works/chord";
+import { createHost, hostNamed, method, remote } from "@@evoharness/chord";
 
 // contract.ts: shared by provider and consumers
 export const Counter = remote("demo.counter", {
@@ -68,14 +68,14 @@ await host.root(async (ctx) => {
 - [Tutorial](docs/tutorial.md): a shared todo list, built up section by section. Every example runs as `test/tutorial.test.ts`.
 - [Usage guide](docs/guide.md): API reference for contracts, objects, state, roots, lifetime, plugins, hot reload, hosts, and links.
 - [Specification](docs/spec.md): compatibility, lifetime, and reload semantics, plus known limitations and implementation decisions.
-- [Delta guide](src/delta/README.md): ownership, lifecycle, operation, and replica contracts of `@earendil-works/chord/delta`.
+- [Delta guide](src/delta/README.md): ownership, lifecycle, operation, and replica contracts of `@@evoharness/chord/delta`.
 
 ## Explicit Context telemetry
 
 `Context` always carries a `telemetry: TelemetrySpan`, alongside `abortSignal`. `BACKGROUND_CONTEXT` and `TODO_CONTEXT` use the shared no-op span `NOOP_TELEMETRY_CONTEXT`. Adapters (`TelemetryContext`) belong to hosts and start root spans; adapters are never placed in a `Context`.
 
 ```ts
-import { BACKGROUND_CONTEXT, traceIn, withTelemetry } from '@earendil-works/chord/context';
+import { BACKGROUND_CONTEXT, traceIn, withTelemetry } from '@@evoharness/chord/context';
 import { InMemoryTelemetryContext } from '@evoharness/telemetry';
 
 const telemetry = new InMemoryTelemetryContext();
@@ -99,8 +99,8 @@ These helpers operate on the standalone `Context` API. They do not yet instrumen
 ## SQLite telemetry
 
 ```ts
-import { createSqliteTelemetry } from '@earendil-works/chord/telemetry-sqlite';
-import { openNodeSqliteDatabase } from '@earendil-works/chord/sqlite/node';
+import { createSqliteTelemetry } from '@@evoharness/chord/telemetry-sqlite';
+import { openNodeSqliteDatabase } from '@@evoharness/chord/sqlite/node';
 import { renderTrace } from '@evoharness/telemetry/render';
 
 const db = await openNodeSqliteDatabase('telemetry.db');
@@ -126,10 +126,10 @@ The adapter implements `TelemetryStore`: `findTraces()`, `getTrace()`, and `find
 
 ## Tracking JSON deltas
 
-Import the standalone transactional tracker from `@earendil-works/chord/delta`:
+Import the standalone transactional tracker from `@@evoharness/chord/delta`:
 
 ```ts
-import { applyImmutable, track } from "@earendil-works/chord/delta";
+import { applyImmutable, track } from "@@evoharness/chord/delta";
 
 const tracker = track({ output: "", count: 0 });
 const change = tracker.beginChange();
@@ -159,7 +159,7 @@ Replicated state provides the same model through a callback. `replicatedState` i
 standalone observable value, independent of hosts:
 
 ```ts
-import { replicatedState } from "@earendil-works/chord";
+import { replicatedState } from "@@evoharness/chord";
 
 const initial = { output: "", count: 0 };
 const status = replicatedState(initial); // transfers ownership of initial

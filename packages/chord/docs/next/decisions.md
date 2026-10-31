@@ -9,7 +9,7 @@ first and win until the design is updated.
 - **p3 next to p2, fully isolated.** The new design is built as a new app (`apps/p3`) with its own data directory. p2
   keeps running unchanged with its data. Plugins are ported to p3 one at a time.
 - **No legacy data migration.** p3 starts empty: no import of p2's `catalog.sqlite`, `shares.sqlite` or subagents table.
-- **Chord v2 lives in `packages/chord/src/next`** (export `@earendil-works/chord/next`), developed on `private` only
+- **Chord v2 lives in `packages/chord/src/next`** (export `@@evoharness/chord/next`), developed on `private` only
   (owner override of the "evoharness first" rule for this directory) and upstreamed to evoharness once stable; then `next/` replaces
   today's Chord and p2 is deleted. `next/` imports `../context`, `../delta`, `../json`, `../output` directly, so
   Durable's `Context`, `Draft` and `JsonValue` are the same modules and types in v2 (no copies, no type conflicts).
@@ -176,7 +176,7 @@ first and win until the design is updated.
   storage is shaped for Durable (scans by id, no tags); Chord documents and Durable transcripts never commit together,
   so they need not share a storage. Node-specific storages live outside the portable core; a Durable Object SQLite
   storage can follow. (Replaces the earlier "adapter over Durable's node SQLite storage" for the playground.)
-- **Durable's SQLite driver layer moves into Chord** (`@earendil-works/chord/sqlite`, `/sqlite/node`,
+- **Durable's SQLite driver layer moves into Chord** (`@@evoharness/chord/sqlite`, `/sqlite/node`,
   `/sqlite/cloudflare`): the `SqliteDatabase`/`SqliteExecutor` interfaces, the `node:sqlite` and Durable Object
   drivers, the migration runner and schema-prefix helpers. Durable imports them from Chord (it already depends on
   Chord, so no cycle) and re-exports them under its old paths so no Durable user breaks. Chord's SQLite document
@@ -308,7 +308,7 @@ first and win until the design is updated.
   latter two. `TaskOptions.trace?: TelemetryCarrier | "root"` (absent: inherit). No protection against broken adapters.
   Telemetry never walks or reads data just to measure (checkpoint event compares the phase only). Instrument caches are
   `WeakMap`s keyed by the adapter's metrics object.
-- **Telemetry store (owner, 2026-10-18):** a SQLite adapter in Chord (`@earendil-works/chord/telemetry-sqlite`, reusing
+- **Telemetry store (owner, 2026-10-18):** a SQLite adapter in Chord (`@@evoharness/chord/telemetry-sqlite`, reusing
   `chord/sqlite`, Node and Cloudflare): settled spans one row each (events and links inline), metrics aggregated per
   series per 10 s, a 1 s batched flush that also deletes rows older than the retention (7 days), a bounded queue of
   settled spans (dropped and counted), no retries. A shared read interface `TelemetryStore` in evoharness-telemetry, modeled on
@@ -1631,7 +1631,7 @@ validation and copies the v2 kernel added around Delta.
   private.
 - **Slice 6b D1: `StoreStorage` and `durableView` live in Durable (owner, 2026-10-27: "they are only used if durable
   is used"):** in Durable's own `src` (an ordinary evoharness module, now that Chord v2 is upstream), importing
-  `@earendil-works/chord/next` (Chord's `./next` export comes with them). No package cycle: Durable already depends on
+  `@@evoharness/chord/next` (Chord's `./next` export comes with them). No package cycle: Durable already depends on
   Chord, Chord imports nothing of Durable (S13). Durable's conformance suite runs in Durable's tests and CI.
 - **Slice 6b D2: Durable's records are ordinary declared tables of the store (owner, 2026-10-27: "a, that's the whole
   purpose of this slice"):** `StoreStorage` declares conversations, entries, tasks, submissions and `record_ids` as
@@ -2572,7 +2572,7 @@ From `research/chord-on-durable-objects.md`, adopted for the Chord v2 kernel bec
   beyond a use (a pinned Durable phase holding an old table is fine). Natives reach other plugins only this way: no
   `opaque` members, no natives in method results. What a native's old value does after its owner restarts is the
   owner's `close` (a model runtime keeps working until collected; a closed SSH connection fails its in-flight `exec`).
-- **HTTP is an optional Chord component** (**superseded in part** by "Slice 10's points": `html` instead of `page`, request bodies through `json`/`body`, authentication one app hook, plugin sockets instead of a channel component until a second user) (`@earendil-works/chord/next/http`): a route gets a plain request summary
+- **HTTP is an optional Chord component** (**superseded in part** by "Slice 10's points": `html` instead of `page`, request bodies through `json`/`body`, authentication one app hook, plugin sockets instead of a channel component until a second user) (`@@evoharness/chord/next/http`): a route gets a plain request summary
   (method, path params, query, principal, selected headers; parsed and capped JSON bodies; uploads handed over in
   chunks) and returns a response description (`json`, `page`, `bytes` with `size`, `mime` and `read(offset, length)`,
   `redirect`, `error`). The component does ranges (206/416), HEAD, download headers, streaming, abort on disconnect and

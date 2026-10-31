@@ -1,4 +1,4 @@
-import type { Context } from "@earendil-works/chord";
+import type { Context } from "@@evoharness/chord";
 import type { Message, SystemMessage, Tool, ToolReference } from "@evoharness/ai";
 import { declarationsEqual, getCurrentTools, toToolDeclaration } from "@evoharness/ai/utils/transcript";
 import { SystemEntry } from "../entries.ts";

@@ -12,6 +12,6 @@ export default defineConfig({
 		silent: "passed-only",
 	},
 	resolve: {
-		alias: [{ find: /^@earendil-works\/evoharness-telemetry$/, replacement: telemetrySrcIndex }],
+		alias: [{ find: /^@evoharness\/telemetry$/, replacement: telemetrySrcIndex }],
 	},
 });

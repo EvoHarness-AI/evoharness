@@ -149,7 +149,7 @@ Every item below changes 6a's code; nothing is deployed, so the schema and the a
 
 ## 2. `StoreStorage`: Durable's `Storage` on the store (D1, D2)
 
-In Durable's `src` (an ordinary evoharness module), importing `@earendil-works/chord/next` (Chord's `./next` export comes
+In Durable's `src` (an ordinary evoharness module), importing `@@evoharness/chord/next` (Chord's `./next` export comes
 with it: the store and the adapter surface below, marked internal for adapters). It passes Durable's storage
 conformance suite on SQLite `:memory:` and across reopen (a wrapper that closes and reopens the store file after
 every commit, Durable's reopen harness), and Durable's Session and harness test files run on it.

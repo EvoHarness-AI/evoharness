@@ -1,4 +1,4 @@
-// Chord v2 (`@earendil-works/chord/next`, experimental): every layer's API for apps, and the store's surface for
+// Chord v2 (`@@evoharness/chord/next`, experimental): every layer's API for apps, and the store's surface for
 // adapters (Durable's `StoreStorage`), marked internal.
 
 export * from "./contracts/index.ts";

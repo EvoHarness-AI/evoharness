@@ -230,7 +230,7 @@ already has are reported. Errors carry a fixed category and a message cut to 500
 error. Chord ships a typed telemetry schema, as evoharness-ai (`AI_TELEMETRY_SCHEMA`) and Durable
 (`DURABLE_TELEMETRY_SCHEMA`) do.
 
-**Storing and reading:** `@earendil-works/chord/telemetry-sqlite` over `chord/sqlite` (Node and Cloudflare) stores one
+**Storing and reading:** `@@evoharness/chord/telemetry-sqlite` over `chord/sqlite` (Node and Cloudflare) stores one
 row per settled span (events and links inline) and metrics aggregated per series per 10 s, flushes in batches every
 second, keeps 7 days, and drops (and counts) beyond a bounded queue. The read interface `TelemetryStore` is shared:
 `findTraces` (by name, attributes, errors, time window, with limit and cursor) returns complete traces, `getTrace`

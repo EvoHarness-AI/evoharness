@@ -1,4 +1,4 @@
-import type { Draft } from "@earendil-works/chord";
+import type { Draft } from "@@evoharness/chord";
 import {
 	type ConversationId,
 	createSession,

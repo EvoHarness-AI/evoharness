@@ -1,6 +1,6 @@
 # Chord v2: target design
 
-The design of Chord v2 (`packages/chord/src/next`, export `@earendil-works/chord/next`) and of how apps (the
+The design of Chord v2 (`packages/chord/src/next`, export `@@evoharness/chord/next`) and of how apps (the
 playground, p3) use it: **the one current statement of every rule** (owner, 2026-10-24). Every decision is recorded in
 the decision log `packages/chord/docs/next/decisions.md` (the history and the reasons, kept complete) and folded into this
 document in the same commit. Where a rule is built, the slice is named (`slices.md`); the code follows this document.
@@ -1318,7 +1318,7 @@ source (W1); a dirty derive nobody holds recomputes on its next read. A throwing
   visits per change) sets the documented limit.
 - **The footgun:** a derive that builds new objects for unchanged data makes every commit cost O(size of the value),
   per view, because the diff must compare contents. Unchanged parts must be the same objects as last time.
-- **`mapShared(f)`** (from `@earendil-works/chord/next` state; it moves into Delta when v2 goes upstream): an identity cache per source element: `f` runs only for new or
+- **`mapShared(f)`** (from `@@evoharness/chord/next` state; it moves into Delta when v2 goes upstream): an identity cache per source element: `f` runs only for new or
   changed source elements, unchanged ones return their previous result object. With it a list derive costs pointer
   comparisons, not content comparisons:
 
@@ -2108,7 +2108,7 @@ The app kit's Node components (slice 10, `slice-10.md`, decision "Slice 10's poi
 `chord/next/workers` in `src/next-node/`; the web page host and the TUI are slice 11. Each is ordinary code on Chord's
 public API; nothing in the kernel depends on them.
 
-### HTTP (`@earendil-works/chord/next/http`)
+### HTTP (`@@evoharness/chord/next/http`)
 
 `httpServer(host, { listen, authenticate, headers?, links? }, ctx)` listens first, holds every request and upgrade
 until `load` resolved, then serves. `authenticate(request, ctx) => P | undefined` is the app's one hook (D3: who a
@@ -2151,7 +2151,7 @@ route's checks, never instead of them. `sockets` (D6): `{ "/terminal": (socket, 
 after the origin check and `authenticate` (no principal: 403 before plugin code), for a plugin's own protocol; wraps do
 not apply.
 
-### Workers (`@earendil-works/chord/next/workers`)
+### Workers (`@@evoharness/chord/next/workers`)
 
 `createWorkers(host, Kind, { entry, start, plugins, idleMs?, onOutput? }, ctx)` routes `Kind` itself (a forked worker per
 address, IPC, a start message with the app's start data and the worker kind's built scripts, `ready` within 60 s), a
@@ -2419,7 +2419,7 @@ Chord reports traces, events and metrics through `@evoharness/telemetry`; one ad
   a message truncated to 500 characters; cancelling is not an error.
 - **A typed telemetry schema** ships with Chord, as evoharness-ai (`AI_TELEMETRY_SCHEMA`) and Durable
   (`DURABLE_TELEMETRY_SCHEMA`) have; call sites that only have a context use the generic `addEvent`.
-- **Storage and reading:** `@earendil-works/chord/telemetry-sqlite` over `chord/sqlite` (Node and Cloudflare): one
+- **Storage and reading:** `@@evoharness/chord/telemetry-sqlite` over `chord/sqlite` (Node and Cloudflare): one
   row per settled span (events and links inline), metrics aggregated per series per 10 s, a 1 s batched flush with
   retention (7 days), a bounded queue (dropped and counted). The shared read interface `TelemetryStore` (Jaeger
   style): `findTraces` (name, attributes, errors, time window, limit, cursor) returns complete traces, `getTrace`,

@@ -11,8 +11,8 @@ import {
 	type DocumentRecord as EngineRecord,
 	loadContent,
 	readDocumentEntry,
-} from "@earendil-works/chord/next";
-import type { SqliteExecutor } from "@earendil-works/chord/sqlite";
+} from "@@evoharness/chord/next";
+import type { SqliteExecutor } from "@@evoharness/chord/sqlite";
 import { seqFromNumber } from "../../ids.ts";
 import type {
 	DocumentAddress,

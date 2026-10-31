@@ -15,9 +15,9 @@ import {
 } from "../../../src/next-node/plugins/index.ts";
 import { KINDS, tempRoot, writeFiles, writePackage, writePlugin } from "./support.ts";
 
-const NODE: BuildOptions = { hostPackages: ["@earendil-works/chord/next"], platform: "node" };
+const NODE: BuildOptions = { hostPackages: ["@@evoharness/chord/next"], platform: "node" };
 const BROWSER: BuildOptions = {
-	hostPackages: ["@earendil-works/chord/next", "react/jsx-runtime"],
+	hostPackages: ["@@evoharness/chord/next", "react/jsx-runtime"],
 	platform: "browser",
 	publicPath: "/assets/",
 };
@@ -54,7 +54,7 @@ describe("building a facet: the import table", () => {
 		const real = await realpath(root);
 		expect(built).toMatchObject({ plugin: "@test/notes", facet: "worker", assets: [] });
 		expect(built.source.startsWith("(function (require, module, exports) {")).toBe(true);
-		expect(built.source).toContain('require("@earendil-works/chord/next")');
+		expect(built.source).toContain('require("@@evoharness/chord/next")');
 		expect(built.copied).toEqual([join(real, "contracts", "contract.ts")]);
 		expect(built.inputs.map(({ file }) => file)).toEqual([
 			join(real, "contracts", "contract.ts"),
@@ -108,7 +108,7 @@ describe("building a facet: the import table", () => {
 					'import native from "native-dep";',
 					'import { join } from "node:path";',
 					'import { readFileSync } from "fs";',
-					'import { pluginFile } from "@earendil-works/chord/next/plugins";',
+					'import { pluginFile } from "@@evoharness/chord/next/plugins";',
 					"export default { setup: () => [pad, native, join, readFileSync, pluginFile] };",
 				].join("\n"),
 			},
@@ -119,7 +119,7 @@ describe("building a facet: the import table", () => {
 		const { plugin } = await discovered(root, "@test/deps");
 		const built = script(await buildFacet(plugin, "worker", NODE, context));
 		expect(built.source).toContain('"pad:"');
-		for (const external of ["native-dep", "node:path", "fs", "@earendil-works/chord/next/plugins"]) {
+		for (const external of ["native-dep", "node:path", "fs", "@@evoharness/chord/next/plugins"]) {
 			expect(built.source).toContain(`require("${external}")`);
 		}
 		// Packages are no inputs: the watcher ignores node_modules.

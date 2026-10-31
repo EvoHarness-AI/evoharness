@@ -55,8 +55,8 @@ value a worker (slice 10) or a page (slice 11) evaluates where it runs.
 | a file of another discovered plugin (`../sessions/contract.ts`) | inlined (a copy), listed in `copied`; it may import only host packages and files of its own plugin, never packages (a build error otherwise): contracts and side-effect-free modules only (decision 4) |
 | a package in the plugin's `dependencies` | inlined from its `node_modules` |
 | a package in `chord.external` (Node builds) | external, `require`d at evaluation from the plugin's `node_modules`; a browser build fails |
-| a host package (`options.hostPackages`, e.g. `@earendil-works/chord/next`, `react`, `react/jsx-runtime`, `@app/core`) | external, from the map at evaluation |
-| `@earendil-works/chord/next/plugins` | external always (its `pluginFile` is per facet, §3) |
+| a host package (`options.hostPackages`, e.g. `@@evoharness/chord/next`, `react`, `react/jsx-runtime`, `@app/core`) | external, from the map at evaluation |
+| `@@evoharness/chord/next/plugins` | external always (its `pluginFile` is per facet, §3) |
 | a Node builtin (`node:fs`, `fs`) | external (Node builds); a browser build fails |
 | CSS (browser builds) | one stylesheet per facet (`css`) |
 | an asset (`import url from "./icon.svg?url"`, `.wasm`, browser builds) | a content-hashed file in `assets`; the import is its URL under the app's `options.publicPath` |
@@ -79,7 +79,7 @@ const facet = evaluateFacet(built, { hostPackages: HOST, plugin });   // returns
   plus the digest), run in this context; the default export, checked to be a facet (a declaration error otherwise).
 - **The `require` it passes answers, in order:** the host-package map (each value is what Node's `require` would give:
   a CommonJS package's exports, an ESM package's namespace wrapped once with `__esModule: true`, so default and named
-  imports both work); `@earendil-works/chord/next/plugins` → `{ pluginFile }` bound to this plugin's directory;
+  imports both work); `@@evoharness/chord/next/plugins` → `{ pluginFile }` bound to this plugin's directory;
   `chord.external` packages and Node builtins through `createRequire(join(plugin.dir, "package.json"))`; anything else
   throws naming the facet.
 - **`pluginFile(path)`** gives the absolute path of a file inside the plugin's directory; `..` out of it is refused.

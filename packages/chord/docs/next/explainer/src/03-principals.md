@@ -104,7 +104,7 @@ facet of every plugin imports that one instead of Chord's:
 
 ```ts
 // studio/src/facet.ts (base code, exported as @studio/core)
-import { bindFacet } from "@earendil-works/chord/next";
+import { bindFacet } from "@@evoharness/chord/next";
 import type { P } from "./principal.ts";
 
 export const defineFacet = bindFacet<P>();         // a facet's principals are Studio's P
