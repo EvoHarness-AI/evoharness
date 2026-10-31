@@ -18,7 +18,8 @@
 		"build:native:darwin": "npm --prefix packages/tui run build:native:darwin",
 		"build:native:linux": "npm --prefix packages/tui run build:native:linux",
 		"build:native:win32": "npm --prefix packages/tui run build:native:win32",
-		"check": "node scripts/biome-check.mjs --write && npm run check:pinned-deps && npm run check:runtime-deps && npm run check:ts-imports && npm run check:entry-graphs && npm run check:install-lock:coding-agent && tsc --noEmit && npm run check:browser-smoke",
+		"check": "node scripts/biome-check.mjs && npm run check:parked && npm run check:pinned-deps && npm run check:runtime-deps && npm run check:ts-imports && npm run check:entry-graphs && npm run check:package-layers && npm run check:install-lock:coding-agent && tsc --noEmit && npm run check:browser-smoke",
+		"check:fix": "node scripts/biome-check.mjs --write && npm run check",
 		"check:browser-smoke": "node scripts/check-browser-smoke.mjs",
 		"check:pinned-deps": "node scripts/check-pinned-deps.mjs",
 		"check:runtime-deps": "node scripts/check-runtime-deps.mjs",
@@ -26,6 +27,7 @@
 		"check:install-lock:coding-agent": "node scripts/generate-coding-agent-install-lock.mjs --check",
 		"check:ts-imports": "node scripts/check-ts-relative-imports.mjs",
 		"check:entry-graphs": "node scripts/check-entry-graphs.mjs",
+		"check:package-layers": "node scripts/check-package-layers.mjs",
 		"generate:models": "npm --prefix packages/ai run generate-models",
 		"hydrate:model-data": "npm --prefix packages/ai run hydrate-model-data",
 		"check:model-data": "npm --prefix packages/ai run check:model-data",
@@ -56,7 +58,8 @@
 		"release:offline": "node scripts/release.mjs --offline",
 		"release:dry": "node scripts/release.mjs --dry-run",
 		"release:fix-links": "node scripts/release-notes.mjs fix-github-releases",
-		"prepare": "husky"
+		"prepare": "husky",
+		"check:parked": "node scripts/check-parked-triggers.mjs"
 	},
 	"devDependencies": {
 		"@anthropic-ai/sandbox-runtime": "0.0.26",

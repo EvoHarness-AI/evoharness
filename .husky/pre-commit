@@ -8,9 +8,10 @@ if [ $? -ne 0 ]; then
   exit 1
 fi
 
-# Run the check script (formatting, linting, and type checking)
+# Format first, then verify: `check` is read-only so CI fails on unformatted code instead of
+# silently rewriting it, and the commit path keeps the old fix-then-restage behaviour.
 echo "Running formatting, linting, and type checking..."
-npm run check
+npm run check:fix
 if [ $? -ne 0 ]; then
   echo "❌ Checks failed. Please fix the errors before committing."
   exit 1

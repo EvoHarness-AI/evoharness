@@ -60,7 +60,7 @@ Do not open a PR unless you have already been approved by a maintainer using `lg
 Before submitting a PR:
 
 ```bash
-npm run check
+npm run check        # verify only; use `npm run check:fix` to format locally
 ./test.sh
 ```
 
