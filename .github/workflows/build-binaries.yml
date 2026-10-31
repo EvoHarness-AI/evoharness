@@ -1,9 +1,9 @@
 name: Build Binaries
 
 on:
-  push:
-    tags:
-      - 'v*'
+  # Tags deliberately do not start this workflow: publishing needs npm trusted publishing and the
+  # R2 credentials, which do not exist yet. Start it by hand once they are configured and the
+  # EVOHARNESS_RELEASE_PUBLISH repository variable is set to `true`.
   workflow_dispatch:
     inputs:
       tag:
