@@ -98,5 +98,5 @@ No. It is a guardrail against burnout and tracker spam. Short, concrete, reprodu
 
 ## Where can I learn about plans?
 
-Earendil uses RFCs to discuss larger changes.  Not all of them are public, but
-quite a few are.  They can be found at [rfc.earendil.com](https://rfc.earendil.com/keyword/evoharness/).
+EvoHarness uses RFCs to discuss larger changes.  Not all of them are public, but
+quite a few are.  They can be found at [rfc.evoharness.dev](https://rfc.evoharness.dev/keyword/evoharness/).
