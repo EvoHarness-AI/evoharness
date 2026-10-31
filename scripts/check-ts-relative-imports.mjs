@@ -1,5 +1,5 @@
 import { readdirSync } from "node:fs";
-import { join, relative, resolve } from "node:path";
+import { join, relative, resolve, sep } from "node:path";
 import { SyntaxKind } from "typescript/unstable/ast";
 import {
 	isCallExpression,
@@ -13,6 +13,11 @@ import {
 import { API } from "typescript/unstable/sync";
 
 const ignoredDirectories = new Set([".git", "coverage", "dist", "node_modules"]);
+// apps/evoharness-web is a vendored fork port (docs/plan/web-frontend-spec.md):
+// its `.js` relative imports into bin/ are upstream's working convention
+// (next.config.ts loads the CJS option parser before any bundling), so the
+// root convention does not govern it — the app's own eslint does.
+const vendoredRoots = ["apps/evoharness-web"];
 const files = [];
 
 function collectTypescriptFiles(directory) {
@@ -25,7 +30,10 @@ function collectTypescriptFiles(directory) {
 		}
 
 		if (entry.isFile() && entry.name.endsWith(".ts") && !entry.name.endsWith(".d.ts")) {
-			files.push(join(directory, entry.name));
+			const file = join(directory, entry.name);
+			const posix = file.split(sep).join("/");
+			if (vendoredRoots.some((vendored) => posix === vendored || posix.startsWith(`${vendored}/`))) continue;
+			files.push(file);
 		}
 	}
 }
