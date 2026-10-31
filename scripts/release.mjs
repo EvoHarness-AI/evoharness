@@ -42,6 +42,9 @@ const unknownFlags = [...flags].filter((flag) => !KNOWN_FLAGS.has(flag));
 const OFFLINE = flags.has("--offline");
 const DRY_RUN = flags.has("--dry-run");
 const SKIP_TESTS = flags.has("--skip-tests");
+// A dry run must not depend on a published project either, otherwise the printout would not match
+// what --offline does.
+const LOCAL_MODE = OFFLINE || DRY_RUN;
 
 if (unknownFlags.length > 0) {
 	console.error(`Unknown flag(s): ${unknownFlags.join(", ")}`);
@@ -317,7 +320,7 @@ if (status && status.trim()) {
 console.log("  Working directory clean\n");
 
 // 2. Verify npm package registration before modifying the worktree.
-if (OFFLINE || DRY_RUN) {
+if (LOCAL_MODE) {
 	console.log("Skipping the npm registration check (--offline)\n");
 } else {
 	assertPackagesAreRegisteredWithNpm();
@@ -325,7 +328,7 @@ if (OFFLINE || DRY_RUN) {
 
 // Pin and verify the Nix model catalog before modifying versions, so the pin
 // lands in the release commit and a failure leaves the worktree clean.
-if (OFFLINE || DRY_RUN) {
+if (LOCAL_MODE) {
 	console.log("Building with the committed model data (--offline)...");
 	run("npm run build:offline");
 } else {
@@ -345,7 +348,7 @@ console.log();
 
 // 5. Regenerate release artifacts
 console.log("Regenerating release artifacts...");
-if (!OFFLINE) run("npm run generate:models");
+if (!LOCAL_MODE) run("npm run generate:models");
 run("npm run check:model-data");
 run("npm run install-lock:coding-agent");
 console.log();
