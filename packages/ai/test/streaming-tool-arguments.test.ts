@@ -120,7 +120,7 @@ function* chatEvents(deltas: readonly string[], withIdEveryChunk: boolean): Gene
 	yield "data: [DONE]\n\n";
 }
 
-function* piMessagesEvents(deltas: readonly string[], args: object): Generator<string> {
+function* evoharnessMessagesEvents(deltas: readonly string[], args: object): Generator<string> {
 	yield sse({ type: "start" });
 	yield sse({ type: "toolcall_start", contentIndex: 0, id: "call_1", toolName: "write" });
 	for (const delta of deltas) yield sse({ type: "toolcall_delta", contentIndex: 0, delta });
@@ -300,7 +300,7 @@ const PATHS: readonly Path[] = [
 					baseUrl: "https://example.test/v1",
 				},
 				context,
-				{ apiKey: "test", fetch: sseFetch(() => piMessagesEvents(deltas, args)) },
+				{ apiKey: "test", fetch: sseFetch(() => evoharnessMessagesEvents(deltas, args)) },
 			),
 	},
 	{

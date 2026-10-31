@@ -192,7 +192,7 @@ export type LiveState = {
 };
 
 export const LiveDoc = defineDoc<LiveState>({
-	kind: "pi.live",
+	kind: "evoharness.live",
 	version: 3,
 	scope: "conversation",
 	history: "latest",
@@ -228,16 +228,16 @@ function renameReason(value: JsonObject): JsonObject {
 }
 
 /**
- * How the progress throttles commit a partial answer and running tool output into `pi.live`: deferred, so storage gets
- * them together, at the next commit that reads or writes `pi.live` or after `settings.progress.persistWithinMs`. Every
- * commit that consumes or clears streamed fields reads `pi.live`, so it stores them with its own changes (spec §8.2).
+ * How the progress throttles commit a partial answer and running tool output into `evoharness.live`: deferred, so storage gets
+ * them together, at the next commit that reads or writes `evoharness.live` or after `settings.progress.persistWithinMs`. Every
+ * commit that consumes or clears streamed fields reads `evoharness.live`, so it stores them with its own changes (spec §8.2).
  */
 export const PROGRESS_COMMIT: CommitOptions = { persistence: { kind: "deferred" } };
 
-/** Built-in task kinds that can own `pi.live.run`. */
-const RUN_TASK_KINDS: ReadonlySet<string> = new Set(["pi.generation"]);
-const TOOL_TASK_KIND = "pi.tool";
-const COMPACTION_TASK_KIND = "pi.compaction";
+/** Built-in task kinds that can own `evoharness.live.run`. */
+const RUN_TASK_KINDS: ReadonlySet<string> = new Set(["evoharness.generation"]);
+const TOOL_TASK_KIND = "evoharness.tool";
+const COMPACTION_TASK_KIND = "evoharness.compaction";
 
 /**
  * Built-in task kinds that end themselves once cut off `settings.restartLimit` times (`TaskRecord.restarts`); the
@@ -344,7 +344,7 @@ export function failCompactionStatus(live: Draft<LiveState>, taskId: TaskId, err
 }
 
 /**
- * The slot of tool task `taskId`, model-issued or nested, if `pi.live` still lists it. Nested slots are found by binary
+ * The slot of tool task `taskId`, model-issued or nested, if `evoharness.live` still lists it. Nested slots are found by binary
  * search: a tool may make thousands of nested calls, each of which looks up its slot in several commits, and every
  * element a search reads costs a node in the draft's change tracker. Their task IDs ascend: each slot is appended in
  * the commit that creates its task, task IDs ascend in commit order, and removal keeps the order.
@@ -399,10 +399,10 @@ export function clearProgress(slot: Draft<SlotProgress>): void {
  * Harness cleanup for a terminal outcome the scheduler writes itself (`faulted` or `orphaned`). A run task ends its
  * run; a tool task's slot is marked done without an entry, and context derivation synthesizes the missing result; a
  * compaction task's status is removed and its failure recorded.
- * Ignores other kinds so it never creates `pi.live` elsewhere. The scheduler calls this without knowing task kinds;
+ * Ignores other kinds so it never creates `evoharness.live` elsewhere. The scheduler calls this without knowing task kinds;
  * the Harness passes it in (spec §5.4).
  * REMINDER: a committed generation partial becomes an aborted assistant entry here, exactly as in the generation abort
- * handler, so the transcript keeps what the model produced and `pi.usage` counts its spend. The scheduler's commit has
+ * handler, so the transcript keeps what the model produced and `evoharness.usage` counts its spend. The scheduler's commit has
  * no task scope, so that entry has no `byTaskId`. Faults come from task bugs
  * or malformed provider data (a non-JSON value in a response), or a commit the Storage rejected without effect; an
  * uncertain storage failure poisons the Session instead and writes no outcome.

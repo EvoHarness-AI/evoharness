@@ -98,7 +98,7 @@ async function status(submission: Submission): Promise<SubmissionRecord> {
 /** Kind and text of each entry, skipping system entries. */
 function transcript(entries: readonly EntryRecord[]): string[] {
 	return entries
-		.filter((entry) => entry.kind !== "pi.system")
+		.filter((entry) => entry.kind !== "evoharness.system")
 		.map((entry) => {
 			const message = entry.model?.[0];
 			const text = message?.role === "toolResult" ? undefined : textOf(message);
@@ -131,20 +131,20 @@ describe("inbox", () => {
 			[write.id, "write"],
 			[f2.id, "followUp"],
 		]);
-		expect(transcript(await allEntries(root))).toEqual(["pi.user:a"]);
+		expect(transcript(await allEntries(root))).toEqual(["evoharness.user:a"]);
 
 		first.release();
 		await f2.wait(context);
 		expect(transcript(await allEntries(root))).toEqual([
-			"pi.user:a",
-			"pi.assistant:first",
+			"evoharness.user:a",
+			"evoharness.assistant:first",
 			"note:w",
-			"pi.user:f1",
-			"pi.assistant:second",
-			"pi.user:f2",
-			"pi.assistant:third",
+			"evoharness.user:f1",
+			"evoharness.assistant:second",
+			"evoharness.user:f2",
+			"evoharness.assistant:third",
 		]);
-		const answers = (await allEntries(root)).filter((entry) => entry.kind === "pi.assistant");
+		const answers = (await allEntries(root)).filter((entry) => entry.kind === "evoharness.assistant");
 		expect(await status(input)).toMatchObject({ status: "done", answer: answers[0]!.id });
 		expect(await status(write)).toMatchObject({ status: "done" });
 		expect(await status(f1)).toMatchObject({ status: "done", answer: answers[1]!.id });
@@ -168,11 +168,11 @@ describe("inbox", () => {
 		const settled = await f2.wait(context);
 		expect(await status(f1)).toEqual({ ...settled, id: f1.id, entry: expect.any(Number) });
 		expect(transcript(await allEntries(root))).toEqual([
-			"pi.user:a",
-			"pi.assistant:first",
-			"pi.user:f1",
-			"pi.user:f2",
-			"pi.assistant:both",
+			"evoharness.user:a",
+			"evoharness.assistant:first",
+			"evoharness.user:f1",
+			"evoharness.user:f2",
+			"evoharness.assistant:both",
 		]);
 		expect(setup.faux.state.callCount).toBe(2);
 		await harness.close(context);
@@ -224,15 +224,15 @@ describe("inbox", () => {
 		gate.resolve();
 		await followUp.wait(context);
 		expect(transcript(await allEntries(root))).toEqual([
-			"pi.user:a",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.user:s",
-			"pi.assistant:after tools",
-			"pi.user:f",
-			"pi.assistant:follow-up",
+			"evoharness.user:a",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.user:s",
+			"evoharness.assistant:after tools",
+			"evoharness.user:f",
+			"evoharness.assistant:follow-up",
 		]);
-		const answers = (await allEntries(root)).filter((entry) => entry.kind === "pi.assistant");
+		const answers = (await allEntries(root)).filter((entry) => entry.kind === "evoharness.assistant");
 		expect(await status(input)).toMatchObject({ status: "done", answer: answers[1]!.id });
 		expect(await status(steer)).toMatchObject({ status: "done", answer: answers[1]!.id });
 		expect(await status(followUp)).toMatchObject({ status: "done", answer: answers[2]!.id });
@@ -254,12 +254,12 @@ describe("inbox", () => {
 		await followUp.wait(context);
 		expect(await status(input)).toMatchObject({ status: "unanswered", reason: "reset" });
 		expect(transcript(await allEntries(root))).toEqual([
-			"pi.user:a",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.reset",
-			"pi.user:f",
-			"pi.assistant:fresh",
+			"evoharness.user:a",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.reset",
+			"evoharness.user:f",
+			"evoharness.assistant:fresh",
 		]);
 		const reset = (await allEntries(root)).find((entry) => ResetEntry.is(entry))!;
 		expect(reset.head).toBe(reset.id);
@@ -281,7 +281,7 @@ describe("inbox", () => {
 		await input.wait(context);
 		await harness.waitForIdle(context);
 		expect(await status(input)).toMatchObject({ status: "done" });
-		expect(transcript(await allEntries(root))).toEqual(["pi.user:a", "pi.assistant:first", "pi.reset:handoff"]);
+		expect(transcript(await allEntries(root))).toEqual(["evoharness.user:a", "evoharness.assistant:first", "evoharness.reset:handoff"]);
 		expect((await root.context(context)).messages).toEqual([
 			{ role: "user", content: "handoff", timestamp: expect.any(Number) },
 		]);
@@ -295,7 +295,7 @@ describe("inbox", () => {
 		await root.commit((tx) => tx.appendEntry(root.id, { kind: "note" }), context);
 		await root.reset(undefined, context);
 		let view = await root.context(context);
-		expect(view.head?.kind).toBe("pi.reset");
+		expect(view.head?.kind).toBe("evoharness.reset");
 		expect(view.head?.model).toBeUndefined();
 		expect(view.messages).toEqual([]);
 		await root.reset("carry on", context);
@@ -325,7 +325,7 @@ describe("inbox", () => {
 
 		// The fresh summary's marker starts the range at the reset: a target inside the range is not stale, even when
 		// it is older than the marker itself. A reset placed earlier in the same boundary makes it stale.
-		const inside = (await allEntries(root)).find((entry) => entry.kind === "pi.user")!;
+		const inside = (await allEntries(root)).find((entry) => entry.kind === "evoharness.user")!;
 		const second = await root.submit({ type: "input", content: "b" }, context);
 		const kept = await root.submit({ type: "write", entry: { kind: "summary", head: inside.id } }, context);
 		await second.wait(context);
@@ -361,11 +361,11 @@ describe("inbox", () => {
 		const entries = await allEntries(root);
 		expect(settled).toMatchObject({ status: "done", answer: entries.at(-1)!.id });
 		expect(transcript(entries)).toEqual([
-			"pi.user:a",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.reset:continue here",
-			"pi.assistant:after handoff",
+			"evoharness.user:a",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.reset:continue here",
+			"evoharness.assistant:after handoff",
 		]);
 		const reset = entries.find((entry) => ResetEntry.is(entry))!;
 		expect(reset.head).toBe(reset.id);
@@ -390,13 +390,13 @@ describe("inbox", () => {
 		await input.wait(context);
 		const entries = await allEntries(root);
 		expect(transcript(entries)).toEqual([
-			"pi.user:a",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.reset:continue here",
+			"evoharness.user:a",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.reset:continue here",
 			"note:w",
-			"pi.user:s",
-			"pi.assistant:after handoff",
+			"evoharness.user:s",
+			"evoharness.assistant:after handoff",
 		]);
 		expect(requests).toEqual([["system:", "user:continue here", "user:w", "user:s"]]);
 		for (const submission of [input, steer]) {
@@ -424,15 +424,15 @@ describe("inbox", () => {
 		await followUp.wait(context);
 		const entries = await allEntries(root);
 		expect(transcript(entries)).toEqual([
-			"pi.user:a",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.reset:continue here",
-			"pi.assistant:after handoff",
-			"pi.user:f",
-			"pi.assistant:follow-up",
+			"evoharness.user:a",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.reset:continue here",
+			"evoharness.assistant:after handoff",
+			"evoharness.user:f",
+			"evoharness.assistant:follow-up",
 		]);
-		const answers = entries.filter((entry) => entry.kind === "pi.assistant");
+		const answers = entries.filter((entry) => entry.kind === "evoharness.assistant");
 		expect(await status(input)).toMatchObject({ status: "done", answer: answers[1]!.id });
 		expect(await status(followUp)).toMatchObject({ status: "done", answer: answers[2]!.id });
 		await harness.close(context);
@@ -453,13 +453,13 @@ describe("inbox", () => {
 		await followUp.wait(context);
 		expect(await status(input)).toMatchObject({ status: "unanswered", reason: "reset" });
 		expect(transcript(await allEntries(root))).toEqual([
-			"pi.user:a",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.reset:continue here",
-			"pi.reset",
-			"pi.user:f",
-			"pi.assistant:fresh",
+			"evoharness.user:a",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.reset:continue here",
+			"evoharness.reset",
+			"evoharness.user:f",
+			"evoharness.assistant:fresh",
 		]);
 		expect(requests).toEqual([["system:", "user:f"]]);
 		expect(setup.faux.state.callCount).toBe(2);
@@ -483,14 +483,14 @@ describe("inbox", () => {
 		const settled = await (await root.submit({ type: "input", content: "a" }, context)).wait(context);
 		const entries = await allEntries(root);
 		expect(transcript(entries)).toEqual([
-			"pi.user:a",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.reset:h1",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.reset:h2",
-			"pi.assistant:done",
+			"evoharness.user:a",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.reset:h1",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.reset:h2",
+			"evoharness.assistant:done",
 		]);
 		expect(settled).toMatchObject({ status: "done", answer: entries.at(-1)!.id });
 		const messages = (await root.context(context)).messages;
@@ -511,9 +511,9 @@ describe("inbox", () => {
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
 		const settled = await (await root.submit({ type: "input", content: "a" }, context)).wait(context);
 		const entries = await allEntries(root);
-		const calling = entries.find((entry) => entry.kind === "pi.assistant")!;
+		const calling = entries.find((entry) => entry.kind === "evoharness.assistant")!;
 		expect(settled).toMatchObject({ status: "done", answer: calling.id });
-		expect(transcript(entries)).toEqual(["pi.user:a", "pi.assistant", "pi.tool-result", "pi.reset:continue here"]);
+		expect(transcript(entries)).toEqual(["evoharness.user:a", "evoharness.assistant", "evoharness.tool-result", "evoharness.reset:continue here"]);
 		expect(setup.faux.state.callCount).toBe(1);
 		expect(await harness.snapshot(LiveDoc, root.id, context)).toEqual({});
 		await harness.close(context);
@@ -533,10 +533,10 @@ describe("inbox", () => {
 		await followUp.wait(context);
 		expect(await status(input)).toMatchObject({ status: "done" });
 		expect(transcript(await allEntries(root))).toEqual([
-			"pi.user:a",
-			"pi.assistant:first",
-			"pi.user:f",
-			"pi.assistant:second",
+			"evoharness.user:a",
+			"evoharness.assistant:first",
+			"evoharness.user:f",
+			"evoharness.assistant:second",
 		]);
 		await harness.close(context);
 	});
@@ -579,10 +579,10 @@ describe("inbox", () => {
 		await g.wait(context);
 		expect(await status(f)).toMatchObject({ status: "done" });
 		expect(transcript(await allEntries(root)).slice(-4)).toEqual([
-			"pi.user:f",
-			"pi.assistant:for f",
-			"pi.user:g",
-			"pi.assistant:for g",
+			"evoharness.user:f",
+			"evoharness.assistant:for f",
+			"evoharness.user:g",
+			"evoharness.assistant:for g",
 		]);
 		await harness.close(context);
 	});
@@ -603,7 +603,7 @@ describe("inbox", () => {
 		opened = await openChat(await openNodeSqliteStorage(path), setup);
 		const settled = await (await opened.harness.submission(f, context))!.wait(context);
 		expect(settled).toMatchObject({ status: "done" });
-		expect(transcript(await allEntries(opened.root)).slice(-2)).toEqual(["pi.user:f", "pi.assistant:f"]);
+		expect(transcript(await allEntries(opened.root)).slice(-2)).toEqual(["evoharness.user:f", "evoharness.assistant:f"]);
 		await opened.harness.close(context);
 	});
 
@@ -616,7 +616,7 @@ describe("inbox", () => {
 		harness.observeCommits({
 			advance: (publication) => {
 				for (const change of documentValues(publication)) {
-					if (change.record.kind === "pi.inbox" && change.ops.length > 0) ops.push([...change.ops]);
+					if (change.record.kind === "evoharness.inbox" && change.ops.length > 0) ops.push([...change.ops]);
 				}
 			},
 			end: () => {},
@@ -684,11 +684,11 @@ describe("inbox", () => {
 		await input.wait(context);
 		const entries = await allEntries(root);
 		expect(transcript(entries)).toEqual([
-			"pi.user:a",
-			"pi.assistant:first",
+			"evoharness.user:a",
+			"evoharness.assistant:first",
 			"note:w",
-			"pi.user:more",
-			"pi.assistant:second",
+			"evoharness.user:more",
+			"evoharness.assistant:second",
 		]);
 		expect(await status(input)).toMatchObject({ status: "done", answer: entries.at(-1)!.id });
 		expect(await status(write)).toMatchObject({ status: "done" });
@@ -708,7 +708,7 @@ describe("inbox", () => {
 		await input.wait(context);
 		await harness.waitForIdle(context);
 		expect(await status(input)).toMatchObject({ status: "done" });
-		expect(transcript(await allEntries(root))).toEqual(["pi.user:a", "pi.assistant:first", "pi.reset"]);
+		expect(transcript(await allEntries(root))).toEqual(["evoharness.user:a", "evoharness.assistant:first", "evoharness.reset"]);
 		expect(setup.faux.state.callCount).toBe(1);
 		await harness.close(context);
 	});
@@ -729,16 +729,16 @@ describe("inbox", () => {
 		await f.wait(context);
 		const entries = await allEntries(root);
 		expect(transcript(entries)).toEqual([
-			"pi.user:a",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.user:s1",
-			"pi.user:s2",
-			"pi.assistant:after tools",
-			"pi.user:f",
-			"pi.assistant:follow-up",
+			"evoharness.user:a",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.user:s1",
+			"evoharness.user:s2",
+			"evoharness.assistant:after tools",
+			"evoharness.user:f",
+			"evoharness.assistant:follow-up",
 		]);
-		const answers = entries.filter((entry) => entry.kind === "pi.assistant");
+		const answers = entries.filter((entry) => entry.kind === "evoharness.assistant");
 		for (const submission of [input, s1, s2]) {
 			expect(await status(submission)).toMatchObject({ status: "done", answer: answers[1]!.id });
 		}
@@ -759,7 +759,7 @@ describe("inbox", () => {
 		const steer = await root.submit({ type: "input", content: "s", whenBusy: "steer" }, context);
 		const settled = await steer.wait(context);
 		expect(await status(f)).toMatchObject({ status: "done", answer: settled.status === "done" && settled.answer });
-		expect(transcript(await allEntries(root)).slice(-3)).toEqual(["pi.user:f", "pi.user:s", "pi.assistant:both"]);
+		expect(transcript(await allEntries(root)).slice(-3)).toEqual(["evoharness.user:f", "evoharness.user:s", "evoharness.assistant:both"]);
 		await harness.close(context);
 	});
 
@@ -774,14 +774,14 @@ describe("inbox", () => {
 		const f = await root.submit({ type: "input", content: "f" }, context);
 		gate.resolve();
 		await f.wait(context);
-		const calling = (await allEntries(root)).find((entry) => entry.kind === "pi.assistant")!;
+		const calling = (await allEntries(root)).find((entry) => entry.kind === "evoharness.assistant")!;
 		expect(await status(input)).toMatchObject({ status: "done", answer: calling.id });
 		expect(transcript(await allEntries(root))).toEqual([
-			"pi.user:a",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.user:f",
-			"pi.assistant:follow-up",
+			"evoharness.user:a",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.user:f",
+			"evoharness.assistant:follow-up",
 		]);
 		await harness.close(context);
 	});
@@ -818,16 +818,16 @@ describe("inbox", () => {
 		await f.wait(context);
 		const entries = await allEntries(root);
 		expect(transcript(entries)).toEqual([
-			"pi.user:a",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.tool-result",
-			"pi.reset:two",
-			"pi.assistant:after handoff",
-			"pi.user:f",
-			"pi.assistant:follow-up",
+			"evoharness.user:a",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.tool-result",
+			"evoharness.reset:two",
+			"evoharness.assistant:after handoff",
+			"evoharness.user:f",
+			"evoharness.assistant:follow-up",
 		]);
-		const answers = entries.filter((entry) => entry.kind === "pi.assistant");
+		const answers = entries.filter((entry) => entry.kind === "evoharness.assistant");
 		expect(await status(input)).toMatchObject({ status: "done", answer: answers[1]!.id });
 		await harness.close(context);
 	});
@@ -876,7 +876,7 @@ describe("inbox", () => {
 		harness.observeCommits({
 			advance: (publication) => {
 				for (const change of documentValues(publication)) {
-					if (change.record.kind === "pi.inbox" && change.ops.length > 0) ops.push([...change.ops]);
+					if (change.record.kind === "evoharness.inbox" && change.ops.length > 0) ops.push([...change.ops]);
 				}
 			},
 			end: () => {},
@@ -915,7 +915,7 @@ describe("inbox", () => {
 		harness.observeCommits({
 			advance: (publication) => {
 				for (const change of documentChanges(publication))
-					if (change.record.kind === "pi.inbox") inboxId = change.record.id;
+					if (change.record.kind === "evoharness.inbox") inboxId = change.record.id;
 			},
 			end: () => {},
 		});
@@ -963,7 +963,7 @@ describe("usage", () => {
 		await (await root.submit({ type: "input", content: "a" }, context)).wait(context);
 		const entries = await allEntries(root);
 		const assistants = entries.flatMap((entry) =>
-			entry.kind === "pi.assistant" ? [entry.model![0] as AssistantMessage] : [],
+			entry.kind === "evoharness.assistant" ? [entry.model![0] as AssistantMessage] : [],
 		);
 		const expected = assistants.reduce(
 			(sum, message) => ({
@@ -976,7 +976,7 @@ describe("usage", () => {
 		const usage = (await harness.snapshot(UsageDoc, root.id, context))!;
 		expect(usage.models["faux/faux-1"]).toMatchObject(expected);
 		expect(usage.tools).toEqual({ hold: spent });
-		const result = entries.find((entry) => entry.kind === "pi.tool-result")!.model![0] as ToolResultMessage;
+		const result = entries.find((entry) => entry.kind === "evoharness.tool-result")!.model![0] as ToolResultMessage;
 		expect(result.usage).toEqual(spent);
 
 		// A fork starts at zero; the Session total adds every conversation once.
@@ -1017,7 +1017,7 @@ describe("usage", () => {
 		await harness.abortTask((await harness.snapshot(LiveDoc, root.id, context))!.run!.taskId, context);
 		await input.wait(context);
 		const assistants = (await allEntries(root)).flatMap((entry) =>
-			entry.kind === "pi.assistant" ? [entry.model![0] as AssistantMessage] : [],
+			entry.kind === "evoharness.assistant" ? [entry.model![0] as AssistantMessage] : [],
 		);
 		expect(assistants.map((message) => message.stopReason)).toEqual(["error", "toolUse", "stop", "aborted"]);
 		const output = assistants.reduce((sum, message) => sum + message.usage.output, 0);
@@ -1065,7 +1065,7 @@ describe("usage", () => {
 		opened.harness.resume();
 		await opened.harness.waitForIdle(context);
 		const assistants = (await allEntries(opened.root)).flatMap((entry) =>
-			entry.kind === "pi.assistant" ? [entry.model![0] as AssistantMessage] : [],
+			entry.kind === "evoharness.assistant" ? [entry.model![0] as AssistantMessage] : [],
 		);
 		expect(assistants.map((message) => message.stopReason)).toEqual(["stop", "aborted", "stop"]);
 		const total = (await opened.harness.usage(context)).models["faux/faux-1"]!;
@@ -1083,7 +1083,7 @@ describe("usage", () => {
 		harness.observeCommits({
 			advance: (publication) => {
 				for (const change of documentValues(publication)) {
-					if (change.record.kind !== "pi.usage") continue;
+					if (change.record.kind !== "evoharness.usage") continue;
 					const entries = publication.changes.filter((other) => other.type === "entry").length;
 					commits.push({ entries, ops: change.ops });
 				}

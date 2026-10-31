@@ -27,7 +27,7 @@ Hard constraints:
 Contracts are runtime values for every type (shipped bundles have no TypeScript; third-party plugins are built separately). TS types are inferred from them.
 
 ```ts
-export const Chat = remote("pi.chat", {
+export const Chat = remote("evoharness.chat", {
 	version: 1,                                   // contract version: a plain number, bumped only on breaking changes
 	input: Type.Object({ session: Type.String(), conversation: Type.Number() }),
 	host: hostFamily("session:", "session"),       // where its objects live: `session:` + input.session
@@ -40,13 +40,13 @@ export const Chat = remote("pi.chat", {
 	},
 });
 
-export const Index = local("pi.index", {
+export const Index = local("evoharness.index", {
 	version: 1,
 	input: Type.Object({ session: Type.String() }),
 	members: {
 		search: method(Type.Object({ query: Type.String() }), Type.Array(Hit)),
 		onChange: method(Type.Function([Change], Type.Void()), Unsubscribe),   // non-JSON allowed for locals
-		harness: opaque("pi.durable-harness@1"),                               // native object, by name+version
+		harness: opaque("evoharness.durable-harness@1"),                               // native object, by name+version
 	},
 });
 ```

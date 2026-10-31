@@ -1532,7 +1532,7 @@ describe("publication at adoption", () => {
 		expect(seen).toEqual(["terminal"]);
 		expect(await harness.closed).toEqual({ kind: "failed", error: new Error("reclaim failed") });
 		expect(infos).toContainEqual({ kind: "storage_failed" });
-		const active = telemetry.getMetrics().filter((metric) => metric.name === "pi.durable.tasks.active");
+		const active = telemetry.getMetrics().filter((metric) => metric.name === "evoharness.durable.tasks.active");
 		expect(active.map((metric) => metric.value)).toEqual([1, -1]);
 	});
 
@@ -1544,7 +1544,7 @@ describe("publication at adoption", () => {
 		storage.rejectAfterAdopt = (writes) => writes.some((write) => write.type === "task");
 		await expect(start(root, Idle)).rejects.toThrow("reclaim failed");
 		expect(await harness.closed).toMatchObject({ kind: "failed" });
-		const active = telemetry.getMetrics().filter((metric) => metric.name === "pi.durable.tasks.active");
+		const active = telemetry.getMetrics().filter((metric) => metric.name === "evoharness.durable.tasks.active");
 		expect(active.map((metric) => metric.value)).toEqual([1, -1]);
 	});
 

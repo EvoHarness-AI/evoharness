@@ -328,10 +328,10 @@ Context derivation:
 9. Exclude model-less entries and assistant messages with `aborted`, `error`, or
    `deferred` stop reasons from future provider requests.
 10. Move the first system message to the front when only user messages
-    precede it, or when it is the baseline's: the first `pi.system` entry after
+    precede it, or when it is the baseline's: the first `evoharness.system` entry after
     `H`, unless an edit targets it. Generation writes it with every section and
     tool in effect before the first request after a compaction or reset, and
-    omits the retained `pi.system` entries. Without `H`, the first `pi.system`
+    omits the retained `evoharness.system` entries. Without `H`, the first `evoharness.system`
     entry is the baseline unless an earlier entry carries a system message, in
     its messages or an edit's replacement, even one an edit omits later: only
     then did generation write it with every section and tool in effect, before
@@ -776,7 +776,7 @@ interface Harness extends Session {
   abortTask(id: TaskId, context: Context): Promise<"marked" | "terminal">;
   waitForTask<R>(id: TaskId<R>, context: Context): Promise<SettledTask<R>>;
   waitForIdle(context: Context): Promise<void>;
-  /** Session total of every conversation's `pi.usage` (section 8.6). */
+  /** Session total of every conversation's `evoharness.usage` (section 8.6). */
   usage(context: Context): Promise<UsageState>;
   /** Live tasks as a structural view (section 9.4), as a watch. */
   watchTaskGraph(context: Context): Promise<TaskGraphWatch>;
@@ -860,17 +860,17 @@ creation hook in the same commit, whether through the conveniences or through
 raw `tx.createConversation()` and `tx.forkConversation()`, for example inside a
 tool commit. It runs inside `tx.createConversation()` and
 `tx.forkConversation()`, before they return, so a `configure()` later in the
-same callback overrides its copy. It creates empty `pi.live`, `pi.inbox`, and
-`pi.usage`, creates `pi.provider` with a fresh provider-facing UUIDv7, and handles
-`pi.agent`:
+same callback overrides its copy. It creates empty `evoharness.live`, `evoharness.inbox`, and
+`evoharness.usage`, creates `evoharness.provider` with a fresh provider-facing UUIDv7, and handles
+`evoharness.agent`:
 
-- A fork keeps the `asOf` copy of its parent's `pi.agent` (section 3.7),
+- A fork keeps the `asOf` copy of its parent's `evoharness.agent` (section 3.7),
   whatever its ownership.
-- A new task-owned conversation gets a copy of the stored `pi.agent` of the
+- A new task-owned conversation gets a copy of the stored `evoharness.agent` of the
   owner task's conversation, every field, `instructions` included. A later
   change to the owner does not reach the child. Fields the owner leaves unset
   stay unset and follow the host.
-- A new ownerless conversation gets an empty `pi.agent`, `{}`.
+- A new ownerless conversation gets an empty `evoharness.agent`, `{}`.
 
 `HarnessOptions.conversationCreated`, if given, then runs in the same commit
 with the new record, for every creation path, so the host can create the
@@ -897,13 +897,13 @@ The built-in agent document is final at version 1:
 
 | field | value |
 |---|---|
-| kind | `pi.agent` |
+| kind | `evoharness.agent` |
 | version | `1` (no migration) |
 | scope/history/fork | conversation, `rewindable`, `asOf` |
 | schema | `AgentState` |
 | `initial()` | `{}` |
 | checkpoint | complete base on every change |
-| view mount | `docs["pi.agent"]` |
+| view mount | `docs["evoharness.agent"]` |
 
 It stores only what someone chose for the conversation: extension and tool
 names, never code, and no prompt text other than `instructions`. Code comes
@@ -945,13 +945,13 @@ The built-in provider document is final at version 1:
 
 | field | value |
 |---|---|
-| kind | `pi.provider` |
+| kind | `evoharness.provider` |
 | version | `1` (no migration) |
 | scope/history/fork | conversation, `latest`, `initial` |
 | schema | `{ sessionId: string }` |
 | `initial()` | `{ sessionId: uuidv7() }` |
 | checkpoint | complete base on every change |
-| view mount | `docs["pi.provider"]` |
+| view mount | `docs["evoharness.provider"]` |
 
 The UUID is a provider-facing conversation identity, not the numeric Durable
 `ConversationId` and not an enclosing application's Session ID. Every new,
@@ -1069,7 +1069,7 @@ so `Conversation.abort()` cancels it and idle waits include it. It does not take
 run control, so it does not make the conversation busy: the conversation keeps
 working while it summarizes, and its summary is placed through a write
 submission, at once when idle, otherwise at the next boundary (section 8.7). `reset()` durably admits a write submission of a
-`pi.reset` entry (section 8.1) with `head: "self"`, carrying the handoff text as
+`evoharness.reset` entry (section 8.1) with `head: "self"`, carrying the handoff text as
 a user message when given, and then resolves; while busy, placement follows
 section 6 and may occur later. Observe its placement through the conversation
 watch. An idle wait does not guarantee placement of queued passive writes.
@@ -1467,7 +1467,7 @@ interface Tx {
   settleSubmission(id: SubmissionId, settlement: SubmissionSettlement): void;
   /** Newest visible entry of the conversation that carries a `head`. */
   latestHeadMarker(conversationId: ConversationId): Promise<(EntryRecord & { readonly head: EntryId }) | undefined>;
-  /** Record a queued submission's placement at `entry`: an input becomes `placed`, a write `done` (section 6). The caller appends the entry and edits `pi.inbox` and `pi.live`. */
+  /** Record a queued submission's placement at `entry`: an input becomes `placed`, a write `done` (section 6). The caller appends the entry and edits `evoharness.inbox` and `evoharness.live`. */
   placeSubmission(id: SubmissionId, entry: EntryId): void;
 
   doc<T extends JsonObject>(token: SessionDocToken<T>): Promise<Draft<T>>;
@@ -1878,7 +1878,7 @@ commit's publication inside a scope of its own: the store backend runs it in its
 attached host's batch, so Chord sources over Durable's views are marked in one
 batch per commit. Its publication applies it to the Session's read caches and
 adopts it in memory; then come the commit's telemetry
-events (`pi.durable.entry`, `pi.durable.submission`), then the Session's own
+events (`evoharness.durable.entry`, `evoharness.durable.submission`), then the Session's own
 observers, synchronously: document watches, conversation view mounts, the task
 graph, the scheduler, and submission waits, with the observers adapters attach
 (`observeDoc()`, `observeConversation()`, `observeTaskGraph()`, section 9.1). They
@@ -2062,7 +2062,7 @@ export, see held changes once they are stored.
 
 The Harness defers exactly two kinds of commits: generation partials (section
 8.3) and running tool progress (section 7.3). Every commit that consumes or
-clears them reads `pi.live` and so stores them first (section 8.2).
+clears them reads `evoharness.live` and so stores them first (section 8.2).
 
 ## 5. Tasks
 
@@ -2541,9 +2541,9 @@ task for it), the task ends visibly instead of running again:
 
 | task | at the limit |
 |---|---|
-| tool call (`pi.tool`) | ends with an error result, diagnostic code `restart_limit` ("Tool X was interrupted 3 times in a row; it is not run again"), built from its slot like an interrupted call's; its task fails with detail `{ reason: "restart_limit" }` |
-| compaction | fails with that error and detail, recorded in `pi.live.compactionFailure` |
-| generation | ends its run `unanswered` with `pi.live.runFailure` reason `restart_limit`, failing with that detail; a run that answered already, in `finish` or `drain`, ends without a failure and the generation completes (section 8.3) |
+| tool call (`evoharness.tool`) | ends with an error result, diagnostic code `restart_limit` ("Tool X was interrupted 3 times in a row; it is not run again"), built from its slot like an interrupted call's; its task fails with detail `{ reason: "restart_limit" }` |
+| compaction | fails with that error and detail, recorded in `evoharness.live.compactionFailure` |
+| generation | ends its run `unanswered` with `evoharness.live.runFailure` reason `restart_limit`, failing with that detail; a run that answered already, in `finish` or `drain`, ends without a failure and the generation completes (section 8.3) |
 | a kind of an extension | the scheduler ends it `faulted` with detail `{ reason: "restart_limit" }`, reported as `task_faulted` with reason `restart_limit` |
 
 A built-in task that ends itself this way, and a generation whose run ends
@@ -2637,18 +2637,18 @@ The scheduler knows nothing about runs or task kinds. The Harness, which owns
 submissions, run control, and the built-in tasks, gives it one hook that the
 scheduler calls in the commit that makes an outcome it wrote itself (`faulted`
 and `orphaned`) terminal, which is the final commit after a hold. The hook ignores tasks whose kind is not a built-in
-run, tool, or compaction kind, so it never creates `pi.live` elsewhere. It settles the run when
-`pi.live.run` names the task (section 8): a committed generation partial becomes
-an aborted `pi.assistant` entry, exactly as the generation abort handler converts
-it, so the transcript keeps what the model produced and `pi.usage` counts its
+run, tool, or compaction kind, so it never creates `evoharness.live` elsewhere. It settles the run when
+`evoharness.live.run` names the task (section 8): a committed generation partial becomes
+an aborted `evoharness.assistant` entry, exactly as the generation abort handler converts
+it, so the transcript keeps what the model produced and `evoharness.usage` counts its
 spend (the scheduler's commit has no task scope, so the entry has no
 `byTaskId`); its inputs become `unanswered` with reason `faulted` (detail: the error
 message) or the blocked reason; and `run`, `generation`, and `tools` are
 removed. Faults come from task bugs or malformed provider data, such as a
 non-JSON value in a response. A storage failure fails the Session and writes no
-outcome (section 10.1). For a `pi.tool` task it marks the task's tool slot `done`
+outcome (section 10.1). For a `evoharness.tool` task it marks the task's tool slot `done`
 without an entry; the run continues, and context derivation synthesizes the
-missing result (section 2.1). For a `pi.compaction` task it removes the task's
+missing result (section 2.1). For a `evoharness.compaction` task it removes the task's
 compaction status (section 8.7). Outcomes a task commits for itself do their own settlement.
 The Harness also supplies the per-phase agent resolution behind `runtime.hooks`
 and `runtime.agent()` (section 7.1); the scheduler only passes each phase's
@@ -2714,7 +2714,7 @@ its ordinary owned work drained:
    record's terminal state, task-document retirement, and task waiters are
    deferred to the final commit. A scheduler-written outcome writes only the
    record at hold; its Harness cleanup (section 5.4) runs in the final commit,
-   so a faulted run task keeps `pi.live.run` until its tools drained.
+   so a faulted run task keeps `evoharness.live.run` until its tools drained.
 5. Waiters, idle waits, inspection, and ordinary traversal see a `completing`
    task as live until its final commit.
 
@@ -2863,21 +2863,21 @@ type InboxState = { items: InboxItem[] };
 
 | field | value |
 |---|---|
-| kind | `pi.inbox` |
+| kind | `evoharness.inbox` |
 | version | `1` |
 | scope/history/fork | conversation, `latest`, `initial` |
 | `initial()` | `{ items: [] }` |
 | checkpoint | complete base whenever `items` is empty |
-| view mount | `docs["pi.inbox"]` |
+| view mount | `docs["evoharness.inbox"]` |
 | created | with every Harness conversation (section 2.2) |
 
 Items are in ID order. A queued input stores its content and its entry's kind
 and data; its entry gets the Harness clock's timestamp at placement.
 
 An input is placed as one entry whose `model` is the user message of its
-`content`: a `pi.user` entry, or, with `entry: { kind, data }`, an entry of that
+`content`: a `evoharness.user` entry, or, with `entry: { kind, data }`, an entry of that
 kind carrying that data. Only `kind` and `data` are taken from `entry`; admission
-rejects a kind that is not a non-empty string or starts with `pi.`. Nothing in
+rejects a kind that is not a non-empty string or starts with `evoharness.`. Nothing in
 the Harness reads input entries by kind; context, compaction, and run
 accounting go by `model` and the submission records.
 
@@ -2891,14 +2891,14 @@ starts, so a display-only write queues behind a queued reset and is placed after
 it at the same boundary. Queued submissions belong to
 their conversation, so a fork starts with an empty inbox.
 
-Run control lives in the built-in live document `pi.live` (section 8). Its
+Run control lives in the built-in live document `evoharness.live` (section 8). Its
 optional `run` value names the task currently responsible for the run and its
 placed input-submission IDs. `run !== undefined` defines `busy`; get-or-create
 of the idle document does not. The value remains while generation, tools, and
 tools hand work to one another: `taskId` names the generation that settles the
 inputs, including while its tool round runs, then the next
 generation. Tool tasks never own the run; the current round's tool tasks are
-listed in `pi.live.tools`. The ID list is mutable state because a
+listed in `evoharness.live.tools`. The ID list is mutable state because a
 boundary adds placed steering inputs to an active run; every terminal path
 settles exactly the listed inputs. A run that answered while `afterRun` hooks
 are selected (section 8.3) settles its inputs `done` at the answer and keeps
@@ -2939,11 +2939,11 @@ mode `steer` when `whenBusy` is `steer` and `followUp` otherwise.
 `Conversation.submit(tx, draft)` runs the same admission inside the caller's
 commit instead of one of its own and returns the submission's ID; a task or tool
 does so through `ConversationHandle.submit(tx, draft)` in its own commit. The
-Harness supplies the clock, queue modes, the `pi.durable.submit` span (same
+Harness supplies the clock, queue modes, the `evoharness.durable.submit` span (same
 parent, links, and trace carrier as `submit(draft, context)`), and the request
 for progress a started run needs. The admission's writes, a started run
 included, are stored with the caller's other writes in that commit, or not at
-all: a host can check its own documents and `pi.live`, admit, and record the
+all: a host can check its own documents and `evoharness.live`, admit, and record the
 submission in one commit. A rejection throws before any write. Admission must
 precede the commit's first table write, another admission's included: it throws
 `ReadAfterWrite` otherwise, on every path, also where it would read no table (a
@@ -2951,8 +2951,8 @@ busy input without request ID or trace). Entries it appends inside a task's or
 tool's commit carry that task's `byTaskId`, as the commit's own appends do. The
 span covers the admission only: it ends before the caller's commit is stored,
 its `result` is provisional (a later throw in the callback or a storage failure
-leaves no submission), and the commit's events (`pi.durable.entry`,
-`pi.durable.submission`) go to the caller's commit context. A first argument
+leaves no submission), and the commit's events (`evoharness.durable.entry`,
+`evoharness.durable.submission`) go to the caller's commit context. A first argument
 that is not a draft is taken as a transaction; one of another Session throws.
 
 A continue starts a run on the context as it is, without a user message, for
@@ -2969,7 +2969,7 @@ system messages aside, ends the run without a request, `unanswered` with
 answer, so a text answer is not continued; one with tool calls is, because its
 calls never ran and the context ends in their synthesized `missing_result`
 error results (section 2.1). A host offers continue while the conversation is
-idle and `pi.live.runFailure` is set (section 8.2); a stale failure (one a later
+idle and `evoharness.live.runFailure` is set (section 8.2); a stale failure (one a later
 run started in its commit kept) settles `nothing_to_answer`. Each continue starts
 a run with its own turn budget.
 
@@ -3057,7 +3057,7 @@ in the run for them to join. A run whose after-run phase was cut off
 Failure, a run task's abort handler, fault, and orphan settle the run's inputs
 `unanswered`, unless the run answered already and waits for its after-run tasks
 (its inputs are `done`), and leave the inbox alone (`Conversation.abort()` separately withdraws queued user items); the queued items stay visible in
-`pi.inbox` until the next input or queued write runs a boundary, or their withdrawal.
+`evoharness.inbox` until the next input or queued write runs a boundary, or their withdrawal.
 
 Selected and stale items are removed positionally while retained item order is
 preserved. Chord's Astra operation generator must express scattered removals
@@ -3073,7 +3073,7 @@ extensions. An extension is a named bundle of tools, prompt sections, hooks,
 tool and section wrappers, and task definitions. The registry is process-local,
 may outlive a Harness, and is not persisted; durable state stays in
 conversations, entries, tasks, and documents. A conversation selects extensions
-by name in its `pi.agent` document (section 2.2).
+by name in its `evoharness.agent` document (section 2.2).
 
 ```ts
 type DocumentReader = Pick<Session, "snapshot" | "snapshotAsOf">;
@@ -3248,7 +3248,7 @@ still-running call fail with an ordinary error result. Extensions that need
 graceful disposal manage their resources' lifetime themselves, for example by
 reference counting.
 
-**Resolution.** A conversation's `Agent` is resolved from its stored `pi.agent`
+**Resolution.** A conversation's `Agent` is resolved from its stored `evoharness.agent`
 (absent: every field unset), a registry snapshot, and the resolved settings:
 
 ```text
@@ -3310,7 +3310,7 @@ await conversation.configure({ extensions: { add: [Venv] } }, context);
 | reader | resolves | when |
 |---|---|---|
 | generation `prepare` | agent (tools, sections, model, thinking level), stream options, compaction thresholds for that model | once per request; model, stream options, and offered tools are fixed in the request checkpoint (section 8.3) |
-| every task phase | extension selection for hooks; `runtime.agent()` | at most once per phase handler, at its first hook dispatch or `agent()` call, from that phase's snapshot and the committed `pi.agent`, off the Session line, with the invocation's context; fixed for the rest of the phase |
+| every task phase | extension selection for hooks; `runtime.agent()` | at most once per phase handler, at its first hook dispatch or `agent()` call, from that phase's snapshot and the committed `evoharness.agent`, off the Session line, with the invocation's context; fixed for the rest of the phase |
 | tool task | the implementation of an accepted call | at `call` and `execute`: the name among the phase agent's `tools`, the current selection after the tools filter; no such tool, for example one removed after preparation, or a call flagged `unoffered` (section 8.3): `tool_unavailable`. Replay policy on reopen uses the same lookup (section 7.3) |
 | generation, when a tool round starts | tool execution mode | once per round (section 8.3) |
 | generation, compaction | retry policy | at each attempt's classification |
@@ -3401,7 +3401,7 @@ interface GenerationHooks {
 type RunSummary = {
   /** A final answer, or a tool round whose every call asked to `terminate`. */
   readonly reason: "answer" | "terminate";
-  /** The run's first entry (`pi.live.run.first`, section 8.2), or the answer for a run without one. */
+  /** The run's first entry (`evoharness.live.run.first`, section 8.2), or the answer for a run without one. */
   readonly first: EntryId;
   /** The answer, or the terminating round's tool-calling answer. */
   readonly answer: EntryId;
@@ -3571,7 +3571,7 @@ type ToolExecutionResult<TDetails extends JsonValue = JsonValue> = {
   readonly isError?: boolean;
   readonly details?: TDetails;
   readonly diagnostics?: readonly ToolDiagnostic[];
-  /** Spend of the execution itself, such as a model call; stored on the result and in `pi.usage.tools`. */
+  /** Spend of the execution itself, such as a model call; stored on the result and in `evoharness.usage.tools`. */
   readonly usage?: Usage;
   readonly control?: ToolControl;
 };
@@ -3683,10 +3683,10 @@ and `retain: "head"`. Omitted `executionMode` follows the settings'
 (section 8.3).
 
 A running tool calls another tool with `api.executeTool()`, as a codemode
-script or an MCP bridge does. The nested call is its own `pi.tool` task, owned
+script or an MCP bridge does. The nested call is its own `evoharness.tool` task, owned
 by the calling tool's task, so it has its own task ID for idempotence and
 ownership, runs the whole tool pipeline (section 8.4) including the `ToolTask`
-hooks, which see `call.parent`, and reports progress in `pi.live.nestedTools`
+hooks, which see `call.parent`, and reports progress in `evoharness.live.nestedTools`
 (section 8.2). Its result returns to the caller as a `NestedToolExecutionResult` and
 never enters the transcript; the model sees only what the caller puts in its
 own result. Its tool resolves among the agent's `callable` tools: the enabled
@@ -3700,7 +3700,7 @@ The nested call's key names it within its caller; the nested call ID is
 invocation's nested calls, `1`, `2`, ... An explicit `key` must be non-empty,
 without `/`, not `__proto__`, and not a positive integer, so call IDs never
 collide. One commit creates the nested task, its slot, and its member of
-`NestedCallDoc` (`pi.tool.nested-call`), a task-scoped document family of the
+`NestedCallDoc` (`evoharness.tool.nested-call`), a task-scoped document family of the
 caller keyed by the call's key, holding `{ taskId }`; it retires with the
 caller. One document per call, so admitting a call rewrites no other call's. A caller that is not replay-safe creates its nested
 calls, and the child tasks it creates through `api.createTask()` unless the
@@ -3802,7 +3802,7 @@ widen what `tools` enables.
 A `deferred` tool is not offered to the model until it is loaded: `modelTools`
 must name it, in its array or its `add`. Other tools can call it any time. A
 tool loads deferred tools with `control.addTools`, which writes their names to
-`modelTools` (section 8.5); since `pi.agent` is rewindable and forks as of the
+`modelTools` (section 8.5); since `evoharness.agent` is rewindable and forks as of the
 fork's entry, loaded tools are per branch, and a baseline after a head marker
 declares them, built from the resolved tools. Loaded tools follow the other
 tools in load order, so a load appends declarations to the transcript and the
@@ -3845,7 +3845,7 @@ its final result, plus diagnostics (below):
 Neither is sent to the model while the tool runs. `output()` synchronously
 accepts UTF-8 output into that invocation-owned bounded buffer and throws after
 invocation end. Throttled commits publish the retained output, dropped
-byte/line counts, and the current details and diagnostics in its `pi.live.tools`
+byte/line counts, and the current details and diagnostics in its `evoharness.live.tools`
 slot. The throttle is adaptive, like the environment's shell output capture: the
 first change after an idle period commits at once; each commit then delays the
 next by at least `settings.progress.outputIntervalMs` (default 100 ms) and by
@@ -3875,7 +3875,7 @@ When there are any, the result content ends with one text item:
 </harness>
 ```
 
-with one `[severity] message` line per diagnostic, and the `pi.tool-result`
+with one `[severity] message` line per diagnostic, and the `evoharness.tool-result`
 entry stores the structured list, possibly empty, as `data: { diagnostics }`
 (section 8.1). The
 stored message is exactly what the model saw, while UIs and code read the list.
@@ -3958,7 +3958,7 @@ symlink swap, so callers that restrict paths do so for hygiene, not security.
 
 The `details()` promise resolves after the corresponding or coalesced document
 commit, which memory adopts at once and Storage gets with the next commit that
-reads `pi.live` or within `settings.progress.persistWithinMs` (section 4.1). During normal settlement the tool task stops its throttle and awaits the
+reads `evoharness.live` or within `settings.progress.persistWithinMs` (section 4.1). During normal settlement the tool task stops its throttle and awaits the
 commit in flight; the terminal commit, which appends the result entry, is the
 final flush and settles any `details()` promise still pending. Abort and close obey
 invocation and Session admission gates: uncommitted buffered updates may be
@@ -4010,7 +4010,7 @@ ordinary transaction writes for passive entries.
 
 A tool executes in a durable task. It may:
 
-- publish bounded running output and details to its `pi.live.tools` slot;
+- publish bounded running output and details to its `evoharness.live.tools` slot;
 - commit memos;
 - create and wait for tasks;
 - atomically create or fork explicitly owned conversations through `commit()`;
@@ -4107,7 +4107,7 @@ the answer once. The reporter therefore needs no transaction-level admission;
 `tx.createSubmission()` writes a raw record without admission rules. The
 application's name document uses
 `fork: "initial"` so forks of the parent do not inherit it. A UI lists
-subagents from that document; a child is working while its `pi.live.run` is
+subagents from that document; a child is working while its `evoharness.live.run` is
 set. Owner edges alone drive abort and idle traversal. The anchor and reporter
 task definitions come with the subagent extension, so pending reporters resume
 after a restart once the host installs it again:
@@ -4131,7 +4131,7 @@ conversation's stored tools filter; they take effect at the next preparation. Th
 terminates only when every result of the round requests `terminate`, as in the
 pi agent loop; the `tools` phase then uses a final boundary. Any
 `handoff` in the round, the last one in call order when several ask, appends a
-`pi.reset` entry with `head: "self"` and the handoff text as a user message
+`evoharness.reset` entry with `head: "self"` and the handoff text as a user message
 (section 8.1), exactly what `reset(handoff)` writes, and the run continues: the
 next generation answers in the new context, and the run's inputs settle with
 that eventual answer or error, not with the tool-calling answer. A later round
@@ -4139,9 +4139,9 @@ may hand off again. A round that also terminates writes the reset and then ends
 the run as `terminate` does.
 
 A result's `usage` is stored on the tool-result message and added to the
-conversation's `pi.usage.tools[toolName]` in the result commit (section 8.6). A
+conversation's `evoharness.usage.tools[toolName]` in the result commit (section 8.6). A
 tool that runs an owned conversation must not report that conversation's spend
-again: the child's own `pi.usage` already counts it (section 12).
+again: the child's own `evoharness.usage` already counts it (section 12).
 
 On reopen, a tool reruns only when both its stored intent policy and the current
 declaration, resolved as at `call`, say `safe`. A current `unsafe` declaration
@@ -4202,14 +4202,14 @@ is not a lock against `bash` or other processes.
 ### 7.4 System prompt and dynamic tools
 
 Durable has no durable prompt sections. The conversation's resolved agent produces
-the desired sections for each request; the transcript's `pi.system` entries are
+the desired sections for each request; the transcript's `evoharness.system` entries are
 the only durable record of what the model saw. Durable stores prompt and tool
 changes directly as PR #9548 `SystemMessage` values at their transcript
 positions, always with empty `content`:
 
 ```ts
 type SystemEntry = EntryRecord & {
-  readonly kind: "pi.system";
+  readonly kind: "evoharness.system";
   readonly model: readonly [SystemMessage];
 };
 
@@ -4242,7 +4242,7 @@ Generation preparation takes these steps against its phase snapshot:
    committed documents (the task runtime). The results are the desired
    sections.
 4. Compare desired sections and tool declarations with the replayed state and
-   append one positional `pi.system` entry when they differ.
+   append one positional `evoharness.system` entry when they differ.
 
 Preparation does not recheck the transcript before appending: only the Harness
 writes model context to a busy conversation, through submissions, run tasks,
@@ -4293,7 +4293,7 @@ so a same-name replacement gets the new declaration and position.
 
 Preparation compares both values and order. If values can be patched without
 changing order, it emits the minimal patch. If shown and desired section order
-differ, one commit appends two `pi.system` entries: the first removes every
+differ, one commit appends two `evoharness.system` entries: the first removes every
 shown section with `null`, and the second re-adds every desired section in
 desired order. This makes order-only changes and deletion/re-addition between
 requests replay exactly; merely restating equal values is insufficient.
@@ -4301,14 +4301,14 @@ requests replay exactly; merely restating equal values is insufficient.
 A PR #9548 `SystemMessage` is always a patch, not a reset: it cannot remove
 previous `content` or restore section order merely by restating current values.
 Therefore, when a head removes the previous request-visible baseline, which is
-the case when the active context has a head marker and no `pi.system` entry
+the case when the active context has a head marker and no `evoharness.system` entry
 was appended after that marker (has a higher ID), the new
-`pi.system` entry adds `ContextEdit` omissions for every earlier `pi.system`
+`evoharness.system` entry adds `ContextEdit` omissions for every earlier `evoharness.system`
 entry still retained after the cut. Its own message is then a complete baseline
 containing every desired section in order and every effective tool declaration.
 Model-context replay sees the new baseline instead of the omitted retained
 deltas. Preparation writes this baseline even when it restates the replayed
-values, so every later preparation finds a `pi.system` entry after the marker.
+values, so every later preparation finds a `evoharness.system` entry after the marker.
 Head rebaselining takes precedence over ordinary order/value patching.
 Without a head cut, an order mismatch uses the two-entry remove/re-add sequence
 above; only when order already matches does preparation emit the minimal changed
@@ -4411,11 +4411,11 @@ With `models` (default on), scripts get the model catalog
 (`models.getModelsOfType`, `getAvailableOfType`, `getModelOfType`; journaled
 globals, configured `headers` removed) and `models.classify()` and
 `models.generateImages()`. Those two are paid effects, so each runs as an
-internal tool of the extension, `pi.codemode.models.classify` and
-`pi.codemode.models.generateImages` (`callers: ["tools"]`): the code mode tool
+internal tool of the extension, `evoharness.codemode.models.classify` and
+`evoharness.codemode.models.generateImages` (`callers: ["tools"]`): the code mode tool
 turns the script's call of the global into a nested call of the tool, which then
 has its own task, live row, abort, usage accounting, and replay policy. Tools
-named `pi.codemode.*` are recorded in the start data as `hidden`: never in the
+named `evoharness.codemode.*` are recorded in the start data as `hidden`: never in the
 section, `tools`, `ALL_TOOLS`, or tool search. They declare a schema, so like any
 such tool they resolve with the model's result whatever its `stopReason`, which
 the script checks; their rows show a failed one as an error. At most four such
@@ -4429,20 +4429,20 @@ The result's \`details\` list the script's tool calls in call order
 (\`CodemodeToolDetails\`: id, name, cut arguments, status \`ok\`/\`error\`/
 \`cancelled\`, duration, cut error), written once with the result; a call still
 running or not yet launched when the script ended is \`cancelled\`. While the
-script runs, UIs show its nested calls from \`pi.live.nestedTools\`.
+script runs, UIs show its nested calls from \`evoharness.live.nestedTools\`.
 
 Three documents, two of them scoped to the code mode call's task:
 
-- `pi.codemode.run`: `start`, written once before the VM starts (module
+- `evoharness.codemode.run`: `start`, written once before the VM starts (module
   version, `startedAt`, seed, the VM's fingerprint once reported, the deadline
   from `timeout_ms`, the tools and globals the script sees, the store
   snapshot), and `result`, the outcome, written once.
-- `pi.codemode.journal`: `entries`, one per result delivered to the VM, in
+- `evoharness.codemode.journal`: `entries`, one per result delivered to the VM, in
   delivery order: the call's ID, the clock value, `issuedAfter` (the calls the VM
   had issued after processing it, from its acknowledgment), and for a global its
   name, arguments, and outcome; and `firstIssued`, the calls the VM had issued
   after the script's first run.
-- `pi.codemode.store`: conversation-scoped, `history: "rewindable"`,
+- `evoharness.codemode.store`: conversation-scoped, `history: "rewindable"`,
   `fork: "asOf"`; a successful script's `store()` writes are applied per key in
   the transaction that writes its `result`.
 
@@ -4492,9 +4492,9 @@ The initial implementation provides:
 
 | kind | responsibility |
 |---|---|
-| `pi.generation` | prepare system prompt and tools, request or poll model, retry, classify response |
-| `pi.tool` | validate, hook, execute, persist output and details, append result |
-| `pi.compaction` | select a transcript range, summarize, place a headed summary |
+| `evoharness.generation` | prepare system prompt and tools, request or poll model, retry, classify response |
+| `evoharness.tool` | validate, hook, execute, persist output and details, append result |
+| `evoharness.compaction` | select a transcript range, summarize, place a headed summary |
 
 Generation uses `HarnessOptions.models` without a Durable-specific model adapter. It
 resolves `models.getModel(ref.provider, ref.modelId)`, builds a pi-ai `Context`
@@ -4507,7 +4507,7 @@ are classified into the durable generation outcomes below.
 
 Generation and tool progress are throttled document commits, deferred
 (section 4.1): watches see each at once, and Storage gets them with the next
-commit that reads `pi.live` or within `settings.progress.persistWithinMs`
+commit that reads `evoharness.live` or within `settings.progress.persistWithinMs`
 (default 1,000 ms). A crash may lose the throttle window plus what was not
 stored yet: a stream that crashes before its first store leaves no aborted entry,
 and that attempt's usage is not recorded. Recovery converts stored partials
@@ -4522,22 +4522,22 @@ does not delete transcript history.
 
 ### 8.1 Built-in entries
 
-Built-in entry kinds carry no `data`, except `pi.tool-result`, whose token is
+Built-in entry kinds carry no `data`, except `evoharness.tool-result`, whose token is
 `Entry<{ diagnostics: ToolDiagnostic[] }>`; every tool result carries `data`,
 with an empty list when it has no diagnostics (section 7.3), and
-`pi.compaction`, whose token is `Entry<{ reason: CompactionReason }>`. Each kind
+`evoharness.compaction`, whose token is `Entry<{ reason: CompactionReason }>`. Each kind
 is exported as an `Entry` token.
 
 | kind | `model` | written by |
 |---|---|---|
-| `pi.user` | `[UserMessage]`, timestamp from the Harness clock at admission or placement | submissions, `onYield` continuations |
-| `pi.assistant` | `[AssistantMessage]` with any stop reason | generation |
-| `pi.system` | `[SystemMessage]` with `content: ""` (section 7.4) | generation preparation |
-| `pi.tool-result` | `[ToolResultMessage]` | tool tasks; generation for calls an aborted round never started |
-| `pi.reset` | absent, or `[UserMessage]` with the handoff text; always `head: "self"` | `reset()`, generation `tools` phase for `handoff` |
-| `pi.compaction` | `[UserMessage]` with the wrapped summary; `head` is the first kept entry | compaction tasks (section 8.7) |
+| `evoharness.user` | `[UserMessage]`, timestamp from the Harness clock at admission or placement | submissions, `onYield` continuations |
+| `evoharness.assistant` | `[AssistantMessage]` with any stop reason | generation |
+| `evoharness.system` | `[SystemMessage]` with `content: ""` (section 7.4) | generation preparation |
+| `evoharness.tool-result` | `[ToolResultMessage]` | tool tasks; generation for calls an aborted round never started |
+| `evoharness.reset` | absent, or `[UserMessage]` with the handoff text; always `head: "self"` | `reset()`, generation `tools` phase for `handoff` |
+| `evoharness.compaction` | `[UserMessage]` with the wrapped summary; `head` is the first kept entry | compaction tasks (section 8.7) |
 
-Every generation response becomes a `pi.assistant` entry: answers, failed attempts
+Every generation response becomes a `evoharness.assistant` entry: answers, failed attempts
 with their error text and usage, and converted partials with stop reason
 `aborted`. Context derivation (section 2.1, rule 9) keeps failed and aborted
 messages out of later requests, so no separate usage or notice kind exists.
@@ -4680,13 +4680,13 @@ type CompactionStatus = {
 
 | field | value |
 |---|---|
-| kind | `pi.live` |
+| kind | `evoharness.live` |
 | version | `3` |
 | scope/history/fork | conversation, `latest`, `initial` |
 | `initial()` | `{}` |
 | `migrate()` | from version 1: `reason` of each `compactions` status and of `compactionFailure` renamed `trigger`; from versions 1 and 2: `run.turns` set to `0` where it is missing (section 3.6); `run.first`, `run.afterRun`, and `runFailure.first` are optional and need no step |
 | checkpoint | complete base whenever nothing runs: `generation` absent and no `running` tool or nested slot |
-| view mount | `docs["pi.live"]` |
+| view mount | `docs["evoharness.live"]` |
 | created | with every Harness conversation (section 2.2) |
 
 Nothing runs while idle, at a final boundary, in the commit where generation
@@ -4717,7 +4717,7 @@ with the arguments the caller passed, runs like a tool slot, gets the arguments
 it executes with in its intent commit when they differ (a model-issued call's
 are in its assistant entry), and in its terminal commit becomes `done`, with its progress
 removed like a tool slot's and its `summary` set, enough for a status line; its
-result is in the caller's `NestedCallDoc`, never in `pi.live` (section 7.3). When any call settles, its terminal commit
+result is in the caller's `NestedCallDoc`, never in `evoharness.live` (section 7.3). When any call settles, its terminal commit
 removes the nested slots below it, transitively by `parentTaskId`; its
 left-running nested calls were aborted first. `endRun` and the generation's
 `tools` phase remove `nestedTools` with `tools`.
@@ -4766,10 +4766,10 @@ so it is not a caller table read and works after the commit's first table write.
 The streamed fields, `generation.message` and a running slot's `output`,
 `droppedBytes`, `droppedLines`, `details`, and `diagnostics`, are written by
 deferred commits (section 4.1). Every commit that derives anything from them or
-clears them acquires `pi.live`: converting a partial into an aborted entry,
+clears them acquires `evoharness.live`: converting a partial into an aborted entry,
 settling a tool from its slot, handing a generation over to its tool round,
 ending a run, and clearing a safe rerun's progress. It therefore stores them
-first, with its own changes, and after a crash Storage holds a `pi.live` its
+first, with its own changes, and after a crash Storage holds a `evoharness.live` its
 memory had: control fields as of the last normal commit, streamed fields as of
 the last store. Recovery's own conversions and clears are normal commits, so a
 second crash never converts the same partial twice.
@@ -4831,13 +4831,13 @@ type GenerationCheckpoint =
 type GenerationResult = { entryId: EntryId };
 ```
 
-`pi.generation` is version 2 and starts at `{ phase: "prepare", attempt: 1 }`;
+`evoharness.generation` is version 2 and starts at `{ phase: "prepare", attempt: 1 }`;
 `migrate` keeps a version 1 record. Version 2 keeps calls to tools not offered
 in a sequential round's `pending`, flagged `unoffered` in their slots (section
 8.5), which a version 1 Harness would start as tool tasks without the flag, so
 it leaves version 2 blocked (`task_too_old`); the `finish` and `drain` phases
 below are version 2 as well.
-The run's inputs live in `pi.live.run`, not in the task input.
+The run's inputs live in `evoharness.live.run`, not in the task input.
 
 - `prepare` runs section 7.4 with the phase's agent resolution and resolves
   the settings once. When the agent has no model or `models.getModel()` does
@@ -4850,7 +4850,7 @@ The run's inputs live in `pi.live.run`, not in the task input.
   sent. Only roles count: a `length` answer with only text ends the context,
   while one with tool calls is followed by the error results synthesized for
   its calls (section 2.1), so a continue answers those. Otherwise one commit appends
-  the planned `pi.system` entries and moves to `request` with the new tail as
+  the planned `evoharness.system` entries and moves to `request` with the new tail as
   `cutoff`, the agent's model and thinking level, and the settings' stream
   options. These stay fixed for this request attempt; a retry prepares again. `compacted` carries over to
   `request`, `retry`, `poll`, and the next `prepare`.
@@ -4877,7 +4877,7 @@ The run's inputs live in `pi.live.run`, not in the task input.
     abort). A failed compaction leaves a context above the blocking threshold,
     where a request would at best leave no room for the answer.
   - Above `contextWindow - reserveTokens - backgroundTokens` with
-    `backgroundTokens > 0` and no compaction status in `pi.live`: the commit that
+    `backgroundTokens > 0` and no compaction status in `evoharness.live`: the commit that
     moves to `request` also creates a background compaction, owned by the
     conversation, with reason `threshold`, and adds its status. The generation
     does not wait for it. The settings' retry policy is read when the
@@ -4887,13 +4887,13 @@ The run's inputs live in `pi.live.run`, not in the task input.
   `models.getModel()`; an unknown model fails the task with `no_model`, like
   `prepare`. `request` converts a leftover partial (below) before it resolves
   the model.
-- `request` first converts a committed partial left in `pi.live` by an
-  interrupted attempt into an aborted `pi.assistant` entry, and sets
-  `pi.live.generation` to the attempt with a deferred commit (section 4.1), which
+- `request` first converts a committed partial left in `evoharness.live` by an
+  interrupted attempt into an aborted `evoharness.assistant` entry, and sets
+  `evoharness.live.generation` to the attempt with a deferred commit (section 4.1), which
   the conversion makes immediate. When the host died
   while this request was in flight (the record's `restarts`, section 5.4), the
   attempt failed: that commit also either sleeps at `retry` until
-  `now + retryDelayMs(policy, attempt)`, with `pi.live.generation.retry` saying
+  `now + retryDelayMs(policy, attempt)`, with `evoharness.live.generation.retry` saying
   "The host stopped while the model was answering, on attempt N", when the
   retry policy allows another attempt, or settles the inputs `unanswered` and
   ends the run with `runFailure` reason `interrupted` and that text, failing the
@@ -4910,7 +4910,7 @@ The run's inputs live in `pi.live.run`, not in the task input.
   as `reasoning` (omitted for `off`), the conversation's persisted provider
   `sessionId`, and the pinned `streamOptions`, committing throttled partials at
   most every `settings.progress.partialIntervalMs` (default 100 ms), deferred
-  (section 4.1), so Storage gets them at the next commit that reads `pi.live`
+  (section 4.1), so Storage gets them at the next commit that reads `evoharness.live`
   or within `settings.progress.persistWithinMs`.
   Before streaming, the `beforeRequest` chain may
   replace the messages for this request only. Once pi-ai has built the provider
@@ -4927,11 +4927,11 @@ The run's inputs live in `pi.live.run`, not in the task input.
   - `stop`/`length`: before the commit, the `onYield` chain runs; the first
     `{ continue }` wins. The commit appends the answer and applies the final
     boundary (section 6). With a continuation and no selected user item or
-    reset, it appends a `pi.user` entry with the continuation content, creates a
-    successor generation, and hands it `pi.live.run`, keeping the inputs open and
+    reset, it appends a `evoharness.user` entry with the continuation content, creates a
+    successor generation, and hands it `evoharness.live.run`, keeping the inputs open and
     setting its `turns` to `0`: each stretch a continuation starts gets the whole
     turn budget, and bounding `onYield` loops is the extension's job (it reads
-    `pi.live.run.turns` and `pi.agent.maxTurns` with `api.snapshot`). The chain runs
+    `evoharness.live.run.turns` and `evoharness.agent.maxTurns` with `api.snapshot`). The chain runs
     whatever the count.
     Otherwise it settles the run's inputs `done`, removes `run` and
     `generation`, and starts a successor run for the selected user items, if
@@ -4976,7 +4976,7 @@ The run's inputs live in `pi.live.run`, not in the task input.
   fails `no_model` once the poll is due.
 - `finish` asks the `afterRun` hooks with its `run` (section 7.2) and checks
   each requested task off the line: its kind must be an installed task that is
-  not built-in (`pi.*`), its input JSON, and the installed definition's
+  not built-in (`evoharness.*`), its input JSON, and the installed definition's
   `initial()` must return a JSON checkpoint of one of its phases. A request
   that fails a check is skipped and reported as an `extension_error` of the
   hook that asked for it; the run never fails for one. The task is
@@ -5008,7 +5008,7 @@ A tool round starts in the commit that appends the tool-calling answer:
 1. The offered tools are replayed with pi-ai `getCurrentTools()` from the
    committed model context through `cutoff`: `request` already holds it, and
    `poll` derives it again.
-2. Every call gets a `pi.tool` task owned by the generation, in call order, with
+2. Every call gets a `evoharness.tool` task owned by the generation, in call order, with
    input `{ assistant, callId }`, plus `unoffered: true` (also on its slot) for a
    call to a tool not offered, which settles `tool_unavailable` without resolving
    the name (section 8.4). The round is sequential when the settings'
@@ -5020,16 +5020,16 @@ A tool round starts in the commit that appends the tool-calling answer:
    created so far and grows by one per started sequential call, while
    `pending` shrinks.
 3. The generation commits `waiting` on its tool tasks with `allSettled` and the
-   `tools` checkpoint (section 8.5); `pi.live.run` stays with it.
-4. `pi.live.tools` receives the round's slots (section 8.2), `generation` is
-   removed, and `pi.live.run.turns` grows by one; a run without `first` gets the
+   `tools` checkpoint (section 8.5); `evoharness.live.run` stays with it.
+4. `evoharness.live.tools` receives the round's slots (section 8.2), `generation` is
+   removed, and `evoharness.live.run.turns` grows by one; a run without `first` gets the
    tool-calling answer as its first entry.
 
 Input and continue submissions settle `unanswered` with one of these reasons:
 `no_model`, `model_error` (detail: provider error text), `nothing_to_answer`,
 `turn_limit` (detail: the turn count, section 8.5), `aborted`, `faulted` (detail: error message), or an orphaning blocked reason
 (section 5.4). Fault and orphan
-settlement convert a committed partial into an aborted `pi.assistant` entry,
+settlement convert a committed partial into an aborted `evoharness.assistant` entry,
 like the abort handler.
 
 ### 8.4 Tool
@@ -5044,7 +5044,7 @@ type ToolTaskCheckpoint =
 type ToolTaskResult = { kind: "model"; entryId: EntryId; control?: ToolControl } | { kind: "nested" };
 ```
 
-`pi.tool` is version 3 and starts at `{ phase: "call" }`; `migrate` gives a
+`evoharness.tool` is version 3 and starts at `{ phase: "call" }`; `migrate` gives a
 version 1 input `kind: "model"` and keeps a version 2 input (version 3 added
 `unoffered`), and readers treat a terminal result without `kind` as a
 model-issued call's. A call flagged `unoffered` resolves no tool: `call` settles
@@ -5079,7 +5079,7 @@ Below, `{ entryId }` is a model-issued call's result.
   Either way, a task cut off `settings.restartLimit` times ends with a
   `restart_limit` result instead (section 5.4), also after the chain.
 - The result commit bounds the content, appends the diagnostics block (section
-  7.3), appends one `pi.tool-result` entry with `model: [{ role: "toolResult",
+  7.3), appends one `evoharness.tool-result` entry with `model: [{ role: "toolResult",
   toolCallId, toolName, content, details, isError, durationMs, timestamp }]` and
   `data: { diagnostics }`, marks the slot `done`, and
   completes with `{ entryId, control }`. An `isError` result still completes.
@@ -5123,10 +5123,10 @@ The generation resumes in its `tools` phase once every tool task it waits on is
 terminal. In a sequential round with calls left in `pending`, one commit creates
 the next call's owned tool task and waits on it again with the shorter `pending`.
 Otherwise it reads the tool records with `runtime.getTask()` and the round's
-result entries from the `pi.live.tools` slots, runs the `afterTools` observers,
+result entries from the `evoharness.live.tools` slots, runs the `afterTools` observers,
 and then commits once:
 
-- It edits the conversation's stored `pi.agent` `tools` and `modelTools` for
+- It edits the conversation's stored `evoharness.agent` `tools` and `modelTools` for
   every `addTools` name: an array gets the name appended unless it holds it
   already, and `{ remove }` loses the name. An unset `tools` already enables
   every tool, and nothing is written for it. An unset or object `modelTools`
@@ -5134,7 +5134,7 @@ and then commits once:
   no effect for others. Names are written without consulting the registry, so a
   tool that is not registered now is offered once it is again. The next
   preparation offers the tool when it resolves and the model may call it.
-- When any result requests `handoff`, it first appends the `pi.reset` entry of
+- When any result requests `handoff`, it first appends the `evoharness.reset` entry of
   the last one in call order and advances the boundary's active range start to
   it, so the boundary below places its writes and user items after the handoff
   text, and a queued head write targeting an entry before it is stale.
@@ -5155,7 +5155,7 @@ and then commits once:
   boundary placed a queued reset, which wins over a handoff written before it,
   the run's inputs settle `unanswered` with `reset` and selected user items
   start a successor run (section 6). Otherwise selected steer IDs join
-  `pi.live.run`, and it creates the next generation, owned by the conversation,
+  `evoharness.live.run`, and it creates the next generation, owned by the conversation,
   and hands it the run; after a handoff, that generation prepares and requests
   in the new context.
 
@@ -5181,18 +5181,18 @@ type UsageState = {
 
 | field | value |
 |---|---|
-| kind | `pi.usage` |
+| kind | `evoharness.usage` |
 | version | `1` |
 | scope/history/fork | conversation, `latest`, `initial` |
 | `initial()` | `{ models: {}, tools: {} }` |
 | checkpoint | complete base on every change |
-| view mount | `docs["pi.usage"]` |
+| view mount | `docs["evoharness.usage"]` |
 | created | with every Harness conversation (section 2.2) |
 
-`pi.usage` is the ledger of the conversation's own spend. Every built-in writer
-of a `pi.assistant` entry adds its message's `usage` to `models` under the
+`evoharness.usage` is the ledger of the conversation's own spend. Every built-in writer
+of a `evoharness.assistant` entry adds its message's `usage` to `models` under the
 message's own `provider/model`, and every writer of
-a `pi.tool-result` entry with `usage` adds it to `tools`, in the same commit, as
+a `evoharness.tool-result` entry with `usage` adds it to `tools`, in the same commit, as
 does the result commit of a nested call (section 7.3) with `usage`.
 Every summarization attempt of a compaction task adds its response's `usage` to
 `models` in the commit that classifies it (section 8.7); that spend has no entry,
@@ -5230,7 +5230,7 @@ type CompactionCheckpoint =
 type CompactionResult = { entryId?: EntryId; submissionId?: SubmissionId };
 ```
 
-`pi.compaction` is version 1 and starts at `{ phase: "select" }`. Compaction
+`evoharness.compaction` is version 1 and starts at `{ phase: "select" }`. Compaction
 replaces an old prefix of the model context with a summary entry whose `head` is
 the first kept entry (section 2.1). Raw history stays in storage. There are three
 ways to start one; the task is the same, only ownership and placement differ:
@@ -5307,7 +5307,7 @@ Phases:
   `cacheRetention: "none"` and the pinned `maxTokens`. Providers such as Codex
   may suppress that identity when caching is disabled. Recovery resends the same
   request, until the task was cut off `restartLimit` times in a row (section 5.4). The response is classified in one commit
-  that adds its usage to `pi.usage` (section 8.6):
+  that adds its usage to `evoharness.usage` (section 8.6):
   - `stop` with non-empty text and no tool call: the text is the summary, placed
     as below.
   - `error` that `isRetryableAssistantError()` accepts while the settings'
@@ -5326,7 +5326,7 @@ the conversation.
 
 ```ts
 {
-  kind: "pi.compaction",
+  kind: "evoharness.compaction",
   head: firstKept,
   model: [{ role: "user", content: [{ type: "text", text: wrapped }], timestamp: now }],
   data: { reason },
@@ -5336,7 +5336,7 @@ the conversation.
 where `wrapped` is `"The conversation history before this point was compacted
 into the following summary:\n\n<summary>\n"`, the summary, and
 `"\n</summary>"`. The commit that places it also removes the task's status,
-removes `pi.live.compactionFailure`, and commits the task's `completed` outcome:
+removes `evoharness.live.compactionFailure`, and commits the task's `completed` outcome:
 
 - A blocking compaction appends the entry directly and completes with
   `{ entryId }`. Its generation holds the run and waits, so nothing else writes
@@ -5350,7 +5350,7 @@ removes `pi.live.compactionFailure`, and commits the task's `completed` outcome:
   `Harness.submission()` observes the placement.
 
 The next generation's preparation finds a head marker without a later
-`pi.system` entry and writes a complete system baseline (section 7.4).
+`evoharness.system` entry and writes a complete system baseline (section 7.4).
 
 **Cancellation.** The abort handler removes the task's status and ends
 `aborted`; it writes no entry. An attempt cut short by abort or a crash has no
@@ -5363,7 +5363,7 @@ aborted with its generation, before the generation's abort handler runs
 conversation abort keeps it, and `Submission.abort()` withdraws it.
 
 **Failure.** The commit that fails a compaction (`model_error`, `no_model`)
-removes its status and sets `pi.live.compactionFailure` to its task, trigger,
+removes its status and sets `evoharness.live.compactionFailure` to its task, trigger,
 and error message, replacing an older failure; the Harness cleanup does the
 same for a compaction the scheduler faults or orphans, with the fault's
 message or the orphan reason. Only a compaction that produces a summary
@@ -5613,7 +5613,7 @@ type ConversationView = {
   readonly entries: readonly EntryRecord[];
   /** ID of the entry just before the window; absent when the window starts the transcript. */
   readonly before?: EntryId;
-  /** `pi.agent`, `pi.live`, `pi.inbox`, `pi.provider`, and `pi.usage`, keyed by kind; absent documents are absent. */
+  /** `evoharness.agent`, `evoharness.live`, `evoharness.inbox`, `evoharness.provider`, and `evoharness.usage`, keyed by kind; absent documents are absent. */
   readonly docs: Readonly<Record<string, JsonObject>>;
 };
 
@@ -5640,9 +5640,9 @@ interface Harness {
 These kinds and their fields are public protocol. Third-party documents are
 exposed through their own Chord objects, not mounted. Everything a renderer
 draws is state in this value: the transcript in `entries`, the run and its
-presentation in `pi.live` (`run`, `generation`, `tools`, `nestedTools`,
+presentation in `evoharness.live` (`run`, `generation`, `tools`, `nestedTools`,
 `compactions`, `compactionFailure`, `runFailure`, section 8.2), the queue in
-`pi.inbox`, the agent in `pi.agent`, spend in `pi.usage`. A run that answered
+`evoharness.inbox`, the agent in `evoharness.agent`, spend in `evoharness.usage`. A run that answered
 and waits for its after-run tasks shows as `run` with `run.afterRun` and no
 `generation`. A renderer renders the newest value; it never assembles state
 from a stream of events.
@@ -5697,7 +5697,7 @@ shared, then that observer's entry splices:
 
 ```text
 document op ["s", ["generation", "message"], value]
--> view op ["s", ["docs", "pi.live", "generation", "message"], value]
+-> view op ["s", ["docs", "evoharness.live", "generation", "message"], value]
 ```
 
 Document creation and retirement set and delete the `docs` key. Parent entries
@@ -6353,13 +6353,13 @@ These are contracts, not invitations to add defensive machinery:
   commit's own `appendEntry()`, `createTask()`, or `createSubmission()`. The
   admission is provisional until the commit is stored: a later throw in the
   callback, or a storage failure, discards it with the rest of the commit,
-  though its `pi.durable.submit` span already ended with a `result`.
+  though its `evoharness.durable.submit` span already ended with a `result`.
 - **Writing to a busy conversation:** only the Harness appends to a conversation
   with an active run. Raw entries appended by `Harness.commit()` or a custom
   task while a generation prepares its request can misplace its system prompt entries;
   use a write submission.
 - **Queued items after a failed run:** failure and task abort leave the inbox alone.
-  Queued follow-ups wait in `pi.inbox`, and their `wait()` does not settle, until
+  Queued follow-ups wait in `evoharness.inbox`, and their `wait()` does not settle, until
   the next input or queued write's boundary places them or the host withdraws
   them; a display-only write runs no boundary. A
   compaction summary is such a submission: when a manual or background
@@ -6384,7 +6384,7 @@ These are contracts, not invitations to add defensive machinery:
   context in ways a queued write would not. Use a write submission, whose stale
   check rejects it.
 - **Double-counted subagent spend:** a tool that runs an owned conversation must
-  not report that conversation's usage in its result; the child's `pi.usage`
+  not report that conversation's usage in its result; the child's `evoharness.usage`
   already counts it, and subtree sums would count it twice.
 - **Owned work holds its owner:** a task that owns live ordinary work stays
   `completing` until that work ends (section 5.5). Foreground work an extension
@@ -6473,9 +6473,9 @@ These are contracts, not invitations to add defensive machinery:
   outcome. Never reference a task-scoped document retired by that same outcome.
 - **Raw transcript:** view entries are not model context. Rendering edits,
   display-only entries, and model filtering require the appropriate reducer.
-- **Reserved `pi.` names:** task names, document kinds, and entry kinds starting
-  with `pi.` belong to built-ins by convention. Nothing enforces it; reusing one
-  collides with Harness behavior, such as `pi.system` entries being replayed as
+- **Reserved `evoharness.` names:** task names, document kinds, and entry kinds starting
+  with `evoharness.` belong to built-ins by convention. Nothing enforces it; reusing one
+  collides with Harness behavior, such as `evoharness.system` entries being replayed as
   system messages.
 - **Early resource disposal:** uninstalling or replacing an extension only stops
   new use. Freeing resources immediately can fail calls that are still running.
@@ -6488,14 +6488,14 @@ These are contracts, not invitations to add defensive machinery:
   gets the host default with the edit, not the owner's selection. Compute the child's array from the resolved agent
   instead (section 7.3).
 - **Copies are one-time:** a new task-owned conversation copies its owner's
-  `pi.agent` at creation; later owner changes do not reach it. A fork keeps its
+  `evoharness.agent` at creation; later owner changes do not reach it. A fork keeps its
   `asOf` copy instead (section 2.2).
 - **Environment on recovery:** a tool rerun after recovery builds its
   environment again, with the conversation's current `cwd`, which may differ
   from the first attempt's.
 - **Moving default selections:** a conversation on the default selection changes
   whenever the settings or the installed extensions change; each change appends
-  `pi.system` entries and misses the provider prompt cache.
+  `evoharness.system` entries and misses the provider prompt cache.
 - **Unstable prompt text:** a section renderer whose output changes without a
   real content change, for example by embedding the time, appends system deltas
   and defeats provider prompt caching.

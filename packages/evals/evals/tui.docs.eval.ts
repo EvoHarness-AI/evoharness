@@ -10,7 +10,7 @@ import {
 	createAgentSessionFromServices,
 } from "@evoharness/coding-agent";
 import { createJudge, describeEval } from "vitest-evals";
-import { createPiDocumentationEvalHarness, type PiCodingAgentInput } from "../src/harness.ts";
+import { createPiDocumentationEvalHarness, type EvoHarnessCodingAgentInput } from "../src/harness.ts";
 
 const CONTEXT_WINDOW = 272_000;
 const BUILT_IN_CONTEXT_PATTERN = /\d+(?:\.\d+)?%\/272k(?: \(auto\))?/;
@@ -204,7 +204,7 @@ const harness = createPiDocumentationEvalHarness({
 	output: ({ session, agentDir }) => inspectContextFooter(session, agentDir),
 });
 
-const contextFooterJudge = createJudge<PiCodingAgentInput, TuiFooterOutput>(
+const contextFooterJudge = createJudge<EvoHarnessCodingAgentInput, TuiFooterOutput>(
 	"ContextFooterJudge",
 	async ({ output }) => {
 		let valid = output.extensionErrors.length === 0;

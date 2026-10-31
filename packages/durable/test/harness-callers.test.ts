@@ -122,7 +122,7 @@ describe("who may call a tool", () => {
 		await root.configure({ modelTools: [read] }, context);
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
 		const entries = await root.entries({}, 100, undefined, context);
-		const result = entries.items.find((entry) => entry.kind === "pi.tool-result");
+		const result = entries.items.find((entry) => entry.kind === "evoharness.tool-result");
 		expect(JSON.stringify(result?.model)).toContain("Tool bash is not available");
 		await harness.close(context);
 	});

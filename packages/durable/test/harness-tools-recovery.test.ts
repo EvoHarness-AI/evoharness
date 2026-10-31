@@ -160,7 +160,7 @@ describe("tool recovery", () => {
 					{ replay: "safe" },
 				),
 			);
-			// A sibling that ends once `work` started: its result commit reads `pi.live`, which stores what is held there.
+			// A sibling that ends once `work` started: its result commit reads `evoharness.live`, which stores what is held there.
 			addTool(
 				setup.registry,
 				tool("quick", async () => {
@@ -341,11 +341,11 @@ describe("tool recovery", () => {
 		expect((await (await opened.harness.submission(id, context))!.wait(context)).status).toBe("done");
 		expect(observed).toBe(2);
 		expect((await allEntries(opened.root)).map((entry) => entry.kind)).toEqual([
-			"pi.user",
-			"pi.system",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.assistant",
+			"evoharness.user",
+			"evoharness.system",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.assistant",
 		]);
 		await opened.harness.close(context);
 	});
@@ -394,7 +394,7 @@ describe("tool recovery", () => {
 		expect(results(await allEntries(opened.root))).toEqual([]);
 		expect(requests).toEqual(["Tool result unavailable: history ends before this call completed."]);
 		const tasks = await opened.harness.commit((tx) => tx.scanTasks({ conversationId: opened.root.id }, 20), context);
-		const faulted = tasks.items.find((task) => task.kind === "pi.tool")!;
+		const faulted = tasks.items.find((task) => task.kind === "evoharness.tool")!;
 		expect(faulted.state).toMatchObject({ status: "terminal", outcome: { status: "faulted" } });
 		await opened.harness.close(context);
 	});

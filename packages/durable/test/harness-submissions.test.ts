@@ -69,7 +69,7 @@ describe("submissions", () => {
 		expect(entry?.model).toEqual([{ role: "user", content: "hi", timestamp: 42 }]);
 		const live = await harness.snapshot(LiveDoc, root.id, context);
 		expect(live?.run?.inputs).toEqual([submission.id]);
-		expect((await harness.getTask(live!.run!.taskId, context))?.kind).toBe("pi.generation");
+		expect((await harness.getTask(live!.run!.taskId, context))?.kind).toBe("evoharness.generation");
 
 		const commits = storage.commits.length;
 		const rejected = root.submit({ type: "input", content: "again", whenBusy: "reject" }, context);
@@ -277,7 +277,7 @@ describe("submissions", () => {
 		expect(await root.commit((tx) => tx.entry(Counter, 999_999 as EntryId), context)).toBeUndefined();
 		expect(Counter.is(counter)).toBe(true);
 		expect(AssistantEntry.is(counter)).toBe(false);
-		expect([UserEntry.kind, AssistantEntry.kind]).toEqual(["pi.user", "pi.assistant"]);
+		expect([UserEntry.kind, AssistantEntry.kind]).toEqual(["evoharness.user", "evoharness.assistant"]);
 		await harness.close(context);
 	});
 

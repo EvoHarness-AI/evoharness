@@ -16,7 +16,7 @@ const RESET = "\x1b[0m";
  *
  * The brand colors stay fixed across themes; they follow the terminal's color mode.
  */
-export function piLogoLines(): [string, string] {
+export function evoharnessLogoLines(): [string, string] {
 	const mode = theme.getColorMode();
 	const fg = (color: typeof CORAL) => foregroundAnsi(color, mode);
 	// The fourth cell of the top line is empty, so it is padded to the same width as the bottom line.
@@ -34,7 +34,7 @@ export function supportsPiLogo(): boolean {
 }
 
 /** Text fallback for the logo: "Pi" with the logo's coral and yellow. */
-export function piWordmark(): string {
+export function evoharnessWordmark(): string {
 	const mode = theme.getColorMode();
 	return `${foregroundAnsi(CORAL, mode)}P${RESET}${foregroundAnsi(YELLOW, mode)}i${RESET}`;
 }

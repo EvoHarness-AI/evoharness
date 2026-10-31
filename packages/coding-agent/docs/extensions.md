@@ -9,12 +9,12 @@ An extension runs inside the Pi process with the same operating-system permissio
 > **Placement for /reload:** Put extensions in `~/.pi/agent/extensions/` (global) or `.pi/extensions/` (project-local) for auto-discovery. Use `pi -e ./path.ts` only for quick tests. Extensions in auto-discovered locations can be hot-reloaded with `/reload`.
 
 **Key capabilities:**
-- **Custom tools** - Register tools the LLM can call via `pi.registerTool()`
+- **Custom tools** - Register tools the LLM can call via `evoharness.registerTool()`
 - **Event interception** - Block or modify tool calls, inject context, customize compaction
 - **User interaction** - Prompt users via `ctx.ui` (select, confirm, input, notify)
 - **Custom UI components** - Full TUI components with keyboard input via `ctx.ui.custom()` for complex interactions
-- **Custom commands** - Register commands like `/mycommand` via `pi.registerCommand()`
-- **Session persistence** - Store state that survives restarts via `pi.appendEntry()`
+- **Custom commands** - Register commands like `/mycommand` via `evoharness.registerCommand()`
+- **Session persistence** - Store state that survives restarts via `evoharness.appendEntry()`
 - **Custom rendering** - Control how tool calls/results and messages appear in TUI
 - **Providers and MCP servers** - Register model providers, virtual models, and MCP servers
 
@@ -130,7 +130,7 @@ Extensions are auto-discovered from trusted locations. Project-local `.pi/extens
 |----------|-------|
 | `~/.pi/agent/extensions/*.ts` or `*.js` | Global (all projects) |
 | `~/.pi/agent/extensions/*/index.ts` or `index.js` | Global (subdirectory) |
-| `~/.pi/agent/extensions/*/package.json` with a `pi.extensions` field | Global (subdirectory with manifest) |
+| `~/.pi/agent/extensions/*/package.json` with a `evoharness.extensions` field | Global (subdirectory with manifest) |
 | `.pi/extensions/...` | Project-local, same layouts |
 
 Discovery goes one level deep. Larger packages declare their entry points in a `package.json` manifest.
@@ -198,7 +198,7 @@ export default function (pi: ExtensionAPI) {
 
 Extensions are loaded via [jiti](https://github.com/unjs/jiti), so TypeScript works without compilation.
 
-If the factory returns a `Promise`, Pi awaits it before continuing startup. That means async initialization completes before `session_start`, before `resources_discover`, and before provider registrations queued via `pi.registerProvider()` are flushed.
+If the factory returns a `Promise`, Pi awaits it before continuing startup. That means async initialization completes before `session_start`, before `resources_discover`, and before provider registrations queued via `evoharness.registerProvider()` are flushed.
 
 ### Async factory functions
 
@@ -300,7 +300,7 @@ Run `npm install` in the extension directory, then imports from `node_modules/` 
 
 A prompt starts a run. Input handling comes first:
 
-1. Extension commands (`/name`) run their handler. The `input` event does not fire. Typed and RPC prompts always check for commands; `pi.sendUserMessage()` checks only with `expandPromptTemplates: true`.
+1. Extension commands (`/name`) run their handler. The `input` event does not fire. Typed and RPC prompts always check for commands; `evoharness.sendUserMessage()` checks only with `expandPromptTemplates: true`.
 2. `input` handlers can intercept, transform, or handle the text.
 3. Skill commands (`/skill:name`) and prompt templates (`/template`) expand.
 4. `before_agent_start` runs, then the agent loop starts.
@@ -386,9 +386,9 @@ Other operations change the current session without replacing the runtime:
 |---|---|
 | `/compact` or automatic compaction | `session_before_compact` (can cancel or customize), then `session_compact` or `session_compact_failed` |
 | `/tree` navigation | `session_before_tree` (can cancel or customize), then `session_tree` |
-| `/name` or `pi.setSessionName()` | `session_info_changed` |
+| `/name` or `evoharness.setSessionName()` | `session_info_changed` |
 | `/model` or model cycling (`Ctrl+P`) | `thinking_level_select` if the level changes or is clamped, then `model_select` |
-| Thinking-level change (settings, keybinding, `pi.setThinkingLevel()`) | `thinking_level_select` |
+| Thinking-level change (settings, keybinding, `evoharness.setThinkingLevel()`) | `thinking_level_select` |
 | `!` or `!!` command | `user_bash` (can intercept) |
 | Extension dialog or custom screen waits for the user | `ui_prompt_start`, `ui_prompt_end` |
 | Idle prompt-cache refresh | `cache_warming_decision` |
@@ -472,7 +472,7 @@ pi.on("session_start", async (event, ctx) => {
 
 #### session_info_changed
 
-Fired when the current session display name is set via `/name`, RPC, or `pi.setSessionName()`.
+Fired when the current session display name is set via `/name`, RPC, or `evoharness.setSessionName()`.
 
 ```typescript
 pi.on("session_info_changed", async (event, ctx) => {
@@ -604,7 +604,7 @@ pi.on("session_shutdown", async (event, ctx) => {
 
 Fired before a run starts, after input handling and expansion. Can inject a message and/or modify the system prompt.
 
-`event.messageType` says what started the run: `"user"` for a prompt or `pi.sendUserMessage()`, with `prompt` and `images`; `"custom"` for `pi.sendMessage(..., { triggerTurn: true })` while idle, with the starting `message` and no `prompt`.
+`event.messageType` says what started the run: `"user"` for a prompt or `evoharness.sendUserMessage()`, with `prompt` and `images`; `"custom"` for `evoharness.sendMessage(..., { triggerTurn: true })` while idle, with the starting `message` and no `prompt`.
 
 ```typescript
 pi.on("before_agent_start", async (event, ctx) => {
@@ -642,7 +642,7 @@ pi.on("before_agent_start", async (event, ctx) => {
 
 A returned `message` is added to either kind of run; check `messageType` to skip runs started by custom messages.
 
-The `systemPromptOptions` field gives extensions access to the same structured data Pi uses to build the system prompt. Collections are mutable. Prefer changing `sections`, `selectedTools`, or `promptGuidelines`: Pi diffs the resulting prompt sections against what the model already has and appends one system message patching only the changed sections. Returning `systemPrompt`, or setting `forceSystemPrompt`, replaces the whole prompt for the run: every provider receives the forced text as its leading system prompt (a cache miss when it changes), and the session transcript keeps recording the structured sections. Tool selection changes update both the prompt contributions and executable provider tools; calling `pi.setActiveTools()` inside the handler has the same effect as editing `selectedTools`. Models that accept system messages mid-conversation receive the patch in place and keep their cached prefix; other models get the replayed prompt as their system prompt, which is a cache miss once per change.
+The `systemPromptOptions` field gives extensions access to the same structured data Pi uses to build the system prompt. Collections are mutable. Prefer changing `sections`, `selectedTools`, or `promptGuidelines`: Pi diffs the resulting prompt sections against what the model already has and appends one system message patching only the changed sections. Returning `systemPrompt`, or setting `forceSystemPrompt`, replaces the whole prompt for the run: every provider receives the forced text as its leading system prompt (a cache miss when it changes), and the session transcript keeps recording the structured sections. Tool selection changes update both the prompt contributions and executable provider tools; calling `evoharness.setActiveTools()` inside the handler has the same effect as editing `selectedTools`. Models that accept system messages mid-conversation receive the patch in place and keep their cached prefix; other models get the replayed prompt as their system prompt, which is a cache miss once per change.
 
 Inside `before_agent_start`, `event.systemPrompt` and `ctx.getSystemPrompt()` both reflect the chained system prompt as of the current handler. Later `before_agent_start` handlers can still modify it again.
 
@@ -812,7 +812,7 @@ pi.on("context", async (event, ctx) => {
 });
 ```
 
-`event.messages` holds the conversation without system messages. The prompt and tool declarations belong to Pi and are not part of this hook: when the handler returns a changed list, Pi replays the current prompt sections and tool declarations into one leading system message ahead of the returned messages. Filtering, windowing, or slicing from a compaction summary therefore cannot drop the prompt or the tools. An unchanged list keeps mid-conversation system messages in place, so models that accept them retain their cached prefix. System messages a handler adds are kept after Pi's head. To change the prompt or the tool set durably, use [`before_agent_start`](#before_agent_start) or `pi.setActiveTools()`; to edit system messages for one request, use [`context_with_system`](#context_with_system).
+`event.messages` holds the conversation without system messages. The prompt and tool declarations belong to Pi and are not part of this hook: when the handler returns a changed list, Pi replays the current prompt sections and tool declarations into one leading system message ahead of the returned messages. Filtering, windowing, or slicing from a compaction summary therefore cannot drop the prompt or the tools. An unchanged list keeps mid-conversation system messages in place, so models that accept them retain their cached prefix. System messages a handler adds are kept after Pi's head. To change the prompt or the tool set durably, use [`before_agent_start`](#before_agent_start) or `evoharness.setActiveTools()`; to edit system messages for one request, use [`context_with_system`](#context_with_system).
 
 #### context_with_system
 
@@ -918,7 +918,7 @@ Return `{ action: "warm" }` or `{ action: "stop" }` to override; the last handle
 
 #### model_select
 
-Fired when the model changes via `/model` command, model cycling (`Ctrl+P`), or `pi.setModel()`. Restoring a session does not fire it; read `ctx.model` in `session_start` to initialize model-dependent state.
+Fired when the model changes via `/model` command, model cycling (`Ctrl+P`), or `evoharness.setModel()`. Restoring a session does not fire it; read `ctx.model` in `session_start` to initialize model-dependent state.
 
 ```typescript
 pi.on("model_select", async (event, ctx) => {
@@ -950,7 +950,7 @@ pi.on("thinking_level_select", async (event, ctx) => {
 });
 ```
 
-Use this to update extension UI when `pi.setThinkingLevel()`, model changes, or built-in thinking-level controls change the active thinking level.
+Use this to update extension UI when `evoharness.setThinkingLevel()`, model changes, or built-in thinking-level controls change the active thinking level.
 
 <a id="tool-call-events"></a>
 
@@ -1100,7 +1100,7 @@ Returning `undefined` continues to the next handler, then local execution if non
 Fired when user input is received, after extension commands are checked but before skill and template expansion. The event sees the raw input text, so `/skill:foo` and `/template` are not yet expanded.
 
 **Processing order:**
-1. Extension commands (`/cmd`) checked first - if found, handler runs and input event is skipped. Messages from `pi.sendUserMessage()` are checked only with `expandPromptTemplates: true`.
+1. Extension commands (`/cmd`) checked first - if found, handler runs and input event is skipped. Messages from `evoharness.sendUserMessage()` are checked only with `expandPromptTemplates: true`.
 2. `input` event fires - can intercept, transform, or handle
 3. If not handled: skill commands (`/skill:name`) expanded to skill content
 4. If not handled: prompt templates (`/template`) expanded to template content
@@ -1207,7 +1207,7 @@ Access to models, providers, and resolved authentication. `ctx.modelRegistry.get
 
 #### Streaming model calls
 
-Use `ctx.modelRegistry.streamSimple(model, context, options)` for provider-neutral options such as `reasoning`, or `complete(model, context, options)` to await the final assistant message with API-specific options. Both use configured providers and resolve authentication, including for providers registered with `pi.registerProvider()`. Use these instead of `pi-ai/compat` streaming functions, which cannot see extension provider registrations.
+Use `ctx.modelRegistry.streamSimple(model, context, options)` for provider-neutral options such as `reasoning`, or `complete(model, context, options)` to await the final assistant message with API-specific options. Both use configured providers and resolve authentication, including for providers registered with `evoharness.registerProvider()`. Use these instead of `pi-ai/compat` streaming functions, which cannot see extension provider registrations.
 
 `streamSimple()` returns an `AssistantMessageEventStream`. Iterate it for response events and await `.result()` for the final message. Setup failures produce error events and error results.
 
@@ -1569,9 +1569,9 @@ Handlers run in extension load order, then registration order within each extens
 
 Register a custom tool callable by the LLM. See [Custom Tools](#custom-tools) for full details.
 
-`pi.registerTool()` works both during extension load and after startup. You can call it inside `session_start`, command handlers, or other event handlers. New tools are refreshed immediately in the same session, so they appear in `pi.getAllTools()` without `/reload`. Registering a tool activates it unless it sets `defaultActive: false` or an [exposure](#tool-exposure) other than `direct` or `model-only`.
+`evoharness.registerTool()` works both during extension load and after startup. You can call it inside `session_start`, command handlers, or other event handlers. New tools are refreshed immediately in the same session, so they appear in `evoharness.getAllTools()` without `/reload`. Registering a tool activates it unless it sets `defaultActive: false` or an [exposure](#tool-exposure) other than `direct` or `model-only`.
 
-Use `pi.setActiveTools()` to enable or disable tools (including dynamically added tools) at runtime.
+Use `evoharness.setActiveTools()` to enable or disable tools (including dynamically added tools) at runtime.
 
 Use `promptSnippet` to opt a custom tool into a one-line entry in the `<tools>` section of the default system prompt, and `promptGuidelines` to append tool-specific bullets to its `<rules>` section when the tool is active.
 
@@ -1612,7 +1612,7 @@ pi.registerTool({
 
 ### pi.sendMessage(message, options?)
 
-Inject a custom message into the session. Custom messages participate in LLM context. For durable TUI-only content that should not be sent to the LLM, use [`pi.appendEntry()`](#piappendentrycustomtype-data) with [`pi.registerEntryRenderer()`](#piregisterentryrenderercustomtype-renderer).
+Inject a custom message into the session. Custom messages participate in LLM context. For durable TUI-only content that should not be sent to the LLM, use [`evoharness.appendEntry()`](#piappendentrycustomtype-data) with [`evoharness.registerEntryRenderer()`](#piregisterentryrenderercustomtype-renderer).
 
 ```typescript
 pi.sendMessage({
@@ -1668,7 +1668,7 @@ See [send-user-message.ts](../examples/extensions/send-user-message.ts) for a co
 
 ### pi.appendEntry(customType, data?)
 
-Persist extension data. Custom entries do NOT participate in LLM context. In interactive mode, they can also render inside the chat transcript when paired with `pi.registerEntryRenderer()`.
+Persist extension data. Custom entries do NOT participate in LLM context. In interactive mode, they can also render inside the chat transcript when paired with `evoharness.registerEntryRenderer()`.
 
 ```typescript
 pi.appendEntry("my-state", { count: 42 });
@@ -1790,7 +1790,7 @@ mode and would not execute if sent via `prompt`.
 
 ### pi.registerMessageRenderer(customType, renderer)
 
-Register a custom TUI renderer for custom messages with your `customType`. Custom messages are created with `pi.sendMessage()` and participate in LLM context. See [Custom UI](#custom-ui).
+Register a custom TUI renderer for custom messages with your `customType`. Custom messages are created with `evoharness.sendMessage()` and participate in LLM context. See [Custom UI](#custom-ui).
 
 ### pi.registerMarkdownTransformer(transformer)
 
@@ -1816,7 +1816,7 @@ If a transformer throws, Pi keeps the Markdown produced so far and continues wit
 
 ### pi.registerEntryRenderer(customType, renderer)
 
-Register a custom TUI renderer for custom entries with your `customType`. Custom entries are created with `pi.appendEntry()` and do not participate in LLM context.
+Register a custom TUI renderer for custom entries with your `customType`. Custom entries are created with `evoharness.appendEntry()` and do not participate in LLM context.
 
 ```typescript
 import { Box, Text } from "@evoharness/tui";
@@ -1879,7 +1879,7 @@ Options: `signal` and `timeout` terminate the command, `cwd` sets the working di
 
 ### pi.getActiveTools() / pi.getAllTools() / pi.setActiveTools(names)
 
-Manage active tools. This works for both built-in tools and dynamically registered tools. `pi.getActiveTools()` returns the active tool names as `string[]`; `pi.getAllTools()` returns metadata for all configured tools.
+Manage active tools. This works for both built-in tools and dynamically registered tools. `evoharness.getActiveTools()` returns the active tool names as `string[]`; `evoharness.getAllTools()` returns metadata for all configured tools.
 
 ```typescript
 const active = pi.getActiveTools(); // ["read", "bash", ...]
@@ -1900,14 +1900,14 @@ pi.setActiveTools([...new Set([...active, "my_custom_tool"])]); // Keep current 
 pi.setActiveTools(["read", "bash"]); // Only read and bash
 ```
 
-`pi.getAllTools()` returns `name`, `description`, `parameters`, `promptGuidelines`, `exposure`, `sourceInfo`, and, when set, `namespace`, `annotations`, and `reachesTools`.
+`evoharness.getAllTools()` returns `name`, `description`, `parameters`, `promptGuidelines`, `exposure`, `sourceInfo`, and, when set, `namespace`, `annotations`, and `reachesTools`.
 
 Typical `sourceInfo` values:
 - `source: "builtin"` for tools shipped with Pi: core tools (`path: "builtin:<tool>"`) and tools registered by built-in extensions such as `builtin:mcp` (`path: "builtin:<extension>"`)
 - `source: "sdk"` for tools passed via `createAgentSession({ customTools })`
 - extension source metadata for tools registered by extensions
 
-`pi.setActiveTools()` ignores unknown and `hidden` tools. Tools with `codemode` or `deferred` exposure stay callable from codemode scripts whether active or not.
+`evoharness.setActiveTools()` ignores unknown and `hidden` tools. Tools with `codemode` or `deferred` exposure stay callable from codemode scripts whether active or not.
 
 ### pi.setModel(model)
 
@@ -1927,7 +1927,7 @@ if (model) {
 
 Get the current thinking level. Level is clamped to model capabilities (non-reasoning models always use "off"). Changes emit `thinking_level_select`.
 
-`pi.setThinkingLevel()` changes the thinking level for the current session. The change is recorded in session history and restored when that session is resumed, but it does not change the configured default used by new sessions.
+`evoharness.setThinkingLevel()` changes the thinking level for the current session. The change is recorded in session history and restored when that session is resumed, but it does not change the configured default used by new sessions.
 
 ```typescript
 const current = pi.getThinkingLevel();  // "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
@@ -2145,17 +2145,17 @@ export default function (pi: ExtensionAPI) {
 }
 ```
 
-Rebuild from `getBranch()`, not from every entry: abandoned branches represent alternative histories. Use [`pi.appendEntry()`](#piappendentrycustomtype-data) for durable data that should not reach the model.
+Rebuild from `getBranch()`, not from every entry: abandoned branches represent alternative histories. Use [`evoharness.appendEntry()`](#piappendentrycustomtype-data) for durable data that should not reach the model.
 
 <a id="register-tools"></a>
 
 ## Custom Tools
 
-Register tools the LLM can call via `pi.registerTool()`. Tools appear in the system prompt and can have custom rendering.
+Register tools the LLM can call via `evoharness.registerTool()`. Tools appear in the system prompt and can have custom rendering.
 
 Use `promptSnippet` for a short one-line entry in the `<tools>` section of the default system prompt. If omitted, custom tools are left out of that section.
 
-Use `promptGuidelines` to add tool-specific bullets to the `<rules>` section of the default system prompt. These bullets are included only while the tool is active (for example, after `pi.setActiveTools([...])`).
+Use `promptGuidelines` to add tool-specific bullets to the `<rules>` section of the default system prompt. These bullets are included only while the tool is active (for example, after `evoharness.setActiveTools([...])`).
 
 **Important:** `promptGuidelines` bullets are appended flat to the `<rules>` section with no tool name prefix or grouping. Each guideline must name the tool it refers to — avoid "Use this tool when..." because the LLM cannot tell which tool "this" means. Write "Use my_tool when..." instead.
 
@@ -2280,7 +2280,7 @@ async execute(toolCallId, params) {
 
 | Field | Purpose |
 |---|---|
-| `defaultActive` | Set `false` to register the tool inactive; `--tools`, the `defaultTools` setting, or `pi.setActiveTools()` activates it |
+| `defaultActive` | Set `false` to register the tool inactive; `--tools`, the `defaultTools` setting, or `evoharness.setActiveTools()` activates it |
 | `exposure`, `namespace`, `annotations`, `reachesTools`, `prepareLoadout` | Control how the model and other tools reach the tool; see [Tool Exposure](#tool-exposure) |
 | `renderShell`, `renderCall`, `renderResult` | Custom rendering; see [Custom Rendering](#custom-rendering) |
 | `constrainedSampling` | Optional provider-side constrained sampling request for the tool's arguments |
@@ -2618,13 +2618,13 @@ If a slot renderer is not defined or throws:
 
 ### Dynamic Tool Loading
 
-Extensions can register many tools while keeping only a small initial set active. A tool can then change the active set with `pi.setActiveTools()` during execution. Pi stores the initial prompt and tool loadout in the transcript's first system message, then appends tool and prompt deltas before the next model request. Providers that cannot represent a transition receive a complete transcript checkpoint, which may invalidate the cached prefix.
+Extensions can register many tools while keeping only a small initial set active. A tool can then change the active set with `evoharness.setActiveTools()` during execution. Pi stores the initial prompt and tool loadout in the transcript's first system message, then appends tool and prompt deltas before the next model request. Providers that cannot represent a transition receive a complete transcript checkpoint, which may invalidate the cached prefix.
 
 The lifecycle is:
 
-1. Register every tool with `pi.registerTool()` so it appears in `pi.getAllTools()`. Register searchable tools with `defaultActive: false` so they start inactive.
+1. Register every tool with `evoharness.registerTool()` so it appears in `evoharness.getAllTools()`. Register searchable tools with `defaultActive: false` so they start inactive.
 2. Keep loader tools, such as `search_tools`, active.
-3. During loader execution, call `pi.setActiveTools()` with the desired active tool names. Names must already be registered; unknown and `hidden` names are ignored.
+3. During loader execution, call `evoharness.setActiveTools()` with the desired active tool names. Names must already be registered; unknown and `hidden` names are ignored.
 
 Pi also ships a built-in `tool_search` tool. Register tools with `exposure: "deferred"` to make them findable by it instead of writing your own loader; see [Tool Exposure](#tool-exposure).
 
@@ -2735,7 +2735,7 @@ When `search_tools` adds a match, the model receives the complete updated tool l
 
 `namespace: { name, aliases, description, instructions }` groups related tools, as MCP servers do. Codemode tools list a namespace under one heading with its `description`. `instructions` holds longer usage guidance; it is not listed, and codemode scripts read it with `describeNamespace(name)`. `aliases` are other names scripts may look the namespace up by, for example the server name `docs` for `mcp__docs`; a name and the same name as a script identifier (`my-docs`, `my_docs`) match alike.
 
-Registering a `direct` or `model-only` tool activates it unless it sets `defaultActive: false`; the other exposures are not activated on registration. The active set (`pi.getActiveTools()`, `pi.setActiveTools()`) is the set of tools declared to the model, except active tools whose declarations `prepareLoadout` hides. `pi.getAllTools()` reports each tool's `exposure`, `namespace`, `annotations`, and `reachesTools`.
+Registering a `direct` or `model-only` tool activates it unless it sets `defaultActive: false`; the other exposures are not activated on registration. The active set (`evoharness.getActiveTools()`, `evoharness.setActiveTools()`) is the set of tools declared to the model, except active tools whose declarations `prepareLoadout` hides. `evoharness.getAllTools()` reports each tool's `exposure`, `namespace`, `annotations`, and `reachesTools`.
 
 `annotations` are hints about what a tool does, with the meaning of MCP tool annotations: `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint`. MCP tools carry the hints their server declares. Missing hints take the MCP defaults: a tool is not read-only, and may be destructive and reach an open world. The hints are not verified, but a permission extension can use them to decide which calls to confirm. This confirms the calls Codex asks approval for:
 
@@ -2767,16 +2767,16 @@ The `usage` of nested results, at every depth, is added to the calling tool's re
 
 ## MCP Servers
 
-`pi.registerMcpServer(name, config)` adds an MCP server for the current session. `config` has the shape of an `mcpServers` entry in [`mcp.json`](mcp.md): `command`, `args`, `env`, and `cwd` for stdio servers, `url`, `headers`, and `oauth` for HTTP servers, plus `exposure`, `toolExposure`, `description`, `enabled`, and `timeout`.
+`evoharness.registerMcpServer(name, config)` adds an MCP server for the current session. `config` has the shape of an `mcpServers` entry in [`mcp.json`](mcp.md): `command`, `args`, `env`, and `cwd` for stdio servers, `url`, `headers`, and `oauth` for HTTP servers, plus `exposure`, `toolExposure`, `description`, `enabled`, and `timeout`.
 
 ```typescript
 pi.registerMcpServer("jira", { url: "https://mcp.example.com/jira", exposure: "codemode" });
 pi.unregisterMcpServer("jira");
 ```
 
-Servers registered while the extension loads connect when the session starts, together with the `mcp.json` servers; servers registered later connect right away, and `pi.unregisterMcpServer()` closes the connection and makes the server's tools unreachable. Registrations are not saved: register again on every load, for example based on the extension's own settings. A server in `mcp.json` with the same name takes precedence, and `/mcp` shows the override. Registering the same name again replaces the extension's earlier registration; names registered by another extension, invalid names, and invalid configs throw.
+Servers registered while the extension loads connect when the session starts, together with the `mcp.json` servers; servers registered later connect right away, and `evoharness.unregisterMcpServer()` closes the connection and makes the server's tools unreachable. Registrations are not saved: register again on every load, for example based on the extension's own settings. A server in `mcp.json` with the same name takes precedence, and `/mcp` shows the override. Registering the same name again replaces the extension's earlier registration; names registered by another extension, invalid names, and invalid configs throw.
 
-The built-in MCP support connects registered servers. When nothing does, because another extension replaced it (see [MCP](mcp.md#replace-the-built-in-mcp-support)), each registration is reported as an extension error. Other MCP extensions can connect registered servers too: read them with `pi.getMcpServers()` on `session_start` and handle the `mcp_servers_change` event for later changes.
+The built-in MCP support connects registered servers. When nothing does, because another extension replaced it (see [MCP](mcp.md#replace-the-built-in-mcp-support)), each registration is reported as an extension error. Other MCP extensions can connect registered servers too: read them with `evoharness.getMcpServers()` on `session_start` and handle the `mcp_servers_change` event for later changes.
 
 <a id="interact-with-the-user"></a>
 
@@ -3153,7 +3153,7 @@ pi.registerMessageRenderer("my-extension", (message, options, theme) => {
 });
 ```
 
-Messages are sent via `pi.sendMessage()`:
+Messages are sent via `evoharness.sendMessage()`:
 
 ```typescript
 pi.sendMessage({
@@ -3324,7 +3324,7 @@ All examples in [examples/extensions/](../examples/extensions/).
 | **Messages & Communication** |||
 | `message-renderer.ts` | Custom message rendering | `registerMessageRenderer`, `sendMessage` |
 | `entry-renderer.ts` | TUI-only custom entry rendering | `registerEntryRenderer`, `appendEntry` |
-| `event-bus.ts` | Inter-extension events | `pi.events` |
+| `event-bus.ts` | Inter-extension events | `evoharness.events` |
 | **Session Metadata** |||
 | `session-name.ts` | Name sessions for selector | `setSessionName`, `getSessionName` |
 | `bookmark.ts` | Bookmark entries for /tree | `setLabel` |

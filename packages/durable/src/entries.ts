@@ -12,23 +12,23 @@ export function defineEntry<D extends JsonValue = never>(kind: string): Entry<D>
 }
 
 /** User input: `model` is `[UserMessage]`. Written by submissions. */
-export const UserEntry = defineEntry("pi.user");
+export const UserEntry = defineEntry("evoharness.user");
 /** Provider result with any stop reason: `model` is `[AssistantMessage]`. Written by generation. */
-export const AssistantEntry = defineEntry("pi.assistant");
+export const AssistantEntry = defineEntry("evoharness.assistant");
 /** Positional prompt and tool change: `model` is `[SystemMessage]` with empty `content`. */
-export const SystemEntry = defineEntry("pi.system");
+export const SystemEntry = defineEntry("evoharness.system");
 /**
  * Tool result: `model` is `[ToolResultMessage]`, whose content ends with the rendered diagnostics block; `data` holds
  * the structured diagnostics, possibly none. Written by tool tasks, and by generation for calls it did not offer.
  */
-export const ToolResultEntry = defineEntry<{ diagnostics: ToolDiagnostic[] }>("pi.tool-result");
+export const ToolResultEntry = defineEntry<{ diagnostics: ToolDiagnostic[] }>("evoharness.tool-result");
 /**
  * Start of a new context: always `head: "self"`, with `model` absent for a plain reset or `[UserMessage]` carrying the
  * handoff text. Written by `Conversation.reset()` and the `handoff` tool control.
  */
-export const ResetEntry = defineEntry("pi.reset");
+export const ResetEntry = defineEntry("evoharness.reset");
 /**
  * Compaction summary: `model` is `[UserMessage]` with the wrapped summary, `head` the first kept entry. Written by
  * compaction tasks, directly or through a write submission.
  */
-export const CompactionEntry = defineEntry<{ reason: CompactionReason }>("pi.compaction");
+export const CompactionEntry = defineEntry<{ reason: CompactionReason }>("evoharness.compaction");

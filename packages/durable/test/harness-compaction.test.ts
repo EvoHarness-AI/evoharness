@@ -234,44 +234,44 @@ function view(entries: EntryRecord[], head?: EntryRecord): ContextView {
 describe("range selection", () => {
 	it("keeps about keepRecentTokens and cuts at the first candidate at or after the budget (spec §8.7 example)", () => {
 		const entries = [
-			entry("pi.user", [user(text("1", 10))]),
-			entry("pi.assistant", [assistant("2", ["c1"])]),
-			entry("pi.tool-result", [toolResult("c1", text("3", 3000))]),
-			entry("pi.assistant", [assistant(text("4", 10))]),
-			entry("pi.user", [user(text("5", 10))]),
-			entry("pi.assistant", [assistant(text("6", 10))]),
+			entry("evoharness.user", [user(text("1", 10))]),
+			entry("evoharness.assistant", [assistant("2", ["c1"])]),
+			entry("evoharness.tool-result", [toolResult("c1", text("3", 3000))]),
+			entry("evoharness.assistant", [assistant(text("4", 10))]),
+			entry("evoharness.user", [user(text("5", 10))]),
+			entry("evoharness.assistant", [assistant(text("6", 10))]),
 		];
 		expect(selectCut(view(entries), 2000)).toBe(3);
 	});
 
 	it("cuts at a user entry", () => {
 		const entries = [
-			entry("pi.user", [user(text("u1", 100))]),
-			entry("pi.assistant", [assistant(text("a1", 100))]),
-			entry("pi.user", [user(text("u2", 100))]),
-			entry("pi.assistant", [assistant(text("a2", 100))]),
+			entry("evoharness.user", [user(text("u1", 100))]),
+			entry("evoharness.assistant", [assistant(text("a1", 100))]),
+			entry("evoharness.user", [user(text("u2", 100))]),
+			entry("evoharness.assistant", [assistant(text("a2", 100))]),
 		];
 		expect(selectCut(view(entries), 150)).toBe(2);
 	});
 
 	it("cuts at an assistant in the middle of one long run and never at a tool result", () => {
-		const entries = [entry("pi.user", [user("do it")])];
+		const entries = [entry("evoharness.user", [user("do it")])];
 		for (let index = 0; index < 5; index++) {
-			entries.push(entry("pi.assistant", [assistant(`step ${index}`, [`c${index}`])]));
-			entries.push(entry("pi.tool-result", [toolResult(`c${index}`, text(`r${index}`, 100))]));
+			entries.push(entry("evoharness.assistant", [assistant(`step ${index}`, [`c${index}`])]));
+			entries.push(entry("evoharness.tool-result", [toolResult(`c${index}`, text(`r${index}`, 100))]));
 		}
 		const cut = selectCut(view(entries), 150)!;
 		// The budget is reached at the fourth result; the cut is the last call, whose result it keeps.
-		expect(entries[cut]!.kind).toBe("pi.assistant");
+		expect(entries[cut]!.kind).toBe("evoharness.assistant");
 		expect(cut).toBe(9);
 	});
 
 	it("never cuts at a display-only entry where the budget is reached (#10407)", () => {
 		const entries = [
-			entry("pi.user", [user(text("u1", 100))]),
-			entry("pi.assistant", [assistant(text("a1", 100))]),
+			entry("evoharness.user", [user(text("u1", 100))]),
+			entry("evoharness.assistant", [assistant(text("a1", 100))]),
 			entry("chat.message", []),
-			entry("pi.assistant", [assistant(text("a2", 100))]),
+			entry("evoharness.assistant", [assistant(text("a2", 100))]),
 		];
 		// The budget is reached at a1; the display-only entry after it is skipped for the assistant a2.
 		expect(selectCut(view(entries), 150)).toBe(1);
@@ -280,21 +280,21 @@ describe("range selection", () => {
 
 	it("keeps a huge last tool result together with its assistant", () => {
 		const entries = [
-			entry("pi.user", [user("u")]),
-			entry("pi.assistant", [assistant("a", ["c"])]),
-			entry("pi.tool-result", [toolResult("c", text("big", 5000))]),
+			entry("evoharness.user", [user("u")]),
+			entry("evoharness.assistant", [assistant("a", ["c"])]),
+			entry("evoharness.tool-result", [toolResult("c", text("big", 5000))]),
 		];
 		expect(selectCut(view(entries), 100)).toBe(1);
 	});
 
 	it("never cuts at a system entry or an excluded error or aborted answer", () => {
 		const entries = [
-			entry("pi.user", [user(text("u1", 100))]),
-			entry("pi.assistant", [assistant(text("a1", 100))]),
-			entry("pi.system", [{ role: "system", content: "", sections: { s: text("s", 100) }, timestamp: 0 }]),
-			entry("pi.assistant", [assistant(text("err", 100), [], "error")]),
-			entry("pi.assistant", [assistant(text("stopped", 100), [], "aborted")]),
-			entry("pi.assistant", [assistant(text("a2", 100))]),
+			entry("evoharness.user", [user(text("u1", 100))]),
+			entry("evoharness.assistant", [assistant(text("a1", 100))]),
+			entry("evoharness.system", [{ role: "system", content: "", sections: { s: text("s", 100) }, timestamp: 0 }]),
+			entry("evoharness.assistant", [assistant(text("err", 100), [], "error")]),
+			entry("evoharness.assistant", [assistant(text("stopped", 100), [], "aborted")]),
+			entry("evoharness.assistant", [assistant(text("a2", 100))]),
 		];
 		// The walk reaches 150 at the system entry; the excluded answers after it contribute nothing.
 		expect(selectCut(view(entries), 150)).toBe(5);
@@ -302,10 +302,10 @@ describe("range selection", () => {
 
 	it("follows edited contributions: an omitted entry adds nothing and is no candidate", () => {
 		const entries = [
-			entry("pi.user", [user(text("u1", 100))]),
-			entry("pi.assistant", [assistant(text("a1", 100))]),
-			entry("pi.user", [user(text("u2", 100))]),
-			entry("pi.assistant", [assistant(text("a2", 100))]),
+			entry("evoharness.user", [user(text("u1", 100))]),
+			entry("evoharness.assistant", [assistant(text("a1", 100))]),
+			entry("evoharness.user", [user(text("u2", 100))]),
+			entry("evoharness.assistant", [assistant(text("a2", 100))]),
 		];
 		const plain = view(entries);
 		expect(selectCut(plain, 150)).toBe(2);
@@ -316,31 +316,31 @@ describe("range selection", () => {
 
 	it("does not cut at a user entry that a result of the preceding call still follows", () => {
 		const entries = [
-			entry("pi.user", [user(text("u1", 100))]),
-			entry("pi.assistant", [assistant("a", ["c"])]),
-			entry("pi.user", [user(text("steer", 100))]),
-			entry("pi.tool-result", [toolResult("c", text("r", 100))]),
-			entry("pi.assistant", [assistant(text("a2", 100))]),
+			entry("evoharness.user", [user(text("u1", 100))]),
+			entry("evoharness.assistant", [assistant("a", ["c"])]),
+			entry("evoharness.user", [user(text("steer", 100))]),
+			entry("evoharness.tool-result", [toolResult("c", text("r", 100))]),
+			entry("evoharness.assistant", [assistant(text("a2", 100))]),
 		];
 		// The budget is reached at the steer; its result follows it, so the cut moves to the next assistant.
 		expect(selectCut(view(entries), 250)).toBe(4);
 	});
 
 	it("finds nothing when the budget is never reached or only the marker precedes the cut", () => {
-		const small = [entry("pi.user", [user("hi")]), entry("pi.assistant", [assistant("hello")])];
+		const small = [entry("evoharness.user", [user("hi")]), entry("evoharness.assistant", [assistant("hello")])];
 		expect(selectCut(view(small), 150)).toBeUndefined();
-		const marker = entry("pi.compaction", [user("summary")], 0);
+		const marker = entry("evoharness.compaction", [user("summary")], 0);
 		// The budget is reached at the only entry after the marker, so the marker alone would be summarized.
-		expect(selectCut(view([entry("pi.user", [user(text("u", 200))])], marker), 150)).toBeUndefined();
+		expect(selectCut(view([entry("evoharness.user", [user(text("u", 200))])], marker), 150)).toBeUndefined();
 	});
 
 	it("summarizes an earlier summary marker first", () => {
-		const marker = entry("pi.compaction", [user("EARLIER")], 0);
+		const marker = entry("evoharness.compaction", [user("EARLIER")], 0);
 		const kept = [
-			entry("pi.user", [user(text("u1", 100))]),
-			entry("pi.assistant", [assistant(text("a1", 100))]),
-			entry("pi.user", [user(text("u2", 100))]),
-			entry("pi.assistant", [assistant(text("a2", 100))]),
+			entry("evoharness.user", [user(text("u1", 100))]),
+			entry("evoharness.assistant", [assistant(text("a1", 100))]),
+			entry("evoharness.user", [user(text("u2", 100))]),
+			entry("evoharness.assistant", [assistant(text("a2", 100))]),
 		];
 		const selected = view(kept, marker);
 		expect(selectCut(selected, 150)).toBe(3);
@@ -392,7 +392,7 @@ describe("manual compaction", () => {
 		expect(after.slice(0, before.length)).toEqual(before);
 		const marker = after.at(-1)!;
 		const u3 = before.find((record) => userText(record.model?.[0]).startsWith("u3"))!;
-		expect(marker).toMatchObject({ kind: "pi.compaction", head: u3.id, data: { reason: "manual" } });
+		expect(marker).toMatchObject({ kind: "evoharness.compaction", head: u3.id, data: { reason: "manual" } });
 		expect(placed.status === "done" && placed.entry).toBe(marker.id);
 		expect(userText(marker.model?.[0])).toBe(
 			"The conversation history before this point was compacted into the following summary:\n\n<summary>\nSUMMARY\n</summary>",
@@ -460,7 +460,7 @@ describe("manual compaction", () => {
 		const placed = await (await chat.harness.submission(submissionId!, context))!.wait(context);
 		expect(placed.status).toBe("done");
 		// The summary follows the answer; the kept range still includes the busy turn.
-		expect((await kinds(chat.root)).slice(-3)).toEqual(["pi.user", "pi.assistant", "pi.compaction"]);
+		expect((await kinds(chat.root)).slice(-3)).toEqual(["evoharness.user", "evoharness.assistant", "evoharness.compaction"]);
 		await chat.harness.close(context);
 	});
 
@@ -494,10 +494,10 @@ describe("manual compaction", () => {
 		expect(continuation[0]?.role).toBe("system");
 		expect(userText(continuation[1])).toContain("<summary>\nSUMMARY\n</summary>");
 		expect((await kinds(chat.root)).slice(-4)).toEqual([
-			"pi.tool-result",
-			"pi.compaction",
-			"pi.system",
-			"pi.assistant",
+			"evoharness.tool-result",
+			"evoharness.compaction",
+			"evoharness.system",
+			"evoharness.assistant",
 		]);
 		await chat.harness.close(context);
 	});
@@ -541,7 +541,7 @@ describe("manual compaction", () => {
 			status: "unanswered",
 			reason: "stale",
 		});
-		expect((await kinds(chat.root)).at(-1)).toBe("pi.reset");
+		expect((await kinds(chat.root)).at(-1)).toBe("evoharness.reset");
 		await chat.harness.close(context);
 	});
 
@@ -572,7 +572,7 @@ describe("manual compaction", () => {
 		answerGate.resolve();
 		expect((await input.wait(context)).status).toBe("done");
 		expect((await submission.wait(context)).status).toBe("done");
-		expect((await kinds(chat.root)).slice(-3)).toEqual(["pi.user", "pi.assistant", "pi.compaction"]);
+		expect((await kinds(chat.root)).slice(-3)).toEqual(["evoharness.user", "evoharness.assistant", "evoharness.compaction"]);
 		await chat.harness.close(context);
 	});
 
@@ -596,7 +596,7 @@ describe("manual compaction", () => {
 		))!;
 		expect(await submission.status(context)).toMatchObject({ status: "unanswered", reason: "stale" });
 		expect(await input()).toBeGreaterThan(before);
-		expect((await kinds(chat.root)).includes("pi.compaction")).toBe(false);
+		expect((await kinds(chat.root)).includes("evoharness.compaction")).toBe(false);
 		await chat.harness.close(context);
 	});
 
@@ -689,7 +689,7 @@ describe("manual compaction", () => {
 		await chat.root.abort(context);
 		expect((await result(chat, id)).status).toBe("aborted");
 		expect((await live(chat)).compactions).toBeUndefined();
-		expect((await kinds(chat.root)).includes("pi.compaction")).toBe(false);
+		expect((await kinds(chat.root)).includes("evoharness.compaction")).toBe(false);
 
 		// Queued while busy, then Esc: the queued write stays and lands with the next run's boundary.
 		const gate = deferred();
@@ -706,7 +706,7 @@ describe("manual compaction", () => {
 		expect(await submission.abort(context)).toBe("aborted");
 		await turn(chat, "next", "ok");
 		expect(await submission.status(context)).toMatchObject({ status: "unanswered", reason: "aborted" });
-		expect((await kinds(chat.root)).includes("pi.compaction")).toBe(false);
+		expect((await kinds(chat.root)).includes("evoharness.compaction")).toBe(false);
 		await chat.harness.close(context);
 	});
 
@@ -781,11 +781,11 @@ describe("compaction outcomes", () => {
 		const compaction = seen[0] as { entries: EntryRecord[]; messages: Message[]; firstKept: number };
 		expect(compaction).toMatchObject({ reason: "manual", instructions: "why" });
 		expect(compaction.entries.map((record) => record.kind)).toEqual([
-			"pi.user",
-			"pi.system",
-			"pi.assistant",
-			"pi.user",
-			"pi.assistant",
+			"evoharness.user",
+			"evoharness.system",
+			"evoharness.assistant",
+			"evoharness.user",
+			"evoharness.assistant",
 		]);
 		expect(compaction.messages.filter((message) => message.role !== "system").map(userText)).toEqual([
 			text("u1", 100),
@@ -929,7 +929,7 @@ describe("compaction outcomes", () => {
 			// The retry policy allows two retries after the first attempt.
 			expect(chat.faux.summaryRequests).toHaveLength(name === "retries run out" ? 3 : 1);
 			expect((await live(chat)).compactions).toBeUndefined();
-			expect((await kinds(chat.root)).includes("pi.compaction")).toBe(false);
+			expect((await kinds(chat.root)).includes("evoharness.compaction")).toBe(false);
 			await chat.harness.close(context);
 		});
 	}
@@ -949,7 +949,7 @@ const BLOCKING: CompactionPolicy = { enabled: true, reserveTokens: 300, keepRece
 
 async function compactionTasks(chat: Chat) {
 	const inspection = await chat.harness.inspect(context);
-	return inspection.tasks.map((task) => task.record).filter((record) => record.kind === "pi.compaction");
+	return inspection.tasks.map((task) => task.record).filter((record) => record.kind === "evoharness.compaction");
 }
 
 describe("background threshold compaction", () => {
@@ -975,7 +975,7 @@ describe("background threshold compaction", () => {
 		gate.resolve();
 		const outcome = await result(chat, task!.id as TaskId<CompactionResult>);
 		expect(outcome.status).toBe("completed");
-		expect((await kinds(chat.root)).at(-1)).toBe("pi.compaction");
+		expect((await kinds(chat.root)).at(-1)).toBe("evoharness.compaction");
 		expect(firstUserText((await chat.root.context(context)).messages)).toContain("SUMMARY");
 		await chat.harness.close(context);
 	});
@@ -1031,7 +1031,7 @@ describe("background threshold compaction", () => {
 		expect(ended(recorded!.taskId).compactionFailure).toEqual(recorded);
 		// A late watch starts with it.
 		const late = await chat.root.watch(context);
-		expect((late.value.docs["pi.live"] as LiveState).compactionFailure).toEqual(recorded);
+		expect((late.value.docs["evoharness.live"] as LiveState).compactionFailure).toEqual(recorded);
 		await late.stop();
 		// A compaction that produces a summary removes the failure in the commit that ends it.
 		chat.setup.settings.compaction = MANUAL;
@@ -1088,11 +1088,11 @@ describe("blocking threshold compaction", () => {
 			{ taskId: child!.id, trigger: "threshold", blocking: true, attempt: 1 },
 		]);
 		// Nothing was appended before the wait.
-		expect((await kinds(chat.root)).at(-1)).toBe("pi.user");
+		expect((await kinds(chat.root)).at(-1)).toBe("evoharness.user");
 		gate.resolve();
 		expect((await input.wait(context)).status).toBe("done");
 		expect((await result(chat, child!.id as TaskId<CompactionResult>)).status).toBe("completed");
-		expect((await kinds(chat.root)).slice(-3)).toEqual(["pi.compaction", "pi.system", "pi.assistant"]);
+		expect((await kinds(chat.root)).slice(-3)).toEqual(["evoharness.compaction", "evoharness.system", "evoharness.assistant"]);
 		const request = chat.faux.agentRequests.at(-1)!.messages;
 		expect(firstUserText(request)).toContain("SUMMARY");
 		const systems = request.filter((message) => message.role === "system");
@@ -1110,7 +1110,7 @@ describe("blocking threshold compaction", () => {
 		chat.faux.summaries.push(summary());
 		await turn(chat, text("u4", 400), "a4");
 		expect(chat.faux.summaryRequests).toHaveLength(1);
-		expect((await kinds(chat.root)).filter((kind) => kind === "pi.compaction")).toHaveLength(1);
+		expect((await kinds(chat.root)).filter((kind) => kind === "evoharness.compaction")).toHaveLength(1);
 		await chat.harness.close(context);
 	});
 
@@ -1120,7 +1120,7 @@ describe("blocking threshold compaction", () => {
 		chat.setup.settings.compaction = BLOCKING;
 		addHooks(chat.setup.registry, CompactionTask, { beforeCompact: () => ({ decline: true }) });
 		await turn(chat, text("u4", 200), "a4");
-		expect((await kinds(chat.root)).includes("pi.compaction")).toBe(false);
+		expect((await kinds(chat.root)).includes("evoharness.compaction")).toBe(false);
 		expect(firstUserText(chat.faux.agentRequests.at(-1)!.messages)).toBe(text("u1", 100));
 		expect((await live(chat)).compactionFailure).toBeUndefined();
 		await chat.harness.close(context);
@@ -1141,7 +1141,7 @@ describe("blocking threshold compaction", () => {
 			detail: "Compaction failed: Summarization failed: bad request",
 		});
 		expect(chat.faux.agentRequests).toHaveLength(requests);
-		expect((await kinds(chat.root)).at(-1)).toBe("pi.user");
+		expect((await kinds(chat.root)).at(-1)).toBe("evoharness.user");
 		const state = await live(chat);
 		expect(state.compactions).toBeUndefined();
 		expect(state.compactionFailure).toMatchObject({
@@ -1168,7 +1168,7 @@ describe("blocking threshold compaction", () => {
 			detail: "Compaction was aborted",
 		});
 		expect(chat.faux.agentRequests).toHaveLength(requests);
-		expect((await kinds(chat.root)).includes("pi.compaction")).toBe(false);
+		expect((await kinds(chat.root)).includes("evoharness.compaction")).toBe(false);
 		// Aborting is not a failure.
 		expect((await live(chat)).compactionFailure).toBeUndefined();
 		await chat.harness.close(context);
@@ -1241,13 +1241,13 @@ describe("overflow compaction", () => {
 		expect((await input.wait(context)).status).toBe("done");
 		expect(attempt).toBe(1);
 		expect((await kinds(chat.root)).slice(-5)).toEqual([
-			"pi.user",
-			"pi.assistant",
-			"pi.compaction",
-			"pi.system",
-			"pi.assistant",
+			"evoharness.user",
+			"evoharness.assistant",
+			"evoharness.compaction",
+			"evoharness.system",
+			"evoharness.assistant",
 		]);
-		const [compaction] = (await allEntries(chat.root)).filter((record) => record.kind === "pi.compaction");
+		const [compaction] = (await allEntries(chat.root)).filter((record) => record.kind === "evoharness.compaction");
 		expect(compaction).toMatchObject({ data: { reason: "overflow" } });
 		const retry = chat.faux.agentRequests.at(-1)!.messages;
 		expect(retry[0]?.role).toBe("system");
@@ -1268,8 +1268,8 @@ describe("overflow compaction", () => {
 			reason: "model_error",
 			detail: OVERFLOW,
 		});
-		expect((await kinds(chat.root)).filter((kind) => kind === "pi.compaction")).toHaveLength(1);
-		expect((await kinds(chat.root)).at(-1)).toBe("pi.assistant");
+		expect((await kinds(chat.root)).filter((kind) => kind === "evoharness.compaction")).toHaveLength(1);
+		expect((await kinds(chat.root)).at(-1)).toBe("evoharness.assistant");
 		await chat.harness.close(context);
 	});
 
@@ -1393,7 +1393,7 @@ describe("compaction estimates and interactions", () => {
 		chat.faux.summaries.push(summary());
 		await result(chat, await chat.root.compact(undefined, context));
 		// The kept range holds the delta for the terse mood; the next request has one complete baseline.
-		expect((await chat.root.context(context)).entries.some((record) => record.kind === "pi.system")).toBe(true);
+		expect((await chat.root.context(context)).entries.some((record) => record.kind === "evoharness.system")).toBe(true);
 		await turn(chat, "next", "ok");
 		const systems = chat.faux.agentRequests.at(-1)!.messages.filter((message) => message.role === "system");
 		expect(systems).toHaveLength(1);
@@ -1446,10 +1446,10 @@ describe("compaction estimates and interactions", () => {
 		expect((await (await chat.harness.submission(submissionId!, context))!.wait(context)).status).toBe("done");
 		const u3 = entries.find((record) => userText(record.model?.[0]).startsWith("u3"))!;
 		const view = await fork.context(context);
-		expect(view.head).toMatchObject({ kind: "pi.compaction", head: u3.id, conversationId: fork.id });
+		expect(view.head).toMatchObject({ kind: "evoharness.compaction", head: u3.id, conversationId: fork.id });
 		expect(view.messages.slice(1).map(userText)).toEqual([text("u3", 100), text("a3", 100)]);
 		// The parent is untouched.
-		expect((await kinds(chat.root)).includes("pi.compaction")).toBe(false);
+		expect((await kinds(chat.root)).includes("evoharness.compaction")).toBe(false);
 		// The fork's view shows the parent entries in ID order, the summary after them, its head on a parent entry.
 		const watch = await fork.watch(context);
 		expect(watch.value.entries).toEqual(await allEntries(fork));
@@ -1477,7 +1477,7 @@ describe("compaction estimates and interactions", () => {
 			context,
 		))!;
 		expect(await submission.status(context)).toMatchObject({ status: "unanswered", reason: "stale" });
-		expect((await fork.context(context)).head?.kind).toBe("pi.reset");
+		expect((await fork.context(context)).head?.kind).toBe("evoharness.reset");
 		await chat.harness.close(context);
 	});
 
@@ -1527,7 +1527,7 @@ describe("compaction estimates and interactions", () => {
 		const id = await chat.root.compact(undefined, context);
 		await waitFor(async () => (await chat.harness.getTask(id, context))?.state.status === "completing");
 		// The summary and the status removal landed at the hold.
-		expect((await kinds(chat.root)).at(-1)).toBe("pi.compaction");
+		expect((await kinds(chat.root)).at(-1)).toBe("evoharness.compaction");
 		expect((await live(chat)).compactions).toBeUndefined();
 		childGate.resolve();
 		expect((await result(chat, id)).status).toBe("completed");
@@ -1579,7 +1579,7 @@ describe("compaction live status", () => {
 		const id = await chat.root.compact(undefined, context);
 		await waitFor(async () => (await live(chat)).compactions?.[0]?.retry !== undefined);
 		const late = await chat.root.watch(context);
-		expect((late.value.docs["pi.live"] as LiveState).compactions).toEqual([
+		expect((late.value.docs["evoharness.live"] as LiveState).compactions).toEqual([
 			{
 				taskId: id,
 				trigger: "manual",
@@ -1777,7 +1777,7 @@ describe("compaction recovery", () => {
 		chat.faux.summaries.push(summary());
 		chat.faux.agent.push(answer("a4"));
 		expect((await (await chat.harness.submission(input.id, context))!.wait(context)).status).toBe("done");
-		expect((await kinds(chat.root)).slice(-3)).toEqual(["pi.compaction", "pi.system", "pi.assistant"]);
+		expect((await kinds(chat.root)).slice(-3)).toEqual(["evoharness.compaction", "evoharness.system", "evoharness.assistant"]);
 		await chat.harness.close(context);
 	});
 
@@ -1836,8 +1836,8 @@ describe("compaction and the inbox", () => {
 			await run.input.wait(context);
 			const settled = await submission.wait(context);
 			expect(settled.status).toBe(order === "summary first" ? "done" : "unanswered");
-			expect((await kinds(chat.root)).at(-1)).toBe("pi.reset");
-			expect((await chat.root.context(context)).head?.kind).toBe("pi.reset");
+			expect((await kinds(chat.root)).at(-1)).toBe("evoharness.reset");
+			expect((await chat.root.context(context)).head?.kind).toBe("evoharness.reset");
 			await chat.harness.close(context);
 		}
 	});
@@ -1901,7 +1901,7 @@ describe("compaction and the inbox", () => {
 		watch.start(async () => {});
 		chat.faux.summaries.push(summary());
 		await result(chat, await chat.root.compact(undefined, context));
-		await waitFor(() => watch.value.entries.at(-1)?.kind === "pi.compaction");
+		await waitFor(() => watch.value.entries.at(-1)?.kind === "evoharness.compaction");
 		// Nothing leaves the window: the summary is appended where it was written.
 		expect(watch.value.entries.slice(0, before.length)).toEqual(before);
 		expect(watch.value.entries).toEqual(await allEntries(chat.root));
@@ -1991,7 +1991,7 @@ describe("compaction edge cases", () => {
 			detail: "Compaction failed: no credentials",
 		});
 		chat.setup.models.completeSimple = completeSimple;
-		expect((await kinds(chat.root)).includes("pi.compaction")).toBe(false);
+		expect((await kinds(chat.root)).includes("evoharness.compaction")).toBe(false);
 		const state = await live(chat);
 		expect(state.compactions).toBeUndefined();
 		expect(state.compactionFailure).toMatchObject({ trigger: "threshold", error: "no credentials" });
@@ -2046,7 +2046,7 @@ describe("compaction edge cases", () => {
 		const ended = states.findIndex((state, index) => index > listed && state.compactions === undefined);
 		const before = views.views[ended - 1]!;
 		const after = views.views[ended]!;
-		expect(after.entries.slice(before.entries.length).map((entry) => entry.kind)).toEqual(["pi.compaction"]);
+		expect(after.entries.slice(before.entries.length).map((entry) => entry.kind)).toEqual(["evoharness.compaction"]);
 		await chat.harness.close(context);
 	});
 
@@ -2063,7 +2063,7 @@ describe("compaction edge cases", () => {
 		views.detach();
 		const started = views.live().findIndex((state) => state.compactions !== undefined);
 		const appended = views.views[started]!.entries.slice(views.views[started - 1]!.entries.length);
-		expect(appended.map((entry) => entry.kind)).toEqual(["pi.system"]);
+		expect(appended.map((entry) => entry.kind)).toEqual(["evoharness.system"]);
 		await chat.harness.abortTask((await compactionTasks(chat))[0]!.id, context);
 		await chat.harness.close(context);
 	});
@@ -2140,7 +2140,7 @@ describe("compaction edge cases", () => {
 		expect((await reopened.harness.snapshot(UsageDoc, reopened.root.id, context))!.models["faux/faux-1"]).toEqual(
 			before,
 		);
-		expect((await kinds(reopened.root)).includes("pi.compaction")).toBe(false);
+		expect((await kinds(reopened.root)).includes("evoharness.compaction")).toBe(false);
 		await reopened.harness.close(context);
 	});
 });
@@ -2176,7 +2176,7 @@ describe("blocking and manual compaction together", () => {
 		// The request after the blocking compaction used its summary; the manual one landed at the final boundary.
 		expect(firstUserText(chat.faux.agentRequests.at(-1)!.messages)).toContain("BLOCKING");
 		expect((await submission.wait(context)).status).toBe("done");
-		const markers = (await allEntries(chat.root)).filter((record) => record.kind === "pi.compaction");
+		const markers = (await allEntries(chat.root)).filter((record) => record.kind === "evoharness.compaction");
 		expect(markers).toHaveLength(2);
 		expect(markers[1]!.head).toBe(markers[0]!.head);
 		const messages = (await chat.root.context(context)).messages;
@@ -2217,7 +2217,7 @@ describe("blocking and manual compaction together", () => {
 		expect((await result(chat, manual)).status).toBe("aborted");
 		expect((await live(chat)).compactions).toBeUndefined();
 		expect((await live(chat)).run).toBeUndefined();
-		expect((await kinds(chat.root)).includes("pi.compaction")).toBe(false);
+		expect((await kinds(chat.root)).includes("evoharness.compaction")).toBe(false);
 		expect((await chat.harness.inspect(context)).submissions).toEqual([]);
 		await chat.harness.close(context);
 	});
@@ -2244,7 +2244,7 @@ describe("blocking and manual compaction together", () => {
 		expect(firstUserText(request)).toContain("SUMMARY");
 		expect(request.map(userText)).toContain("u5");
 		const tail = (await allEntries(chat.root)).slice(-4).map((record) => record.kind);
-		expect(tail).toEqual(["pi.compaction", "pi.user", "pi.system", "pi.assistant"]);
+		expect(tail).toEqual(["evoharness.compaction", "evoharness.user", "evoharness.system", "evoharness.assistant"]);
 		await chat.harness.close(context);
 	});
 });
@@ -2285,7 +2285,7 @@ describe("compaction pinning, silent overflow, and late policy changes", () => {
 		const id = await chat.root.compact(undefined, context);
 		await reached.promise;
 		const watch = await chat.root.watch(context);
-		expect((watch.value.docs["pi.live"] as LiveState).compactions).toEqual([
+		expect((watch.value.docs["evoharness.live"] as LiveState).compactions).toEqual([
 			{ taskId: id, trigger: "manual", blocking: false, attempt: 1 },
 		]);
 		await watch.stop();
@@ -2333,11 +2333,11 @@ describe("compaction pinning, silent overflow, and late policy changes", () => {
 		});
 		await turn(chat, text("u4", 200), "a4");
 		const compactions = (await chat.harness.inspect(context)).tasks.filter(
-			(task) => task.record.kind === "pi.compaction",
+			(task) => task.record.kind === "evoharness.compaction",
 		);
 		expect(compactions).toEqual([]);
 		expect(chat.faux.summaryRequests).toHaveLength(0);
-		expect((await kinds(chat.root)).includes("pi.compaction")).toBe(false);
+		expect((await kinds(chat.root)).includes("evoharness.compaction")).toBe(false);
 		await chat.harness.close(context);
 	});
 });
@@ -2454,13 +2454,13 @@ describe("per-model compaction overrides", () => {
 	});
 });
 
-describe("pi.live migrations", () => {
+describe("evoharness.live migrations", () => {
 	it("reads a version 1 value with each compaction's `reason` as `trigger`, and stores it migrated on its next write", async () => {
 		const storage = new MemoryStorage();
 		const session = createSession(storage);
-		// `pi.live` as version 1 wrote it.
+		// `evoharness.live` as version 1 wrote it.
 		const LiveV1 = defineDoc<JsonObject>({
-			kind: "pi.live",
+			kind: "evoharness.live",
 			version: 1,
 			scope: "conversation",
 			history: "latest",
@@ -2481,7 +2481,7 @@ describe("pi.live migrations", () => {
 		// The version 2 token reloads the stored value and migrates it.
 		const stored = async () => {
 			const record = await storage.findDocument(
-				{ kind: "pi.live", scope: { kind: "conversation", conversationId } },
+				{ kind: "evoharness.live", scope: { kind: "conversation", conversationId } },
 				"current",
 				context,
 			);
@@ -2516,7 +2516,7 @@ describe("pi.live migrations", () => {
 		const storage = new MemoryStorage();
 		const session = createSession(storage);
 		const LiveV2 = defineDoc<JsonObject>({
-			kind: "pi.live",
+			kind: "evoharness.live",
 			version: 2,
 			scope: "conversation",
 			history: "latest",

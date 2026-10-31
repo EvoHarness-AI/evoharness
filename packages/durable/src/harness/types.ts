@@ -62,7 +62,7 @@ export type ModelRef = {
 export type UserInput = UserMessage["content"];
 
 /**
- * The entry an input is placed as, instead of `pi.user`: an application kind, and data the transcript shows, such as its
+ * The entry an input is placed as, instead of `evoharness.user`: an application kind, and data the transcript shows, such as its
  * author. Its model message is still the input's user message.
  */
 export type InputEntry = { readonly kind: string; readonly data?: JsonValue };
@@ -85,7 +85,7 @@ export type SubmissionDraft = {
 			 * answered and waits for its `afterRun` tasks is still busy, and such an input queues and starts the next run.
 			 */
 			readonly whenIdle?: "reject";
-			/** Place the input as this entry; default `pi.user` without data. The kind must not start with `pi.`. */
+			/** Place the input as this entry; default `evoharness.user` without data. The kind must not start with `evoharness.`. */
 			readonly entry?: InputEntry;
 	  }
 	| {
@@ -98,7 +98,7 @@ export type SubmissionDraft = {
 	| {
 			/**
 			 * Start a run on the context as it is, without a user message. Only when idle: a busy conversation rejects it with
-			 * `ConversationBusy`, and it never queues. Items kept in `pi.inbox` are placed first and join the run. A context
+			 * `ConversationBusy`, and it never queues. Items kept in `evoharness.inbox` are placed first and join the run. A context
 			 * with nothing to answer (empty, or ending in an answer, also a text answer cut off at its output limit) ends the
 			 * run without a request, `unanswered` with `nothing_to_answer`. A cut-off answer with tool calls is continued:
 			 * its calls never ran, and the context ends in their error results (`missing_result`).
@@ -208,7 +208,7 @@ export type ToolExecutionResult<TDetails extends JsonValue = JsonValue> = {
 	readonly details?: TDetails;
 	/** Added after those recorded through `api.diagnostic()`. */
 	readonly diagnostics?: readonly ToolDiagnostic[];
-	/** Spend of the execution itself, such as a model call; stored on the result and in `pi.usage.tools`. */
+	/** Spend of the execution itself, such as a model call; stored on the result and in `evoharness.usage.tools`. */
 	readonly usage?: Usage;
 	readonly control?: ToolControl;
 };
@@ -299,9 +299,9 @@ export interface ToolExecutionApi<TDetails extends JsonValue = JsonValue> extend
 	/** Invocation-bound handle of an existing conversation, such as one this tool created in `commit()`. */
 	conversation(id: ConversationId, context: Context): Promise<ConversationHandle | undefined>;
 	/**
-	 * Run tool `name` as a nested call of this one and wait for its result. The nested call is its own `pi.tool` task,
+	 * Run tool `name` as a nested call of this one and wait for its result. The nested call is its own `evoharness.tool` task,
 	 * owned by this call: it resolves the tool among the conversation's tools, validates, runs the `ToolTask` hooks (which
-	 * see `call.parent`), applies output limits and the tool's replay policy, and reports progress in `pi.live.nestedTools`.
+	 * see `call.parent`), applies output limits and the tool's replay policy, and reports progress in `evoharness.live.nestedTools`.
 	 * Its result returns here instead of entering the transcript. A call that is blocked, invalid, throws, is interrupted,
 	 * or is aborted returns an `isError` result.
 	 *
@@ -471,13 +471,13 @@ export type AgentState = {
 	/** Directory within the environment's file system, passed to `HarnessOptions.env`. */
 	cwd?: string;
 	/**
-	 * Tool rounds one run takes at most (`pi.live.run.turns`): the round that reaches it runs its tools, then the run ends
+	 * Tool rounds one run takes at most (`evoharness.live.run.turns`): the round that reaches it runs its tools, then the run ends
 	 * `unanswered` with `turn_limit`. An integer, `1` or more; unset, no limit. Task-owned children and forks inherit it.
 	 */
 	maxTurns?: number;
 };
 
-/** A change to `pi.agent`: a given field replaces the stored one, `null` clears it, `undefined` changes nothing. */
+/** A change to `evoharness.agent`: a given field replaces the stored one, `null` clears it, `undefined` changes nothing. */
 export type AgentChange = {
 	readonly model?: ModelRef | null;
 	readonly thinkingLevel?: ModelThinkingLevel | null;
@@ -513,7 +513,7 @@ export type Agent<Tool extends ToolRegistration = ToolRegistration> = {
 	readonly instructions?: string;
 	readonly cwd?: string;
 	/**
-	 * Tool rounds one run takes at most (`pi.live.run.turns`): the round that reaches it runs its tools, then the run ends
+	 * Tool rounds one run takes at most (`evoharness.live.run.turns`): the round that reaches it runs its tools, then the run ends
 	 * `unanswered` with `turn_limit`. An integer, `1` or more; unset, no limit. Task-owned children and forks inherit it.
 	 */
 	readonly maxTurns?: number;
@@ -632,7 +632,7 @@ export type HarnessSettings = {
 	/**
 	 * How many times in a row a task may be cut off by a crash, eviction, or reset (a close does not count) without
 	 * changing its state before it ends instead of running again: a tool call with an error result, a compaction failed
-	 * into `pi.live.compactionFailure`, a run with `pi.live.runFailure` reason `restart_limit`, any other task `faulted`
+	 * into `evoharness.live.compactionFailure`, a run with `evoharness.live.runFailure` reason `restart_limit`, any other task `faulted`
 	 * with detail `{ reason: "restart_limit" }`. A generation's request or poll the host died during is a failed attempt
 	 * under `retry` first; the limit bounds it only when charging that attempt keeps being cut off. Default 5;
 	 * `Infinity` never ends a task for it.
@@ -694,7 +694,7 @@ export type HarnessOptions<Tool extends ToolRegistration = ToolRegistration> = {
 	readonly env?: (target: EnvTarget, context: Context) => ExecutionEnv | undefined | Promise<ExecutionEnv | undefined>;
 	/**
 	 * Runs in every commit that creates or forks a conversation, raw `tx.createConversation()` included, after the
-	 * built-in `pi.*` documents and before the conveniences apply `agent` and run `init`. A fork already has its copies.
+	 * built-in `evoharness.*` documents and before the conveniences apply `agent` and run `init`. A fork already has its copies.
 	 * Table reads throw `ReadAfterWrite`, as in `init`; a throw fails the creating commit.
 	 */
 	readonly conversationCreated?: (tx: Tx, conversation: ConversationRecord) => void | Promise<void>;
@@ -802,7 +802,7 @@ export interface Conversation {
 
 	/**
 	 * Durably admit user input, a passive entry write, or a continue. A busy conversation, or one with queued items,
-	 * queues input and writes that affect model context in `pi.inbox`; `whenBusy: "reject"` rejects input with
+	 * queues input and writes that affect model context in `evoharness.inbox`; `whenBusy: "reject"` rejects input with
 	 * `ConversationBusy` instead and writes nothing. An idle conversation rejects `whenIdle: "reject"` input with
 	 * `ConversationIdle` and writes nothing. A write of only `kind` and `data` (no `model`, `head`, or `edits`)
 	 * is appended at once, even mid-run, as it changes nothing the model sees. A continue starts a run on the context as
@@ -816,12 +816,12 @@ export interface Conversation {
 	 * `createTask()`, `createSubmission()`, another admission): otherwise it throws `ReadAfterWrite`, on every path.
 	 * Documents may be read and written before and after it. A rejection (`ConversationBusy`, `ConversationIdle`) throws
 	 * before any write, so the callback may catch it. Do not call `Submission` or other Harness reads inside the callback:
-	 * they wait for the commit holding the line. Its `pi.durable.submit` span covers the admission only, so its `result`
+	 * they wait for the commit holding the line. Its `evoharness.durable.submit` span covers the admission only, so its `result`
 	 * is provisional. Throws for a transaction of another Session.
 	 */
 	submit(tx: Tx, submission: SubmissionDraft): Promise<SubmissionId>;
 	/**
-	 * Admit a write of a `pi.reset` entry that starts a new context, carrying `handoff` as a user message when given.
+	 * Admit a write of a `evoharness.reset` entry that starts a new context, carrying `handoff` as a user message when given.
 	 * Resolves after admission; while busy, it is placed at the next boundary.
 	 */
 	reset(handoff: string | undefined, context: Context): Promise<void>;
@@ -911,7 +911,7 @@ export interface Harness extends Session {
 	waitForTask<R>(id: TaskId<R>, context: Context): Promise<SettledTask<R>>;
 	/** Resolve when the ordinary ownership scope of every ownerless conversation has no live non-background task. */
 	waitForIdle(context: Context): Promise<void>;
-	/** Session total: every conversation's `pi.usage` summed. */
+	/** Session total: every conversation's `evoharness.usage` summed. */
 	usage(context: Context): Promise<UsageState>;
 	/**
 	 * Every live task with its owner edge, status, and owned conversations (spec §9.4), as a serialized watch; commits

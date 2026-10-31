@@ -46,7 +46,7 @@ async function root(): Promise<Conversation> {
 
 async function lastSystemId(conversation: Conversation): Promise<EntryId> {
 	const page = await conversation.entries({}, 100, undefined, context);
-	return page.items.find((entry) => entry.kind === "pi.system")!.id;
+	return page.items.find((entry) => entry.kind === "evoharness.system")!.id;
 }
 
 async function marker(conversation: Conversation, head: EntryId | "self"): Promise<EntryId> {
@@ -170,7 +170,7 @@ describe("system prompt preparation", () => {
 		const conversation = await root();
 		await apply(conversation, { a: "1", b: "2" });
 		await conversation.commit(
-			(tx) => tx.appendEntry(conversation.id, { kind: "pi.user", model: [user("hi")] }),
+			(tx) => tx.appendEntry(conversation.id, { kind: "evoharness.user", model: [user("hi")] }),
 			context,
 		);
 		await apply(conversation, { a: "1", b: "20" });

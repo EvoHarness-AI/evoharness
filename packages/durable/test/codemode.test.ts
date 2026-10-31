@@ -895,7 +895,7 @@ describe("durable code mode", () => {
 		]);
 		const { harness, root } = await openChat(await openNodeSqliteStorage(await sqlitePath()), chat.setup);
 		await (await root.submit({ type: "input", content: "first" }, context)).wait(context);
-		const firstUser = (await allEntries(root)).find((entry) => entry.kind === "pi.user")!;
+		const firstUser = (await allEntries(root)).find((entry) => entry.kind === "evoharness.user")!;
 		await (await root.submit({ type: "input", content: "second" }, context)).wait(context);
 		const results = (await allEntries(root)).filter((entry) => ToolResultEntry.is(entry));
 		const texts = results.map((entry) => (entry.model![0] as { content: { text: string }[] }).content[1]!.text);
@@ -932,7 +932,7 @@ describe("durable code mode", () => {
 		harness.observeCommits({
 			advance: (publication) => {
 				for (const change of publication.changes) {
-					if (change.type === "document" && change.record.kind === "pi.codemode.journal") journalCommits++;
+					if (change.type === "document" && change.record.kind === "evoharness.codemode.journal") journalCommits++;
 				}
 			},
 			end: () => {},

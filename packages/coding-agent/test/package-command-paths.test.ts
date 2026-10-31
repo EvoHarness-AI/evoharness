@@ -69,14 +69,14 @@ fs.writeFileSync(${JSON.stringify(npmRecordPath)}, JSON.stringify(args));
 if (${npmExitCode} !== 0) process.exit(${npmExitCode});
 const binDir = path.join(process.cwd(), "node_modules", ".bin");
 fs.mkdirSync(binDir, { recursive: true });
-const piPath = path.join(binDir, process.platform === "win32" ? "pi.cmd" : "pi");
+const evoharnessPath = path.join(binDir, process.platform === "win32" ? "evoharness.cmd" : "pi");
 fs.writeFileSync(
-	piPath,
+	evoharnessPath,
 	process.platform === "win32"
 		? "@echo off\\r\\necho ${targetVersion}\\r\\n"
 		: "#!/bin/sh\\nprintf '%s\\n' ${targetVersion}\\n",
 );
-if (process.platform !== "win32") fs.chmodSync(piPath, 0o755);
+if (process.platform !== "win32") fs.chmodSync(evoharnessPath, 0o755);
 `,
 		);
 		const npmPath = join(binDir, process.platform === "win32" ? "npm.cmd" : "npm");
@@ -785,11 +785,11 @@ if (process.platform !== "win32") fs.chmodSync(piPath, 0o755);
 		chmodSync(shimPath, 0o755);
 	}
 
-	/** Put a `pi-wrapper` update command and a `pi` that prints `piVersion` first on PATH. */
-	function prepareSelfUpdateCommand(piVersion: string, exitCode = 0): { scriptPath: string; recordPath: string } {
+	/** Put a `pi-wrapper` update command and a `pi` that prints `evoharnessVersion` first on PATH. */
+	function prepareSelfUpdateCommand(evoharnessVersion: string, exitCode = 0): { scriptPath: string; recordPath: string } {
 		const binDir = join(tempDir, "self-update-bin");
 		const scriptPath = join(tempDir, "self-update.cjs");
-		const piScriptPath = join(tempDir, "fake-pi.cjs");
+		const evoharnessScriptPath = join(tempDir, "fake-pi.cjs");
 		const recordPath = join(tempDir, "self-update-record.json");
 		mkdirSync(binDir, { recursive: true });
 		writeFileSync(
@@ -798,9 +798,9 @@ if (process.platform !== "win32") fs.chmodSync(piPath, 0o755);
 process.exit(${exitCode});
 `,
 		);
-		writeFileSync(piScriptPath, `console.log(${JSON.stringify(piVersion)});\n`);
+		writeFileSync(evoharnessScriptPath, `console.log(${JSON.stringify(evoharnessVersion)});\n`);
 		writeNodeShim(binDir, "pi-wrapper", scriptPath);
-		writeNodeShim(binDir, "pi", piScriptPath);
+		writeNodeShim(binDir, "pi", evoharnessScriptPath);
 		process.env.PATH = `${binDir}${delimiter}${originalPath ?? ""}`;
 		return { scriptPath, recordPath };
 	}

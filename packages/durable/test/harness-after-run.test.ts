@@ -199,9 +199,9 @@ describe("afterRun", () => {
 		expect(await settled(idle)).toBe(false);
 
 		const entries = await allEntries(root);
-		const answer = kindOf(entries, "pi.assistant").at(-1)!;
+		const answer = kindOf(entries, "evoharness.assistant").at(-1)!;
 		expect(state.asked).toEqual([
-			{ reason: "answer", first: kindOf(entries, "pi.user")[0]!.id, answer: answer.id, last: answer.id },
+			{ reason: "answer", first: kindOf(entries, "evoharness.user")[0]!.id, answer: answer.id, last: answer.id },
 		]);
 		state.gate.resolve();
 		await idle;
@@ -219,8 +219,8 @@ describe("afterRun", () => {
 	// #11141
 	it("asks after a terminate round, the run's last entry its newest result or its handoff's reset", async () => {
 		for (const [tool, lastKind] of [
-			["finish", "pi.tool-result"],
-			["handoff", "pi.reset"],
+			["finish", "evoharness.tool-result"],
+			["handoff", "evoharness.reset"],
 		] as const) {
 			const setup = chatSetup();
 			const state = probe();
@@ -231,11 +231,11 @@ describe("afterRun", () => {
 			await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
 			await root.waitForIdle(context);
 			const entries = await allEntries(root);
-			const assistant = kindOf(entries, "pi.assistant").at(-1)!;
+			const assistant = kindOf(entries, "evoharness.assistant").at(-1)!;
 			expect(state.asked).toEqual([
 				{
 					reason: "terminate",
-					first: kindOf(entries, "pi.user")[0]!.id,
+					first: kindOf(entries, "evoharness.user")[0]!.id,
 					answer: assistant.id,
 					last: kindOf(entries, lastKind).at(-1)!.id,
 				},
@@ -331,18 +331,18 @@ describe("afterRun", () => {
 			expect((await submission.wait(context)).status).toBe("done");
 		}
 		const entries = await allEntries(root);
-		const kinds = entries.filter((entry) => entry.kind !== "pi.system").map((entry) => entry.kind);
+		const kinds = entries.filter((entry) => entry.kind !== "evoharness.system").map((entry) => entry.kind);
 		expect(kinds).toEqual([
-			"pi.user",
-			"pi.assistant",
+			"evoharness.user",
+			"evoharness.assistant",
 			"test.note",
 			"test.tests",
 			"test.result",
-			"pi.user",
-			"pi.user",
-			"pi.assistant",
-			"pi.user",
-			"pi.assistant",
+			"evoharness.user",
+			"evoharness.user",
+			"evoharness.assistant",
+			"evoharness.user",
+			"evoharness.assistant",
 		]);
 		expect(userTexts(entries)).toEqual(["go", "tests passed", "steer", "later", "steer 2"]);
 		await harness.close(context);
@@ -359,11 +359,11 @@ describe("afterRun", () => {
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
 		await eventually(() => state.runs.length === 1);
 		await root.reset(undefined, context);
-		expect(kindOf(await allEntries(root), "pi.reset")).toEqual([]);
+		expect(kindOf(await allEntries(root), "evoharness.reset")).toEqual([]);
 		state.gate.resolve();
 		await root.waitForIdle(context);
 		const kinds = (await allEntries(root)).map((entry) => entry.kind);
-		expect(kinds.slice(-2)).toEqual(["test.tests", "pi.reset"]);
+		expect(kinds.slice(-2)).toEqual(["test.tests", "evoharness.reset"]);
 		await harness.close(context);
 	});
 
@@ -387,9 +387,9 @@ describe("afterRun", () => {
 		expect(state.asked).toEqual([
 			{
 				reason: "answer",
-				first: kindOf(entries, "pi.user")[0]!.id,
-				answer: kindOf(entries, "pi.assistant").at(-1)!.id,
-				last: kindOf(entries, "pi.assistant").at(-1)!.id,
+				first: kindOf(entries, "evoharness.user")[0]!.id,
+				answer: kindOf(entries, "evoharness.assistant").at(-1)!.id,
+				last: kindOf(entries, "evoharness.assistant").at(-1)!.id,
 			},
 		]);
 		await harness.close(context);
@@ -669,7 +669,7 @@ describe("afterRun", () => {
 								ctx,
 							);
 							kinds.push(...page.items.map((entry) => entry.kind));
-							expect((await api.entry(run.answer, ctx))?.kind).toBe("pi.assistant");
+							expect((await api.entry(run.answer, ctx))?.kind).toBe("evoharness.assistant");
 							return undefined;
 						},
 					}),
@@ -680,11 +680,11 @@ describe("afterRun", () => {
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
 		await root.waitForIdle(context);
-		expect(kinds.filter((kind) => kind !== "pi.system")).toEqual([
-			"pi.user",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.assistant",
+		expect(kinds.filter((kind) => kind !== "evoharness.system")).toEqual([
+			"evoharness.user",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.assistant",
 		]);
 		await harness.close(context);
 	});
@@ -740,14 +740,14 @@ describe("afterRun", () => {
 		await root.waitForIdle(context);
 		const active = (await root.context(context)).entries.map((entry) => entry.kind);
 		// The active context lost the run's input to the summary; the run's history did not.
-		expect(active).not.toContain("pi.user");
+		expect(active).not.toContain("evoharness.user");
 		expect(runs).toHaveLength(1);
-		expect(runs[0]!.filter((kind) => kind !== "pi.system")).toEqual([
-			"pi.user",
-			"pi.assistant",
-			"pi.tool-result",
-			"pi.compaction",
-			"pi.assistant",
+		expect(runs[0]!.filter((kind) => kind !== "evoharness.system")).toEqual([
+			"evoharness.user",
+			"evoharness.assistant",
+			"evoharness.tool-result",
+			"evoharness.compaction",
+			"evoharness.assistant",
 		]);
 		await harness.close(context);
 	});
@@ -839,17 +839,17 @@ describe("afterRun", () => {
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
 		await root.waitForIdle(context);
 		const entries = await allEntries(root);
-		expect(entries.filter((entry) => entry.kind !== "pi.system").map((entry) => entry.kind)).toEqual([
-			"pi.user",
-			"pi.assistant",
+		expect(entries.filter((entry) => entry.kind !== "evoharness.system").map((entry) => entry.kind)).toEqual([
+			"evoharness.user",
+			"evoharness.assistant",
 			"test.tests",
-			"pi.user",
-			"pi.assistant",
+			"evoharness.user",
+			"evoharness.assistant",
 		]);
 		expect(userTexts(entries)).toEqual(["go", "fix the tests"]);
 		expect(state.asked).toHaveLength(2);
 		// The fix run's history starts with its own input.
-		expect(state.asked[1]!.first).toBe(kindOf(entries, "pi.user")[1]!.id);
+		expect(state.asked[1]!.first).toBe(kindOf(entries, "evoharness.user")[1]!.id);
 		await harness.close(context);
 	});
 
@@ -864,7 +864,7 @@ describe("afterRun", () => {
 		await root.configure({ maxTurns: 1 }, context);
 		const failed = await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
 		expect(failed.status).toBe("unanswered");
-		const user = kindOf(await allEntries(root), "pi.user")[0]!;
+		const user = kindOf(await allEntries(root), "evoharness.user")[0]!;
 		expect((await harness.snapshot(LiveDoc, root.id, context))?.runFailure).toMatchObject({
 			reason: "turn_limit",
 			first: user.id,
@@ -872,7 +872,7 @@ describe("afterRun", () => {
 		expect(state.asked).toEqual([]);
 		await harness.commit((tx) => root.submit(tx, { type: "continue" }), context);
 		await root.waitForIdle(context);
-		const answer = kindOf(await allEntries(root), "pi.assistant").at(-1)!;
+		const answer = kindOf(await allEntries(root), "evoharness.assistant").at(-1)!;
 		expect(state.asked).toEqual([{ reason: "answer", first: user.id, answer: answer.id, last: answer.id }]);
 		await harness.close(context);
 	});
@@ -909,7 +909,7 @@ describe("afterRun", () => {
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
 		await eventually(() => state.runs.length === 1);
 		await root.submit({ type: "input", content: "later" }, context);
-		const answer = kindOf(await allEntries(root), "pi.assistant").at(-1)!;
+		const answer = kindOf(await allEntries(root), "evoharness.assistant").at(-1)!;
 		const fork = await root.fork(answer.id, { ownership: { kind: "ownerless" } }, context);
 		expect((await harness.snapshot(LiveDoc, fork.id, context))?.run).toBeUndefined();
 		expect((await harness.snapshot(InboxDoc, fork.id, context))?.items ?? []).toEqual([]);
@@ -945,7 +945,7 @@ describe("afterRun", () => {
 		root = opened.root;
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
 		await root.waitForIdle(context);
-		const answer = kindOf(await allEntries(root), "pi.assistant").at(-1)!;
+		const answer = kindOf(await allEntries(root), "evoharness.assistant").at(-1)!;
 		expect(state.asked).toEqual([{ reason: "answer", first: answer.id, answer: answer.id, last: answer.id }]);
 		await opened.harness.close(context);
 	});
@@ -1085,7 +1085,7 @@ describe("afterRun", () => {
 		);
 		await (await root.submit({ type: "continue" }, context)).wait(context);
 		await root.waitForIdle(context);
-		expect(kinds).toEqual([["pi.assistant", "pi.tool-result", "pi.assistant"]]);
+		expect(kinds).toEqual([["evoharness.assistant", "evoharness.tool-result", "evoharness.assistant"]]);
 		await harness.close(context);
 	});
 
@@ -1129,9 +1129,9 @@ describe("afterRun", () => {
 		await root.waitForIdle(context);
 		const entries = await allEntries(root);
 		// The handoff's reset landed with the answer; the summary, cutting before it, settled stale at the run's end.
-		expect(kindOf(entries, "pi.compaction")).toEqual([]);
-		expect(entries.map((entry) => entry.kind).slice(-2)).toEqual(["pi.reset", "test.tests"]);
-		expect(state.asked[0]).toMatchObject({ reason: "terminate", last: kindOf(entries, "pi.reset")[0]!.id });
+		expect(kindOf(entries, "evoharness.compaction")).toEqual([]);
+		expect(entries.map((entry) => entry.kind).slice(-2)).toEqual(["evoharness.reset", "test.tests"]);
+		expect(state.asked[0]).toMatchObject({ reason: "terminate", last: kindOf(entries, "evoharness.reset")[0]!.id });
 		await harness.close(context);
 	});
 
@@ -1167,7 +1167,7 @@ describe("afterRun", () => {
 		const stored = (await opened.harness.snapshot(LiveDoc, opened.root.id, context))!;
 		expect(stored.generation).toBeUndefined();
 		expect(stored.run?.afterRun).toEqual({});
-		expect(textOf(kindOf(await allEntries(opened.root), "pi.assistant")[0]!.model![0])).toBe("x".repeat(40));
+		expect(textOf(kindOf(await allEntries(opened.root), "evoharness.assistant")[0]!.model![0])).toBe("x".repeat(40));
 		opened.harness.resume();
 		await eventually(() => state.asked.length === 2);
 		await opened.harness.close(context);

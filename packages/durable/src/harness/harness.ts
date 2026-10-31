@@ -274,7 +274,7 @@ class HarnessImpl<Tool extends ToolRegistration> extends SessionImpl implements 
 		};
 	}
 
-	/** Resolve a conversation's committed `pi.agent` against `snapshot`, or the current one, and the current settings. */
+	/** Resolve a conversation's committed `evoharness.agent` against `snapshot`, or the current one, and the current settings. */
 	async resolveAgent(
 		id: ConversationId,
 		snapshot: RegistrySnapshot<Tool> | undefined,
@@ -362,7 +362,7 @@ class HarnessImpl<Tool extends ToolRegistration> extends SessionImpl implements 
 		return this.#tasks.waitForIdle(undefined, context);
 	}
 
-	/** Sum every conversation's committed `pi.usage`. Each document is read at its own point; totals only grow. */
+	/** Sum every conversation's committed `evoharness.usage`. Each document is read at its own point; totals only grow. */
 	async usage(context: Context): Promise<UsageState> {
 		const conversations = await this.readOnLine((storage) =>
 			scanAll((cursor) => storage.scanConversations({}, SCAN_PAGE_SIZE, cursor, context)),
@@ -445,8 +445,8 @@ class HarnessImpl<Tool extends ToolRegistration> extends SessionImpl implements 
 	}
 
 	/**
-	 * The built-in creation hook, in every commit that creates or forks a conversation: empty `pi.live`, `pi.inbox`, and
-	 * `pi.usage`, a fresh `pi.provider`, the conversation's `pi.agent` (see `createAgent()`), then
+	 * The built-in creation hook, in every commit that creates or forks a conversation: empty `evoharness.live`, `evoharness.inbox`, and
+	 * `evoharness.usage`, a fresh `evoharness.provider`, the conversation's `evoharness.agent` (see `createAgent()`), then
 	 * `HarnessOptions.conversationCreated`.
 	 */
 	protected override async conversationCreated(tx: Transaction, record: ConversationRecord): Promise<void> {
@@ -468,7 +468,7 @@ function safeReport(
 	telemetry: TelemetryContext,
 ): (error: unknown, info: ReportInfo, context?: Context) => void {
 	const reports = createTypedMetrics(telemetry.metrics ?? NOOP_TELEMETRY_METRICS, [DURABLE_TELEMETRY_SCHEMA]).counter(
-		"pi.durable.reports",
+		"evoharness.durable.reports",
 	);
 	return (error, info, context) => {
 		if (onReport !== undefined) {
@@ -500,7 +500,7 @@ function safeReport(
 		}
 		try {
 			reports.add(1, { type: info.kind });
-			context?.telemetry.addEvent("pi.durable.report", attributes);
+			context?.telemetry.addEvent("evoharness.durable.report", attributes);
 		} catch {
 			// Dropped: see above.
 		}

@@ -188,7 +188,7 @@ export function okhslToRgb(hue: number, saturation: number, lightness: number): 
 	const L = okhslToOklabLightness(lightness);
 	let lab: Vector = [L, 0, 0];
 	if (L > 0 && L < 1 && saturation > 0) {
-		const angle = (2 * Math.PI * (((hue % 360) + 360) % 360)) / 360;
+		const angle = (2 * Math.EVOHARNESS * (((hue % 360) + 360) % 360)) / 360;
 		const a = Math.cos(angle);
 		const b = Math.sin(angle);
 		const [c0, cMid, cMax] = chromaStops(L, a, b);
@@ -218,7 +218,7 @@ export function rgbToOkhsl(rgb: RgbColor): { h: number; s: number; l: number } {
 	const lightness = oklabToOkhslLightness(L);
 	if (chroma < 1e-9 || lightness <= 0 || lightness >= 1) return { h: 0, s: 0, l: lightness };
 
-	const hue = ((Math.atan2(labB, labA) * 180) / Math.PI + 360) % 360;
+	const hue = ((Math.atan2(labB, labA) * 180) / Math.EVOHARNESS + 360) % 360;
 	const [c0, cMid, cMax] = chromaStops(L, labA / chroma, labB / chroma);
 	let saturation: number;
 	if (chroma < cMid) {

@@ -52,7 +52,7 @@ export type ModelCatalogIndex = {
 };
 
 export type ModelCatalogRequest =
-	| { kind: "catalog"; piVersion: string | undefined; representation: ModelCatalogRepresentation }
+	| { kind: "catalog"; evoharnessVersion: string | undefined; representation: ModelCatalogRepresentation }
 	| { kind: "redirect"; location: string }
 	| { kind: "invalid"; error: string };
 
@@ -109,19 +109,19 @@ export function parseModelCatalogRequest(url: string | URL, userAgent: string | 
 		return { kind: "invalid", error: "Invalid model types." };
 	}
 
-	const piVersion = requestUrl.searchParams.get("pi-version");
-	if (piVersion === null) {
+	const evoharnessVersion = requestUrl.searchParams.get("pi-version");
+	if (evoharnessVersion === null) {
 		const userAgentVersion = PI_USER_AGENT_RE.exec(userAgent ?? "")?.[1];
 		if (userAgentVersion !== undefined && isValidModelCatalogPiVersion(userAgentVersion)) {
 			requestUrl.searchParams.set("pi-version", userAgentVersion);
 			return { kind: "redirect", location: requestUrl.toString() };
 		}
-		return { kind: "catalog", piVersion: undefined, representation };
+		return { kind: "catalog", evoharnessVersion: undefined, representation };
 	}
-	if (!isValidModelCatalogPiVersion(piVersion)) {
+	if (!isValidModelCatalogPiVersion(evoharnessVersion)) {
 		return { kind: "invalid", error: "Invalid Pi version." };
 	}
-	return { kind: "catalog", piVersion, representation };
+	return { kind: "catalog", evoharnessVersion, representation };
 }
 
 /**
@@ -131,13 +131,13 @@ export function parseModelCatalogRequest(url: string | URL, userAgent: string | 
  */
 export function selectModelCatalog(
 	index: ModelCatalogIndex,
-	piVersion: string | undefined,
+	evoharnessVersion: string | undefined,
 ): ModelCatalogIndexEntry | undefined {
-	if (piVersion === undefined) {
+	if (evoharnessVersion === undefined) {
 		return index.catalogs.find((catalog) => catalog.revision === index.defaultRevision);
 	}
 
-	const requestedVersion = parsePiVersion(piVersion);
+	const requestedVersion = parsePiVersion(evoharnessVersion);
 	if (!requestedVersion) {
 		return undefined;
 	}

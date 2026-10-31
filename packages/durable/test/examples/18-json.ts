@@ -1,6 +1,6 @@
 // JSON mode: stream one prompt's run as JSON lines, like `pi --mode json`. Two modes, both of the ConversationView:
 //   --ops (default): the raw frames, starting with the view itself; each later line holds the ops of the commits since.
-//   --state: per call, the entries appended since the previous one and the current `pi.live`, state a renderer draws.
+//   --state: per call, the entries appended since the previous one and the current `evoharness.live`, state a renderer draws.
 // --storage sqlite (default) | jsonl | memory: sqlite writes a temporary database file, jsonl a temporary directory;
 // neither is deleted, and the path is printed to stderr at the end.
 // Uses OpenAI when OPENAI_API_KEY is set, and a scripted faux model otherwise.
@@ -78,13 +78,13 @@ if (mode === "ops") {
 	});
 } else {
 	let newest = watch.value.entries.at(-1)?.id ?? 0;
-	print({ entries: watch.value.entries, live: watch.value.docs["pi.live"] });
+	print({ entries: watch.value.entries, live: watch.value.docs["evoharness.live"] });
 	watch.start(async (call) => {
 		if (call.kind !== "value") return;
 		const { value } = call;
 		const entries = value.entries.filter((entry) => entry.id > newest);
 		newest = value.entries.at(-1)?.id ?? newest;
-		print({ ...(entries.length === 0 ? {} : { entries }), live: value.docs["pi.live"] });
+		print({ ...(entries.length === 0 ? {} : { entries }), live: value.docs["evoharness.live"] });
 	});
 }
 

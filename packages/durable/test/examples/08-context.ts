@@ -78,7 +78,7 @@ const question = await say("message", { role: "user", content: "read a and b", t
 await say("message", assistantMessage("I crashed", [], "aborted")); // stored, never sent
 const calls = await say("message", assistantMessage("reading", ["a", "b"]));
 await say("message", toolResultMessage("b")); // results finish out of order
-await say("pi.system", { role: "system", content: "", sections: { cwd: "<cwd>/repo</cwd>" }, timestamp: 4 });
+await say("evoharness.system", { role: "system", content: "", sections: { cwd: "<cwd>/repo</cwd>" }, timestamp: 4 });
 await say("message", toolResultMessage("a"));
 await say("message", assistantMessage("a and b look fine"));
 await transcript.commit(

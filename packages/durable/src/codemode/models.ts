@@ -22,7 +22,7 @@ import { defineTool } from "../harness/define.ts";
 import type { ToolRegistration } from "../harness/types.ts";
 
 /** Reserved names of code mode's internal tools; they are never listed to scripts or the model. */
-export const CODEMODE_INTERNAL_PREFIX = "pi.codemode.";
+export const CODEMODE_INTERNAL_PREFIX = "evoharness.codemode.";
 export const CLASSIFY_TOOL = `${CODEMODE_INTERNAL_PREFIX}models.classify`;
 export const GENERATE_IMAGES_TOOL = `${CODEMODE_INTERNAL_PREFIX}models.generateImages`;
 

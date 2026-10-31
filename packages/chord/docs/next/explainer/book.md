@@ -3209,7 +3209,7 @@ one, `findMetrics` metrics. One renderer, `pi-telemetry/render`, prints traces a
 follows them. The playground's trace viewer reads the same store.
 
 **Durable** already emits submit and phase spans, stores carriers on submissions and tasks (`TaskOptions.trace`),
-and pi-ai emits `pi.ai.request` and `pi.ai.poll`. With the harness given the host's adapter (chapter XIV), an agent
+and pi-ai emits `evoharness.ai.request` and `evoharness.ai.poll`. With the harness given the host's adapter (chapter XIV), an agent
 tool that calls `Notes.add` through `chord(fn, context)` shows up as one tree from the model request down to the
 commit.
 
@@ -3681,7 +3681,7 @@ What each function becomes:
 | Function | How |
 | --- | --- |
 | send, retried send | Durable `submit` with the author's `requestId`: a retry with the same id is admitted once (Durable dedupes, chapter XIV) |
-| steer or queue while busy | `whenBusy: "steer"` or a follow-up; the inbox is `docs["pi.inbox"]` in the window |
+| steer or queue while busy | `whenBusy: "steer"` or a follow-up; the inbox is `docs["evoharness.inbox"]` in the window |
 | attribution | the view derives the author from the principal; the entry stores it structured, the model sees a speaker block; nothing parses text |
 | wait for prompt resources | the first input of a fresh worker waits until the prompt plugin's resources are loaded (a registry readable the store follows) |
 | stop, dequeue | withdraw queued inputs, abort the run; the caller's texts return to its editor, other authors' to their **restored drafts** |

@@ -6,7 +6,7 @@ process's stdin and stdout. stderr is diagnostic text for logs only.
 ## Sync
 
 Shell startup files may print to stdout before the daemon runs. The daemon's first output is the line
-`PI-ENV <token>\n`, with the token from its command line. The client discards everything before that line. After it,
+`EVOHARNESS-ENV <token>\n`, with the token from its command line. The client discards everything before that line. After it,
 stdout carries only frames.
 
 ## Frames

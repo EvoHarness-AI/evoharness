@@ -508,7 +508,7 @@ import { AI_TELEMETRY_SCHEMA } from '@evoharness/ai/models';
 import { DURABLE_TELEMETRY_SCHEMA } from '@evoharness/durable';
 ```
 
-The AI and Durable schemas use pi-owned `pi.ai.*` and `pi.durable.*` names. Adapters may translate them to backend conventions without changing the emitted pi vocabulary.
+The AI and Durable schemas use pi-owned `evoharness.ai.*` and `evoharness.durable.*` names. Adapters may translate them to backend conventions without changing the emitted pi vocabulary.
 
 ## Security and Portability
 

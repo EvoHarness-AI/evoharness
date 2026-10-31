@@ -424,7 +424,7 @@ describe("submit inside the caller's commit", () => {
 		const { harness, root } = await openTraced(setup, telemetry);
 		await root.submit({ type: "input", content: "work" }, context);
 		await busy.reached;
-		const run = (await harness.inspect(context)).tasks.find((task) => task.record.kind === "pi.generation")!.record;
+		const run = (await harness.inspect(context)).tasks.find((task) => task.record.kind === "evoharness.generation")!.record;
 		const id = await telemetry.startSpan({ name: "caller" }, (caller) =>
 			harness.commit(
 				(tx) => root.submit(tx, { type: "input", content: "steer", whenBusy: "steer" }),
@@ -434,7 +434,7 @@ describe("submit inside the caller's commit", () => {
 		const spans = telemetry.getSpans();
 		const caller = spans.find((span) => span.name === "caller")!;
 		const submit = spans.find(
-			(span) => span.name === "pi.durable.submit" && span.attributes["submission.id"] === id,
+			(span) => span.name === "evoharness.durable.submit" && span.attributes["submission.id"] === id,
 		)!;
 		expect(submit).toMatchObject({ parentId: null, attributes: { result: "queued" } });
 		expect(submit.links).toEqual([
@@ -458,10 +458,10 @@ describe("submit inside the caller's commit", () => {
 		await busy.reached;
 		const submit = telemetry
 			.getSpans()
-			.find((span) => span.name === "pi.durable.submit" && span.attributes["submission.id"] === id)!;
+			.find((span) => span.name === "evoharness.durable.submit" && span.attributes["submission.id"] === id)!;
 		const record = await (await harness.submission(id, context))!.status(context);
 		expect(record.trace).toEqual(submit.context);
-		const run = (await harness.inspect(context)).tasks.find((task) => task.record.kind === "pi.generation")!.record;
+		const run = (await harness.inspect(context)).tasks.find((task) => task.record.kind === "evoharness.generation")!.record;
 		expect(run.trace).toEqual(record.trace);
 		await harness.close(context);
 	});
@@ -479,14 +479,14 @@ describe("submit inside the caller's commit", () => {
 		);
 		const spans = telemetry.getSpans();
 		const caller = spans.find((span) => span.name === "caller")!;
-		const submit = spans.find((span) => span.name === "pi.durable.submit")!;
+		const submit = spans.find((span) => span.name === "evoharness.durable.submit")!;
 		expect(submit).toMatchObject({
 			parentContext: caller.context,
 			settled: true,
 			attributes: { "submission.id": id, result: "done" },
 			events: [],
 		});
-		expect(caller.events.map((event) => event.name)).toEqual(["pi.durable.entry", "pi.durable.submission"]);
+		expect(caller.events.map((event) => event.name)).toEqual(["evoharness.durable.entry", "evoharness.durable.submission"]);
 		await harness.close(context);
 	});
 
@@ -506,7 +506,7 @@ describe("submit inside the caller's commit", () => {
 			await expect(failed).rejects.toThrow("later");
 		});
 		const spans = telemetry.getSpans();
-		const submit = spans.find((span) => span.name === "pi.durable.submit")!;
+		const submit = spans.find((span) => span.name === "evoharness.durable.submit")!;
 		// The span reported an admission the commit then discarded.
 		expect(submit).toMatchObject({ settled: true, attributes: { result: "done" } });
 		const id = submit.attributes["submission.id"] as SubmissionId;
@@ -629,7 +629,7 @@ describe("submit inside the caller's commit", () => {
 		other = await harness.createConversation({ ownership: { kind: "ownerless" }, agent: { model: MODEL } }, context);
 		const run = await root.submit({ type: "input", content: "go" }, context);
 		await started.promise;
-		const tool = (await harness.inspect(context)).tasks.find((task) => task.record.kind === "pi.tool")!.record;
+		const tool = (await harness.inspect(context)).tasks.find((task) => task.record.kind === "evoharness.tool")!.record;
 		const aborting = harness.abortTask(tool.id, context);
 		await abortSeen.promise;
 		const draft = { type: "input", content: "late" } as const;

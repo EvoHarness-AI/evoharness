@@ -34,22 +34,22 @@ import {
 import type { DocumentationVariant } from "./plan.ts";
 import { PI_SESSION_SNAPSHOT_ARTIFACT } from "./report.ts";
 
-type PiRunDiagnostics = {
+type EvoHarnessRunDiagnostics = {
 	events: TranscriptEvent[];
 	metadata: Record<string, unknown>;
 	usage: UsageSummary;
 };
 
-export type PiCodingAgentInput = string | Array<{ type: "prompt"; content: string } | { type: "reload" }>;
+export type EvoHarnessCodingAgentInput = string | Array<{ type: "prompt"; content: string } | { type: "reload" }>;
 
-export type PiCodingAgentModelSelection = {
+export type EvoHarnessCodingAgentModelSelection = {
 	provider: string;
 	id: string;
 };
 
-export type PiCodingAgentHarnessOptions = {
+export type EvoHarnessCodingAgentHarnessOptions = {
 	name?: string;
-	model?: PiCodingAgentModelSelection;
+	model?: EvoHarnessCodingAgentModelSelection;
 	noTools?: CreateAgentSessionOptions["noTools"];
 	tools?: CreateAgentSessionOptions["tools"];
 	customTools?: CreateAgentSessionOptions["customTools"];
@@ -58,7 +58,7 @@ export type PiCodingAgentHarnessOptions = {
 	expectedPiDocumentation?: boolean;
 };
 
-export type PiCodingAgentHarnessWithOutput<TOutput extends JsonValue> = PiCodingAgentHarnessOptions & {
+export type EvoHarnessCodingAgentHarnessWithOutput<TOutput extends JsonValue> = EvoHarnessCodingAgentHarnessOptions & {
 	output: (args: {
 		response: string;
 		session: AgentSession;
@@ -68,9 +68,9 @@ export type PiCodingAgentHarnessWithOutput<TOutput extends JsonValue> = PiCoding
 };
 
 export function resolveModelSelection(
-	explicitModel: PiCodingAgentModelSelection | undefined,
+	explicitModel: EvoHarnessCodingAgentModelSelection | undefined,
 	environment: { PI_PROVIDER?: string; PI_MODEL?: string } = process.env,
-): PiCodingAgentModelSelection {
+): EvoHarnessCodingAgentModelSelection {
 	const provider = (explicitModel?.provider ?? environment.PI_PROVIDER)?.trim();
 	const id = (explicitModel?.id ?? environment.PI_MODEL)?.trim();
 	if (!provider || !id) {
@@ -256,7 +256,7 @@ async function promptAgent(session: AgentSession, input: string, signal: AbortSi
 
 export function verifySystemPrompt(
 	systemPrompt: string,
-	options: Pick<PiCodingAgentHarnessOptions, "name" | "expectedPiDocumentation">,
+	options: Pick<EvoHarnessCodingAgentHarnessOptions, "name" | "expectedPiDocumentation">,
 ): string {
 	if (options.expectedPiDocumentation === undefined) return systemPrompt;
 	if (!systemPrompt.includes("\n<rules>\n")) {
@@ -270,10 +270,10 @@ export function verifySystemPrompt(
 }
 
 async function runPiCodingAgent<TOutput extends JsonValue>(
-	input: PiCodingAgentInput,
+	input: EvoHarnessCodingAgentInput,
 	signal: AbortSignal | undefined,
 	setArtifact: HarnessContext["setArtifact"],
-	options: PiCodingAgentHarnessOptions | PiCodingAgentHarnessWithOutput<TOutput>,
+	options: EvoHarnessCodingAgentHarnessOptions | EvoHarnessCodingAgentHarnessWithOutput<TOutput>,
 ): Promise<SimpleHarnessResult<string | TOutput>> {
 	const startedAt = performance.now();
 	signal?.throwIfAborted();
@@ -303,7 +303,7 @@ async function runPiCodingAgent<TOutput extends JsonValue>(
 	let sessionManager: SessionManager | undefined;
 	let session: AgentSession | undefined;
 	let result: SimpleHarnessResult<string | TOutput> | undefined;
-	let runDiagnostics: PiRunDiagnostics | undefined;
+	let runDiagnostics: EvoHarnessRunDiagnostics | undefined;
 	let runError: unknown;
 	const cleanupErrors: unknown[] = [];
 	let hiddenCredentialEnvironment: { name: string; value: string } | undefined;
@@ -469,13 +469,13 @@ async function runPiCodingAgent<TOutput extends JsonValue>(
 }
 
 export function createPiCodingAgentHarness<TOutput extends JsonValue>(
-	options: PiCodingAgentHarnessWithOutput<TOutput>,
-): Harness<PiCodingAgentInput, TOutput>;
-export function createPiCodingAgentHarness(options?: PiCodingAgentHarnessOptions): Harness<PiCodingAgentInput, string>;
+	options: EvoHarnessCodingAgentHarnessWithOutput<TOutput>,
+): Harness<EvoHarnessCodingAgentInput, TOutput>;
+export function createPiCodingAgentHarness(options?: EvoHarnessCodingAgentHarnessOptions): Harness<EvoHarnessCodingAgentInput, string>;
 export function createPiCodingAgentHarness<TOutput extends JsonValue>(
-	options: PiCodingAgentHarnessOptions | PiCodingAgentHarnessWithOutput<TOutput> = {},
-): Harness<PiCodingAgentInput, string | TOutput> {
-	return createHarness<PiCodingAgentInput, string | TOutput>({
+	options: EvoHarnessCodingAgentHarnessOptions | EvoHarnessCodingAgentHarnessWithOutput<TOutput> = {},
+): Harness<EvoHarnessCodingAgentInput, string | TOutput> {
+	return createHarness<EvoHarnessCodingAgentInput, string | TOutput>({
 		name: options.name ?? "pi-coding-agent",
 		run: ({ input, signal, setArtifact }) => runPiCodingAgent(input, signal, setArtifact, options),
 	});
@@ -506,20 +506,20 @@ export function excludePiDocumentation(defaultPrompt: string): string {
 }
 
 type DocumentationHarnessOptions = Omit<
-	PiCodingAgentHarnessOptions,
+	EvoHarnessCodingAgentHarnessOptions,
 	"name" | "transformSystemPrompt" | "expectedPiDocumentation"
 >;
 type DocumentationHarnessWithOutput<TOutput extends JsonValue> = Omit<
-	PiCodingAgentHarnessWithOutput<TOutput>,
+	EvoHarnessCodingAgentHarnessWithOutput<TOutput>,
 	"name" | "transformSystemPrompt" | "expectedPiDocumentation"
 >;
 
 export function createPiDocumentationEvalHarness<TOutput extends JsonValue>(
 	options: DocumentationHarnessWithOutput<TOutput>,
-): Harness<PiCodingAgentInput, TOutput>;
+): Harness<EvoHarnessCodingAgentInput, TOutput>;
 export function createPiDocumentationEvalHarness(
 	options?: DocumentationHarnessOptions,
-): Harness<PiCodingAgentInput, string>;
+): Harness<EvoHarnessCodingAgentInput, string>;
 export function createPiDocumentationEvalHarness<TOutput extends JsonValue>(
 	options: DocumentationHarnessOptions | DocumentationHarnessWithOutput<TOutput> = {},
 ) {

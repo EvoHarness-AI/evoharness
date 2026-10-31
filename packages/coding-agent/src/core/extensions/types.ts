@@ -758,7 +758,7 @@ export interface ResourcesDiscoverResult {
 /**
  * Fired when an extension registers or unregisters an MCP server after the extensions are bound
  * (see {@link ExtensionAPI.registerMcpServer}). Servers registered while extensions load are read
- * with `pi.getMcpServers()` on `session_start`. Handling this event marks an extension as the one
+ * with `evoharness.getMcpServers()` on `session_start`. Handling this event marks an extension as the one
  * that connects registered servers.
  */
 export interface McpServersChangeEvent {
@@ -957,7 +957,7 @@ interface BeforeAgentStartEventBase {
 	systemPromptOptions: NormalizedBuildSystemPromptOptions;
 }
 
-/** A run started by a submitted prompt, RPC prompt, or `pi.sendUserMessage()`. */
+/** A run started by a submitted prompt, RPC prompt, or `evoharness.sendUserMessage()`. */
 export interface BeforeAgentStartUserEvent extends BeforeAgentStartEventBase {
 	messageType: "user";
 	/** The raw user prompt text (after expansion). */
@@ -966,7 +966,7 @@ export interface BeforeAgentStartUserEvent extends BeforeAgentStartEventBase {
 	images?: ImageContent[];
 }
 
-/** A run started by `pi.sendMessage(..., { triggerTurn: true })` while idle. */
+/** A run started by `evoharness.sendMessage(..., { triggerTurn: true })` while idle. */
 export interface BeforeAgentStartCustomEvent extends BeforeAgentStartEventBase {
 	messageType: "custom";
 	/** The custom message that starts the run. */
@@ -2200,7 +2200,7 @@ export interface ExtensionRuntimeState {
 	registerProvider: (name: string, config: ProviderConfig, extensionPath?: string) => void;
 	registerNativeProvider: (provider: Provider, extensionPath?: string) => void;
 	unregisterProvider: (name: string, extensionPath?: string) => void;
-	/** Servers registered with `pi.registerMcpServer()`. */
+	/** Servers registered with `evoharness.registerMcpServer()`. */
 	mcpServers: McpServerRegistry;
 	registerVirtualModel: (definition: VirtualModelDefinition, extensionPath?: string) => void;
 	unregisterVirtualModel: (provider: string, id: string) => void;

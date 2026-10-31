@@ -2,7 +2,7 @@
  * Built-in MCP integration.
  *
  * Connects the servers from `mcp.json` and the servers extensions register with
- * `pi.registerMcpServer()` when a session starts, and servers registered later right away. A server
+ * `evoharness.registerMcpServer()` when a session starts, and servers registered later right away. A server
  * in `mcp.json` takes precedence over a registered server of the same name. Connections run in the
  * background: the first prompt waits only for servers with `direct` tools, and codemode scripts,
  * `tool_search`, and the resource tools wait for the servers they need when they run. Tools are

@@ -15,9 +15,9 @@
  * unless their own replay policy reruns them; their results come from `NestedCallDoc`. Then the script continues live.
  *
  * Documents, scoped to the code mode call's task and gone when it settles:
- * - `pi.codemode.run`: the start data, written once before the VM starts, and the outcome, written once when the call
+ * - `evoharness.codemode.run`: the start data, written once before the VM starts, and the outcome, written once when the call
  *   decides it (with the store writes, in one transaction), so a rerun after that returns it without a VM.
- * - `pi.codemode.journal`: one entry per delivered result, in delivery order: the VM call ID, the clock value, the
+ * - `evoharness.codemode.journal`: one entry per delivered result, in delivery order: the VM call ID, the clock value, the
  *   calls the VM had issued after processing it (once acknowledged), and a global's outcome, which nothing else stores.
  *
  * Each result's acknowledged call count is recorded with the next journal commit, or at once when the VM has processed
@@ -91,7 +91,7 @@ export const CODEMODE_TOOL_NAME = "codemode";
 /** One tool as the script sees it: `tools.<jsName>`. */
 /**
  * `structured`: the tool declares `structuredOutputSchema`, so an error result with a value resolves with it.
- * `hidden`: an internal tool of this extension (`pi.codemode.*`), which scripts reach only through a global such as
+ * `hidden`: an internal tool of this extension (`evoharness.codemode.*`), which scripts reach only through a global such as
  * `models.classify()`; never in `tools`, `ALL_TOOLS`, or tool search.
  */
 type DeclaredTool = { name: string; jsName: string; description: string; structured?: true; hidden?: true };
@@ -123,7 +123,7 @@ type RunState = {
 };
 
 export const CodemodeRunDoc = defineDoc<RunState>({
-	kind: "pi.codemode.run",
+	kind: "evoharness.codemode.run",
 	version: 1,
 	scope: "task",
 	initial: () => ({}),
@@ -149,7 +149,7 @@ type JournalState = {
 };
 
 export const CodemodeJournalDoc = defineDoc<JournalState>({
-	kind: "pi.codemode.journal",
+	kind: "evoharness.codemode.journal",
 	version: 1,
 	scope: "task",
 	initial: () => ({ entries: [] }),
@@ -162,7 +162,7 @@ export const CodemodeJournalDoc = defineDoc<JournalState>({
  * point, so a fork sees the values as they were when its entry was committed.
  */
 export const CodemodeStoreDoc = defineDoc<{ values: Record<string, JsonValue> }>({
-	kind: "pi.codemode.store",
+	kind: "evoharness.codemode.store",
 	version: 1,
 	scope: "conversation",
 	history: "rewindable",
@@ -186,7 +186,7 @@ export type CodemodeNestedCall = {
 
 /**
  * The code mode call's details, in its result: its tool calls in the order it made them, with their status. Calls to
- * globals are not listed. While the script runs, UIs show its nested calls from `pi.live.nestedTools`, so the list is
+ * globals are not listed. While the script runs, UIs show its nested calls from `evoharness.live.nestedTools`, so the list is
  * written once, with the result.
  */
 export type CodemodeToolDetails = {

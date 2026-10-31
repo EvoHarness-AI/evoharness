@@ -4,7 +4,7 @@ import { UserEntry } from "../entries.ts";
 import type { ConversationId, EntryDraft, EntryId, EntryRecord, JsonObject, SubmissionId, Tx } from "../types.ts";
 import type { InputEntry, QueueMode, Settings, UserInput } from "./types.ts";
 
-/** A queued submission: user input for a run, with the entry it is placed as when not `pi.user`, or an entry write. */
+/** A queued submission: user input for a run, with the entry it is placed as when not `evoharness.user`, or an entry write. */
 export type InboxItem =
 	| {
 			id: SubmissionId;
@@ -19,7 +19,7 @@ export type InboxItem =
 export type InboxState = { items: InboxItem[] };
 
 export const InboxDoc = defineDoc<InboxState>({
-	kind: "pi.inbox",
+	kind: "evoharness.inbox",
 	version: 1,
 	scope: "conversation",
 	history: "latest",
@@ -119,7 +119,7 @@ export async function applyBoundary(
 	return { users: placed, first, reset };
 }
 
-/** Append the entry an input is placed as: `entry`'s kind and data, or `pi.user`, with the user message of `content`. */
+/** Append the entry an input is placed as: `entry`'s kind and data, or `evoharness.user`, with the user message of `content`. */
 export function appendInput(
 	tx: Tx,
 	conversationId: ConversationId,

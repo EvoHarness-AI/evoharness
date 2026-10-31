@@ -52,11 +52,11 @@ type SystemDraft = TypedEntryDraft<never>;
 type ToolChanges = { readonly toolsRemoved: ToolReference[]; readonly toolsAdded: Tool[] };
 
 /**
- * Plan the `pi.system` entries that make the replayed sections and tools of `view` equal `desired` and `tools` in values
+ * Plan the `evoharness.system` entries that make the replayed sections and tools of `view` equal `desired` and `tools` in values
  * and order.
  *
- * - A head marker with no later `pi.system` entry in context: one complete baseline that omits every retained earlier
- *   `pi.system` entry, written even when it restates the replayed values.
+ * - A head marker with no later `evoharness.system` entry in context: one complete baseline that omits every retained earlier
+ *   `evoharness.system` entry, written even when it restates the replayed values.
  * - Otherwise, when a minimal section patch would leave a different order: remove every shown section, then re-add
  *   every desired section in order.
  * - Otherwise the minimal patch of changed values and `null` removals, or nothing.

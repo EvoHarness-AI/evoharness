@@ -1,7 +1,7 @@
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterEach, describe, expect, it } from "vitest";
-import { type PiMessagesOptions, stream, streamSimple } from "../src/api/pi-messages.ts";
+import { type EvoHarnessMessagesOptions, stream, streamSimple } from "../src/api/pi-messages.ts";
 import type { Api, AssistantMessageEvent, Context, Model, StopReason } from "../src/types.ts";
 import { normalizeContext } from "../src/utils/transcript.ts";
 
@@ -210,7 +210,7 @@ describe("pi-messages", () => {
 			onResponse: (response) => {
 				observedHeaders = response.headers;
 			},
-		} satisfies PiMessagesOptions;
+		} satisfies EvoHarnessMessagesOptions;
 		const message = await streamSimple(model, normalizeContext(context), options).result();
 
 		expect(message.stopReason).toBe("stop");

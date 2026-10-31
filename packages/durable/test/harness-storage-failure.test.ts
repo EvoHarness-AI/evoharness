@@ -307,7 +307,7 @@ describe("a failed Storage call", () => {
 				return root.entries({ order: "descending" }, 1, page.next ?? { after: 1, order: "ascending" }, context);
 			},
 			() => root.commit((tx) => tx.scanEntries({ conversationId: 999_999 as never }, 10), context),
-			// `pi.live` keeps no history.
+			// `evoharness.live` keeps no history.
 			() => harness.snapshotAsOf(LiveDoc as never, root.id, entry.id, context),
 		];
 		for (const request of requests) {

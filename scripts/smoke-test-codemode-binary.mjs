@@ -112,7 +112,7 @@ async function main() {
 			}),
 		);
 
-		const piArgs = [
+		const evoharnessArgs = [
 			"--provider",
 			"codemode-smoke",
 			"--model",
@@ -129,7 +129,7 @@ async function main() {
 			"Run the codemode binary smoke test.",
 		];
 		const javaScript = extname(binary) === ".js";
-		const child = spawn(javaScript ? process.execPath : binary, javaScript ? [binary, ...piArgs] : piArgs, {
+		const child = spawn(javaScript ? process.execPath : binary, javaScript ? [binary, ...evoharnessArgs] : evoharnessArgs, {
 			cwd: tempDir,
 			env: {
 				...process.env,

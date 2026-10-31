@@ -374,7 +374,7 @@ describe("continue", () => {
 		const spans = telemetry.getSpans();
 		const caller = spans.find((span) => span.name === "caller")!;
 		const submit = spans.find(
-			(span) => span.name === "pi.durable.submit" && span.attributes["submission.id"] === id,
+			(span) => span.name === "evoharness.durable.submit" && span.attributes["submission.id"] === id,
 		)!;
 		expect(submit).toMatchObject({ parentId: null, attributes: { result: "placed" } });
 		expect(submit.links).toEqual([{ context: caller.context, attributes: {} }]);
@@ -382,7 +382,7 @@ describe("continue", () => {
 		expect(
 			spans.some(
 				(span) =>
-					span.name === "pi.durable.phase" &&
+					span.name === "evoharness.durable.phase" &&
 					span.attributes.phase === "prepare" &&
 					JSON.stringify(span.parentContext) === JSON.stringify(submit.context),
 			),

@@ -42,7 +42,7 @@ function fakeDaemon(helloReply: "result" | "error"): string {
 	return `
 const { spawn } = require("node:child_process");
 const token = process.argv[process.argv.indexOf("--token") + 1];
-process.stdout.write("PI-ENV " + token + "\\n");
+process.stdout.write("EVOHARNESS-ENV " + token + "\\n");
 function frame(type, id, json) {
 	const body = Buffer.from(JSON.stringify(json));
 	const header = Buffer.alloc(13);

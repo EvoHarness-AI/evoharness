@@ -38,8 +38,8 @@ const request = {
 		"response.id": { type: "string", description: "Provider response identifier.", cardinality: "high" },
 	},
 	events: {
-		"pi.ai.first_chunk": { description: "First normalized stream event delivered.", attributes: {} },
-		"pi.ai.block": {
+		"evoharness.ai.first_chunk": { description: "First normalized stream event delivered.", attributes: {} },
+		"evoharness.ai.block": {
 			description: "A completed content block; content is never recorded.",
 			attributes: {
 				type: {
@@ -64,23 +64,23 @@ const request = {
 export const AI_TELEMETRY_SCHEMA = defineTelemetrySchema({
 	version: 1,
 	spans: {
-		"pi.ai.request": request,
-		"pi.ai.poll": { ...request, description: "One deferred-response poll, not the deferred request's lifetime." },
+		"evoharness.ai.request": request,
+		"evoharness.ai.poll": { ...request, description: "One deferred-response poll, not the deferred request's lifetime." },
 	},
 	metrics: {
-		"pi.ai.request.duration": {
+		"evoharness.ai.request.duration": {
 			kind: "histogram",
 			description: "Logical request or poll duration.",
 			unit: "ms",
 			attributes: { provider, model, stop: { ...stop, required: true } },
 		},
-		"pi.ai.first_chunk.duration": {
+		"evoharness.ai.first_chunk.duration": {
 			kind: "histogram",
 			description: "Time to the first normalized stream event.",
 			unit: "ms",
 			attributes: { provider, model },
 		},
-		"pi.ai.tokens": {
+		"evoharness.ai.tokens": {
 			kind: "counter",
 			description: "Reported model token usage; pending and deferred polls are excluded.",
 			unit: "token",
@@ -95,7 +95,7 @@ export const AI_TELEMETRY_SCHEMA = defineTelemetrySchema({
 				},
 			},
 		},
-		"pi.ai.cost": {
+		"evoharness.ai.cost": {
 			kind: "counter",
 			description: "Reported model cost; pending and deferred polls are excluded.",
 			unit: "USD",
@@ -104,15 +104,15 @@ export const AI_TELEMETRY_SCHEMA = defineTelemetrySchema({
 	},
 });
 
-type RequestSpan = SchemaTelemetrySpan<typeof AI_TELEMETRY_SCHEMA, "pi.ai.request">;
+type RequestSpan = SchemaTelemetrySpan<typeof AI_TELEMETRY_SCHEMA, "evoharness.ai.request">;
 
 function createInstruments(adapter: TelemetryMetrics) {
 	const metrics = createTypedMetrics(adapter, [AI_TELEMETRY_SCHEMA]);
 	return {
-		requestDuration: metrics.histogram("pi.ai.request.duration"),
-		firstChunkDuration: metrics.histogram("pi.ai.first_chunk.duration"),
-		tokens: metrics.counter("pi.ai.tokens"),
-		cost: metrics.counter("pi.ai.cost"),
+		requestDuration: metrics.histogram("evoharness.ai.request.duration"),
+		firstChunkDuration: metrics.histogram("evoharness.ai.first_chunk.duration"),
+		tokens: metrics.counter("evoharness.ai.tokens"),
+		cost: metrics.counter("evoharness.ai.cost"),
 	};
 }
 
@@ -149,20 +149,20 @@ export function observeModelRequest(
 		...(typeof options?.reasoning === "string" ? { reasoning: options.reasoning } : {}),
 	};
 	const start = createTypedSpanStarter(options?.telemetry ?? NOOP_TELEMETRY_CONTEXT, [AI_TELEMETRY_SCHEMA]);
-	if (poll) void start("pi.ai.poll", startAttributes, run);
-	else void start("pi.ai.request", startAttributes, run);
+	if (poll) void start("evoharness.ai.poll", startAttributes, run);
+	else void start("evoharness.ai.request", startAttributes, run);
 
 	return {
 		onEvent(event) {
 			if (first) {
 				first = false;
-				span.addEvent("pi.ai.first_chunk");
+				span.addEvent("evoharness.ai.first_chunk");
 				firstChunkDuration.record(performance.now() - started, attributes, span);
 			}
 			if (event.type === "toolcall_delta") {
 				toolChars.set(event.contentIndex, (toolChars.get(event.contentIndex) ?? 0) + event.delta.length);
 			} else if (event.type === "text_end" || event.type === "thinking_end") {
-				span.addEvent("pi.ai.block", {
+				span.addEvent("evoharness.ai.block", {
 					type: event.type === "text_end" ? "text" : "thinking",
 					index: event.contentIndex,
 					chars: event.content.length,
@@ -170,7 +170,7 @@ export function observeModelRequest(
 			} else if (event.type === "toolcall_end") {
 				const chars = toolChars.get(event.contentIndex) ?? 0;
 				toolChars.delete(event.contentIndex);
-				span.addEvent("pi.ai.block", {
+				span.addEvent("evoharness.ai.block", {
 					type: "tool_call",
 					index: event.contentIndex,
 					chars,

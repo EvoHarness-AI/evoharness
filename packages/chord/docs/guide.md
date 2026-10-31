@@ -80,7 +80,7 @@ A contract is a runtime value: a name, a version number, and a description of th
 Remote types can be reached from other hosts. Everything that crosses the wire has a schema, and the provider validates it.
 
 ```ts
-export const Chat = remote("pi.chat", {
+export const Chat = remote("evoharness.chat", {
 	version: 1,
 	input: Type.Object({ session: Type.String(), conversation: Type.Number() }),
 	host: hostFamily("session:", "session"),  // lives on `session:S1` for `{ session: "S1", … }`
@@ -117,13 +117,13 @@ references to it get `upgrade_required`.
 Local types are reachable only inside their host. Their members may be anything: functions, callbacks, native objects. Non-JSON members get opaque or function descriptors.
 
 ```ts
-export const Index = local("pi.index", {
+export const Index = local("evoharness.index", {
 	version: 1,
 	input: Type.Object({ session: Type.String() }),
 	members: {
 		search: method(Type.Object({ query: Type.String() }), Type.Array(HitSchema)),
 		onChange: method(Type.Function([ChangeSchema], Type.Void()), UnsubscribeSchema),
-		harness: opaque("pi.durable-harness@1"),
+		harness: opaque("evoharness.durable-harness@1"),
 	},
 });
 ```
@@ -318,7 +318,7 @@ To hand out a native object a resource opens (a local type's `opaque` member), e
 ```ts
 host.serve(Harness, (_, _host, self) => {
 	const durable = self.resource("durable", { version: 1, open: () => DurableHarness.open(storage), close: (h) => h.close() });
-	return { harness: self.expose(durable) };  // contract member: harness: opaque<DurableHarness>("pi.durable-harness@1")
+	return { harness: self.expose(durable) };  // contract member: harness: opaque<DurableHarness>("evoharness.durable-harness@1")
 });
 
 const harness = await ctx.get(Harness, {});

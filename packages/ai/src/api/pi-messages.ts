@@ -32,18 +32,18 @@ import { getProviderEnvValue } from "../utils/provider-env.ts";
 import { ToolCallArgumentsStream } from "../utils/streaming-json.ts";
 import { ownedSlice } from "../utils/text.ts";
 
-export interface PiMessagesOptions extends StreamOptions {
+export interface EvoHarnessMessagesOptions extends StreamOptions {
 	reasoning?: ThinkingLevel;
 	toolChoice?: "auto" | "none" | "required" | { type: "function"; function: { name: string } };
 	/** Ask the backend for debug metadata (e.g. routing response headers). */
 	debug?: boolean;
 }
 
-type PiMessagesUsage = AssistantMessage["usage"];
-type PiMessagesStopReason = AssistantMessage["stopReason"];
+type EvoHarnessMessagesUsage = AssistantMessage["usage"];
+type EvoHarnessMessagesStopReason = AssistantMessage["stopReason"];
 
 /** Impact summary of a server-side message rewrite (e.g. a gateway policy). */
-export type PiMessagesRewriteImpact = {
+export type EvoHarnessMessagesRewriteImpact = {
 	policyId: string;
 	policyVersion: number;
 	changed: boolean;
@@ -53,7 +53,7 @@ export type PiMessagesRewriteImpact = {
 };
 
 /** Serialized assistant-message event as sent by a pi-messages backend. */
-export type PiMessagesEvent =
+export type EvoHarnessMessagesEvent =
 	| { type: "start" }
 	| { type: "text_start"; contentIndex: number }
 	| { type: "text_delta"; contentIndex: number; delta: string }
@@ -72,25 +72,25 @@ export type PiMessagesEvent =
 	| { type: "toolcall_end"; contentIndex: number; toolCall: ToolCall }
 	| {
 			type: "done";
-			reason: Extract<PiMessagesStopReason, "stop" | "length" | "toolUse">;
-			usage: PiMessagesUsage;
+			reason: Extract<EvoHarnessMessagesStopReason, "stop" | "length" | "toolUse">;
+			usage: EvoHarnessMessagesUsage;
 			responseId?: string;
 			responseModel?: string;
 			providerThinkingLevel?: string;
-			rewrite?: PiMessagesRewriteImpact;
+			rewrite?: EvoHarnessMessagesRewriteImpact;
 	  }
 	| {
 			type: "error";
-			reason: Extract<PiMessagesStopReason, "aborted" | "error">;
-			usage: PiMessagesUsage;
+			reason: Extract<EvoHarnessMessagesStopReason, "aborted" | "error">;
+			usage: EvoHarnessMessagesUsage;
 			errorMessage?: string;
 			responseId?: string;
 			responseModel?: string;
 			providerThinkingLevel?: string;
-			rewrite?: PiMessagesRewriteImpact;
+			rewrite?: EvoHarnessMessagesRewriteImpact;
 	  };
 
-type PiMessagesErrorBody = {
+type EvoHarnessMessagesErrorBody = {
 	error?: {
 		message?: unknown;
 		code?: unknown;
@@ -99,21 +99,21 @@ type PiMessagesErrorBody = {
 	};
 };
 
-export class PiMessagesResponseError extends Error {
+export class EvoHarnessMessagesResponseError extends Error {
 	code?: string;
 	readonly diagnosticDetails: JsonObject;
 
 	constructor(message: string, code: string | undefined, diagnosticDetails: JsonObject) {
 		super(message);
-		this.name = "PiMessagesResponseError";
+		this.name = "EvoHarnessMessagesResponseError";
 		this.code = code;
 		this.diagnosticDetails = diagnosticDetails;
 	}
 }
 
-function parsePiMessagesErrorBody(body: string): PiMessagesErrorBody | undefined {
+function parsePiMessagesErrorBody(body: string): EvoHarnessMessagesErrorBody | undefined {
 	try {
-		const parsed = JSON.parse(body) as PiMessagesErrorBody | null;
+		const parsed = JSON.parse(body) as EvoHarnessMessagesErrorBody | null;
 		const error = parsed?.error;
 		return parsed && typeof error === "object" && error !== null && !Array.isArray(error) ? parsed : undefined;
 	} catch {
@@ -129,7 +129,7 @@ function truncateDiagnosticString(value: string): string {
 function formatPiMessagesResponseError(
 	response: Response,
 	body: string,
-	errorBody: PiMessagesErrorBody | undefined,
+	errorBody: EvoHarnessMessagesErrorBody | undefined,
 ): string {
 	const message = typeof errorBody?.error?.message === "string" ? errorBody.error.message : undefined;
 	const code = typeof errorBody?.error?.code === "string" ? errorBody.error.code : undefined;
@@ -143,10 +143,10 @@ function createPiMessagesResponseError(
 	url: URL,
 	response: Response,
 	body: string,
-): PiMessagesResponseError {
+): EvoHarnessMessagesResponseError {
 	const errorBody = parsePiMessagesErrorBody(body);
 	const code = typeof errorBody?.error?.code === "string" ? errorBody.error.code : undefined;
-	return new PiMessagesResponseError(formatPiMessagesResponseError(response, body, errorBody), code, {
+	return new EvoHarnessMessagesResponseError(formatPiMessagesResponseError(response, body, errorBody), code, {
 		version: 1,
 		provider: model.provider,
 		model: model.id,
@@ -159,7 +159,7 @@ function createPiMessagesResponseError(
 	});
 }
 
-function createEmptyUsage(): PiMessagesUsage {
+function createEmptyUsage(): EvoHarnessMessagesUsage {
 	return {
 		input: 0,
 		output: 0,
@@ -170,7 +170,7 @@ function createEmptyUsage(): PiMessagesUsage {
 	};
 }
 
-function appendRewriteDiagnostic(message: AssistantMessage, rewrite: PiMessagesRewriteImpact | undefined): void {
+function appendRewriteDiagnostic(message: AssistantMessage, rewrite: EvoHarnessMessagesRewriteImpact | undefined): void {
 	if (!rewrite) {
 		return;
 	}
@@ -194,7 +194,7 @@ function createEventConverter(model: Model<"pi-messages">) {
 	};
 	const toolArguments = new Map<number, ToolCallArgumentsStream>();
 
-	return (event: PiMessagesEvent): AssistantMessageEvent => {
+	return (event: EvoHarnessMessagesEvent): AssistantMessageEvent => {
 		if ("contentIndex" in event) {
 			// The index comes from the wire and keys the content array: `__proto__` would reach Array.prototype, and a huge
 			// index would make a sparse array of billions of holes. A start adds the next block; other events need one.
@@ -291,7 +291,7 @@ function createEventConverter(model: Model<"pi-messages">) {
 	};
 }
 
-async function* readPiMessagesEvents(stream: ReadableStream<Uint8Array>): AsyncGenerator<PiMessagesEvent> {
+async function* readPiMessagesEvents(stream: ReadableStream<Uint8Array>): AsyncGenerator<EvoHarnessMessagesEvent> {
 	const decoder = new TextDecoder();
 	const reader = stream.getReader();
 	let buffer = "";
@@ -328,14 +328,14 @@ async function* readPiMessagesEvents(stream: ReadableStream<Uint8Array>): AsyncG
 	}
 }
 
-function parsePiMessagesEvent(raw: string): PiMessagesEvent | undefined {
+function parsePiMessagesEvent(raw: string): EvoHarnessMessagesEvent | undefined {
 	const data = raw
 		.split("\n")
 		.find((line) => line.startsWith("data:"))
 		?.slice(5)
 		.trim();
 
-	return data && data !== "[DONE]" ? (JSON.parse(data) as PiMessagesEvent) : undefined;
+	return data && data !== "[DONE]" ? (JSON.parse(data) as EvoHarnessMessagesEvent) : undefined;
 }
 
 function createErrorEvent(model: Model<"pi-messages">, error: unknown, aborted: boolean): AssistantMessageEvent {
@@ -352,7 +352,7 @@ function createErrorEvent(model: Model<"pi-messages">, error: unknown, aborted: 
 		timestamp: Date.now(),
 	};
 
-	if (!aborted && error instanceof PiMessagesResponseError) {
+	if (!aborted && error instanceof EvoHarnessMessagesResponseError) {
 		appendAssistantMessageDiagnostic(
 			assistantMessage,
 			createAssistantMessageDiagnostic("pi_messages_response_failure", error, error.diagnosticDetails),
@@ -370,10 +370,10 @@ function resolveCacheRetention(cacheRetention?: CacheRetention, env?: ProviderEn
 	return getProviderEnvValue("PI_CACHE_RETENTION", env) === "long" ? "long" : undefined;
 }
 
-export const stream: StreamFunction<"pi-messages", PiMessagesOptions> = (
+export const stream: StreamFunction<"pi-messages", EvoHarnessMessagesOptions> = (
 	model: Model<"pi-messages">,
 	context: TranscriptContext,
-	options?: PiMessagesOptions,
+	options?: EvoHarnessMessagesOptions,
 ): AssistantMessageEventStream => {
 	const eventStream = new AssistantMessageEventStream();
 	const convertEvent = createEventConverter(model);
@@ -432,9 +432,9 @@ export const stream: StreamFunction<"pi-messages", PiMessagesOptions> = (
 				throw new Error(`${model.provider} response has no body`);
 			}
 
-			for await (const piEvent of readPiMessagesEvents(response.body)) {
-				await options?.onProviderStreamEvent?.(piEvent, model);
-				const event = convertEvent(piEvent);
+			for await (const evoharnessEvent of readPiMessagesEvents(response.body)) {
+				await options?.onProviderStreamEvent?.(evoharnessEvent, model);
+				const event = convertEvent(evoharnessEvent);
 				eventStream.push(event);
 				if (event.type === "done" || event.type === "error") {
 					return;
@@ -455,7 +455,7 @@ export const streamSimple: StreamFunction<"pi-messages", SimpleStreamOptions> = 
 	context: TranscriptContext,
 	options?: SimpleStreamOptions,
 ): AssistantMessageEventStream => {
-	const extra = options as PiMessagesOptions | undefined;
+	const extra = options as EvoHarnessMessagesOptions | undefined;
 	return stream(model, context, {
 		...options,
 		reasoning: options?.reasoning,

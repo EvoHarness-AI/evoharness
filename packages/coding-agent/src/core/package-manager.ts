@@ -52,7 +52,7 @@ import {
 } from "../utils/paths.ts";
 import { stripBom } from "../utils/text.ts";
 import { isStdoutTakenOver } from "./output-guard.ts";
-import { type PiManifest, readPiManifest } from "./pi-manifest.ts";
+import { type EvoHarnessManifest, readPiManifest } from "./pi-manifest.ts";
 import type { PackageSource, SettingsManager } from "./settings-manager.ts";
 import { BUILTIN_PATH_PREFIX, getResourcePathKey } from "./source-info.ts";
 
@@ -683,7 +683,7 @@ function collectResourceFiles(dir: string, resourceType: ResourceType): string[]
 
 // A `pi` object counts as an explicit resource manifest only when it lists resources. Packages whose
 // `pi` object holds only metadata (changelogPath, gallery image/video) still use directory auto-discovery.
-function hasManifestResourceFields(manifest: PiManifest): boolean {
+function hasManifestResourceFields(manifest: EvoHarnessManifest): boolean {
 	return RESOURCE_TYPES.some((resourceType) => manifest[resourceType] !== undefined);
 }
 
@@ -694,7 +694,7 @@ function isPathInside(parent: string, child: string): boolean {
 	);
 }
 
-function resolvePackageChangelogPath(packageRoot: string, manifest: PiManifest | null): string | undefined {
+function resolvePackageChangelogPath(packageRoot: string, manifest: EvoHarnessManifest | null): string | undefined {
 	const changelogPath = manifest?.changelogPath ?? "CHANGELOG.md";
 	if (!changelogPath) return undefined;
 

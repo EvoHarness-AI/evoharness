@@ -1055,7 +1055,7 @@ describe("owned conversations from tools and supervisors", () => {
 		// Nothing was admitted or marked after the call ended.
 		const childConversation = (await harness.conversation(handle!.id, context))!;
 		const childEntries = (await childConversation.entries({}, 100, undefined, context)).items;
-		expect(childEntries.filter((entry) => entry.kind === "pi.user")).toHaveLength(1);
+		expect(childEntries.filter((entry) => entry.kind === "evoharness.user")).toHaveLength(1);
 		const childTasks = (await harness.inspect(context)).tasks.filter(
 			(task) => task.record.conversationId === handle!.id,
 		);
@@ -1142,7 +1142,7 @@ describe("owned conversations from tools and supervisors", () => {
 			reason: "aborted",
 		});
 		expect((await childConversation.entries({}, 10, undefined, context)).items.map((entry) => entry.kind)).toEqual([
-			"pi.user",
+			"evoharness.user",
 		]);
 		expect((await harness.inspect(context)).submissions.filter((record) => record.conversationId === child)).toEqual(
 			[],
@@ -1286,7 +1286,7 @@ describe("owned conversations from tools and supervisors", () => {
 		opened.harness.resume();
 		expect((await opened.harness.waitForTask(children[1]!, context)).state.outcome.status).toBe("aborted");
 		expect((await (await opened.harness.submission(second, context))!.wait(context)).status).toBe("done");
-		const tools = (await opened.harness.commit((tx) => tx.scanTasks({ kind: "pi.tool" }, 10), context)).items;
+		const tools = (await opened.harness.commit((tx) => tx.scanTasks({ kind: "evoharness.tool" }, 10), context)).items;
 		expect(tools.map((task) => task.state.status === "terminal" && task.state.outcome.status)).toEqual([
 			"failed",
 			"failed",
@@ -1343,7 +1343,7 @@ describe("owned conversations from tools and supervisors", () => {
 		expect(children[1]).toBe(children[0]);
 		const child = (await opened.harness.conversation(children[0]!, context))!;
 		const entries = (await child.entries({}, 100, undefined, context)).items;
-		expect(entries.filter((entry) => entry.kind === "pi.user")).toHaveLength(1);
+		expect(entries.filter((entry) => entry.kind === "evoharness.user")).toHaveLength(1);
 		const results = (await opened.root.context(context)).messages.filter((message) => message.role === "toolResult");
 		expect(results.map((message) => message.isError)).toEqual([false]);
 		await opened.harness.close(context);
@@ -1410,7 +1410,7 @@ describe("owned conversations from tools and supervisors", () => {
 		expect(done.state.outcome.status).toBe("completed");
 		const childConversation = (await opened.harness.conversation(child, context))!;
 		const entries = (await childConversation.entries({}, 100, undefined, context)).items;
-		expect(entries.filter((entry) => entry.kind === "pi.user")).toHaveLength(1);
+		expect(entries.filter((entry) => entry.kind === "evoharness.user")).toHaveLength(1);
 		// The root never waited for the background supervisor.
 		await opened.root.waitForIdle(context);
 		await opened.harness.close(context);

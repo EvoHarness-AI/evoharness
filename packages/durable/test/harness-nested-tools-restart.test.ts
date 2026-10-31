@@ -494,7 +494,7 @@ describe("nested tool calls across a restart", () => {
 					if ((change.value.input as ToolTaskInput).kind !== "model" || change.value.state.status !== "terminal")
 						continue;
 					const live = publication.changes.find(
-						(each) => each.type === "document" && each.record.kind === "pi.live",
+						(each) => each.type === "document" && each.record.kind === "evoharness.live",
 					);
 					const value =
 						live?.type === "document" && live.kind === "change"

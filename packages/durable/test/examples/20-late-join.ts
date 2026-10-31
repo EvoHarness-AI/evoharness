@@ -56,7 +56,7 @@ await pause(500);
 // The view holds the newest entries and the documents, including the running tool's output and, later, the answer
 // being streamed.
 const view = await root.watch(context);
-const live = view.value.docs["pi.live"] as LiveState;
+const live = view.value.docs["evoharness.live"] as LiveState;
 console.log(
 	"view entries:",
 	view.value.entries.map((entry) => entry.kind),
@@ -66,7 +66,7 @@ let shown = "";
 view.start(async (call) => {
 	if (call.kind !== "value") return;
 	const { value } = call;
-	const state = value.docs["pi.live"] as LiveState;
+	const state = value.docs["evoharness.live"] as LiveState;
 	const slot = state.tools?.[0];
 	if (slot?.status === "running") console.log("view output now:", JSON.stringify(slot.output));
 	const partial = state.generation?.message?.content.find((block) => block.type === "text")?.text ?? "";

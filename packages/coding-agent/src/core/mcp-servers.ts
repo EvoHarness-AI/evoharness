@@ -1,5 +1,5 @@
 /**
- * MCP server configuration and the servers extensions register with `pi.registerMcpServer()`.
+ * MCP server configuration and the servers extensions register with `evoharness.registerMcpServer()`.
  *
  * The core only validates and stores registrations. The MCP extension (built in, or another
  * extension that handles `mcp_servers_change`) connects them next to the servers from `mcp.json`.
@@ -316,7 +316,7 @@ export function validateMcpServerConfig(name: string, raw: unknown): McpServerCo
 	return `server "${name}" needs either "command" (stdio) or "url" (streamable HTTP)`;
 }
 
-/** A server an extension registered with `pi.registerMcpServer()`. */
+/** A server an extension registered with `evoharness.registerMcpServer()`. */
 export interface RegisteredMcpServer {
 	name: string;
 	config: McpServerConfig;

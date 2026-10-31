@@ -75,7 +75,7 @@ Use an explicit manifest when resources live elsewhere or need filtering:
 
 Paths are relative to the package root. Arrays accept glob patterns and exclusions. List dot-prefixed or symlinked resource roots directly when traversal through a glob would not discover them.
 
-The `pi-package` keyword makes an npm package eligible for discovery in the [Pi package gallery](https://evoharness.dev/packages). Optional `pi.image` and `pi.video` fields add gallery previews.
+The `pi-package` keyword makes an npm package eligible for discovery in the [Pi package gallery](https://evoharness.dev/packages). Optional `evoharness.image` and `evoharness.video` fields add gallery previews.
 
 ## Show a changelog
 
@@ -83,7 +83,7 @@ After a package update, Pi can show what changed. On the next fresh launch, Pi r
 
 This applies to packages that load at least one extension. Packages that only provide skills, prompt templates, or themes do not show a changelog.
 
-By default Pi reads `CHANGELOG.md` from the package root. Point `pi.changelogPath` at another file inside the package, or set it to `""` to disable the changelog:
+By default Pi reads `CHANGELOG.md` from the package root. Point `evoharness.changelogPath` at another file inside the package, or set it to `""` to disable the changelog:
 
 ```json
 {

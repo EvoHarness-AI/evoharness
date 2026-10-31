@@ -86,7 +86,7 @@ export class Submissions {
 		return admission.id;
 	}
 
-	/** Run one admission in its `pi.durable.submit` span, asking for progress first, as the run it starts needs it. */
+	/** Run one admission in its `evoharness.durable.submit` span, asking for progress first, as the run it starts needs it. */
 	#traced(
 		conversationId: ConversationId,
 		draft: SubmissionDraft,
@@ -98,7 +98,7 @@ export class Submissions {
 		const startsRun = draft.type !== "write";
 		const parent = startsRun ? this.#telemetry : context.telemetry;
 		return createTypedSpanStarter(parent, [DURABLE_TELEMETRY_SCHEMA])(
-			"pi.durable.submit",
+			"evoharness.durable.submit",
 			{
 				"submission.type": draft.type,
 				"conversation.id": conversationId,
@@ -198,12 +198,12 @@ function isSettled(record: SubmissionRecord): record is SettledSubmissionRecord 
 	return record.status === "done" || record.status === "unanswered";
 }
 
-/** Reject an input entry an untyped caller got wrong: its kind must be a non-empty string outside the `pi.` prefix. */
+/** Reject an input entry an untyped caller got wrong: its kind must be a non-empty string outside the `evoharness.` prefix. */
 function checkInputEntry(entry: InputEntry): void {
 	const { kind } = entry;
-	if (typeof kind !== "string" || kind.length === 0 || kind.startsWith("pi.")) {
+	if (typeof kind !== "string" || kind.length === 0 || kind.startsWith("evoharness.")) {
 		throw new TypeError(
-			`An input entry's kind must be a non-empty string not starting with "pi.", got ${String(kind)}`,
+			`An input entry's kind must be a non-empty string not starting with "evoharness.", got ${String(kind)}`,
 		);
 	}
 }
@@ -213,10 +213,10 @@ function checkInputEntry(entry: InputEntry): void {
  * share it. A known request ID returns its existing submission without writing. A display-only write (only `kind` and
  * `data`) is appended and settled `done` at once, busy or not, as it changes nothing the model sees; only behind a
  * queued reset it queues, so it lands after the reset instead of before it in the context the reset ends. A busy
- * conversation queues anything else in `pi.inbox`, or rejects `whenBusy: "reject"` input and any continue with
+ * conversation queues anything else in `evoharness.inbox`, or rejects `whenBusy: "reject"` input and any continue with
  * `ConversationBusy`; an idle one rejects `whenIdle: "reject"` input with `ConversationIdle`. An idle continue places
  * queued items and starts a run with them and itself, placing no entry of its own. An idle conversation with queued
- * items queues it behind them and runs a final boundary. Otherwise idle input places its entry (`pi.user`, or the
+ * items queues it behind them and runs a final boundary. Otherwise idle input places its entry (`evoharness.user`, or the
  * input's own) and starts a run, and an idle write appends its entry and settles `done`, or `stale` when its head
  * reaches before the active range.
  */

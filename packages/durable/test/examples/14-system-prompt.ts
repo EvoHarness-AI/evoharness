@@ -25,7 +25,7 @@ faux.setResponses([fauxAssistantMessage("Done."), fauxAssistantMessage("Done."),
 // Pico stores no prompt state. Before each model request, the sections of the
 // conversation's selected extensions render the desired prompt, and only the
 // difference to what the model already saw is appended to the transcript as a
-// `pi.system` entry.
+// `evoharness.system` entry.
 const Coding = defineExtension({
 	name: "coding",
 	sections: [

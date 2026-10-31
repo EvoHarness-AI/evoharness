@@ -162,7 +162,7 @@ describe("code mode models.*", () => {
 				questions: { good: { type: "bool", instructions: "Is it good?", criteria: { true: "yes", false: "no" } } },
 			});
 			const found = (await searchTools("classify generate images models")).length;
-			const described = (await describeTool("pi.codemode.models.classify")) !== undefined;
+			const described = (await describeTool("evoharness.codemode.models.classify")) !== undefined;
 			return [result.stopReason, result.answers.good.value, Object.keys(tools).some((name) => name.includes("models")), ALL_TOOLS.some((tool) => tool.name.includes("models")), found, described];`,
 		);
 		expect(JSON.parse(text)).toEqual(["stop", true, false, false, 0, false]);
@@ -171,7 +171,7 @@ describe("code mode models.*", () => {
 			{ name: "models.classify", status: "ok" },
 		]);
 		// Counted once, under the internal tool, by the Harness.
-		expect(usage?.tools["pi.codemode.models.classify"]?.cost.total).toBeCloseTo(0.0012);
+		expect(usage?.tools["evoharness.codemode.models.classify"]?.cost.total).toBeCloseTo(0.0012);
 	});
 
 	it("resolves a model call that failed with its result, as the coding agent does", async () => {

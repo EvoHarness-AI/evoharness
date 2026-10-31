@@ -104,7 +104,7 @@ const root = await harness.root(context, { agent: { model } });
 /** Print an assistant entry's text and tool calls. */
 const print = (indent: string, entry: EntryRecord): void => {
 	const message = entry.model?.[0];
-	if (entry.kind !== "pi.assistant" || message?.role !== "assistant") return;
+	if (entry.kind !== "evoharness.assistant" || message?.role !== "assistant") return;
 	for (const block of (message as AssistantMessage).content) {
 		if (block.type === "text" && block.text !== "") console.log(`${indent}assistant: ${block.text}`);
 		if (block.type === "toolCall") console.log(`${indent}tool ${block.name}(${JSON.stringify(block.arguments)})`);
@@ -121,7 +121,7 @@ const attach = async (id: ConversationId, indent: string): Promise<void> => {
 		for (const entry of value.entries) if (entry.id > newest) print(indent, entry);
 		newest = value.entries.at(-1)?.id ?? newest;
 		// A running subagent call names its child conversation in its details.
-		for (const slot of (value.docs["pi.live"] as LiveState).tools ?? []) {
+		for (const slot of (value.docs["evoharness.live"] as LiveState).tools ?? []) {
 			const child = (slot.details as { conversationId?: ConversationId } | undefined)?.conversationId;
 			if (child !== undefined && !attached.has(child)) await attach(child, `${indent}  `);
 		}

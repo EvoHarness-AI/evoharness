@@ -571,9 +571,9 @@ Content`,
 		});
 
 		it("should discover SYSTEM.md from cwd/.pi", async () => {
-			const piDir = join(cwd, ".pi");
-			mkdirSync(piDir, { recursive: true });
-			writeFileSync(join(piDir, "SYSTEM.md"), "You are a helpful assistant.");
+			const evoharnessDir = join(cwd, ".pi");
+			mkdirSync(evoharnessDir, { recursive: true });
+			writeFileSync(join(evoharnessDir, "SYSTEM.md"), "You are a helpful assistant.");
 
 			const loader = new DefaultResourceLoader({ cwd, agentDir });
 			await loader.reload();
@@ -582,16 +582,16 @@ Content`,
 		});
 
 		it("should skip project resources that require trust when project is not trusted", async () => {
-			const piDir = join(cwd, ".pi");
-			const extensionsDir = join(piDir, "extensions");
-			const skillDir = join(piDir, "skills", "project-skill");
-			const promptsDir = join(piDir, "prompts");
-			const themesDir = join(piDir, "themes");
+			const evoharnessDir = join(cwd, ".pi");
+			const extensionsDir = join(evoharnessDir, "extensions");
+			const skillDir = join(evoharnessDir, "skills", "project-skill");
+			const promptsDir = join(evoharnessDir, "prompts");
+			const themesDir = join(evoharnessDir, "themes");
 			mkdirSync(extensionsDir, { recursive: true });
 			mkdirSync(skillDir, { recursive: true });
 			mkdirSync(promptsDir, { recursive: true });
 			mkdirSync(themesDir, { recursive: true });
-			writeFileSync(join(piDir, "SYSTEM.md"), "Project system prompt.");
+			writeFileSync(join(evoharnessDir, "SYSTEM.md"), "Project system prompt.");
 			writeFileSync(join(agentDir, "SYSTEM.md"), "Global system prompt.");
 			writeFileSync(join(agentDir, "AGENTS.md"), "Global instructions");
 			writeFileSync(join(cwd, "AGENTS.md"), "Project instructions");
@@ -628,9 +628,9 @@ Project skill content`,
 		});
 
 		it("should discover APPEND_SYSTEM.md", async () => {
-			const piDir = join(cwd, ".pi");
-			mkdirSync(piDir, { recursive: true });
-			writeFileSync(join(piDir, "APPEND_SYSTEM.md"), "Additional instructions.");
+			const evoharnessDir = join(cwd, ".pi");
+			mkdirSync(evoharnessDir, { recursive: true });
+			writeFileSync(join(evoharnessDir, "APPEND_SYSTEM.md"), "Additional instructions.");
 
 			const loader = new DefaultResourceLoader({ cwd, agentDir });
 			await loader.reload();
@@ -641,9 +641,9 @@ Project skill content`,
 
 	describe("system prompt sources", () => {
 		it("exposes discovered project SYSTEM.md as the system prompt source", async () => {
-			const piDir = join(cwd, ".pi");
-			const systemPromptPath = join(piDir, "SYSTEM.md");
-			mkdirSync(piDir, { recursive: true });
+			const evoharnessDir = join(cwd, ".pi");
+			const systemPromptPath = join(evoharnessDir, "SYSTEM.md");
+			mkdirSync(evoharnessDir, { recursive: true });
 			writeFileSync(systemPromptPath, "Project system prompt.");
 
 			const loader = new DefaultResourceLoader({ cwd, agentDir });
@@ -684,9 +684,9 @@ Project skill content`,
 		});
 
 		it("exposes discovered APPEND_SYSTEM.md as an append system prompt source", async () => {
-			const piDir = join(cwd, ".pi");
-			const appendSystemPromptPath = join(piDir, "APPEND_SYSTEM.md");
-			mkdirSync(piDir, { recursive: true });
+			const evoharnessDir = join(cwd, ".pi");
+			const appendSystemPromptPath = join(evoharnessDir, "APPEND_SYSTEM.md");
+			mkdirSync(evoharnessDir, { recursive: true });
 			writeFileSync(appendSystemPromptPath, "Project append prompt.");
 
 			const loader = new DefaultResourceLoader({ cwd, agentDir });

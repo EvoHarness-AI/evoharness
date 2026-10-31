@@ -112,7 +112,7 @@ describe("AI telemetry", () => {
 			});
 			await settled(telemetry);
 			const [parent, span] = telemetry.getSpans();
-			expect(span.name).toBe(method === "streamDeferred" ? "pi.ai.poll" : "pi.ai.request");
+			expect(span.name).toBe(method === "streamDeferred" ? "evoharness.ai.poll" : "evoharness.ai.request");
 			expect(span.parentId).toBe(parent.id);
 			expect(span.attributes).toEqual({
 				provider: "test",
@@ -128,10 +128,10 @@ describe("AI telemetry", () => {
 				"response.id": "response",
 			});
 			expect(span.events).toEqual([
-				{ name: "pi.ai.first_chunk", attributes: {} },
-				{ name: "pi.ai.block", attributes: { type: "text", index: 0, chars: 11 } },
-				{ name: "pi.ai.block", attributes: { type: "thinking", index: 1, chars: 15 } },
-				{ name: "pi.ai.block", attributes: { type: "tool_call", index: 2, chars: 27, tool: "lookup" } },
+				{ name: "evoharness.ai.first_chunk", attributes: {} },
+				{ name: "evoharness.ai.block", attributes: { type: "text", index: 0, chars: 11 } },
+				{ name: "evoharness.ai.block", attributes: { type: "thinking", index: 1, chars: 15 } },
+				{ name: "evoharness.ai.block", attributes: { type: "tool_call", index: 2, chars: 27, tool: "lookup" } },
 			]);
 			expect(JSON.stringify(span)).not.toMatch(
 				/text-secret|thinking-secret|argument-secret|call-secret|deferred-secret/,
@@ -143,9 +143,9 @@ describe("AI telemetry", () => {
 			);
 			for (const measurement of measurements) {
 				expect(Object.keys(measurement.attributes).sort()).toEqual(
-					measurement.name === "pi.ai.tokens"
+					measurement.name === "evoharness.ai.tokens"
 						? ["kind", "model", "provider"]
-						: measurement.name === "pi.ai.request.duration"
+						: measurement.name === "evoharness.ai.request.duration"
 							? ["model", "provider", "stop"]
 							: ["model", "provider"],
 				);
@@ -235,7 +235,7 @@ describe("AI telemetry", () => {
 		await settled(telemetry);
 		const [, span] = telemetry.getSpans();
 		expect(span.attributes).not.toHaveProperty("reasoning");
-		expect(span.events).toEqual([{ name: "pi.ai.first_chunk", attributes: {} }]);
+		expect(span.events).toEqual([{ name: "evoharness.ai.first_chunk", attributes: {} }]);
 		expect(span.status).toEqual({
 			status: "error",
 			error: { name: "provider_error", message: "Unknown provider: test" },
@@ -271,9 +271,9 @@ describe("AI telemetry", () => {
 		});
 		await settled(telemetry);
 		expect(telemetry.getSpans()[1].events.slice(1)).toEqual([
-			{ name: "pi.ai.block", attributes: { type: "tool_call", index: 3, chars: 3, tool: "lookup" } },
-			{ name: "pi.ai.block", attributes: { type: "tool_call", index: 2, chars: 3, tool: "lookup" } },
-			{ name: "pi.ai.block", attributes: { type: "tool_call", index: 4, chars: 0, tool: "lookup" } },
+			{ name: "evoharness.ai.block", attributes: { type: "tool_call", index: 3, chars: 3, tool: "lookup" } },
+			{ name: "evoharness.ai.block", attributes: { type: "tool_call", index: 2, chars: 3, tool: "lookup" } },
+			{ name: "evoharness.ai.block", attributes: { type: "tool_call", index: 4, chars: 0, tool: "lookup" } },
 		]);
 	});
 
@@ -292,7 +292,7 @@ describe("AI telemetry", () => {
 	it("defaults to no-op telemetry", async () => {
 		const { models } = setup();
 		expect((await models.completeSimple(model, { messages: [] })).stopReason).toBe("stop");
-		expect(AI_TELEMETRY_SCHEMA.spans["pi.ai.request"].startAttributes.provider.required).toBe(true);
+		expect(AI_TELEMETRY_SCHEMA.spans["evoharness.ai.request"].startAttributes.provider.required).toBe(true);
 	});
 
 	it("records low-cardinality metrics with monotonic durations", async () => {
@@ -315,13 +315,13 @@ describe("AI telemetry", () => {
 		const metrics = telemetry.getMetrics();
 		expect(metrics.map(({ name, value, attributes, unit }) => ({ name, value, attributes, unit }))).toEqual([
 			{
-				name: "pi.ai.first_chunk.duration",
+				name: "evoharness.ai.first_chunk.duration",
 				value: 25,
 				attributes: { provider: "test", model: "model" },
 				unit: "ms",
 			},
 			{
-				name: "pi.ai.request.duration",
+				name: "evoharness.ai.request.duration",
 				value: 75,
 				attributes: { provider: "test", model: "model", stop: "stop" },
 				unit: "ms",
@@ -332,12 +332,12 @@ describe("AI telemetry", () => {
 				["cache_read", 33],
 				["cache_write", 44],
 			].map(([kind, value]) => ({
-				name: "pi.ai.tokens",
+				name: "evoharness.ai.tokens",
 				value,
 				attributes: { provider: "test", model: "model", kind },
 				unit: "token",
 			})),
-			{ name: "pi.ai.cost", value: 1, attributes: { provider: "test", model: "model" }, unit: "USD" },
+			{ name: "evoharness.ai.cost", value: 1, attributes: { provider: "test", model: "model" }, unit: "USD" },
 		]);
 		expect(metrics.slice(0, 2).every((measurement) => measurement.context !== null)).toBe(true);
 	});
@@ -370,10 +370,10 @@ describe("AI telemetry", () => {
 		);
 		await settled(telemetry);
 		expect(histogram.mock.calls.map(([name]) => name)).toEqual([
-			"pi.ai.request.duration",
-			"pi.ai.first_chunk.duration",
+			"evoharness.ai.request.duration",
+			"evoharness.ai.first_chunk.duration",
 		]);
-		expect(counter.mock.calls.map(([name]) => name)).toEqual(["pi.ai.tokens", "pi.ai.cost"]);
+		expect(counter.mock.calls.map(([name]) => name)).toEqual(["evoharness.ai.tokens", "evoharness.ai.cost"]);
 		expect(telemetry.getMetrics()).toHaveLength(21);
 	});
 });

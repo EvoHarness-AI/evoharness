@@ -565,7 +565,7 @@ sections before it, the build's does not share as much of their code (`StoredCha
 
 **Durable's conversation view benchmark** (`test/conversation-view-bench.ts`, `PI_DURABLE_BENCH_STORAGE`), two runs
 each, `SqliteStorage` → `StoreStorage`: append one entry per commit 56.1-57.2 → 56.2-57.0 µs with one watch, 61.0-62.1
-→ 62.7-63.1 µs with four (+2%); bursts of 50 884-888 → 891 µs; `pi.live` only 62.7-63.0 → 65.1-66.6 µs (+4-6%); a
+→ 62.7-63.1 µs with four (+2%); bursts of 50 884-888 → 891 µs; `evoharness.live` only 62.7-63.0 → 65.1-66.6 µs (+4-6%); a
 long-lived watch over 20,000 appends 0.83-0.85 → 0.84-0.85 s CPU; heaps 21.5 → 21.7 MiB.
 
 **Fix round 1** (2026-10-28, after the build reviews): `StoreStorage`'s reads take one promise besides the store's guard

@@ -286,14 +286,14 @@ export async function forgetHostKey(target: SshTarget): Promise<void> {
 }
 
 /** POSIX detection, run by the remote login shell; a Windows host answers through PowerShell instead. */
-const POSIX_PROBE = `sh -c 'echo PI-ENV-PROBE; uname -s; uname -m; uname -o 2>/dev/null || echo -; printf "%s\\n" "$HOME" "\${TMPDIR:--}" "\${LD_PRELOAD:--}"'`;
+const POSIX_PROBE = `sh -c 'echo EVOHARNESS-ENV-PROBE; uname -s; uname -m; uname -o 2>/dev/null || echo -; printf "%s\\n" "$HOME" "\${TMPDIR:--}" "\${LD_PRELOAD:--}"'`;
 
 function powershell(script: string): string {
 	return `powershell -NoProfile -NonInteractive -EncodedCommand ${Buffer.from(script, "utf16le").toString("base64")}`;
 }
 
 const WINDOWS_PROBE = powershell(
-	"'PI-ENV-PROBE'; 'Windows'; [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString(); '-'; $HOME; '-'; '-'",
+	"'EVOHARNESS-ENV-PROBE'; 'Windows'; [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString(); '-'; $HOME; '-'; '-'",
 );
 
 function normalizeArch(machine: string): RemotePlatform["arch"] {
@@ -308,7 +308,7 @@ type Probe = { system: string; machine: string; os: string; home: string; tmpdir
 function parseProbe(target: SshTarget, output: string): Probe {
 	// Login shells may print a banner first.
 	const lines = output.split(/\r?\n/);
-	const start = lines.indexOf("PI-ENV-PROBE");
+	const start = lines.indexOf("EVOHARNESS-ENV-PROBE");
 	if (start === -1) throw new Error(`Unexpected answer from ${target.host}: ${output.trim()}`);
 	const [system = "", machine = "", os = "", home = "", tmpdir = "-", preload = "-"] = lines.slice(start + 1);
 	return { system, machine, os, home, tmpdir, preload };
@@ -425,7 +425,7 @@ export async function deployDaemon(
 				// PowerShell reads redirected stdin itself, as text lines for `$input`, so the binary comes as base64 lines
 				// up to an end marker: Windows' sshd may never pass on the end of stdin.
 				"$text = New-Object System.Text.StringBuilder",
-				"foreach ($line in $input) { if ($line -eq 'PI-ENV-END') { break }; [void]$text.Append($line) }",
+				"foreach ($line in $input) { if ($line -eq 'EVOHARNESS-ENV-END') { break }; [void]$text.Append($line) }",
 				"$bytes = [Convert]::FromBase64String($text.ToString())",
 				"$out = [IO.File]::Open($t, 'CreateNew', 'Write', 'None'); $out.Write($bytes, 0, $bytes.Length); $out.Close()",
 				`if ((Get-FileHash -Algorithm SHA256 -LiteralPath $t).Hash.ToLower() -ne '${sha256}') { Remove-Item -LiteralPath $t; throw 'pi-env upload is corrupt' }`,
@@ -437,7 +437,7 @@ export async function deployDaemon(
 			].join("; "),
 		);
 		const lines = bytes.toString("base64").replace(/.{1,76}/g, "$&\n");
-		await runSsh(target, upload, { stdin: Buffer.from(`${lines}PI-ENV-END\n`), timeoutMs: UPLOAD_TIMEOUT_MS });
+		await runSsh(target, upload, { stdin: Buffer.from(`${lines}EVOHARNESS-ENV-END\n`), timeoutMs: UPLOAD_TIMEOUT_MS });
 		return file;
 	}
 	const upload = [

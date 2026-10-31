@@ -268,21 +268,21 @@ first and win until the design is updated.
   the same process, otherwise root spans linked to the stored carrier; Durable spans get their own schema. Persisted
   Chord jobs store their start carrier the same way.
 - **Own schema, no OTel GenAI (owner, 2026-10-18):** pi's AI and Durable telemetry uses its own typed schema
-  (`pi.ai.*`, `pi.durable.*`); the OTel GenAI conventions (development status, renames, streaming still `TODO`) are not
+  (`evoharness.ai.*`, `evoharness.durable.*`); the OTel GenAI conventions (development status, renames, streaming still `TODO`) are not
   followed. An OTel adapter may translate pi's names to `gen_ai.*` at export. Model stream details are span events, never
   per delta. The pi part of telemetry (propagation, links, metrics, typed metric schemas, `chord/context` telemetry
   member, `HarnessOptions.telemetry` type) is approved as diffed in `/home/EvoHarness-AI/evoharness-telemetry`.
 - **Durable and AI spans (owner, 2026-10-18), partly open:** (**superseded in part** by pi-ai's option is `telemetry` (a span), not `telemetryContext` ("Telemetry types and review cleanup")) every span is short and in one process. Spans:
-  `pi.durable.submit` (admission), `pi.durable.phase` (one invocation of any task's phase; fixed name, `task.name`,
-  `phase`, `kind`, `attempt`, `resumed`, outcome as attributes), `pi.ai.request` (one model request). Events:
-  `pi.ai.first_chunk`, `pi.ai.block` (per `*_end`: type, index, chars, tool; never per delta), `pi.durable.entry`,
-  `pi.durable.submission`, `pi.durable.replay` (a codemode call answered from its journal). No content ever; entry ids
+  `evoharness.durable.submit` (admission), `evoharness.durable.phase` (one invocation of any task's phase; fixed name, `task.name`,
+  `phase`, `kind`, `attempt`, `resumed`, outcome as attributes), `evoharness.ai.request` (one model request). Events:
+  `evoharness.ai.first_chunk`, `evoharness.ai.block` (per `*_end`: type, index, chars, tool; never per delta), `evoharness.durable.entry`,
+  `evoharness.durable.submission`, `evoharness.durable.replay` (a codemode call answered from its journal). No content ever; entry ids
   point to the transcript. Submissions and tasks store their creator's carrier; phase spans are children of it. Every
   input submission starts its own trace, linked to its trigger (bounded traces; subagent report chains do not nest).
-  No hook spans for now. Metrics: `pi.ai.request.duration`, `pi.ai.first_chunk.duration`, `pi.ai.tokens`, `pi.ai.cost`,
-  `pi.durable.phase.duration`, `pi.durable.tasks.active` (ids never on metrics). `pi.ai.request` is emitted by pi-ai
+  No hook spans for now. Metrics: `evoharness.ai.request.duration`, `evoharness.ai.first_chunk.duration`, `evoharness.ai.tokens`, `evoharness.ai.cost`,
+  `evoharness.durable.phase.duration`, `evoharness.durable.tasks.active` (ids never on metrics). `evoharness.ai.request` is emitted by pi-ai
   in one wrapper around `lazyStream` in `models.ts` (both `stream` and `streamSimple`; reads the event stream, changes
-  nothing; deferred results get `pi.ai.poll` the same way); Durable passes `telemetryContext`. Background tasks
+  nothing; deferred results get `evoharness.ai.poll` the same way); Durable passes `telemetryContext`. Background tasks
   (e.g. compaction) are children of the creating phase like every task. A task picked up by a new process sets
   `resumed=true` and stays under its stored carrier (same trace).
 - **Telemetry implementation decisions (owner, 2026-10-18):** `TelemetryContext` carries optional `metrics` and
@@ -298,8 +298,8 @@ first and win until the design is updated.
 - **Errors in telemetry (owner, 2026-10-18):** a failed span carries `status: "error"` with a fixed category name and the
   error message truncated to 500 characters (`provider_error` for a model request, `task_faulted` for a faulted phase).
   Cancelling is not an error (`stop=aborted`/`outcome=aborted` keep status ok). Durable's `onReport` stays unchanged;
-  every report is additionally a `pi.durable.report` event on the current span (its own short root span outside any
-  span) plus a `pi.durable.reports { type }` counter. (Superseded in part below: no root span for reports.)
+  every report is additionally a `evoharness.durable.report` event on the current span (its own short root span outside any
+  span) plus a `evoharness.durable.reports { type }` counter. (Superseded in part below: no root span for reports.)
 - **Telemetry types and review cleanup (owner, 2026-10-18):** `Context.telemetry` is always a `TelemetrySpan` (default:
   the NOOP span); the adapter (`TelemetryContext` with readonly `metrics`/`propagation`) is held only by hosts
   (`createHost`, `HarnessOptions`) to start roots, never put into a Context; pi-ai's option is `telemetry?:
@@ -1611,7 +1611,7 @@ validation and copies the v2 kernel added around Delta.
   listener parameter is `call`; holds `served | relayed`; `put.v` is `version`. Durable's public API (pi upstream,
   with group 1): (11) `onReport(report)` with `report.kind` and `report.error`; `session_failed` is `storage_failed`.
   (12) `subscribeCommits` is `observeCommits` with the observer shape (`{ value, detach }`); a file watcher stops with
-  `stop(ctx)`. (13) `CompactionFailure.reason` and `CompactionStatus.reason` are `trigger` (`pi.live`'s definition
+  `stop(ctx)`. (13) `CompactionFailure.reason` and `CompactionStatus.reason` are `trigger` (`evoharness.live`'s definition
   bumps its version with a `migrate`). (14) ~~One word for a definition that cannot take the stored state:
   `incompatible`~~ (**superseded**, owner 2026-10-27: `task_too_old` is stored in orphaned outcomes and settlements, and the
   report's `incompatible_task` covered two cases): the `task_outdated` report uses the scheduler's own words,
@@ -1666,7 +1666,7 @@ validation and copies the v2 kernel added around Delta.
   never does, so nothing collides; the state document stays an ordinary document of the run; `finish` deletes the
   record and retires the state (Q9), so only unsettled runs are stored and in memory; activation loads them through the
   engine's key listing and a load per run (no new engine read). Durable's tables are named under the type name
-  `pi.durable` (`"session:pi.durable:entries"`; type names are unique per app). One `StoreStorage` per store: a second
+  `evoharness.durable` (`"session:pi.durable:entries"`; type names are unique per app). One `StoreStorage` per store: a second
   one on the same store is refused (`invalid/args`), as one host per store (rule 7). Rejected on the way: a table per
   job, a store-wide runs table, `$`-marked internal names (owner: "if our abstractions can't cleanly support this
   without $ magic, it's a bad abstraction").
@@ -1708,12 +1708,12 @@ validation and copies the v2 kernel added around Delta.
   with its state, and per retired keyed document, that Chord never reads).
 - **Slice 6b R2: no host kind in store names (owner, 2026-10-27: "what use is host in table names anyways? seems
   stupid. no host"; supersedes the host-kind part of W7, "Restricted names" and "Slice 6a's three code questions" (3)):**
-  tables are `"<object type>:<table>"` (`"notes.store:edits"`, `"pi.durable:entries"`), document owners
+  tables are `"<object type>:<table>"` (`"notes.store:edits"`, `"evoharness.durable:entries"`), document owners
   `"<object type>"`; a store belongs to one host (rule 7), so the host kind told nothing, and `StoreStorage` and stores
   used before or without a host get the same names. W7's rule stays: no host instance in a name. Changed in 6a's code
   in 6b; the applier checks two parts.
-- **Slice 6b: owner names and claims, no `pi.durable` (owner, 2026-10-27: "seems reasonable"; supersedes D2's and D5's
-  `pi.durable` type name and D5's "one `StoreStorage` per store" rule):** every table and document in the store belongs
+- **Slice 6b: owner names and claims, no `evoharness.durable` (owner, 2026-10-27: "seems reasonable"; supersedes D2's and D5's
+  `evoharness.durable` type name and D5's "one `StoreStorage` per store" rule):** every table and document in the store belongs
   to an owner name, claimed once per store. A `local` object with empty params (P3) claims its type when it first
   declares persisted data (`self.table`, persisted `self.state`, persisted `self.job`); `StoreStorage.open(store, owner,
   ctx)` claims `owner`; a second claim of a name is refused (`invalid/args`): a second harness, or a plugin type that

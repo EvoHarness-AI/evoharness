@@ -4,8 +4,8 @@
 
 ### Added
 
-- Extension packages can now show their changelog after an update. Pi reads `pi.changelogPath` from the package's `package.json`, or `CHANGELOG.md` in the package root, and on the next fresh launch shows entries newer than the last seen version under "Extension Updates". The `collapseChangelog` setting condenses this to one line per package ([#5958](https://github.com/EvoHarness-AI/evoharness/issues/5958), [#8790](https://github.com/EvoHarness-AI/evoharness/pull/8790))
-- `pi.exec()` accepts a `maxBuffer` option that limits stdout and stderr combined, and its result has a `truncated` field that is true when output exceeded the limit ([#11360](https://github.com/EvoHarness-AI/evoharness/issues/11360))
+- Extension packages can now show their changelog after an update. Pi reads `evoharness.changelogPath` from the package's `package.json`, or `CHANGELOG.md` in the package root, and on the next fresh launch shows entries newer than the last seen version under "Extension Updates". The `collapseChangelog` setting condenses this to one line per package ([#5958](https://github.com/EvoHarness-AI/evoharness/issues/5958), [#8790](https://github.com/EvoHarness-AI/evoharness/pull/8790))
+- `evoharness.exec()` accepts a `maxBuffer` option that limits stdout and stderr combined, and its result has a `truncated` field that is true when output exceeded the limit ([#11360](https://github.com/EvoHarness-AI/evoharness/issues/11360))
 - Device-code login (for example GitHub Copilot) now opens the verification page and copies the code when you press Enter. Providers can turn either action off with `openBrowserOnConfirm: false` or `copyCodeOnConfirm: false` ([#9282](https://github.com/EvoHarness-AI/evoharness/issues/9282), [#9301](https://github.com/EvoHarness-AI/evoharness/pull/9301))
 - `pi update` can update Pi through a wrapper or another package manager. Set `PI_SELF_UPDATE_COMMAND` (for example `mise use -g npm:{packageName}@{version}`) or the global `selfUpdateCommand` setting; `pi update` runs it when evoharness.dev reports a newer release and fills `{packageName}`, `{version}`, and `{installSpec}` from that release. See [Custom update command](docs/cli.md#custom-update-command) ([#7756](https://github.com/EvoHarness-AI/evoharness/issues/7756), [#5607](https://github.com/EvoHarness-AI/evoharness/issues/5607))
 - Extensions can format the user's configured keybindings with `keyText()` and `keyHint()` from the tool render context and the message and entry renderer options. Importing these functions from `@evoharness/coding-agent` can resolve the extension's own copy of the package, which does not see pi's keybindings, so hints such as `keyHint("app.tools.expand", "to expand")` rendered without the key. The docs now recommend the injected functions ([#4748](https://github.com/EvoHarness-AI/evoharness/issues/4748))
@@ -22,9 +22,9 @@
 - Fixed `Shift+Enter` queueing a follow-up instead of inserting a newline in Apple Terminal setups that send `ESC` + Return. pi now checks the local Shift key state for that sequence, as it already did for plain Return; `Alt+Enter` without Shift still queues a follow-up ([#11559](https://github.com/EvoHarness-AI/evoharness/issues/11559))
 - Fixed the working status (OSC 7501) disappearing in Rex and iTerm2 during runs in regular TUI mode. Rendered messages wrote OSC 133 prompt markers to the terminal, which the terminal treats as a new shell prompt; regular mode no longer writes them ([#11519](https://github.com/EvoHarness-AI/evoharness/issues/11519))
 - Fixed compaction, branch summaries, and bug-report summaries in SDK sessions passing the stored OAuth token back to the model runtime as an explicit API key. Provider auth that treats explicit keys differently from stored OAuth now sees the OAuth login, as normal prompts do ([#11520](https://github.com/EvoHarness-AI/evoharness/issues/11520))
-- Fixed a redundant system prompt update (tools, rules) when an extension set the same active tools in a different order, for example a reversed `pi.setActiveTools()` list. Tools that stay active now keep their order and newly activated tools are appended ([#11495](https://github.com/EvoHarness-AI/evoharness/issues/11495))
-- Fixed `pi.exec()` crashing pi with `RangeError: Invalid string length` when a command printed more output than fits in a string. The default output cap is the smaller of 256 MiB and the runtime string limit; past the cap, the command is terminated and the result has `truncated: true` and a nonzero exit code ([#11360](https://github.com/EvoHarness-AI/evoharness/issues/11360))
-- Fixed `pi.exec()` never returning when a command ignored SIGTERM after a timeout or abort. pi now sends SIGKILL 5 seconds later, as intended
+- Fixed a redundant system prompt update (tools, rules) when an extension set the same active tools in a different order, for example a reversed `evoharness.setActiveTools()` list. Tools that stay active now keep their order and newly activated tools are appended ([#11495](https://github.com/EvoHarness-AI/evoharness/issues/11495))
+- Fixed `evoharness.exec()` crashing pi with `RangeError: Invalid string length` when a command printed more output than fits in a string. The default output cap is the smaller of 256 MiB and the runtime string limit; past the cap, the command is terminated and the result has `truncated: true` and a nonzero exit code ([#11360](https://github.com/EvoHarness-AI/evoharness/issues/11360))
+- Fixed `evoharness.exec()` never returning when a command ignored SIGTERM after a timeout or abort. pi now sends SIGKILL 5 seconds later, as intended
 - Fixed `pi install` and `pi remove` adding ever deeper nested entries to the npm `package-lock.json` when the agent directory is reached through a symlink, such as `~/.pi` linked into a dotfiles repo. pi now passes the resolved real path to npm ([#11358](https://github.com/EvoHarness-AI/evoharness/issues/11358))
 - MCP sign-in now rejects authorization endpoints and other OAuth metadata URLs that are not `http:` or `https:`. Before, a malicious MCP server could supply a `file:` or custom protocol URL, which pi passed to the platform URL handler.
 - Automatic `fd` and `rg` downloads no longer fetch x86-64 binaries on ARM32 and other architectures without a prebuilt release. pi now warns and recommends installing the tool with the system package manager ([#11209](https://github.com/EvoHarness-AI/evoharness/issues/11209))
@@ -157,13 +157,13 @@
 - **Published configuration schemas**: add `$schema` to `settings.json`, `models.json`, keybindings, and themes for editor validation and completion. See [Settings](docs/settings.md), [Models](docs/models.md), [Keybindings](docs/keybindings.md), and [Themes](docs/themes.md).
 - **Clipboard copies over remote sessions**: `PI_CLIPBOARD_OSC52=1` sends copied text to a remote client's clipboard when Pi cannot detect the remote session, such as a multiplexer attached from another machine. See [Pi Process Configuration](docs/environment-variables.md#pi-process-configuration).
 - **Codemode improvements**: tool declarations show input constraints such as integer, minimum/maximum, and default, and codemode rows show elapsed and total time. See [Codemode](docs/codemode.md).
-- **`before_agent_start` for extension-triggered runs**: runs started by `pi.sendMessage(..., { triggerTurn: true })` go through the same setup as prompts. See [Events and concurrency](docs/extensions.md#events-and-concurrency).
+- **`before_agent_start` for extension-triggered runs**: runs started by `evoharness.sendMessage(..., { triggerTurn: true })` go through the same setup as prompts. See [Events and concurrency](docs/extensions.md#events-and-concurrency).
 
 ### Breaking Changes
 
 - Published generated configuration schemas for models, settings, keybindings, and themes at `https://evoharness.dev/schemas/*.schema.json`. The theme schema moved to `https://evoharness.dev/schemas/theme.schema.json`; themes loaded during startup now receive the same schema validation as later reloads. Update theme `$schema` references, define reusable colors under `vars`, and remove unsupported metadata ([#9880](https://github.com/EvoHarness-AI/evoharness/pull/9880), [#10751](https://github.com/EvoHarness-AI/evoharness/pull/10751) by [@christianklotz](https://github.com/christianklotz))
-- Changed `before_agent_start` to also fire for runs started by `pi.sendMessage(..., { triggerTurn: true })` while idle. `BeforeAgentStartEvent` is now a union on `messageType`: `"user"` events carry `prompt` and `images`, and `"custom"` events carry the starting `message` and no `prompt`. Messages returned by handlers are added to both kinds of run, and pending `deliverAs: "nextTurn"` messages are delivered with the custom-message run. Handlers that should act only on user prompts must check `event.messageType === "user"` ([#10267](https://github.com/EvoHarness-AI/evoharness/issues/10267), [#5581](https://github.com/EvoHarness-AI/evoharness/issues/5581), [#10739](https://github.com/EvoHarness-AI/evoharness/pull/10739) by [@davidbrai](https://github.com/davidbrai))
-- Changed the session to count as busy while a run starts, including during `before_agent_start` handlers: `ctx.isIdle()` is false, `pi.sendMessage()` queues into the starting run instead of starting a second run that failed with "Agent is already processing", `pi.sendUserMessage()` requires `deliverAs`, and an abort requested meanwhile aborts the run once it starts ([#10739](https://github.com/EvoHarness-AI/evoharness/pull/10739) by [@davidbrai](https://github.com/davidbrai))
+- Changed `before_agent_start` to also fire for runs started by `evoharness.sendMessage(..., { triggerTurn: true })` while idle. `BeforeAgentStartEvent` is now a union on `messageType`: `"user"` events carry `prompt` and `images`, and `"custom"` events carry the starting `message` and no `prompt`. Messages returned by handlers are added to both kinds of run, and pending `deliverAs: "nextTurn"` messages are delivered with the custom-message run. Handlers that should act only on user prompts must check `event.messageType === "user"` ([#10267](https://github.com/EvoHarness-AI/evoharness/issues/10267), [#5581](https://github.com/EvoHarness-AI/evoharness/issues/5581), [#10739](https://github.com/EvoHarness-AI/evoharness/pull/10739) by [@davidbrai](https://github.com/davidbrai))
+- Changed the session to count as busy while a run starts, including during `before_agent_start` handlers: `ctx.isIdle()` is false, `evoharness.sendMessage()` queues into the starting run instead of starting a second run that failed with "Agent is already processing", `evoharness.sendUserMessage()` requires `deliverAs`, and an abort requested meanwhile aborts the run once it starts ([#10739](https://github.com/EvoHarness-AI/evoharness/pull/10739) by [@davidbrai](https://github.com/davidbrai))
 - Changed `pi mcp list --json` to report `resources: true` for servers that offer resources instead of `resources` and `resourceTemplates` counts; Pi no longer lists resources when connecting ([#10526](https://github.com/EvoHarness-AI/evoharness/issues/10526))
 
 ### Added
@@ -187,7 +187,7 @@
 - Fixed Mistral streams being aborted mid-generation (e.g. during long thinking) after the request timeout; the timeout now applies only to waiting for response headers ([#10609](https://github.com/EvoHarness-AI/evoharness/issues/10609))
 - Fixed a symlinked `AGENTS.md` in a git worktree nested inside its main repo causing no project context file to load ([#10681](https://github.com/EvoHarness-AI/evoharness/issues/10681))
 - Fixed the code mode tool description claiming every failed tool call rejects; a tool that declares an output schema resolves with its value on failure too (e.g. `bash` with a nonzero exit)
-- Fixed runs started by `pi.sendMessage(..., { triggerTurn: true })` removing system prompt sections added in `before_agent_start` after their first tool call, which changed the prompt mid-run and broke the provider prompt cache twice per run ([#10267](https://github.com/EvoHarness-AI/evoharness/issues/10267), [#10739](https://github.com/EvoHarness-AI/evoharness/pull/10739) by [@davidbrai](https://github.com/davidbrai))
+- Fixed runs started by `evoharness.sendMessage(..., { triggerTurn: true })` removing system prompt sections added in `before_agent_start` after their first tool call, which changed the prompt mid-run and broke the provider prompt cache twice per run ([#10267](https://github.com/EvoHarness-AI/evoharness/issues/10267), [#10739](https://github.com/EvoHarness-AI/evoharness/pull/10739) by [@davidbrai](https://github.com/davidbrai))
 - Fixed codemode blocking the process for seconds to minutes after scripts with many `text()` calls; joining the output items was quadratic ([#10678](https://github.com/EvoHarness-AI/evoharness/issues/10678))
 - Fixed print mode (`-p`) exiting 0 without a warning when the final response was cut off at the model's output token limit; it now prints the partial text, writes a warning to stderr, and exits 1 ([#10799](https://github.com/EvoHarness-AI/evoharness/issues/10799))
 - Fixed `pi mcp login --help` and the CLI docs describing `--timeout` as only the wait for the browser; it limits the whole sign-in ([#10636](https://github.com/EvoHarness-AI/evoharness/issues/10636))
@@ -331,7 +331,7 @@
 - **Nix flake** — `nix run github:EvoHarness-AI/evoharness/stable` runs the latest release, and `nix profile add github:EvoHarness-AI/evoharness/stable` installs it. See [Install pi](docs/quickstart.md#1-install-pi).
 - **Project overrides for MCP servers** — `.pi/mcp.json` and `/mcp` can enable, disable, or change the exposure of a user-level server for one project. See [Configure servers](docs/mcp.md#configure-servers).
 - **MCP Client ID Metadata Documents** — `oauth.clientRegistration: "cimd"` lets authorization servers allow pi by its document URL instead of dynamic registration. See [Authenticate with OAuth](docs/mcp.md#authenticate-with-oauth).
-- **Tool renderers for any tool** — `pi.registerToolRenderer()` draws calls to tools that are not registered yet, such as MCP tools in resumed sessions. See [Tool rendering](docs/extensions.md#tool-rendering).
+- **Tool renderers for any tool** — `evoharness.registerToolRenderer()` draws calls to tools that are not registered yet, such as MCP tools in resumed sessions. See [Tool rendering](docs/extensions.md#tool-rendering).
 - **Cloudflare Clef classifiers** — `@cf/cloudflare/clef` and `@cf/cloudflare/clef-flash` are usable from codemode scripts and extensions. See [Use classifier models](docs/models.md#use-classifier-models).
 
 ### Added
@@ -340,7 +340,7 @@
 - Added `oauth.clientRegistration: "cimd"` for MCP servers, which identifies pi with its Client ID Metadata Document on evoharness.dev instead of dynamic client registration, so authorization servers can allow pi by URL ([#10302](https://github.com/EvoHarness-AI/evoharness/issues/10302))
 - Added project overrides for user-level MCP servers: a `.pi/mcp.json` entry without `command` or `url` sets only `enabled`, `exposure`, and `toolExposure` of the user-level server, and `/mcp` can enable or disable a server for the current project ([#10277](https://github.com/EvoHarness-AI/evoharness/issues/10277))
 - Added Cloudflare's Clef and Clef Flash classifier models to `cloudflare-workers-ai`, usable from codemode scripts and extensions ([#10316](https://github.com/EvoHarness-AI/evoharness/pull/10316) by [@ndisidore](https://github.com/ndisidore), [#10322](https://github.com/EvoHarness-AI/evoharness/pull/10322) by [@RealAlexandreAI](https://github.com/RealAlexandreAI))
-- Added `pi.registerToolRenderer()`, which chooses how calls to a tool are drawn, including tools that are not registered ([#10285](https://github.com/EvoHarness-AI/evoharness/issues/10285))
+- Added `evoharness.registerToolRenderer()`, which chooses how calls to a tool are drawn, including tools that are not registered ([#10285](https://github.com/EvoHarness-AI/evoharness/issues/10285))
 - Added a Nix flake for macOS and Linux: `nix run github:EvoHarness-AI/evoharness/stable` runs the latest release, and `nix profile add github:EvoHarness-AI/evoharness/stable` installs it. See [Install pi](docs/quickstart.md#1-install-pi) ([#9137](https://github.com/EvoHarness-AI/evoharness/pull/9137))
 
 ### Changed
@@ -484,10 +484,10 @@
 
 ### Added
 
-- Added codemode, tool search, and MCP support as built-in extensions. The `codemode` tool runs model-written JavaScript in a QuickJS sandbox that calls pi's tools; enable it with `defaultTools` or `--tools` and configure it with `codemode.mode` and `codemode.inlineBudget`. `tool_search` finds tools that are not declared to the model and declares them. MCP servers over stdio or streamable HTTP, with OAuth, come from `mcp.json` (global, or per project once trusted) or `pi.registerMcpServer()` and are managed with `/mcp` and `pi mcp add|remove|list|login|logout`. See [MCP Servers](docs/mcp.md) and [Enable codemode](docs/cli.md#enable-codemode) ([#10040](https://github.com/EvoHarness-AI/evoharness/issues/10040)).
+- Added codemode, tool search, and MCP support as built-in extensions. The `codemode` tool runs model-written JavaScript in a QuickJS sandbox that calls pi's tools; enable it with `defaultTools` or `--tools` and configure it with `codemode.mode` and `codemode.inlineBudget`. `tool_search` finds tools that are not declared to the model and declares them. MCP servers over stdio or streamable HTTP, with OAuth, come from `mcp.json` (global, or per project once trusted) or `evoharness.registerMcpServer()` and are managed with `/mcp` and `pi mcp add|remove|list|login|logout`. See [MCP Servers](docs/mcp.md) and [Enable codemode](docs/cli.md#enable-codemode) ([#10040](https://github.com/EvoHarness-AI/evoharness/issues/10040)).
 - Added extension tool APIs for orchestrating tools: `exposure` (`direct`, `model-only`, `codemode`, `deferred`, or `hidden`), `namespace`, `annotations`, `outputSchema` with `structuredContent`, `isError` results, `prepareLoadout()`, and `ctx.executeTool()` for nested tool calls, which emit events with `parentToolCallId` and are recorded as bounded `nestedCalls` on the calling tool's result. See [Tool exposure](docs/extensions.md#tool-exposure).
 - Added a warning when an extension that registers the same tool, command, or flag replaces a built-in extension ([#10174](https://github.com/EvoHarness-AI/evoharness/pull/10174) by [@cristinaponcela](https://github.com/cristinaponcela)).
-- Added experimental virtual models: extensions register them with `pi.registerVirtualModel()` and pick a physical model and thinking level for each request. The footer shows the routed model, `/session` lists cost per physical model, and `examples/extensions/jev-router.ts` routes with the Jev classifier. See [Virtual Models](docs/virtual-models.md).
+- Added experimental virtual models: extensions register them with `evoharness.registerVirtualModel()` and pick a physical model and thinking level for each request. The footer shows the routed model, `/session` lists cost per physical model, and `examples/extensions/jev-router.ts` routes with the Jev classifier. See [Virtual Models](docs/virtual-models.md).
 - Added Sign in with ChatGPT to the OpenAI provider in `/login`, which uses a ChatGPT subscription with the OpenAI API. Pi stores a stable `deviceId` in the global settings for this login and omits it from bug reports.
 - Added the `system` theme, now the default, which derives pi's colors from the terminal's reported foreground, background, and ANSI palette and rebuilds them when the terminal switches between light and dark. See [Use your terminal's colors](docs/themes.md#use-your-terminals-colors).
 - Added `#rgb`, `oklch()`, and `okhsl()` colors and an optional `appearance` field to theme files, and `theme.style()`, `theme.colors`, and `theme.appearance` for extensions. See [Themes](docs/themes.md) and [TUI](docs/tui.md).
@@ -660,9 +660,9 @@
 - Added `ctx.modelRegistry.stream()` and `streamSimple()` for extension model calls through configured providers with resolved authentication ([#8964](https://github.com/EvoHarness-AI/evoharness/issues/8964)).
 - Added per-model `reserveTokens` and `keepRecentTokens` settings through `compaction.modelOverrides`, with ordinary compaction settings as fallback ([#8133](https://github.com/EvoHarness-AI/evoharness/issues/8133)).
 - Added `compat.allowedFallbackModels` configuration for overriding or disabling Anthropic server-side fallback models ([#9294](https://github.com/EvoHarness-AI/evoharness/issues/9294)).
-- Added an unsubscribe function from `pi.on()` so extensions can drop event handlers. Handlers added or removed during a dispatch apply to later dispatches, not the current one ([#8967](https://github.com/EvoHarness-AI/evoharness/issues/8967)).
+- Added an unsubscribe function from `evoharness.on()` so extensions can drop event handlers. Handlers added or removed during a dispatch apply to later dispatches, not the current one ([#8967](https://github.com/EvoHarness-AI/evoharness/issues/8967)).
 - Exported extension hook event and result types that were previously omitted from the package entry points ([#9642](https://github.com/EvoHarness-AI/evoharness/pull/9642)).
-- Added `/bug [description]` to report a bug to the Pi developers. The report bundles environment, model, provider, extension, and settings metadata (secrets redacted), assistant message diagnostics from the session, optionally the session transcript, or a model-written summary of what went wrong instead. It is uploaded to Radius (no login required; attributed when logged in) or exported as a zip archive, and the report id is recorded in the session as a `pi.bug-report` entry. Crashes are recorded in `~/.pi/agent/crashes.json`, announced once on the next start, and attached to the next report; unexplained errors and exhausted retries point at `/bug` once per session.
+- Added `/bug [description]` to report a bug to the Pi developers. The report bundles environment, model, provider, extension, and settings metadata (secrets redacted), assistant message diagnostics from the session, optionally the session transcript, or a model-written summary of what went wrong instead. It is uploaded to Radius (no login required; attributed when logged in) or exported as a zip archive, and the report id is recorded in the session as a `evoharness.bug-report` entry. Crashes are recorded in `~/.pi/agent/crashes.json`, announced once on the next start, and attached to the next report; unexplained errors and exhausted retries point at `/bug` once per session.
 - Added cost-aware prompt-cache warming during long tool runs and optionally while idle, with configurable modes, model cache-lifetime metadata, `/session` diagnostics, transcript notices, and the `cache_warming_decision` extension event. See [Cache Warming](docs/settings.md#cache-warming) ([#9668](https://github.com/EvoHarness-AI/evoharness/pull/9668)).
 
 ### Changed
@@ -904,7 +904,7 @@
 - Fixed truncated compaction and branch summaries being persisted when generation reaches its output token limit ([#7048](https://github.com/EvoHarness-AI/evoharness/issues/7048)).
 - Fixed npm package update checks treating older registry versions as available updates, preventing `pi update` from downgrading already-newer installed packages ([#8226](https://github.com/EvoHarness-AI/evoharness/issues/8226)).
 - Fixed built-in llama.cpp models disappearing from `/model` when `/llama` refreshed a configured server under `PI_OFFLINE`, and included idle-slept `sleeping` router models plus autoloadable unloaded presets in the selectable catalog ([#8558](https://github.com/EvoHarness-AI/evoharness/pull/8558) by [@cristinaponcela](https://github.com/cristinaponcela)).
-- Fixed `pi.registerFlag()` accepting default values that do not match the declared flag type ([#8064](https://github.com/EvoHarness-AI/evoharness/issues/8064)).
+- Fixed `evoharness.registerFlag()` accepting default values that do not match the declared flag type ([#8064](https://github.com/EvoHarness-AI/evoharness/issues/8064)).
 - Fixed Z.AI Coding Plan defaults referencing the removed GLM-5.1 model ([#8096](https://github.com/EvoHarness-AI/evoharness/issues/8096)).
 - Fixed repeated ambiguous truncated-response recovery being mislabeled as context overflow ([#8130](https://github.com/EvoHarness-AI/evoharness/issues/8130)).
 - Fixed duplicate fullscreen right-click paste in VS Code-based terminals on Windows ([#8186](https://github.com/EvoHarness-AI/evoharness/issues/8186)).
@@ -933,7 +933,7 @@
 - Added a fullscreen exit output setting to choose between printing the final transcript and only a session resume hint.
 - Added the `defaultTools` setting for configuring the initial built-in tool selection globally or per project.
 - Added `--use-theme <name[/name]>` to choose an initial per-run interactive theme without changing saved settings ([#7722](https://github.com/EvoHarness-AI/evoharness/pull/7722) by [@rwachtler](https://github.com/rwachtler)).
-- Added `expandPromptTemplates` to extension `pi.sendUserMessage()` options for explicitly dispatching commands and expanding skills and prompt templates. See [`pi.sendUserMessage()`](docs/extensions.md#pisendusermessagecontent-options) ([#7857](https://github.com/EvoHarness-AI/evoharness/pull/7857) by [@mrexodia](https://github.com/mrexodia)).
+- Added `expandPromptTemplates` to extension `evoharness.sendUserMessage()` options for explicitly dispatching commands and expanding skills and prompt templates. See [`evoharness.sendUserMessage()`](docs/extensions.md#pisendusermessagecontent-options) ([#7857](https://github.com/EvoHarness-AI/evoharness/pull/7857) by [@mrexodia](https://github.com/mrexodia)).
 - Added inherited `createGatewayBindingFetch()` for routing Cloudflare AI Gateway requests through a Workers AI binding without an API token ([#7901](https://github.com/EvoHarness-AI/evoharness/pull/7901) by [@Maximo-Guk](https://github.com/Maximo-Guk)).
 - Added inherited `AssistantMessage.endTurn` to preserve OpenAI Codex's terminal `end_turn` signal for diagnostics ([#7766](https://github.com/EvoHarness-AI/evoharness/pull/7766)).
 - Added inherited unbound single-line transcript scrolling actions for fullscreen mode. See [TUI Fullscreen Viewport](docs/keybindings.md#tui-fullscreen-viewport) ([#7903](https://github.com/EvoHarness-AI/evoharness/pull/7903) by [@midastruth](https://github.com/midastruth)).
@@ -958,7 +958,7 @@
 - Updated the transitive `nanoid` development dependency to address a denial-of-service vulnerability.
 - Fixed fallback rendering for extension tool results to collapse long output and honor tool expansion ([#7979](https://github.com/EvoHarness-AI/evoharness/issues/7979)).
 - Fixed JSON and RPC `message_update` events dropping cumulative usage during streaming. See [JSON Event Mode](docs/json.md) and [RPC `message_update`](docs/rpc.md#message_update-streaming) ([#7982](https://github.com/EvoHarness-AI/evoharness/pull/7982) by [@christianklotz](https://github.com/christianklotz)).
-- Fixed `pi.sendMessage(..., { triggerTurn: false })` steering an active run instead of only recording the custom message ([#8022](https://github.com/EvoHarness-AI/evoharness/pull/8022) by [@cristinaponcela](https://github.com/cristinaponcela)).
+- Fixed `evoharness.sendMessage(..., { triggerTurn: false })` steering an active run instead of only recording the custom message ([#8022](https://github.com/EvoHarness-AI/evoharness/pull/8022) by [@cristinaponcela](https://github.com/cristinaponcela)).
 - Fixed the `defaultTools` setting dropping extension and SDK custom tools when selecting built-in defaults.
 - Fixed the subagent example rejecting YAML array syntax for the `tools` frontmatter field ([#7598](https://github.com/EvoHarness-AI/evoharness/pull/7598) by [@alexsavio](https://github.com/alexsavio)).
 - Fixed the subagent example dropping parent session model, thinking, and tool configuration ([#7897](https://github.com/EvoHarness-AI/evoharness/pull/7897) by [@virtuald](https://github.com/virtuald)).
@@ -1084,7 +1084,7 @@
   },
   ```
 
-  For the config-form `pi.registerProvider(name, { refreshModels })`, callbacks that only return models remain unchanged; pi publishes the returned list. If such a callback previously used `context.store` for custom persistence, read `context.stored` and call `context.publish({ persist: entry })`. In `publish()`, omit `persist` to leave storage unchanged, pass a `ModelsStoreEntry` to write it, or pass `persist: null` to delete it.
+  For the config-form `evoharness.registerProvider(name, { refreshModels })`, callbacks that only return models remain unchanged; pi publishes the returned list. If such a callback previously used `context.store` for custom persistence, read `context.stored` and call `context.publish({ persist: entry })`. In `publish()`, omit `persist` to leave storage unchanged, pass a `ModelsStoreEntry` to write it, or pass `persist: null` to delete it.
 
 - Replaced the inherited pi-agent-core harness session model with the v4 lane-based `Session`, `SessionStorage`, and `SessionRepo` APIs, including durable operation records, global facts, shared sequence numbers, and tree-scoped lane views.
 - Promoted the inherited v2 session and `AgentHarness` API from pi-agent-core's experimental entrypoint to its default export and removed the experimental subpaths.
@@ -1095,9 +1095,9 @@
 ### Added
 
 - Added built-in Baseten provider support with `BASETEN_API_KEY` authentication and `zai-org/GLM-5.2` as the default model.
-- Added experimental remote-session client APIs: the transport-neutral `PiClient`, CBOR protocol, Unix-socket transport, and `@evoharness/coding-agent/client` `RemoteSession` controller with transcript reducers. See [Pi Client](../client/README.md) and [Remote Protocol](../protocol/README.md) ([#7344](https://github.com/EvoHarness-AI/evoharness/pull/7344), [#7348](https://github.com/EvoHarness-AI/evoharness/pull/7348), [#7371](https://github.com/EvoHarness-AI/evoharness/pull/7371), [#7409](https://github.com/EvoHarness-AI/evoharness/pull/7409)).
+- Added experimental remote-session client APIs: the transport-neutral `EvoHarnessClient`, CBOR protocol, Unix-socket transport, and `@evoharness/coding-agent/client` `RemoteSession` controller with transcript reducers. See [Pi Client](../client/README.md) and [Remote Protocol](../protocol/README.md) ([#7344](https://github.com/EvoHarness-AI/evoharness/pull/7344), [#7348](https://github.com/EvoHarness-AI/evoharness/pull/7348), [#7371](https://github.com/EvoHarness-AI/evoharness/pull/7371), [#7409](https://github.com/EvoHarness-AI/evoharness/pull/7409)).
 - Added `CredentialSynchronizationError` for credential changes that commit successfully but fail to synchronize local model state.
-- Added chainable `pi.registerMarkdownTransformer()` hooks for display-only transformation of user and assistant Markdown. See [`pi.registerMarkdownTransformer()`](docs/extensions.md#piregistermarkdowntransformertransformer) ([#7231](https://github.com/EvoHarness-AI/evoharness/pull/7231) by [@xl0](https://github.com/xl0)).
+- Added chainable `evoharness.registerMarkdownTransformer()` hooks for display-only transformation of user and assistant Markdown. See [`evoharness.registerMarkdownTransformer()`](docs/extensions.md#piregistermarkdowntransformertransformer) ([#7231](https://github.com/EvoHarness-AI/evoharness/pull/7231) by [@xl0](https://github.com/xl0)).
 - Added an experimental fullscreen TUI mode, selectable through `--tui-mode fullscreen` or `/settings` ([#7304](https://github.com/EvoHarness-AI/evoharness/issues/7304)).
 - Added runtime switching between regular and fullscreen TUI modes through `/settings`.
 - Added a sticky editor, status, widget, and footer dock to fullscreen mode while keeping the transcript independently scrollable.
@@ -1824,7 +1824,7 @@
 - Fixed bash tool output collection to keep draining stdout/stderr after the child exits while descendants still write, avoiding truncated late output ([#5753](https://github.com/EvoHarness-AI/evoharness/pull/5753) by [@Mearman](https://github.com/Mearman)).
 - Fixed `/tree` help rendering to show compact wrapped controls instead of truncating them on narrow terminals ([#5055](https://github.com/EvoHarness-AI/evoharness/issues/5055)).
 - Fixed SIGTERM/SIGHUP interactive shutdown to keep signal handlers installed until terminal cleanup completes, preventing `signal-exit` from re-sending the signal and leaving the terminal in raw/Kitty keyboard mode ([#5724](https://github.com/EvoHarness-AI/evoharness/issues/5724)).
-- Fixed extensions documentation to clarify that `pi.getActiveTools()` returns active tool names while `pi.getAllTools()` returns tool metadata ([#5729](https://github.com/EvoHarness-AI/evoharness/issues/5729)).
+- Fixed extensions documentation to clarify that `evoharness.getActiveTools()` returns active tool names while `evoharness.getAllTools()` returns tool metadata ([#5729](https://github.com/EvoHarness-AI/evoharness/issues/5729)).
 - Fixed question and questionnaire extension examples to wrap long prompt, option, and help text instead of truncating it ([#5708](https://github.com/EvoHarness-AI/evoharness/pull/5708) by [@xl0](https://github.com/xl0)).
 - Fixed package commands such as `pi list`, `pi install`, and `pi update` to terminate after completing even if an extension leaves background handles open ([#5687](https://github.com/EvoHarness-AI/evoharness/issues/5687)).
 - Fixed `pi update` for pnpm global installs whose configured `global-bin-dir` no longer matches the active pnpm home ([#5689](https://github.com/EvoHarness-AI/evoharness/issues/5689)).
@@ -2034,7 +2034,7 @@
 - Fixed Windows startup crashes under MSYS2 ucrt64 Node.js by updating the native clipboard addon to napi-rs 3.x ([#5028](https://github.com/EvoHarness-AI/evoharness/issues/5028)).
 - Fixed API key and header config resolution to treat plain strings as literals, support `$ENV_VAR` / `${ENV_VAR}` interpolation and `$!` bang escaping, and require explicit env syntax for config files, avoiding Windows case-insensitive env matches corrupting literal keys ([#5095](https://github.com/EvoHarness-AI/evoharness/issues/5095)).
 - Fixed session disposal to abort in-flight agent, compaction, branch summary, retry, and bash work ([#5029](https://github.com/EvoHarness-AI/evoharness/pull/5029) by [@TerminallyChilI](https://github.com/TerminallyChilI)).
-- Fixed `pi.getAllTools()` to expose each tool's `promptGuidelines` for extensions that need per-tool guideline attribution ([#4879](https://github.com/EvoHarness-AI/evoharness/issues/4879)).
+- Fixed `evoharness.getAllTools()` to expose each tool's `promptGuidelines` for extensions that need per-tool guideline attribution ([#4879](https://github.com/EvoHarness-AI/evoharness/issues/4879)).
 - Fixed OpenAI Codex Responses replay after switching from Anthropic extended-thinking sessions by generating unique fallback message item IDs for converted thinking/text blocks ([#5148](https://github.com/EvoHarness-AI/evoharness/issues/5148)).
 - Fixed Anthropic-compatible replay for providers that return empty thinking signatures by adding an opt-in `allowEmptySignature` compatibility flag ([#4464](https://github.com/EvoHarness-AI/evoharness/issues/4464)).
 - Fixed OpenAI and OpenRouter GPT-5.5 Pro thinking level metadata to expose only supported medium, high, and xhigh efforts.
@@ -2325,24 +2325,24 @@
 
 - **Xiaomi MiMo Token Plan provider** - New Anthropic-compatible provider with `XIAOMI_API_KEY` auth, default model (`mimo-v2.5-pro`), and `/login` display. See [docs/providers.md](docs/providers.md). ([#4005](https://github.com/EvoHarness-AI/evoharness/pull/4005) by [@Phoen1xCode](https://github.com/Phoen1xCode)).
 - **Model thinking level metadata** - Models can now declare which thinking levels they support via `thinkingLevelMap`, replacing the old `reasoningEffortMap`. See [docs/models.md#thinking-level-map](docs/models.md#thinking-level-map) and [docs/custom-provider.md](docs/custom-provider.md). ([#3208](https://github.com/EvoHarness-AI/evoharness/issues/3208)).
-- **Custom provider base URL overrides** - `pi.registerProvider()` now respects per-model `baseUrl` settings. See [docs/custom-provider.md](docs/custom-provider.md). ([#4063](https://github.com/EvoHarness-AI/evoharness/issues/4063)).
+- **Custom provider base URL overrides** - `evoharness.registerProvider()` now respects per-model `baseUrl` settings. See [docs/custom-provider.md](docs/custom-provider.md). ([#4063](https://github.com/EvoHarness-AI/evoharness/issues/4063)).
 - **Post-turn stop callback** - Agent loop can now exit gracefully after a completed turn via `shouldStopAfterTurn`. See [`packages/agent/README.md`](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/agent/README.md).
 - **Self-update detection fix** - `pi` now correctly identifies and applies available updates. ([#3942](https://github.com/EvoHarness-AI/evoharness/issues/3942), [#3980](https://github.com/EvoHarness-AI/evoharness/issues/3980), [#3922](https://github.com/EvoHarness-AI/evoharness/issues/3922)).
 
 ### Breaking Changes
 
-- Replaced `compat.reasoningEffortMap` in `models.json` and `pi.registerProvider()` model definitions with model-level `thinkingLevelMap` ([#3208](https://github.com/EvoHarness-AI/evoharness/issues/3208)). Migration: move old mappings from `compat.reasoningEffortMap` to `thinkingLevelMap`. Use string values for provider-specific thinking values and `null` for unsupported pi levels that should be hidden and skipped by cycling. See `docs/models.md#thinking-level-map` and `docs/custom-provider.md`.
+- Replaced `compat.reasoningEffortMap` in `models.json` and `evoharness.registerProvider()` model definitions with model-level `thinkingLevelMap` ([#3208](https://github.com/EvoHarness-AI/evoharness/issues/3208)). Migration: move old mappings from `compat.reasoningEffortMap` to `thinkingLevelMap`. Use string values for provider-specific thinking values and `null` for unsupported pi levels that should be hidden and skipped by cycling. See `docs/models.md#thinking-level-map` and `docs/custom-provider.md`.
 
 ### Added
 
 - Added Xiaomi MiMo Token Plan provider support with `XIAOMI_API_KEY`, default model resolution, `/login` display support, and provider documentation ([#4005](https://github.com/EvoHarness-AI/evoharness/pull/4005) by [@Phoen1xCode](https://github.com/Phoen1xCode)).
-- Added model-level `thinkingLevelMap` support in `models.json` and `pi.registerProvider()`, allowing models to expose only the thinking levels they actually support ([#3208](https://github.com/EvoHarness-AI/evoharness/issues/3208)).
+- Added model-level `thinkingLevelMap` support in `models.json` and `evoharness.registerProvider()`, allowing models to expose only the thinking levels they actually support ([#3208](https://github.com/EvoHarness-AI/evoharness/issues/3208)).
 - Added `shouldStopAfterTurn` agent loop callback for post-turn stop control, inherited from `@mariozechner/pi-agent-core`. See [`packages/agent/README.md`](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/agent/README.md).
 
 ### Fixed
 
 - Fixed the default transport setting to use `auto`, allowing OpenAI Codex to use cached WebSocket context when available ([#4083](https://github.com/EvoHarness-AI/evoharness/issues/4083)).
-- Fixed `pi.registerProvider()` to honor per-model `baseUrl` overrides ([#4063](https://github.com/EvoHarness-AI/evoharness/issues/4063)).
+- Fixed `evoharness.registerProvider()` to honor per-model `baseUrl` overrides ([#4063](https://github.com/EvoHarness-AI/evoharness/issues/4063)).
 - Fixed self-update detection so `pi` correctly identifies when a newer version is available and applies updates ([#3942](https://github.com/EvoHarness-AI/evoharness/issues/3942), [#3980](https://github.com/EvoHarness-AI/evoharness/issues/3980), [#3922](https://github.com/EvoHarness-AI/evoharness/issues/3922)).
 
 ## [0.71.1] - 2026-05-01
@@ -2373,7 +2373,7 @@
 - Added routed OpenAI-compatible response model metadata in assistant messages, so providers such as OpenRouter can expose the concrete model used ([#3968](https://github.com/EvoHarness-AI/evoharness/pull/3968) by [@purrgrammer](https://github.com/purrgrammer)).
 - Added `PI_CODING_AGENT_SESSION_DIR` as an environment equivalent to `--session-dir` ([#4027](https://github.com/EvoHarness-AI/evoharness/issues/4027)).
 - Added `message_end` extension result support for replacing finalized messages, enabling extensions to override assistant usage cost ([#3982](https://github.com/EvoHarness-AI/evoharness/issues/3982)).
-- Added top-level `name` support to `pi.registerProvider()` so extension-registered providers can show a friendly name in `/login` ([#3956](https://github.com/EvoHarness-AI/evoharness/issues/3956)).
+- Added top-level `name` support to `evoharness.registerProvider()` so extension-registered providers can show a friendly name in `/login` ([#3956](https://github.com/EvoHarness-AI/evoharness/issues/3956)).
 - Added `ctx.ui.getEditorComponent()` so extensions can wrap the currently configured custom editor factory ([#3935](https://github.com/EvoHarness-AI/evoharness/issues/3935)).
 - Added a `thinking_level_select` extension event for observing thinking level changes ([#3888](https://github.com/EvoHarness-AI/evoharness/issues/3888)).
 
@@ -2475,7 +2475,7 @@
 - Fixed `/login` to show auth supplied by `models.json` provider definitions.
 - Fixed HTML export whitespace around extension-rendered tool output and expandable output hints.
 - Fixed bash executor temp output streams leaking file descriptors when output was truncated by line count ([#3786](https://github.com/EvoHarness-AI/evoharness/issues/3786))
-- Fixed extension `pi.setSessionName()` updates to refresh the interactive terminal title immediately ([#3686](https://github.com/EvoHarness-AI/evoharness/issues/3686))
+- Fixed extension `evoharness.setSessionName()` updates to refresh the interactive terminal title immediately ([#3686](https://github.com/EvoHarness-AI/evoharness/issues/3686))
 - Fixed `/tree` cancellation via `session_before_tree` leaving the session stuck in compaction state ([#3688](https://github.com/EvoHarness-AI/evoharness/issues/3688))
 - Fixed Escape interrupt handling when extensions hide the built-in working loader row ([#3674](https://github.com/EvoHarness-AI/evoharness/issues/3674))
 - Fixed coding-agent test expectations for current default models and missing-auth guidance.
@@ -2501,7 +2501,7 @@
 ### Fixed
 
 - Fixed `/copy` to avoid unbounded OSC 52 writes and clipboard races that could break terminal rendering or panic the native clipboard addon ([#3639](https://github.com/EvoHarness-AI/evoharness/issues/3639))
-- Fixed extension flag docs to show `pi.getFlag()` using registered flag names without the CLI `--` prefix ([#3614](https://github.com/EvoHarness-AI/evoharness/issues/3614))
+- Fixed extension flag docs to show `evoharness.getFlag()` using registered flag names without the CLI `--` prefix ([#3614](https://github.com/EvoHarness-AI/evoharness/issues/3614))
 - Fixed provider retry/timeout settings wiring by adding `retry.provider.{timeoutMs,maxRetries,maxRetryDelayMs}`, migrating legacy `retry.maxDelayMs`, and forwarding provider controls into `streamSimple` request options ([#3627](https://github.com/EvoHarness-AI/evoharness/issues/3627))
 - Fixed Windows git package installs to bypass `cmd.exe` for native git commands, so install paths containing spaces no longer break `pi install git:...` with `fatal: Too many arguments` ([#3642](https://github.com/EvoHarness-AI/evoharness/issues/3642))
 - Fixed DeepSeek V4 session replay 400 errors by sending DeepSeek-compatible thinking controls and replayed assistant `reasoning_content` fields ([#3636](https://github.com/EvoHarness-AI/evoharness/issues/3636))
@@ -2575,7 +2575,7 @@
 ### Breaking Changes
 
 - Migrated first-party coding-agent code, SDK/examples/docs, and package metadata from `@sinclair/typebox` 0.34.x to `typebox` 1.x. New extensions, SDK integrations, and pi packages should depend on and import from `typebox`. Legacy extension loading still aliases the root `@sinclair/typebox` package, but `@sinclair/typebox/compiler` is no longer shimmed. This migration also picks up the new `@mariozechner/pi-ai` TypeBox-native validator path, so tool argument validation now works in eval-restricted runtimes such as Cloudflare Workers instead of being skipped ([#3112](https://github.com/EvoHarness-AI/evoharness/issues/3112))
-- Session-replacement commands now invalidate captured pre-replacement session-bound extension objects after `ctx.newSession()`, `ctx.fork()`, and `ctx.switchSession()`. Old `pi` and command `ctx` references now throw instead of silently targeting the replaced session. Migration: if code needs to keep working in the replacement session after one of those calls, pass `withSession` to that same method and do the post-switch work there. In practice, move post-switch `pi.sendUserMessage()`, `pi.sendMessage()`, and command-ctx/session-manager access into `withSession`, and use only the `ReplacedSessionContext` passed to that callback for session-bound operations. Footguns: `withSession` runs after the old extension instance has already received `session_shutdown`, old cleanup may already have invalidated captured state, captured old `pi` / old command `ctx` are stale, and previously extracted raw objects such as `const sm = ctx.sessionManager` remain the caller's responsibility and must not be reused after the switch.
+- Session-replacement commands now invalidate captured pre-replacement session-bound extension objects after `ctx.newSession()`, `ctx.fork()`, and `ctx.switchSession()`. Old `pi` and command `ctx` references now throw instead of silently targeting the replaced session. Migration: if code needs to keep working in the replacement session after one of those calls, pass `withSession` to that same method and do the post-switch work there. In practice, move post-switch `evoharness.sendUserMessage()`, `evoharness.sendMessage()`, and command-ctx/session-manager access into `withSession`, and use only the `ReplacedSessionContext` passed to that callback for session-bound operations. Footguns: `withSession` runs after the old extension instance has already received `session_shutdown`, old cleanup may already have invalidated captured state, captured old `pi` / old command `ctx` are stale, and previously extracted raw objects such as `const sm = ctx.sessionManager` remain the caller's responsibility and must not be reused after the switch.
 
 ### Added
 
@@ -3151,7 +3151,7 @@ Examples:
 
 - Built-in tools now work like custom tools in extensions. To get built-in tool definitions, import `readToolDefinition` / `createReadToolDefinition()` and the equivalent `bash`, `edit`, `write`, `grep`, `find`, and `ls` exports from `@mariozechner/pi-coding-agent`.
 - Cleaned up `buildSystemPrompt()` so built-in tool snippets and tool-local guidelines come from built-in `ToolDefinition` metadata, while cross-tool and global prompt rules stay in system prompt construction.
-- Added structured `sourceInfo` to `pi.getAllTools()` results for built-in, SDK, and extension tools ([#1734](https://github.com/EvoHarness-AI/evoharness/issues/1734))
+- Added structured `sourceInfo` to `evoharness.getAllTools()` results for built-in, SDK, and extension tools ([#1734](https://github.com/EvoHarness-AI/evoharness/issues/1734))
 
 ### Fixed
 
@@ -3202,7 +3202,7 @@ Examples:
 ### Breaking Changes
 
 - Interactive keybinding ids are now namespaced, and `keybindings.json` now uses those same canonical namespaced ids. Older config files are migrated automatically on startup. Custom editors and extension UI components still receive an injected `keybindings: KeybindingsManager`. They do not call `getKeybindings()` or `setKeybindings()` themselves. Declaration merging applies to that injected type ([#2391](https://github.com/EvoHarness-AI/evoharness/issues/2391))
-- Extension author migration: update `keyHint()`, `keyText()`, and injected `keybindings.matches(...)` calls from old built-in names like `"expandTools"`, `"selectConfirm"`, and `"interrupt"` to namespaced ids like `"app.tools.expand"`, `"tui.select.confirm"`, and `"app.interrupt"`. See [docs/keybindings.md](docs/keybindings.md) for the full list. `pi.registerShortcut("ctrl+shift+p", ...)` is unchanged because extension shortcuts still use raw key combos, not keybinding ids.
+- Extension author migration: update `keyHint()`, `keyText()`, and injected `keybindings.matches(...)` calls from old built-in names like `"expandTools"`, `"selectConfirm"`, and `"interrupt"` to namespaced ids like `"app.tools.expand"`, `"tui.select.confirm"`, and `"app.interrupt"`. See [docs/keybindings.md](docs/keybindings.md) for the full list. `evoharness.registerShortcut("ctrl+shift+p", ...)` is unchanged because extension shortcuts still use raw key combos, not keybinding ids.
 
 ### Added
 
@@ -3532,7 +3532,7 @@ Examples:
 
 ### New Features
 
-- Runtime tool registration now applies immediately in active sessions. Tools registered via `pi.registerTool()` after startup are available to `pi.getAllTools()` and the LLM without `/reload` ([docs/extensions.md](docs/extensions.md), [examples/extensions/dynamic-tools.ts](examples/extensions/dynamic-tools.ts), [#1720](https://github.com/EvoHarness-AI/evoharness/issues/1720)).
+- Runtime tool registration now applies immediately in active sessions. Tools registered via `evoharness.registerTool()` after startup are available to `evoharness.getAllTools()` and the LLM without `/reload` ([docs/extensions.md](docs/extensions.md), [examples/extensions/dynamic-tools.ts](examples/extensions/dynamic-tools.ts), [#1720](https://github.com/EvoHarness-AI/evoharness/issues/1720)).
 - Tool definitions can customize the default system prompt with `promptSnippet` (`Available tools`) and `promptGuidelines` (`Guidelines`) while the tool is active ([docs/extensions.md](docs/extensions.md), [#1720](https://github.com/EvoHarness-AI/evoharness/issues/1720)).
 - Custom tool renderers can suppress transcript output without leaving extra spacing or empty transcript footprint in interactive rendering ([docs/extensions.md](docs/extensions.md), [#1719](https://github.com/EvoHarness-AI/evoharness/pull/1719)).
 
@@ -3543,7 +3543,7 @@ Examples:
 
 ### Fixed
 
-- Fixed `pi.registerTool()` dynamic registration after session initialization. Tools registered in `session_start` and later handlers now refresh immediately, become active, and are visible to the LLM without `/reload` ([#1720](https://github.com/EvoHarness-AI/evoharness/issues/1720))
+- Fixed `evoharness.registerTool()` dynamic registration after session initialization. Tools registered in `session_start` and later handlers now refresh immediately, become active, and are visible to the LLM without `/reload` ([#1720](https://github.com/EvoHarness-AI/evoharness/issues/1720))
 - Fixed session message persistence ordering by serializing `AgentSession` event processing, preventing `toolResult` entries from being written before their corresponding assistant tool-call messages when extension handlers are asynchronous ([#1717](https://github.com/EvoHarness-AI/evoharness/issues/1717))
 - Fixed spacing artifacts when custom tool renderers intentionally suppress per-call transcript output, including extra blank rows in interactive streaming and non-zero transcript footprint for empty custom renders ([#1719](https://github.com/EvoHarness-AI/evoharness/pull/1719) by [@alasano](https://github.com/alasano))
 - Fixed `session.prompt()` returning before retry completion by creating the retry promise synchronously at `agent_end` dispatch, which closes a race when earlier queued event handlers are async ([#1726](https://github.com/EvoHarness-AI/evoharness/pull/1726) by [@pasky](https://github.com/pasky))
@@ -3558,16 +3558,16 @@ Examples:
 
 ### New Features
 
-- Extensions can dynamically remove custom providers via `pi.unregisterProvider(name)`, restoring any built-in models that were overridden, without requiring `/reload` ([docs](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/docs/custom-provider.md)).
-- `pi.registerProvider()` now takes effect immediately when called outside the initial extension load phase (e.g. from a command handler), removing the need for `/reload` after late registrations.
+- Extensions can dynamically remove custom providers via `evoharness.unregisterProvider(name)`, restoring any built-in models that were overridden, without requiring `/reload` ([docs](https://github.com/EvoHarness-AI/evoharness/blob/main/packages/coding-agent/docs/custom-provider.md)).
+- `evoharness.registerProvider()` now takes effect immediately when called outside the initial extension load phase (e.g. from a command handler), removing the need for `/reload` after late registrations.
 
 ### Added
 
-- `pi.unregisterProvider(name)` removes a dynamically registered provider and its models from the registry without requiring `/reload`. Built-in models that were overridden by the provider are restored ([#1669](https://github.com/EvoHarness-AI/evoharness/pull/1669) by [@aliou](https://github.com/aliou)).
+- `evoharness.unregisterProvider(name)` removes a dynamically registered provider and its models from the registry without requiring `/reload`. Built-in models that were overridden by the provider are restored ([#1669](https://github.com/EvoHarness-AI/evoharness/pull/1669) by [@aliou](https://github.com/aliou)).
 
 ### Fixed
 
-- `pi.registerProvider()` now takes effect immediately when called after the initial extension load phase (e.g. from a command handler). Previously the registration sat in a pending queue that was never flushed until the next `/reload` ([#1669](https://github.com/EvoHarness-AI/evoharness/pull/1669) by [@aliou](https://github.com/aliou)).
+- `evoharness.registerProvider()` now takes effect immediately when called after the initial extension load phase (e.g. from a command handler). Previously the registration sat in a pending queue that was never flushed until the next `/reload` ([#1669](https://github.com/EvoHarness-AI/evoharness/pull/1669) by [@aliou](https://github.com/aliou)).
 - Fixed duplicate session headers when forking from a point before any assistant message. `createBranchedSession` now defers file creation to `_persist()` when the branched path has no assistant message, matching the `newSession()` contract ([#1672](https://github.com/EvoHarness-AI/evoharness/pull/1672) by [@w-winter](https://github.com/w-winter)).
 - Fixed SIGINT being delivered to pi while the process is suspended (e.g. via `ctrl+z`), which could corrupt terminal state on resume ([#1668](https://github.com/EvoHarness-AI/evoharness/pull/1668) by [@aliou](https://github.com/aliou)).
 - Fixed Z.ai thinking control using wrong parameter name, causing thinking to always be enabled and wasting tokens/latency ([#1674](https://github.com/EvoHarness-AI/evoharness/pull/1674) by [@okuyam2y](https://github.com/okuyam2y))
@@ -3710,14 +3710,14 @@ Examples:
 - Extensions can trigger a full runtime reload via `ctx.reload()`, useful for hot-reloading configuration or restarting the agent. See [docs/extensions.md](docs/extensions.md) and the [`reload-runtime` example](examples/extensions/reload-runtime.ts) ([#1371](https://github.com/EvoHarness-AI/evoharness/issues/1371))
 - Short CLI disable aliases: `-ne` (`--no-extensions`), `-ns` (`--no-skills`), and `-np` (`--no-prompt-templates`) for faster interactive usage and scripting.
 - `/export` HTML now includes collapsible tool input schemas (parameter names, types, and descriptions), improving session review and sharing workflows ([#1416](https://github.com/EvoHarness-AI/evoharness/pull/1416) by [@marchellodev](https://github.com/marchellodev)).
-- `pi.getAllTools()` now exposes tool parameters in addition to name and description, enabling richer extension integrations ([#1416](https://github.com/EvoHarness-AI/evoharness/pull/1416) by [@marchellodev](https://github.com/marchellodev)).
+- `evoharness.getAllTools()` now exposes tool parameters in addition to name and description, enabling richer extension integrations ([#1416](https://github.com/EvoHarness-AI/evoharness/pull/1416) by [@marchellodev](https://github.com/marchellodev)).
 
 ### Added
 
 - Added `ctx.reload()` to the extension API for programmatic runtime reload ([#1371](https://github.com/EvoHarness-AI/evoharness/issues/1371))
 - Added short aliases for disable flags: `-ne` for `--no-extensions`, `-ns` for `--no-skills`, `-np` for `--no-prompt-templates`
 - `/export` HTML now includes tool input schema (parameter names, types, descriptions) in a collapsible section under each tool ([#1416](https://github.com/EvoHarness-AI/evoharness/pull/1416) by [@marchellodev](https://github.com/marchellodev))
-- `pi.getAllTools()` now returns tool parameters in addition to name and description ([#1416](https://github.com/EvoHarness-AI/evoharness/pull/1416) by [@marchellodev](https://github.com/marchellodev))
+- `evoharness.getAllTools()` now returns tool parameters in addition to name and description ([#1416](https://github.com/EvoHarness-AI/evoharness/pull/1416) by [@marchellodev](https://github.com/marchellodev))
 
 ### Fixed
 
@@ -3808,7 +3808,7 @@ Examples:
 
 ### Fixed
 
-- Fixed extensions setting not respecting `package.json` `pi.extensions` manifest when directory is specified directly ([#1302](https://github.com/EvoHarness-AI/evoharness/pull/1302) by [@hjanuschka](https://github.com/hjanuschka))
+- Fixed extensions setting not respecting `package.json` `evoharness.extensions` manifest when directory is specified directly ([#1302](https://github.com/EvoHarness-AI/evoharness/pull/1302) by [@hjanuschka](https://github.com/hjanuschka))
 
 ## [0.52.3] - 2026-02-05
 
@@ -3989,7 +3989,7 @@ Examples:
   echo "You are running on Android in Termux." > ~/.pi/agent/AGENTS.md
   ```
   Clipboard operations fall back gracefully when `termux-api` is unavailable. ([#1164](https://github.com/EvoHarness-AI/evoharness/issues/1164))
-- **Bash spawn hook**: Extensions can now intercept and modify bash commands before execution via `pi.setBashSpawnHook()`. Adjust the command string, working directory, or environment variables. See [docs/extensions.md](docs/extensions.md). ([#1160](https://github.com/EvoHarness-AI/evoharness/pull/1160) by [@mitsuhiko](https://github.com/mitsuhiko))
+- **Bash spawn hook**: Extensions can now intercept and modify bash commands before execution via `evoharness.setBashSpawnHook()`. Adjust the command string, working directory, or environment variables. See [docs/extensions.md](docs/extensions.md). ([#1160](https://github.com/EvoHarness-AI/evoharness/pull/1160) by [@mitsuhiko](https://github.com/mitsuhiko))
 - **Linux ARM64 musl support**: Pi now runs on Alpine Linux ARM64 (linux-arm64-musl) via updated clipboard dependency.
 - **Nix/Guix support**: `PI_PACKAGE_DIR` environment variable overrides the package path for content-addressed package managers where store paths tokenize poorly. See [README.md#environment-variables](README.md#environment-variables). ([#1153](https://github.com/EvoHarness-AI/evoharness/pull/1153) by [@odysseus0](https://github.com/odysseus0))
 - **Named session filter**: `/resume` picker now supports filtering to show only named sessions via Ctrl+N. Configurable via `toggleSessionNamedFilter` keybinding. See [docs/keybindings.md](docs/keybindings.md). ([#1128](https://github.com/EvoHarness-AI/evoharness/pull/1128) by [@w-winter](https://github.com/w-winter))
@@ -4171,7 +4171,7 @@ Examples:
 
 - Pi packages for bundling and installing extensions, skills, prompts, and themes. See [docs/packages.md](docs/packages.md).
 - Hot reload (`/reload`) of resources including AGENTS.md, SYSTEM.md, APPEND_SYSTEM.md, prompt templates, skills, themes, and extensions. See [README.md#commands](README.md#commands) and [README.md#context-files](README.md#context-files).
-- Custom providers via `pi.registerProvider()` for proxies, custom endpoints, OAuth or SSO flows, and non-standard streaming APIs. See [docs/custom-provider.md](docs/custom-provider.md).
+- Custom providers via `evoharness.registerProvider()` for proxies, custom endpoints, OAuth or SSO flows, and non-standard streaming APIs. See [docs/custom-provider.md](docs/custom-provider.md).
 - Azure OpenAI Responses provider support with deployment-aware model mapping. See [docs/providers.md#azure-openai](docs/providers.md#azure-openai).
 - OpenRouter routing support for custom models via `openRouterRouting`. See [docs/providers.md#api-keys](docs/providers.md#api-keys) and [docs/models.md](docs/models.md).
 - Skill invocation messages are now collapsible and skills can opt out of model invocation via `disable-model-invocation`. See [docs/skills.md#frontmatter](docs/skills.md#frontmatter).
@@ -4215,7 +4215,7 @@ There are multiple SDK breaking changes since v0.49.3. For the quickest migratio
 - Package deduplication: if same package appears in global and project settings, project wins ([#645](https://github.com/EvoHarness-AI/evoharness/issues/645))
 - Unified collision reporting with `ResourceDiagnostic` type for all resource types ([#645](https://github.com/EvoHarness-AI/evoharness/issues/645))
 - Show provider alongside the model in the footer if multiple providers are available
-- Custom provider support via `pi.registerProvider()` with `streamSimple` for custom API implementations
+- Custom provider support via `evoharness.registerProvider()` with `streamSimple` for custom API implementations
 - Added `custom-provider.ts` example extension demonstrating custom Anthropic provider with OAuth
 
 ### Changed
@@ -4294,7 +4294,7 @@ There are multiple SDK breaking changes since v0.49.3. For the quickest migratio
 
 ### Added
 
-- Added widget placement option for extension widgets via `widgetPlacement` in `pi.addWidget()` ([#850](https://github.com/EvoHarness-AI/evoharness/pull/850) by [@marckrenn](https://github.com/marckrenn))
+- Added widget placement option for extension widgets via `widgetPlacement` in `evoharness.addWidget()` ([#850](https://github.com/EvoHarness-AI/evoharness/pull/850) by [@marckrenn](https://github.com/marckrenn))
 - Added AWS credential detection for ECS/Kubernetes environments: `AWS_CONTAINER_CREDENTIALS_RELATIVE_URI`, `AWS_CONTAINER_CREDENTIALS_FULL_URI`, `AWS_WEB_IDENTITY_TOKEN_FILE` ([#848](https://github.com/EvoHarness-AI/evoharness/issues/848))
 - Add "quiet startup" setting to `/settings` ([#847](https://github.com/EvoHarness-AI/evoharness/pull/847) by [@unexge](https://github.com/unexge))
 
@@ -4336,7 +4336,7 @@ There are multiple SDK breaking changes since v0.49.3. For the quickest migratio
 
 ### Added
 
-- `pi.setLabel(entryId, label)` in ExtensionAPI for setting per-entry labels from extensions ([#806](https://github.com/EvoHarness-AI/evoharness/issues/806))
+- `evoharness.setLabel(entryId, label)` in ExtensionAPI for setting per-entry labels from extensions ([#806](https://github.com/EvoHarness-AI/evoharness/issues/806))
 - Export `keyHint`, `appKeyHint`, `editorKey`, `appKey`, `rawKeyHint` for extensions to format keybinding hints consistently ([#802](https://github.com/EvoHarness-AI/evoharness/pull/802) by [@dannote](https://github.com/dannote))
 - Exported `VERSION` from the package index and updated the custom-header example. ([#798](https://github.com/EvoHarness-AI/evoharness/pull/798) by [@tallshort](https://github.com/tallshort))
 - Added `showHardwareCursor` setting to control cursor visibility while still positioning it for IME support. ([#800](https://github.com/EvoHarness-AI/evoharness/pull/800) by [@ghoulr](https://github.com/ghoulr))
@@ -4369,7 +4369,7 @@ There are multiple SDK breaking changes since v0.49.3. For the quickest migratio
 - Added `editorPaddingX` setting for horizontal padding in input editor (0-3, default: 0)
 - Added `shellCommandPrefix` setting to prepend commands to every bash execution, enabling alias expansion in non-interactive shells (e.g., `"shellCommandPrefix": "shopt -s expand_aliases"`) ([#790](https://github.com/EvoHarness-AI/evoharness/pull/790) by [@richardgill](https://github.com/richardgill))
 - Added bash-style argument slicing for prompt templates ([#770](https://github.com/EvoHarness-AI/evoharness/pull/770) by [@airtonix](https://github.com/airtonix))
-- Extension commands can provide argument auto-completions via `getArgumentCompletions` in `pi.registerCommand()` ([#775](https://github.com/EvoHarness-AI/evoharness/pull/775) by [@ribelo](https://github.com/ribelo))
+- Extension commands can provide argument auto-completions via `getArgumentCompletions` in `evoharness.registerCommand()` ([#775](https://github.com/EvoHarness-AI/evoharness/pull/775) by [@ribelo](https://github.com/ribelo))
 - Bash tool now displays the timeout value in the UI when a timeout is set ([#780](https://github.com/EvoHarness-AI/evoharness/pull/780) by [@dannote](https://github.com/dannote))
 - Export `getShellConfig` for extensions to detect user's shell environment ([#766](https://github.com/EvoHarness-AI/evoharness/pull/766) by [@dannote](https://github.com/dannote))
 - Added `thinkingText` and `selectedBg` to theme schema ([#763](https://github.com/EvoHarness-AI/evoharness/pull/763) by [@scutifer](https://github.com/scutifer))
@@ -4382,7 +4382,7 @@ There are multiple SDK breaking changes since v0.49.3. For the quickest migratio
 - Fixed standalone binary WASM loading on Linux ([#784](https://github.com/EvoHarness-AI/evoharness/issues/784))
 - Fixed string numbers in tool arguments not being coerced to numbers during validation ([#786](https://github.com/EvoHarness-AI/evoharness/pull/786) by [@dannote](https://github.com/dannote))
 - Fixed `--no-extensions` flag not preventing extension discovery ([#776](https://github.com/EvoHarness-AI/evoharness/issues/776))
-- Fixed extension messages rendering twice on startup when `pi.sendMessage({ display: true })` is called during `session_start` ([#765](https://github.com/EvoHarness-AI/evoharness/pull/765) by [@dannote](https://github.com/dannote))
+- Fixed extension messages rendering twice on startup when `evoharness.sendMessage({ display: true })` is called during `session_start` ([#765](https://github.com/EvoHarness-AI/evoharness/pull/765) by [@dannote](https://github.com/dannote))
 - Fixed `PI_CODING_AGENT_DIR` env var not expanding tilde (`~`) to home directory ([#778](https://github.com/EvoHarness-AI/evoharness/pull/778) by [@aliou](https://github.com/aliou))
 - Fixed session picker hint text overflow ([#764](https://github.com/EvoHarness-AI/evoharness/issues/764))
 - Fixed Kitty keyboard protocol shifted symbol keys (e.g., `@`, `?`) not working in editor ([#779](https://github.com/EvoHarness-AI/evoharness/pull/779) by [@iamd3vil](https://github.com/iamd3vil))
@@ -4522,11 +4522,11 @@ There are multiple SDK breaking changes since v0.49.3. For the quickest migratio
 
 ### Breaking Changes
 
-- `pi.getAllTools()` now returns `ToolInfo[]` (with `name` and `description`) instead of `string[]`. Extensions that only need names can use `.map(t => t.name)`. ([#648](https://github.com/EvoHarness-AI/evoharness/pull/648) by [@carsonfarmer](https://github.com/carsonfarmer))
+- `evoharness.getAllTools()` now returns `ToolInfo[]` (with `name` and `description`) instead of `string[]`. Extensions that only need names can use `.map(t => t.name)`. ([#648](https://github.com/EvoHarness-AI/evoharness/pull/648) by [@carsonfarmer](https://github.com/carsonfarmer))
 
 ### Added
 
-- Session naming: `/name <name>` command sets a display name shown in the session selector instead of the first message. Useful for distinguishing forked sessions. Extensions can use `pi.setSessionName()` and `pi.getSessionName()`. ([#650](https://github.com/EvoHarness-AI/evoharness/pull/650) by [@scutifer](https://github.com/scutifer))
+- Session naming: `/name <name>` command sets a display name shown in the session selector instead of the first message. Useful for distinguishing forked sessions. Extensions can use `evoharness.setSessionName()` and `evoharness.getSessionName()`. ([#650](https://github.com/EvoHarness-AI/evoharness/pull/650) by [@scutifer](https://github.com/scutifer))
 - Extension example: `notify.ts` for desktop notifications via OSC 777 escape sequence ([#658](https://github.com/EvoHarness-AI/evoharness/pull/658) by [@ferologics](https://github.com/ferologics))
 - Inline hint for queued messages showing the `Alt+Up` restore shortcut ([#657](https://github.com/EvoHarness-AI/evoharness/pull/657) by [@tmustier](https://github.com/tmustier))
 - Page-up/down navigation in `/resume` session selector to jump by 5 items ([#662](https://github.com/EvoHarness-AI/evoharness/pull/662) by [@aliou](https://github.com/aliou))
@@ -4759,7 +4759,7 @@ There are multiple SDK breaking changes since v0.49.3. For the quickest migratio
 - Extensions can now replace the footer with `ctx.ui.setFooter()`, see `examples/extensions/custom-footer.ts` ([#481](https://github.com/EvoHarness-AI/evoharness/issues/481))
 - Session ID is now forwarded to LLM providers for session-based caching (used by OpenAI Codex for prompt caching).
 - Added `blockImages` setting to prevent images from being sent to LLM providers ([#492](https://github.com/EvoHarness-AI/evoharness/pull/492) by [@jsinge97](https://github.com/jsinge97))
-- Extensions can now send user messages via `pi.sendUserMessage()` ([#483](https://github.com/EvoHarness-AI/evoharness/issues/483))
+- Extensions can now send user messages via `evoharness.sendUserMessage()` ([#483](https://github.com/EvoHarness-AI/evoharness/issues/483))
 
 ### Fixed
 
@@ -4897,20 +4897,20 @@ export default function (pi: ExtensionAPI) {
 }
 ```
 
-**Custom tools now have full context access.** Tools registered via `pi.registerTool()` now receive the same `ctx` object that event handlers receive. Previously, custom tools had limited context. Now all extension code shares the same capabilities:
+**Custom tools now have full context access.** Tools registered via `evoharness.registerTool()` now receive the same `ctx` object that event handlers receive. Previously, custom tools had limited context. Now all extension code shares the same capabilities:
 
-- `pi.registerTool()` - Register tools the LLM can call
-- `pi.registerCommand()` - Register commands like `/mycommand`
-- `pi.registerShortcut()` - Register keyboard shortcuts (shown in `/hotkeys`)
-- `pi.registerFlag()` - Register CLI flags (shown in `--help`)
-- `pi.registerMessageRenderer()` - Custom TUI rendering for message types
-- `pi.on()` - Subscribe to lifecycle events (tool_call, session_start, etc.)
-- `pi.sendMessage()` - Inject messages into the conversation
-- `pi.appendEntry()` - Persist custom data in session (survives restart/branch)
-- `pi.exec()` - Run shell commands
-- `pi.getActiveTools()` / `pi.setActiveTools()` - Dynamic tool enable/disable
-- `pi.getAllTools()` - List all available tools
-- `pi.events` - Event bus for cross-extension communication
+- `evoharness.registerTool()` - Register tools the LLM can call
+- `evoharness.registerCommand()` - Register commands like `/mycommand`
+- `evoharness.registerShortcut()` - Register keyboard shortcuts (shown in `/hotkeys`)
+- `evoharness.registerFlag()` - Register CLI flags (shown in `--help`)
+- `evoharness.registerMessageRenderer()` - Custom TUI rendering for message types
+- `evoharness.on()` - Subscribe to lifecycle events (tool_call, session_start, etc.)
+- `evoharness.sendMessage()` - Inject messages into the conversation
+- `evoharness.appendEntry()` - Persist custom data in session (survives restart/branch)
+- `evoharness.exec()` - Run shell commands
+- `evoharness.getActiveTools()` / `evoharness.setActiveTools()` - Dynamic tool enable/disable
+- `evoharness.getAllTools()` - List all available tools
+- `evoharness.events` - Event bus for cross-extension communication
 - `ctx.ui.confirm()` / `select()` / `input()` - User prompts
 - `ctx.ui.notify()` - Toast notifications
 - `ctx.ui.setStatus()` - Persistent status in footer (multiple extensions can set their own)
@@ -5046,10 +5046,10 @@ pi --extension ./safety.ts -e ./todo.ts
 
 ### Added
 
-- Hook API: `pi.getActiveTools()` and `pi.setActiveTools(toolNames)` for dynamically enabling/disabling tools from hooks
-- Hook API: `pi.getAllTools()` to enumerate all configured tools (built-in via --tools or default, plus custom tools)
-- Hook API: `pi.registerFlag(name, options)` and `pi.getFlag(name)` for hooks to register custom CLI flags (parsed automatically)
-- Hook API: `pi.registerShortcut(shortcut, options)` for hooks to register custom keyboard shortcuts using `KeyId` (e.g., `Key.shift("p")`). Conflicts with built-in shortcuts are skipped, conflicts between hooks logged as warnings.
+- Hook API: `evoharness.getActiveTools()` and `evoharness.setActiveTools(toolNames)` for dynamically enabling/disabling tools from hooks
+- Hook API: `evoharness.getAllTools()` to enumerate all configured tools (built-in via --tools or default, plus custom tools)
+- Hook API: `evoharness.registerFlag(name, options)` and `evoharness.getFlag(name)` for hooks to register custom CLI flags (parsed automatically)
+- Hook API: `evoharness.registerShortcut(shortcut, options)` for hooks to register custom keyboard shortcuts using `KeyId` (e.g., `Key.shift("p")`). Conflicts with built-in shortcuts are skipped, conflicts between hooks logged as warnings.
 - Hook API: `ctx.ui.setWidget(key, content)` for status displays above the editor. Accepts either a string array or a component factory function.
 - Hook API: `theme.strikethrough(text)` for strikethrough text styling
 - Hook API: `before_agent_start` handlers can now return `systemPromptAppend` to dynamically append text to the system prompt for that turn. Multiple hooks' appends are concatenated.
@@ -5068,11 +5068,11 @@ pi --extension ./safety.ts -e ./todo.ts
   - State persists across sessions (including todo progress)
 - New example hook: `tools.ts` - Interactive `/tools` command to enable/disable tools with session persistence
 - New example hook: `pirate.ts` - Demonstrates `systemPromptAppend` to make the agent speak like a pirate
-- Tool registry now contains all built-in tools (read, bash, edit, write, grep, find, ls) even when `--tools` limits the initially active set. Hooks can enable any tool from the registry via `pi.setActiveTools()`.
+- Tool registry now contains all built-in tools (read, bash, edit, write, grep, find, ls) even when `--tools` limits the initially active set. Hooks can enable any tool from the registry via `evoharness.setActiveTools()`.
 - System prompt now automatically rebuilds when tools change via `setActiveTools()`, updating tool descriptions and guidelines to match the new tool set
 - Hook errors now display full stack traces for easier debugging
-- Event bus (`pi.events`) for tool/hook communication: shared pub/sub between custom tools and hooks
-- Custom tools now have `pi.sendMessage()` to send messages directly to the agent session without needing the event bus
+- Event bus (`evoharness.events`) for tool/hook communication: shared pub/sub between custom tools and hooks
+- Custom tools now have `evoharness.sendMessage()` to send messages directly to the agent session without needing the event bus
 - `sendMessage()` supports `deliverAs: "nextTurn"` to queue messages for the next user prompt
 
 ### Changed
@@ -5118,7 +5118,7 @@ pi --extension ./safety.ts -e ./todo.ts
 ### Changed
 
 - **Slash commands and hook commands now work during streaming**: Previously, using a slash command or hook command while the agent was streaming would crash with "Agent is already processing". Now:
-  - Hook commands execute immediately (they manage their own LLM interaction via `pi.sendMessage()`)
+  - Hook commands execute immediately (they manage their own LLM interaction via `evoharness.sendMessage()`)
   - File-based slash commands are expanded and queued via steer/followUp
   - `steer()` and `followUp()` now expand file-based slash commands and error on hook commands (hook commands cannot be queued)
   - `prompt()` accepts new `streamingBehavior` option (`"steer"` or `"followUp"`) to specify queueing behavior during streaming
@@ -5155,7 +5155,7 @@ pi --extension ./safety.ts -e ./todo.ts
   - `getQueuedMessages()` → `getSteeringMessages()` and `getFollowUpMessages()`
   - `clearQueue()` now returns `{ steering: string[], followUp: string[] }`
   - `hasQueuedMessages()` → `hasPendingMessages()`
-- **Hook API signature changed**: `pi.sendMessage()` second parameter changed from `triggerTurn?: boolean` to `options?: { triggerTurn?, deliverAs? }`. Use `deliverAs: "followUp"` for follow-up delivery. Affects both hooks and internal `sendHookMessage()` method.
+- **Hook API signature changed**: `evoharness.sendMessage()` second parameter changed from `triggerTurn?: boolean` to `options?: { triggerTurn?, deliverAs? }`. Use `deliverAs: "followUp"` for follow-up delivery. Affects both hooks and internal `sendHookMessage()` method.
 - **RPC API changes**:
   - `queue_message` command → `steer` and `follow_up` commands
   - `set_queue_mode` command → `set_steering_mode` and `set_follow_up_mode` commands
@@ -5224,16 +5224,16 @@ The hooks API has been restructured with more granular events and better session
 
 **API changes:**
 
-- `pi.send(text, attachments?)` → `pi.sendMessage(message, triggerTurn?)` (creates `CustomMessageEntry`)
-- New `pi.appendEntry(customType, data?)` for hook state persistence (not in LLM context)
-- New `pi.registerCommand(name, options)` for custom slash commands (handler receives `HookCommandContext`)
-- New `pi.registerMessageRenderer(customType, renderer)` for custom TUI rendering
+- `evoharness.send(text, attachments?)` → `evoharness.sendMessage(message, triggerTurn?)` (creates `CustomMessageEntry`)
+- New `evoharness.appendEntry(customType, data?)` for hook state persistence (not in LLM context)
+- New `evoharness.registerCommand(name, options)` for custom slash commands (handler receives `HookCommandContext`)
+- New `evoharness.registerMessageRenderer(customType, renderer)` for custom TUI rendering
 - New `ctx.isIdle()`, `ctx.abort()`, `ctx.hasQueuedMessages()` for agent state (available in all events)
 - New `ctx.ui.editor(title, prefill?)` for multi-line text editing with Ctrl+G external editor support
 - New `ctx.ui.custom(component)` for full TUI component rendering with keyboard focus
 - New `ctx.ui.setStatus(key, text)` for persistent status text in footer (multiple hooks can set their own)
 - New `ctx.ui.theme` getter for styling text with theme colors
-- `ctx.exec()` moved to `pi.exec()`
+- `ctx.exec()` moved to `evoharness.exec()`
 - `ctx.sessionFile` → `ctx.sessionManager.getSessionFile()`
 - New `ctx.modelRegistry` and `ctx.model` for API key resolution
 
@@ -5617,7 +5617,7 @@ Total color count increased from 46 to 50. See [docs/themes.md](docs/themes.md) 
 
 ### Breaking
 
-- **Session hooks API redesign**: Merged `branch` event into `session` event. `BranchEvent`, `BranchEventResult` types and `pi.on("branch", ...)` removed. Use `pi.on("session", ...)` with `reason: "before_branch" | "branch"` instead. `AgentSession.branch()` returns `{ cancelled }` instead of `{ skipped }`. `AgentSession.reset()` and `switchSession()` now return `boolean` (false if cancelled by hook). RPC commands `reset`, `switch_session`, and `branch` now include `cancelled` in response data. ([#278](https://github.com/EvoHarness-AI/evoharness/issues/278))
+- **Session hooks API redesign**: Merged `branch` event into `session` event. `BranchEvent`, `BranchEventResult` types and `evoharness.on("branch", ...)` removed. Use `evoharness.on("session", ...)` with `reason: "before_branch" | "branch"` instead. `AgentSession.branch()` returns `{ cancelled }` instead of `{ skipped }`. `AgentSession.reset()` and `switchSession()` now return `boolean` (false if cancelled by hook). RPC commands `reset`, `switch_session`, and `branch` now include `cancelled` in response data. ([#278](https://github.com/EvoHarness-AI/evoharness/issues/278))
 
 ### Added
 
@@ -5759,7 +5759,7 @@ Total color count increased from 46 to 50. See [docs/themes.md](docs/themes.md) 
 
 - **`getMarkdownTheme()` export**: Custom tools can now import `getMarkdownTheme()` from `@mariozechner/pi-coding-agent` to use the same markdown styling as the main UI.
 
-- **`pi.exec()` signal and timeout support**: Custom tools and hooks can now pass `{ signal, timeout }` options to `pi.exec()` for cancellation and timeout handling. The result includes a `killed` flag when the process was terminated.
+- **`evoharness.exec()` signal and timeout support**: Custom tools and hooks can now pass `{ signal, timeout }` options to `evoharness.exec()` for cancellation and timeout handling. The result includes a `killed` flag when the process was terminated.
 
 - **Kitty keyboard protocol support**: Shift+Enter, Alt+Enter, Shift+Tab, Ctrl+D, and all Ctrl+key combinations now work in Ghostty, Kitty, WezTerm, and other modern terminals. ([#225](https://github.com/EvoHarness-AI/evoharness/pull/225) by [@kim0](https://github.com/kim0))
 
@@ -5857,7 +5857,7 @@ Total color count increased from 46 to 50. See [docs/themes.md](docs/themes.md) 
 
 ### Added
 
-- **Custom tools**: Extend pi with custom tools written in TypeScript. Tools can provide custom TUI rendering, interact with users via `pi.ui` (select, confirm, input, notify), and maintain state across sessions via `onSession` callback. See [docs/custom-tools.md](docs/custom-tools.md) and [examples/custom-tools/](examples/custom-tools/). ([#190](https://github.com/EvoHarness-AI/evoharness/issues/190))
+- **Custom tools**: Extend pi with custom tools written in TypeScript. Tools can provide custom TUI rendering, interact with users via `evoharness.ui` (select, confirm, input, notify), and maintain state across sessions via `onSession` callback. See [docs/custom-tools.md](docs/custom-tools.md) and [examples/custom-tools/](examples/custom-tools/). ([#190](https://github.com/EvoHarness-AI/evoharness/issues/190))
 
 - **Hook and tool examples**: Added `examples/hooks/` and `examples/custom-tools/` with working examples. Examples are now bundled in npm and binary releases.
 
@@ -5999,7 +5999,7 @@ _Dedicated to Peter's shoulder ([@steipete](https://twitter.com/steipete))_
 
 - **Hooks system**: TypeScript modules that extend agent behavior by subscribing to lifecycle events. Hooks can intercept tool calls, prompt for confirmation, modify results, and inject messages from external sources. Auto-discovered from `~/.pi/agent/hooks/*.ts` and `.pi/hooks/*.ts`. Thanks to [@nicobailon](https://github.com/nicobailon) for the collaboration on the design and implementation. ([#145](https://github.com/EvoHarness-AI/evoharness/issues/145), supersedes [#158](https://github.com/EvoHarness-AI/evoharness/pull/158))
 
-- **`pi.send()` API**: Hooks can inject messages into the agent session from external sources (file watchers, webhooks, CI systems). If streaming, messages are queued; otherwise a new agent loop starts immediately.
+- **`evoharness.send()` API**: Hooks can inject messages into the agent session from external sources (file watchers, webhooks, CI systems). If streaming, messages are queued; otherwise a new agent loop starts immediately.
 
 - **`--hook <path>` CLI flag**: Load hook files directly for testing without modifying settings.
 
@@ -6189,7 +6189,7 @@ _Dedicated to Peter's shoulder ([@steipete](https://twitter.com/steipete))_
 
 ### Added
 
-- **Forking/Rebranding Support**: All branding (app name, config directory, environment variable names) is now configurable via `piConfig` in `package.json`. Forks can change `piConfig.name` and `piConfig.configDir` to rebrand the CLI without code changes. Affects CLI banner, help text, config paths, and error messages. ([#95](https://github.com/EvoHarness-AI/evoharness/pull/95))
+- **Forking/Rebranding Support**: All branding (app name, config directory, environment variable names) is now configurable via `evoharnessConfig` in `package.json`. Forks can change `evoharnessConfig.name` and `evoharnessConfig.configDir` to rebrand the CLI without code changes. Affects CLI banner, help text, config paths, and error messages. ([#95](https://github.com/EvoHarness-AI/evoharness/pull/95))
 
 ### Fixed
 

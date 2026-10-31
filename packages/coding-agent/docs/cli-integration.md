@@ -85,7 +85,7 @@ A source fork can change the CLI name and configuration directory through `packa
 
 ```json
 {
-  "piConfig": {
+  "evoharnessConfig": {
     "name": "my-agent",
     "configDir": ".my-agent"
   }

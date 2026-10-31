@@ -85,37 +85,37 @@ function getAliases(): Record<string, string> {
 		return fileURLToPath(import.meta.resolve(specifier));
 	};
 
-	const piCodingAgentEntry = packageIndex;
-	const piAgentCoreEntry = resolveWorkspaceOrImport("agent/dist/index.js", "@evoharness/agent-core");
-	const piTuiEntry = resolveWorkspaceOrImport("tui/dist/index.js", "@evoharness/tui");
+	const evoharnessCodingAgentEntry = packageIndex;
+	const evoharnessAgentCoreEntry = resolveWorkspaceOrImport("agent/dist/index.js", "@evoharness/agent-core");
+	const evoharnessTuiEntry = resolveWorkspaceOrImport("tui/dist/index.js", "@evoharness/tui");
 	// Extensions resolve the pi-ai root to the compat entrypoint (a strict
 	// superset of the core entrypoint): existing extensions using the old
 	// global API keep working at runtime until compat is removed.
-	const piAiCompatEntry = resolveWorkspaceOrImport("ai/dist/compat.js", "@evoharness/ai/compat");
-	const piAiModelsEntry = resolveWorkspaceOrImport("ai/dist/models.js", "@evoharness/ai/models");
-	const piAiOauthEntry = resolveWorkspaceOrImport("ai/dist/oauth.js", "@evoharness/ai/oauth");
-	const piAiProvidersEntry = resolveWorkspaceOrImport(
+	const evoharnessAiCompatEntry = resolveWorkspaceOrImport("ai/dist/compat.js", "@evoharness/ai/compat");
+	const evoharnessAiModelsEntry = resolveWorkspaceOrImport("ai/dist/models.js", "@evoharness/ai/models");
+	const evoharnessAiOauthEntry = resolveWorkspaceOrImport("ai/dist/oauth.js", "@evoharness/ai/oauth");
+	const evoharnessAiProvidersEntry = resolveWorkspaceOrImport(
 		"ai/dist/providers/all.js",
 		"@evoharness/ai/providers/all",
 	);
 
 	_aliases = {
-		"@evoharness/coding-agent": piCodingAgentEntry,
-		"@evoharness/agent-core": piAgentCoreEntry,
-		"@evoharness/tui": piTuiEntry,
-		"@evoharness/ai/providers/all": piAiProvidersEntry,
-		"@evoharness/ai/compat": piAiCompatEntry,
-		"@evoharness/ai/models": piAiModelsEntry,
-		"@evoharness/ai/oauth": piAiOauthEntry,
-		"@evoharness/ai": piAiCompatEntry,
-		"@mariozechner/pi-coding-agent": piCodingAgentEntry,
-		"@mariozechner/pi-agent-core": piAgentCoreEntry,
-		"@mariozechner/pi-tui": piTuiEntry,
-		"@mariozechner/pi-ai/providers/all": piAiProvidersEntry,
-		"@mariozechner/pi-ai/compat": piAiCompatEntry,
-		"@mariozechner/pi-ai/models": piAiModelsEntry,
-		"@mariozechner/pi-ai/oauth": piAiOauthEntry,
-		"@mariozechner/pi-ai": piAiCompatEntry,
+		"@evoharness/coding-agent": evoharnessCodingAgentEntry,
+		"@evoharness/agent-core": evoharnessAgentCoreEntry,
+		"@evoharness/tui": evoharnessTuiEntry,
+		"@evoharness/ai/providers/all": evoharnessAiProvidersEntry,
+		"@evoharness/ai/compat": evoharnessAiCompatEntry,
+		"@evoharness/ai/models": evoharnessAiModelsEntry,
+		"@evoharness/ai/oauth": evoharnessAiOauthEntry,
+		"@evoharness/ai": evoharnessAiCompatEntry,
+		"@mariozechner/pi-coding-agent": evoharnessCodingAgentEntry,
+		"@mariozechner/pi-agent-core": evoharnessAgentCoreEntry,
+		"@mariozechner/pi-tui": evoharnessTuiEntry,
+		"@mariozechner/pi-ai/providers/all": evoharnessAiProvidersEntry,
+		"@mariozechner/pi-ai/compat": evoharnessAiCompatEntry,
+		"@mariozechner/pi-ai/models": evoharnessAiModelsEntry,
+		"@mariozechner/pi-ai/oauth": evoharnessAiOauthEntry,
+		"@mariozechner/pi-ai": evoharnessAiCompatEntry,
 		typebox: typeboxEntry,
 		"typebox/compile": typeboxCompileEntry,
 		"typebox/value": typeboxValueEntry,
@@ -744,7 +744,7 @@ function isExtensionFile(name: string): boolean {
  * Resolve extension entry points from a directory.
  *
  * Checks for:
- * 1. package.json with "pi.extensions" field -> returns declared paths
+ * 1. package.json with "evoharness.extensions" field -> returns declared paths
  * 2. index.ts or index.js -> returns the index file
  *
  * Returns resolved paths or null if no entry points found.

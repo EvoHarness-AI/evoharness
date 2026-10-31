@@ -375,9 +375,9 @@ The `owner` string is opaque to the engine; each adapter fills it:
 
 | | namespace | owner | kind | key |
 | --- | --- | --- | --- | --- |
-| Durable session document | `pi-durable` | `session` | `pi.settings` | |
-| Durable conversation document | `pi-durable` | `conversation:7` | `pi.provider` | |
-| Durable task document | `pi-durable` | `task:31` | `pi.codemode` | |
+| Durable session document | `pi-durable` | `session` | `evoharness.settings` | |
+| Durable conversation document | `pi-durable` | `conversation:7` | `evoharness.provider` | |
+| Durable task document | `pi-durable` | `task:31` | `evoharness.codemode` | |
 | Chord persisted document | `chord` | `session:notes.store` | `notes` | `n-42` |
 
 What the owner string means (a conversation's documents fork and rewind with it, a task's are retired with the task)

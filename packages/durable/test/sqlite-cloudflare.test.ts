@@ -34,11 +34,11 @@ describe("Durable Object SQLite adapter", () => {
 		expect(names).toContain("host_notes");
 		expect(names).toContain("tasks");
 		expect(names).not.toContain("pi_host_notes");
-		const piNames = names.filter((name) => !["host_notes", "tasks"].includes(name));
-		expect(piNames.length).toBeGreaterThan(10);
-		expect(piNames.every((name) => name.startsWith("pi_"))).toBe(true);
-		expect(piNames).toContain("pi_tasks");
-		expect(piNames).toContain("pi_durable_schema");
+		const evoharnessNames = names.filter((name) => !["host_notes", "tasks"].includes(name));
+		expect(evoharnessNames.length).toBeGreaterThan(10);
+		expect(evoharnessNames.every((name) => name.startsWith("pi_"))).toBe(true);
+		expect(evoharnessNames).toContain("pi_tasks");
+		expect(evoharnessNames).toContain("pi_durable_schema");
 	});
 
 	it("isolates concurrently opened prefixes on one Durable Object", async () => {

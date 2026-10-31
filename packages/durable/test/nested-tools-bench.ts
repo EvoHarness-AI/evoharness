@@ -36,7 +36,7 @@ type Scenario = {
 	depth: 1 | 2;
 	bytes: number;
 	gapMs: number;
-	/** Whether nested calls stream their running output to `pi.live`. */
+	/** Whether nested calls stream their running output to `evoharness.live`. */
 	progress: boolean;
 	runs: number;
 };

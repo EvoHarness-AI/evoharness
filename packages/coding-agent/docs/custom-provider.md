@@ -18,7 +18,7 @@ A provider extension is an [extension](extensions.md), so it follows the same lo
 
 ## Register a provider
 
-Call `pi.registerProvider()` from the extension factory. Pi waits for asynchronous factories before startup continues, so providers registered there are available to startup model selection and `pi --list-models`.
+Call `evoharness.registerProvider()` from the extension factory. Pi waits for asynchronous factories before startup continues, so providers registered there are available to startup model selection and `pi --list-models`.
 
 There are two registration forms:
 
@@ -119,7 +119,7 @@ pi.registerProvider("media-tools", {
 
 Model-level `baseUrl` values take precedence over the provider endpoint. If no `models` list is supplied, built-in models of every operation remain registered. Equal model IDs in different operations remain distinct, including their model-specific headers.
 
-Calls made after initial extension loading take effect immediately. Use `pi.unregisterProvider()` to remove the dynamic provider and restore built-in behavior that it replaced.
+Calls made after initial extension loading take effect immediately. Use `evoharness.unregisterProvider()` to remove the dynamic provider and restore built-in behavior that it replaced.
 
 See the checked [GitLab Duo provider](../examples/extensions/custom-provider-gitlab-duo/) for a complete registration that delegates streaming to built-in API implementations.
 

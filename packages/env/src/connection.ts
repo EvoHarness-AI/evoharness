@@ -379,7 +379,7 @@ export class Connection {
 		session.buffered += chunk.length;
 		if (!session.synced) {
 			// Shell startup files may print before the daemon runs; skip everything before its sync line.
-			const marker = Buffer.from(`PI-ENV ${session.token}\n`, "utf8");
+			const marker = Buffer.from(`EVOHARNESS-ENV ${session.token}\n`, "utf8");
 			const all = session.peek(session.buffered);
 			const index = all.indexOf(marker);
 			if (index === -1) {

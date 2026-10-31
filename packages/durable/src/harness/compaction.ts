@@ -112,7 +112,7 @@ Keep each section concise. Preserve exact file paths, function names, and error 
  * conversation-owned one places its summary through a write submission.
  */
 export const CompactionTask = defineTask<CompactionInput, CompactionCheckpoint, CompactionResult, CompactionHooks>({
-	name: "pi.compaction",
+	name: "evoharness.compaction",
 	version: 1,
 	initial: () => ({ phase: "select" }),
 	phases: {

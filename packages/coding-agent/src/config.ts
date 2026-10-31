@@ -575,13 +575,13 @@ export function detectInstallChange(packageJsonPath = startupPackageJsonPath): I
 }
 
 // =============================================================================
-// App Config (from package.json piConfig)
+// App Config (from package.json evoharnessConfig)
 // =============================================================================
 
 interface PackageJson {
 	name?: string;
 	version?: string;
-	piConfig?: {
+	evoharnessConfig?: {
 		name?: string;
 		configDir?: string;
 	};
@@ -599,11 +599,11 @@ try {
 	if (err.code !== "ENOENT") throw e;
 }
 
-const piConfigName: string | undefined = pkg.piConfig?.name;
+const evoharnessConfigName: string | undefined = pkg.evoharnessConfig?.name;
 export const PACKAGE_NAME: string = pkg.name || "@evoharness/coding-agent";
-export const APP_NAME: string = piConfigName || "pi";
-export const APP_TITLE: string = piConfigName ? APP_NAME : "π";
-export const CONFIG_DIR_NAME: string = pkg.piConfig?.configDir || ".pi";
+export const APP_NAME: string = evoharnessConfigName || "pi";
+export const APP_TITLE: string = evoharnessConfigName ? APP_NAME : "π";
+export const CONFIG_DIR_NAME: string = pkg.evoharnessConfig?.configDir || ".pi";
 export const VERSION: string = pkg.version || "0.0.0";
 
 // e.g., PI_CODING_AGENT_DIR or TAU_CODING_AGENT_DIR

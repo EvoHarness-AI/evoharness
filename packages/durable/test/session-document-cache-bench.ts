@@ -23,7 +23,7 @@ import type { SessionImpl } from "../src/session/session.ts";
 import { openNodeSqliteStorage } from "../src/storage/sqlite/node.ts";
 import { retainedBytes } from "./heap-retained.ts";
 
-/** Writes `pi.usage` of its conversation once, then completes. */
+/** Writes `evoharness.usage` of its conversation once, then completes. */
 const Work = defineTask<null, { phase: "work" }, null>({
 	name: "bench.work",
 	version: 1,

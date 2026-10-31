@@ -541,7 +541,7 @@ describe("document cache retention", () => {
 			await harness.close(context);
 			// Ids and times differ between runs; the sequence of entries, run states, and tool outputs must not.
 			return history.views.map((view) => {
-				const live = (view.docs["pi.live"] ?? {}) as LiveState;
+				const live = (view.docs["evoharness.live"] ?? {}) as LiveState;
 				const tools = (live.tools ?? []).map((slot) => `${slot.callId}:${slot.status}:${slot.output ?? ""}`);
 				const kinds = view.entries.map((entry) => entry.kind).join(",");
 				return `${kinds} run:${live.run !== undefined} generation:${live.generation !== undefined} ${tools.join(" ")}`;

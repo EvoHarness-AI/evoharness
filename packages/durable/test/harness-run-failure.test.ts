@@ -1,4 +1,4 @@
-// `pi.live.runFailure`: why the newest run ended without an answer, as state a renderer shows (#11327).
+// `evoharness.live.runFailure`: why the newest run ended without an answer, as state a renderer shows (#11327).
 import { type FauxResponseStep, fauxAssistantMessage, fauxText, fauxToolCall, Type } from "@evoharness/ai";
 import {
 	type AfterFailedRun,
@@ -32,7 +32,7 @@ function failingOnce() {
 	return { step, gate, reached };
 }
 
-describe("pi.live.runFailure", () => {
+describe("evoharness.live.runFailure", () => {
 	it("records a model error with its text, and a later run clears it", async () => {
 		const setup = chatSetup();
 		setup.faux.setResponses([

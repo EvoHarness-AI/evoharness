@@ -238,7 +238,7 @@ one, `findMetrics` metrics. One renderer, `pi-telemetry/render`, prints traces a
 follows them. The playground's trace viewer reads the same store.
 
 **Durable** already emits submit and phase spans, stores carriers on submissions and tasks (`TaskOptions.trace`),
-and pi-ai emits `pi.ai.request` and `pi.ai.poll`. With the harness given the host's adapter (chapter XIV), an agent
+and pi-ai emits `evoharness.ai.request` and `evoharness.ai.poll`. With the harness given the host's adapter (chapter XIV), an agent
 tool that calls `Notes.add` through `chord(fn, context)` shows up as one tree from the model request down to the
 commit.
 

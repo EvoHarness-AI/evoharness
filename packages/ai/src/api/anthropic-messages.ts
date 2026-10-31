@@ -338,7 +338,7 @@ function assertRequestAuth(provider: string, apiKey: string | undefined, headers
  * client built with `apiKey: null, authToken: null` for header-owned auth would
  * also resolve and exchange SDK credentials behind pi's auth resolver.
  */
-class PiAnthropic extends Anthropic {
+class EvoHarnessAnthropic extends Anthropic {
 	protected override _shouldResolveDefaultCredentials(): boolean {
 		return false;
 	}
@@ -1017,7 +1017,7 @@ function createClient(
 ): { client: Anthropic; isOAuthToken: boolean } {
 	// Copilot: Bearer auth.
 	if (model.provider === "github-copilot") {
-		const client = new PiAnthropic({
+		const client = new EvoHarnessAnthropic({
 			apiKey: null,
 			authToken: apiKey ?? null,
 			baseURL: model.baseUrl,
@@ -1040,7 +1040,7 @@ function createClient(
 
 	// OAuth: Bearer auth, Claude Code identity headers instead of the client identity.
 	if (apiKey && isOAuthToken(apiKey)) {
-		const client = new PiAnthropic({
+		const client = new EvoHarnessAnthropic({
 			apiKey: null,
 			authToken: apiKey,
 			baseURL: model.baseUrl,
@@ -1081,7 +1081,7 @@ function createClient(
 	if (federation) {
 		const key = JSON.stringify([model.baseUrl, federation]);
 		if (federationClient?.key !== key || federationClient.fetch !== fetch) {
-			const client = new PiAnthropic({
+			const client = new EvoHarnessAnthropic({
 				apiKey: null,
 				authToken: null,
 				config: federation,
@@ -1094,7 +1094,7 @@ function createClient(
 		return { client: federationClient.client.withOptions({ defaultHeaders }), isOAuthToken: false };
 	}
 
-	const client = new PiAnthropic({
+	const client = new EvoHarnessAnthropic({
 		apiKey: apiKey ?? null,
 		authToken: null,
 		baseURL: model.baseUrl,

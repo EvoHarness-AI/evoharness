@@ -76,16 +76,16 @@ test("redirects Pi user agents to an explicit catalog version", () => {
 test("serves explicit and unversioned catalog requests without redirecting", () => {
 	assert.deepEqual(
 		parseModelCatalogRequest("https://evoharness.dev/api/models?pi-version=0.83.0", "pi/0.85.1 (linux; node/v22.0.0; x64)"),
-		{ kind: "catalog", piVersion: "0.83.0", representation: "legacy" },
+		{ kind: "catalog", evoharnessVersion: "0.83.0", representation: "legacy" },
 	);
 	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models?types=chat", "curl/8.0.0"), {
 		kind: "catalog",
-		piVersion: undefined,
+		evoharnessVersion: undefined,
 		representation: "typed",
 	});
 	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models", "pi/latest"), {
 		kind: "catalog",
-		piVersion: undefined,
+		evoharnessVersion: undefined,
 		representation: "legacy",
 	});
 });

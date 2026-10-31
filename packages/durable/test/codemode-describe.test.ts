@@ -79,7 +79,7 @@ describe("code mode description and section", () => {
 		setup.faux.setResponses([fauxAssistantMessage([fauxText("hi")]) as AssistantMessage]);
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
-		const system = (await allEntries(root)).find((entry) => entry.kind === "pi.system")!;
+		const system = (await allEntries(root)).find((entry) => entry.kind === "evoharness.system")!;
 		const sections = (system.model![0] as { sections?: Record<string, string> }).sections!;
 		expect(sections.codemode).toContain("### `read`");
 		expect(sections.codemode).toContain("### `mcp__github__list_issues`");

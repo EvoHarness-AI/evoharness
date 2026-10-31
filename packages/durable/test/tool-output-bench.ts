@@ -1,5 +1,5 @@
 /**
- * Tool output benchmark: drives the real tool task, adaptive progress throttle, and `pi.live` commits.
+ * Tool output benchmark: drives the real tool task, adaptive progress throttle, and `evoharness.live` commits.
  *
  *   node --conditions=source --experimental-strip-types --expose-gc test/tool-output-bench.ts
  *
@@ -198,7 +198,7 @@ async function runScenario(scenario: Scenario): Promise<Metrics> {
 			target.observeCommits({
 				advance: (publication) => {
 					for (const change of publication.changes) {
-						if (change.type !== "document" || change.kind !== "change" || change.record.kind !== "pi.live")
+						if (change.type !== "document" || change.kind !== "change" || change.record.kind !== "evoharness.live")
 							continue;
 						liveCommits++;
 						liveOpBytes += JSON.stringify(change.ops).length;

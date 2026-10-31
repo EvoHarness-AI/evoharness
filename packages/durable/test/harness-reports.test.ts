@@ -154,7 +154,7 @@ describe("reports", () => {
 		const root = await harness.root(context, { agent: { model: { provider: "faux", modelId: "faux-1" } } });
 		await (await root.submit({ type: "input", content: "hi" }, context)).wait(context);
 		const infoOf = (message: string) => reports.find((report) => report.message === message)?.info;
-		const generation = { kind: "pi.generation", conversationId: root.id };
+		const generation = { kind: "evoharness.generation", conversationId: root.id };
 		expect(infoOf("env")).toMatchObject({ kind: "host_error", callback: "env", task: generation });
 		expect(infoOf("section")).toMatchObject({ kind: "extension_error", extension: "sections", task: generation });
 		expect(infoOf("hook")).toMatchObject({ kind: "extension_error", extension: "hooks", task: generation });

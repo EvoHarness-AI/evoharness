@@ -235,7 +235,7 @@ async function runScenario(scenario: Scenario): Promise<Result> {
 		let largestTask = 0;
 		let cursor: Parameters<Storage["scanTasks"]>[2];
 		do {
-			const page = await reopenedStorage.scanTasks({ kind: "pi.tool" }, 50, cursor, context);
+			const page = await reopenedStorage.scanTasks({ kind: "evoharness.tool" }, 50, cursor, context);
 			for (const record of page.items) {
 				if ((record.input as ToolTaskInput).kind === "nested") nestedTasks++;
 				largestTask = Math.max(largestTask, JSON.stringify(record).length);

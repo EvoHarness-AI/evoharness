@@ -189,7 +189,7 @@ function isInSrgbGamut(linear: number[]): boolean {
 
 function oklchToRgb({ l, c, h }: OklchChannels): RgbColor {
 	// Gamut mapping keeps the hue fixed, so its direction is computed once and scaled by chroma.
-	const radians = (h * Math.PI) / 180;
+	const radians = (h * Math.EVOHARNESS) / 180;
 	const cos = Math.cos(radians);
 	const sin = Math.sin(radians);
 	const atChroma = (chroma: number) => oklabToLinearSrgb([l, chroma * cos, chroma * sin]);
@@ -229,7 +229,7 @@ export function colorToRgb(color: Color): RgbColor {
 export function colorToOklch(color: Color): OklchChannels {
 	if (color.kind === "oklch") return { l: color.l, c: color.c, h: color.h };
 	const [l, a, b] = rgbToOklab(colorToRgb(color));
-	return { l, c: Math.hypot(a, b), h: ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360 };
+	return { l, c: Math.hypot(a, b), h: ((Math.atan2(b, a) * 180) / Math.EVOHARNESS + 360) % 360 };
 }
 
 export function colorToHex(color: Color): string {

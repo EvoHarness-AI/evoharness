@@ -122,7 +122,7 @@ export type GenerationCheckpoint =
 	  }
 	| {
 			/**
-			 * The run answered: its answer is committed and its inputs settled, and it keeps `pi.live.run` while `afterRun`
+			 * The run answered: its answer is committed and its inputs settled, and it keeps `evoharness.live.run` while `afterRun`
 			 * hooks are asked for tasks (spec §8.3). A crash here asks them again: nothing was created yet.
 			 */
 			phase: "finish";
@@ -157,10 +157,10 @@ const DEFAULT_POLL_AFTER_MS = 5000;
 
 /**
  * Built-in generation task: prepares the positional system prompt and tool loadout, requests or polls the model,
- * retries, and classifies the response. The run's inputs live in `pi.live.run`.
+ * retries, and classifies the response. The run's inputs live in `evoharness.live.run`.
  */
 export const GenerationTask = defineTask<GenerationInput, GenerationCheckpoint, GenerationResult, GenerationHooks>({
-	name: "pi.generation",
+	name: "evoharness.generation",
 	version: 2,
 	initial: () => ({ phase: "prepare", attempt: 1 }),
 	// Version 2 leaves calls to tools not offered in a sequential round's `pending`, flagged `unoffered` in their slots.
@@ -172,7 +172,7 @@ export const GenerationTask = defineTask<GenerationInput, GenerationCheckpoint, 
 	}),
 	phases: {
 		/**
-		 * Render the system prompt and tool loadout and append the positional `pi.system` entries they need, then move to
+		 * Render the system prompt and tool loadout and append the positional `evoharness.system` entries they need, then move to
 		 * `request`. The agent and settings resolved here are fixed for this request. Only the Harness writes model
 		 * context to a busy conversation, so the context read here is still current at the commit; display-only entries
 		 * may land meanwhile.
@@ -898,7 +898,7 @@ async function asksAfterRun(runtime: Runtime, context: Context): Promise<boolean
 
 /**
  * Commit A of a run that answered with `afterRun` hooks selected (spec §8.3): settle the run's inputs `done` with the
- * answer and keep `pi.live.run` for the after-run tasks, then ask the hooks in `finish`. The final boundary waits for
+ * answer and keep `evoharness.live.run` for the after-run tasks, then ask the hooks in `finish`. The final boundary waits for
  * the run's end, so queued items stay queued.
  */
 function holdRun(tx: Tx, live: Draft<LiveState>, runtime: Runtime, end: Omit<RunSummary, "first">): Next | undefined {
@@ -930,7 +930,7 @@ function prepareRunEndTasks(runtime: Runtime, requests: readonly RunEndTask[], p
 	for (const request of requests) {
 		try {
 			const name = request.task.definition.name;
-			if (name.startsWith("pi.")) throw new Error(`An afterRun hook cannot start the built-in task ${name}`);
+			if (name.startsWith("evoharness.")) throw new Error(`An afterRun hook cannot start the built-in task ${name}`);
 			const installed = runtime.registry.task(name);
 			if (installed === undefined) throw new Error(`Task ${name} is not installed`);
 			const input = copyJson(request.input, { omitUndefinedProperties: true });
@@ -1142,7 +1142,7 @@ async function finishToolRound(
 }
 
 /**
- * Append a provider result and add its usage to `pi.usage` in the same commit.
+ * Append a provider result and add its usage to `evoharness.usage` in the same commit.
  * REMINDER: every built-in writer of assistant entries goes through here, so the usage ledger stays complete.
  */
 async function appendAssistant(
@@ -1156,7 +1156,7 @@ async function appendAssistant(
 
 /**
  * Start a run for `inputs`, placed input submissions, whose first entry is `first` (`LiveRun.first`): a new generation
- * takes `pi.live.run`. Removes `runFailure`, unless `keepFailure`: a run started in the commit that ended the failed one
+ * takes `evoharness.live.run`. Removes `runFailure`, unless `keepFailure`: a run started in the commit that ended the failed one
  * keeps its failure.
  */
 export async function startRun(

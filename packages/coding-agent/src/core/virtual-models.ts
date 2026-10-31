@@ -29,9 +29,9 @@ import type { SessionEntry } from "./session-manager.ts";
 export const VIRTUAL_MODEL_API = "pi-virtual";
 
 /** Custom entry type that stores router state on the session branch. */
-export const VIRTUAL_MODEL_STATE_ENTRY = "pi.virtual-model-state";
+export const VIRTUAL_MODEL_STATE_ENTRY = "evoharness.virtual-model-state";
 
-/** Data of a `pi.virtual-model-state` custom entry. */
+/** Data of a `evoharness.virtual-model-state` custom entry. */
 export interface VirtualModelStateData<TState = unknown> {
 	provider: string;
 	modelId: string;

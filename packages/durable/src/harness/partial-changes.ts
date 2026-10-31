@@ -8,7 +8,7 @@ import type { LiveState } from "./live.ts";
 
 type JsonContainer = Record<string, JsonValue> | JsonValue[];
 
-/** A partial message as `pi.live.generation.message` holds it. */
+/** A partial message as `evoharness.live.generation.message` holds it. */
 export type PartialMessage = JsonRepresentation<AssistantMessage>;
 
 /** Committed arguments of a streamed tool call. */

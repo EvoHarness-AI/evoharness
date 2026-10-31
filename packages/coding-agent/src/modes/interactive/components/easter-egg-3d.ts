@@ -135,7 +135,7 @@ const YELLOW: Rgb = [234, 182, 93];
 const PI_LOGO_PIXELS = ["ccc.", "b.c.", "bb.y", "b..y"];
 const PI_LOGO_COLORS: Record<string, Rgb> = { c: CORAL, b: BLUE, y: YELLOW };
 
-function piLogoModel(origin: { column: number; row: number }): Model {
+function evoharnessLogoModel(origin: { column: number; row: number }): Model {
 	return createModel(4, 4, (column, row) => PI_LOGO_COLORS[PI_LOGO_PIXELS[row]![column]!], {
 		cameraDistance: 10,
 		widthShare: 0.35,
@@ -435,7 +435,7 @@ function multiply(a: number[], b: number[]): number[] {
 
 // The spin is locked to the puzzle: one turn per cycle, facing the camera in the middle of each hold.
 const SPIN_RAMP = 1.4;
-const SPIN_SPEED = (Math.PI * 2) / PUZZLE_CYCLE;
+const SPIN_SPEED = (Math.EVOHARNESS * 2) / PUZZLE_CYCLE;
 // How much the spin slows down while facing the camera (and speeds up while facing away), from 0 to 1.
 const SPIN_LINGER = 0.6;
 const FIRST_FRONT_VIEW = PUZZLE_START + PUZZLE_STEP * PUZZLE_STEPS + PUZZLE_RETURN + PUZZLE_HOLD / 2;
@@ -451,7 +451,7 @@ function baseSpinPhase(time: number): number {
 }
 
 // Extra rotation added during the flight, so the phase is a whole number of turns at every assembled front view.
-const SPIN_ALIGNMENT = Math.PI * 2 - (baseSpinPhase(FIRST_FRONT_VIEW) % (Math.PI * 2));
+const SPIN_ALIGNMENT = Math.EVOHARNESS * 2 - (baseSpinPhase(FIRST_FRONT_VIEW) % (Math.EVOHARNESS * 2));
 
 /** Spin phase: whole turns exactly when the reassembled logo faces the camera. */
 function spinPhase(time: number): number {
@@ -860,7 +860,7 @@ export async function playEasterEgg3d(tui: TUI, screen: readonly string[], egg: 
 		return;
 	}
 	const model =
-		egg.kind === "armin" ? arminModel(toRgb(theme.colors.accent)) : piLogoModel({ column: egg.column, row: egg.row });
+		egg.kind === "armin" ? arminModel(toRgb(theme.colors.accent)) : evoharnessLogoModel({ column: egg.column, row: egg.row });
 	const animation = new EasterEgg3dAnimation(tui, screen, model, colors, () => {
 		playing = false;
 		overlay.hide();
@@ -921,7 +921,7 @@ export class EasterEgg3dAnimation implements Component {
 		}
 		const time = this.elapsed();
 		const yaw = spinAngle(time);
-		const turn = Math.PI * 2;
+		const turn = Math.EVOHARNESS * 2;
 		this.exit = {
 			start: performance.now(),
 			time,
@@ -1149,7 +1149,7 @@ export class EasterEgg3dAnimation implements Component {
 			// All blocks fly home at once. Alternating arcs in depth keep them from passing through each other.
 			const u = (local - shuffleEnd) / PUZZLE_RETURN;
 			const remaining = 1 - smooth(u);
-			const arc = Math.sin(Math.PI * clamp01(u)) * 0.8;
+			const arc = Math.sin(Math.EVOHARNESS * clamp01(u)) * 0.8;
 			return steps[PUZZLE_STEPS]!.map((position, index) => {
 				const [x, y, z] = offset(position, index);
 				return [x * remaining, y * remaining, z * remaining + (index % 2 === 0 ? arc : -arc)];
@@ -1223,7 +1223,7 @@ export class EasterEgg3dAnimation implements Component {
 				glyph: BRAILLE[DOT_BITS[Math.floor(random(1) * 8)]!]!,
 				tint: STAR_TINTS[Math.floor(random(2) * STAR_TINTS.length)]!,
 				strength: 0.1 + random(3) * 0.12,
-				phase: random(4) * Math.PI * 2,
+				phase: random(4) * Math.EVOHARNESS * 2,
 				speed: 0.4 + random(5) * 0.8,
 			};
 		}

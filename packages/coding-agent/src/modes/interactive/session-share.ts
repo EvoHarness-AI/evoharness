@@ -21,7 +21,7 @@ interface SessionShareContext {
 	showError: (message: string) => void;
 }
 
-/** Trailing `pi.share` entry carrying the system prompt and tool schemas for the session viewer. */
+/** Trailing `evoharness.share` entry carrying the system prompt and tool schemas for the session viewer. */
 export function createShareTrailingEntries(
 	session: AgentSession,
 	parentId: string | null,
@@ -30,7 +30,7 @@ export function createShareTrailingEntries(
 	return [
 		{
 			type: "custom",
-			customType: "pi.share",
+			customType: "evoharness.share",
 			id: crypto.randomUUID().slice(0, 8),
 			parentId,
 			timestamp,

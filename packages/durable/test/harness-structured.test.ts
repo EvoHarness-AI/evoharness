@@ -1226,11 +1226,11 @@ describe("tool rounds", () => {
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
 		expect((await (await root.submit({ type: "input", content: "go" }, context)).wait(context)).status).toBe("done");
 		const tasks = (await harness.commit((tx) => tx.scanTasks({ conversationId: root.id }, 20), context)).items;
-		const [first, second] = tasks.filter((task) => task.kind === "pi.generation");
-		expect(tasks.filter((task) => task.kind === "pi.tool").map((task) => task.owner)).toEqual([first!.id, first!.id]);
+		const [first, second] = tasks.filter((task) => task.kind === "evoharness.generation");
+		expect(tasks.filter((task) => task.kind === "evoharness.tool").map((task) => task.owner)).toEqual([first!.id, first!.id]);
 		expect(first!.owner).toBeUndefined();
 		expect(second!.owner).toBeUndefined();
-		const assistant = (await allEntries(root)).find((entry) => entry.kind === "pi.assistant")!;
+		const assistant = (await allEntries(root)).find((entry) => entry.kind === "evoharness.assistant")!;
 		expect(first!.state).toEqual({
 			status: "terminal",
 			outcome: { status: "completed", result: { entryId: assistant.id } },
@@ -1284,7 +1284,7 @@ describe("tool rounds", () => {
 			{ type: "text", text: "<harness>\n[error] Tool two was aborted\n</harness>" },
 		]);
 		const tools = (
-			await harness.commit((tx) => tx.scanTasks({ conversationId: root.id, kind: "pi.tool" }, 20), context)
+			await harness.commit((tx) => tx.scanTasks({ conversationId: root.id, kind: "evoharness.tool" }, 20), context)
 		).items;
 		expect(tools).toHaveLength(1);
 		await harness.close(context);
@@ -1315,7 +1315,7 @@ describe("tool rounds", () => {
 		const graph = await graphHistory(harness);
 		const history = await viewHistory(harness, root.id);
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
-		const first = (await harness.commit((tx) => tx.scanTasks({ kind: "pi.generation" }, 1), context)).items[0]!;
+		const first = (await harness.commit((tx) => tx.scanTasks({ kind: "evoharness.generation" }, 1), context)).items[0]!;
 		expect((await state(harness, first.id)).status).toBe("completing");
 		// The first generation's outcome is committed at its hold: the successor already runs the run, and the graph shows
 		// the first one completing beside it.
@@ -1412,7 +1412,7 @@ describe("tool rounds", () => {
 				first: expect.any(Number),
 			},
 		});
-		expect((await allEntries(reopened.root)).map((entry) => entry.kind)).toEqual(["pi.user", "pi.assistant"]);
+		expect((await allEntries(reopened.root)).map((entry) => entry.kind)).toEqual(["evoharness.user", "evoharness.assistant"]);
 		await reopened.harness.close(context);
 	});
 });
@@ -1843,7 +1843,7 @@ describe("tool rounds as the view shows them", () => {
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
 		const late = await graphHistory(harness);
 		open("hooked");
-		const [first] = (await harness.commit((tx) => tx.scanTasks({ kind: "pi.generation" }, 1), context)).items;
+		const [first] = (await harness.commit((tx) => tx.scanTasks({ kind: "evoharness.generation" }, 1), context)).items;
 		await harness.waitForTask(first!.id, context);
 		// The early observer saw both generations; the late one starts with the held one, completing, and sees it leave.
 		const seen = (graphs: readonly TaskGraph[]) =>

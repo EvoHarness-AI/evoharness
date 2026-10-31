@@ -2426,7 +2426,7 @@ Chord reports traces, events and metrics through `@evoharness/telemetry`; one ad
   `findMetrics`. Spans carry global ids and a trace id; links carry trace and span id. One renderer
   (`pi-telemetry/render`) prints links and never follows them. A web trace viewer in the playground reads the store.
 - **Durable** (done): submit and phase spans, stored carriers on submissions and tasks (`TaskOptions.trace`, creation
-  links), events after commit, report events; pi-ai emits `pi.ai.request`/`pi.ai.poll` from one observer in
+  links), events after commit, report events; pi-ai emits `evoharness.ai.request`/`evoharness.ai.poll` from one observer in
   `lazyStream`. Persisted Chord jobs store their start carrier.
 
 ## 30. Cost model

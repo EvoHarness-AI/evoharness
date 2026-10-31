@@ -68,7 +68,7 @@ function startCatalogServer(requests: string[]): Promise<Server> {
 		} else {
 			const catalog = selectModelCatalog(
 				parseModelCatalogIndex(objects.get(MODEL_CATALOG_INDEX_KEY)),
-				catalogRequest.piVersion,
+				catalogRequest.evoharnessVersion,
 			);
 			const body = catalog
 				? (objects.get(getModelCatalogProviderKey(catalog.revision, provider, catalogRequest.representation)) ??

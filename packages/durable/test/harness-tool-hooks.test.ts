@@ -643,7 +643,7 @@ describe("calls to tools the request did not offer", () => {
 		await (await root.submit({ type: "input", content: "go" }, context)).wait(context);
 		expect(seen.map((each) => each.id)).toEqual(["c1"]);
 		expect(await harness.getTask(seen[0]!.taskId, context)).toMatchObject({
-			kind: "pi.tool",
+			kind: "evoharness.tool",
 			input: { kind: "model", callId: "c1", unoffered: true },
 		});
 		const entries = await allEntries(root);

@@ -155,7 +155,7 @@ describe("Harness.inspect()", () => {
 		const inspection = await harness.inspect(context);
 		expect(inspection.submissions).toEqual([await input.status(context)]);
 		expect(inspection.tasks.map((entry) => [entry.record.kind, entry.state.kind])).toEqual([
-			["pi.generation", "running"],
+			["evoharness.generation", "running"],
 		]);
 		await harness.close(context);
 	});
