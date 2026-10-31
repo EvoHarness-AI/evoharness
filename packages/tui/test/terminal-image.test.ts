@@ -46,9 +46,9 @@ const ENV_KEYS = [
 	"CMUX_WORKSPACE_ID",
 	"WARP_SESSION_ID",
 	"WARP_TERMINAL_SESSION_UUID",
-	"PI_HYPERLINKS",
-	"PI_IMAGE_PROTOCOL",
-	"PI_TRUE_COLOR",
+	"EVOHARNESS_HYPERLINKS",
+	"EVOHARNESS_IMAGE_PROTOCOL",
+	"EVOHARNESS_TRUE_COLOR",
 ] as const;
 
 function withEnv<T>(overrides: Record<string, string | undefined>, fn: () => T): T {
@@ -228,12 +228,20 @@ describe("detectCapabilities", () => {
 
 	it("applies environment overrides", () => {
 		assert.deepStrictEqual(
-			withEnv({ PI_HYPERLINKS: "1", PI_IMAGE_PROTOCOL: "kitty", PI_TRUE_COLOR: "1" }, () => detectCapabilities()),
+			withEnv({ EVOHARNESS_HYPERLINKS: "1", EVOHARNESS_IMAGE_PROTOCOL: "kitty", EVOHARNESS_TRUE_COLOR: "1" }, () =>
+				detectCapabilities(),
+			),
 			{ images: "kitty", trueColor: true, hyperlinks: true },
 		);
 		assert.deepStrictEqual(
-			withEnv({ TERM_PROGRAM: "iterm.app", PI_HYPERLINKS: "0", PI_IMAGE_PROTOCOL: "none", PI_TRUE_COLOR: "0" }, () =>
-				detectCapabilities(),
+			withEnv(
+				{
+					TERM_PROGRAM: "iterm.app",
+					EVOHARNESS_HYPERLINKS: "0",
+					EVOHARNESS_IMAGE_PROTOCOL: "none",
+					EVOHARNESS_TRUE_COLOR: "0",
+				},
+				() => detectCapabilities(),
 			),
 			{ images: null, trueColor: false, hyperlinks: false },
 		);
@@ -244,9 +252,9 @@ describe("detectCapabilities", () => {
 			withEnv(
 				{
 					TERM_PROGRAM: "ghostty",
-					PI_HYPERLINKS: "auto",
-					PI_IMAGE_PROTOCOL: "auto",
-					PI_TRUE_COLOR: "auto",
+					EVOHARNESS_HYPERLINKS: "auto",
+					EVOHARNESS_IMAGE_PROTOCOL: "auto",
+					EVOHARNESS_TRUE_COLOR: "auto",
 				},
 				() => detectCapabilities(),
 			),
@@ -255,7 +263,7 @@ describe("detectCapabilities", () => {
 	});
 
 	it("applies and clears programmatic overrides", () => {
-		withEnv({ PI_HYPERLINKS: "1", PI_IMAGE_PROTOCOL: "kitty", PI_TRUE_COLOR: "1" }, () => {
+		withEnv({ EVOHARNESS_HYPERLINKS: "1", EVOHARNESS_IMAGE_PROTOCOL: "kitty", EVOHARNESS_TRUE_COLOR: "1" }, () => {
 			setCapabilityOverrides({ images: null, trueColor: false, hyperlinks: false });
 			try {
 				assert.deepStrictEqual(getCapabilities(), { images: null, trueColor: false, hyperlinks: false });
@@ -271,7 +279,7 @@ describe("detectCapabilities", () => {
 	it("bypasses the tmux probe when hyperlinks are overridden", () => {
 		let probed = false;
 		const caps = withEnv(
-			{ TMUX: "/tmp/tmux-1000/default,1234,0", PI_HYPERLINKS: "1", PI_IMAGE_PROTOCOL: "kitty" },
+			{ TMUX: "/tmp/tmux-1000/default,1234,0", EVOHARNESS_HYPERLINKS: "1", EVOHARNESS_IMAGE_PROTOCOL: "kitty" },
 			() =>
 				detectCapabilities(() => {
 					probed = true;
@@ -326,7 +334,7 @@ describe("detectCapabilities", () => {
 			assert.strictEqual(caps.images, "kitty");
 			assert.strictEqual(caps.trueColor, true);
 		});
-		withEnv({ TERM_PROGRAM: "herdr", PI_HYPERLINKS: "0" }, () => {
+		withEnv({ TERM_PROGRAM: "herdr", EVOHARNESS_HYPERLINKS: "0" }, () => {
 			assert.strictEqual(detectCapabilities().hyperlinks, false);
 		});
 	});
@@ -339,7 +347,7 @@ describe("detectCapabilities", () => {
 			assert.strictEqual(caps.images, "kitty");
 			assert.strictEqual(caps.trueColor, true);
 		});
-		withEnv({ TERM_PROGRAM: "rex", PI_HYPERLINKS: "0" }, () => {
+		withEnv({ TERM_PROGRAM: "rex", EVOHARNESS_HYPERLINKS: "0" }, () => {
 			assert.strictEqual(detectCapabilities().hyperlinks, false);
 		});
 	});

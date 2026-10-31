@@ -839,8 +839,8 @@ after`,
 \[
 A=
 \begin{pmatrix}
-\evoharness & 0\\
-0 & \frac{1}{\evoharness}
+\pi & 0\\
+0 & \frac{1}{\pi}
 \end{pmatrix}.
 \]`,
 				0,
@@ -850,7 +850,7 @@ A=
 
 			const lines = markdown.render(80).map((line) => stripAnsi(line).trimEnd());
 
-			assert.deepStrictEqual(lines, ["Consider the matrix", "", "A = ⎛ EvoHarness │ 0   ⎞", "    ⎝ 0 │ 1/EvoHarness ⎠."]);
+			assert.deepStrictEqual(lines, ["Consider the matrix", "", "A = ⎛ π │ 0   ⎞", "    ⎝ 0 │ 1/π ⎠."]);
 		});
 
 		it("renders lower limits beneath display operators", () => {

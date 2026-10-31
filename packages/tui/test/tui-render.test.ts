@@ -146,7 +146,7 @@ describe("TUI debug logging", () => {
 	it("writes redraw logs to the provided directory", async () => {
 		const logDir = mkdtempSync(join(tmpdir(), "evoharness-tui-log-"));
 		try {
-			await withEnv({ PI_TUI_DEBUG_REDRAW: "1" }, async () => {
+			await withEnv({ EVOHARNESS_TUI_DEBUG_REDRAW: "1" }, async () => {
 				const terminal = new VirtualTerminal(40, 10);
 				const tui: TUI = new TuiMainScreen(terminal, undefined, logDir);
 				const component = new TestComponent();
@@ -988,7 +988,7 @@ describe("TUI fake cursor", () => {
 		tui.setShowHardwareCursor(true);
 		await terminal.waitForRender();
 		assert.ok(!terminal.getWrites().includes("\x1b[7m"));
-		assert.ok(!terminal.getWrites().includes("\x1b_pi:"));
+		assert.ok(!terminal.getWrites().includes("\x1b_evoharness:"));
 
 		tui.stop();
 	});
