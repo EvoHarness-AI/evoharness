@@ -3,13 +3,20 @@
  * Release script for evoharness-mono
  *
  * Usage:
- *   node scripts/release.mjs <major|minor|patch>
- *   node scripts/release.mjs <x.y.z>
+ *   node scripts/release.mjs <major|minor|patch|x.y.z> [--offline] [--dry-run] [--skip-tests]
+ *
+ * Flags:
+ *   --offline     Skip the two steps that need a released project: the npm registration check
+ *                 and pinning/building with the newest evoharness.dev model catalog. The build
+ *                 is still verified with the committed model data.
+ *   --dry-run     Print every step and the version/tag it would create without touching the
+ *                 worktree. Use it to confirm a release before running it for real.
+ *   --skip-tests  Skip ./test.sh (checks and the package-install check still run).
  *
  * Steps:
  * 1. Check for uncommitted changes
- * 2. Verify every public workspace package is registered on npm,
- *    pin the newest model catalog for Nix, and build with it
+ * 2. Verify every public workspace package is registered on npm (`--offline` skips),
+ *    pin the newest model catalog for Nix, and build with it (`--offline` builds as-is)
  * 3. Bump version via npm run version:xxx or set an explicit version
  * 4. Update CHANGELOG.md files: [Unreleased] -> [version] - date
  * 5. Regenerate release artifacts
@@ -17,7 +24,7 @@
  * 7. Commit and tag the release
  * 8. Add new [Unreleased] section to changelogs
  * 9. Commit next-cycle changelog updates
- * 10. Push main and the tag to trigger CI publication and verified evoharness.dev announcement
+ * 10. Push main and the tag to trigger CI publication
  */
 
 import { execSync, spawnSync } from "node:child_process";
@@ -27,16 +34,39 @@ import { findPackageDirectories } from "./package-workspaces.mjs";
 import { getPublicWorkspacePackages } from "./release-packages.mjs";
 import { hydrateModelCatalogBytes, updateModelCatalogPin } from "./update-model-catalog-pin.mjs";
 
-const RELEASE_TARGET = process.argv[2];
+const KNOWN_FLAGS = new Set(["--offline", "--dry-run", "--skip-tests"]);
+const argv = process.argv.slice(2);
+const flags = new Set(argv.filter((argument) => argument.startsWith("--")));
+const positional = argv.filter((argument) => !argument.startsWith("--"));
+const unknownFlags = [...flags].filter((flag) => !KNOWN_FLAGS.has(flag));
+const OFFLINE = flags.has("--offline");
+const DRY_RUN = flags.has("--dry-run");
+const SKIP_TESTS = flags.has("--skip-tests");
+
+if (unknownFlags.length > 0) {
+	console.error(`Unknown flag(s): ${unknownFlags.join(", ")}`);
+	process.exit(1);
+}
+
+if (positional.length > 1) {
+	console.error(`Expected one version argument, got ${positional.length}: ${positional.join(" ")}`);
+	process.exit(1);
+}
+
+const RELEASE_TARGET = positional[0];
 const BUMP_TYPES = new Set(["major", "minor", "patch"]);
 const SEMVER_RE = /^\d+\.\d+\.\d+$/;
 
 if (!RELEASE_TARGET || (!BUMP_TYPES.has(RELEASE_TARGET) && !SEMVER_RE.test(RELEASE_TARGET))) {
-	console.error("Usage: node scripts/release.mjs <major|minor|patch|x.y.z>");
+	console.error("Usage: node scripts/release.mjs <major|minor|patch|x.y.z> [--offline] [--dry-run] [--skip-tests]");
 	process.exit(1);
 }
 
 function run(cmd, options = {}) {
+	if (DRY_RUN) {
+		console.log(`[dry-run] $ ${cmd}`);
+		return "";
+	}
 	console.log(`$ ${cmd}`);
 	try {
 		return execSync(cmd, { encoding: "utf-8", stdio: options.silent ? "pipe" : "inherit", ...options });
@@ -168,7 +198,7 @@ function removeStaleWorkspaceLockEntries() {
 	}
 
 	if (removed > 0) {
-		writeFileSync(lockPath, `${JSON.stringify(lock, null, "\t")}\n`);
+		if (!DRY_RUN) writeFileSync(lockPath, `${JSON.stringify(lock, null, "\t")}\n`);
 		console.log(`Removed ${removed} stale workspace package lock ${removed === 1 ? "entry" : "entries"}.`);
 	}
 }
@@ -183,18 +213,35 @@ function stageChangedFiles() {
 	run(`git add -- ${paths.map(shellQuote).join(" ")}`);
 }
 
+function nextVersion(currentVersion, target) {
+	const [major, minor, patch] = currentVersion.split(".").map(Number);
+	if (target === "major") return `${major + 1}.0.0`;
+	if (target === "minor") return `${major}.${minor + 1}.0`;
+	if (target === "patch") return `${major}.${minor}.${patch + 1}`;
+	return target;
+}
+
 function bumpOrSetVersion(target) {
 	const currentVersion = getVersion();
+
+	if (!BUMP_TYPES.has(target) && compareVersions(target, currentVersion) <= 0) {
+		console.error(`Error: explicit version ${target} must be greater than current version ${currentVersion}.`);
+		process.exit(1);
+	}
+
+	if (DRY_RUN) {
+		const next = nextVersion(currentVersion, target);
+		console.log(`[dry-run] would bump ${currentVersion} -> ${next}`);
+		console.log(`[dry-run] $ npm version ${next} --workspaces --no-workspaces-update --no-git-tag-version`);
+		console.log("[dry-run] $ node scripts/sync-versions.js");
+		console.log("[dry-run] $ npm install --package-lock-only --ignore-scripts");
+		return next;
+	}
 
 	if (BUMP_TYPES.has(target)) {
 		console.log(`Bumping version (${target})...`);
 		run(`npm run version:${target}`);
 	} else {
-		if (compareVersions(target, currentVersion) <= 0) {
-			console.error(`Error: explicit version ${target} must be greater than current version ${currentVersion}.`);
-			process.exit(1);
-		}
-
 		console.log(`Setting explicit version (${target})...`);
 		run(`npm version ${target} --workspaces --no-git-tag-version --no-workspaces-update && node scripts/sync-versions.js && npm install --package-lock-only --ignore-scripts`);
 	}
@@ -225,12 +272,14 @@ function updateChangelogsForRelease(version) {
 			console.log(`  Skipping ${changelog}: no [Unreleased] section`);
 			continue;
 		}
-
-		const updated = content.replace(
-			"## [Unreleased]",
-			`## [${version}] - ${date}`
-		);
-		writeFileSync(changelog, updated);
+		
+		if (!DRY_RUN) {
+			const updated = content.replace(
+				"## [Unreleased]",
+				`## [${version}] - ${date}`
+			);
+			writeFileSync(changelog, updated);
+		}
 		console.log(`  Updated ${changelog}`);
 	}
 }
@@ -243,11 +292,13 @@ function addUnreleasedSection() {
 		const content = readFileSync(changelog, "utf-8");
 
 		// Insert after "# Changelog\n\n"
-		const updated = content.replace(
-			/^(# Changelog\n\n)/,
-			`$1${unreleasedSection}`
-		);
-		writeFileSync(changelog, updated);
+		if (!DRY_RUN) {
+			const updated = content.replace(
+				/^(# Changelog\n\n)/,
+				`$1${unreleasedSection}`
+			);
+			writeFileSync(changelog, updated);
+		}
 		console.log(`  Added [Unreleased] to ${changelog}`);
 	}
 }
@@ -266,12 +317,21 @@ if (status && status.trim()) {
 console.log("  Working directory clean\n");
 
 // 2. Verify npm package registration before modifying the worktree.
-assertPackagesAreRegisteredWithNpm();
+if (OFFLINE || DRY_RUN) {
+	console.log("Skipping the npm registration check (--offline)\n");
+} else {
+	assertPackagesAreRegisteredWithNpm();
+}
 
 // Pin and verify the Nix model catalog before modifying versions, so the pin
 // lands in the release commit and a failure leaves the worktree clean.
-console.log("Pinning and building with the newest model catalog for Nix...");
-await pinAndBuildWithNewestModelCatalog();
+if (OFFLINE || DRY_RUN) {
+	console.log("Building with the committed model data (--offline)...");
+	run("npm run build:offline");
+} else {
+	console.log("Pinning and building with the newest model catalog for Nix...");
+	await pinAndBuildWithNewestModelCatalog();
+}
 console.log();
 
 // 3. Bump or set version
@@ -285,7 +345,7 @@ console.log();
 
 // 5. Regenerate release artifacts
 console.log("Regenerating release artifacts...");
-run("npm run generate:models");
+if (!OFFLINE) run("npm run generate:models");
 run("npm run check:model-data");
 run("npm run install-lock:coding-agent");
 console.log();
@@ -301,8 +361,16 @@ console.log();
 
 // EVOHARNESS_RELEASE_SKIP_TESTS=1 skips the test suite, e.g. when it already passed in `npm run release:local`
 // and an overloaded machine makes timing-sensitive tests fail. Checks and the install check still run.
+if (SKIP_TESTS) process.env.EVOHARNESS_RELEASE_SKIP_TESTS = "1";
 if (process.env.EVOHARNESS_RELEASE_SKIP_TESTS === "1") {
-	console.log("Skipping tests (EVOHARNESS_RELEASE_SKIP_TESTS=1)\n");
+	console.log("Skipping tests (--skip-tests or EVOHARNESS_RELEASE_SKIP_TESTS=1)\n");
+} else if (process.platform === "win32") {
+	if (DRY_RUN) {
+		console.log("[dry-run] ./test.sh would be skipped: it is a bash script and this platform is win32\n");
+	} else {
+		console.error("./test.sh is a bash script; on Windows run the release with --skip-tests after the suite passed in CI.\n");
+		process.exit(1);
+	}
 } else {
 	console.log("Running tests...");
 	run("./test.sh");
@@ -316,8 +384,9 @@ console.log();
 // 7. Commit and tag
 console.log("Committing and tagging...");
 stageChangedFiles();
-run(`git commit -m "Release v${version}"`);
-run(`git tag v${version}`);
+// A release always changes package-lock.json, which the pre-commit guard only allows with this flag.
+run(`git commit -m "Release v${version}"`, { env: { ...process.env, EVOHARNESS_ALLOW_LOCKFILE_CHANGE: "1" } });
+run(`git tag -a v${version} -m "Release v${version}"`);
 console.log();
 
 // 8. Add new [Unreleased] sections
@@ -337,4 +406,4 @@ run("git push origin main");
 run(`git push origin v${version}`);
 console.log();
 
-console.log(`=== Prepared release v${version}; CI publication and evoharness.dev announcement start after the tag push ===`);
+console.log(`=== Prepared release v${version}; CI publication starts after the tag push ===`);
