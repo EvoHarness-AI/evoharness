@@ -4,6 +4,11 @@ import { fileURLToPath } from "url";
 import { isVerboseLogging } from "./bin/evoharness-web-options.js";
 
 const configDir = dirname(fileURLToPath(import.meta.url));
+// Workspace layout: the lockfile and the hoisted node_modules live at the
+// repository root, so Turbopack's resolution root (and the file tracer's) must
+// reach it — pinning both to the app directory hides the hoisted `next` package
+// and every hoisted dependency.
+const repoRoot = join(configDir, "..", "..");
 
 const isDesktopBuild = process.env.EVOHARNESS_WEB_DESKTOP_BUILD === "1";
 
@@ -21,18 +26,16 @@ const nextConfig: NextConfig = {
     serverFunctions: false,
   },
   // Desktop packaging gets an isolated standalone build. Keeping it outside
-  // `.next` prevents a Tauri release build from disrupting `npm run dev`.
-  // outputFileTracingRoot roots standalone output in this package. Runtime
-  // home paths must still use userHome(): NFT's outside-root check can miss
-  // Windows paths on another drive and enumerate the user's profile.
+  // `.next` prevents a release build from disrupting `npm run dev`.
+  // outputFileTracingRoot roots standalone output at the repository root,
+  // matching Turbopack's workspace root. Runtime home paths must still use
+  // userHome(): NFT's outside-root check can miss Windows paths on another
+  // drive and enumerate the user's profile.
   ...(isDesktopBuild
     ? { output: "standalone" as const, distDir: ".next-desktop" }
     : {}),
-  outputFileTracingRoot: configDir,
+  outputFileTracingRoot: repoRoot,
   experimental: {
-    ...(isDesktopBuild
-      ? { webpackBuildWorker: true, webpackMemoryOptimizations: true }
-      : {}),
     // proxy.ts matches /api/:path*, and Next buffers the request body whenever
     // a proxy is present, capped at 10 MB by default. The upload route accepts
     // up to 100 MB per request, so raise the buffer above that or large uploads
@@ -43,8 +46,11 @@ const nextConfig: NextConfig = {
   // next/image is only used for the static logo, so the /_next/image optimizer
   // (and its sharp/libheif attack surface, see GHSA-2xp9-vwfh-vxw4) is not needed.
   images: { unoptimized: true },
-  // `next dev` runs Turbopack and `npm run build` runs webpack.
+  // `next dev` runs Turbopack and `npm run build` runs webpack. The root pins
+  // Turbopack's workspace root to the repository, so the hoisted packages at
+  // the root node_modules resolve.
   turbopack: {
+    root: repoRoot,
     rules: {
       "**/mdast-util-gfm-autolink-literal/lib/index.js": { loaders: [gfmAutolinkEmailLoader] },
     },
@@ -63,7 +69,11 @@ const nextConfig: NextConfig = {
     "node-pty",
     "undici",
     "web-push",
+    // The codemode sandbox's WASM loader imports virtual WASI host modules
+    // ("env", "wasi_snapshot_preview1") that only resolve at runtime.
+    "quickjs-wasi",
     "@evoharness/coding-agent",
+    "@evoharness/codemode",
     "@evoharness/agent-core",
     "@evoharness/ai",
     "@evoharness/tui",

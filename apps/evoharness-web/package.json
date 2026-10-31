@@ -11,7 +11,7 @@
 	},
 	"scripts": {
 		"clean": "shx rm -rf .next .next-desktop",
-		"dev": "next dev -H 127.0.0.1 -p 30141",
+		"dev": "next dev --webpack -H 127.0.0.1 -p 30141",
 		"web": "node scripts/web-dev.mjs",
 		"dev:lan": "node scripts/lan-server.mjs dev",
 		"build": "next build --webpack",
