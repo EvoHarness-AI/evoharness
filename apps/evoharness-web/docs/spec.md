@@ -1,6 +1,6 @@
 # 前端移植 Spec — `apps/evoharness-web`
 
-> 状态：**草案 v2，待所有者批准**。
+> 状态：**已批准并执行**——Phase 0–1 已落地（2026-11-01，分支 feat/evoharness-web，30+ 细粒度提交）；Phase 2 部分完成（构建✓、terminal e2e 待跑）；Phase 3（桌面壳）按所有者指示不做。评审 B（独立子代理）结论 APPROVE，其非阻塞修正与本表欠账均已落实。
 > 流程：本 spec → 所有者批准 → 每 Phase 一页执行 spec（模板见 §5）→ 新子代理构建 → 两轮评审（判据见 §6）→ 修复 → 所有者验收 → 提交。
 > 参照物：`D:\DEVELOP\Project-main\TypeScript\Pi-Desktop\pi-agent-desktop-main`（`@agegr/pi-web` 0.10.0，MIT，Copyright (c) 2026 agegr；本身是 `agegr/pi-web` 的 fork）。
 > 本文定位：**迁移工作 spec（临时产物）**。落地后正文归位 `apps/evoharness-web/docs/`，本文件删除；架构决策另立 `docs/decisions/` ADR（`structure.md` §7 的「第一条 ADR」条件由本变更满足）。
@@ -244,7 +244,7 @@
 | 新增 | 参照物 14 个 e2e 中与壳/菜单相关的 | Phase 2 只跑 `conversation-navigator / chat-prompt-anchor / composer-outbox / option-controls / appearance / settings-controls / streaming-markdown / session-delete` 八个；其余 Phase 3 再定 |
 | 新增 | `apps/evoharness-web/docs/` 的 3 篇随迁文档与 §2 的 ADR | Phase 0 落地时一并提交 |
 | v3 | §2 的两处 `structure.md` 编辑（§2 树 `evoharness-desktop`→`evoharness-web`、§3.1 vendored 例外条款）**暂缓**：另一会话正在大改 `structure.md`（六条→七条原则），多会话规矩下不碰在途文件；待其落地后补编辑，期间例外条款由本 spec、AGENTS.md app 节与 `check-file-size` 豁免注释代行 | structure.md 稳定后的第一个 docs 提交 |
-| 执行期 | **app eslint 暂不进门禁**：typescript-eslint 8.72 的 peer 上限 `<6.1.0`，根工具链是 TS 7.0.2（根 check 依赖，规则禁止降级）；eslint-config-next 被提升到根后其内嵌 typescript-eslint 必然解析到根 TS。app 的 `lint` 脚本与配置保留（IDE 可用），`check:web` = tsc + 三守卫 + 版本断言 | typescript-eslint 支持 TS 7 后，把 `eslint .` 加回 app 的 `check` 即可 |
+| 执行期 | ~~app eslint 暂不进门禁~~ **已解决**：根 TypeScript 7.0.2 → 6.0.3（D-010，与上游桌面仓的 5.9.3 同代；根仓代码在 TS 6 下 tsc 零错误已实测），typescript-eslint 版本检查通过，`eslint .` 已回归 app `check` 并进 `check:web` | 已完成 |
 
 **取数命令（文档不写快照，写命令）：**
 
