@@ -36,6 +36,12 @@ const nextConfig: NextConfig = {
     : {}),
   outputFileTracingRoot: repoRoot,
   experimental: {
+    // The repository-root module graph (hoisted workspaces + 88 route
+    // entries) makes the webpack build heap-hungry; these two keep it inside
+    // a default Node heap. Upstream gated them to desktop builds only — here
+    // every build carries the monorepo graph, so they stay on.
+    webpackBuildWorker: true,
+    webpackMemoryOptimizations: true,
     // proxy.ts matches /api/:path*, and Next buffers the request body whenever
     // a proxy is present, capped at 10 MB by default. The upload route accepts
     // up to 100 MB per request, so raise the buffer above that or large uploads
