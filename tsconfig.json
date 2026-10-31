@@ -46,9 +46,7 @@
 			"@evoharness/coding-agent/*": ["./packages/coding-agent/src/*"],
 			"typebox": ["./node_modules/typebox"],
 			"@evoharness/tui": ["./packages/tui/src/index.ts"],
-			"@evoharness/tui/*": ["./packages/tui/src/*"],
-			"@evoharness/agent-old": ["./packages/agent-old/src/index.ts"],
-			"@evoharness/agent-old/*": ["./packages/agent-old/src/*"]
+			"@evoharness/tui/*": ["./packages/tui/src/*"]
 		}
 	},
 	"include": ["scripts/model-catalog-protocol.ts", "scripts/model-catalog-protocol.test.ts", "packages/*/src/**/*", "packages/*/test/**/*", "packages/ai/catalog/**/*", "packages/durable/test-workers/**/*", "packages/coding-agent/examples/**/*", "packages/agent/examples/**/*"],

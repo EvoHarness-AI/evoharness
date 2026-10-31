@@ -76,6 +76,24 @@ JSON uses backslashes for escape sequences. When you write a Windows path with b
 
 See [Configure shell commands](shell-aliases.md) for command prefixes, aliases, and the complete shell-resolution behavior.
 
+## Supply `fd` and `ripgrep` without a download
+
+The `find` tool and file autocomplete use `fd`; the `grep` tool uses `ripgrep` (`rg`). On first startup EvoHarness downloads both from GitHub Releases into `%USERPROFILE%\.evoharness\agent\bin`. When that download is blocked, installing either one yourself is enough to stop it, because EvoHarness looks for an existing copy before downloading, in this order:
+
+1. `EVOHARNESS_FD_PATH` / `EVOHARNESS_RG_PATH`
+2. `%USERPROFILE%\.evoharness\agent\bin`
+3. `PATH`
+4. `winget` links (`%LOCALAPPDATA%\Microsoft\WinGet\Links`), Scoop shims, Chocolatey, and the `ripgrep` bundled with VS Code
+
+```powershell
+winget install BurntSushi.ripgrep.MSVC
+winget install sharkdp.fd
+```
+
+A shell started before the install keeps the old `PATH`, but step 4 still finds the new binary. Copying `fd.exe` or `rg.exe` into `%USERPROFILE%\.evoharness\agent\bin` also works and is checked first among the automatic locations.
+
+A failed download is not retried on every tool call: EvoHarness waits five minutes before the next attempt and prints how to install the tool by hand. Restart EvoHarness to retry immediately.
+
 ## Configure Windows Terminal
 
 Windows Terminal reserves or rewrites some modified keys. See [Windows Terminal](terminal-setup.md#windows-terminal) to configure `Shift+Enter` and `Alt+Enter`, and [Keybindings](keybindings.md) for EvoHarness's Windows and WSL shortcut defaults.

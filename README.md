@@ -38,6 +38,7 @@ session. `--offline` disables startup network operations.
 |---|---|
 | What to read first, writing rules, language policy | [`docs/README.md`](docs/README.md) |
 | Where code goes, what not to build, when a directory may appear | [`docs/structure.md`](docs/structure.md) |
+| What each package does today, and where a change belongs right now | [`packages/README.md`](packages/README.md) |
 | How a request flows at runtime | [`docs/architecture.md`](docs/architecture.md) |
 | Can the kernel change, and how is a change recorded | [`KERNEL.md`](KERNEL.md) |
 | Kernel decisions and deliberate deviations (`D-xxx`) | [`docs/kernel/divergence.md`](docs/kernel/divergence.md) |

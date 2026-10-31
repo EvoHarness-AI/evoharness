@@ -12,12 +12,14 @@
 | 提交代码的门槛是什么 | `CONTRIBUTING.md` | 根 |
 | 怎么报安全漏洞 | `SECURITY.md` | 根 |
 | 这个文件该放哪、什么还不该建、什么时候才能建 | [`structure.md`](./structure.md) | docs |
+| 现在有哪些包、改一个需求落在哪个目录（现状） | [`packages/README.md`](../packages/README.md) | packages |
 | 系统现在怎么运行（一次请求经过哪些环节） | [`architecture.md`](./architecture.md) | docs |
 | 内核做过哪些决策与偏离（D-xxx） | [`kernel/divergence.md`](./kernel/divergence.md) | docs |
 | 怎么用 CLI / 配置 / 扩展 / SDK（使用者文档） | `packages/coding-agent/docs/` | 包内 |
 | 要做什么功能、先做什么 | [`structure.md`](./structure.md) §9 过渡条件表；长期路线待 `docs/decisions/` | docs |
 | 现在不做、将来什么条件成立才值得做 | [`plan/parked.md`](./plan/parked.md) | docs |
 | 某条决定当初为什么这么定 | `docs/decisions/`（未建，出现条件见 `structure.md` §7） | — |
+| 某类 AI 开发失效该怎么防、别人怎么解的 | [`ai-failure-modes.md`](./ai-failure-modes.md) | docs |
 
 ## 写文档的规矩
 
@@ -25,7 +27,7 @@
 2. **不写状态、不数东西。** "现有 N 个脚本""守卫生效 N 条"这类句子一旦写下就开始漂移；要数就写命令（`ls scripts/`、`git ls-files`、看 `package.json`）。文档只写**规则**与**原因**。
 3. **未建的目录不落盘，但可以出现在 `structure.md` 的树里并标 `[未建]`。** 两者说的是不同的事：树回答"将来放哪儿"，`git ls-files` 回答"现在有什么"。空目录不建。
 4. **同一个事实只有一处权威。** 别处引用"见 X"，不复述正文。
-5. **文档里的链接必须指向真实存在的文件。** 这一条将来由 `check:doc-links` 机器保证（出现条件见 `structure.md` §10）。
+5. **文档里的链接必须指向真实存在的文件。** 由 `check:doc-links` 机器保证（`docs/` 与根级 md；拦什么见 `structure.md` §10）。
 
 ## 语言
 

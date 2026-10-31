@@ -24,7 +24,7 @@
 
 ## 2. 边界规则
 
-- 内核**不得 import 产品层**（任何 `cap-*`、`surface-*`、`apps/*`）。反向依赖由 `check:capability-boundaries` 机器拦截（出现条件见 `docs/structure.md` §10）。
+- 内核**不得 import 产品层**（任何 `cap-*`、`surface-*`、`apps/*`）。反向依赖由 `check:package-layers` 机器拦截（所拦语义见 `docs/structure.md` §10）；`cap-*` 之间的 descriptor 依赖等 `check:capability-boundaries` 落地后再由它拦（出现条件：`packages/capability` 落地）。
 - 产品层访问内核**只走公共导出**。门面（`packages/kernel` 的 `exports`）建立后，能力包连内核的内部文件路径都不该出现。
 - 门面只导出被批准的能力，**禁止 `export *`**；只在有真实消费者时增加子路径。
 - 内核不承载产品语义：UI、命令、皮肤、安装器、发布流程、具体 provider 都不进内核。
