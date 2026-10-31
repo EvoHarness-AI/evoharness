@@ -91,10 +91,7 @@ function GeneralSettings({
   onQuoteSelectionChange,
   soundEnabled,
   onSoundToggle,
-  onBusyChange,
-}: Pick<Props, "sessionId" | "onSessionReloaded" | "quoteSelectionEnabled" | "onQuoteSelectionChange" | "soundEnabled" | "onSoundToggle"> & {
-  onBusyChange: (busy: boolean) => void;
-}) {
+}: Pick<Props, "sessionId" | "onSessionReloaded" | "quoteSelectionEnabled" | "onQuoteSelectionChange" | "soundEnabled" | "onSoundToggle">) {
   const { locale, setLocale, supportedLocales, t } = useI18n();
   const { mode: diffViewMode, setMode: setDiffViewMode } = useDiffViewMode();
   const { width: chatContentWidth, setWidth: setChatContentWidth, fontSize, setFontSize } = useChatAppearance();
@@ -419,9 +416,6 @@ export function SettingsPanel({
     requiresProject: settingsSectionRequiresProject(item.id),
   }));
   const sectionRequiresProject = settingsSectionRequiresProject(section);
-  // A signed desktop update installs and relaunches the app; the dialog must not
-  // be dismissible from under it (the Version & Updates block reports the phase).
-  const [busy, setBusy] = useState(false);
 
   useEffect(() => setLastSettingsSection(initialSection), [initialSection]);
 
@@ -430,9 +424,10 @@ export function SettingsPanel({
 
   // Bubble phase, unless something nearer handled the key. The trust dialog,
   // which opens above Settings, takes Escape in the capture phase and stops it,
-  // so one Escape closes that dialog and leaves Settings open. A busy update
-  // keeps the dialog open with it (see onBusyChange above).
-  useEffect(() => listenForPanelEscape(document, () => { if (!busy) onClose(); }), [onClose, busy]);
+  // so one Escape closes that dialog and leaves Settings open. (Upstream also
+  // held the dialog open while a signed update ran; that feature was cut in
+  // the port — spec Annex B.2.)
+  useEffect(() => listenForPanelEscape(document, () => onClose()), [onClose]);
 
   // Focus moves into Settings as it opens and back to what had it once it closes. Left
   // on the chat composer (a bare /mcp opens Settings from there), Escape would reach the
@@ -473,7 +468,7 @@ export function SettingsPanel({
       aria-modal="true"
       aria-label={t("settings.title")}
       tabIndex={-1}
-      onClick={(event) => { if (event.target === event.currentTarget && !busy) onClose(); }}
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
       className="settings-dialog-backdrop"
     >
       <div className="settings-dialog-surface">
@@ -510,7 +505,7 @@ export function SettingsPanel({
         </div>
 
         <main className="settings-dialog-main">
-          {sectionHost("general", <GeneralSettings sessionId={sessionId} onSessionReloaded={onSessionReloaded} quoteSelectionEnabled={quoteSelectionEnabled} onQuoteSelectionChange={onQuoteSelectionChange} soundEnabled={soundEnabled} onSoundToggle={onSoundToggle} onBusyChange={setBusy} />)}
+          {sectionHost("general", <GeneralSettings sessionId={sessionId} onSessionReloaded={onSessionReloaded} quoteSelectionEnabled={quoteSelectionEnabled} onQuoteSelectionChange={onQuoteSelectionChange} soundEnabled={soundEnabled} onSoundToggle={onSoundToggle} />)}
           {sectionHost("appearance", <AppearanceSettings />)}
           {sectionHost("models", <ModelsConfig embedded cwd={cwd} onClose={onClose} onOpenMcp={() => activateSection("mcp")} />)}
           {/* Visited sections stay mounted, so the ones whose answer depends on trust take the page's

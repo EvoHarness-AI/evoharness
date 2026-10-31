@@ -14,10 +14,11 @@ function sizeLimitToBytes(value) {
   return Number(match[1]) * units[match[2].toLowerCase()];
 }
 
-test("scopes Next.js output file tracing to the evoharness-web package", async () => {
+test("scopes Next.js output file tracing to the repository workspace root", async () => {
   const config = await createJiti(import.meta.url).import("../next.config.ts", { default: true });
 
-  assert.equal(config.outputFileTracingRoot, projectRoot);
+  // The hoisted node_modules live at the repository root; an app-dir root would hide them.
+  assert.equal(config.outputFileTracingRoot, path.resolve(projectRoot, "..", ".."));
 });
 
 test("raises the proxy body buffer above the upload route's 100 MB request cap", async () => {

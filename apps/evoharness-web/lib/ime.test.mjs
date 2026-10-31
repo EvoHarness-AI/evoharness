@@ -41,7 +41,7 @@ test("dialog, menu and inline-input key handlers skip IME composition", () => {
   // Settings delegates Escape to the shared listener, which skips a composing
   // Enter/Escape itself (see listenForPanelEscape in lib/stacked-dialog.ts).
   const settings = readFileSync(new URL("../components/SettingsPanel.tsx", import.meta.url), "utf8").replace(/\r\n/g, "\n");
-  assert.match(settings, /listenForPanelEscape\(document, \(\) => \{ if \(!busy\) onClose\(\); \}\)/);
+  assert.match(settings, /listenForPanelEscape\(document, \(\) => onClose\(\)\)/);
   const stackedDialog = readFileSync(new URL("../lib/stacked-dialog.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");
   assert.match(stackedDialog, /event\.key !== "Escape" \|\| event\.defaultPrevented \|\| cancelsComposition\(event\)/);
   const modal = readFileSync(new URL("../hooks/useModalDismiss.ts", import.meta.url), "utf8").replace(/\r\n/g, "\n");

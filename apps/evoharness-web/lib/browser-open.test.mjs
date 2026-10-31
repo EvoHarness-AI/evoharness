@@ -177,6 +177,6 @@ test("evoharness-web and npm run web share the handoff helper", () => {
   assert.match(webDev, /attachReadyHandoff/);
   assert.match(webDev, /wireChildProcessLifecycle/);
   assert.match(webDev, /"dev", "-H", "127.0.0.1"/);
-  assert.equal(pkg.scripts.dev, "next dev -H 127.0.0.1 -p 30141");
+  assert.equal(pkg.scripts.dev, "next dev --webpack -H 127.0.0.1 -p 30141");
   assert.equal(pkg.scripts.web, "node scripts/web-dev.mjs");
 });

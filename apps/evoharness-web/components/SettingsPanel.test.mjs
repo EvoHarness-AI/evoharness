@@ -83,7 +83,7 @@ test("keeps visited settings sections mounted and contains nested Escape handlin
   assert.match(panelSource, /mountedSections\.has\(id\)/);
   assert.match(panelSource, /hidden=\{section !== id\}/);
   // Settings closes on an Escape nothing nearer handled (lib/stacked-dialog.test.mjs pins the phases).
-  assert.match(panelSource, /useEffect\(\(\) => listenForPanelEscape\(document, \(\) => \{ if \(!busy\) onClose\(\); \}\), \[onClose, busy\]\);/);
+  assert.match(panelSource, /useEffect\(\(\) => listenForPanelEscape\(document, \(\) => onClose\(\)\), \[onClose\]\);/);
   assert.doesNotMatch(panelSource, /addEventListener\("keydown"/);
   // An Escape that cancels an IME composition is the input method's, not a request to close.
   assert.match(stackedDialogSource, /if \(event\.key !== "Escape" \|\| event\.defaultPrevented \|\| cancelsComposition\(event\)\) return;/);
