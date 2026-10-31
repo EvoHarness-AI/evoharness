@@ -1,6 +1,6 @@
 {
 	"name": "@evoharness/telemetry",
-	"version": "1.4.0",
+	"version": "0.0.1",
 	"description": "Vendor-neutral telemetry contracts and typed schema utilities for evoharness",
 	"type": "module",
 	"main": "./dist/index.js",
@@ -37,7 +37,7 @@
 		"tracing",
 		"observability"
 	],
-	"author": "Mario Zechner",
+	"author": "EvoHarness-AI",
 	"license": "MIT",
 	"repository": {
 		"type": "git",

@@ -83,7 +83,7 @@ plugins/notes/
 ```json
 {
   "name": "@evoharness/notes",
-  "version": "1.4.0",
+  "version": "0.0.1",
   "type": "module",
   "peerDependencies": {
     "@earendil-works/chord": "^2",
