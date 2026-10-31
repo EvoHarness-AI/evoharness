@@ -65,6 +65,8 @@ const TOKEN_CHECKS = [
 	[/\bPi Web\b/gu, "upstream product name"],
 	[/\bPi Agent\b/gu, "upstream product name"],
 	[/\bpi-cwd\b/gu, "upstream scratch directory"],
+	[/X-Pi-[A-Z]/gu, "upstream header name"],
+	[/piWeb[A-Z]/gu, "upstream camelCase identifier"],
 ];
 
 function* walk(dir) {

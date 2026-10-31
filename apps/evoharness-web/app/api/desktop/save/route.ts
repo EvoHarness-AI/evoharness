@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     const encodedDest = request.headers.get("x-evoharness-dest-path");
     if (!encodedDest) {
-      return NextResponse.json({ error: "X-Pi-Dest-Path header is required" }, { status: 400 });
+      return NextResponse.json({ error: "X-EvoHarness-Dest-Path header is required" }, { status: 400 });
     }
     let destPath: string | null;
     try {

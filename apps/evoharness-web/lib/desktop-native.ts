@@ -12,11 +12,6 @@ export type {
   SelectSavePathOptions,
 } from "@/lib/host";
 
-function asPathArray(selection: string | string[] | null): string[] {
-  if (selection == null) return [];
-  return Array.isArray(selection) ? selection.filter((path) => typeof path === "string") : [selection];
-}
-
 let desktopApiTokenPromise: Promise<string> | null = null;
 
 async function getDesktopApiToken(): Promise<string> {
@@ -235,7 +230,7 @@ export async function downloadUrlAsFile(url: string, defaultFileName: string): P
     method: "POST",
     headers: await desktopApiHeaders({
       "Content-Type": "application/octet-stream",
-      "X-Pi-Dest-Path": encodeURIComponent(destPath),
+      "X-EvoHarness-Dest-Path": encodeURIComponent(destPath),
     }),
     body,
   });

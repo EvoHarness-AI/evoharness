@@ -47,10 +47,10 @@ function stdioEntry(config = {}) {
 
 // Created before any test changes process.env: the factory must read the
 // environment when a server starts, not when the factory is made.
-const piWebFactory = createPiWebMcpTransportFactory(internals);
+const evoharnessWebFactory = createPiWebMcpTransportFactory(internals);
 
 /** A connection through evoharness-web's factory, recording the transports it builds. */
-function connect(entry, factory = piWebFactory) {
+function connect(entry, factory = evoharnessWebFactory) {
   const transports = [];
   const connection = new internals.McpServerConnection({
     entry,
