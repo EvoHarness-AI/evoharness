@@ -26,8 +26,10 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
+      # `build` generates the provider model data first; `build:offline` assumes it is already there
+      # (it is git-ignored), so a clean checkout needs the online build.
       - name: Build
-        run: npm run build:offline
+        run: npm run build
 
       # Packed tarballs are kept as a build artifact for manual testing; nothing publishes them.
       - name: Pack preview packages
@@ -82,7 +84,7 @@ jobs:
         run: npm ci --ignore-scripts
 
       - name: Build
-        run: npm run build:offline
+        run: npm run build
 
       - name: Build the evoharness-env daemon
         if: matrix.name == 'other'
