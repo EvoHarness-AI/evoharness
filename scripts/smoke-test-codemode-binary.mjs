@@ -6,9 +6,9 @@ import { createServer } from "node:http";
 import { tmpdir } from "node:os";
 import { extname, join, resolve } from "node:path";
 
-const WORKER_MARKER = "PI_CODEMODE_WORKER_OK";
-const SUCCESS_MARKER = "PI_CODEMODE_BINARY_SMOKE_OK";
-const FAILURE_MARKER = "PI_CODEMODE_BINARY_SMOKE_FAILED";
+const WORKER_MARKER = "EVOHARNESS_CODEMODE_WORKER_OK";
+const SUCCESS_MARKER = "EVOHARNESS_CODEMODE_BINARY_SMOKE_OK";
+const FAILURE_MARKER = "EVOHARNESS_CODEMODE_BINARY_SMOKE_FAILED";
 const TIMEOUT_MS = 30_000;
 
 function completionChunk(id, delta, finishReason = null, usage) {
@@ -133,8 +133,8 @@ async function main() {
 			cwd: tempDir,
 			env: {
 				...process.env,
-				PI_CODING_AGENT_DIR: tempDir,
-				PI_OFFLINE: "1",
+				EVOHARNESS_CODING_AGENT_DIR: tempDir,
+				EVOHARNESS_OFFLINE: "1",
 			},
 			stdio: ["ignore", "pipe", "pipe"],
 		});

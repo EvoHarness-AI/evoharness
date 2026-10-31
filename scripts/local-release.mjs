@@ -52,7 +52,7 @@ function buildBunBinaryRelease(targetDirectory, archiveDirectory) {
 	return platform;
 }
 
-function createPiShim(installDirectory) {
+function createEvoharnessShim(installDirectory) {
 	const binDirectory = join(installDirectory, "node_modules", ".bin");
 	if (process.platform === "win32") {
 		if (existsSync(join(binDirectory, "evoharness.cmd"))) {
@@ -124,12 +124,12 @@ if (!options.skipInstall) {
 			smokeTestNpmConsumer({ artifactSet, directory, packageName: pkg.name });
 			if (pkg.name === codingAgentName) smokeTestCodingAgent(directory);
 		}
-		createPiShim(nodeInstallDirectory);
+		createEvoharnessShim(nodeInstallDirectory);
 
 		if (!options.skipBunInstall) {
 			installConsumer({ artifactSet, directory: bunInstallDirectory, packageManager: "bun", packageNames: [codingAgentName] });
 			smokeTestCodingAgent(bunInstallDirectory, "bun");
-			createPiShim(bunInstallDirectory);
+			createEvoharnessShim(bunInstallDirectory);
 		}
 	} finally {
 		rmSync(validationRoot, { force: true, recursive: true });

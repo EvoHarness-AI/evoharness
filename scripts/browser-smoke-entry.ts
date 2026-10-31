@@ -1,4 +1,4 @@
-import { createHost, memoryLinkPair, replicatedState } from "@@evoharness/chord";
+import { createHost, memoryLinkPair, replicatedState } from "@evoharness/chord";
 import { createAssistantMessageEventStream, Type } from "@evoharness/ai";
 import { complete, getModel, getProviders, streamSimple } from "@evoharness/ai/compat";
 import { Agent, streamProxy } from "@evoharness/agent-core";

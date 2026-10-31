@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Developer wrapper that runs evoharness from this checkout's latest `npm run build`.
-# Development invocations use PI_EXPERIMENTAL=1 by default. Pass --stable to use
+# Development invocations use EVOHARNESS_EXPERIMENTAL=1 by default. Pass --stable to use
 # the next evoharness executable on PATH; `evoharness update` also uses stable so self-update
 # works.
 #
@@ -71,5 +71,5 @@ if [[ ! -x "$dev_pi" ]]; then
 	exit 1
 fi
 
-export PI_EXPERIMENTAL="${PI_EXPERIMENTAL:-1}"
+export EVOHARNESS_EXPERIMENTAL="${EVOHARNESS_EXPERIMENTAL:-1}"
 exec "$dev_pi" ${args[@]+"${args[@]}"}

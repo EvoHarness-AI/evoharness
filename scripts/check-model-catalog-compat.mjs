@@ -29,9 +29,9 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { MINIMUM_PI_VERSION } from "./model-catalog-minimum-version.mjs";
-import { compareModelCatalogPiVersions } from "./model-catalog-protocol.ts";
+import { compareModelCatalogEvoharnessVersions } from "./model-catalog-protocol.ts";
 
-const PI_AI_PACKAGE = "@evoharness/ai";
+const EVOHARNESS_AI_PACKAGE = "@evoharness/ai";
 
 /** Read a release's built-in model data (`dist/providers/data`) as model lists by provider. */
 function readBuiltinModels(dataDir) {
@@ -76,8 +76,8 @@ function main() {
 	const { values } = parseArgs({ options: { catalog: { type: "string" } } });
 	const catalogPath = resolve(values.catalog ?? join(root, ".artifacts/model-catalog/models.all.json"));
 
-	const release = run("npm", ["view", PI_AI_PACKAGE, "version"], root).trim();
-	if (compareModelCatalogPiVersions(release, MINIMUM_PI_VERSION) < 0) {
+	const release = run("npm", ["view", EVOHARNESS_AI_PACKAGE, "version"], root).trim();
+	if (compareModelCatalogEvoharnessVersions(release, MINIMUM_PI_VERSION) < 0) {
 		console.log(
 			`Skipped: the latest release ${release} is older than MINIMUM_PI_VERSION ${MINIMUM_PI_VERSION}, so no released evoharness receives this catalog.`,
 		);
@@ -95,7 +95,7 @@ function main() {
 
 		// The built-in models users have: the data shipped in the published package.
 		const [{ filename }] = JSON.parse(
-			run("npm", ["pack", `${PI_AI_PACKAGE}@${release}`, "--pack-destination", temporaryDir, "--json"], root),
+			run("npm", ["pack", `${EVOHARNESS_AI_PACKAGE}@${release}`, "--pack-destination", temporaryDir, "--json"], root),
 		);
 		run("tar", ["xzf", join(temporaryDir, filename), "-C", temporaryDir, "package/dist/providers/data"], root);
 		const builtin = readBuiltinModels(join(temporaryDir, "package/dist/providers/data"));

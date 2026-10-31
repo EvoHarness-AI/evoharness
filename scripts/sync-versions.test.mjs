@@ -52,7 +52,7 @@ test("pins published and private dependencies without touching registry aliases,
 			private: true,
 			dependencies: {
 				"@evoharness/coding-agent": "^1.0.0",
-				"@mariozechner/evoharness-ai": "npm:@evoharness/ai@1.0.0",
+				"@evoharness/ai-legacy": "npm:@evoharness/ai@1.0.0",
 			},
 		});
 		await writeManifest(root, "packages/coding-agent/install-lock", {
@@ -73,7 +73,7 @@ test("pins published and private dependencies without touching registry aliases,
 		}
 		const evalsManifest = await readManifest(root, "packages/evals");
 		assert.equal(evalsManifest.dependencies["@evoharness/coding-agent"], "2.0.0");
-		assert.equal(evalsManifest.dependencies["@mariozechner/evoharness-ai"], "npm:@evoharness/ai@1.0.0");
+		assert.equal(evalsManifest.dependencies["@evoharness/ai-legacy"], "npm:@evoharness/ai@1.0.0");
 		const generatedManifest = await readManifest(root, "packages/coding-agent/install-lock");
 		assert.equal(generatedManifest.dependencies["@evoharness/coding-agent"], "^1.0.0");
 
@@ -101,11 +101,11 @@ test("writes the evoharness-ai version constant", async () => {
 		});
 		const versionPath = join(root, "packages/ai/src/utils/version.ts");
 		await mkdir(join(root, "packages/ai/src/utils"), { recursive: true });
-		await writeFile(versionPath, 'export const PI_AI_VERSION = "1.0.0";\n');
+		await writeFile(versionPath, 'export const EVOHARNESS_AI_VERSION = "1.0.0";\n');
 
 		const result = runSyncVersions(root);
 		assert.equal(result.status, 0, result.stderr);
-		assert.match(await readFile(versionPath, "utf8"), /export const PI_AI_VERSION = "2\.0\.0";\n$/);
+		assert.match(await readFile(versionPath, "utf8"), /export const EVOHARNESS_AI_VERSION = "2\.0\.0";\n$/);
 	} finally {
 		await rm(root, { recursive: true, force: true });
 	}

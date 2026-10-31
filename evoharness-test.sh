@@ -69,7 +69,6 @@ if [[ "$NO_ENV" == "true" ]]; then
   unset NVIDIA_API_KEY
   unset QWEN_TOKEN_PLAN_API_KEY
   unset QWEN_TOKEN_PLAN_CN_API_KEY
-  unset RADIUS_API_KEY
   unset TOGETHER_API_KEY
   unset TYPESAFE_API_KEY
   unset XIAOMI_API_KEY

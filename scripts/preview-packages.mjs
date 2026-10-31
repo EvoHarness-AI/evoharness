@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Preview builds of evoharness's packages on pkg.earendil.com, served by the EvoHarness-AI/pkg worker.
+// Preview builds of evoharness's packages on pkg.evoharness.dev, served by the EvoHarness-AI/pkg worker.
 // Used by .github/workflows/ci.yml (pack) and .github/workflows/preview-packages.yml (publish, delete-ref).
 //
 //   pack        Point internal dependencies at this commit's builds, then `npm pack` every public package.
@@ -14,7 +14,7 @@ import { parseArgs } from "node:util";
 import { execNpmSync } from "./npm-command.mjs";
 import { getPublicWorkspacePackages } from "./release-packages.mjs";
 
-const BASE_URL = "https://pkg.earendil.com";
+const BASE_URL = "https://pkg.evoharness.dev";
 const FULL_SHA = /^[0-9a-f]{40}$/;
 // Its daemon binaries are cross-compiled only by the release workflow; previews would ship without them.
 const EXCLUDED = new Set(["@evoharness/env"]);

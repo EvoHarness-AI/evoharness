@@ -74,5 +74,8 @@
 	"version": "0.0.3",
 	"overrides": {
 		"protobufjs": "7.6.6"
+	},
+	"optionalDependencies": {
+		"canvas": "3.2.3"
 	}
 }

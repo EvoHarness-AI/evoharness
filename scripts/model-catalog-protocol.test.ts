@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
-	compareModelCatalogPiVersions,
+	compareModelCatalogEvoharnessVersions,
 	getModelCatalogArtifactKey,
 	getModelCatalogProviderKey,
 	type ModelCatalogIndex,
@@ -17,8 +17,8 @@ const index: ModelCatalogIndex = {
 	schemaVersion: 1,
 	defaultRevision: mixedApiRevision,
 	catalogs: [
-		{ minimumPiVersion: "0.80.7", revision: legacyRevision },
-		{ minimumPiVersion: "0.85.0", revision: mixedApiRevision },
+		{ minimumEvoharnessVersion: "0.80.7", revision: legacyRevision },
+		{ minimumEvoharnessVersion: "0.85.0", revision: mixedApiRevision },
 	],
 };
 
@@ -38,11 +38,11 @@ test("builds revision scoped storage keys", () => {
 });
 
 test("orders EvoHarness versions with semver precedence", () => {
-	assert.ok(compareModelCatalogPiVersions("0.85.0", "0.84.4") > 0);
-	assert.ok(compareModelCatalogPiVersions("0.85.0-rc.1", "0.85.0") < 0);
-	assert.ok(compareModelCatalogPiVersions("0.85.0-rc.2", "0.85.0-rc.10") < 0);
-	assert.equal(compareModelCatalogPiVersions("v1.0.0", "1.0.0+build"), 0);
-	assert.throws(() => compareModelCatalogPiVersions("0.85", "0.85.0"), /Invalid EvoHarness version/);
+	assert.ok(compareModelCatalogEvoharnessVersions("0.85.0", "0.84.4") > 0);
+	assert.ok(compareModelCatalogEvoharnessVersions("0.85.0-rc.1", "0.85.0") < 0);
+	assert.ok(compareModelCatalogEvoharnessVersions("0.85.0-rc.2", "0.85.0-rc.10") < 0);
+	assert.equal(compareModelCatalogEvoharnessVersions("v1.0.0", "1.0.0+build"), 0);
+	assert.throws(() => compareModelCatalogEvoharnessVersions("0.85", "0.85.0"), /Invalid EvoHarness version/);
 });
 
 test("selects the newest catalog a EvoHarness version supports", () => {
@@ -64,7 +64,8 @@ test("redirects EvoHarness user agents to an explicit catalog version", () => {
 		),
 		{
 			kind: "redirect",
-			location: "https://evoharness.dev/api/models/providers/openrouter?types=chat%2Cimage&evoharness-version=0.84.4",
+			location:
+				"https://evoharness.dev/api/models/providers/openrouter?types=chat%2Cimage&evoharness-version=0.84.4",
 		},
 	);
 	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models", "evoharness/0.84.4"), {
@@ -75,7 +76,10 @@ test("redirects EvoHarness user agents to an explicit catalog version", () => {
 
 test("serves explicit and unversioned catalog requests without redirecting", () => {
 	assert.deepEqual(
-		parseModelCatalogRequest("https://evoharness.dev/api/models?evoharness-version=0.83.0", "evoharness/0.85.1 (linux; node/v22.0.0; x64)"),
+		parseModelCatalogRequest(
+			"https://evoharness.dev/api/models?evoharness-version=0.83.0",
+			"evoharness/0.85.1 (linux; node/v22.0.0; x64)",
+		),
 		{ kind: "catalog", evoharnessVersion: "0.83.0", representation: "legacy" },
 	);
 	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models?types=chat", "curl/8.0.0"), {
@@ -91,10 +95,13 @@ test("serves explicit and unversioned catalog requests without redirecting", () 
 });
 
 test("rejects invalid catalog request parameters", () => {
-	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models?evoharness-version=latest", undefined), {
-		kind: "invalid",
-		error: "Invalid EvoHarness version.",
-	});
+	assert.deepEqual(
+		parseModelCatalogRequest("https://evoharness.dev/api/models?evoharness-version=latest", undefined),
+		{
+			kind: "invalid",
+			error: "Invalid EvoHarness version.",
+		},
+	);
 	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models?types=", "evoharness/0.84.4"), {
 		kind: "invalid",
 		error: "Invalid model types.",
@@ -114,7 +121,11 @@ test("validates stored indexes and drops publication metadata", () => {
 	assert.throws(() => parseModelCatalogIndex({ ...index, schemaVersion: 2 }), /index is invalid/);
 	assert.throws(() => parseModelCatalogIndex({ ...index, defaultRevision: `sha256-${"c".repeat(64)}` }), /invalid/);
 	assert.throws(
-		() => parseModelCatalogIndex({ ...index, catalogs: [{ minimumPiVersion: "latest", revision: legacyRevision }] }),
+		() =>
+			parseModelCatalogIndex({
+				...index,
+				catalogs: [{ minimumEvoharnessVersion: "latest", revision: legacyRevision }],
+			}),
 		/invalid/,
 	);
 });

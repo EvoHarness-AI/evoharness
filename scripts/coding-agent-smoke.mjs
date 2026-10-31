@@ -18,9 +18,9 @@ export function smokeTestCodingAgent(directory, runtime = process.execPath) {
 		LOCALAPPDATA: home,
 		XDG_CONFIG_HOME: home,
 		XDG_CACHE_HOME: home,
-		PI_CODING_AGENT_DIR: join(home, ".evoharness", "agent"),
-		PI_OFFLINE: "1",
-		PI_TELEMETRY: "0",
+		EVOHARNESS_CODING_AGENT_DIR: join(home, ".evoharness", "agent"),
+		EVOHARNESS_OFFLINE: "1",
+		EVOHARNESS_TELEMETRY: "0",
 	};
 	for (const name of ["SystemRoot", "SYSTEMROOT", "WINDIR", "COMSPEC", "PATHEXT"]) {
 		if (process.env[name]) env[name] = process.env[name];

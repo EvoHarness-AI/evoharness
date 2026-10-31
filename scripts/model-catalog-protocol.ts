@@ -30,18 +30,18 @@ export const MODEL_CATALOG_PREFIX = `models/v${MODEL_CATALOG_SCHEMA_VERSION}`;
 export const MODEL_CATALOG_INDEX_KEY = `${MODEL_CATALOG_PREFIX}/index.json`;
 export const MODEL_CATALOG_REVISION_RE = /^sha256-[0-9a-f]{64}$/;
 
-const PI_VERSION_RE = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
-const PI_USER_AGENT_RE = /^evoharness\/([^\s()]+)(?: \([^;()]+(?:;\s*[^;()]+(?:;\s*[^()]+)?)?\))?$/i;
+const EVOHARNESS_VERSION_RE = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
+const EVOHARNESS_USER_AGENT_RE = /^evoharness\/([^\s()]+)(?: \([^;()]+(?:;\s*[^;()]+(?:;\s*[^()]+)?)?\))?$/i;
 const MODEL_TYPE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
-type ParsedPiVersion = readonly [major: number, minor: number, patch: number, prerelease: string];
+type ParsedEvoharnessVersion = readonly [major: number, minor: number, patch: number, prerelease: string];
 
 export type ModelCatalogArtifact = "models.json" | "models.all.json" | "providers.json";
 
 export type ModelCatalogRepresentation = "legacy" | "typed";
 
 export type ModelCatalogIndexEntry = {
-	minimumPiVersion: string;
+	minimumEvoharnessVersion: string;
 	revision: string;
 };
 
@@ -69,13 +69,13 @@ export function getModelCatalogProviderKey(
 	return `${MODEL_CATALOG_PREFIX}/revisions/${revision}/providers/${provider}${suffix}`;
 }
 
-export function isValidModelCatalogPiVersion(version: string): boolean {
-	return parsePiVersion(version) !== undefined;
+export function isValidModelCatalogEvoharnessVersion(version: string): boolean {
+	return parseEvoharnessVersion(version) !== undefined;
 }
 
 /** Compare two EvoHarness versions with semver precedence. Throws for invalid versions. */
-export function compareModelCatalogPiVersions(left: string, right: string): number {
-	return comparePiVersions(requirePiVersion(left), requirePiVersion(right));
+export function compareModelCatalogEvoharnessVersions(left: string, right: string): number {
+	return compareEvoharnessVersions(requireEvoharnessVersion(left), requireEvoharnessVersion(right));
 }
 
 /**
@@ -111,14 +111,14 @@ export function parseModelCatalogRequest(url: string | URL, userAgent: string | 
 
 	const evoharnessVersion = requestUrl.searchParams.get("evoharness-version");
 	if (evoharnessVersion === null) {
-		const userAgentVersion = PI_USER_AGENT_RE.exec(userAgent ?? "")?.[1];
-		if (userAgentVersion !== undefined && isValidModelCatalogPiVersion(userAgentVersion)) {
+		const userAgentVersion = EVOHARNESS_USER_AGENT_RE.exec(userAgent ?? "")?.[1];
+		if (userAgentVersion !== undefined && isValidModelCatalogEvoharnessVersion(userAgentVersion)) {
 			requestUrl.searchParams.set("evoharness-version", userAgentVersion);
 			return { kind: "redirect", location: requestUrl.toString() };
 		}
 		return { kind: "catalog", evoharnessVersion: undefined, representation };
 	}
-	if (!isValidModelCatalogPiVersion(evoharnessVersion)) {
+	if (!isValidModelCatalogEvoharnessVersion(evoharnessVersion)) {
 		return { kind: "invalid", error: "Invalid EvoHarness version." };
 	}
 	return { kind: "catalog", evoharnessVersion, representation };
@@ -137,18 +137,18 @@ export function selectModelCatalog(
 		return index.catalogs.find((catalog) => catalog.revision === index.defaultRevision);
 	}
 
-	const requestedVersion = parsePiVersion(evoharnessVersion);
+	const requestedVersion = parseEvoharnessVersion(evoharnessVersion);
 	if (!requestedVersion) {
 		return undefined;
 	}
 
 	let selected: ModelCatalogIndexEntry | undefined;
-	let selectedVersion: ParsedPiVersion | undefined;
+	let selectedVersion: ParsedEvoharnessVersion | undefined;
 	for (const catalog of index.catalogs) {
-		const minimumVersion = requirePiVersion(catalog.minimumPiVersion);
+		const minimumVersion = requireEvoharnessVersion(catalog.minimumEvoharnessVersion);
 		if (
-			comparePiVersions(minimumVersion, requestedVersion) <= 0 &&
-			(!selectedVersion || comparePiVersions(minimumVersion, selectedVersion) > 0)
+			compareEvoharnessVersions(minimumVersion, requestedVersion) <= 0 &&
+			(!selectedVersion || compareEvoharnessVersions(minimumVersion, selectedVersion) > 0)
 		) {
 			selected = catalog;
 			selectedVersion = minimumVersion;
@@ -178,8 +178,8 @@ export function parseModelCatalogIndex(value: unknown): ModelCatalogIndex {
 			(catalog) =>
 				typeof catalog !== "object" ||
 				catalog === null ||
-				typeof catalog.minimumPiVersion !== "string" ||
-				!parsePiVersion(catalog.minimumPiVersion) ||
+				typeof catalog.minimumEvoharnessVersion !== "string" ||
+				!parseEvoharnessVersion(catalog.minimumEvoharnessVersion) ||
 				typeof catalog.revision !== "string" ||
 				!MODEL_CATALOG_REVISION_RE.test(catalog.revision),
 		) ||
@@ -191,23 +191,23 @@ export function parseModelCatalogIndex(value: unknown): ModelCatalogIndex {
 	return {
 		schemaVersion: value.schemaVersion,
 		defaultRevision: value.defaultRevision,
-		catalogs: value.catalogs.map(({ minimumPiVersion, revision }) => ({
-			minimumPiVersion,
+		catalogs: value.catalogs.map(({ minimumEvoharnessVersion, revision }) => ({
+			minimumEvoharnessVersion,
 			revision,
 		})),
 	};
 }
 
-function requirePiVersion(version: string): ParsedPiVersion {
-	const parsed = parsePiVersion(version);
+function requireEvoharnessVersion(version: string): ParsedEvoharnessVersion {
+	const parsed = parseEvoharnessVersion(version);
 	if (!parsed) {
 		throw new Error(`Invalid EvoHarness version: ${version}`);
 	}
 	return parsed;
 }
 
-function parsePiVersion(version: string): ParsedPiVersion | undefined {
-	const match = PI_VERSION_RE.exec(version.trim());
+function parseEvoharnessVersion(version: string): ParsedEvoharnessVersion | undefined {
+	const match = EVOHARNESS_VERSION_RE.exec(version.trim());
 	if (!match) {
 		return undefined;
 	}
@@ -218,7 +218,7 @@ function parsePiVersion(version: string): ParsedPiVersion | undefined {
 	return [parsed[0], parsed[1], parsed[2], match[4] ?? ""];
 }
 
-function comparePiVersions(left: ParsedPiVersion, right: ParsedPiVersion): number {
+function compareEvoharnessVersions(left: ParsedEvoharnessVersion, right: ParsedEvoharnessVersion): number {
 	for (const index of [0, 1, 2] as const) {
 		const difference = left[index] - right[index];
 		if (difference !== 0) {

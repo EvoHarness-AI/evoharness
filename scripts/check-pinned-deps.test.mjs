@@ -20,7 +20,7 @@ test("rejects internal and external registry dependency ranges in every direct d
 	const result = await check(t, {
 		dependencies: {
 			"@evoharness/codemode": "^1.2.0",
-			"@@evoharness/chord": "~1.2.0",
+			"@evoharness/chord": "~1.2.0",
 			external: "^1.0.0",
 		},
 		devDependencies: { "@evoharness/ai": "1.x" },
@@ -29,7 +29,7 @@ test("rejects internal and external registry dependency ranges in every direct d
 	assert.equal(result.status, 1);
 	for (const dependency of [
 		"dependencies.@evoharness/codemode",
-		"dependencies.@@evoharness/chord",
+		"dependencies.@evoharness/chord",
 		"dependencies.external",
 		"devDependencies.@evoharness/ai",
 		"optionalDependencies.@evoharness/tui",
@@ -42,7 +42,7 @@ test("accepts exact internal and external versions, exact registry aliases, and 
 	const result = await check(t, {
 		dependencies: {
 			"@evoharness/codemode": "1.2.0",
-			"@@evoharness/chord": "1.2.0",
+			"@evoharness/chord": "1.2.0",
 			external: "1.0.0",
 			alias: "npm:@evoharness/ai@1.1.0",
 			local: "file:../local",

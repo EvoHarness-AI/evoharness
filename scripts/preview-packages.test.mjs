@@ -25,7 +25,7 @@ function writePackage(repo, directory, manifest) {
 }
 
 /**
- * Stands in for the pkg.earendil.com worker and GitHub's OIDC token endpoint, recording requests. `refsSha` is what the
+ * Stands in for the pkg.evoharness.dev worker and GitHub's OIDC token endpoint, recording requests. `refsSha` is what the
  * worker reports each ref resolves to after the update; `uploadBody` overrides the upload response.
  */
 async function startServer(t, { refsSha = sha, uploadBody } = {}) {
@@ -80,7 +80,7 @@ test("pack points internal dependencies at the commit's builds and restores pack
 	assert.deepEqual(readdirSync(out).sort(), ["manifest.json", ...manifest.packages.map((pkg) => pkg.file)].sort());
 	const fileA = manifest.packages.find((pkg) => pkg.name === "@scope/a").file;
 	const packedA = JSON.parse(execFileSync("tar", ["-xOzf", join(out, fileA), "package/package.json"], { encoding: "utf8" }));
-	assert.deepEqual(packedA.dependencies, { "@scope/b": `https://pkg.earendil.com/@scope/b@${sha}`, other: "2.0.0" });
+	assert.deepEqual(packedA.dependencies, { "@scope/b": `https://pkg.evoharness.dev/@scope/b@${sha}`, other: "2.0.0" });
 	assert.equal(readFileSync(join(repo, "packages/a/package.json"), "utf8"), original);
 });
 
@@ -92,13 +92,13 @@ test("publish uploads each tarball, moves refs and prints install commands", asy
 	const { stdout } = await publish(server, dir);
 
 	const [token, upload, refs] = server.requests;
-	assert.equal(token.url, "/token?audience=https%3A%2F%2Fpkg.earendil.com");
+	assert.equal(token.url, "/token?audience=https%3A%2F%2Fpkg.evoharness.dev");
 	assert.deepEqual(
 		{ method: upload.method, url: upload.url, authorization: upload.authorization, body: upload.body },
 		{
 			method: "PUT",
 			url: `/_/upload/${sha}/%40scope%2Fa?event=pull_request`,
-			authorization: "Bearer oidc-for-https://pkg.earendil.com",
+			authorization: "Bearer oidc-for-https://pkg.evoharness.dev",
 			body: "tarball a",
 		},
 	);
