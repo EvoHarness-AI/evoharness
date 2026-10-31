@@ -389,7 +389,7 @@ describe("generation", () => {
 		await root.configure({ thinkingLevel: "high" }, context);
 		harness.resume();
 		await (await root.submit({ type: "input", content: "one" }, context)).wait(context);
-		// Both are read at the next preparation: the thinking level from pi.agent, the stream options live from settings.
+		// Both are read at the next preparation: the thinking level from evoharness.agent, the stream options live from settings.
 		await root.configure({ thinkingLevel: null }, context);
 		setup.settings.stream = { timeoutMs: 99 };
 		await (await root.submit({ type: "input", content: "two" }, context)).wait(context);
@@ -425,7 +425,7 @@ describe("generation", () => {
 		await harness.close(context);
 	});
 
-	it("attributes model requests to pi by default and merges the Harness identity over it", async () => {
+	it("attributes model requests to evoharness by default and merges the Harness identity over it", async () => {
 		const seen: (SimpleStreamOptions["identity"] | undefined)[] = [];
 		const capture = (_context: unknown, options?: SimpleStreamOptions) => {
 			seen.push(options?.identity);
@@ -767,6 +767,6 @@ describe("generation", () => {
 				{ models: chatSetup().models, registry: { snapshot: () => snapshot, subscribe: () => () => {} } },
 				context,
 			),
-		).rejects.toThrow("Registry lacks built-in tasks pi.generation");
+		).rejects.toThrow("Registry lacks built-in tasks evoharness.generation");
 	});
 });

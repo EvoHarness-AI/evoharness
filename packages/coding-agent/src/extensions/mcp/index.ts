@@ -17,7 +17,7 @@
  * reached through Codex's `list_mcp_resources`, `list_mcp_resource_templates`, and
  * `read_mcp_resource` tools (resources.ts).
  *
- * Every call runs through pi's tool pipeline, so `tool_call`/`tool_result` hooks and permission
+ * Every call runs through evoharness's tool pipeline, so `tool_call`/`tool_result` hooks and permission
  * extensions apply to MCP tools the same way they do to built-in tools.
  *
  * Problems found at startup (config errors, failed connections, servers that need a sign-in) are
@@ -277,7 +277,7 @@ function describeTransport(entry: McpServerEntry): string {
 const MCP_USAGE = "Usage: /mcp, /mcp login [server], /mcp logout [server], /mcp reconnect [server]";
 
 export function createMcpExtension(options: McpExtensionOptions = {}): ExtensionFactory {
-	return (pi: ExtensionAPI) => {
+	return (evoharness: ExtensionAPI) => {
 		let servers: McpServer[] = [];
 		/** Servers from `mcp.json`, which take precedence over registered servers of the same name. */
 		let configuredEntries: McpServerEntry[] = [];
@@ -345,7 +345,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 		const registeredServers = (): { servers: McpServer[]; overridden: string[] } => {
 			const registered: McpServer[] = [];
 			const overriddenNames: string[] = [];
-			for (const { name, config, extensionPath } of pi.getMcpServers()) {
+			for (const { name, config, extensionPath } of evoharness.getMcpServers()) {
 				const configured = configuredEntries.find((entry) => mcpNamespace(entry.name) === mcpNamespace(name));
 				if (configured) {
 					overriddenNames.push(
@@ -371,7 +371,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			return serverLog;
 		};
 
-		/** pi tool name to the `<server>\0<tool>` it was assigned to, so names stay unique and stable. */
+		/** evoharness tool name to the `<server>\0<tool>` it was assigned to, so names stay unique and stable. */
 		const toolOwners = new Map<string, string>();
 		/** Tool names currently offered by each server. */
 		const serverTools = new Map<string, Set<string>>();
@@ -379,7 +379,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 		const definitions = new Map<string, ToolDefinition<TSchema, McpToolDetails>>();
 
 		// A resumed session renders calls to MCP tools before their server connected, if it ever does.
-		pi.registerToolRenderer((toolName, next) => {
+		evoharness.registerToolRenderer((toolName, next) => {
 			const match = /^mcp__(.+?)__(.+)$/.exec(toolName);
 			return next() ?? (match ? createMcpToolRenderers(`${match[1]}/${match[2]}`) : undefined);
 		});
@@ -441,14 +441,14 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 					readableResources: () => resourceServers().some((current) => current.name === server),
 				});
 				definitions.set(definition.name, definition);
-				pi.registerTool(definition);
+				evoharness.registerTool(definition);
 			}
 			serverTools.set(server, current);
 			// Tools cannot be unregistered, so tools the server dropped are re-registered as hidden. When
 			// the server offers them again they are registered with their configured exposure above.
 			for (const name of previous) {
 				const definition = definitions.get(name);
-				if (!current.has(name) && definition) pi.registerTool({ ...definition, exposure: "hidden" });
+				if (!current.has(name) && definition) evoharness.registerTool({ ...definition, exposure: "hidden" });
 			}
 			syncResourceTools();
 		};
@@ -457,7 +457,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 		const hideTools = (server: string) => {
 			for (const name of serverTools.get(server) ?? []) {
 				const definition = definitions.get(name);
-				if (definition) pi.registerTool({ ...definition, exposure: "hidden" });
+				if (definition) evoharness.registerTool({ ...definition, exposure: "hidden" });
 			}
 			serverTools.set(server, new Set());
 			syncResourceTools();
@@ -485,10 +485,10 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			const wasDirect = resourceToolsExposure === "direct";
 			resourceToolsExposure = next;
 			const resourceDefinitions = createMcpResourceToolDefinitions({ exposure: next, servers: resourceServers });
-			for (const definition of resourceDefinitions) pi.registerTool(definition);
+			for (const definition of resourceDefinitions) evoharness.registerTool(definition);
 			if (wasDirect) {
 				const names = new Set(resourceDefinitions.map((definition) => definition.name));
-				pi.setActiveTools(pi.getActiveTools().filter((name) => !names.has(name)));
+				evoharness.setActiveTools(evoharness.getActiveTools().filter((name) => !names.has(name)));
 			}
 		};
 
@@ -510,11 +510,11 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			if (!needsCodemode && !needsToolSearch) return;
 			// Only a tool of these names that declares `reachesTools` can reach MCP tools; another
 			// extension's tool of the same name without it is never activated.
-			const tools = pi.getAllTools();
+			const tools = evoharness.getAllTools();
 			const hasReachingTool = (name: string) => tools.some((tool) => tool.name === name && tool.reachesTools);
 			const hasCodemode = hasReachingTool(CODEMODE_TOOL_NAME);
 			const hasToolSearch = hasReachingTool(TOOL_SEARCH_TOOL_NAME);
-			const active = pi.getActiveTools();
+			const active = evoharness.getActiveTools();
 			const activate: string[] = [];
 			if (needsCodemode && hasCodemode && autoEnableCodemode && !active.includes(CODEMODE_TOOL_NAME)) {
 				activate.push(CODEMODE_TOOL_NAME);
@@ -522,7 +522,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			if (needsToolSearch && hasToolSearch && !active.includes(TOOL_SEARCH_TOOL_NAME)) {
 				activate.push(TOOL_SEARCH_TOOL_NAME);
 			}
-			if (activate.length > 0) pi.setActiveTools([...active, ...activate]);
+			if (activate.length > 0) evoharness.setActiveTools([...active, ...activate]);
 			const reachable = [...active, ...activate];
 			if (hasCodemode && reachable.includes(CODEMODE_TOOL_NAME)) return;
 			if (hasToolSearch && reachable.includes(TOOL_SEARCH_TOOL_NAME)) return;
@@ -537,7 +537,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 
 		/**
 		 * Stored tokens of servers waiting for a sign-in, as they were when the sign-in was needed.
-		 * `pi mcp login` in another process (for example run by the agent) changes them.
+		 * `evoharness mcp login` in another process (for example run by the agent) changes them.
 		 */
 		const tokensAtSignIn = new Map<McpServerConnection, string>();
 		const storedTokens = (connection: McpServerConnection): string => {
@@ -772,13 +772,13 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			syncResourceTools();
 			// Tools no longer exposed directly leave the declared set; direct tools are activated on registration.
 			const indirect = new Set(
-				pi
+				evoharness
 					.getAllTools()
 					.filter((tool) => tool.exposure !== "direct")
 					.map((tool) => tool.name),
 			);
 			const tools = serverTools.get(server.entry.name) ?? new Set<string>();
-			pi.setActiveTools(pi.getActiveTools().filter((name) => !tools.has(name) || !indirect.has(name)));
+			evoharness.setActiveTools(evoharness.getActiveTools().filter((name) => !tools.has(name) || !indirect.has(name)));
 			emitChange();
 			return undefined;
 		};
@@ -802,7 +802,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 					label: server.entry.name,
 					description: `${describeState(server)} · ${exposureOf(server.entry)} · ${server.entry.override ? "global, project override" : (server.entry.scope ?? server.entry.source)}`,
 				})),
-			empty: `No MCP servers configured. Add them to ${resolve(getAgentDir(), "mcp.json")} or .pi/mcp.json.`,
+			empty: `No MCP servers configured. Add them to ${resolve(getAgentDir(), "mcp.json")} or .evoharness/mcp.json.`,
 			confirmLabel: "manage",
 			cancelLabel: "close",
 		});
@@ -1016,7 +1016,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 
 		const formatStatus = (): string => {
 			if (servers.length === 0 && configErrors.length === 0 && overridden.length === 0) {
-				return `No MCP servers configured. Add them to ${resolve(getAgentDir(), "mcp.json")} or .pi/mcp.json.`;
+				return `No MCP servers configured. Add them to ${resolve(getAgentDir(), "mcp.json")} or .evoharness/mcp.json.`;
 			}
 			const lines = servers.map((server) => {
 				const { name } = server.entry;
@@ -1111,7 +1111,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			ctx.ui.notify(`Signed in to MCP server "${name}" (${server.connection?.tools.length ?? 0} tools).`, "info");
 		};
 
-		pi.on("session_start", (_event, ctx) => {
+		evoharness.on("session_start", (_event, ctx) => {
 			const loaded = (options.loadConfig ?? defaultLoadConfig)(ctx);
 			configErrors = loaded.errors;
 			projectConfig = loaded.projectConfig;
@@ -1173,9 +1173,9 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			}
 		};
 
-		// Every prompt lists the servers in the `mcp_servers` section as they are when it starts. Pi
+		// Every prompt lists the servers in the `mcp_servers` section as they are when it starts. EvoHarness
 		// appends the section to the conversation when it changed, for example after a server connected.
-		pi.on("before_agent_start", async (event, ctx) => {
+		evoharness.on("before_agent_start", async (event, ctx) => {
 			await waitForDirectServers(ctx);
 			const { sections } = event.systemPromptOptions;
 			const section = renderServersSection(servers);
@@ -1188,8 +1188,8 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 		// server when it searches or enumerates tools, and tool_search for every server. The resource
 		// tools reach every server, so they wait for all of them. Direct MCP calls wait only for their
 		// own server, including a reconnect still closing its old transport.
-		pi.on("tool_call", async (event, ctx) => {
-			const tool = pi.getAllTools().find((candidate) => candidate.name === event.toolName);
+		evoharness.on("tool_call", async (event, ctx) => {
+			const tool = evoharness.getAllTools().find((candidate) => candidate.name === event.toolName);
 			if (!tool) return;
 			// Readiness can be pending while the display state is still connected: reconnect first
 			// closes the old transport, then opens a new one. Settled promises return immediately.
@@ -1208,13 +1208,13 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			await waitForServers(waiting, ctx.signal);
 		});
 
-		// Pick up sign-ins done outside the session, such as `pi mcp login` run by the agent.
-		pi.on("turn_start", async (_event, ctx) => {
+		// Pick up sign-ins done outside the session, such as `evoharness mcp login` run by the agent.
+		evoharness.on("turn_start", async (_event, ctx) => {
 			if (tokensAtSignIn.size > 0) await reconnectSignedIn(ctx);
 		});
 
 		// Servers registered or unregistered during the session connect or disconnect right away.
-		pi.on("mcp_servers_change", async (_event, ctx) => {
+		evoharness.on("mcp_servers_change", async (_event, ctx) => {
 			const { signal } = session;
 			if (signal.aborted) return;
 			const registered = registeredServers();
@@ -1249,7 +1249,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			reportProblems(ctx, connecting);
 		});
 
-		pi.on("session_shutdown", async () => {
+		evoharness.on("session_shutdown", async () => {
 			session.abort();
 			const closing = connections();
 			servers = [];
@@ -1257,7 +1257,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			await Promise.all([...backgroundActions, ...closing.map((connection) => connection.close())]);
 		});
 
-		pi.registerCommand("mcp", {
+		evoharness.registerCommand("mcp", {
 			description: "Manage MCP servers: sign in, reconnect, enable or disable, and change exposure",
 			getArgumentCompletions: (prefix) => {
 				const [action, server, ...rest] = prefix.trimStart().split(/\s+/);

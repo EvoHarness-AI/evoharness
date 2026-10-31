@@ -17,8 +17,8 @@ describe("issue #11227 recovery omits tool results with their tool call", () => 
 			models: [{ id: "faux-1", contextWindow: 100_000, maxTokens: 1_000 }],
 			settings: { compaction: { enabled: true } },
 			extensionFactories: [
-				(pi) => {
-					pi.on("session_before_compact", async (event) => ({
+				(evoharness) => {
+					evoharness.on("session_before_compact", async (event) => ({
 						compaction: {
 							summary: "summary",
 							firstKeptEntryId: event.preparation.firstKeptEntryId,

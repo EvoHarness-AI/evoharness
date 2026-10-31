@@ -242,8 +242,8 @@ describe("regression #5943: session_start transient UI", () => {
 		const events: string[] = [];
 		const harness = await createHarness({
 			extensionFactories: [
-				(pi) => {
-					pi.on("session_start", (_event, ctx) => {
+				(evoharness) => {
+					evoharness.on("session_start", (_event, ctx) => {
 						ctx.ui.notify("Hello Error", "error");
 					});
 				},
@@ -280,9 +280,9 @@ describe("regression #5943: session_start transient UI", () => {
 		const events: string[] = [];
 		const harness = await createHarness({
 			extensionFactories: [
-				(pi) => {
-					pi.on("session_start", () => {
-						pi.sendMessage({
+				(evoharness) => {
+					evoharness.on("session_start", () => {
+						evoharness.sendMessage({
 							customType: "session-start",
 							content: "custom from start",
 							display: true,
@@ -336,9 +336,9 @@ describe("regression #5943: session_start transient UI", () => {
 		const events: string[] = [];
 		const harness = await createHarness({
 			extensionFactories: [
-				(pi) => {
-					pi.on("session_start", () => {
-						pi.sendUserMessage("user from start");
+				(evoharness) => {
+					evoharness.on("session_start", () => {
+						evoharness.sendUserMessage("user from start");
 					});
 				},
 			],
@@ -390,8 +390,8 @@ describe("regression #5943: session_start transient UI", () => {
 		});
 		const harness = await createHarness({
 			extensionFactories: [
-				(pi) => {
-					pi.on("session_start", (event, ctx) => {
+				(evoharness) => {
+					evoharness.on("session_start", (event, ctx) => {
 						events.push(`start:${event.reason}`);
 						ctx.ui.notify(`notify:${event.reason}`, "error");
 					});

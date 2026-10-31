@@ -32,7 +32,7 @@ slice spec's section citations are for orientation, not a reading limit (owner, 
   (Durable's 35-37); benchmarks in `benchmarks.md`.
 - **Slice 7b** (built 2026-10-29, `slice-7b.md`): `host.reload`, staging (`host/staging.ts`), fates, adapted members
   (`host/adapted.ts`), references, jobs and registries across a reload; examples 33-34; `test/next/bench/reload.ts`.
-- **Chord's shared code** (upstream pi): `src/watch.ts` (`Watch`, `NativeWatch`, `WatchHandle`, `WatchEnd`,
+- **Chord's shared code** (upstream evoharness): `src/watch.ts` (`Watch`, `NativeWatch`, `WatchHandle`, `WatchEnd`,
   `NativeWatchable`), Delta (`track`, `diffRevisions`, `applyImmutable`, encoders, `PendingOps`, `appendText`),
   context, JSON, output, SQLite drivers.
 
@@ -171,7 +171,7 @@ deleted (the slice's spec and code are the record). Moved here from `carry-over.
 - **One N on every host:** a relay forwards calls at once, so a worker announcing a smaller N than the relay's could
   see more running calls of one origin than it accepts (a protocol error). Every host announces 256; per-link N, if
   ever needed, must bound the relay's forwarding too. (Slice 4a rework.)
-- **The Durable conversation view's size on re-hold** is a known cost until pi #11327 (windowed view) lands. (Slice 4.)
+- **The Durable conversation view's size on re-hold** is a known cost until evoharness #11327 (windowed view) lands. (Slice 4.)
 - **`map(bytes())` is refused at declaration** ("unsupported keyword `~refine`"): TypeBox's `Record` copies the bytes
   schema's check as an enumerable key, which the snapshot walk refuses. An L1 bug found in slice 3a, not fixed yet.
 
@@ -195,7 +195,7 @@ deleted (the slice's spec and code are the record). Moved here from `carry-over.
 ### When v2 goes upstream
 
 - `mapShared` lives in `src/next/state/derive.ts` and moves into Delta. (L2 decisions.)
-- `withLinkedAbortSignal` lives in `src/next/host/ctx.ts` and moves next to `withAbortSignal` in `src/context` (pi
+- `withLinkedAbortSignal` lives in `src/next/host/ctx.ts` and moves next to `withAbortSignal` in `src/context` (evoharness
   first): a call's context linked to long-lived abort signals until the call settles, instead of `AbortSignal.any`,
   which keeps cleanup entries per call while its sources live before Node 24.16.0 (nodejs/node#62367). (Slice 4a.)
 - The `./next` package export returns when the new code has an entry point (removed with the frozen-kernel move).

@@ -30,7 +30,7 @@ const Files = defineExtension({ name: "files", tools: [read] });
 const registry = createRegistry();
 registry.install(Files);
 
-// `models` is pi-ai's model access; generation calls models through it.
+// `models` is evoharness-ai's model access; generation calls models through it.
 const harness = await Harness.open(new MemoryStorage(), { models: createModels(), registry }, context);
 
 const Notes = defineDoc<{ text: string }>({

@@ -113,13 +113,13 @@ describe("input entries", () => {
 		expect(placed.model).toEqual([{ role: "user", content: "ann: hi", timestamp: 42 }]);
 		expect(settled).toMatchObject({ status: "done", entry: placed.id, answer: entries.at(-1)!.id });
 		expect(requests).toEqual([["user:ann: hi"]]);
-		// The context of a fork at the input is the same as for a pi.user entry.
+		// The context of a fork at the input is the same as for a evoharness.user entry.
 		const view = await root.context(context, { at: placed.id });
 		expect(view.messages.filter((message) => message.role !== "system")).toEqual(placed.model);
 		await harness.close(context);
 	});
 
-	it("rejects an input entry whose kind is not a non-empty string or starts with pi., writing nothing", async () => {
+	it("rejects an input entry whose kind is not a non-empty string or starts with evoharness., writing nothing", async () => {
 		const setup = chatSetup();
 		const { harness, root } = await openChat(new MemoryStorage(), setup);
 		const before = (await allEntries(root)).length;
@@ -129,7 +129,7 @@ describe("input entries", () => {
 		}
 		expect((await allEntries(root)).length).toBe(before);
 		expect(await harness.snapshot(LiveDoc, root.id, context)).toEqual({});
-		// Writes keep their kinds: reset() writes pi.reset.
+		// Writes keep their kinds: reset() writes evoharness.reset.
 		await root.reset(undefined, context);
 		expect((await allEntries(root)).at(-1)?.kind).toBe("evoharness.reset");
 		await harness.close(context);
@@ -350,7 +350,7 @@ describe("data-only writes", () => {
 		await second.wait(context);
 		expect(requests[1]).toEqual(["system:", "user:a", "assistant:one", "user:b"]);
 		const kinds = (await allEntries(root)).map((entry) => entry.kind);
-		// The unchanged prompt adds no second pi.system entry.
+		// The unchanged prompt adds no second evoharness.system entry.
 		expect(kinds).toEqual(["evoharness.user", "evoharness.system", "evoharness.assistant", "evoharness.user", "chat.message", "evoharness.assistant"]);
 		await harness.close(context);
 	});
@@ -394,7 +394,7 @@ describe("data-only writes", () => {
 	});
 
 	it("keeps a queued input's entry across reopen and places it as that entry", async () => {
-		const directory = await mkdtemp(join(tmpdir(), "pi-durable-input-entries-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-input-entries-"));
 		const path = join(directory, "session.sqlite");
 		try {
 			const setup = chatSetup();

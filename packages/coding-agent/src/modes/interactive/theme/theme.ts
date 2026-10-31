@@ -646,7 +646,7 @@ export function getTerminalTheme(): TerminalTheme {
 
 // Use globalThis to share theme across module loaders (node + jiti in dev mode)
 const THEME_KEY = Symbol.for("@evoharness/coding-agent:theme");
-const THEME_KEY_OLD = Symbol.for("@mariozechner/pi-coding-agent:theme");
+const THEME_KEY_OLD = Symbol.for("@mariozechner/evoharness-coding-agent:theme");
 
 // Export theme as a getter that reads from globalThis
 // This ensures all module instances (node, jiti) see the same theme

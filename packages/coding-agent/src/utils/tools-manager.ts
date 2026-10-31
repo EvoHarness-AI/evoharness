@@ -6,7 +6,7 @@ import { Readable } from "stream";
 import { pipeline } from "stream/promises";
 import { getBinDir, VERSION } from "../config.ts";
 import { fetchWithRetry } from "./management-http.ts";
-import { getPiUserAgent } from "./pi-user-agent.ts";
+import { getPiUserAgent } from "./evoharness-user-agent.ts";
 
 const TOOLS_DIR = getBinDir();
 const NETWORK_TIMEOUT_MS = 10_000;

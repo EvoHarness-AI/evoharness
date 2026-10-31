@@ -34,7 +34,7 @@ function assertWorkspace(): void {
 	}
 	const internalScope = "/repo/node_modules/@earendil-works";
 	for (const packageName of readdirSync(internalScope)) {
-		if (packageName === "pi-coding-agent") continue;
+		if (packageName === "evoharness-coding-agent") continue;
 		const packageDirectory = join(internalScope, packageName);
 		for (const entry of readdirSync(packageDirectory, { withFileTypes: true })) {
 			if (
@@ -101,16 +101,16 @@ for (const path of [
 }
 const codingAgentEntry = fileURLToPath(import.meta.resolve("@evoharness/coding-agent"));
 if (codingAgentEntry !== "/repo/node_modules/@evoharness/coding-agent/dist/index.js") {
-	throw new Error(`Eval does not resolve pi-coding-agent from dist: ${codingAgentEntry}`);
+	throw new Error(`Eval does not resolve evoharness-coding-agent from dist: ${codingAgentEntry}`);
 }
 
-const agentDir = "/tmp/pi-eval-host-agent";
+const agentDir = "/tmp/evoharness-eval-host-agent";
 mkdirSync(agentDir, { recursive: true });
-const authSource = "/run/pi-eval-secrets/auth.json";
+const authSource = "/run/evoharness-eval-secrets/auth.json";
 if (existsSync(authSource)) copyFileSync(authSource, join(agentDir, "auth.json"));
 chownTree(agentDir, sandboxUid, sandboxGid);
 chownTree("/artifacts", sandboxUid, sandboxGid);
-process.env.HOME = "/tmp/pi-eval-bootstrap";
+process.env.HOME = "/tmp/evoharness-eval-bootstrap";
 process.env.USERPROFILE = process.env.HOME;
 process.env.PI_CODING_AGENT_DIR = agentDir;
 process.env.PI_EVAL_CONTAINER = "1";

@@ -53,7 +53,7 @@ import type { TaskGraph, TaskGraphWatch } from "./task-graph.ts";
 import type { UsageState } from "./usage.ts";
 import type { ConversationView, ConversationWindow } from "./view.ts";
 
-/** Provider and model ID resolved through pi-ai `Models`. */
+/** Provider and model ID resolved through evoharness-ai `Models`. */
 export type ModelRef = {
 	readonly provider: string;
 	readonly modelId: string;
@@ -334,7 +334,7 @@ export interface ToolExecutionApi<TDetails extends JsonValue = JsonValue> extend
 }
 
 /**
- * Executable tool registered in a registry. Only pi-ai `Tool` fields enter the transcript. `args` are typed by
+ * Executable tool registered in a registry. Only evoharness-ai `Tool` fields enter the transcript. `args` are typed by
  * `parameters`, which the Harness validates them against before `execute()`; `defineTool()` infers both generics.
  */
 export type ToolRegistration<
@@ -532,7 +532,7 @@ export type ConversationCreateOptions = {
 	readonly init?: ConversationInit;
 };
 
-/** Curated pi-ai request options; absent fields use pi-ai defaults. */
+/** Curated evoharness-ai request options; absent fields use evoharness-ai defaults. */
 export type ConversationStreamOptions = {
 	transport?: Transport;
 	timeoutMs?: number;
@@ -545,7 +545,7 @@ export type ConversationStreamOptions = {
 	deferred?: boolean | { window?: "15m" | "1h" | "24h" };
 };
 
-/** Durable generation attempt retries; the JSON shape of pi-ai `RetryPolicy`. */
+/** Durable generation attempt retries; the JSON shape of evoharness-ai `RetryPolicy`. */
 export type ConversationRetryPolicy = {
 	enabled: boolean;
 	maxRetries: number;
@@ -676,13 +676,13 @@ export type HarnessOptions<Tool extends ToolRegistration = ToolRegistration> = {
 	/** Host-owned adapter for content-free admission/phase telemetry; propagation and metrics are optional. */
 	readonly telemetry?: TelemetryContext;
 	/**
-	 * pi-ai model access used by generation, compaction, hooks and tools: a `Models`, or a function returning the current
+	 * evoharness-ai model access used by generation, compaction, hooks and tools: a `Models`, or a function returning the current
 	 * one, called at each use, so a host can replace its model configuration without reopening the Harness.
 	 */
 	readonly models: Models | (() => Models);
 	/**
 	 * How model requests identify the app to providers, merged field by field over `DEFAULT_HARNESS_IDENTITY`
-	 * (`{ attribution: PI_ATTRIBUTION }`, provider attribution to pi). It applies to every request through the Harness's
+	 * (`{ attribution: PI_ATTRIBUTION }`, provider attribution to evoharness). It applies to every request through the Harness's
 	 * models, including hooks and tools, and overrides the identity the `Models` was created with; a request's own
 	 * `identity` overrides it. Pass `{ attribution: null }` to send no attribution headers.
 	 */
@@ -973,8 +973,8 @@ export interface GenerationHooks {
 		context: Context,
 	): HookResult<{ readonly messages: readonly Message[] }>;
 	/**
-	 * After pi-ai builds the provider request body, before it is sent; the result replaces the body for that request only.
-	 * Runs again whenever pi-ai rebuilds the body, such as a retry within one attempt. The body is in the provider API's
+	 * After evoharness-ai builds the provider request body, before it is sent; the result replaces the body for that request only.
+	 * Runs again whenever evoharness-ai rebuilds the body, such as a retry within one attempt. The body is in the provider API's
 	 * own format (`request.model.api`), so a hook checks the API before changing it.
 	 */
 	beforeProviderRequest(

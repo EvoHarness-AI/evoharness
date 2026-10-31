@@ -44,7 +44,7 @@ afterEach(async () => {
 });
 
 async function sqlitePath(): Promise<string> {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-after-run-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-after-run-"));
 	directories.add(directory);
 	return join(directory, "session.sqlite");
 }
@@ -602,7 +602,7 @@ describe("afterRun", () => {
 		const rejected = setup.reports[0] as AggregateError;
 		expect(rejected.errors.map((error: Error) => error.message)).toEqual([
 			"Task test.unknown is not installed",
-			"An afterRun hook cannot start the built-in task pi.generation",
+			"An afterRun hook cannot start the built-in task evoharness.generation",
 			"Value contains a non-JSON function; expected strict JSON",
 			"initial failed",
 			"Task test.bad-start starts at the unknown phase nowhere",

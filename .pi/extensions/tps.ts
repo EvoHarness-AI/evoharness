@@ -7,14 +7,14 @@ function isAssistantMessage(message: unknown): message is AssistantMessage {
 	return role === "assistant";
 }
 
-export default function (pi: ExtensionAPI) {
+export default function (evoharness: ExtensionAPI) {
 	let agentStartMs: number | null = null;
 
-	pi.on("agent_start", () => {
+	evoharness.on("agent_start", () => {
 		agentStartMs = Date.now();
 	});
 
-	pi.on("agent_end", (event, ctx) => {
+	evoharness.on("agent_end", (event, ctx) => {
 		if (!ctx.hasUI) return;
 		if (agentStartMs === null) return;
 

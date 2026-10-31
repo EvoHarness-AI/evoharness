@@ -172,7 +172,7 @@
 
 ### Breaking Changes
 
-- Removed coding-agent environment-variable defaults from pi-tui. Applications must configure the hardware cursor and clear-on-shrink behavior through the renderer constructor and `setClearOnShrink()`. `PI_DEBUG_REDRAW` is now `PI_TUI_DEBUG_REDRAW`; debug and crash log filenames now use the `pi-tui-` prefix. When no log directory is supplied, redraw logging is disabled and crash dumps are written to the OS temp directory. ([#8699](https://github.com/EvoHarness-AI/evoharness/pull/8699) by [@geraschenko](https://github.com/geraschenko))
+- Removed coding-agent environment-variable defaults from evoharness-tui. Applications must configure the hardware cursor and clear-on-shrink behavior through the renderer constructor and `setClearOnShrink()`. `PI_DEBUG_REDRAW` is now `PI_TUI_DEBUG_REDRAW`; debug and crash log filenames now use the `evoharness-tui-` prefix. When no log directory is supplied, redraw logging is disabled and crash dumps are written to the OS temp directory. ([#8699](https://github.com/EvoHarness-AI/evoharness/pull/8699) by [@geraschenko](https://github.com/geraschenko))
 
 ### Added
 
@@ -303,7 +303,7 @@
 
 ### Fixed
 
-- Fixed debug and crash logs to use the configured TUI log directory, including `PI_CODING_AGENT_DIR`, instead of always writing under `~/.pi/agent` ([#6958](https://github.com/EvoHarness-AI/evoharness/pull/6958) by [@davidbrai](https://github.com/davidbrai)).
+- Fixed debug and crash logs to use the configured TUI log directory, including `PI_CODING_AGENT_DIR`, instead of always writing under `~/.evoharness/agent` ([#6958](https://github.com/EvoHarness-AI/evoharness/pull/6958) by [@davidbrai](https://github.com/davidbrai)).
 - Fixed narrow terminals crashing when the editor's bottom scroll indicator exceeded the terminal width ([#7015](https://github.com/EvoHarness-AI/evoharness/pull/7015) by [@christianklotz](https://github.com/christianklotz)).
 
 ## [0.81.1] - 2026-07-21
@@ -671,7 +671,7 @@
 
 ### Added
 
-- Added support for `PI_TUI_WRITE_LOG` directory paths, creating a unique log file (`tui-<timestamp>-<pid>.log`) per instance for easier debugging of multiple pi sessions ([#2508](https://github.com/EvoHarness-AI/evoharness/pull/2508) by [@mrexodia](https://github.com/mrexodia))
+- Added support for `PI_TUI_WRITE_LOG` directory paths, creating a unique log file (`tui-<timestamp>-<pid>.log`) per instance for easier debugging of multiple evoharness sessions ([#2508](https://github.com/EvoHarness-AI/evoharness/pull/2508) by [@mrexodia](https://github.com/mrexodia))
 
 ### Fixed
 
@@ -699,7 +699,7 @@
 
 ### Breaking Changes
 
-- Replaced the editor-only keybinding store with a single global keybindings manager in `@mariozechner/pi-tui`. TUI keybinding ids are now namespaced: `cursorUp` -> `tui.editor.cursorUp`, `cursorDown` -> `tui.editor.cursorDown`, `cursorLeft` -> `tui.editor.cursorLeft`, `cursorRight` -> `tui.editor.cursorRight`, `cursorWordLeft` -> `tui.editor.cursorWordLeft`, `cursorWordRight` -> `tui.editor.cursorWordRight`, `cursorLineStart` -> `tui.editor.cursorLineStart`, `cursorLineEnd` -> `tui.editor.cursorLineEnd`, `jumpForward` -> `tui.editor.jumpForward`, `jumpBackward` -> `tui.editor.jumpBackward`, `pageUp` -> `tui.editor.pageUp`, `pageDown` -> `tui.editor.pageDown`, `deleteCharBackward` -> `tui.editor.deleteCharBackward`, `deleteCharForward` -> `tui.editor.deleteCharForward`, `deleteWordBackward` -> `tui.editor.deleteWordBackward`, `deleteWordForward` -> `tui.editor.deleteWordForward`, `deleteToLineStart` -> `tui.editor.deleteToLineStart`, `deleteToLineEnd` -> `tui.editor.deleteToLineEnd`, `yank` -> `tui.editor.yank`, `yankPop` -> `tui.editor.yankPop`, `undo` -> `tui.editor.undo`, `newLine` -> `tui.input.newLine`, `submit` -> `tui.input.submit`, `tab` -> `tui.input.tab`, `copy` -> `tui.input.copy`, `selectUp` -> `tui.select.up`, `selectDown` -> `tui.select.down`, `selectPageUp` -> `tui.select.pageUp`, `selectPageDown` -> `tui.select.pageDown`, `selectConfirm` -> `tui.select.confirm`, `selectCancel` -> `tui.select.cancel`. `keybindings.json` stays backward compatible because each keybinding definition maps the new internal id back to the existing public config key. Apps extend `interface Keybindings` via declaration merging, create one manager with both TUI and app definitions, then install it with `setKeybindings(...)` ([#2391](https://github.com/EvoHarness-AI/evoharness/issues/2391))
+- Replaced the editor-only keybinding store with a single global keybindings manager in `@mariozechner/evoharness-tui`. TUI keybinding ids are now namespaced: `cursorUp` -> `tui.editor.cursorUp`, `cursorDown` -> `tui.editor.cursorDown`, `cursorLeft` -> `tui.editor.cursorLeft`, `cursorRight` -> `tui.editor.cursorRight`, `cursorWordLeft` -> `tui.editor.cursorWordLeft`, `cursorWordRight` -> `tui.editor.cursorWordRight`, `cursorLineStart` -> `tui.editor.cursorLineStart`, `cursorLineEnd` -> `tui.editor.cursorLineEnd`, `jumpForward` -> `tui.editor.jumpForward`, `jumpBackward` -> `tui.editor.jumpBackward`, `pageUp` -> `tui.editor.pageUp`, `pageDown` -> `tui.editor.pageDown`, `deleteCharBackward` -> `tui.editor.deleteCharBackward`, `deleteCharForward` -> `tui.editor.deleteCharForward`, `deleteWordBackward` -> `tui.editor.deleteWordBackward`, `deleteWordForward` -> `tui.editor.deleteWordForward`, `deleteToLineStart` -> `tui.editor.deleteToLineStart`, `deleteToLineEnd` -> `tui.editor.deleteToLineEnd`, `yank` -> `tui.editor.yank`, `yankPop` -> `tui.editor.yankPop`, `undo` -> `tui.editor.undo`, `newLine` -> `tui.input.newLine`, `submit` -> `tui.input.submit`, `tab` -> `tui.input.tab`, `copy` -> `tui.input.copy`, `selectUp` -> `tui.select.up`, `selectDown` -> `tui.select.down`, `selectPageUp` -> `tui.select.pageUp`, `selectPageDown` -> `tui.select.pageDown`, `selectConfirm` -> `tui.select.confirm`, `selectCancel` -> `tui.select.cancel`. `keybindings.json` stays backward compatible because each keybinding definition maps the new internal id back to the existing public config key. Apps extend `interface Keybindings` via declaration merging, create one manager with both TUI and app definitions, then install it with `setKeybindings(...)` ([#2391](https://github.com/EvoHarness-AI/evoharness/issues/2391))
 
 ### Fixed
 
@@ -916,7 +916,7 @@
 
 ### Added
 
-- Added `PI_DEBUG_REDRAW=1` env var for debugging full redraws (logs triggers to `~/.pi/agent/pi-debug.log`)
+- Added `PI_DEBUG_REDRAW=1` env var for debugging full redraws (logs triggers to `~/.evoharness/agent/evoharness-debug.log`)
 
 ### Changed
 

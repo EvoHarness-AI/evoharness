@@ -49,7 +49,7 @@ describe("InteractiveMode extension changelog", () => {
 	let messages: unknown[];
 
 	function writePackage(version: string): void {
-		writeFileSync(join(packageRoot, "package.json"), JSON.stringify({ name: "pi-demo-extension", version }));
+		writeFileSync(join(packageRoot, "package.json"), JSON.stringify({ name: "evoharness-demo-extension", version }));
 	}
 
 	function createContext(): ExtensionChangelogContext {
@@ -73,13 +73,13 @@ describe("InteractiveMode extension changelog", () => {
 	}
 
 	beforeEach(() => {
-		tempDir = mkdtempSync(join(tmpdir(), "pi-extension-changelog-"));
+		tempDir = mkdtempSync(join(tmpdir(), "evoharness-extension-changelog-"));
 		packageRoot = join(tempDir, "pkg");
 		mkdirSync(packageRoot);
 		writeFileSync(join(packageRoot, "CHANGELOG.md"), CHANGELOG);
 		sourceInfo = {
 			path: join(packageRoot, "a.ts"),
-			source: "npm:pi-demo-extension",
+			source: "npm:evoharness-demo-extension",
 			scope: "user",
 			origin: "package",
 			baseDir: packageRoot,
@@ -107,10 +107,10 @@ describe("InteractiveMode extension changelog", () => {
 
 		expect(display()).toEqual([
 			{
-				name: "pi-demo-extension",
+				name: "evoharness-demo-extension",
 				version: "1.2.0",
 				markdown:
-					"## pi-demo-extension [1.2.0]\n\n- Added feature B\n\n## pi-demo-extension [1.1.0]\n\n- Added feature A",
+					"## evoharness-demo-extension [1.2.0]\n\n- Added feature B\n\n## evoharness-demo-extension [1.1.0]\n\n- Added feature A",
 			},
 		]);
 		expect(settingsManager.getExtensionChangelogVersion(getSourcePackageKey(sourceInfo))).toBe("1.2.0");

@@ -25,7 +25,7 @@ type FlowState =
 ```
 
 The UI watches the state and renders the current step. A late or second answer to a step that is gone is refused. A
-promise-based callback inside the work (pi-ai's `prompt` during a login) stays **inside** the owner: its job keeps the
+promise-based callback inside the work (evoharness-ai's `prompt` during a login) stays **inside** the owner: its job keeps the
 resolver, and nothing crosses an object boundary.
 
 Imperative consumers (tests, scripts, a CLI, an agent tool) use a generic client helper over the same state, not a

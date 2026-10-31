@@ -8,15 +8,15 @@
  * file changes, giving the model immediate context. During steering the
  * exec call is skipped so the correction reaches the model without delay.
  *
- * Start pi with this extension:
- *   pi -e ./examples/extensions/input-transform-streaming.ts
+ * Start evoharness with this extension:
+ *   evoharness -e ./examples/extensions/input-transform-streaming.ts
  */
 import type { ExtensionAPI } from "@evoharness/coding-agent";
 
 const TRIGGER = /\b(changes?|diff|modified)\b/i;
 
-export default function (pi: ExtensionAPI) {
-	pi.on("input", async (event) => {
+export default function (evoharness: ExtensionAPI) {
+	evoharness.on("input", async (event) => {
 		// During steering, skip the exec call — corrections should be fast
 		if (event.streamingBehavior === "steer") {
 			return { action: "continue" };
@@ -26,7 +26,7 @@ export default function (pi: ExtensionAPI) {
 			return { action: "continue" };
 		}
 
-		const { stdout, code } = await pi.exec("git", ["diff", "--stat"]);
+		const { stdout, code } = await evoharness.exec("git", ["diff", "--stat"]);
 		if (code !== 0 || !stdout.trim()) {
 			return { action: "continue" };
 		}

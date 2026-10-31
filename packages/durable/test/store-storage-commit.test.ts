@@ -43,7 +43,7 @@ afterEach(async () => {
 
 /** A fresh SQLite file in this test's directory. */
 async function storePath(): Promise<string> {
-	directory ??= await mkdtemp(join(tmpdir(), "pi-durable-store-commit-"));
+	directory ??= await mkdtemp(join(tmpdir(), "evoharness-durable-store-commit-"));
 	return join(directory, `store-${Math.random().toString(36).slice(2)}.sqlite`);
 }
 

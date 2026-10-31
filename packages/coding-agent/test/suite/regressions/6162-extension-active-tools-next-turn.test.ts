@@ -17,19 +17,19 @@ function getProviderToolNames(context: TranscriptContext): string[] {
 }
 
 /** Register `switch_tools`, which swaps the active set to `after_switch` when executed. */
-function registerSwitchTools(pi: ExtensionAPI): void {
-	pi.registerTool({
+function registerSwitchTools(evoharness: ExtensionAPI): void {
+	evoharness.registerTool({
 		name: "switch_tools",
 		label: "Switch Tools",
 		description: "Switch the active extension tool set",
 		promptSnippet: "Switch to the next extension tool",
 		parameters: Type.Object({}),
 		execute: async () => {
-			pi.setActiveTools(["after_switch"]);
+			evoharness.setActiveTools(["after_switch"]);
 			return { content: [{ type: "text", text: "switched" }], details: {} };
 		},
 	});
-	pi.registerTool({
+	evoharness.registerTool({
 		name: "after_switch",
 		label: "After Switch",
 		description: "Tool that should be available after switching",
@@ -41,7 +41,7 @@ function registerSwitchTools(pi: ExtensionAPI): void {
 
 describe("extension active tools next-turn refresh", () => {
 	// Regression #6162
-	it("applies pi.setActiveTools before the next provider request in the same run", async () => {
+	it("applies evoharness.setActiveTools before the next provider request in the same run", async () => {
 		const harness = await createHarness({ extensionFactories: [registerSwitchTools] });
 
 		try {
@@ -101,12 +101,12 @@ describe("extension active tools next-turn refresh", () => {
 
 	it("preserves before_agent_start system prompt overrides when tools change mid-run", async () => {
 		const extensionFactories: ExtensionFactory[] = [
-			(pi) => {
-				pi.on("before_agent_start", async (event) => ({
+			(evoharness) => {
+				evoharness.on("before_agent_start", async (event) => ({
 					systemPrompt: `${event.systemPrompt}\n\nkeep this run override`,
 				}));
 
-				registerSwitchTools(pi);
+				registerSwitchTools(evoharness);
 			},
 		];
 		const harness = await createHarness({

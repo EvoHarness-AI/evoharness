@@ -340,11 +340,11 @@ describe("ExtensionRunner.emitCacheWarmingDecision", () => {
 		const runtime = createExtensionRuntime();
 		const eventBus = createEventBus();
 		const factories: ExtensionFactory[] = [
-			(pi) => {
-				pi.on("cache_warming_decision", () => ({ action: "warm" }));
+			(evoharness) => {
+				evoharness.on("cache_warming_decision", () => ({ action: "warm" }));
 			},
-			(pi) => {
-				pi.on("cache_warming_decision", () => ({ action: "stop" }));
+			(evoharness) => {
+				evoharness.on("cache_warming_decision", () => ({ action: "stop" }));
 			},
 		];
 		const extensions = [];

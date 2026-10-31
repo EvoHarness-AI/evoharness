@@ -7,7 +7,7 @@ import { resolve } from "node:path";
  */
 export const daemon =
 	process.env.PI_ENV_DAEMON ??
-	resolve(import.meta.dirname, `../daemon/target/debug/pi-env${process.platform === "win32" ? ".exe" : ""}`);
+	resolve(import.meta.dirname, `../daemon/target/debug/evoharness-env${process.platform === "win32" ? ".exe" : ""}`);
 if (!existsSync(daemon)) {
 	throw new Error(`Build the daemon first: npm run build:daemon in packages/env (missing ${daemon})`);
 }

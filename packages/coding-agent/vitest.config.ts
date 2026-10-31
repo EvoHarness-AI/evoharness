@@ -21,12 +21,12 @@ export default mergeConfig(
 		},
 		resolve: {
 			alias: [
-				{ find: /^@earendil-works\/pi-ai$/, replacement: workspaceSourcePaths.aiIndex },
-				{ find: /^@earendil-works\/pi-agent-core$/, replacement: workspaceSourcePaths.agentIndex },
-				{ find: /^@mariozechner\/pi-ai$/, replacement: workspaceSourcePaths.aiIndex },
-				{ find: /^@mariozechner\/pi-ai\/oauth$/, replacement: workspaceSourcePaths.aiOAuth },
-				{ find: /^@mariozechner\/pi-agent-core$/, replacement: workspaceSourcePaths.agentIndex },
-				{ find: /^@mariozechner\/pi-tui$/, replacement: workspaceSourcePaths.tuiIndex },
+				{ find: /^@earendil-works\/evoharness-ai$/, replacement: workspaceSourcePaths.aiIndex },
+				{ find: /^@earendil-works\/evoharness-agent-core$/, replacement: workspaceSourcePaths.agentIndex },
+				{ find: /^@mariozechner\/evoharness-ai$/, replacement: workspaceSourcePaths.aiIndex },
+				{ find: /^@mariozechner\/evoharness-ai\/oauth$/, replacement: workspaceSourcePaths.aiOAuth },
+				{ find: /^@mariozechner\/evoharness-agent-core$/, replacement: workspaceSourcePaths.agentIndex },
+				{ find: /^@mariozechner\/evoharness-tui$/, replacement: workspaceSourcePaths.tuiIndex },
 			],
 		},
 	}),

@@ -4,7 +4,7 @@
 Importing a 50 MB text file into notes takes a minute. The tab that started it may close; the import must go on, be
 cancellable, not run twice when the tab retries after a link blip, and its result must be recorded. A method cannot do
 this (it dies with its caller), a routine is standing behaviour rather than a request, and a Durable task is for work
-that must resume after a crash. Chord's form for it is the **job**, built in pi-durable's sandwich: **intent** (a
+that must resume after a crash. Chord's form for it is the **job**, built in evoharness-durable's sandwich: **intent** (a
 transaction), **effect** (anything), **outcome** (a transaction in the current code).
 
 ## Defining and running a job

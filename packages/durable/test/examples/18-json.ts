@@ -1,4 +1,4 @@
-// JSON mode: stream one prompt's run as JSON lines, like `pi --mode json`. Two modes, both of the ConversationView:
+// JSON mode: stream one prompt's run as JSON lines, like `evoharness --mode json`. Two modes, both of the ConversationView:
 //   --ops (default): the raw frames, starting with the view itself; each later line holds the ops of the commits since.
 //   --state: per call, the entries appended since the previous one and the current `evoharness.live`, state a renderer draws.
 // --storage sqlite (default) | jsonl | memory: sqlite writes a temporary database file, jsonl a temporary directory;
@@ -31,10 +31,10 @@ const prompt =
 let storage: Storage;
 let location: string | undefined;
 if (storageKind === "sqlite") {
-	location = join(tmpdir(), `pi-durable-json-${Date.now()}.sqlite`);
+	location = join(tmpdir(), `evoharness-durable-json-${Date.now()}.sqlite`);
 	storage = await openNodeSqliteStorage(location);
 } else if (storageKind === "jsonl") {
-	location = await mkdtemp(join(tmpdir(), "pi-durable-json-"));
+	location = await mkdtemp(join(tmpdir(), "evoharness-durable-json-"));
 	storage = await openNodeJsonlStorage(location, context);
 } else if (storageKind === "memory") {
 	storage = new MemoryStorage();

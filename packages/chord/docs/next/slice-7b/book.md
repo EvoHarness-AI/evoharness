@@ -11,7 +11,7 @@ stats:
   - 6 | decisions open
 note: |
   A brief before the slice 7b spec, written by the redesign session from `design.md` §21, the dependency model
-  (`dependencies/model.md`, decided and built for 7a in pi `339847eb1`), the carry-over in `slices.md` and the code at
+  (`dependencies/model.md`, decided and built for 7a in evoharness `339847eb1`), the carry-over in `slices.md` and the code at
   `339847eb1`. Marks: **Decided** points cite the decision; **Open** points are the owner's, with a recommendation.
 colophon: Slice 7b brief · 2026-10-29 · Chord v2
 ---
@@ -82,7 +82,7 @@ plugins/notes/
 
 ```json
 {
-  "name": "@pi/notes",
+  "name": "@evoharness/notes",
   "version": "1.4.0",
   "type": "module",
   "peerDependencies": {
@@ -103,7 +103,7 @@ plugins/notes/
   `--ignore-scripts` and bundled into every facet that imports them. **Decided** (owner, 2026-10-29): bundled by
   default; on Node a plugin may keep named packages external by an explicit list, `"chord": { "external":
   ["better-sqlite3"] }`. Server and worker facets then load them from the plugin's `node_modules` with `createRequire`,
-  as pi 1.0 loads extension dependencies, native addons included; they stay in Node's module cache until the process
+  as evoharness 1.0 loads extension dependencies, native addons included; they stay in Node's module cache until the process
   ends, so a new version takes effect after a restart. A browser or TUI facet that imports one fails to build.
 - **No `tsconfig.json` is needed.** The bundler strips types and does not type-check; JSX is compiled with the
   automatic React runtime, a fixed setting of the loader. A plugin may keep a `tsconfig.json` for its editor and for
@@ -149,7 +149,7 @@ Each facet is built on its own, as one script. The bundler starts at the facet f
 | An import of | Becomes |
 | --- | --- |
 | the plugin's own files (`./store.ts`, `./NoteList.tsx`) | inlined into the facet's script |
-| another plugin's contract (`../sessions/contract.ts`, or `@pi/sessions/contract` for an installed package) | inlined too: a copy, so a plugin carries the contract version it was built against (`accepts` needs that); only contracts and side-effect-free modules may be imported across plugins |
+| another plugin's contract (`../sessions/contract.ts`, or `@evoharness/sessions/contract` for an installed package) | inlined too: a copy, so a plugin carries the contract version it was built against (`accepts` needs that); only contracts and side-effect-free modules may be imported across plugins |
 | an npm package in `dependencies` (`marked`) | inlined, resolved from the plugin's own `node_modules` |
 | an npm package listed in `chord.external` (Node facets only) | external: `require`d from the plugin's own `node_modules` at evaluation |
 | a host package (`@earendil-works/chord/next`, `react`, `@app/core`, …) | **external**: a parameter of the script, the host's instance at load time |
@@ -181,7 +181,7 @@ const HOST_PACKAGES = {                                     // the app's base bu
 };
 const script = await buildFacet({ plugin: "/data/plugins/notes", facet: "worker.ts", hostPackages: Object.keys(HOST_PACKAGES), platform: "node" });
 const facet = evaluateFacet(script, { hostPackages: HOST_PACKAGES, require: createRequire(import.meta.url), dir: "/data/plugins/notes" });
-await host.reload([{ name: "@pi/notes", facet }], ctx);    // or host.load the first time
+await host.reload([{ name: "@evoharness/notes", facet }], ctx);    // or host.load the first time
 ```
 
 - `buildFacet` is esbuild with: the facet as entry, the host packages and `node:*` external, `format: "cjs"` wrapped
@@ -367,12 +367,12 @@ app's registries (`Http`, `Panels`, a TUI command list).
 | `chord/next/http` | the Node HTTP server, the `Http` registry (routes, wraps, request resolvers, responses as descriptions: ranges, downloads, `HEAD`), WebSocket entry calling `host.accept` | `src/hosts/server.ts` (HTTP part), `runtime/http.ts`, `Routes`, `Upgrades`, `RequestResolvers` |
 | `chord/next/workers` | `workerRoute` (fork a worker per address, IPC link, start message, idle stop from `host.activity`, crash restart with backoff), `workerMain` (the child's side) | `SessionHosts` in `runtime/server.ts`, `hosts/worker.ts` |
 | `chord/next/web` | the page host (connect over a WebSocket with reconnect, load web facets from their scripts, React provider and hooks: `useObject` over `host.hold`, `useRegistry`, `useWatch`), serving the bundle by hash, reload on a new manifest | `hosts/web/*`, `runtime/web.tsx`, `src/web/reconnect.ts` |
-| `chord/next/tui` | the TUI launcher and sandbox (pi-tui, the bundle download, a link over the launcher's socket), slots and commands as registries | `hosts/tui-*.ts`, `runtime/tui.ts` |
+| `chord/next/tui` | the TUI launcher and sandbox (evoharness-tui, the bundle download, a link over the launcher's socket), slots and commands as registries | `hosts/tui-*.ts`, `runtime/tui.ts` |
 | `chord/next/dev` | the source watcher marking plugins dirty, the reload control (`reload(plugins)` on every host in order: server, workers, then a manifest bump for pages and the TUI) | `performReload` in `hosts/server.ts`, the dev protocol |
 
 Each is ordinary code on top of Chord's public API: nothing in the kernel depends on it, a Durable Object deployment
 uses none of it, and an app can replace any one (its own HTTP server, its own shell). React is a host package of the web
-component, pi-tui of the TUI component; an app without them never imports them.
+component, evoharness-tui of the TUI component; an app without them never imports them.
 
 ## What stays the app's
 

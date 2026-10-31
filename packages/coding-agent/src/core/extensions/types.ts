@@ -147,7 +147,7 @@ export type EditorFactory = (tui: TUI, theme: EditorTheme, keybindings: Keybindi
 /**
  * Formats the host's configured keybindings for display.
  * Extensions should use these instead of importing `keyText`/`keyHint`: an import may resolve to another copy of
- * pi-coding-agent, which does not see the host's keybindings.
+ * evoharness-coding-agent, which does not see the host's keybindings.
  */
 export interface KeybindingHints {
 	/** Configured keys for a keybinding id, for example `"ctrl+o"`. Empty when the id has no keys. */
@@ -240,7 +240,7 @@ export interface ExtensionUIContext {
 			/** Called with the overlay handle after the overlay is shown. Use to control visibility. */
 			onHandle?: (handle: OverlayHandle) => void;
 			/**
-			 * Report pi as blocked on user input (OSC 7501 program status) while this component is visible.
+			 * Report evoharness as blocked on user input (OSC 7501 program status) while this component is visible.
 			 * Only applies to inline components, not overlays.
 			 */
 			blocked?: { kind: NonNullable<ProgramStatus["kind"]>; message: string };
@@ -374,7 +374,7 @@ export interface ExtensionContext {
 	abort(): void;
 	/** Whether there are queued messages waiting */
 	hasPendingMessages(): boolean;
-	/** Gracefully shutdown pi and exit. Available in all contexts. */
+	/** Gracefully shutdown evoharness and exit. Available in all contexts. */
 	shutdown(): void;
 	/** Get current context usage for the active model. */
 	getContextUsage(): ContextUsage | undefined;
@@ -899,7 +899,7 @@ export type SessionEvent =
  * Fired before each LLM call. Can modify messages.
  *
  * `messages` holds the conversation without system messages. The prompt and tool state
- * belong to Pi: it restores them after the handler returns, so a handler cannot drop
+ * belong to EvoHarness: it restores them after the handler returns, so a handler cannot drop
  * them and does not need to preserve them.
  */
 export interface ContextEvent {
@@ -908,7 +908,7 @@ export interface ContextEvent {
 }
 
 /**
- * Fired before each LLM call, after every `context` handler has run and Pi has restored
+ * Fired before each LLM call, after every `context` handler has run and EvoHarness has restored
  * the prompt and tool state. `messages` is the full transcript including system messages,
  * and the result is sent as returned: the handler owns the prompt and tool declarations.
  */
@@ -940,7 +940,7 @@ export interface AfterProviderResponseEvent {
 	headers: Record<string, string>;
 }
 
-/** Fired for a parsed provider stream event before Pi normalizes it. */
+/** Fired for a parsed provider stream event before EvoHarness normalizes it. */
 export interface ProviderStreamEvent {
 	type: "provider_stream_event";
 	provider: ProviderId;
@@ -1058,7 +1058,7 @@ export interface AgentSettledEvent {
 
 export type UIPromptKind = "select" | "confirm" | "input" | "editor" | "custom";
 
-/** Fired when Pi starts waiting on a blocking user-facing extension UI prompt. */
+/** Fired when EvoHarness starts waiting on a blocking user-facing extension UI prompt. */
 export interface UIPromptStartEvent {
 	type: "ui_prompt_start";
 	reason: "ui_prompt";
@@ -1066,7 +1066,7 @@ export interface UIPromptStartEvent {
 	title?: string;
 }
 
-/** Fired when Pi is no longer waiting on a blocking user-facing extension UI prompt. */
+/** Fired when EvoHarness is no longer waiting on a blocking user-facing extension UI prompt. */
 export interface UIPromptEndEvent {
 	type: "ui_prompt_end";
 	reason: "ui_prompt";
@@ -1213,7 +1213,7 @@ export type InputEventResult =
 interface ToolCallEventBase {
 	type: "tool_call";
 	/**
-	 * The call's id. For calls another tool made (with `parentToolCallId` set), pi assigns
+	 * The call's id. For calls another tool made (with `parentToolCallId` set), evoharness assigns
 	 * `<parent id>/<n>`; such ids never appear as tool calls or tool results in the transcript, only
 	 * in the parent result's `nestedCalls` record.
 	 */
@@ -1738,7 +1738,7 @@ export interface ExtensionAPI {
 	/** Register a custom renderer for CustomMessageEntry. */
 	registerMessageRenderer<T = unknown>(customType: string, renderer: MessageRenderer<T>): void;
 
-	/** Register a transformer for user and assistant Markdown before Pi renders it in the interactive transcript. */
+	/** Register a transformer for user and assistant Markdown before EvoHarness renders it in the interactive transcript. */
 	registerMarkdownTransformer(transformer: MarkdownTransformer): void;
 
 	/** Register a custom renderer for CustomEntry. Custom entries do not participate in LLM context. */
@@ -1842,7 +1842,7 @@ export interface ExtensionAPI {
 	 *
 	 * @example
 	 * // Register a new provider with custom models
-	 * pi.registerProvider("my-proxy", {
+	 * evoharness.registerProvider("my-proxy", {
 	 *   baseUrl: "https://proxy.example.com",
 	 *   apiKey: "$PROXY_API_KEY",
 	 *   api: "anthropic-messages",
@@ -1861,13 +1861,13 @@ export interface ExtensionAPI {
 	 *
 	 * @example
 	 * // Override baseUrl for an existing provider
-	 * pi.registerProvider("anthropic", {
+	 * evoharness.registerProvider("anthropic", {
 	 *   baseUrl: "https://proxy.example.com"
 	 * });
 	 *
 	 * @example
 	 * // Register provider with OAuth support
-	 * pi.registerProvider("corporate-ai", {
+	 * evoharness.registerProvider("corporate-ai", {
 	 *   baseUrl: "https://ai.corp.com",
 	 *   api: "openai-responses",
 	 *   models: [...],
@@ -1893,7 +1893,7 @@ export interface ExtensionAPI {
 	 * the initial load phase.
 	 *
 	 * @example
-	 * pi.unregisterProvider("my-proxy");
+	 * evoharness.unregisterProvider("my-proxy");
 	 */
 	unregisterProvider(name: string): void;
 
@@ -1913,7 +1913,7 @@ export interface ExtensionAPI {
 	 * extension replaced the built-in one), the registration is reported as an extension error.
 	 *
 	 * @example
-	 * pi.registerMcpServer("jira", { url: "https://mcp.example.com/jira" });
+	 * evoharness.registerMcpServer("jira", { url: "https://mcp.example.com/jira" });
 	 */
 	registerMcpServer(name: string, config: McpServerConfig): void;
 
@@ -1945,13 +1945,13 @@ export interface ExtensionAPI {
 // Provider Registration Types
 // ============================================================================
 
-/** Virtual model registered via pi.registerVirtualModel(). */
+/** Virtual model registered via evoharness.registerVirtualModel(). */
 export interface ExtensionVirtualModel<TState = unknown> extends Omit<VirtualModelDefinition<TState>, "route"> {
 	/** Like `VirtualModelDefinition.route`, with an extension context. */
 	route(request: ModelRouteRequest<TState>, ctx: ExtensionContext): ModelRoute<TState> | Promise<ModelRoute<TState>>;
 }
 
-/** Configuration for registering a provider via pi.registerProvider(). */
+/** Configuration for registering a provider via evoharness.registerProvider(). */
 export interface ProviderConfig {
 	/** Display name for the provider in UI. */
 	name?: string;
@@ -2035,7 +2035,7 @@ export interface ProviderChatModelConfig extends ProviderModelConfigBase {
 	api?: Api;
 	/** Whether the model supports extended thinking. */
 	reasoning: boolean;
-	/** Maps pi thinking levels to provider/model-specific values; null marks a level unsupported. */
+	/** Maps evoharness thinking levels to provider/model-specific values; null marks a level unsupported. */
 	thinkingLevelMap?: Model<Api>["thinkingLevelMap"];
 	/** Best-effort prompt cache lifetime in seconds per retention tier. Unset disables cache warming. */
 	promptCache?: Model<Api>["promptCache"];
@@ -2066,7 +2066,7 @@ export interface ProviderClassifierModelConfig extends ProviderModelConfigBase {
 export type ProviderModelConfig = ProviderChatModelConfig | ProviderImageModelConfig | ProviderClassifierModelConfig;
 
 /** Extension factory function type. Supports both sync and async initialization. */
-export type ExtensionFactory = (pi: ExtensionAPI) => void | Promise<void>;
+export type ExtensionFactory = (evoharness: ExtensionAPI) => void | Promise<void>;
 
 export type InlineExtension =
 	| ExtensionFactory
@@ -2089,7 +2089,7 @@ export type InlineExtension =
 			replaceable?: boolean;
 			/**
 			 * Supply the code of the `builtin:<name>` extension instead of loading as an inline extension.
-			 * `builtin:<name>` is an extension resource like a file: it loads by default, `pi config` lists
+			 * `builtin:<name>` is an extension resource like a file: it loads by default, `evoharness config` lists
 			 * it, `-builtin:<name>` in the `extensions` setting and `--no-extensions` disable it, and
 			 * `-e builtin:<name>` loads it explicitly. It is hidden from the startup Extensions list and
 			 * loads after project trust is resolved, so it cannot handle `project_trust`. The CLI's built-in
@@ -2179,7 +2179,7 @@ export interface ExtensionRuntimeState {
 	flagValues: Map<string, boolean | string>;
 	/** Legacy provider-config registrations queued during extension loading, processed when runner binds. */
 	pendingProviderRegistrations: Array<{ name: string; config: ProviderConfig; extensionPath: string }>;
-	/** Native pi-ai provider registrations queued during extension loading, processed when runner binds. */
+	/** Native evoharness-ai provider registrations queued during extension loading, processed when runner binds. */
 	pendingNativeProviderRegistrations: Array<{ provider: Provider; extensionPath: string }>;
 	/** Virtual model registrations queued during extension loading, processed when runner binds. */
 	pendingVirtualModelRegistrations: Array<{ definition: VirtualModelDefinition; extensionPath: string }>;
@@ -2207,7 +2207,7 @@ export interface ExtensionRuntimeState {
 }
 
 /**
- * Action implementations for pi.* API methods.
+ * Action implementations for evoharness.* API methods.
  * Provided to runner.initialize(), copied into the shared runtime.
  */
 export interface ExtensionActions {

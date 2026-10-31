@@ -1,8 +1,8 @@
-# pi-codemode on Cloudflare
+# evoharness-codemode on Cloudflare
 
 This example has two Workers:
 
-- **`sandbox/`** deploys `CodemodeSandboxDurableObject` as its own Worker, `pi-codemode-sandbox`.
+- **`sandbox/`** deploys `CodemodeSandboxDurableObject` as its own Worker, `evoharness-codemode-sandbox`.
   Scripts run there, in a separate isolate.
 - **`agent/`** has a `Session` Durable Object that owns the tools. It runs scripts through
   `RemoteCodemodeSandbox`, which keeps the tools and results in `Session` while the sandbox Worker

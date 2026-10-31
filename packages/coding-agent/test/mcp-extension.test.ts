@@ -42,14 +42,14 @@ describe("MCP config", () => {
 	});
 
 	function setup(global: unknown, project: unknown) {
-		const root = mkdtempSync(join(tmpdir(), "pi-mcp-config-"));
+		const root = mkdtempSync(join(tmpdir(), "evoharness-mcp-config-"));
 		dirs.push(root);
 		const agentDir = join(root, "agent");
 		const cwd = join(root, "project");
 		mkdirSync(agentDir, { recursive: true });
-		mkdirSync(join(cwd, ".pi"), { recursive: true });
+		mkdirSync(join(cwd, ".evoharness"), { recursive: true });
 		writeFileSync(join(agentDir, "mcp.json"), JSON.stringify(global));
-		writeFileSync(join(cwd, ".pi", "mcp.json"), JSON.stringify(project));
+		writeFileSync(join(cwd, ".evoharness", "mcp.json"), JSON.stringify(project));
 		return { agentDir, cwd };
 	}
 
@@ -94,7 +94,7 @@ describe("MCP config", () => {
 			// An override cannot change the command, which would run with the global env.
 			{ mcpServers: { tools: { enabled: false, args: ["y"] }, missing: { enabled: false } } },
 		);
-		const project = join(paths.cwd, ".pi", "mcp.json");
+		const project = join(paths.cwd, ".evoharness", "mcp.json");
 		const { servers, errors } = loadMcpConfig({ ...paths, projectTrusted: true });
 		expect(servers.map((server) => [server.name, server.override, server.config])).toEqual([
 			["tools", undefined, { command: "x", env: { TOKEN: "secret" } }],
@@ -120,7 +120,7 @@ describe("MCP config", () => {
 	it("reads and edits mcp.json files that start with a UTF-8 BOM", () => {
 		const paths = setup({}, {});
 		const global = join(paths.agentDir, "mcp.json");
-		const project = join(paths.cwd, ".pi", "mcp.json");
+		const project = join(paths.cwd, ".evoharness", "mcp.json");
 		writeFileSync(global, '\uFEFF{"mcpServers":{"demo":{"command":"echo","enabled":false}}}\n');
 		writeFileSync(project, '\uFEFF{"mcpServers":{"local":{"command":"local-cmd"}}}\n');
 
@@ -543,7 +543,7 @@ describe("MCP connections", () => {
 	it.skipIf(process.platform === "win32")(
 		"expands ~ in the command, arguments, and cwd of stdio servers",
 		async () => {
-			const home = mkdtempSync(join(tmpdir(), "pi-mcp-home-"));
+			const home = mkdtempSync(join(tmpdir(), "evoharness-mcp-home-"));
 			const previousHome = process.env.HOME;
 			process.env.HOME = home;
 			mkdirSync(join(home, "work"));
@@ -768,7 +768,7 @@ for await (const line of createInterface({ input: process.stdin })) {
 	});
 
 	it("appends server log messages to the log file", async () => {
-		const dir = mkdtempSync(join(tmpdir(), "pi-mcp-log-"));
+		const dir = mkdtempSync(join(tmpdir(), "evoharness-mcp-log-"));
 		try {
 			const path = join(dir, "mcp.log");
 			const { connection } = connect(

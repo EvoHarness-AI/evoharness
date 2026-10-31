@@ -41,7 +41,7 @@ models.setProvider(faux.provider);
 const callVersion = () => fauxAssistantMessage(fauxToolCall("version", {}), { stopReason: "toolUse" });
 faux.setResponses([callVersion(), fauxAssistantMessage("Done."), callVersion(), fauxAssistantMessage("Done.")]);
 
-const directory = await mkdtemp(join(tmpdir(), "pi-durable-reload-"));
+const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-reload-"));
 const open = async (registry: ReturnType<typeof createRegistry>) =>
 	Harness.open(await openNodeSqliteStorage(join(directory, "session.sqlite")), { models, registry }, context);
 

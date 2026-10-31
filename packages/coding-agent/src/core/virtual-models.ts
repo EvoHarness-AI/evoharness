@@ -26,7 +26,7 @@ import {
 import type { SessionEntry } from "./session-manager.ts";
 
 /** API id of virtual catalog entries. Requests for it fail unless routed first. */
-export const VIRTUAL_MODEL_API = "pi-virtual";
+export const VIRTUAL_MODEL_API = "evoharness-virtual";
 
 /** Custom entry type that stores router state on the session branch. */
 export const VIRTUAL_MODEL_STATE_ENTRY = "evoharness.virtual-model-state";
@@ -90,7 +90,7 @@ export interface VirtualModelDefinition<TState = unknown> {
 	/** Thinking levels offered for selection. Defaults to `["off"]`. */
 	thinkingLevels?: readonly ModelThinkingLevel[];
 	/**
-	 * Limits shown before the first response. Afterwards, Pi uses the limits of the physical model
+	 * Limits shown before the first response. Afterwards, EvoHarness uses the limits of the physical model
 	 * that answered. Unset limits are unknown (0).
 	 */
 	contextWindow?: number;

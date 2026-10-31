@@ -14,7 +14,7 @@ import { generatePKCE } from "./pkce.ts";
 
 // every login registers a new client with this ID; OpenAI returns the issued client ID in the callback
 const DYNAMIC_CLIENT_ID = "dynamic_agent_client";
-const AGENT_NAME_HINT = "Pi";
+const AGENT_NAME_HINT = "EvoHarness";
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const AUTHORIZE_URL = "https://auth.openai.com/api/accounts/authorize";
 const TOKEN_URL = "https://auth.openai.com/api/accounts/oauth/token";
@@ -197,7 +197,7 @@ async function exchangeAuthorizationCode(
 		}),
 		signal,
 	);
-	// Pi does not use the ID token to identify the user or read profile data.
+	// EvoHarness does not use the ID token to identify the user or read profile data.
 	// Keep the presence check as part of the token-response contract.
 	if (typeof token.id_token !== "string" || token.id_token.trim().length === 0) {
 		throw new Error("OpenAI OAuth token response did not contain an ID token");
@@ -243,7 +243,7 @@ async function loginOpenAIChatGPT(
 	const callback = await startCallbackServer(state).catch((error: unknown) => {
 		if (!(error instanceof Error && "code" in error && error.code === "EADDRINUSE")) throw error;
 		throw new Error(
-			`Port ${CALLBACK_PORT} is in use, probably by an unfinished login in another pi session or by the Codex CLI. Cancel that login and try again.`,
+			`Port ${CALLBACK_PORT} is in use, probably by an unfinished login in another evoharness session or by the Codex CLI. Cancel that login and try again.`,
 		);
 	});
 

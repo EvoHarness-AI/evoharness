@@ -16,7 +16,7 @@ import { createEventBus, type EventBus } from "../event-bus.ts";
 import type { ExecOptions } from "../exec.ts";
 import { execCommand } from "../exec.ts";
 import { type McpServerConfig, McpServerRegistry, mcpNamespace, validateMcpServerConfig } from "../mcp-servers.ts";
-import { readPiManifest } from "../pi-manifest.ts";
+import { readPiManifest } from "../evoharness-manifest.ts";
 import { createSyntheticSourceInfo, getSyntheticPathSource, isSyntheticPath } from "../source-info.ts";
 import { time } from "../timings.ts";
 import type { ModelRouteRequest, VirtualModelDefinition } from "../virtual-models.ts";
@@ -88,7 +88,7 @@ function getAliases(): Record<string, string> {
 	const evoharnessCodingAgentEntry = packageIndex;
 	const evoharnessAgentCoreEntry = resolveWorkspaceOrImport("agent/dist/index.js", "@evoharness/agent-core");
 	const evoharnessTuiEntry = resolveWorkspaceOrImport("tui/dist/index.js", "@evoharness/tui");
-	// Extensions resolve the pi-ai root to the compat entrypoint (a strict
+	// Extensions resolve the evoharness-ai root to the compat entrypoint (a strict
 	// superset of the core entrypoint): existing extensions using the old
 	// global API keep working at runtime until compat is removed.
 	const evoharnessAiCompatEntry = resolveWorkspaceOrImport("ai/dist/compat.js", "@evoharness/ai/compat");
@@ -108,14 +108,14 @@ function getAliases(): Record<string, string> {
 		"@evoharness/ai/models": evoharnessAiModelsEntry,
 		"@evoharness/ai/oauth": evoharnessAiOauthEntry,
 		"@evoharness/ai": evoharnessAiCompatEntry,
-		"@mariozechner/pi-coding-agent": evoharnessCodingAgentEntry,
-		"@mariozechner/pi-agent-core": evoharnessAgentCoreEntry,
-		"@mariozechner/pi-tui": evoharnessTuiEntry,
-		"@mariozechner/pi-ai/providers/all": evoharnessAiProvidersEntry,
-		"@mariozechner/pi-ai/compat": evoharnessAiCompatEntry,
-		"@mariozechner/pi-ai/models": evoharnessAiModelsEntry,
-		"@mariozechner/pi-ai/oauth": evoharnessAiOauthEntry,
-		"@mariozechner/pi-ai": evoharnessAiCompatEntry,
+		"@mariozechner/evoharness-coding-agent": evoharnessCodingAgentEntry,
+		"@mariozechner/evoharness-agent-core": evoharnessAgentCoreEntry,
+		"@mariozechner/evoharness-tui": evoharnessTuiEntry,
+		"@mariozechner/evoharness-ai/providers/all": evoharnessAiProvidersEntry,
+		"@mariozechner/evoharness-ai/compat": evoharnessAiCompatEntry,
+		"@mariozechner/evoharness-ai/models": evoharnessAiModelsEntry,
+		"@mariozechner/evoharness-ai/oauth": evoharnessAiOauthEntry,
+		"@mariozechner/evoharness-ai": evoharnessAiCompatEntry,
 		typebox: typeboxEntry,
 		"typebox/compile": typeboxCompileEntry,
 		"typebox/value": typeboxValueEntry,
@@ -197,7 +197,7 @@ export function createExtensionRuntime(): ExtensionRuntime {
 			if (state.staleMessage) return;
 			state.staleMessage =
 				message ??
-				"This extension ctx is stale after session replacement or reload. Do not use a captured pi or command ctx after ctx.newSession(), ctx.fork(), ctx.switchSession(), or ctx.reload(). For newSession, fork, and switchSession, move post-replacement work into withSession and use the ctx passed to withSession. For reload, do not use the old ctx after await ctx.reload().";
+				"This extension ctx is stale after session replacement or reload. Do not use a captured evoharness or command ctx after ctx.newSession(), ctx.fork(), ctx.switchSession(), or ctx.reload(). For newSession, fork, and switchSession, move post-replacement work into withSession and use the ctx passed to withSession. For reload, do not use the old ctx after await ctx.reload().";
 			for (const unsubscribe of eventBusUnsubscribers) unsubscribe();
 			eventBusUnsubscribers.clear();
 		},
@@ -307,7 +307,7 @@ function createExtensionAPI(
 			assertActive();
 			if (typeof name !== "string" || name.length === 0) {
 				throw new Error(
-					`Command registered by extension "${extension.path}" must have a non-empty string name. Use pi.registerCommand("name", { description, handler }).`,
+					`Command registered by extension "${extension.path}" must have a non-empty string name. Use evoharness.registerCommand("name", { description, handler }).`,
 				);
 			}
 			if (typeof options?.handler !== "function") {
@@ -750,7 +750,7 @@ function isExtensionFile(name: string): boolean {
  * Returns resolved paths or null if no entry points found.
  */
 function resolveExtensionEntries(dir: string): string[] | null {
-	// Check for package.json with "pi" field first
+	// Check for package.json with "evoharness" field first
 	const packageJsonPath = path.join(dir, "package.json");
 	if (fs.existsSync(packageJsonPath)) {
 		const manifest = readPiManifest(packageJsonPath);
@@ -787,7 +787,7 @@ function resolveExtensionEntries(dir: string): string[] | null {
  * Discovery rules:
  * 1. Direct files: `extensions/*.ts` or `*.js` → load
  * 2. Subdirectory with index: `extensions/* /index.ts` or `index.js` → load
- * 3. Subdirectory with package.json: `extensions/* /package.json` with "pi" field → load what it declares
+ * 3. Subdirectory with package.json: `extensions/* /package.json` with "evoharness" field → load what it declares
  *
  * No recursion beyond one level. Complex packages must use package.json manifest.
  */
@@ -861,7 +861,7 @@ export async function discoverAndLoadExtensions(
 	for (const p of configuredPaths) {
 		const resolved = resolvePath(p, resolvedCwd, { normalizeUnicodeSpaces: true });
 		if (fs.existsSync(resolved) && fs.statSync(resolved).isDirectory()) {
-			// Check for package.json with pi manifest or index.ts
+			// Check for package.json with evoharness manifest or index.ts
 			const entries = resolveExtensionEntries(resolved);
 			if (entries) {
 				addPaths(entries);

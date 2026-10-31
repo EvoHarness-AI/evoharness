@@ -153,5 +153,5 @@ export class TestSession extends DurableObject {
 }
 
 export default {
-	fetch: () => new Response("pi-durable test worker"),
+	fetch: () => new Response("evoharness-durable test worker"),
 };

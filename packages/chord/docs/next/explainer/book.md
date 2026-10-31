@@ -2,7 +2,7 @@
 title: Chord v2: a guide to building apps that reload
 cover: Chord v2 / A Guide
 kicker: A guide · Chord v2 target design · 2026-10-20
-subtitle: How to build an app like p2 from nothing on Chord v2 and pi-durable, one object at a time, so that new plugin code takes over while the agent keeps running
+subtitle: How to build an app like p2 from nothing on Chord v2 and evoharness-durable, one object at a time, so that new plugin code takes over while the agent keeps running
 stats:
   - 11 | layers in the rebuild, L1 to L11
   - ~1,300 | lines built so far (L1 contracts)
@@ -15,8 +15,8 @@ note: |
   Chord v2 is being rebuilt layer by layer; only the L1 contract layer exists (`src/next/contracts/`, commit
   `7d2bb8ea8`). Code in this guide is therefore the target, not something you can run today. Every chapter says what is
   built. API names are working names. Notes marked *review* are points that are undecided, or where the sources
-  disagree; they name the files. The reader is assumed to know pi-durable; Chord is explained from the start.
-colophon: Chord v2 · a guide · first edition · 2026-10-20 · based on design.md (target design v2), redesign-decisions.md (review rounds 2 and 3), chord-next-walkthrough.md, layer-1.md, contracts/README.md, the p3 functionality map, questions.md and the pi-durable README
+  disagree; they name the files. The reader is assumed to know evoharness-durable; Chord is explained from the start.
+colophon: Chord v2 · a guide · first edition · 2026-10-20 · based on design.md (target design v2), redesign-decisions.md (review rounds 2 and 3), chord-next-walkthrough.md, layer-1.md, contracts/README.md, the p3 functionality map, questions.md and the evoharness-durable README
 ---
 
 # Before we begin {.preface}
@@ -31,7 +31,7 @@ agent's turn continues as if nothing happened. Ann's view does not flicker into 
 lost, and no process restarts.
 
 The obvious ways to get there fail. **Restarting the processes** loses the turn in flight, the open terminal and every
-connection; pi-durable would resume the turn, but the test run and the connections are gone. **Hot-swapping modules**
+connection; evoharness-durable would resume the turn, but the test run and the connections are gone. **Hot-swapping modules**
 in place, as front-end tooling does, leaves the old code alive in closures, timers, event listeners and sockets that
 nobody knows about: the old sort function keeps running inside a callback someone stored, a file watcher opened by the
 old code is never closed, and two versions of the plugin now write the same data without any order.
@@ -43,8 +43,8 @@ watcher, transaction and reference an object has, it can swap the object's code 
 what touches the operating system, and route calls between browser tabs, the server and per-session worker processes
 without the plugin author writing any of that.
 
-This guide teaches Chord v2 by building an app called **Studio**: a small version of p2 (Pi Mobile), with a server,
-one worker process per session, browser tabs as clients, and an agent from pi-durable on each worker. The first
+This guide teaches Chord v2 by building an app called **Studio**: a small version of p2 (EvoHarness Mobile), with a server,
+one worker process per session, browser tabs as clients, and an agent from evoharness-durable on each worker. The first
 chapters grow one plugin, `@studio/notes`, until it uses every concept; the last three chapters assemble the rest of a
 p2-like app from the same parts.
 
@@ -81,7 +81,7 @@ descriptions on the wire); do not read it as the target. Build on the design, no
 9. **Reload swaps pure objects in place and restarts native ones.** Objects without OS handles get the new code with
    their data and running work intact; objects with OS handles close and reopen them. A broken change leaves the whole
    host on its old code.
-10. **pi-durable runs inside a core object.** The agent harness is a host-lifetime object on each worker; models,
+10. **evoharness-durable runs inside a core object.** The agent harness is a host-lifetime object on each worker; models,
     environments and tools reach it through registries, and tools reach Chord through `chord(fn, context)`.
 :::
 
@@ -825,7 +825,7 @@ note "Authority is the view's: the reader variant has no add. The store does not
 binds it during activation and waits until the store is live (chapter VI). The view exposes the store's readables
 directly. Owner, Ann and Bob now give three `Notes` objects, one `NoteStore`, one note list and one redacted list.
 
-Any heavy or shared part belongs in a store like this: a pi-durable watch, a file watcher, a sandbox, a search index.
+Any heavy or shared part belongs in a store like this: a evoharness-durable watch, a file watcher, a sandbox, a search index.
 Base code uses the same pattern with the same primitives; nothing about it is special to core.
 
 ## Derived values, briefly
@@ -869,7 +869,7 @@ host-lifetime object, chapter V).
 
 Notes must be stored, changed safely while others read them, sent to viewers as small changes, and survive a worker
 restart. An object's data lives in **documents**: named JSON values the object owns, changed only in
-**transactions**. The design is a port of pi-durable's store, so most rules will look familiar; this chapter states
+**transactions**. The design is a port of evoharness-durable's store, so most rules will look familiar; this chapter states
 them for Chord.
 
 ## Defining a document
@@ -894,7 +894,7 @@ const Draft = defineState("notes.draft", {                         // one unfini
 });
 ```
 
-`checkpointWhen` is required on every definition, with no default (R14, as in Durable since pi `5c1736f82`): it says
+`checkpointWhen` is required on every definition, with no default (R14, as in Durable since evoharness `5c1736f82`): it says
 when a commit stores a complete base instead of a delta, which bounds how much is replayed on load. Small documents
 checkpoint on every write; growing ones after a number of deltas.
 
@@ -1299,7 +1299,7 @@ exportText: async ({}, ctx) => {
 ```
 
 There are no code versions and no request ids in `ctx`. Durable's `Context` is the same module (`chord/context`):
-`ctx` extends it, so passing `ctx` into pi-durable needs no conversion. Code outside objects gets a `ctx` from
+`ctx` extends it, so passing `ctx` into evoharness-durable needs no conversion. Code outside objects gets a `ctx` from
 `host.root(fn, { principal?, signal? })`; inside Durable tools it uses `chord(fn, context)` (chapter XIV).
 
 :::note | Built so far
@@ -1472,7 +1472,7 @@ self.derive("public", [list], ([l]) => ({ items: l.items.map(stripAuthor) }));
 :::review | Review: mapShared is planned, not available
 Design §12 introduces `mapShared` as coming "from `@earendil-works/chord/delta`", but nothing in `packages/chord/src`
 defines it yet, and Delta does not yet treat bytes as atomic leaves in `diffRevisions`. Design §28 lists both as the
-step "Delta in pi", before the layered rebuild. Until then, keep a `Map` from source element to result yourself, which
+step "Delta in evoharness", before the layered rebuild. Until then, keep a `Map` from source element to result yourself, which
 is what `mapShared` will do.
 :::
 
@@ -1845,7 +1845,7 @@ to `on` and `loop` only (C4), not decided.
 Importing a 50 MB text file into notes takes a minute. The tab that started it may close; the import must go on, be
 cancellable, not run twice when the tab retries after a link blip, and its result must be recorded. A method cannot do
 this (it dies with its caller), a routine is standing behaviour rather than a request, and a Durable task is for work
-that must resume after a crash. Chord's form for it is the **job**, built in pi-durable's sandwich: **intent** (a
+that must resume after a crash. Chord's form for it is the **job**, built in evoharness-durable's sandwich: **intent** (a
 transaction), **effect** (anything), **outcome** (a transaction in the current code).
 
 ## Defining and running a job
@@ -2037,7 +2037,7 @@ type FlowState =
 ```
 
 The UI watches the state and renders the current step. A late or second answer to a step that is gone is refused. A
-promise-based callback inside the work (pi-ai's `prompt` during a login) stays **inside** the owner: its job keeps the
+promise-based callback inside the work (evoharness-ai's `prompt` during a login) stays **inside** the owner: its job keeps the
 resolver, and nothing crosses an object boundary.
 
 Imperative consumers (tests, scripts, a CLI, an agent tool) use a generic client helper over the same state, not a
@@ -2337,11 +2337,11 @@ kernel and a first real proof (the harness, one tool with an approval pause, a c
 playground serves its pages with plain app code. Their design stays the target.
 :::
 
-# The Agent {#agent lede="pi-durable inside Chord: the harness as a core object, models, environments and tools through registries, and how a tool reaches Chord objects and people."}
+# The Agent {#agent lede="evoharness-durable inside Chord: the harness as a core object, models, environments and tools through registries, and how a tool reaches Chord objects and people."}
 
-Each Studio worker runs a pi-durable harness for its session. The harness must run for the worker's whole life,
+Each Studio worker runs a evoharness-durable harness for its session. The harness must run for the worker's whole life,
 whether anyone watches or not. Its models come from the models plugin, its execution environments from the envs
-plugin, its tools from every plugin, and all of those reload independently. This chapter assumes you know pi-durable
+plugin, its tools from every plugin, and all of those reload independently. This chapter assumes you know evoharness-durable
 and shows only how it plugs into Chord.
 
 ## Shared foundations
@@ -2389,12 +2389,12 @@ host.serve(Harness, (_input, self) => {
   continue.
 - **Base code:** it lives in the core facet, so a plugin reload never restarts it; only a base-code change (a host
   restart) does.
-- **Registries, looked up at each use:** Durable's `models` and `settings` accept functions (pi `7ec1f648e`), so each
+- **Registries, looked up at each use:** Durable's `models` and `settings` accept functions (evoharness `7ec1f648e`), so each
   generation gets the current value. After a models reload the next request uses the new runtime; a running stream
   finishes on the old one.
 - **Durable's storage is its own.** Chord documents never commit together with Durable transcripts.
 
-The design writes the call as `Durable.open(storage, { … })`; pi-durable's actual entry point is
+The design writes the call as `Durable.open(storage, { … })`; evoharness-durable's actual entry point is
 `Harness.open(storage, options, context)`, used here as `DurableHarness` to keep it apart from the core object
 `Harness`.
 
@@ -2513,7 +2513,7 @@ native may reach another object only through a registry entry), and exposes a bo
 
 ## Code mode
 
-Code mode is a plugin. It owns its `pi-codemode` sandbox as a native; its tool entry looks up the **current** sandbox
+Code mode is a plugin. It owns its `evoharness-codemode` sandbox as a native; its tool entry looks up the **current** sandbox
 when `execute()` starts, so a call pinned by a phase before a reload (waiting in an approval hook, say) starts on the
 new sandbox. On `reload` and `stop` the old sandbox is sealed and drained in `close`: running scripts finish or hit
 their deadline, for at most 30 s (Q7). After a worker stop Durable replays as it does today.
@@ -3167,7 +3167,7 @@ Chord reports traces, events and metrics through `@evoharness/telemetry`. Each h
 `createHost({ telemetry })`, NOOP by default; the adapter decides sampling, buffering, export and filtering. Only hosts
 hold the adapter, to start root spans. Code sees spans:
 
-- `ctx.telemetry` is the current span (`Ctx` extends `Context`, so it is the same field Durable and pi-ai read). Every
+- `ctx.telemetry` is the current span (`Ctx` extends `Context`, so it is the same field Durable and evoharness-ai read). Every
   span carries its adapter's metrics and propagation, so code with a `ctx` can record a metric or inject a carrier.
 - `ctx.trace(name, attributes, fn)` runs `fn` in a child span with a child `ctx`.
 - App values such as the principal stay out of Durable's context.
@@ -3198,25 +3198,25 @@ closes are root spans too, linked to their trigger where there is one.
 
 Ids are attributes of spans, never of metrics. **Nothing is measured or walked for telemetry**; only sizes the code
 already has are reported. Errors carry a fixed category and a message cut to 500 characters; cancelling is not an
-error. Chord ships a typed telemetry schema, as pi-ai (`AI_TELEMETRY_SCHEMA`) and Durable
+error. Chord ships a typed telemetry schema, as evoharness-ai (`AI_TELEMETRY_SCHEMA`) and Durable
 (`DURABLE_TELEMETRY_SCHEMA`) do.
 
 **Storing and reading:** `@earendil-works/chord/telemetry-sqlite` over `chord/sqlite` (Node and Cloudflare) stores one
 row per settled span (events and links inline) and metrics aggregated per series per 10 s, flushes in batches every
 second, keeps 7 days, and drops (and counts) beyond a bounded queue. The read interface `TelemetryStore` is shared:
 `findTraces` (by name, attributes, errors, time window, with limit and cursor) returns complete traces, `getTrace`
-one, `findMetrics` metrics. One renderer, `pi-telemetry/render`, prints traces as above; it prints links and never
+one, `findMetrics` metrics. One renderer, `evoharness-telemetry/render`, prints traces as above; it prints links and never
 follows them. The playground's trace viewer reads the same store.
 
 **Durable** already emits submit and phase spans, stores carriers on submissions and tasks (`TaskOptions.trace`),
-and pi-ai emits `evoharness.ai.request` and `evoharness.ai.poll`. With the harness given the host's adapter (chapter XIV), an agent
+and evoharness-ai emits `evoharness.ai.request` and `evoharness.ai.poll`. With the harness given the host's adapter (chapter XIV), an agent
 tool that calls `Notes.add` through `chord(fn, context)` shows up as one tree from the model request down to the
 commit.
 
 :::note | Built so far
 Nothing of the protocol is built in v2: messages, relays, flow control and limits are layers L6 and L7, telemetry in
-Chord is L11. Built in pi: `pi-telemetry` (propagation, links, metrics, the store interface, the renderer),
-`chord/context` with `Context.telemetry`, pi-ai and Durable telemetry, and `chord/telemetry-sqlite`. Delta is built;
+Chord is L11. Built in evoharness: `evoharness-telemetry` (propagation, links, metrics, the store interface, the renderer),
+`chord/context` with `Context.telemetry`, evoharness-ai and Durable telemetry, and `chord/telemetry-sqlite`. Delta is built;
 `mapShared` and bytes as atomic leaves in `diffRevisions` are still to do. The frozen kernel sends descriptions on the
 wire and closes a link on an unknown id; both are replaced.
 :::
@@ -3739,8 +3739,8 @@ not depend on viewers.
 
 Chat mode is a per-conversation switch that everyone in the session sees and only the owner changes; forks and new
 subagents start with it off. Because it must fork and rewind with the conversation, it is **transcript-bound**: a
-Durable conversation document, not a Chord document. Messages without `@pi` become display-only Durable `write`
-entries (author, text, attachments, reply quote); a message with `@pi` becomes an input with a digest of the chat
+Durable conversation document, not a Chord document. Messages without `@evoharness` become display-only Durable `write`
+entries (author, text, attachments, reply quote); a message with `@evoharness` becomes an input with a digest of the chat
 since the last mention (at most 100 messages, 20 files, 4 images), recording which entries it passed on. The reply
 quote is derived on the worker from the entry id the client names: the client never supplies author or quote text.
 
@@ -3848,7 +3848,7 @@ per environment name).
 
 **Execution in the agent.** The worker's harness asks `HarnessEnvironments` for an environment per target (chapter
 XIV). The envs plugin contributes it from its worker facet: local execution at the session's cwd, or a remote one over
-SSH through the `pi-env` daemon, deployed per platform and connecting at the first operation. A remote session never
+SSH through the `evoharness-env` daemon, deployed per platform and connecting at the first operation. A remote session never
 falls back to local tools. The environment follows `SessionLocation`: after a move, the old connection closes once
 the move has committed and watchers reopen at the new location.
 
@@ -3971,7 +3971,7 @@ alternative is that the start code keeps the entry point and gets channels from 
 
 ## Models and credentials
 
-The **models plugin** owns the model runtime (pi-ai's models with custom providers and the model cache) in a
+The **models plugin** owns the model runtime (evoharness-ai's models with custom providers and the model cache) in a
 host-lifetime object, and the credentials. It contributes the runtime to `HarnessModels` (chapter XIV), so after a
 models reload the next request uses the new runtime while a running stream finishes on the old one. **Credentials
 never go to clients**: the views expose providers, login methods and which type is signed in, never tokens. Every
@@ -3983,7 +3983,7 @@ settings (chapter XVIII).
 
 ### Login
 
-A login is the guide's flow example (chapter XII): a **job** on the server that runs pi-ai's login, and a flow that
+A login is the guide's flow example (chapter XII): a **job** on the server that runs evoharness-ai's login, and a flow that
 shows its steps to the starting owner.
 
 ```ts
@@ -4021,7 +4021,7 @@ reopen at the new location.
 
 ## Code mode
 
-Code mode is a plugin (chapter XIV): its `pi-codemode` sandbox is a native; scripts call tools as nested Durable calls
+Code mode is a plugin (chapter XIV): its `evoharness-codemode` sandbox is a native; scripts call tools as nested Durable calls
 and replay after a restart; the tool entry looks up the current sandbox when it starts. A reload seals and drains the
 old sandbox for at most 30 s. The on/off switch is a setting.
 
@@ -4062,7 +4062,7 @@ on client WebSockets, instead of p2's 1 MiB input cap and 32 pending calls), one
 snapshots after a reconnect, and a protocol version that makes an outdated web page reload.
 
 :::note | Built so far
-None of p3 exists. pi-ai's login API, pi-codemode and the `pi-env` daemon exist and are used by p2 today; the HTTP
+None of p3 exists. evoharness-ai's login API, evoharness-codemode and the `evoharness-env` daemon exist and are used by p2 today; the HTTP
 component and channels are deferred until after the kernel's first real proof (chapter XIII).
 :::
 
@@ -4184,7 +4184,7 @@ every effect, order nothing by registration, and hold no state that must outlive
 | state | the plugin's own business; dsh's session log is a service | documents written in transactions, persisted, versioned and migrated (chapter V) |
 | reload | unload the old instance, load the new one: in-memory state and running work of that plugin end | pure objects swap their code in place with their documents and running work kept; only objects with natives restart (chapter XV) |
 | a running agent turn during reload | entries of changed plugins stop; unloading the agent provider stops its live agents | the harness is base code; Durable pins tools per task phase, so a running call finishes on old code and the next phase uses the new (chapter XIV) |
-| crash recovery of a turn | the turn is closed as `interrupted` | pi-durable continues the turn's tasks from their checkpoints; replay-safe tools rerun (chapter XIV) |
+| crash recovery of a turn | the turn is closed as `interrupted` | evoharness-durable continues the turn's tasks from their checkpoints; replay-safe tools rerun (chapter XIV) |
 | contracts and versions | TypeScript types only, pre-stable APIs, every consumer updated together; config validated with a schema | contract versions with fingerprints and provider-side mappings for old consumers (chapter XVI) |
 | status | in production in Koishi since 2019; dsh released | a design with the contract layer built |
 
@@ -4233,13 +4233,13 @@ preface while the agent keeps running. This last chapter says how much of that e
   garbage-collection tests, the cost-guard metrics, and a cleanup loop: L1 data and contracts; L2 readable and
   derive; L3 documents and store; L4 objects; L5 references and `ctx`; L6 protocol and links; L7 relay, routes,
   revocation; L8 routines and jobs; L9 registries; L10 reload and rollout; L11 telemetry in Chord.
-- **Built:** the contract layer (`src/next/contracts/`, commit `7d2bb8ea8`, chapter XVI). In pi: Delta,
-  `pi-telemetry`, `chord/context`, `chord/telemetry-sqlite`, pi-ai and Durable telemetry, Durable's required
+- **Built:** the contract layer (`src/next/contracts/`, commit `7d2bb8ea8`, chapter XVI). In evoharness: Delta,
+  `evoharness-telemetry`, `chord/context`, `chord/telemetry-sqlite`, evoharness-ai and Durable telemetry, Durable's required
   `checkpointWhen`.
 - **Next, in order** (`apps/p2/docs/p3-handoff.md`): decide Q12 and Q15, which the L1 spec needs; write the spec for
   the rest of L1 (values, inputs and identity, argument checks, principals, errors; draft in
   `packages/chord/docs/next/layer-1.md`); then Q11, Q13, Q14 and the cuts C3 to C17 before the layers they affect.
-- **In pi:** `mapShared` and bytes as atomic leaves in Delta's `diffRevisions`.
+- **In evoharness:** `mapShared` and bytes as atomic leaves in Delta's `diffRevisions`.
 - **Then** the playground web shell (React, esbuild) with the reload control and a preview at `p3.mariozechner.at`,
   and the first real proof: the harness, one tool with an approval pause, a code mode reload. Then the HTTP and
   channel components, then p3, domain by domain.

@@ -51,10 +51,10 @@ function toolResultContainsMarker(body) {
 async function main() {
 	const binaryArg = process.argv[2];
 	if (!binaryArg || process.argv.length !== 3) {
-		throw new Error("Usage: node scripts/smoke-test-codemode-binary.mjs <pi-binary>");
+		throw new Error("Usage: node scripts/smoke-test-codemode-binary.mjs <evoharness-binary>");
 	}
 	const binary = resolve(binaryArg);
-	const tempDir = await mkdtemp(join(tmpdir(), "pi-codemode-binary-smoke-"));
+	const tempDir = await mkdtemp(join(tmpdir(), "evoharness-codemode-binary-smoke-"));
 	let requestCount = 0;
 	const server = createServer(async (request, response) => {
 		if (request.method !== "POST" || !request.url?.endsWith("/chat/completions")) {

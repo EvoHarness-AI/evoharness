@@ -34,7 +34,7 @@ type Scenario =
 const RATE_SECONDS = 3;
 const GIB = 1 << 30;
 const LINE = "The quick brown fox jumps over the lazy dog. Unique identifier";
-const BIG_FILE = join(tmpdir(), "pi-durable-bench-1gib.txt");
+const BIG_FILE = join(tmpdir(), "evoharness-durable-bench-1gib.txt");
 
 /** Output one tool writes per tick, and the pause between ticks. */
 const RATES: Record<Rate, { readonly lines: number; readonly pauseMs: number }> = {
@@ -125,7 +125,7 @@ type Metrics = {
 };
 
 async function runScenario(scenario: Scenario): Promise<Metrics> {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-tool-bench-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-tool-bench-"));
 	try {
 		const path = join(directory, scenario.backend === "sqlite" ? "session.sqlite" : "session");
 		const latencies: number[] = [];

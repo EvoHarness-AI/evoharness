@@ -1,9 +1,9 @@
 ---
 name: release
-description: Prepare, publish, verify, and recover pi releases. Use for release preparation, local release smoke tests, publishing, and failed release CI or announcements.
+description: Prepare, publish, verify, and recover evoharness releases. Use for release preparation, local release smoke tests, publishing, and failed release CI or announcements.
 ---
 
-# Releasing pi
+# Releasing evoharness
 
 Run repository commands from the repo root (two directories above this skill), unless instructed otherwise.
 
@@ -13,24 +13,24 @@ Run repository commands from the repo root (two directories above this skill), u
 
 2. **Local smoke test**: build an unpublished release and smoke test from outside the repo (so it can't resolve workspace files):
    ```bash
-   npm run release:local -- --out /tmp/pi-local-release --force
+   npm run release:local -- --out /tmp/evoharness-local-release --force
    cd /tmp
 
    # Node package install smoke tests
-   /tmp/pi-local-release/node/pi --help
-   /tmp/pi-local-release/node/pi --version
-   /tmp/pi-local-release/node/pi --list-models
-   /tmp/pi-local-release/node/pi -p "Say exactly: ok"
-   /tmp/pi-local-release/node/pi
+   /tmp/evoharness-local-release/node/evoharness --help
+   /tmp/evoharness-local-release/node/evoharness --version
+   /tmp/evoharness-local-release/node/evoharness --list-models
+   /tmp/evoharness-local-release/node/evoharness -p "Say exactly: ok"
+   /tmp/evoharness-local-release/node/evoharness
 
    # Bun binary smoke tests
-   /tmp/pi-local-release/bun/pi --help
-   /tmp/pi-local-release/bun/pi --version
-   /tmp/pi-local-release/bun/pi --list-models
-   /tmp/pi-local-release/bun/pi -p "Say exactly: ok"
-   /tmp/pi-local-release/bun/pi
+   /tmp/evoharness-local-release/bun/evoharness --help
+   /tmp/evoharness-local-release/bun/evoharness --version
+   /tmp/evoharness-local-release/bun/evoharness --list-models
+   /tmp/evoharness-local-release/bun/evoharness -p "Say exactly: ok"
+   /tmp/evoharness-local-release/bun/evoharness
    ```
-   Verify both Node and Bun startup, model/account listing, interactive startup, and at least one real prompt with the intended default provider. The bare commands `/tmp/pi-local-release/node/pi` and `/tmp/pi-local-release/bun/pi` start interactive mode; run each in tmux, submit a prompt, and wait for the model reply before considering the interactive smoke test passed. Failures are release blockers unless the user explicitly accepts the risk.
+   Verify both Node and Bun startup, model/account listing, interactive startup, and at least one real prompt with the intended default provider. The bare commands `/tmp/evoharness-local-release/node/evoharness` and `/tmp/evoharness-local-release/bun/evoharness` start interactive mode; run each in tmux, submit a prompt, and wait for the model reply before considering the interactive smoke test passed. Failures are release blockers unless the user explicitly accepts the risk.
 
    Load and follow [interactive-testing.md](interactive-testing.md) for the tmux workflow. Start each release binary from `/tmp`, not the repo root.
 
@@ -45,7 +45,7 @@ Run repository commands from the repo root (two directories above this skill), u
 
    The release script pins the newest published model catalog for Nix (`nix/model-catalog.json`) and builds the checkout with it as the Nix build does (it fails if that catalog predates main's model changes; publish one first), bumps all package versions, updates changelogs, regenerates release artifacts, runs `npm run check`, commits `Release vX.Y.Z`, tags `vX.Y.Z`, adds fresh `## [Unreleased]` changelog sections, commits `Add [Unreleased] section for next cycle`, then pushes `main` and the tag. Do not rerun the release script after a tag was pushed.
 
-4. **CI verifies and announces the npm release**: pushing the `vX.Y.Z` tag triggers `.github/workflows/build-binaries.yml`. The `publish-npm` job uses npm trusted publishing through GitHub Actions OIDC with environment `npm-publish`; no local `npm publish`, `npm whoami`, OTP, or WebAuthn flow is required. After publishing, `announce-pi-dev-release` verifies every public workspace package resolves at the exact release version and that its npm tarball is available, then writes the verified release marker to R2. `evoharness.dev/api/latest-version` reads that marker; it must never announce a release from npm before this job succeeds.
+4. **CI verifies and announces the npm release**: pushing the `vX.Y.Z` tag triggers `.github/workflows/build-binaries.yml`. The `publish-npm` job uses npm trusted publishing through GitHub Actions OIDC with environment `npm-publish`; no local `npm publish`, `npm whoami`, OTP, or WebAuthn flow is required. After publishing, `announce-evoharness-dev-release` verifies every public workspace package resolves at the exact release version and that its npm tarball is available, then writes the verified release marker to R2. `evoharness.dev/api/latest-version` reads that marker; it must never announce a release from npm before this job succeeds.
 
 5. **CI builds the Nix release**: the tag push also triggers `.github/workflows/nix.yml`, which builds the tagged flake on Linux and macOS and then fast-forwards the `stable` branch to the release commit. `nix run github:EvoHarness-AI/evoharness/stable` runs the latest release. If the Nix build fails, `stable` stays on the previous release; the tag cannot be fixed, so fix `main` and ship the fix in the next release.
 

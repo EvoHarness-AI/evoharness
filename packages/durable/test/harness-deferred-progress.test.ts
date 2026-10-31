@@ -424,7 +424,7 @@ describe("compaction", () => {
 	});
 });
 
-describe("reading pi.live in a commit", () => {
+describe("reading evoharness.live in a commit", () => {
 	it("stores the held partial a third-party task's commit read, with what it derived", async () => {
 		const storage = new ControlledStorage();
 		const setup = slowSetup(Number.POSITIVE_INFINITY);

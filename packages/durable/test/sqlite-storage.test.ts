@@ -43,7 +43,7 @@ afterEach(async () => {
 });
 
 async function createSqliteStorage(options: { readonly walAutoCheckpointPages?: number } = {}) {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-sqlite-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-sqlite-"));
 	tempDirectories.add(directory);
 	const path = join(directory, "storage.sqlite");
 	const storage = await openNodeSqliteStorage(path, options);
@@ -126,7 +126,7 @@ registerStorageConformance({ describe, expect, it }, "SqliteStorage", async (use
 );
 
 registerStorageConformance({ describe, expect, it }, "SqliteStorage across reopen", async (use) => {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-sqlite-conformance-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-sqlite-conformance-"));
 	const path = join(directory, "storage.sqlite");
 	const created = await openNodeSqliteStorage(path);
 	await created.close(context);
@@ -205,7 +205,7 @@ describe("Pico SqliteStorage", () => {
 	});
 
 	it("namespaces tables and indexes with a prefix across reopen", async () => {
-		const directory = await mkdtemp(join(tmpdir(), "pi-durable-sqlite-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-sqlite-"));
 		tempDirectories.add(directory);
 		const path = join(directory, "storage.sqlite");
 		const host = new DatabaseSync(path);
@@ -235,7 +235,7 @@ describe("Pico SqliteStorage", () => {
 	});
 
 	it("rejects an invalid prefix before creating the database", async () => {
-		const directory = await mkdtemp(join(tmpdir(), "pi-durable-sqlite-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-sqlite-"));
 		tempDirectories.add(directory);
 		const databaseDirectory = join(directory, "nested");
 		await expect(
@@ -693,7 +693,7 @@ describe("SqliteStorage batches", () => {
 	for (const mode of ["undefined rejection", "synchronous throw"] as const) {
 		it(`rejects the whole call, the batches before it included, when a later batch's check read fails with a ${mode}`, async () => {
 			// Sol's: the first batch passes its checks and is written; the second batch's check read fails.
-			const directory = await mkdtemp(join(tmpdir(), "pi-durable-sqlite-"));
+			const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-sqlite-"));
 			tempDirectories.add(directory);
 			const database = await openNodeSqliteDatabase(join(directory, "storage.sqlite"));
 			let failCheck = false;
@@ -755,7 +755,7 @@ describe("SqliteStorage batches", () => {
 	};
 	for (const [name, fail] of Object.entries(failures)) {
 		it(`rejects a batch call whose check read fails in the database with ${name}, and refuses only for its own checks`, async () => {
-			const directory = await mkdtemp(join(tmpdir(), "pi-durable-sqlite-"));
+			const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-sqlite-"));
 			tempDirectories.add(directory);
 			const database = await openNodeSqliteDatabase(join(directory, "storage.sqlite"));
 			// A driver failure in a check's read, armed for the next batch call.

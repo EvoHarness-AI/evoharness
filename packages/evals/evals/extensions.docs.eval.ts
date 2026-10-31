@@ -45,7 +45,7 @@ describeEval(
 				{
 					type: "prompt",
 					content:
-						"Configure this running Pi installation with an extension containing a hello tool that takes a name and returns a greeting. Do not create project source. For example, passing Bob should return `Hello, Bob!`.",
+						"Configure this running EvoHarness installation with an extension containing a hello tool that takes a name and returns a greeting. Do not create project source. For example, passing Bob should return `Hello, Bob!`.",
 				},
 				{ type: "reload" },
 				{

@@ -24,9 +24,9 @@ describe("MCP OAuth refresh", () => {
 	async function signedIn() {
 		const server = await startOAuthMcpServer();
 		cleanups.push(server.close);
-		const lockDir = mkdtempSync(join(tmpdir(), "pi-mcp-refresh-"));
+		const lockDir = mkdtempSync(join(tmpdir(), "evoharness-mcp-refresh-"));
 		cleanups.push(() => rmSync(lockDir, { recursive: true, force: true }));
-		// Stores sharing the credential file and lock directory stand in for separate pi processes.
+		// Stores sharing the credential file and lock directory stand in for separate evoharness processes.
 		const backend = new InMemoryAuthStorageBackend();
 		const process = () => {
 			const store = new McpOAuthCredentialStore(backend, lockDir).forServer("test", server.url);
@@ -192,7 +192,7 @@ describe("MCP OAuth client ID metadata documents", () => {
 	});
 
 	// #11426
-	it("uses pi's document by default when authorization responses name their issuer", async () => {
+	it("uses evoharness's document by default when authorization responses name their issuer", async () => {
 		const { server, store, signIn } = await startServer({ cimd: true, issParameter: true });
 		await signIn({});
 		const [authorization] = server.authorizations;

@@ -250,7 +250,7 @@ describe("Google provider stream events", () => {
 });
 
 describe("Google Generative AI user agent", () => {
-	it("uses pi's User-Agent by default", async () => {
+	it("uses evoharness's User-Agent by default", async () => {
 		expect((await captureGoogleHeaders())["User-Agent"]).toBe(PI_USER_AGENT);
 	});
 

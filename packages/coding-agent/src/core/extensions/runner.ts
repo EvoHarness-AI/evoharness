@@ -283,7 +283,7 @@ function sameMessages(left: AgentMessage[], right: AgentMessage[]): boolean {
 
 /**
  * Re-attach the prompt and tool state after a `context` handler. Handlers only see the
- * conversation; the system messages belong to Pi. An unchanged conversation keeps every
+ * conversation; the system messages belong to EvoHarness. An unchanged conversation keeps every
  * system message in place, so models with mid-conversation support keep their cached
  * prefix. A changed one gets the replayed prompt sections and tool declarations as one
  * leading system message, so pruning, windowing, or slicing from a compaction summary
@@ -727,7 +727,7 @@ export class ExtensionRunner {
 	}
 
 	invalidate(
-		message = "This extension ctx is stale after session replacement or reload. Do not use a captured pi or command ctx after ctx.newSession(), ctx.fork(), ctx.switchSession(), or ctx.reload(). For newSession, fork, and switchSession, move post-replacement work into withSession and use the ctx passed to withSession. For reload, do not use the old ctx after await ctx.reload().",
+		message = "This extension ctx is stale after session replacement or reload. Do not use a captured evoharness or command ctx after ctx.newSession(), ctx.fork(), ctx.switchSession(), or ctx.reload(). For newSession, fork, and switchSession, move post-replacement work into withSession and use the ctx passed to withSession. For reload, do not use the old ctx after await ctx.reload().",
 	): void {
 		if (!this.staleMessage) {
 			this.staleMessage = message;
@@ -1299,7 +1299,7 @@ export class ExtensionRunner {
 
 	/**
 	 * Run the request-time transforms in two phases. `context` handlers see the conversation
-	 * only and Pi restores the prompt and tool state after each; `context_with_system`
+	 * only and EvoHarness restores the prompt and tool state after each; `context_with_system`
 	 * handlers then see the full transcript and their output is used as returned.
 	 */
 	async emitContext(messages: AgentMessage[]): Promise<AgentMessage[]> {

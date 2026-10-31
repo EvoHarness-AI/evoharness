@@ -1,12 +1,12 @@
-> Pi can create extensions. Ask it to build one for your use case.
+> EvoHarness can create extensions. Ask it to build one for your use case.
 
 # Extensions
 
-Extensions are TypeScript modules that extend Pi's behavior. They can subscribe to lifecycle events, register custom tools callable by the LLM, add commands, and more.
+Extensions are TypeScript modules that extend EvoHarness's behavior. They can subscribe to lifecycle events, register custom tools callable by the LLM, add commands, and more.
 
-An extension runs inside the Pi process with the same operating-system permissions. It can inspect prompts, tool calls, files, credentials, and session history, so load extensions only from sources you trust.
+An extension runs inside the EvoHarness process with the same operating-system permissions. It can inspect prompts, tool calls, files, credentials, and session history, so load extensions only from sources you trust.
 
-> **Placement for /reload:** Put extensions in `~/.pi/agent/extensions/` (global) or `.pi/extensions/` (project-local) for auto-discovery. Use `pi -e ./path.ts` only for quick tests. Extensions in auto-discovered locations can be hot-reloaded with `/reload`.
+> **Placement for /reload:** Put extensions in `~/.evoharness/agent/extensions/` (global) or `.evoharness/extensions/` (project-local) for auto-discovery. Use `evoharness -e ./path.ts` only for quick tests. Extensions in auto-discovered locations can be hot-reloaded with `/reload`.
 
 **Key capabilities:**
 - **Custom tools** - Register tools the LLM can call via `evoharness.registerTool()`
@@ -67,19 +67,19 @@ See [examples/extensions/](../examples/extensions/) for working implementations.
 
 ## Quick Start
 
-Create `~/.pi/agent/extensions/my-extension.ts`:
+Create `~/.evoharness/agent/extensions/my-extension.ts`:
 
 ```typescript
 import { type ExtensionAPI, isToolCallEventType } from "@evoharness/coding-agent";
 import { Type } from "typebox";
 
-export default function (pi: ExtensionAPI) {
+export default function (evoharness: ExtensionAPI) {
   // React to events
-  pi.on("session_start", async (_event, ctx) => {
+  evoharness.on("session_start", async (_event, ctx) => {
     ctx.ui.notify("Extension loaded!", "info");
   });
 
-  pi.on("tool_call", async (event, ctx) => {
+  evoharness.on("tool_call", async (event, ctx) => {
     if (isToolCallEventType("bash", event) && event.input.command.includes("rm -rf")) {
       const ok = await ctx.ui.confirm("Dangerous!", "Allow rm -rf?");
       if (!ok) return { block: true, reason: "Blocked by user" };
@@ -87,7 +87,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   // Register a custom tool
-  pi.registerTool({
+  evoharness.registerTool({
     name: "greet",
     label: "Greet",
     description: "Greet someone by name",
@@ -103,7 +103,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   // Register a command
-  pi.registerCommand("hello", {
+  evoharness.registerCommand("hello", {
     description: "Say hello",
     handler: async (args, ctx) => {
       ctx.ui.notify(`Hello ${args || "world"}!`, "info");
@@ -115,7 +115,7 @@ export default function (pi: ExtensionAPI) {
 Test with `--extension` (or `-e`) flag:
 
 ```bash
-pi -e ./my-extension.ts
+evoharness -e ./my-extension.ts
 ```
 
 <a id="choose-where-it-loads"></a>
@@ -124,14 +124,14 @@ pi -e ./my-extension.ts
 
 > **Security:** Extensions run with your full system permissions and can execute arbitrary code. Only install from sources you trust.
 
-Extensions are auto-discovered from trusted locations. Project-local `.pi/extensions` entries load only after the project is trusted.
+Extensions are auto-discovered from trusted locations. Project-local `.evoharness/extensions` entries load only after the project is trusted.
 
 | Location | Scope |
 |----------|-------|
-| `~/.pi/agent/extensions/*.ts` or `*.js` | Global (all projects) |
-| `~/.pi/agent/extensions/*/index.ts` or `index.js` | Global (subdirectory) |
-| `~/.pi/agent/extensions/*/package.json` with a `evoharness.extensions` field | Global (subdirectory with manifest) |
-| `.pi/extensions/...` | Project-local, same layouts |
+| `~/.evoharness/agent/extensions/*.ts` or `*.js` | Global (all projects) |
+| `~/.evoharness/agent/extensions/*/index.ts` or `index.js` | Global (subdirectory) |
+| `~/.evoharness/agent/extensions/*/package.json` with a `evoharness.extensions` field | Global (subdirectory with manifest) |
+| `.evoharness/extensions/...` | Project-local, same layouts |
 
 Discovery goes one level deep. Larger packages declare their entry points in a `package.json` manifest.
 
@@ -150,7 +150,7 @@ Additional paths via `settings.json`:
 }
 ```
 
-Settings also accept built-in extensions as `builtin:<name>` entries; see [Settings](settings.md#resources). To share extensions via npm or git as Pi packages, see [packages.md](packages.md).
+Settings also accept built-in extensions as `builtin:<name>` entries; see [Settings](settings.md#resources). To share extensions via npm or git as EvoHarness packages, see [packages.md](packages.md).
 
 ## Available Imports
 
@@ -163,11 +163,11 @@ Settings also accept built-in extensions as `builtin:<name>` entries; see [Setti
 | `@evoharness/ai/compat`, `/models`, `/oauth`, `/providers/all` | Provider construction, built-in APIs, and OAuth helpers |
 | `@evoharness/tui` | TUI components for custom rendering |
 
-Pi maps these imports to its own copies, so extensions share Pi's classes and registries. The legacy `@mariozechner/*` and `@sinclair/typebox` names map to the same modules.
+EvoHarness maps these imports to its own copies, so extensions share EvoHarness's classes and registries. The legacy `@mariozechner/*` and `@sinclair/typebox` names map to the same modules.
 
 npm dependencies work too. Add a `package.json` next to your extension (or in a parent directory), run `npm install`, and imports from `node_modules/` are resolved automatically.
 
-For distributed Pi packages installed with `pi install` (npm or git), runtime deps must be in `dependencies`; `devDependencies` are not installed. Do not list the host-provided packages above in `dependencies`. See [Declare dependencies](packages.md#declare-dependencies).
+For distributed EvoHarness packages installed with `evoharness install` (npm or git), runtime deps must be in `dependencies`; `devDependencies` are not installed. Do not list the host-provided packages above in `dependencies`. See [Declare dependencies](packages.md#declare-dependencies).
 
 Node.js built-ins (`node:fs`, `node:path`, etc.) are also available.
 
@@ -178,9 +178,9 @@ An extension exports a default factory function that receives `ExtensionAPI`. Th
 ```typescript
 import type { ExtensionAPI } from "@evoharness/coding-agent";
 
-export default function (pi: ExtensionAPI) {
+export default function (evoharness: ExtensionAPI) {
   // Subscribe to events
-  pi.on("event_name", async (event, ctx) => {
+  evoharness.on("event_name", async (event, ctx) => {
     // ctx.ui for user interaction
     const ok = await ctx.ui.confirm("Title", "Are you sure?");
     ctx.ui.notify("Done!", "info");
@@ -189,16 +189,16 @@ export default function (pi: ExtensionAPI) {
   });
 
   // Register tools, commands, shortcuts, flags
-  pi.registerTool({ ... });
-  pi.registerCommand("name", { ... });
-  pi.registerShortcut("ctrl+x", { ... });
-  pi.registerFlag("my-flag", { ... });
+  evoharness.registerTool({ ... });
+  evoharness.registerCommand("name", { ... });
+  evoharness.registerShortcut("ctrl+x", { ... });
+  evoharness.registerFlag("my-flag", { ... });
 }
 ```
 
 Extensions are loaded via [jiti](https://github.com/unjs/jiti), so TypeScript works without compilation.
 
-If the factory returns a `Promise`, Pi awaits it before continuing startup. That means async initialization completes before `session_start`, before `resources_discover`, and before provider registrations queued via `evoharness.registerProvider()` are flushed.
+If the factory returns a `Promise`, EvoHarness awaits it before continuing startup. That means async initialization completes before `session_start`, before `resources_discover`, and before provider registrations queued via `evoharness.registerProvider()` are flushed.
 
 ### Async factory functions
 
@@ -207,7 +207,7 @@ Use an async factory for one-time startup work such as fetching remote configura
 ```typescript
 import type { ExtensionAPI } from "@evoharness/coding-agent";
 
-export default async function (pi: ExtensionAPI) {
+export default async function (evoharness: ExtensionAPI) {
   const response = await fetch("http://localhost:1234/v1/models");
   const payload = (await response.json()) as {
     data: Array<{
@@ -218,7 +218,7 @@ export default async function (pi: ExtensionAPI) {
     }>;
   };
 
-  pi.registerProvider("local-openai", {
+  evoharness.registerProvider("local-openai", {
     baseUrl: "http://localhost:1234/v1",
     apiKey: "$LOCAL_OPENAI_API_KEY",
     api: "openai-completions",
@@ -235,7 +235,7 @@ export default async function (pi: ExtensionAPI) {
 }
 ```
 
-This pattern makes the fetched models available during normal startup and to `pi --list-models`. For model lists that change while Pi runs, implement `refreshModels` instead; see [pi.registerProvider()](#piregisterprovidername-config).
+This pattern makes the fetched models available during normal startup and to `evoharness --list-models`. For model lists that change while EvoHarness runs, implement `refreshModels` instead; see [evoharness.registerProvider()](#piregisterprovidername-config).
 
 ### Long-lived resources and shutdown
 
@@ -248,14 +248,14 @@ Defer background resource startup until `session_start` or the command/tool/even
 **Single file** - simplest, for small extensions:
 
 ```
-~/.pi/agent/extensions/
+~/.evoharness/agent/extensions/
 └── my-extension.ts
 ```
 
 **Directory with index.ts** - for multi-file extensions:
 
 ```
-~/.pi/agent/extensions/
+~/.evoharness/agent/extensions/
 └── my-extension/
     ├── index.ts        # Entry point (exports default function)
     ├── tools.ts        # Helper module
@@ -265,7 +265,7 @@ Defer background resource startup until `session_start` or the command/tool/even
 **Package with dependencies** - for extensions that need npm packages:
 
 ```
-~/.pi/agent/extensions/
+~/.evoharness/agent/extensions/
 └── my-extension/
     ├── package.json    # Declares dependencies and entry points
     ├── package-lock.json
@@ -282,7 +282,7 @@ Defer background resource startup until `session_start` or the command/tool/even
     "zod": "^3.0.0",
     "chalk": "^5.0.0"
   },
-  "pi": {
+  "evoharness": {
     "extensions": ["./src/index.ts"]
   }
 }
@@ -321,7 +321,7 @@ flowchart TD
     Continue -->|no| Settled["agent_settled"]
 ```
 
-More work means a retry, final-attempt recovery, a compaction retry, or queued messages. `agent_end` is therefore not a final-idle signal; use `agent_settled` for that. An aborted run skips `agent_before_settle` and goes from `agent_end` to `agent_settled`. Pi counts as busy while a run starts, including the compaction check and `before_agent_start`, so messages sent meanwhile go into the starting run.
+More work means a retry, final-attempt recovery, a compaction retry, or queued messages. `agent_end` is therefore not a final-idle signal; use `agent_settled` for that. An aborted run skips `agent_before_settle` and goes from `agent_end` to `agent_settled`. EvoHarness counts as busy while a run starts, including the compaction check and `before_agent_start`, so messages sent meanwhile go into the starting run.
 
 Each turn sends one model request and executes the tool calls in the assistant response:
 
@@ -416,10 +416,10 @@ Notification handlers should not perform slow work on a streaming event. Transfo
 
 #### project_trust
 
-Fired before Pi decides whether to trust a project with dynamic configs (`.pi` or `.agents/skills`). It runs during startup and when session replacement (for example `/resume`) enters a cwd whose trust has not been resolved in the current process. Only user/global extensions and CLI `-e` extensions participate; project-local extensions are not loaded until after trust is resolved.
+Fired before EvoHarness decides whether to trust a project with dynamic configs (`.evoharness` or `.agents/skills`). It runs during startup and when session replacement (for example `/resume`) enters a cwd whose trust has not been resolved in the current process. Only user/global extensions and CLI `-e` extensions participate; project-local extensions are not loaded until after trust is resolved.
 
 ```typescript
-pi.on("project_trust", async (event, ctx) => {
+evoharness.on("project_trust", async (event, ctx) => {
   // event.cwd - current working directory
   // ctx has a limited trust context: cwd, mode, hasUI, and select/confirm/input/notify UI helpers
   if (await ctx.ui.confirm("Trust project?", event.cwd)) {
@@ -429,7 +429,7 @@ pi.on("project_trust", async (event, ctx) => {
 });
 ```
 
-A `project_trust` handler must return `{ trusted: "yes" | "no" | "undecided" }`. A user/global or CLI extension that returns `"yes"` or `"no"` owns the decision; the first yes/no decision wins and suppresses the built-in trust prompt. Use `remember: true` to persist a yes/no decision; otherwise it applies only to the current process. Return `"undecided"` to let later handlers or the built-in trust flow decide. Check `ctx.hasUI` before prompting. If no handler returns yes/no, normal trust resolution continues: saved `trust.json` decisions apply first, then `defaultProjectTrust` controls whether Pi asks, trusts, or declines by default.
+A `project_trust` handler must return `{ trusted: "yes" | "no" | "undecided" }`. A user/global or CLI extension that returns `"yes"` or `"no"` owns the decision; the first yes/no decision wins and suppresses the built-in trust prompt. Use `remember: true` to persist a yes/no decision; otherwise it applies only to the current process. Return `"undecided"` to let later handlers or the built-in trust flow decide. Check `ctx.hasUI` before prompting. If no handler returns yes/no, normal trust resolution continues: saved `trust.json` decisions apply first, then `defaultProjectTrust` controls whether EvoHarness asks, trusts, or declines by default.
 
 ### Resource Events
 
@@ -439,7 +439,7 @@ Fired after `session_start` so extensions can contribute additional skill, promp
 The startup path uses `reason: "startup"`. Reload uses `reason: "reload"`.
 
 ```typescript
-pi.on("resources_discover", async (event, _ctx) => {
+evoharness.on("resources_discover", async (event, _ctx) => {
   // event.cwd - current working directory
   // event.reason - "startup" | "reload"
   return {
@@ -463,7 +463,7 @@ See [Session Format](session-format.md) for session storage internals and the Se
 Fired when a session is started, loaded, or reloaded.
 
 ```typescript
-pi.on("session_start", async (event, ctx) => {
+evoharness.on("session_start", async (event, ctx) => {
   // event.reason - "startup" | "reload" | "new" | "resume" | "fork"
   // event.previousSessionFile - present for "new", "resume", and "fork"
   ctx.ui.notify(`Session: ${ctx.sessionManager.getSessionFile() ?? "ephemeral"}`, "info");
@@ -475,7 +475,7 @@ pi.on("session_start", async (event, ctx) => {
 Fired when the current session display name is set via `/name`, RPC, or `evoharness.setSessionName()`.
 
 ```typescript
-pi.on("session_info_changed", async (event, ctx) => {
+evoharness.on("session_info_changed", async (event, ctx) => {
   // event.name - current normalized name, or undefined if cleared
   ctx.ui.notify(`Session renamed: ${event.name ?? "(none)"}`, "info");
 });
@@ -486,7 +486,7 @@ pi.on("session_info_changed", async (event, ctx) => {
 Fired before starting a new session (`/new`) or switching sessions (`/resume`).
 
 ```typescript
-pi.on("session_before_switch", async (event, ctx) => {
+evoharness.on("session_before_switch", async (event, ctx) => {
   // event.reason - "new" or "resume"
   // event.targetSessionFile - session we're switching to (only for "resume")
 
@@ -497,7 +497,7 @@ pi.on("session_before_switch", async (event, ctx) => {
 });
 ```
 
-After a successful switch or new-session action, Pi emits `session_shutdown` for the old extension instance, reloads and rebinds extensions for the new session, then emits `session_start` with `reason: "new" | "resume"` and `previousSessionFile`.
+After a successful switch or new-session action, EvoHarness emits `session_shutdown` for the old extension instance, reloads and rebinds extensions for the new session, then emits `session_start` with `reason: "new" | "resume"` and `previousSessionFile`.
 Do cleanup work in `session_shutdown`, then reestablish any in-memory state in `session_start`.
 
 #### session_before_fork
@@ -505,7 +505,7 @@ Do cleanup work in `session_shutdown`, then reestablish any in-memory state in `
 Fired when forking via `/fork` or cloning via `/clone`.
 
 ```typescript
-pi.on("session_before_fork", async (event, ctx) => {
+evoharness.on("session_before_fork", async (event, ctx) => {
   // event.entryId - ID of the selected entry
   // event.position - "before" for /fork, "at" for /clone
   return { cancel: true }; // Cancel fork/clone
@@ -514,7 +514,7 @@ pi.on("session_before_fork", async (event, ctx) => {
 });
 ```
 
-After a successful fork or clone, Pi emits `session_shutdown` for the old extension instance, reloads and rebinds extensions for the new session, then emits `session_start` with `reason: "fork"` and `previousSessionFile`.
+After a successful fork or clone, EvoHarness emits `session_shutdown` for the old extension instance, reloads and rebinds extensions for the new session, then emits `session_start` with `reason: "fork"` and `previousSessionFile`.
 Do cleanup work in `session_shutdown`, then reestablish any in-memory state in `session_start`.
 
 <a id="session_before_compact--session_compact"></a>
@@ -524,7 +524,7 @@ Do cleanup work in `session_shutdown`, then reestablish any in-memory state in `
 Fired on compaction. See [compaction.md](compaction.md) for details.
 
 ```typescript
-pi.on("session_before_compact", async (event, ctx) => {
+evoharness.on("session_before_compact", async (event, ctx) => {
   const { preparation, branchEntries, customInstructions, reason, willRetry, signal } = event;
 
   // reason - "manual" (/compact), "threshold", or "overflow"
@@ -544,14 +544,14 @@ pi.on("session_before_compact", async (event, ctx) => {
   };
 });
 
-pi.on("session_compact", async (event, ctx) => {
+evoharness.on("session_compact", async (event, ctx) => {
   // event.compactionEntry - the saved compaction
   // event.fromExtension - whether extension provided it
   // event.reason - "manual" (/compact), "threshold", or "overflow"
   // event.willRetry - whether the aborted turn is retried after compaction (overflow recovery)
 });
 
-pi.on("session_compact_failed", async (event, ctx) => {
+evoharness.on("session_compact_failed", async (event, ctx) => {
   // event.reason - "manual" (/compact), "threshold", or "overflow"
   // event.errorMessage - present for non-abort failures
   // event.aborted - true for cancelled/aborted compactions
@@ -565,7 +565,7 @@ pi.on("session_compact_failed", async (event, ctx) => {
 Fired on `/tree` navigation. See [Sessions](sessions.md) for tree navigation concepts.
 
 ```typescript
-pi.on("session_before_tree", async (event, ctx) => {
+evoharness.on("session_before_tree", async (event, ctx) => {
   const { preparation, signal } = event;
   // preparation.targetId, oldLeafId, commonAncestorId, entriesToSummarize,
   // userWantsSummary, customInstructions, replaceInstructions, label
@@ -581,7 +581,7 @@ pi.on("session_before_tree", async (event, ctx) => {
   // OR override summarization options: customInstructions, replaceInstructions, label
 });
 
-pi.on("session_tree", async (event, ctx) => {
+evoharness.on("session_tree", async (event, ctx) => {
   // event.newLeafId, oldLeafId, summaryEntry, fromExtension
 });
 ```
@@ -591,7 +591,7 @@ pi.on("session_tree", async (event, ctx) => {
 Fired before a started session runtime is torn down. Use this to clean up resources opened from `session_start` or other session-scoped hooks.
 
 ```typescript
-pi.on("session_shutdown", async (event, ctx) => {
+evoharness.on("session_shutdown", async (event, ctx) => {
   // event.reason - "quit" | "reload" | "new" | "resume" | "fork"
   // event.targetSessionFile - destination session for session replacement flows
   // Cleanup, save state, etc.
@@ -607,7 +607,7 @@ Fired before a run starts, after input handling and expansion. Can inject a mess
 `event.messageType` says what started the run: `"user"` for a prompt or `evoharness.sendUserMessage()`, with `prompt` and `images`; `"custom"` for `evoharness.sendMessage(..., { triggerTurn: true })` while idle, with the starting `message` and no `prompt`.
 
 ```typescript
-pi.on("before_agent_start", async (event, ctx) => {
+evoharness.on("before_agent_start", async (event, ctx) => {
   // event.messageType - "user" | "custom"
   // event.prompt, event.images - user's prompt text and images (messageType "user")
   // event.message - the custom message that starts the run (messageType "custom")
@@ -642,7 +642,7 @@ pi.on("before_agent_start", async (event, ctx) => {
 
 A returned `message` is added to either kind of run; check `messageType` to skip runs started by custom messages.
 
-The `systemPromptOptions` field gives extensions access to the same structured data Pi uses to build the system prompt. Collections are mutable. Prefer changing `sections`, `selectedTools`, or `promptGuidelines`: Pi diffs the resulting prompt sections against what the model already has and appends one system message patching only the changed sections. Returning `systemPrompt`, or setting `forceSystemPrompt`, replaces the whole prompt for the run: every provider receives the forced text as its leading system prompt (a cache miss when it changes), and the session transcript keeps recording the structured sections. Tool selection changes update both the prompt contributions and executable provider tools; calling `evoharness.setActiveTools()` inside the handler has the same effect as editing `selectedTools`. Models that accept system messages mid-conversation receive the patch in place and keep their cached prefix; other models get the replayed prompt as their system prompt, which is a cache miss once per change.
+The `systemPromptOptions` field gives extensions access to the same structured data EvoHarness uses to build the system prompt. Collections are mutable. Prefer changing `sections`, `selectedTools`, or `promptGuidelines`: EvoHarness diffs the resulting prompt sections against what the model already has and appends one system message patching only the changed sections. Returning `systemPrompt`, or setting `forceSystemPrompt`, replaces the whole prompt for the run: every provider receives the forced text as its leading system prompt (a cache miss when it changes), and the session transcript keeps recording the structured sections. Tool selection changes update both the prompt contributions and executable provider tools; calling `evoharness.setActiveTools()` inside the handler has the same effect as editing `selectedTools`. Models that accept system messages mid-conversation receive the patch in place and keep their cached prefix; other models get the replayed prompt as their system prompt, which is a cache miss once per change.
 
 Inside `before_agent_start`, `event.systemPrompt` and `ctx.getSystemPrompt()` both reflect the chained system prompt as of the current handler. Later `before_agent_start` handlers can still modify it again.
 
@@ -650,17 +650,17 @@ Inside `before_agent_start`, `event.systemPrompt` and `ctx.getSystemPrompt()` bo
 
 #### agent_start / agent_end / agent_before_settle / agent_settled
 
-`agent_start` fires when a low-level agent run begins. `agent_end` fires when that run ends, but Pi may still auto-retry, auto-compact and retry, or continue with queued follow-up messages. `agent_before_settle` is the final actionable boundary: it can append session entries and request one continuation. `agent_settled` is final and notification-only; use it for status integrations that need to know Pi will not continue running automatically.
+`agent_start` fires when a low-level agent run begins. `agent_end` fires when that run ends, but EvoHarness may still auto-retry, auto-compact and retry, or continue with queued follow-up messages. `agent_before_settle` is the final actionable boundary: it can append session entries and request one continuation. `agent_settled` is final and notification-only; use it for status integrations that need to know EvoHarness will not continue running automatically.
 
 ```typescript
-pi.on("agent_start", async (_event, ctx) => {});
+evoharness.on("agent_start", async (_event, ctx) => {});
 
-pi.on("agent_end", async (event, ctx) => {
+evoharness.on("agent_end", async (event, ctx) => {
   // event.messages - messages from this low-level run
 });
 
 let addedReviewReminder = false;
-pi.on("agent_before_settle", async (event, ctx) => {
+evoharness.on("agent_before_settle", async (event, ctx) => {
   if (addedReviewReminder) return;
   addedReviewReminder = true;
   return {
@@ -674,7 +674,7 @@ pi.on("agent_before_settle", async (event, ctx) => {
   };
 });
 
-pi.on("agent_settled", async (event, ctx) => {
+evoharness.on("agent_settled", async (event, ctx) => {
   // event.aborted - true when the run ended because it was aborted, for example with Escape
   // ctx.isIdle() is true; runs requested here start after all settled handlers finish.
 });
@@ -689,14 +689,14 @@ Notification-only lifecycle events for blocking user-facing extension UI prompts
 Nested or overlapping prompts are coalesced into one outer waiting span. Handlers are invoked best-effort and are not awaited before showing or closing the prompt.
 
 ```typescript
-pi.on("ui_prompt_start", async (event, ctx) => {
+evoharness.on("ui_prompt_start", async (event, ctx) => {
   // event.reason === "ui_prompt"
   // event.kind: "select" | "confirm" | "input" | "editor" | "custom"
   // event.title: prompt title when available
 });
 
-pi.on("ui_prompt_end", async (event, ctx) => {
-  // Pi is no longer waiting on that UI prompt span.
+evoharness.on("ui_prompt_end", async (event, ctx) => {
+  // EvoHarness is no longer waiting on that UI prompt span.
 });
 ```
 
@@ -705,12 +705,12 @@ pi.on("ui_prompt_end", async (event, ctx) => {
 Fired for each turn (one LLM response + tool calls).
 
 ```typescript
-pi.on("turn_start", async (event, ctx) => {
+evoharness.on("turn_start", async (event, ctx) => {
   // event.turnIndex, event.timestamp
 });
 
 let replacedResponse = false;
-pi.on("turn_end", async (event, ctx) => {
+evoharness.on("turn_end", async (event, ctx) => {
   // event.turnIndex, event.message, event.toolResults
   // event.entries contains the structural entries proposed so far.
   if (replacedResponse || event.outcome !== "completed" || event.toolResults.length > 0) return;
@@ -733,7 +733,7 @@ pi.on("turn_end", async (event, ctx) => {
 
 `turn_end` runs after the assistant and tool-result messages have been persisted and before the low-level `turn_end` event. Retry backoff and final-attempt recovery still happen after `agent_end`, preserving their existing lifecycle and queue ordering; `agent_before_settle` sees the repaired projection after that work completes. Boundary handlers run in extension load and registration order. Each handler sees prior proposals in `event.entries` and sees `event.context` rebuilt from them. Returning `entries` or `continue` replaces only that field; omitted fields preserve the current proposal. Allowed draft entry types are `custom`, `custom_message`, `context_edit`, and `compaction`. The complete proposal is validated before it is appended in list order after all handlers finish; a handler error is reported and later handlers still run. Validation prevents partially applied semantic errors, but persistence is not transactional.
 
-`continue: true` ensures one next provider request for that boundary invocation. If tool results, steering, or a follow-up already cause that request, they satisfy the decision and no additional request is made; otherwise Pi makes one context-only request. Error and aborted responses remain hard exits. `continue: false` never suppresses natural work. Guard continuation conditions: an unconditional `continue: true` is evaluated again after the next response and can create an endless loop. A `custom_message` draft contributes a user-role model message but is extension-authored: it does not run human input hooks, slash commands, skills, or prompt templates.
+`continue: true` ensures one next provider request for that boundary invocation. If tool results, steering, or a follow-up already cause that request, they satisfy the decision and no additional request is made; otherwise EvoHarness makes one context-only request. Error and aborted responses remain hard exits. `continue: false` never suppresses natural work. Guard continuation conditions: an unconditional `continue: true` is evaluated again after the next response and can create an endless loop. A `custom_message` draft contributes a user-role model message but is extension-authored: it does not run human input hooks, slash commands, skills, or prompt templates.
 
 Host integrations that construct `TurnEndEvent` values must provide `messageEntryId`, `toolResultEntryIds`, `outcome`, `entries`, `continue`, and `context`. `ExtensionEvent` exhaustive switches must also handle `agent_before_settle`. `ExtensionRunner.emit()` excludes actionable turn boundaries; dispatch `turn_end` and `agent_before_settle` through `emitBoundary(baseEvent, buildContext)` so handlers receive chained previews. Other dedicated runner methods still return results for events such as `session_before_*`.
 
@@ -746,16 +746,16 @@ Fired for message lifecycle updates.
 - `message_end` handlers can return `{ message }` to replace the finalized message. The replacement must keep the same `role`.
 
 ```typescript
-pi.on("message_start", async (event, ctx) => {
+evoharness.on("message_start", async (event, ctx) => {
   // event.message
 });
 
-pi.on("message_update", async (event, ctx) => {
+evoharness.on("message_update", async (event, ctx) => {
   // event.message
   // event.assistantMessageEvent (token-by-token stream event)
 });
 
-pi.on("message_end", async (event, ctx) => {
+evoharness.on("message_end", async (event, ctx) => {
   if (event.message.role !== "assistant") return;
 
   return {
@@ -784,15 +784,15 @@ In parallel tool mode:
 - final `toolResult` message events are still emitted later in assistant source order
 
 ```typescript
-pi.on("tool_execution_start", async (event, ctx) => {
+evoharness.on("tool_execution_start", async (event, ctx) => {
   // event.toolCallId, event.toolName, event.args
 });
 
-pi.on("tool_execution_update", async (event, ctx) => {
+evoharness.on("tool_execution_update", async (event, ctx) => {
   // event.toolCallId, event.toolName, event.args, event.partialResult
 });
 
-pi.on("tool_execution_end", async (event, ctx) => {
+evoharness.on("tool_execution_end", async (event, ctx) => {
   // event.toolCallId, event.toolName, event.result, event.isError
   // event.durationMs - milliseconds execute() took; absent when the tool did not run
 });
@@ -805,23 +805,23 @@ All three events, `tool_call`, and `tool_result` carry `parentToolCallId` when a
 Fired before each LLM call. Modify messages non-destructively. See [Session Format](session-format.md) for message types.
 
 ```typescript
-pi.on("context", async (event, ctx) => {
+evoharness.on("context", async (event, ctx) => {
   // event.messages - deep copy without system messages, safe to modify
   const filtered = event.messages.filter(m => !shouldPrune(m));
   return { messages: filtered };
 });
 ```
 
-`event.messages` holds the conversation without system messages. The prompt and tool declarations belong to Pi and are not part of this hook: when the handler returns a changed list, Pi replays the current prompt sections and tool declarations into one leading system message ahead of the returned messages. Filtering, windowing, or slicing from a compaction summary therefore cannot drop the prompt or the tools. An unchanged list keeps mid-conversation system messages in place, so models that accept them retain their cached prefix. System messages a handler adds are kept after Pi's head. To change the prompt or the tool set durably, use [`before_agent_start`](#before_agent_start) or `evoharness.setActiveTools()`; to edit system messages for one request, use [`context_with_system`](#context_with_system).
+`event.messages` holds the conversation without system messages. The prompt and tool declarations belong to EvoHarness and are not part of this hook: when the handler returns a changed list, EvoHarness replays the current prompt sections and tool declarations into one leading system message ahead of the returned messages. Filtering, windowing, or slicing from a compaction summary therefore cannot drop the prompt or the tools. An unchanged list keeps mid-conversation system messages in place, so models that accept them retain their cached prefix. System messages a handler adds are kept after EvoHarness's head. To change the prompt or the tool set durably, use [`before_agent_start`](#before_agent_start) or `evoharness.setActiveTools()`; to edit system messages for one request, use [`context_with_system`](#context_with_system).
 
 #### context_with_system
 
-Fired before each LLM call, after every `context` handler has run and Pi has restored the prompt and tool state. `event.messages` is the full transcript, including the leading system message and any mid-conversation prompt or tool patches (see [Session Format](session-format.md#sessionmessageentry)). The returned messages are sent as they are: this hook owns the prompt and tool declarations for the request.
+Fired before each LLM call, after every `context` handler has run and EvoHarness has restored the prompt and tool state. `event.messages` is the full transcript, including the leading system message and any mid-conversation prompt or tool patches (see [Session Format](session-format.md#sessionmessageentry)). The returned messages are sent as they are: this hook owns the prompt and tool declarations for the request.
 
 ```typescript
 import { getCurrentSystemMessage } from "@evoharness/ai";
 
-pi.on("context_with_system", async (event, ctx) => {
+evoharness.on("context_with_system", async (event, ctx) => {
   const cut = findCutIndex(event.messages);
   // Fold the dropped prefix so its prompt and tool state survives as the new head.
   const head = getCurrentSystemMessage(event.messages.slice(0, cut));
@@ -829,7 +829,7 @@ pi.on("context_with_system", async (event, ctx) => {
 });
 ```
 
-Rules: keep a system message at index 0 (providers read the prompt and initial tool declarations there; Pi reports an error if a handler drops it). Removing a system message removes the tool declarations and section patches it carries. Check your output with `getCurrentSystemPrompt()` and `getCurrentTools()` from `@evoharness/ai`. Handlers run in extension load order; a `systemPrompt` forced from `before_agent_start` is still projected onto the request afterwards.
+Rules: keep a system message at index 0 (providers read the prompt and initial tool declarations there; EvoHarness reports an error if a handler drops it). Removing a system message removes the tool declarations and section patches it carries. Check your output with `getCurrentSystemPrompt()` and `getCurrentTools()` from `@evoharness/ai`. Handlers run in extension load order; a `systemPrompt` forced from `before_agent_start` is still projected onto the request afterwards.
 
 #### before_provider_headers
 
@@ -838,11 +838,11 @@ Fired after the outgoing HTTP headers are assembled. Use it to add, override, or
 Handlers mutate `event.headers` in place. Set a key to a string to add or override it, or to `null` to delete it.
 
 ```typescript
-pi.on("before_provider_headers", (event, ctx) => {
+evoharness.on("before_provider_headers", (event, ctx) => {
   // Add or override — e.g. a session id for gateway tracing/attribution
   event.headers["x-session-id"] = ctx.sessionManager.getSessionId();
 
-  // Drop a tracking header pi adds for this call
+  // Drop a tracking header evoharness adds for this call
   event.headers["X-OpenRouter-Title"] = null;
 });
 ```
@@ -853,10 +853,10 @@ Runs once per provider request; retries reuse the same headers rather than re-fi
 
 Fired after the provider-specific payload is built, right before the request is sent. Handlers run in extension load order. Returning `undefined` keeps the payload unchanged. Returning any other value replaces the payload for later handlers and for the actual request.
 
-This hook can rewrite provider-level system instructions or remove them entirely. Those payload-level changes are not reflected by `ctx.getSystemPrompt()`, which reports Pi's system prompt string rather than the final serialized provider payload.
+This hook can rewrite provider-level system instructions or remove them entirely. Those payload-level changes are not reflected by `ctx.getSystemPrompt()`, which reports EvoHarness's system prompt string rather than the final serialized provider payload.
 
 ```typescript
-pi.on("before_provider_request", (event, ctx) => {
+evoharness.on("before_provider_request", (event, ctx) => {
   console.log(JSON.stringify(event.payload, null, 2));
 
   // Optional: replace payload
@@ -871,7 +871,7 @@ This is mainly useful for debugging provider serialization and cache behavior.
 Fired after an HTTP response is received and before its stream body is consumed. Handlers run in extension load order.
 
 ```typescript
-pi.on("after_provider_response", (event, ctx) => {
+evoharness.on("after_provider_response", (event, ctx) => {
   // event.status - HTTP status code
   // event.headers - normalized response headers
   if (event.status === 429) {
@@ -884,12 +884,12 @@ Header availability depends on provider and transport. Providers that abstract H
 
 #### provider_stream_event
 
-Fired for each parsed provider stream event before Pi normalizes it. Notification-only and not persisted.
+Fired for each parsed provider stream event before EvoHarness normalizes it. Notification-only and not persisted.
 
 ```typescript
-pi.on("provider_stream_event", (event, ctx) => {
+evoharness.on("provider_stream_event", (event, ctx) => {
   // event.provider, event.api, event.model
-  // event.data - earliest structured value available to Pi (read-only)
+  // event.data - earliest structured value available to EvoHarness (read-only)
 });
 ```
 
@@ -897,14 +897,14 @@ pi.on("provider_stream_event", (event, ctx) => {
 
 #### cache_warming_decision
 
-Fired before each prompt-cache refresh with Pi's decision filled in. The event carries only Pi's cost estimates; use `ctx.model`, `ctx.isIdle()`, and `ctx.getContextUsage()` for everything else.
+Fired before each prompt-cache refresh with EvoHarness's decision filled in. The event carries only EvoHarness's cost estimates; use `ctx.model`, `ctx.isIdle()`, and `ctx.getContextUsage()` for everything else.
 
 ```typescript
-pi.on("cache_warming_decision", (event, ctx) => {
+evoharness.on("cache_warming_decision", (event, ctx) => {
   // event.warmCost: price of this refresh
   // event.missCost: extra price of the next request if the entry is lost
-  // event.continuationProbability: pi's estimate that a request arrives in time
-  // event.action: "warm" | "stop", pi's decision
+  // event.continuationProbability: evoharness's estimate that a request arrives in time
+  // event.action: "warm" | "stop", evoharness's decision
 
   if (ctx.model?.provider === "my-provider") {
     return { action: "stop" };
@@ -921,7 +921,7 @@ Return `{ action: "warm" }` or `{ action: "stop" }` to override; the last handle
 Fired when the model changes via `/model` command, model cycling (`Ctrl+P`), or `evoharness.setModel()`. Restoring a session does not fire it; read `ctx.model` in `session_start` to initialize model-dependent state.
 
 ```typescript
-pi.on("model_select", async (event, ctx) => {
+evoharness.on("model_select", async (event, ctx) => {
   // event.model - newly selected model
   // event.previousModel - previous model (undefined if first selection)
   // event.source - "set" | "cycle"
@@ -942,7 +942,7 @@ Use this to update UI elements (status bars, footers) or perform model-specific 
 Fired when the thinking level changes. This is notification-only; handler return values are ignored.
 
 ```typescript
-pi.on("thinking_level_select", async (event, ctx) => {
+evoharness.on("thinking_level_select", async (event, ctx) => {
   // event.level - newly selected thinking level
   // event.previousLevel - previous thinking level
 
@@ -960,7 +960,7 @@ Use this to update extension UI when `evoharness.setThinkingLevel()`, model chan
 
 Fired after `tool_execution_start`, before the tool executes. **Can block.** Use `isToolCallEventType` to narrow and get typed inputs.
 
-Before `tool_call` runs, Pi waits for previously emitted Agent events to finish draining through `AgentSession`. This means `ctx.sessionManager` is up to date through the current assistant tool-calling message.
+Before `tool_call` runs, EvoHarness waits for previously emitted Agent events to finish draining through `AgentSession`. This means `ctx.sessionManager` is up to date through the current assistant tool-calling message.
 
 In the default parallel tool execution mode, sibling tool calls from the same assistant message are preflighted sequentially, then executed concurrently. `tool_call` is not guaranteed to see sibling tool results from that same assistant message in `ctx.sessionManager`.
 
@@ -976,7 +976,7 @@ Behavior guarantees:
 ```typescript
 import { isToolCallEventType } from "@evoharness/coding-agent";
 
-pi.on("tool_call", async (event, ctx) => {
+evoharness.on("tool_call", async (event, ctx) => {
   // event.toolName - "bash", "read", "write", "edit", etc.
   // event.toolCallId
   // event.input - tool parameters (mutable)
@@ -1016,7 +1016,7 @@ Use `isToolCallEventType` with explicit type parameters:
 import { isToolCallEventType } from "@evoharness/coding-agent";
 import type { MyToolInput } from "./my-tool.ts";
 
-pi.on("tool_call", (event) => {
+evoharness.on("tool_call", (event) => {
   if (isToolCallEventType<"my_tool", MyToolInput>("my_tool", event)) {
     event.input.action;  // typed
   }
@@ -1040,7 +1040,7 @@ Use `ctx.signal` for nested async work inside the handler. This lets Esc cancel 
 ```typescript
 import { isBashToolResult } from "@evoharness/coding-agent";
 
-pi.on("tool_result", async (event, ctx) => {
+evoharness.on("tool_result", async (event, ctx) => {
   // event.toolName, event.toolCallId, event.input, event.parentToolCallId
   // event.content, event.details, event.structuredContent, event.isError, event.usage
 
@@ -1068,7 +1068,7 @@ Fired when user executes `!` or `!!` commands. **Can intercept.**
 ```typescript
 import { createLocalBashOperations } from "@evoharness/coding-agent";
 
-pi.on("user_bash", (event, ctx) => {
+evoharness.on("user_bash", (event, ctx) => {
   // event.command - the bash command
   // event.excludeFromContext - true if !! prefix
   // event.cwd - working directory
@@ -1076,7 +1076,7 @@ pi.on("user_bash", (event, ctx) => {
   // Option 1: Provide custom operations (e.g., SSH)
   return { operations: remoteBashOps };
 
-  // Option 2: Wrap pi's built-in local bash backend
+  // Option 2: Wrap evoharness's built-in local bash backend
   const local = createLocalBashOperations();
   return {
     operations: {
@@ -1107,7 +1107,7 @@ Fired when user input is received, after extension commands are checked but befo
 5. Agent processing begins (`before_agent_start`, etc.)
 
 ```typescript
-pi.on("input", async (event, ctx) => {
+evoharness.on("input", async (event, ctx) => {
   // event.text - raw input (before skill/template expansion)
   // event.images - attached images, if any
   // event.source - "interactive" (typed), "rpc" (API), or "extension" (via sendUserMessage)
@@ -1166,14 +1166,14 @@ Current run mode: `"tui"`, `"rpc"`, `"json"`, or `"print"`. Use `ctx.mode === "t
 
 Current working directory.
 
-Use `CONFIG_DIR_NAME` instead of hardcoding `.pi` when constructing project-local config paths. Rebranded distributions can use a different config directory name.
+Use `CONFIG_DIR_NAME` instead of hardcoding `.evoharness` when constructing project-local config paths. Rebranded distributions can use a different config directory name.
 
 ```typescript
 import { CONFIG_DIR_NAME, type ExtensionAPI } from "@evoharness/coding-agent";
 import { join } from "node:path";
 
-export default function (pi: ExtensionAPI) {
-  pi.on("session_start", (_event, ctx) => {
+export default function (evoharness: ExtensionAPI) {
+  evoharness.on("session_start", (_event, ctx) => {
     const projectConfigPath = join(ctx.cwd, CONFIG_DIR_NAME, "my-extension.json");
     // ...
   });
@@ -1201,13 +1201,13 @@ ctx.sessionManager.getLeafId()              // Current leaf entry ID
 
 ### ctx.modelRegistry / ctx.model / ctx.thinkingLevel / ctx.scopedModels
 
-Access to models, providers, and resolved authentication. `ctx.modelRegistry.getProvider(id)` returns the effective pi-ai provider, while `getProviderAuth(id)` resolves its current API key, headers, base URL, and provider-scoped environment without requiring a loaded model. `ctx.model` is the active model, and `ctx.thinkingLevel` is its current effective thinking level.
+Access to models, providers, and resolved authentication. `ctx.modelRegistry.getProvider(id)` returns the effective evoharness-ai provider, while `getProviderAuth(id)` resolves its current API key, headers, base URL, and provider-scoped environment without requiring a loaded model. `ctx.model` is the active model, and `ctx.thinkingLevel` is its current effective thinking level.
 
 `ctx.scopedModels` is the read-only list of models scoped to the current session — the same set the `/scoped-models` command shows. It is resolved at session start from the `--models` CLI flag and the `enabledModels` setting (matched against the available catalogue with minimatch on `provider/modelId` or a bare `modelId`). It is empty when no scoping is configured, meaning every available model is usable. Each entry is `{ model, thinkingLevel? }`, where `thinkingLevel` is set only when a pattern pinned it (e.g. `anthropic/*:high`). Use it to populate a model picker that mirrors the built-in one instead of enumerating the whole catalogue via `ctx.modelRegistry.getAvailable()`.
 
 #### Streaming model calls
 
-Use `ctx.modelRegistry.streamSimple(model, context, options)` for provider-neutral options such as `reasoning`, or `complete(model, context, options)` to await the final assistant message with API-specific options. Both use configured providers and resolve authentication, including for providers registered with `evoharness.registerProvider()`. Use these instead of `pi-ai/compat` streaming functions, which cannot see extension provider registrations.
+Use `ctx.modelRegistry.streamSimple(model, context, options)` for provider-neutral options such as `reasoning`, or `complete(model, context, options)` to await the final assistant message with API-specific options. Both use configured providers and resolve authentication, including for providers registered with `evoharness.registerProvider()`. Use these instead of `evoharness-ai/compat` streaming functions, which cannot see extension provider registrations.
 
 `streamSimple()` returns an `AssistantMessageEventStream`. Iterate it for response events and await `.result()` for the final message. Setup failures produce error events and error results.
 
@@ -1223,10 +1223,10 @@ Use this for abort-aware nested work started by extension handlers, for example:
 - file or process helpers that accept `AbortSignal`
 
 `ctx.signal` is typically defined during active turn events such as `tool_call`, `tool_result`, `message_update`, and `turn_end`.
-It is usually `undefined` in idle or non-turn contexts such as session events, extension commands, and shortcuts fired while Pi is idle.
+It is usually `undefined` in idle or non-turn contexts such as session events, extension commands, and shortcuts fired while EvoHarness is idle.
 
 ```typescript
-pi.on("tool_result", async (event, ctx) => {
+evoharness.on("tool_result", async (event, ctx) => {
   const response = await fetch("https://example.com/api", {
     method: "POST",
     body: JSON.stringify(event),
@@ -1240,11 +1240,11 @@ pi.on("tool_result", async (event, ctx) => {
 
 ### ctx.isIdle() / ctx.abort() / ctx.hasPendingMessages()
 
-Control flow helpers. `ctx.isIdle()` is false while Pi is processing an agent run, automatic retry, auto-compaction retry, or queued continuation.
+Control flow helpers. `ctx.isIdle()` is false while EvoHarness is processing an agent run, automatic retry, auto-compaction retry, or queued continuation.
 
 ### ctx.shutdown()
 
-Request a graceful shutdown of pi.
+Request a graceful shutdown of evoharness.
 
 - **Interactive mode:** Deferred until the agent becomes idle (after processing all queued steering and follow-up messages).
 - **RPC mode:** Deferred until the next idle state (after completing the current command response, when waiting for the next command).
@@ -1253,7 +1253,7 @@ Request a graceful shutdown of pi.
 Emits `session_shutdown` event to all extensions before exiting. Available in all contexts (event handlers, tools, commands, shortcuts).
 
 ```typescript
-pi.on("tool_call", (event, ctx) => {
+evoharness.on("tool_call", (event, ctx) => {
   if (isFatal(event.input)) {
     ctx.shutdown();
   }
@@ -1289,7 +1289,7 @@ ctx.compact({
 
 ### ctx.getSystemPrompt()
 
-Returns Pi's current system prompt string.
+Returns EvoHarness's current system prompt string.
 
 - During `before_agent_start`, this reflects chained system-prompt changes made so far for the current turn.
 - It does not include later `context` message mutations.
@@ -1297,7 +1297,7 @@ Returns Pi's current system prompt string.
 - If later-loaded extensions run after yours, they can still change what is ultimately sent.
 
 ```typescript
-pi.on("before_agent_start", (event, ctx) => {
+evoharness.on("before_agent_start", (event, ctx) => {
   const prompt = ctx.getSystemPrompt();
   console.log(`System prompt length: ${prompt.length}`);
 });
@@ -1309,7 +1309,7 @@ Command handlers receive `ExtensionCommandContext`, which extends `ExtensionCont
 
 ### ctx.getSystemPromptOptions()
 
-Returns the base inputs Pi currently uses to build the system prompt.
+Returns the base inputs EvoHarness currently uses to build the system prompt.
 
 ```typescript
 const options = ctx.getSystemPromptOptions();
@@ -1325,7 +1325,7 @@ This reports the current base prompt inputs. It does not include per-turn `befor
 Wait for the agent to fully settle, including automatic retries, auto-compaction retries, and queued continuations:
 
 ```typescript
-pi.registerCommand("my-cmd", {
+evoharness.registerCommand("my-cmd", {
   handler: async (args, ctx) => {
     await ctx.waitForIdle();
     // Agent is now idle, safe to modify session
@@ -1364,7 +1364,7 @@ if (result.cancelled) {
 Options:
 - `parentSession`: parent session file to record in the new session header
 - `setup`: mutate the new session's `SessionManager` before `withSession` runs
-- `withSession`: run post-switch work against a fresh replacement-session context. Do not use captured old `pi` / command `ctx`; see [Session replacement lifecycle and footguns](#session-replacement-lifecycle-and-footguns).
+- `withSession`: run post-switch work against a fresh replacement-session context. Do not use captured old `evoharness` / command `ctx`; see [Session replacement lifecycle and footguns](#session-replacement-lifecycle-and-footguns).
 
 ### ctx.fork(entryId, options?)
 
@@ -1390,7 +1390,7 @@ if (cloneResult.cancelled) {
 Options:
 - `position`: `"before"` (default) forks before the selected user message, restoring that prompt into the editor
 - `position`: `"at"` duplicates the active path through the selected entry without restoring editor text
-- `withSession`: run post-switch work against a fresh replacement-session context. Do not use captured old `pi` / command `ctx`; see [Session replacement lifecycle and footguns](#session-replacement-lifecycle-and-footguns).
+- `withSession`: run post-switch work against a fresh replacement-session context. Do not use captured old `evoharness` / command `ctx`; see [Session replacement lifecycle and footguns](#session-replacement-lifecycle-and-footguns).
 
 ### ctx.navigateTree(targetId, options?)
 
@@ -1427,14 +1427,14 @@ if (result.cancelled) {
 ```
 
 Options:
-- `withSession`: run post-switch work against a fresh replacement-session context. Do not use captured old `pi` / command `ctx`; see [Session replacement lifecycle and footguns](#session-replacement-lifecycle-and-footguns).
+- `withSession`: run post-switch work against a fresh replacement-session context. Do not use captured old `evoharness` / command `ctx`; see [Session replacement lifecycle and footguns](#session-replacement-lifecycle-and-footguns).
 
 To discover available sessions, use the static `SessionManager.list()` or `SessionManager.listAll()` methods:
 
 ```typescript
 import { SessionManager } from "@evoharness/coding-agent";
 
-pi.registerCommand("switch", {
+evoharness.registerCommand("switch", {
   description: "Switch to another session",
   handler: async (args, ctx) => {
     const sessions = await SessionManager.list(ctx.cwd);
@@ -1461,14 +1461,14 @@ pi.registerCommand("switch", {
 Lifecycle and footguns:
 - `withSession` runs only after the old session has emitted `session_shutdown`, the old runtime has been torn down, the replacement session has been rebound, and the new extension instance has already received `session_start`.
 - The callback still executes in the original closure, not inside the new extension instance. That means your old extension instance may already have run its shutdown cleanup before `withSession` starts.
-- Captured old `pi` / old command `ctx` session-bound objects are stale after replacement and will throw if used. Use only the `ctx` passed to `withSession` for session-bound work.
+- Captured old `evoharness` / old command `ctx` session-bound objects are stale after replacement and will throw if used. Use only the `ctx` passed to `withSession` for session-bound work.
 - Previously extracted raw objects are still your responsibility. For example, if you capture `const sm = ctx.sessionManager` before replacement, `sm` is still the old `SessionManager` object. Do not reuse it after replacement.
 - Code in `withSession` should assume any state invalidated by your `session_shutdown` handler is already gone. Only capture plain data that survives shutdown cleanly, such as strings, ids, and serialized config.
 
 Safe pattern:
 
 ```typescript
-pi.registerCommand("handoff", {
+evoharness.registerCommand("handoff", {
   handler: async (_args, ctx) => {
     const kickoff = "Continue from the replacement session";
     await ctx.newSession({
@@ -1483,14 +1483,14 @@ pi.registerCommand("handoff", {
 Unsafe pattern:
 
 ```typescript
-pi.registerCommand("handoff", {
+evoharness.registerCommand("handoff", {
   handler: async (_args, ctx) => {
     const oldSessionManager = ctx.sessionManager;
     await ctx.newSession({
       withSession: async (_ctx) => {
         // stale old objects: do not do this
         oldSessionManager.getSessionFile();
-        pi.sendUserMessage("wrong");
+        evoharness.sendUserMessage("wrong");
       },
     });
   },
@@ -1502,7 +1502,7 @@ pi.registerCommand("handoff", {
 Run the same reload flow as `/reload`.
 
 ```typescript
-pi.registerCommand("reload-runtime", {
+evoharness.registerCommand("reload-runtime", {
   description: "Reload extensions, skills, prompts, themes, and context files",
   handler: async (_args, ctx) => {
     await ctx.reload();
@@ -1521,12 +1521,12 @@ Important behavior:
 
 For predictable behavior, treat reload as terminal for that handler (`await ctx.reload(); return;`).
 
-Tools run with `ExtensionToolContext`, not `ExtensionCommandContext`, so they cannot call `ctx.reload()`, and Pi cannot reload while the agent is running. To let the LLM trigger a reload, have the tool record the request and run the command from `agent_settled`, where messages sent by handlers are processed after all settled handlers finish:
+Tools run with `ExtensionToolContext`, not `ExtensionCommandContext`, so they cannot call `ctx.reload()`, and EvoHarness cannot reload while the agent is running. To let the LLM trigger a reload, have the tool record the request and run the command from `agent_settled`, where messages sent by handlers are processed after all settled handlers finish:
 
 ```typescript
 let reloadRequested = false;
 
-pi.registerTool({
+evoharness.registerTool({
   name: "reload_runtime",
   label: "Reload Runtime",
   description: "Reload extensions, skills, prompts, themes, and context files",
@@ -1534,17 +1534,17 @@ pi.registerTool({
   async execute() {
     reloadRequested = true;
     return {
-      content: [{ type: "text", text: "Reload requested. Pi reloads after this response." }],
+      content: [{ type: "text", text: "Reload requested. EvoHarness reloads after this response." }],
       details: {},
       terminate: true,
     };
   },
 });
 
-pi.on("agent_settled", () => {
+evoharness.on("agent_settled", () => {
   if (!reloadRequested) return;
   reloadRequested = false;
-  pi.sendUserMessage("/reload-runtime", { expandPromptTemplates: true });
+  evoharness.sendUserMessage("/reload-runtime", { expandPromptTemplates: true });
 });
 ```
 
@@ -1552,12 +1552,12 @@ pi.on("agent_settled", () => {
 
 ## ExtensionAPI Methods
 
-### pi.on(event, handler)
+### evoharness.on(event, handler)
 
 Subscribe to events. Returns an unsubscribe function that removes only that registration. See [Events](#events) for event types and return values.
 
 ```typescript
-const unsubscribe = pi.on("agent_end", async (event) => {
+const unsubscribe = evoharness.on("agent_end", async (event) => {
   unsubscribe();
   await updateIntegration(event.messages);
 });
@@ -1565,7 +1565,7 @@ const unsubscribe = pi.on("agent_end", async (event) => {
 
 Handlers run in extension load order, then registration order within each extension. Adding or removing a handler does not affect a dispatch already in progress.
 
-### pi.registerTool(definition)
+### evoharness.registerTool(definition)
 
 Register a custom tool callable by the LLM. See [Custom Tools](#custom-tools) for full details.
 
@@ -1583,7 +1583,7 @@ See [dynamic-tools.ts](../examples/extensions/dynamic-tools.ts) for a full examp
 import { Type } from "typebox";
 import { StringEnum } from "@evoharness/ai";
 
-pi.registerTool({
+evoharness.registerTool({
   name: "my_tool",
   label: "My Tool",
   description: "What this tool does",
@@ -1610,12 +1610,12 @@ pi.registerTool({
 });
 ```
 
-### pi.sendMessage(message, options?)
+### evoharness.sendMessage(message, options?)
 
 Inject a custom message into the session. Custom messages participate in LLM context. For durable TUI-only content that should not be sent to the LLM, use [`evoharness.appendEntry()`](#piappendentrycustomtype-data) with [`evoharness.registerEntryRenderer()`](#piregisterentryrenderercustomtype-renderer).
 
 ```typescript
-pi.sendMessage({
+evoharness.sendMessage({
   customType: "my-extension",
   content: "Message text",
   display: true,
@@ -1634,26 +1634,26 @@ pi.sendMessage({
 - `triggerTurn: true` - If agent is idle, trigger an LLM response immediately. Only applies to `"steer"` and `"followUp"` modes (ignored for `"nextTurn"`). Without it, an idle session stores the message without starting a turn.
 - `triggerTurn: false` while streaming - The message is not steered or queued as a follow-up; it is appended after the current turn ends.
 
-### pi.sendUserMessage(content, options?)
+### evoharness.sendUserMessage(content, options?)
 
 Send a user message to the agent. Unlike `sendMessage()` which sends custom messages, this sends an actual user message that appears as if typed by the user. It starts or queues a turn unless an `input` handler handles it or, with `expandPromptTemplates: true`, it runs an extension command.
 
 ```typescript
 // Simple text message
-pi.sendUserMessage("What is 2+2?");
+evoharness.sendUserMessage("What is 2+2?");
 
 // With content array (text + images)
-pi.sendUserMessage([
+evoharness.sendUserMessage([
   { type: "text", text: "Describe this image:" },
   { type: "image", data: "...", mimeType: "image/png" },
 ]);
 
 // During streaming - must specify delivery mode
-pi.sendUserMessage("Focus on error handling", { deliverAs: "steer" });
-pi.sendUserMessage("And then summarize", { deliverAs: "followUp" });
+evoharness.sendUserMessage("Focus on error handling", { deliverAs: "steer" });
+evoharness.sendUserMessage("And then summarize", { deliverAs: "followUp" });
 
 // Opt in to extension command dispatch and skill/prompt template expansion
-pi.sendUserMessage("/review src/index.ts", { expandPromptTemplates: true });
+evoharness.sendUserMessage("/review src/index.ts", { expandPromptTemplates: true });
 ```
 
 **Options:**
@@ -1662,20 +1662,20 @@ pi.sendUserMessage("/review src/index.ts", { expandPromptTemplates: true });
   - `"followUp"` - Waits for agent to finish all tools
 - `expandPromptTemplates` - Dispatch extension commands and expand skill commands and prompt templates. Defaults to `false`.
 
-When not streaming, the message is sent immediately and triggers a new turn. When streaming without `deliverAs`, the message is rejected and Pi reports an extension error.
+When not streaming, the message is sent immediately and triggers a new turn. When streaming without `deliverAs`, the message is rejected and EvoHarness reports an extension error.
 
 See [send-user-message.ts](../examples/extensions/send-user-message.ts) for a complete example.
 
-### pi.appendEntry(customType, data?)
+### evoharness.appendEntry(customType, data?)
 
 Persist extension data. Custom entries do NOT participate in LLM context. In interactive mode, they can also render inside the chat transcript when paired with `evoharness.registerEntryRenderer()`.
 
 ```typescript
-pi.appendEntry("my-state", { count: 42 });
-pi.appendEntry("status-card", { title: "Indexed files", count: 17 });
+evoharness.appendEntry("my-state", { count: 42 });
+evoharness.appendEntry("status-card", { title: "Indexed files", count: 17 });
 
 // Restore on reload
-pi.on("session_start", async (_event, ctx) => {
+evoharness.on("session_start", async (_event, ctx) => {
   for (const entry of ctx.sessionManager.getEntries()) {
     if (entry.type === "custom" && entry.customType === "my-state") {
       // Reconstruct from entry.data
@@ -1684,35 +1684,35 @@ pi.on("session_start", async (_event, ctx) => {
 });
 ```
 
-### pi.setSessionName(name)
+### evoharness.setSessionName(name)
 
 Set the session display name (shown in session selector instead of first message).
 
 ```typescript
-pi.setSessionName("Refactor auth module");
+evoharness.setSessionName("Refactor auth module");
 ```
 
-### pi.getSessionName()
+### evoharness.getSessionName()
 
 Get the current session name, if set.
 
 ```typescript
-const name = pi.getSessionName();
+const name = evoharness.getSessionName();
 if (name) {
   console.log(`Session: ${name}`);
 }
 ```
 
-### pi.setLabel(entryId, label)
+### evoharness.setLabel(entryId, label)
 
 Set or clear a label on an entry. Labels are user-defined markers for bookmarking and navigation (shown in `/tree` selector).
 
 ```typescript
 // Set a label
-pi.setLabel(entryId, "checkpoint-before-refactor");
+evoharness.setLabel(entryId, "checkpoint-before-refactor");
 
 // Clear a label
-pi.setLabel(entryId, undefined);
+evoharness.setLabel(entryId, undefined);
 
 // Read labels via sessionManager
 const label = ctx.sessionManager.getLabel(entryId);
@@ -1720,14 +1720,14 @@ const label = ctx.sessionManager.getLabel(entryId);
 
 Labels persist in the session and survive restarts. Use them to mark important points (turns, checkpoints) in the conversation tree.
 
-### pi.registerCommand(name, options)
+### evoharness.registerCommand(name, options)
 
 Register a command.
 
-If multiple extensions register the same command name, Pi keeps them all and assigns numeric invocation suffixes in load order, for example `/review:1` and `/review:2`.
+If multiple extensions register the same command name, EvoHarness keeps them all and assigns numeric invocation suffixes in load order, for example `/review:1` and `/review:2`.
 
 ```typescript
-pi.registerCommand("stats", {
+evoharness.registerCommand("stats", {
   description: "Show session statistics",
   handler: async (args, ctx) => {
     const count = ctx.sessionManager.getEntries().length;
@@ -1741,7 +1741,7 @@ Optional: add argument auto-completion for `/command ...`. `getArgumentCompletio
 ```typescript
 import type { AutocompleteItem } from "@evoharness/tui";
 
-pi.registerCommand("deploy", {
+evoharness.registerCommand("deploy", {
   description: "Deploy to an environment",
   getArgumentCompletions: (prefix: string): AutocompleteItem[] | null => {
     const envs = ["dev", "staging", "prod"];
@@ -1755,13 +1755,13 @@ pi.registerCommand("deploy", {
 });
 ```
 
-### pi.getCommands()
+### evoharness.getCommands()
 
 Get the slash commands available for invocation via `prompt` in the current session. Includes extension commands, prompt templates, and skill commands.
 The list matches the RPC `get_commands` ordering: extensions first, then templates, then skills. Skill commands are named `skill:<name>`.
 
 ```typescript
-const commands = pi.getCommands();
+const commands = evoharness.getCommands();
 const bySource = commands.filter((command) => command.source === "extension");
 const userScoped = commands.filter((command) => command.sourceInfo.scope === "user");
 ```
@@ -1788,13 +1788,13 @@ Use `sourceInfo` as the canonical provenance field. Do not infer ownership from 
 Built-in interactive commands (like `/model` and `/settings`) are not included here. They are handled only in interactive
 mode and would not execute if sent via `prompt`.
 
-### pi.registerMessageRenderer(customType, renderer)
+### evoharness.registerMessageRenderer(customType, renderer)
 
 Register a custom TUI renderer for custom messages with your `customType`. Custom messages are created with `evoharness.sendMessage()` and participate in LLM context. See [Custom UI](#custom-ui).
 
-### pi.registerMarkdownTransformer(transformer)
+### evoharness.registerMarkdownTransformer(transformer)
 
-Register a transformer for the Markdown in normal user text, assistant text, and thinking blocks. Transformers run in extension load order, and each transformer receives the Markdown returned by the previous transformer. After the chain finishes, Pi renders the transformed content with its built-in renderer.
+Register a transformer for the Markdown in normal user text, assistant text, and thinking blocks. Transformers run in extension load order, and each transformer receives the Markdown returned by the previous transformer. After the chain finishes, EvoHarness renders the transformed content with its built-in renderer.
 
 The transformer receives the Markdown string and a context with:
 
@@ -1806,22 +1806,22 @@ The transformer receives the Markdown string and a context with:
 Return the transformed Markdown:
 
 ```typescript
-pi.registerMarkdownTransformer((markdown, { messageType, isStreaming }) => {
+evoharness.registerMarkdownTransformer((markdown, { messageType, isStreaming }) => {
   if (isStreaming || messageType === "assistant-thinking") return markdown;
   return markdown.replaceAll("-->", "→");
 });
 ```
 
-If a transformer throws, Pi keeps the Markdown produced so far and continues with the next transformer. The hook is display-only: the original message remains unchanged in the session and model context. It runs for new user messages, assistant streaming updates, restored session messages, and terminal width changes, so transformers should remain synchronous and inexpensive.
+If a transformer throws, EvoHarness keeps the Markdown produced so far and continues with the next transformer. The hook is display-only: the original message remains unchanged in the session and model context. It runs for new user messages, assistant streaming updates, restored session messages, and terminal width changes, so transformers should remain synchronous and inexpensive.
 
-### pi.registerEntryRenderer(customType, renderer)
+### evoharness.registerEntryRenderer(customType, renderer)
 
 Register a custom TUI renderer for custom entries with your `customType`. Custom entries are created with `evoharness.appendEntry()` and do not participate in LLM context.
 
 ```typescript
 import { Box, Text } from "@evoharness/tui";
 
-pi.registerEntryRenderer("status-card", (entry, { expanded }, theme) => {
+evoharness.registerEntryRenderer("status-card", (entry, { expanded }, theme) => {
   const data = entry.data as { title: string; count: number };
   const box = new Box(1, 1, (text) => theme.bg("customMessageBg", text));
   box.addChild(new Text(`${theme.bold(data.title)}: ${data.count}`));
@@ -1831,15 +1831,15 @@ pi.registerEntryRenderer("status-card", (entry, { expanded }, theme) => {
   return box;
 });
 
-pi.appendEntry("status-card", { title: "Indexed files", count: 17 });
+evoharness.appendEntry("status-card", { title: "Indexed files", count: 17 });
 ```
 
-### pi.registerShortcut(shortcut, options)
+### evoharness.registerShortcut(shortcut, options)
 
 Register a keyboard shortcut. See [keybindings.md](keybindings.md) for the shortcut format and built-in keybindings.
 
 ```typescript
-pi.registerShortcut("ctrl+shift+p", {
+evoharness.registerShortcut("ctrl+shift+p", {
   description: "Toggle plan mode",
   handler: async (ctx) => {
     ctx.ui.notify("Toggled!");
@@ -1847,43 +1847,43 @@ pi.registerShortcut("ctrl+shift+p", {
 });
 ```
 
-### pi.registerFlag(name, options)
+### evoharness.registerFlag(name, options)
 
 Register a CLI flag.
 
 ```typescript
-pi.registerFlag("plan", {
+evoharness.registerFlag("plan", {
   description: "Start in plan mode",
   type: "boolean",
   default: false,
 });
 
 // Check the value after loading; in the factory, getFlag() returns the default
-pi.on("session_start", () => {
-  if (pi.getFlag("plan")) {
+evoharness.on("session_start", () => {
+  if (evoharness.getFlag("plan")) {
     // Plan mode enabled
   }
 });
 ```
 
-### pi.exec(command, args, options?)
+### evoharness.exec(command, args, options?)
 
 Execute a command without a shell.
 
 ```typescript
-const result = await pi.exec("git", ["status"], { signal, timeout: 5000 });
+const result = await evoharness.exec("git", ["status"], { signal, timeout: 5000 });
 // result.stdout, result.stderr, result.code, result.killed, result.truncated
 ```
 
-Options: `signal` and `timeout` terminate the command, `cwd` sets the working directory, and `maxBuffer` limits stdout and stderr combined (default 256 MiB). When output exceeds `maxBuffer`, pi terminates the command and returns the output up to the limit with `truncated: true`, `killed: true`, and a nonzero `code`. `killed` is true whenever pi terminated the command: timeout, abort, or `maxBuffer`. A command that ignores SIGTERM gets SIGKILL after 5 seconds.
+Options: `signal` and `timeout` terminate the command, `cwd` sets the working directory, and `maxBuffer` limits stdout and stderr combined (default 256 MiB). When output exceeds `maxBuffer`, evoharness terminates the command and returns the output up to the limit with `truncated: true`, `killed: true`, and a nonzero `code`. `killed` is true whenever evoharness terminated the command: timeout, abort, or `maxBuffer`. A command that ignores SIGTERM gets SIGKILL after 5 seconds.
 
-### pi.getActiveTools() / pi.getAllTools() / pi.setActiveTools(names)
+### evoharness.getActiveTools() / evoharness.getAllTools() / evoharness.setActiveTools(names)
 
 Manage active tools. This works for both built-in tools and dynamically registered tools. `evoharness.getActiveTools()` returns the active tool names as `string[]`; `evoharness.getAllTools()` returns metadata for all configured tools.
 
 ```typescript
-const active = pi.getActiveTools(); // ["read", "bash", ...]
-const all = pi.getAllTools();
+const active = evoharness.getActiveTools(); // ["read", "bash", ...]
+const all = evoharness.getAllTools();
 // all = [{
 //   name: "read",
 //   description: "Read file contents...",
@@ -1892,64 +1892,64 @@ const all = pi.getAllTools();
 //   exposure: "direct",
 //   sourceInfo: { path: "builtin:read", source: "builtin", scope: "temporary", origin: "top-level" }
 // }, ...]
-// Tools shipped with Pi: core tools and tools from built-in extensions such as builtin:mcp
+// Tools shipped with EvoHarness: core tools and tools from built-in extensions such as builtin:mcp
 const shippedTools = all.filter((t) => t.sourceInfo.source === "builtin");
 // Tools from installed or local extensions
 const extensionTools = all.filter((t) => t.sourceInfo.source !== "builtin" && t.sourceInfo.source !== "sdk");
-pi.setActiveTools([...new Set([...active, "my_custom_tool"])]); // Keep current tools and enable my_custom_tool
-pi.setActiveTools(["read", "bash"]); // Only read and bash
+evoharness.setActiveTools([...new Set([...active, "my_custom_tool"])]); // Keep current tools and enable my_custom_tool
+evoharness.setActiveTools(["read", "bash"]); // Only read and bash
 ```
 
 `evoharness.getAllTools()` returns `name`, `description`, `parameters`, `promptGuidelines`, `exposure`, `sourceInfo`, and, when set, `namespace`, `annotations`, and `reachesTools`.
 
 Typical `sourceInfo` values:
-- `source: "builtin"` for tools shipped with Pi: core tools (`path: "builtin:<tool>"`) and tools registered by built-in extensions such as `builtin:mcp` (`path: "builtin:<extension>"`)
+- `source: "builtin"` for tools shipped with EvoHarness: core tools (`path: "builtin:<tool>"`) and tools registered by built-in extensions such as `builtin:mcp` (`path: "builtin:<extension>"`)
 - `source: "sdk"` for tools passed via `createAgentSession({ customTools })`
 - extension source metadata for tools registered by extensions
 
 `evoharness.setActiveTools()` ignores unknown and `hidden` tools. Tools with `codemode` or `deferred` exposure stay callable from codemode scripts whether active or not.
 
-### pi.setModel(model)
+### evoharness.setModel(model)
 
 Set the model for the current session. The change is recorded in session history and restored when that session is resumed, but it does not change the configured `defaultProvider` or `defaultModel` used by new sessions. Returns `false` if authentication is not configured for the model's provider. See [models.md](models.md) for configuring custom models.
 
 ```typescript
 const model = ctx.modelRegistry.find("anthropic", "claude-sonnet-4-5");
 if (model) {
-  const success = await pi.setModel(model);
+  const success = await evoharness.setModel(model);
   if (!success) {
     ctx.ui.notify("No API key for this model", "error");
   }
 }
 ```
 
-### pi.getThinkingLevel() / pi.setThinkingLevel(level)
+### evoharness.getThinkingLevel() / evoharness.setThinkingLevel(level)
 
 Get the current thinking level. Level is clamped to model capabilities (non-reasoning models always use "off"). Changes emit `thinking_level_select`.
 
 `evoharness.setThinkingLevel()` changes the thinking level for the current session. The change is recorded in session history and restored when that session is resumed, but it does not change the configured default used by new sessions.
 
 ```typescript
-const current = pi.getThinkingLevel();  // "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
-pi.setThinkingLevel("high");
+const current = evoharness.getThinkingLevel();  // "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
+evoharness.setThinkingLevel("high");
 ```
 
-### pi.events
+### evoharness.events
 
 Shared event bus for communication between extensions:
 
 ```typescript
-pi.events.on("my:event", (data) => { ... });
-pi.events.emit("my:event", { ... });
+evoharness.events.on("my:event", (data) => { ... });
+evoharness.events.emit("my:event", { ... });
 ```
 
-### pi.registerProvider(name, config)
+### evoharness.registerProvider(name, config)
 
 Register or override a model provider dynamically. Useful for proxies, custom endpoints, or team-wide model configurations.
 
 Calls made during the extension factory function are queued and applied once the runner initialises. Calls made after that — for example from a command handler following a user setup flow — take effect immediately without requiring a `/reload`.
 
-Dynamic providers can implement `refreshModels`. Pi calls it during model refresh, publishes the returned list synchronously through the provider, and passes the canonical credential/stored-catalog/network/signal context. The extension decides whether to persist catalog metadata through generation-checked `context.publish({ persist: entry })`; live servers such as llama.cpp can return models without persisting them.
+Dynamic providers can implement `refreshModels`. EvoHarness calls it during model refresh, publishes the returned list synchronously through the provider, and passes the canonical credential/stored-catalog/network/signal context. The extension decides whether to persist catalog metadata through generation-checked `context.publish({ persist: entry })`; live servers such as llama.cpp can return models without persisting them.
 
 `context.signal` is always a concrete signal and provider callbacks must pass it to blocking I/O. Public `ModelRuntime.refresh()` and `ModelRegistry.refresh()` calls accept an optional signal and are unbounded when it is omitted; extensions and applications choose their own deadlines. Cancellation stops the caller waiting even if a provider ignores the signal, but cooperation is still required to stop the underlying work.
 
@@ -1982,10 +1982,10 @@ const provider = createProvider({
   api: openAICompletionsApi(),
 });
 
-pi.registerProvider(provider);
+evoharness.registerProvider(provider);
 
 // Register a new provider with custom models
-pi.registerProvider("my-proxy", {
+evoharness.registerProvider("my-proxy", {
   name: "My Proxy",
   baseUrl: "https://proxy.example.com",
   apiKey: "$PROXY_API_KEY",  // env var reference
@@ -2004,7 +2004,7 @@ pi.registerProvider("my-proxy", {
 });
 
 // Register a live llama.cpp catalog without persisting discovered models
-pi.registerProvider("llama.cpp", {
+evoharness.registerProvider("llama.cpp", {
   baseUrl: "http://localhost:8080/v1",
   apiKey: "local",
   api: "openai-completions",
@@ -2024,12 +2024,12 @@ pi.registerProvider("llama.cpp", {
 });
 
 // Override baseUrl for an existing provider (keeps all models)
-pi.registerProvider("anthropic", {
+evoharness.registerProvider("anthropic", {
   baseUrl: "https://proxy.example.com"
 });
 
 // Register provider with OAuth support for /login
-pi.registerProvider("corporate-ai", {
+evoharness.registerProvider("corporate-ai", {
   baseUrl: "https://ai.corp.com",
   api: "openai-responses",
   models: [...],
@@ -2053,7 +2053,7 @@ pi.registerProvider("corporate-ai", {
 });
 ```
 
-The object form accepts a complete pi-ai `Provider`, including native `auth`, `getModels`, `refreshModels`, `filterModels`, `stream`, and `streamSimple` behavior.
+The object form accepts a complete evoharness-ai `Provider`, including native `auth`, `getModels`, `refreshModels`, `filterModels`, `stream`, and `streamSimple` behavior.
 
 **Legacy config options:**
 - `name` - Display name for the provider in UI such as `/login`.
@@ -2069,41 +2069,41 @@ The object form accepts a complete pi-ai `Provider`, including native `auth`, `g
 
 See [custom-provider.md](custom-provider.md) for advanced topics: custom streaming APIs, OAuth details, model definition reference.
 
-### pi.unregisterProvider(name)
+### evoharness.unregisterProvider(name)
 
 Remove a previously registered provider and its models. Built-in models that were overridden by the provider are restored. Has no effect if the provider was not registered.
 
 Like `registerProvider`, this takes effect immediately when called after the initial load phase, so a `/reload` is not required.
 
 ```typescript
-pi.registerCommand("my-setup-teardown", {
+evoharness.registerCommand("my-setup-teardown", {
   description: "Remove the custom proxy provider",
   handler: async (_args, _ctx) => {
-    pi.unregisterProvider("my-proxy");
+    evoharness.unregisterProvider("my-proxy");
   },
 });
 ```
 
-### pi.registerVirtualModel(model) / pi.unregisterVirtualModel(provider, id)
+### evoharness.registerVirtualModel(model) / evoharness.unregisterVirtualModel(provider, id)
 
 Register a selectable catalog entry that routes each request to a physical model. `ctx.model` and the session's model selection name the virtual model; assistant messages record the physical model and thinking level the router picked. Registering the same provider and ID again replaces the virtual model. See [Virtual Models](virtual-models.md).
 
-### pi.registerMcpServer(name, config) / pi.unregisterMcpServer(name) / pi.getMcpServers()
+### evoharness.registerMcpServer(name, config) / evoharness.unregisterMcpServer(name) / evoharness.getMcpServers()
 
 Register an MCP server for the current session. See [MCP Servers](#mcp-servers).
 
-### pi.registerToolRenderer(resolver)
+### evoharness.registerToolRenderer(resolver)
 
 Choose how calls to any tool are drawn, including tools that are not registered yet, such as MCP tools in a resumed session before their server connected. The resolver receives the tool name and `next()`, which returns what the remaining resolvers (in extension load order), then the registered tool, would use, so `next() ?? mine` only fills in.
 
 ```typescript
-pi.registerToolRenderer((toolName, next) => {
+evoharness.registerToolRenderer((toolName, next) => {
   if (!toolName.startsWith("mcp__")) return next();
   return next() ?? { renderCall: (args, theme) => new Text(theme.fg("toolTitle", toolName), 0, 0) };
 });
 ```
 
-### pi.getSettings()
+### evoharness.getSettings()
 
 Return a copy of the effective settings, with global and project settings merged and overrides applied.
 
@@ -2114,7 +2114,7 @@ Return a copy of the effective settings, with global and project settings merged
 Extensions with state should store it in tool result `details` for proper branching support:
 
 ```typescript
-export default function (pi: ExtensionAPI) {
+export default function (evoharness: ExtensionAPI) {
   let items: string[] = [];
 
   // Reconstruct state from the active branch
@@ -2128,10 +2128,10 @@ export default function (pi: ExtensionAPI) {
       }
     }
   };
-  pi.on("session_start", async (_event, ctx) => reconstruct(ctx));
-  pi.on("session_tree", async (_event, ctx) => reconstruct(ctx)); // /tree changes the branch
+  evoharness.on("session_start", async (_event, ctx) => reconstruct(ctx));
+  evoharness.on("session_tree", async (_event, ctx) => reconstruct(ctx)); // /tree changes the branch
 
-  pi.registerTool({
+  evoharness.registerTool({
     name: "my_tool",
     // ...
     async execute(toolCallId, params, signal, onUpdate, ctx) {
@@ -2202,7 +2202,7 @@ const myToolSchema = Type.Object({
   text: Type.Optional(Type.String()),
 });
 
-pi.registerTool({
+evoharness.registerTool({
   name: "my_tool",
   label: "My Tool",
   description: "What this tool does (shown to LLM)",
@@ -2232,8 +2232,8 @@ pi.registerTool({
       details: {},
     });
 
-    // Run commands via pi.exec (captured from extension closure)
-    const result = await pi.exec("some-command", [], { signal });
+    // Run commands via evoharness.exec (captured from extension closure)
+    const result = await evoharness.exec("some-command", [], { signal });
 
     // Return result
     return {
@@ -2254,7 +2254,7 @@ pi.registerTool({
 
 **Result fields:** Every result, including partial results passed to `onUpdate`, needs model-facing `content` and a `details` value. Use `details: undefined` when there is nothing to store; the type of `details` must match across all results of the tool.
 
-**Usage accounting:** If a tool makes nested LLM calls, return their combined `Usage` as `usage`. Pi persists it on the tool result and includes it in footer, `/session`, and RPC session totals. `tool_result` handlers can inspect or replace this value.
+**Usage accounting:** If a tool makes nested LLM calls, return their combined `Usage` as `usage`. EvoHarness persists it on the tool result and includes it in footer, `/session`, and RPC session totals. `tool_result` handlers can inspect or replace this value.
 
 **Signaling errors:** To mark a tool execution as failed, throw an error from `execute`, or return a result with `isError: true`. Both report an error result to the LLM; a returned result also keeps `details` and `structuredContent` for rendering and scripts. Other returned values never set the error flag.
 
@@ -2287,7 +2287,7 @@ async execute(toolCallId, params) {
 
 Use `defineTool()` to keep parameter type inference when you assign a tool definition to a variable before registering it.
 
-**Argument preparation:** `prepareArguments(args)` is optional. If defined, it runs before schema validation and before `execute()`. Use it to mimic an older accepted input shape when Pi resumes an older session whose stored tool call arguments no longer match the current schema. Return the object you want validated against `parameters`. Keep the public schema strict. Do not add deprecated compatibility fields to `parameters` just to keep old resumed sessions working.
+**Argument preparation:** `prepareArguments(args)` is optional. If defined, it runs before schema validation and before `execute()`. Use it to mimic an older accepted input shape when EvoHarness resumes an older session whose stored tool call arguments no longer match the current schema. Return the object you want validated against `parameters`. Keep the public schema strict. Do not add deprecated compatibility fields to `parameters` just to keep old resumed sessions working.
 
 Example: an older session may contain an `edit` tool call with top-level `oldText` and `newText`, while the current schema only accepts `edits: [{ oldText, newText }]`.
 
@@ -2303,7 +2303,7 @@ const editSchema = Type.Object({
 });
 type EditInput = Static<typeof editSchema>;
 
-pi.registerTool({
+evoharness.registerTool({
   name: "edit",
   label: "Edit",
   description: "Edit a single file using exact text replacement",
@@ -2333,13 +2333,13 @@ Extensions can override built-in tools (`read`, `bash`, `powershell`, `edit`, `w
 
 ```bash
 # Extension's read tool replaces built-in read
-pi -e ./tool-override.ts
+evoharness -e ./tool-override.ts
 ```
 
 Alternatively, use `--no-builtin-tools` to start without any built-in tools while keeping extension tools enabled:
 ```bash
 # No built-in tools, only extension tools
-pi --no-builtin-tools -e ./my-extension.ts
+evoharness --no-builtin-tools -e ./my-extension.ts
 ```
 
 See [examples/extensions/tool-override.ts](../examples/extensions/tool-override.ts) for a complete example that overrides `read` with logging and access control.
@@ -2370,7 +2370,7 @@ import { createReadTool, type ReadOperations } from "@evoharness/coding-agent";
 const localRead = createReadTool(cwd);
 
 // Register, checking the remote configuration at execution time
-pi.registerTool({
+evoharness.registerTool({
   ...localRead,
   async execute(id, params, signal, onUpdate, _ctx) {
     const ssh = getSshConfig();
@@ -2390,7 +2390,7 @@ The `create*ToolDefinition()` factories, such as `createReadToolDefinition()`, r
 
 **Operations interfaces:** `ReadOperations`, `WriteOperations`, `EditOperations`, `BashOperations`, `PowerShellOperations`, `LsOperations`, `GrepOperations`, `FindOperations`
 
-For `user_bash`, extensions can reuse Pi's local shell backend via `createLocalBashOperations()` (or `createLocalPowerShellOperations()`) instead of reimplementing local process spawning, shell resolution, and process-tree termination.
+For `user_bash`, extensions can reuse EvoHarness's local shell backend via `createLocalBashOperations()` (or `createLocalPowerShellOperations()`) instead of reimplementing local process spawning, shell resolution, and process-tree termination.
 
 The `bash` and `powershell` tools also support a spawn hook to adjust the command, cwd, or env before execution:
 
@@ -2473,14 +2473,14 @@ See [examples/extensions/truncated-tool.ts](../examples/extensions/truncated-too
 One extension can register multiple tools with shared state:
 
 ```typescript
-export default function (pi: ExtensionAPI) {
+export default function (evoharness: ExtensionAPI) {
   let connection = null;
 
-  pi.registerTool({ name: "db_connect", ... });
-  pi.registerTool({ name: "db_query", ... });
-  pi.registerTool({ name: "db_close", ... });
+  evoharness.registerTool({ name: "db_connect", ... });
+  evoharness.registerTool({ name: "db_query", ... });
+  evoharness.registerTool({ name: "db_close", ... });
 
-  pi.on("session_shutdown", async () => {
+  evoharness.on("session_shutdown", async () => {
     connection?.close();
   });
 }
@@ -2497,7 +2497,7 @@ By default, tool output is wrapped in a `Box` that handles background and horizo
 Set `renderShell: "self"` when the tool should render its own shell instead of using the default `Box`. This is useful for tools that need complete control over framing or background behavior, for example large previews that must stay visually stable after the tool settles.
 
 ```typescript
-pi.registerTool({
+evoharness.registerTool({
   name: "my_tool",
   label: "My Tool",
   description: "Custom shell example",
@@ -2588,7 +2588,7 @@ The same functions are available as `options.keyHint()`/`options.keyText()` in m
 - `keyHint(keybinding, description)` - Formats a configured keybinding id such as `"app.tools.expand"` or `"tui.select.confirm"`, followed by the description
 - `keyText(keybinding)` - Returns the raw configured key text for a keybinding id, or `""` if the id has no keys
 
-In renderers, use these instead of importing `keyHint()` or `keyText()` from `@evoharness/coding-agent`. An extension can resolve its own copy of the package, for example from its own `node_modules`, and that copy does not see pi's configured keybindings: `app.*` ids then format as `""`. `rawKeyHint(key, description)` formats a literal key string and is safe to import.
+In renderers, use these instead of importing `keyHint()` or `keyText()` from `@evoharness/coding-agent`. An extension can resolve its own copy of the package, for example from its own `node_modules`, and that copy does not see evoharness's configured keybindings: `app.*` ids then format as `""`. `rawKeyHint(key, description)` formats a literal key string and is safe to import.
 
 Use namespaced keybinding ids:
 - Coding-agent ids use the `app.*` namespace, for example `app.tools.expand`, `app.editor.external`, `app.session.rename`
@@ -2618,7 +2618,7 @@ If a slot renderer is not defined or throws:
 
 ### Dynamic Tool Loading
 
-Extensions can register many tools while keeping only a small initial set active. A tool can then change the active set with `evoharness.setActiveTools()` during execution. Pi stores the initial prompt and tool loadout in the transcript's first system message, then appends tool and prompt deltas before the next model request. Providers that cannot represent a transition receive a complete transcript checkpoint, which may invalidate the cached prefix.
+Extensions can register many tools while keeping only a small initial set active. A tool can then change the active set with `evoharness.setActiveTools()` during execution. EvoHarness stores the initial prompt and tool loadout in the transcript's first system message, then appends tool and prompt deltas before the next model request. Providers that cannot represent a transition receive a complete transcript checkpoint, which may invalidate the cached prefix.
 
 The lifecycle is:
 
@@ -2626,7 +2626,7 @@ The lifecycle is:
 2. Keep loader tools, such as `search_tools`, active.
 3. During loader execution, call `evoharness.setActiveTools()` with the desired active tool names. Names must already be registered; unknown and `hidden` names are ignored.
 
-Pi also ships a built-in `tool_search` tool. Register tools with `exposure: "deferred"` to make them findable by it instead of writing your own loader; see [Tool Exposure](#tool-exposure).
+EvoHarness also ships a built-in `tool_search` tool. Register tools with `exposure: "deferred"` to make them findable by it instead of writing your own loader; see [Tool Exposure](#tool-exposure).
 
 #### Search tool example
 
@@ -2638,8 +2638,8 @@ import { Type } from "typebox";
 
 const SEARCHABLE_TOOL_NAMES = new Set(["lookup_weather", "search_issues"]);
 
-export default function (pi: ExtensionAPI) {
-  pi.registerTool({
+export default function (evoharness: ExtensionAPI) {
+  evoharness.registerTool({
     name: "lookup_weather",
     label: "Lookup Weather",
     defaultActive: false,
@@ -2653,7 +2653,7 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  pi.registerTool({
+  evoharness.registerTool({
     name: "search_issues",
     label: "Search Issues",
     defaultActive: false,
@@ -2667,7 +2667,7 @@ export default function (pi: ExtensionAPI) {
     },
   });
 
-  pi.registerTool({
+  evoharness.registerTool({
     name: "search_tools",
     label: "Search Tools",
     description: "Search for and enable tools relevant to a task",
@@ -2681,7 +2681,7 @@ export default function (pi: ExtensionAPI) {
     }),
     async execute(_toolCallId, params) {
       const terms = params.query.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-      const matches = pi.getAllTools()
+      const matches = evoharness.getAllTools()
         .filter((tool) => SEARCHABLE_TOOL_NAMES.has(tool.name))
         .map((tool) => ({
           tool,
@@ -2703,9 +2703,9 @@ export default function (pi: ExtensionAPI) {
         };
       }
 
-      const active = pi.getActiveTools();
+      const active = evoharness.getActiveTools();
       const added = matches.filter((name) => !active.includes(name));
-      pi.setActiveTools([...new Set([...active, ...added])]);
+      evoharness.setActiveTools([...new Set([...active, ...added])]);
 
       return {
         content: [{
@@ -2740,8 +2740,8 @@ Registering a `direct` or `model-only` tool activates it unless it sets `default
 `annotations` are hints about what a tool does, with the meaning of MCP tool annotations: `readOnlyHint`, `destructiveHint`, `idempotentHint`, and `openWorldHint`. MCP tools carry the hints their server declares. Missing hints take the MCP defaults: a tool is not read-only, and may be destructive and reach an open world. The hints are not verified, but a permission extension can use them to decide which calls to confirm. This confirms the calls Codex asks approval for:
 
 ```typescript
-pi.on("tool_call", async (event, ctx) => {
-  const hints = pi.getAllTools().find((tool) => tool.name === event.toolName)?.annotations;
+evoharness.on("tool_call", async (event, ctx) => {
+  const hints = evoharness.getAllTools().find((tool) => tool.name === event.toolName)?.annotations;
   const needsApproval =
     hints?.destructiveHint === true ||
     (!hints?.readOnlyHint && ((hints?.destructiveHint ?? true) || (hints?.openWorldHint ?? true)));
@@ -2759,7 +2759,7 @@ A tool that reaches other tools declares which ones a call may reach with `reach
 
 A tool can run other tools with `ctx.executeTool(name, args, { signal, onUpdate })`. `ctx.tools` lists the tools it can call. The call never rejects for tool failures: unknown tools, validation errors, blocked calls, and thrown errors come back as results with `isError: true`.
 
-Nested calls go through argument validation and the `tool_call` and `tool_result` handlers like model-issued calls, and emit `tool_execution_start`, `tool_execution_update`, and `tool_execution_end`. All of these events carry `parentToolCallId`, and their `toolCallId` is assigned by Pi as `<parent id>/<n>`. These IDs do not appear as tool calls or tool results in the transcript.
+Nested calls go through argument validation and the `tool_call` and `tool_result` handlers like model-issued calls, and emit `tool_execution_start`, `tool_execution_update`, and `tool_execution_end`. All of these events carry `parentToolCallId`, and their `toolCallId` is assigned by EvoHarness as `<parent id>/<n>`. These IDs do not appear as tool calls or tool results in the transcript.
 
 Nested calls do not add transcript entries: their results only reach the calling tool, which reports them itself, for example through `onUpdate` and `details`. The session keeps a bounded record of them (name, arguments, status, duration, error; never results) as `nestedCalls` on the calling tool's result message. It is used for compaction file lists and shown in HTML exports. Arguments over 8 KiB per call or 32 KiB per tool result are omitted, at most 256 calls are kept, and `complete: false` marks a record that lost anything.
 
@@ -2770,8 +2770,8 @@ The `usage` of nested results, at every depth, is added to the calling tool's re
 `evoharness.registerMcpServer(name, config)` adds an MCP server for the current session. `config` has the shape of an `mcpServers` entry in [`mcp.json`](mcp.md): `command`, `args`, `env`, and `cwd` for stdio servers, `url`, `headers`, and `oauth` for HTTP servers, plus `exposure`, `toolExposure`, `description`, `enabled`, and `timeout`.
 
 ```typescript
-pi.registerMcpServer("jira", { url: "https://mcp.example.com/jira", exposure: "codemode" });
-pi.unregisterMcpServer("jira");
+evoharness.registerMcpServer("jira", { url: "https://mcp.example.com/jira", exposure: "codemode" });
+evoharness.unregisterMcpServer("jira");
 ```
 
 Servers registered while the extension loads connect when the session starts, together with the `mcp.json` servers; servers registered later connect right away, and `evoharness.unregisterMcpServer()` closes the connection and makes the server's tools unreachable. Registrations are not saved: register again on every load, for example based on the extension's own settings. A server in `mcp.json` with the same name takes precedence, and `/mcp` shows the override. Registering the same name again replaces the extension's earlier registration; names registered by another extension, invalid names, and invalid configs throw.
@@ -2910,7 +2910,7 @@ ctx.ui.setHiddenThinkingLabel();  // Restore default
 const unsubscribe = ctx.ui.onTerminalInput((data) => undefined);
 
 // Terminal title
-ctx.ui.setTitle("pi - my-project");
+ctx.ui.setTitle("evoharness - my-project");
 
 // Editor text
 ctx.ui.setEditorText("Prefill text");
@@ -2980,7 +2980,7 @@ Typical pattern:
 - delegate `applyCompletion(...)` unless you need custom insertion behavior
 
 ```typescript
-pi.on("session_start", (_event, ctx) => {
+evoharness.on("session_start", (_event, ctx) => {
   ctx.ui.addAutocompleteProvider((current) => ({
     triggerCharacters: ["#"],
     async getSuggestions(lines, cursorLine, cursorCol, options) {
@@ -3103,8 +3103,8 @@ class VimEditor extends CustomEditor {
   }
 }
 
-export default function (pi: ExtensionAPI) {
-  pi.on("session_start", (_event, ctx) => {
+export default function (evoharness: ExtensionAPI) {
+  evoharness.on("session_start", (_event, ctx) => {
     ctx.ui.setEditorComponent((tui, theme, keybindings) =>
       new VimEditor(tui, theme, keybindings)
     );
@@ -3138,7 +3138,7 @@ Register a custom renderer for messages with your `customType`. Use message rend
 ```typescript
 import { Text } from "@evoharness/tui";
 
-pi.registerMessageRenderer("my-extension", (message, options, theme) => {
+evoharness.registerMessageRenderer("my-extension", (message, options, theme) => {
   const { expanded, outputPad } = options;
   let text = theme.fg("accent", `[${message.customType}] `);
   text += message.content;
@@ -3156,7 +3156,7 @@ pi.registerMessageRenderer("my-extension", (message, options, theme) => {
 Messages are sent via `evoharness.sendMessage()`:
 
 ```typescript
-pi.sendMessage({
+evoharness.sendMessage({
   customType: "my-extension",  // Matches registerMessageRenderer
   content: "Status update",
   display: true,               // Show in TUI
@@ -3167,11 +3167,11 @@ pi.sendMessage({
 For TUI-only content that should not be sent to the LLM, render custom entries instead:
 
 ```typescript
-pi.registerEntryRenderer("my-card", (entry, options, theme) => {
+evoharness.registerEntryRenderer("my-card", (entry, options, theme) => {
   return new Text(theme.fg("accent", JSON.stringify(entry.data)));
 });
 
-pi.appendEntry("my-card", { status: "done" });
+evoharness.appendEntry("my-card", { status: "done" });
 ```
 
 ### Theme Colors

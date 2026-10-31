@@ -193,8 +193,8 @@ not depend on viewers.
 
 Chat mode is a per-conversation switch that everyone in the session sees and only the owner changes; forks and new
 subagents start with it off. Because it must fork and rewind with the conversation, it is **transcript-bound**: a
-Durable conversation document, not a Chord document. Messages without `@pi` become display-only Durable `write`
-entries (author, text, attachments, reply quote); a message with `@pi` becomes an input with a digest of the chat
+Durable conversation document, not a Chord document. Messages without `@evoharness` become display-only Durable `write`
+entries (author, text, attachments, reply quote); a message with `@evoharness` becomes an input with a digest of the chat
 since the last mention (at most 100 messages, 20 files, 4 images), recording which entries it passed on. The reply
 quote is derived on the worker from the entry id the client names: the client never supplies author or quote text.
 

@@ -49,8 +49,8 @@ type Metric = {
 	max: number;
 };
 const identities = new WeakMap<TelemetryContext, Identity>();
-const carrierKey = "pi-sqlite-span";
-const traceKey = "pi-sqlite-trace";
+const carrierKey = "evoharness-sqlite-span";
+const traceKey = "evoharness-sqlite-trace";
 const intervalMs = 10_000;
 
 function copyAttributes(attributes?: SpanAttributes): SpanAttributes {

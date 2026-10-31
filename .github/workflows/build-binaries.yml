@@ -61,7 +61,7 @@ jobs:
           ./scripts/create-source-archive.sh \
             --version "${VERSION}" \
             --ref HEAD \
-            --out "release-assets/pi-${VERSION}-source.tar.gz"
+            --out "release-assets/evoharness-${VERSION}-source.tar.gz"
 
       - name: Build binaries from source archive
         run: |
@@ -70,8 +70,8 @@ jobs:
           VERSION="${RELEASE_TAG#v}"
           build_root="$(mktemp -d)"
           trap 'rm -rf "${build_root}"' EXIT
-          tar -xzf "release-assets/pi-${VERSION}-source.tar.gz" -C "${build_root}"
-          "${build_root}/pi-${VERSION}/scripts/build-binaries.sh" \
+          tar -xzf "release-assets/evoharness-${VERSION}-source.tar.gz" -C "${build_root}"
+          "${build_root}/evoharness-${VERSION}/scripts/build-binaries.sh" \
             --offline-model-data \
             --out "${GITHUB_WORKSPACE}/packages/coding-agent/binaries"
 
@@ -85,18 +85,18 @@ jobs:
           VERSION="${VERSION#v}"  # Remove 'v' prefix
           node scripts/release-notes.mjs extract --version "${VERSION}" --tag "${RELEASE_TAG}" --out release-assets/RELEASE_NOTES.md
           node scripts/generate-coding-agent-install-lock.mjs --check
-          cp packages/coding-agent/install-lock/package.json release-assets/pi-coding-agent-install-package.json
-          cp packages/coding-agent/install-lock/package-lock.json release-assets/pi-coding-agent-install-package-lock.json
+          cp packages/coding-agent/install-lock/package.json release-assets/evoharness-coding-agent-install-package.json
+          cp packages/coding-agent/install-lock/package-lock.json release-assets/evoharness-coding-agent-install-package-lock.json
 
           cd packages/coding-agent/binaries
 
           binary_assets=(
-            pi-darwin-arm64.tar.gz
-            pi-darwin-x64.tar.gz
-            pi-linux-x64.tar.gz
-            pi-linux-arm64.tar.gz
-            pi-windows-x64.zip
-            pi-windows-arm64.zip
+            evoharness-darwin-arm64.tar.gz
+            evoharness-darwin-x64.tar.gz
+            evoharness-linux-x64.tar.gz
+            evoharness-linux-arm64.tar.gz
+            evoharness-windows-x64.zip
+            evoharness-windows-arm64.zip
           )
 
           for asset in "${binary_assets[@]}"; do
@@ -106,17 +106,17 @@ jobs:
           cp "${binary_assets[@]}" "${GITHUB_WORKSPACE}/release-assets/"
 
           cd "${GITHUB_WORKSPACE}/release-assets"
-          source_asset="pi-${VERSION}-source.tar.gz"
+          source_asset="evoharness-${VERSION}-source.tar.gz"
           release_assets=(
             "${source_asset}"
-            pi-darwin-arm64.tar.gz
-            pi-darwin-x64.tar.gz
-            pi-linux-x64.tar.gz
-            pi-linux-arm64.tar.gz
-            pi-windows-x64.zip
-            pi-windows-arm64.zip
-            pi-coding-agent-install-package.json
-            pi-coding-agent-install-package-lock.json
+            evoharness-darwin-arm64.tar.gz
+            evoharness-darwin-x64.tar.gz
+            evoharness-linux-x64.tar.gz
+            evoharness-linux-arm64.tar.gz
+            evoharness-windows-x64.zip
+            evoharness-windows-arm64.zip
+            evoharness-coding-agent-install-package.json
+            evoharness-coding-agent-install-package-lock.json
           )
           sha256sum "${release_assets[@]}" > SHA256SUMS
 
@@ -166,21 +166,21 @@ jobs:
           case "${runtime_platform}" in
             darwin-arm64|darwin-x64|linux-arm64|linux-x64)
               platform="${runtime_platform}"
-              archive="release-assets/pi-${platform}.tar.gz"
-              root="extracted/pi"
-              binary="${root}/pi"
+              archive="release-assets/evoharness-${platform}.tar.gz"
+              root="extracted/evoharness"
+              binary="${root}/evoharness"
               ;;
             win32-arm64)
               platform="windows-arm64"
-              archive="release-assets/pi-${platform}.zip"
+              archive="release-assets/evoharness-${platform}.zip"
               root="extracted"
-              binary="${root}/pi.exe"
+              binary="${root}/evoharness.exe"
               ;;
             win32-x64)
               platform="windows-x64"
-              archive="release-assets/pi-${platform}.zip"
+              archive="release-assets/evoharness-${platform}.zip"
               root="extracted"
-              binary="${root}/pi.exe"
+              binary="${root}/evoharness.exe"
               ;;
             *)
               echo "::error::Unsupported runner platform ${runtime_platform}"
@@ -232,17 +232,17 @@ jobs:
           cd release-assets
 
           VERSION="${RELEASE_TAG#v}"
-          source_asset="pi-${VERSION}-source.tar.gz"
+          source_asset="evoharness-${VERSION}-source.tar.gz"
           expected_assets=(
             "${source_asset}"
-            pi-darwin-arm64.tar.gz
-            pi-darwin-x64.tar.gz
-            pi-linux-x64.tar.gz
-            pi-linux-arm64.tar.gz
-            pi-windows-x64.zip
-            pi-windows-arm64.zip
-            pi-coding-agent-install-package.json
-            pi-coding-agent-install-package-lock.json
+            evoharness-darwin-arm64.tar.gz
+            evoharness-darwin-x64.tar.gz
+            evoharness-linux-x64.tar.gz
+            evoharness-linux-arm64.tar.gz
+            evoharness-windows-x64.zip
+            evoharness-windows-arm64.zip
+            evoharness-coding-agent-install-package.json
+            evoharness-coding-agent-install-package-lock.json
             SHA256SUMS
             RELEASE_NOTES.md
           )
@@ -262,17 +262,17 @@ jobs:
           cd release-assets
 
           VERSION="${RELEASE_TAG#v}"
-          source_asset="pi-${VERSION}-source.tar.gz"
+          source_asset="evoharness-${VERSION}-source.tar.gz"
           release_assets=(
             "${source_asset}"
-            pi-darwin-arm64.tar.gz
-            pi-darwin-x64.tar.gz
-            pi-linux-x64.tar.gz
-            pi-linux-arm64.tar.gz
-            pi-windows-x64.zip
-            pi-windows-arm64.zip
-            pi-coding-agent-install-package.json
-            pi-coding-agent-install-package-lock.json
+            evoharness-darwin-arm64.tar.gz
+            evoharness-darwin-x64.tar.gz
+            evoharness-linux-x64.tar.gz
+            evoharness-linux-arm64.tar.gz
+            evoharness-windows-x64.zip
+            evoharness-windows-arm64.zip
+            evoharness-coding-agent-install-package.json
+            evoharness-coding-agent-install-package-lock.json
             SHA256SUMS
           )
 
@@ -301,7 +301,7 @@ jobs:
             exit 1
           fi
 
-  # The pi-env daemon for every remote system @evoharness/env supports; the npm package ships them all.
+  # The evoharness-env daemon for every remote system @evoharness/env supports; the npm package ships them all.
   env-daemons:
     uses: ./.github/workflows/env-daemons.yml
     permissions:
@@ -342,22 +342,22 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
 
-      - name: Download pi-env daemons
+      - name: Download evoharness-env daemons
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
-          pattern: pi-env-*
+          pattern: evoharness-env-*
           path: packages/env/bin
 
-      - name: Check pi-env daemons
+      - name: Check evoharness-env daemons
         run: |
           set -euo pipefail
           for name in linux-x64 linux-arm64 android-arm64 android-x64 darwin-arm64 darwin-x64; do
-            test -s "packages/env/bin/pi-env-${name}/pi-env"
+            test -s "packages/env/bin/evoharness-env-${name}/evoharness-env"
           done
           for name in windows-x64 windows-arm64; do
-            test -s "packages/env/bin/pi-env-${name}/pi-env.exe"
+            test -s "packages/env/bin/evoharness-env-${name}/evoharness-env.exe"
           done
-          chmod +x packages/env/bin/*/pi-env*
+          chmod +x packages/env/bin/*/evoharness-env*
           ls -lR packages/env/bin
 
       - name: Build
@@ -366,7 +366,7 @@ jobs:
       - name: Check
         run: npm run check
 
-      - name: Build the pi-env daemon for tests
+      - name: Build the evoharness-env daemon for tests
         run: npm run build:daemon --workspace packages/env
 
       - name: Test
@@ -386,12 +386,12 @@ jobs:
       - name: Publish npm packages
         run: node scripts/publish.mjs
 
-  announce-pi-dev-release:
+  announce-evoharness-dev-release:
     runs-on: ubuntu-latest
     needs: publish-npm
-    environment: pi-model-upload
+    environment: evoharness-model-upload
     concurrency:
-      group: announce-pi-dev-release
+      group: announce-evoharness-dev-release
       cancel-in-progress: false
     permissions:
       contents: read
@@ -422,7 +422,7 @@ jobs:
         run: |
           node scripts/publish-release-announcement.mjs \
             --version "${RELEASE_TAG#v}" \
-            --bucket pi-artifacts \
+            --bucket evoharness-artifacts \
             --endpoint "$R2_ENDPOINT" \
             --installer-package-json packages/coding-agent/install-lock/package.json \
             --installer-package-lock packages/coding-agent/install-lock/package-lock.json
@@ -432,7 +432,7 @@ jobs:
     needs:
       - stage-github-release
       - publish-npm
-      - announce-pi-dev-release
+      - announce-evoharness-dev-release
     permissions:
       contents: write
     env:
@@ -463,9 +463,9 @@ jobs:
       - build
       - stage-github-release
       - publish-npm
-      - announce-pi-dev-release
+      - announce-evoharness-dev-release
       - publish-github-release
-    if: ${{ always() && needs.stage-github-release.result != 'skipped' && (needs.stage-github-release.result != 'success' || needs.publish-npm.result != 'success' || needs.announce-pi-dev-release.result != 'success' || needs.publish-github-release.result != 'success') }}
+    if: ${{ always() && needs.stage-github-release.result != 'skipped' && (needs.stage-github-release.result != 'success' || needs.publish-npm.result != 'success' || needs.announce-evoharness-dev-release.result != 'success' || needs.publish-github-release.result != 'success') }}
     permissions:
       contents: write
     env:

@@ -102,7 +102,7 @@ class TodoListComponent {
 	}
 }
 
-export default function (pi: ExtensionAPI) {
+export default function (evoharness: ExtensionAPI) {
 	// In-memory state (reconstructed from session on load)
 	let todos: Todo[] = [];
 	let nextId = 1;
@@ -129,11 +129,11 @@ export default function (pi: ExtensionAPI) {
 	};
 
 	// Reconstruct state on session events
-	pi.on("session_start", async (_event, ctx) => reconstructState(ctx));
-	pi.on("session_tree", async (_event, ctx) => reconstructState(ctx));
+	evoharness.on("session_start", async (_event, ctx) => reconstructState(ctx));
+	evoharness.on("session_tree", async (_event, ctx) => reconstructState(ctx));
 
 	// Register the todo tool for the LLM
-	pi.registerTool({
+	evoharness.registerTool({
 		name: "todo",
 		label: "Todo",
 		description: "Manage a todo list. Actions: list, add (text), toggle (id), clear",
@@ -288,7 +288,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// Register the /todos command for users
-	pi.registerCommand("todos", {
+	evoharness.registerCommand("todos", {
 		description: "Show all todos on the current branch",
 		handler: async (_args, ctx) => {
 			if (ctx.mode !== "tui") {

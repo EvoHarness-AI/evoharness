@@ -53,9 +53,9 @@ async function fixture(options?: SqliteTelemetryOptions) {
 					id: Number(row.id.split(":")[1]),
 					parentId:
 						row.parent_id?.split(":")[0] === row.id.split(":")[0] ? Number(row.parent_id?.split(":")[1]) : null,
-					context: { "pi-sqlite-span": row.id, "pi-sqlite-trace": row.trace_id },
+					context: { "evoharness-sqlite-span": row.id, "evoharness-sqlite-trace": row.trace_id },
 					parentContext: row.parent_id
-						? { "pi-sqlite-span": row.parent_id, "pi-sqlite-trace": row.trace_id }
+						? { "evoharness-sqlite-span": row.parent_id, "evoharness-sqlite-trace": row.trace_id }
 						: null,
 					name: row.name,
 					attributes: JSON.parse(row.attributes) as SpanAttributes,
@@ -65,7 +65,7 @@ async function fixture(options?: SqliteTelemetryOptions) {
 					links: (
 						JSON.parse(row.links) as { trace_id: string; span_id: string; attributes: SpanAttributes }[]
 					).map((link) => ({
-						context: { "pi-sqlite-span": link.span_id, "pi-sqlite-trace": link.trace_id },
+						context: { "evoharness-sqlite-span": link.span_id, "evoharness-sqlite-trace": link.trace_id },
 						attributes: link.attributes,
 					})),
 					status: JSON.parse(row.status) as SpanStatus,

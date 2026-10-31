@@ -125,7 +125,7 @@ async function runWorker(backend: StorageBenchmarkBackend, scale: StorageBenchma
 	if (backend === "memory") {
 		storage = new MemoryStorage();
 	} else {
-		directory = await mkdtemp(join(tmpdir(), `pi-durable-${backend}-memory-`));
+		directory = await mkdtemp(join(tmpdir(), `evoharness-durable-${backend}-memory-`));
 		path = join(directory, backend === "jsonl" ? "storage" : "storage.sqlite");
 		storage =
 			backend === "sqlite"

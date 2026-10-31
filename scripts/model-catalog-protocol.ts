@@ -1,5 +1,5 @@
 /**
- * Model catalog protocol shared by pi and evoharness.dev.
+ * Model catalog protocol shared by evoharness and evoharness.dev.
  *
  * This file is copied verbatim into two repositories. Change both copies in
  * the same pair of pull requests and keep them byte for byte identical:
@@ -7,7 +7,7 @@
  *   EvoHarness-AI/evoharness      scripts/model-catalog-protocol.ts
  *   EvoHarness-AI/evoharness.dev  src/shared/models/protocol.ts
  *
- * pi uses it to publish catalog revisions and to test clients against the
+ * evoharness uses it to publish catalog revisions and to test clients against the
  * catalog selection evoharness.dev performs. evoharness.dev uses it to serve catalog requests.
  * Keep it free of imports and runtime specific APIs so it runs unchanged in
  * Node.js and Cloudflare Workers.
@@ -31,7 +31,7 @@ export const MODEL_CATALOG_INDEX_KEY = `${MODEL_CATALOG_PREFIX}/index.json`;
 export const MODEL_CATALOG_REVISION_RE = /^sha256-[0-9a-f]{64}$/;
 
 const PI_VERSION_RE = /^v?(\d+)\.(\d+)\.(\d+)(?:-([0-9A-Za-z.-]+))?(?:\+[0-9A-Za-z.-]+)?$/;
-const PI_USER_AGENT_RE = /^pi\/([^\s()]+)(?: \([^;()]+(?:;\s*[^;()]+(?:;\s*[^()]+)?)?\))?$/i;
+const PI_USER_AGENT_RE = /^evoharness\/([^\s()]+)(?: \([^;()]+(?:;\s*[^;()]+(?:;\s*[^()]+)?)?\))?$/i;
 const MODEL_TYPE_RE = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 
 type ParsedPiVersion = readonly [major: number, minor: number, patch: number, prerelease: string];
@@ -73,7 +73,7 @@ export function isValidModelCatalogPiVersion(version: string): boolean {
 	return parsePiVersion(version) !== undefined;
 }
 
-/** Compare two Pi versions with semver precedence. Throws for invalid versions. */
+/** Compare two EvoHarness versions with semver precedence. Throws for invalid versions. */
 export function compareModelCatalogPiVersions(left: string, right: string): number {
 	return comparePiVersions(requirePiVersion(left), requirePiVersion(right));
 }
@@ -97,10 +97,10 @@ export function parseModelCatalogRepresentation(
 /**
  * Decide how to answer a catalog request from its URL and User-Agent.
  *
- * Released clients do not send `pi-version`. Responses are cached by URL, so
+ * Released clients do not send `evoharness-version`. Responses are cached by URL, so
  * instead of varying the response on the User-Agent, clients that identify
- * as Pi are redirected to the equivalent URL with an explicit `pi-version`.
- * Requests without a Pi User-Agent receive the default catalog.
+ * as EvoHarness are redirected to the equivalent URL with an explicit `evoharness-version`.
+ * Requests without a EvoHarness User-Agent receive the default catalog.
  */
 export function parseModelCatalogRequest(url: string | URL, userAgent: string | null | undefined): ModelCatalogRequest {
 	const requestUrl = new URL(url);
@@ -109,23 +109,23 @@ export function parseModelCatalogRequest(url: string | URL, userAgent: string | 
 		return { kind: "invalid", error: "Invalid model types." };
 	}
 
-	const evoharnessVersion = requestUrl.searchParams.get("pi-version");
+	const evoharnessVersion = requestUrl.searchParams.get("evoharness-version");
 	if (evoharnessVersion === null) {
 		const userAgentVersion = PI_USER_AGENT_RE.exec(userAgent ?? "")?.[1];
 		if (userAgentVersion !== undefined && isValidModelCatalogPiVersion(userAgentVersion)) {
-			requestUrl.searchParams.set("pi-version", userAgentVersion);
+			requestUrl.searchParams.set("evoharness-version", userAgentVersion);
 			return { kind: "redirect", location: requestUrl.toString() };
 		}
 		return { kind: "catalog", evoharnessVersion: undefined, representation };
 	}
 	if (!isValidModelCatalogPiVersion(evoharnessVersion)) {
-		return { kind: "invalid", error: "Invalid Pi version." };
+		return { kind: "invalid", error: "Invalid EvoHarness version." };
 	}
 	return { kind: "catalog", evoharnessVersion, representation };
 }
 
 /**
- * Select the catalog revision for a Pi version: the entry with the highest
+ * Select the catalog revision for a EvoHarness version: the entry with the highest
  * minimum version that does not exceed it. Requests without a version receive
  * the default revision. Returns undefined when no entry is compatible.
  */
@@ -201,7 +201,7 @@ export function parseModelCatalogIndex(value: unknown): ModelCatalogIndex {
 function requirePiVersion(version: string): ParsedPiVersion {
 	const parsed = parsePiVersion(version);
 	if (!parsed) {
-		throw new Error(`Invalid Pi version: ${version}`);
+		throw new Error(`Invalid EvoHarness version: ${version}`);
 	}
 	return parsed;
 }

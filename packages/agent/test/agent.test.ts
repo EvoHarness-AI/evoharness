@@ -1200,7 +1200,7 @@ describe("Agent", () => {
 		expect(receivedSessionId).toBe("session-def");
 	});
 
-	it("attributes requests to pi by default and merges a configured identity over it", async () => {
+	it("attributes requests to evoharness by default and merges a configured identity over it", async () => {
 		const received: (ClientIdentity | undefined)[] = [];
 		const agent = new Agent({
 			streamFn: (_model, _context, options) => {

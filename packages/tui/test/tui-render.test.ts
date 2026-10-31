@@ -144,7 +144,7 @@ describe("TUI render scheduling", () => {
 
 describe("TUI debug logging", () => {
 	it("writes redraw logs to the provided directory", async () => {
-		const logDir = mkdtempSync(join(tmpdir(), "pi-tui-log-"));
+		const logDir = mkdtempSync(join(tmpdir(), "evoharness-tui-log-"));
 		try {
 			await withEnv({ PI_TUI_DEBUG_REDRAW: "1" }, async () => {
 				const terminal = new VirtualTerminal(40, 10);
@@ -155,7 +155,7 @@ describe("TUI debug logging", () => {
 				tui.start();
 				await terminal.waitForRender();
 
-				assert.match(readFileSync(join(logDir, "pi-tui-debug.log"), "utf-8"), /fullRender: first render/);
+				assert.match(readFileSync(join(logDir, "evoharness-tui-debug.log"), "utf-8"), /fullRender: first render/);
 				tui.stop();
 			});
 		} finally {
@@ -247,8 +247,8 @@ describe("TUI crash dump without configured log directory", () => {
 		// isolate the test by pointing the temp directory at a fresh directory rather
 		// than sharing the real one with concurrent test runs. os.tmpdir() reads
 		// TMPDIR on POSIX and TEMP/TMP on Windows, so override all three.
-		const crashDir = mkdtempSync(join(tmpdir(), "pi-tui-crash-"));
-		const crashLogPath = join(crashDir, "pi-tui-crash.log");
+		const crashDir = mkdtempSync(join(tmpdir(), "evoharness-tui-crash-"));
+		const crashLogPath = join(crashDir, "evoharness-tui-crash.log");
 		const restoreTmpdirEnv = overrideEnv(["TMPDIR", "TEMP", "TMP"], crashDir);
 		try {
 			const terminal = new VirtualTerminal(40, 10);

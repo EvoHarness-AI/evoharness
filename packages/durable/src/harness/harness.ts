@@ -104,10 +104,10 @@ type ConversationHost<Tool extends ToolRegistration> = {
 };
 
 /** Key of the Harness's internal index-size getter, for tests. */
-export const SCHEDULER_INDEX_SIZES = Symbol.for("pi-durable.schedulerIndexSizes");
+export const SCHEDULER_INDEX_SIZES = Symbol.for("evoharness-durable.schedulerIndexSizes");
 
 /** Key of the Harness's internal idle-state getter (kept contexts against a full recompute), for tests. */
-export const SCHEDULER_IDLE_STATE = Symbol.for("pi-durable.schedulerIdleState");
+export const SCHEDULER_IDLE_STATE = Symbol.for("evoharness-durable.schedulerIdleState");
 
 class ConversationImpl<Tool extends ToolRegistration> implements Conversation {
 	readonly id: ConversationId;
@@ -186,7 +186,7 @@ class ConversationImpl<Tool extends ToolRegistration> implements Conversation {
 	}
 }
 
-/** Request identity of a Harness's model requests: pi-ai's defaults with provider attribution to pi. */
+/** Request identity of a Harness's model requests: evoharness-ai's defaults with provider attribution to evoharness. */
 export const DEFAULT_HARNESS_IDENTITY: ClientIdentity = { attribution: PI_ATTRIBUTION };
 
 /**

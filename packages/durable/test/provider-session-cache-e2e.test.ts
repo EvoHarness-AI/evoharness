@@ -23,7 +23,7 @@ function cacheProbe(nonce: string): string {
 	];
 	for (let index = 0; index < 180; index++) {
 		lines.push(
-			`${nonce} immutable cache record ${String(index).padStart(3, "0")}: alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma tau upsilon phi chi psi omega.`,
+			`${nonce} immutable cache record ${String(index).padStart(3, "0")}: alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron evoharness rho sigma tau upsilon phi chi psi omega.`,
 		);
 	}
 	return lines.join("\n");
@@ -44,7 +44,7 @@ function cacheHitRate(usage: AssistantMessage["usage"]): number {
 }
 
 describe("Durable provider session cache e2e", () => {
-	// Live regression coverage for #10424; skipped without ~/.pi/agent/auth.json credentials.
+	// Live regression coverage for #10424; skipped without ~/.evoharness/agent/auth.json credentials.
 	it.skipIf(!codexToken)(
 		"reuses the Codex prompt cache across Durable turns",
 		{ retry: 2, timeout: 120_000 },

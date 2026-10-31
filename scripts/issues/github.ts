@@ -136,7 +136,7 @@ export function issueStatus(issue: Issue): string {
 }
 
 const STOPWORDS = new Set(
-	"the and for with that this from when not are was but can does doesn have into after before about pi's pi issue bug feature request support add allow should".split(
+	"the and for with that this from when not are was but can does doesn have into after before about evoharness's evoharness issue bug feature request support add allow should".split(
 		" ",
 	),
 );

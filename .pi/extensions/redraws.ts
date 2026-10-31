@@ -7,8 +7,8 @@
 import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { Text } from "@evoharness/tui";
 
-export default function (pi: ExtensionAPI) {
-	pi.registerCommand("tui", {
+export default function (evoharness: ExtensionAPI) {
+	evoharness.registerCommand("tui", {
 		description: "Show TUI stats",
 		handler: async (_args, ctx) => {
 			if (!ctx.hasUI) return;

@@ -7,7 +7,7 @@ const YELLOW = rgbColor(234, 182, 93);
 const RESET = "\x1b[0m";
 
 /**
- * The pi logo: 4 cells wide and 2 lines tall. Each cell shows two square pixels with half blocks:
+ * The evoharness logo: 4 cells wide and 2 lines tall. Each cell shows two square pixels with half blocks:
  *
  *   coral coral coral .
  *   blue  .     coral .
@@ -33,7 +33,7 @@ export function supportsPiLogo(): boolean {
 	return !isAppleTerminalSession();
 }
 
-/** Text fallback for the logo: "Pi" with the logo's coral and yellow. */
+/** Text fallback for the logo: "EvoHarness" with the logo's coral and yellow. */
 export function evoharnessWordmark(): string {
 	const mode = theme.getColorMode();
 	return `${foregroundAnsi(CORAL, mode)}P${RESET}${foregroundAnsi(YELLOW, mode)}i${RESET}`;

@@ -260,11 +260,11 @@ export function verifySystemPrompt(
 ): string {
 	if (options.expectedPiDocumentation === undefined) return systemPrompt;
 	if (!systemPrompt.includes("\n<rules>\n")) {
-		throw new Error(`Pi system prompt lost its rules in the ${options.name} eval variant.`);
+		throw new Error(`EvoHarness system prompt lost its rules in the ${options.name} eval variant.`);
 	}
 	const hasDocumentation = systemPrompt.includes("\n<docs>\nPi documentation (read only");
 	if (hasDocumentation !== options.expectedPiDocumentation) {
-		throw new Error(`Pi system prompt does not match the ${options.name} eval variant.`);
+		throw new Error(`EvoHarness system prompt does not match the ${options.name} eval variant.`);
 	}
 	return systemPrompt;
 }
@@ -280,10 +280,10 @@ async function runPiCodingAgent<TOutput extends JsonValue>(
 	const selection = resolveModelSelection(options.model);
 	const hostAgentDir = getAgentDir();
 	const sandboxIdentity = resolveSandboxIdentity();
-	const root = await mkdtemp(join(tmpdir(), "pi-eval-"));
+	const root = await mkdtemp(join(tmpdir(), "evoharness-eval-"));
 	const workspace = join(root, "workspace");
 	const isolatedHome = join(root, "home");
-	const agentDir = join(isolatedHome, ".pi", "agent");
+	const agentDir = join(isolatedHome, ".evoharness", "agent");
 	const extensionFactories: InlineExtension[] = [];
 	let forcedSystemPrompt: string | undefined;
 	if (options.transformSystemPrompt) {
@@ -291,8 +291,8 @@ async function runPiCodingAgent<TOutput extends JsonValue>(
 		extensionFactories.push({
 			name: "eval-system-prompt-transform",
 			hidden: true,
-			factory: (pi) => {
-				pi.on("before_agent_start", ({ systemPrompt }) => {
+			factory: (evoharness) => {
+				evoharness.on("before_agent_start", ({ systemPrompt }) => {
 					forcedSystemPrompt = transform(systemPrompt);
 					return { systemPrompt: forcedSystemPrompt };
 				});
@@ -383,7 +383,7 @@ async function runPiCodingAgent<TOutput extends JsonValue>(
 			if (abortPromise) await abortPromise;
 		}
 		if (response === undefined) {
-			throw new Error("Pi eval input must include at least one prompt step.");
+			throw new Error("EvoHarness eval input must include at least one prompt step.");
 		}
 		// A forced prompt is not recorded in the transcript, so use the one the transform
 		// extension sent; otherwise the replayed transcript prompt is what the provider received.
@@ -420,7 +420,7 @@ async function runPiCodingAgent<TOutput extends JsonValue>(
 		if (sessionManager) {
 			const sessionPath = sessionManager.getSessionFile();
 			if (!sessionPath || !existsSync(sessionPath)) {
-				cleanupErrors.push(new Error("Pi eval produced no session file."));
+				cleanupErrors.push(new Error("EvoHarness eval produced no session file."));
 			} else {
 				try {
 					setArtifact(PI_SESSION_SNAPSHOT_ARTIFACT, await readFile(sessionPath, "utf8"));
@@ -464,7 +464,7 @@ async function runPiCodingAgent<TOutput extends JsonValue>(
 		}
 		throw failure;
 	}
-	if (!result) throw new Error("Pi eval completed without a result.");
+	if (!result) throw new Error("EvoHarness eval completed without a result.");
 	return { ...result, timings: { totalMs: performance.now() - startedAt } };
 }
 
@@ -476,7 +476,7 @@ export function createPiCodingAgentHarness<TOutput extends JsonValue>(
 	options: EvoHarnessCodingAgentHarnessOptions | EvoHarnessCodingAgentHarnessWithOutput<TOutput> = {},
 ): Harness<EvoHarnessCodingAgentInput, string | TOutput> {
 	return createHarness<EvoHarnessCodingAgentInput, string | TOutput>({
-		name: options.name ?? "pi-coding-agent",
+		name: options.name ?? "evoharness-coding-agent",
 		run: ({ input, signal, setArtifact }) => runPiCodingAgent(input, signal, setArtifact, options),
 	});
 }
@@ -495,11 +495,11 @@ export function excludePiDocumentation(defaultPrompt: string): string {
 	const documentationStartMarker = "\n<docs>\n";
 	const documentationEndMarker = "\n</docs>";
 	const documentationStart = defaultPrompt.indexOf(documentationStartMarker);
-	if (documentationStart === -1) throw new Error("Default Pi system prompt has no Pi documentation section.");
+	if (documentationStart === -1) throw new Error("Default EvoHarness system prompt has no EvoHarness documentation section.");
 	const documentationEnd = defaultPrompt.indexOf(documentationEndMarker, documentationStart);
-	if (documentationEnd === -1) throw new Error("Default Pi system prompt has no complete Pi documentation section.");
+	if (documentationEnd === -1) throw new Error("Default EvoHarness system prompt has no complete EvoHarness documentation section.");
 	const cwdStart = defaultPrompt.lastIndexOf("\n<cwd>\n");
-	if (cwdStart < documentationEnd) throw new Error("Default Pi system prompt has no working-directory section.");
+	if (cwdStart < documentationEnd) throw new Error("Default EvoHarness system prompt has no working-directory section.");
 	return (
 		defaultPrompt.slice(0, documentationStart) + defaultPrompt.slice(documentationEnd + documentationEndMarker.length)
 	);

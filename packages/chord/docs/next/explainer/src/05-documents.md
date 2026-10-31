@@ -3,7 +3,7 @@
 
 Notes must be stored, changed safely while others read them, sent to viewers as small changes, and survive a worker
 restart. An object's data lives in **documents**: named JSON values the object owns, changed only in
-**transactions**. The design is a port of pi-durable's store, so most rules will look familiar; this chapter states
+**transactions**. The design is a port of evoharness-durable's store, so most rules will look familiar; this chapter states
 them for Chord.
 
 ## Defining a document
@@ -28,7 +28,7 @@ const Draft = defineState("notes.draft", {                         // one unfini
 });
 ```
 
-`checkpointWhen` is required on every definition, with no default (R14, as in Durable since pi `5c1736f82`): it says
+`checkpointWhen` is required on every definition, with no default (R14, as in Durable since evoharness `5c1736f82`): it says
 when a commit stores a complete base instead of a delta, which bounds how much is replayed on load. Small documents
 checkpoint on every write; growing ones after a number of deltas.
 

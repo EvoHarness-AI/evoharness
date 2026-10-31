@@ -355,7 +355,7 @@ describe("publication after storage", () => {
 			scope: "session",
 			initial: () => ({ count: 0 }),
 		});
-		const directory = await mkdtemp(join(tmpdir(), "pi-durable-adoption-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-adoption-"));
 		const env = new RenameLog({ cwd: directory });
 		const session = new SessionImpl(await JsonlStorage.open(directory, env, context));
 		const count = () =>

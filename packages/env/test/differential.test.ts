@@ -22,12 +22,12 @@ afterAll(() => {
 });
 
 function pair(): { local: ExecutionEnv; remote: ExecutionEnv; roots: [string, string] } {
-	const localRoot = mkdtempSync(join(tmpdir(), "pi-env-local-"));
-	const remoteRoot = mkdtempSync(join(tmpdir(), "pi-env-remote-"));
+	const localRoot = mkdtempSync(join(tmpdir(), "evoharness-env-local-"));
+	const remoteRoot = mkdtempSync(join(tmpdir(), "evoharness-env-remote-"));
 	dirs.push(localRoot, remoteRoot);
 	return {
 		local: new NodeExecutionEnv({ cwd: localRoot }),
-		remote: new RemoteExecutionEnv({ connection, id: "pi-env:test", cwd: remoteRoot }),
+		remote: new RemoteExecutionEnv({ connection, id: "evoharness-env:test", cwd: remoteRoot }),
 		roots: [localRoot, remoteRoot],
 	};
 }

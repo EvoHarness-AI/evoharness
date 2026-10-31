@@ -3,7 +3,7 @@ import type { BetaTool, MessageCreateParamsStreaming } from "@anthropic-ai/sdk/r
 import { Type } from "typebox";
 import { describe, expect, it, vi } from "vitest";
 import { type AnthropicOptions, stream as streamAnthropic } from "../src/api/anthropic-messages.ts";
-import { stream as streamPiMessages } from "../src/api/pi-messages.ts";
+import { stream as streamPiMessages } from "../src/api/evoharness-messages.ts";
 import type { Model, Tool, TranscriptContext } from "../src/types.ts";
 import { normalizeContext } from "../src/utils/transcript.ts";
 
@@ -258,14 +258,14 @@ describe("Anthropic preferred strict tool fallback", () => {
 		expect(payloads.map((payload) => (payload.tools as BetaTool[])[0].strict)).toEqual([true, undefined, true]);
 	});
 
-	it("preserves prefer through pi-messages so the gateway's Anthropic adapter can fall back", async () => {
+	it("preserves prefer through evoharness-messages so the gateway's Anthropic adapter can fall back", async () => {
 		const { payloads, options } = harness((_payload, attempt) =>
 			attempt === 1 ? errorResponse() : successResponse(),
 		);
 		const transcript = context([tool("lookup", "prefer")]);
-		const gatewayModel: Model<"pi-messages"> = {
+		const gatewayModel: Model<"evoharness-messages"> = {
 			...model,
-			api: "pi-messages",
+			api: "evoharness-messages",
 			provider: "radius",
 			baseUrl: "https://radius.example/v1",
 			compat: undefined,

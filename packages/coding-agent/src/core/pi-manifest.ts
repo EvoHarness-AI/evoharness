@@ -18,19 +18,19 @@ function isObject(value: unknown): value is Record<string, unknown> {
 export function readPiManifest(packageJsonPath: string): EvoHarnessManifest | null {
 	try {
 		const pkg: unknown = JSON.parse(stripBom(readFileSync(packageJsonPath, "utf-8")));
-		if (!isObject(pkg) || !isObject(pkg.pi)) {
+		if (!isObject(pkg) || !isObject(pkg.evoharness)) {
 			return null;
 		}
 
 		const manifest: EvoHarnessManifest = {};
 		for (const field of RESOURCE_FIELDS) {
-			const entries = pkg.pi[field];
+			const entries = pkg.evoharness[field];
 			if (Array.isArray(entries) && entries.every((entry) => typeof entry === "string")) {
 				manifest[field] = entries;
 			}
 		}
 
-		const changelogPath = pkg.pi.changelogPath;
+		const changelogPath = pkg.evoharness.changelogPath;
 		if (typeof changelogPath === "string") {
 			manifest.changelogPath = changelogPath;
 		}

@@ -23,7 +23,7 @@ import { daemon } from "./daemon.ts";
  * `PI_ENV_SSH_KEY` and `PI_ENV_SSH_PROGRAM`. On Windows this covers deployment and the daemon's launch through the server's default shell.
  */
 const host = process.env.PI_ENV_SSH_HOST;
-const root = mkdtempSync(join(tmpdir(), "pi-env-ssh-external-"));
+const root = mkdtempSync(join(tmpdir(), "evoharness-env-ssh-external-"));
 let connected: Promise<{ connection: Connection; remote: RemotePlatform }> | undefined;
 
 async function connect(): Promise<{ connection: Connection; remote: RemotePlatform }> {
@@ -35,7 +35,7 @@ async function connect(): Promise<{ connection: Connection; remote: RemotePlatfo
 			...(process.env.PI_ENV_SSH_KEY === undefined ? {} : { identityFile: process.env.PI_ENV_SSH_KEY }),
 			...(process.env.PI_ENV_SSH_PROGRAM === undefined ? {} : { ssh: process.env.PI_ENV_SSH_PROGRAM }),
 			knownHostsFile: join(root, "known_hosts"),
-			hostKeyAlias: "pi-env-external",
+			hostKeyAlias: "evoharness-env-external",
 		};
 		// Each stage is logged, so a hang in CI shows where it is.
 		const log = (text: string) => process.stderr.write(`[ssh-external ${new Date().toISOString()}] ${text}\n`);
@@ -77,11 +77,11 @@ if (host !== undefined) {
 		async (use) => {
 			const { connection } = await connect();
 			const info = await connection.info();
-			const home = new RemoteExecutionEnv({ connection, id: "pi-env:external", cwd: info.home });
-			const cwd = getOrThrow(await home.createTempDir("pi-env-conformance-", BACKGROUND_CONTEXT));
+			const home = new RemoteExecutionEnv({ connection, id: "evoharness-env:external", cwd: info.home });
+			const cwd = getOrThrow(await home.createTempDir("evoharness-env-conformance-", BACKGROUND_CONTEXT));
 			try {
 				await use(
-					new RemoteExecutionEnv({ connection, id: "pi-env:external", cwd, watch: { pollIntervalMs: 100 } }),
+					new RemoteExecutionEnv({ connection, id: "evoharness-env:external", cwd, watch: { pollIntervalMs: 100 } }),
 				);
 			} finally {
 				await home.remove(cwd, { recursive: true, force: true }, BACKGROUND_CONTEXT);

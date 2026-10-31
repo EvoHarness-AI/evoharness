@@ -739,7 +739,7 @@ async function streamResponse(
 	try {
 		const events = runtime.models.streamSimple(model, { messages: [...messages] }, options);
 		for await (const event of events) {
-			// A partial without content, such as pi-ai's opening `start` event, shows nothing; a deferred response
+			// A partial without content, such as evoharness-ai's opening `start` event, shows nothing; a deferred response
 			// never gets past it, so it never leaves a partial.
 			if (event.type === "done" || event.type === "error" || event.partial.content.length === 0) continue;
 			changes.observe(event);
@@ -765,7 +765,7 @@ async function classify(
 	runtime.signal.throwIfAborted();
 	const conversationId = runtime.conversationId;
 	const { attempt, compacted, model: ref, thinkingLevel, cutoff } = request;
-	// Record the requested level, as pi-agent-core's agent loop does.
+	// Record the requested level, as evoharness-agent-core's agent loop does.
 	if (thinkingLevel !== undefined) message.thinkingLevel = thinkingLevel;
 	if (message.stopReason === "deferred" && message.deferred !== undefined) {
 		const handle = message.deferred;

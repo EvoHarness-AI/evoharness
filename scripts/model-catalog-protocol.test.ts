@@ -37,15 +37,15 @@ test("builds revision scoped storage keys", () => {
 	);
 });
 
-test("orders Pi versions with semver precedence", () => {
+test("orders EvoHarness versions with semver precedence", () => {
 	assert.ok(compareModelCatalogPiVersions("0.85.0", "0.84.4") > 0);
 	assert.ok(compareModelCatalogPiVersions("0.85.0-rc.1", "0.85.0") < 0);
 	assert.ok(compareModelCatalogPiVersions("0.85.0-rc.2", "0.85.0-rc.10") < 0);
 	assert.equal(compareModelCatalogPiVersions("v1.0.0", "1.0.0+build"), 0);
-	assert.throws(() => compareModelCatalogPiVersions("0.85", "0.85.0"), /Invalid Pi version/);
+	assert.throws(() => compareModelCatalogPiVersions("0.85", "0.85.0"), /Invalid EvoHarness version/);
 });
 
-test("selects the newest catalog a Pi version supports", () => {
+test("selects the newest catalog a EvoHarness version supports", () => {
 	// Regression test for #9099: released clients before 0.85.0 cannot use the mixed-API catalog.
 	assert.equal(selectModelCatalog(index, "0.84.4")?.revision, legacyRevision);
 	assert.equal(selectModelCatalog(index, "0.85.0-rc.1")?.revision, legacyRevision);
@@ -55,27 +55,27 @@ test("selects the newest catalog a Pi version supports", () => {
 	assert.equal(selectModelCatalog(index, undefined)?.revision, mixedApiRevision);
 });
 
-test("redirects Pi user agents to an explicit catalog version", () => {
+test("redirects EvoHarness user agents to an explicit catalog version", () => {
 	// Regression test for #9099: released clients identify themselves only by User-Agent.
 	assert.deepEqual(
 		parseModelCatalogRequest(
 			"https://evoharness.dev/api/models/providers/openrouter?types=chat%2Cimage",
-			"pi/0.84.4 (linux; node/v22.0.0; x64)",
+			"evoharness/0.84.4 (linux; node/v22.0.0; x64)",
 		),
 		{
 			kind: "redirect",
-			location: "https://evoharness.dev/api/models/providers/openrouter?types=chat%2Cimage&pi-version=0.84.4",
+			location: "https://evoharness.dev/api/models/providers/openrouter?types=chat%2Cimage&evoharness-version=0.84.4",
 		},
 	);
-	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models", "pi/0.84.4"), {
+	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models", "evoharness/0.84.4"), {
 		kind: "redirect",
-		location: "https://evoharness.dev/api/models?pi-version=0.84.4",
+		location: "https://evoharness.dev/api/models?evoharness-version=0.84.4",
 	});
 });
 
 test("serves explicit and unversioned catalog requests without redirecting", () => {
 	assert.deepEqual(
-		parseModelCatalogRequest("https://evoharness.dev/api/models?pi-version=0.83.0", "pi/0.85.1 (linux; node/v22.0.0; x64)"),
+		parseModelCatalogRequest("https://evoharness.dev/api/models?evoharness-version=0.83.0", "evoharness/0.85.1 (linux; node/v22.0.0; x64)"),
 		{ kind: "catalog", evoharnessVersion: "0.83.0", representation: "legacy" },
 	);
 	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models?types=chat", "curl/8.0.0"), {
@@ -83,7 +83,7 @@ test("serves explicit and unversioned catalog requests without redirecting", () 
 		evoharnessVersion: undefined,
 		representation: "typed",
 	});
-	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models", "pi/latest"), {
+	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models", "evoharness/latest"), {
 		kind: "catalog",
 		evoharnessVersion: undefined,
 		representation: "legacy",
@@ -91,11 +91,11 @@ test("serves explicit and unversioned catalog requests without redirecting", () 
 });
 
 test("rejects invalid catalog request parameters", () => {
-	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models?pi-version=latest", undefined), {
+	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models?evoharness-version=latest", undefined), {
 		kind: "invalid",
-		error: "Invalid Pi version.",
+		error: "Invalid EvoHarness version.",
 	});
-	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models?types=", "pi/0.84.4"), {
+	assert.deepEqual(parseModelCatalogRequest("https://evoharness.dev/api/models?types=", "evoharness/0.84.4"), {
 		kind: "invalid",
 		error: "Invalid model types.",
 	});

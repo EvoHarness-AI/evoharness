@@ -9,7 +9,7 @@ import test from "node:test";
 const script = fileURLToPath(new URL("./check-pinned-deps.mjs", import.meta.url));
 
 async function check(t, manifest) {
-	const root = await mkdtemp(join(tmpdir(), "pi-pinned-deps-"));
+	const root = await mkdtemp(join(tmpdir(), "evoharness-pinned-deps-"));
 	t.after(() => rm(root, { recursive: true, force: true }));
 	await writeFile(join(root, "package.json"), JSON.stringify(manifest));
 	return spawnSync(process.execPath, [script], { cwd: root, encoding: "utf8" });

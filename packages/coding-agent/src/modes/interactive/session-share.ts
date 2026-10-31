@@ -55,7 +55,7 @@ export function exportSessionForShare(filePath: string, session: AgentSession): 
 
 /** Share the current session through Radius, falling back to a private gist. */
 export async function shareSession(context: SessionShareContext): Promise<void> {
-	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-share-"));
+	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "evoharness-share-"));
 	const jsonlFile = path.join(tempDir, "session.jsonl");
 	const htmlFile = path.join(tempDir, "session.html");
 
@@ -125,7 +125,7 @@ async function tryShareViaRadius(tmpFile: string, context: SessionShareContext):
 		const body = fs.readFileSync(tmpFile);
 		const url = new URL("/v1/artifacts", DEFAULT_RADIUS_GATEWAY);
 		url.searchParams.set("visibility", "organization");
-		url.searchParams.set("title", "Pi session");
+		url.searchParams.set("title", "EvoHarness session");
 		const response = await fetch(url, {
 			method: "POST",
 			headers: {

@@ -6,7 +6,7 @@ owner: rwachtler
 Everything on the terminal, display and input.
 
 In:
-- pi-tui rendering in regular and fullscreen mode.
+- evoharness-tui rendering in regular and fullscreen mode.
 - Scrollback, flicker, redraw cost, CPU use while streaming.
 - Markdown, syntax highlighting, images.
 - Message and tool renderers, themes, footer, header.

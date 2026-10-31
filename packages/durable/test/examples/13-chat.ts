@@ -25,7 +25,7 @@ const harness = await Harness.open(new MemoryStorage(), { models, registry }, co
 const root = await harness.root(context, { agent: { model: { provider: "faux", modelId: "faux-1" } } });
 
 // submit() durably admits user input and returns a Submission. The built-in
-// pi.generation task prepares the system prompt from the agent's sections,
+// evoharness.generation task prepares the system prompt from the agent's sections,
 // calls the model, and appends the answer; wait() resolves once the input is
 // answered or has failed.
 const capital = await root.submit({ type: "input", content: "Capital of France?" }, context);

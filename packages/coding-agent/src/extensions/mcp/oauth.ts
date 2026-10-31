@@ -38,7 +38,7 @@ import { isClientMetadataDocumentCallback, mcpNamespace } from "../../core/mcp-s
 
 const CALLBACK_HOST = "127.0.0.1";
 const CALLBACK_PATH = "/callback";
-/** Where evoharness.dev serves pi's Client ID Metadata Documents: `client.json` and `<callback ID>/client.json`. */
+/** Where evoharness.dev serves evoharness's Client ID Metadata Documents: `client.json` and `<callback ID>/client.json`. */
 const CLIENT_METADATA_BASE_URL = "https://evoharness.dev/oauth";
 /** Redirect URI for refreshes when none is stored. Refreshing never redirects the user. */
 const FALLBACK_REDIRECT_URL = `http://${CALLBACK_HOST}${CALLBACK_PATH}`;
@@ -243,19 +243,19 @@ function callbackId(serverUrl: string): string {
 }
 
 /**
- * Whether sign-in may identify with pi's Client ID Metadata Document instead of registering. `auto`
+ * Whether sign-in may identify with evoharness's Client ID Metadata Document instead of registering. `auto`
  * registers when the user asked for a client name, the redirect URI is not one the documents list, or
- * a rebranded build would show up as pi.
+ * a rebranded build would show up as evoharness.
  */
 function offersClientMetadataDocument(settings: McpOAuthSettings): boolean {
 	const registration = settings.clientRegistration ?? "auto";
 	if (registration !== "auto") return registration === "cimd";
-	if (settings.clientId || settings.clientName || APP_NAME !== "pi") return false;
+	if (settings.clientId || settings.clientName || APP_NAME !== "evoharness") return false;
 	return isClientMetadataDocumentCallback(settings.callbackUrl);
 }
 
 /**
- * pi's Client ID Metadata Document, chosen like Codex chooses its own, or `undefined` when the
+ * evoharness's Client ID Metadata Document, chosen like Codex chooses its own, or `undefined` when the
  * authorization server does not support documents for public clients. Without the `iss` parameter in
  * authorization responses (RFC 9207), the redirect URI and the document are specific to the MCP server,
  * so a response cannot be mixed up with one from another authorization server (RFC 9700 section 4.4.2.2).

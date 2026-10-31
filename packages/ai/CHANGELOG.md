@@ -21,30 +21,30 @@
 
 - Fixed Claude models that accept mid-conversation system messages rejecting a session with a 400 (`role 'system' must precede an 'assistant' message`) when a system update was followed by an assistant reply with nothing to send to Anthropic, such as an empty reply or another model's reasoning-only reply ([#11091](https://github.com/EvoHarness-AI/evoharness/issues/11091))
 - Fixed Claude models with mid-conversation effort failing with `Invalid effort level` on accounts whose organization caps effort below `high`, even at `low` or `medium` thinking, by sending a fixed `low` top-level effort ([#10063](https://github.com/EvoHarness-AI/evoharness/issues/10063))
-- Fixed streamed tool-call arguments being re-parsed in full on every delta, which made CPU time and memory grow quadratically with the size of a tool call (a 90 KB `write` on Anthropic peaked at about 140 MB of heap; a 500 KB one took minutes). Every provider and the pi-messages client now read each delta once, and keep the raw argument text and their other stream state (`partialJson`, `partialArgs`, `index`, `customInput`, `streamIndex`, Bedrock's encrypted reasoning bytes) off the content blocks, so it no longer reaches partial messages or transcripts of failed streams ([#9265](https://github.com/EvoHarness-AI/evoharness/issues/9265))
+- Fixed streamed tool-call arguments being re-parsed in full on every delta, which made CPU time and memory grow quadratically with the size of a tool call (a 90 KB `write` on Anthropic peaked at about 140 MB of heap; a 500 KB one took minutes). Every provider and the evoharness-messages client now read each delta once, and keep the raw argument text and their other stream state (`partialJson`, `partialArgs`, `index`, `customInput`, `streamIndex`, Bedrock's encrypted reasoning bytes) off the content blocks, so it no longer reaches partial messages or transcripts of failed streams ([#9265](https://github.com/EvoHarness-AI/evoharness/issues/9265))
 - Fixed grammar (custom) tool input streaming copying the whole input so far on every delta ([#9265](https://github.com/EvoHarness-AI/evoharness/issues/9265))
-- Fixed bounded error texts (telemetry span messages, truncated provider error bodies, pi-messages diagnostics, Radius gateway errors) keeping the whole text they were cut from alive ([#9265](https://github.com/EvoHarness-AI/evoharness/issues/9265))
+- Fixed bounded error texts (telemetry span messages, truncated provider error bodies, evoharness-messages diagnostics, Radius gateway errors) keeping the whole text they were cut from alive ([#9265](https://github.com/EvoHarness-AI/evoharness/issues/9265))
 - Fixed Kimi K3.1 Pro and K3.1 Pro Highspeed on Kimi Coding, Moonshot, and OpenCode Go using Kimi K2 request settings. They now send `reasoning_effort` (low/high/max), return earlier reasoning, accept tools added mid-conversation, and report Moonshot rates on Kimi Coding. Kimi Coding `k3-256k` now reports Kimi K3 rates.
 - Fixed OAuth logins opening server-supplied URLs that are not `http:` or `https:` URLs. Radius now checks its browser authorization endpoint and device verification URI, and GitHub Copilot, Kimi Coding, and Meta share one check
-- Fixed pi-messages streams accepting a `contentIndex` that is not the next or an existing content block, such as `__proto__` or a huge index
-- Fixed `pi-ai` CLI auth file being readable by other users. It is now written with mode `0600`
+- Fixed evoharness-messages streams accepting a `contentIndex` that is not the next or an existing content block, such as `__proto__` or a huge index
+- Fixed `evoharness-ai` CLI auth file being readable by other users. It is now written with mode `0600`
 - Fixed OpenCode DeepSeek V4.1 Flash sending `prompt_cache_retention`, which the OpenCode gateway rejects, with long cache retention
 - Fixed GPT-5.4 and GPT-5.5 failing with `Missing namespace for function_call` after switching from another model that called tools. On the OpenAI and OpenCode providers they now declare their tools in the top-level tool list instead of loading them through `additional_tools` or tool search ([#11415](https://github.com/EvoHarness-AI/evoharness/issues/11415))
 - Fixed Bedrock requests failing when `strict: "prefer"` tools exceed Claude's strict tool limits, such as more than 16 optional parameters across all strict tools; requests now retry once with preferred tools non-strict while keeping `strict: "require"` tools strict, as the Anthropic provider already does ([#11416](https://github.com/EvoHarness-AI/evoharness/issues/11416))
-- Fixed OpenRouter's `~anthropic/claude-*-latest` aliases losing Claude's earlier thinking after each tool call. They used the Chat Completions API, where pi dropped the thinking signature, and OpenRouter then ignored the unsigned thinking. They now use the Anthropic Messages API with adaptive thinking, like the versioned Claude models ([#9534](https://github.com/EvoHarness-AI/evoharness/issues/9534))
+- Fixed OpenRouter's `~anthropic/claude-*-latest` aliases losing Claude's earlier thinking after each tool call. They used the Chat Completions API, where evoharness dropped the thinking signature, and OpenRouter then ignored the unsigned thinking. They now use the Anthropic Messages API with adaptive thinking, like the versioned Claude models ([#9534](https://github.com/EvoHarness-AI/evoharness/issues/9534))
 
 ## [1.4.0] - 2026-10-21
 
 ### Breaking Changes
 
 - Renamed provider request option `telemetryContext` to `telemetry?: TelemetrySpan`, without a compatibility alias. Pass a parent span, not an adapter.
-- The default `User-Agent` is now `pi/<version> (<platform>; <runtime>; <arch>)` instead of `pi (<platform> <release>; <arch>)`, and `@evoharness/ai/utils/pi-user-agent` (`getPiUserAgent()`) is removed; use `formatUserAgent()`.
+- The default `User-Agent` is now `evoharness/<version> (<platform>; <runtime>; <arch>)` instead of `evoharness (<platform> <release>; <arch>)`, and `@evoharness/ai/utils/evoharness-user-agent` (`getPiUserAgent()`) is removed; use `formatUserAgent()`.
 - `resolveTranscriptTools()` now takes a `TranscriptToolSupport` (`"none"`, `"additions"`, or `"changes"`) instead of a boolean, and `TranscriptTools.anchorsAdditions` is replaced by `foldedSystemMessages`, the number of leading system messages folded into `requestTools` ([#10940](https://github.com/EvoHarness-AI/evoharness/issues/10940))
 
 ### Added
 
 - Added client identity configuration: an `identity` request option and `createModels({ identity })` default choose the `User-Agent` (`"detailed"` with a version, `"short"`, or custom) and provider attribution headers for OpenRouter, NVIDIA NIM, and OpenCode from `attribution: { name, url, categories? }`. `withClientIdentity()` applies an identity to a `Models` or `MutableModels` a library receives from its host. `formatUserAgent()`, `getIdentityHeaders()`, `getOpenCodeSessionHeaders()`, `mergeClientIdentity()`, `PI_ATTRIBUTION`, and `PI_AI_VERSION` are exported.
-- Bedrock, OpenRouter image generation, pi-messages, and classifier requests now send pi's `User-Agent` too.
+- Bedrock, OpenRouter image generation, evoharness-messages, and classifier requests now send evoharness's `User-Agent` too.
 - `Models` requests with a `sessionId` to custom providers pointing at OpenCode (`opencode.ai`) now send the `x-opencode-session` header too, like the built-in OpenCode providers.
 - Added `AI_TELEMETRY_SCHEMA` and opt-in `evoharness.ai.request`/`evoharness.ai.poll` tracing around Models requests, with content-free first-event, block-size, and final usage attributes, plus duration, token, and USD cost metrics through `telemetry.metrics`.
 - Failed model request spans report `provider_error` status with up to 500 error-message characters; cancelled requests keep `ok` status with `stop: "aborted"`.
@@ -126,7 +126,7 @@
 - Added an optional `durationMs` to `ToolResultMessage` for the execution time of the tool ([#10549](https://github.com/EvoHarness-AI/evoharness/issues/10549))
 - Added the `openai-decisions` classifier API for OpenAI's Decisions API, with `gpt-6-luna` as a classifier model of the `openai` provider. It needs an API key, so it is not listed as available while `openai` uses Sign in with ChatGPT
 - Added Claude Haiku 5.5 (`claude-haiku-5-5`) to the `anthropic` provider with its prompt-length pricing tier, adaptive thinking with `xhigh`/`max` effort, per-message effort, and mid-conversation system messages and tool changes. Bedrock requests for Haiku 5.5 use adaptive thinking, native `xhigh`, and prompt caching
-- Added `LoginOptions.agentName`, which replaces pi's name in the Sign in with ChatGPT agent name hint and the Codex browser login originator ([#10433](https://github.com/EvoHarness-AI/evoharness/pull/10433) by [@lucasmeijer](https://github.com/lucasmeijer))
+- Added `LoginOptions.agentName`, which replaces evoharness's name in the Sign in with ChatGPT agent name hint and the Codex browser login originator ([#10433](https://github.com/EvoHarness-AI/evoharness/pull/10433) by [@lucasmeijer](https://github.com/lucasmeijer))
 - Added optional `images` to `ClassifierContext`. Models whose `input` includes `"image"` judge them with the state; `classify()` returns an error result for other models and for APIs that cannot send images
 
 ### Changed
@@ -196,11 +196,11 @@
 
 ### Added
 
-- Added a copy code login method to Anthropic OAuth. Login asks for browser login (default) or copy code login, which shows the authorization code on Anthropic's page for pasting into pi and works when the browser runs on another machine ([#10194](https://github.com/EvoHarness-AI/evoharness/pull/10194) by [@lucasmeijer](https://github.com/lucasmeijer)).
+- Added a copy code login method to Anthropic OAuth. Login asks for browser login (default) or copy code login, which shows the authorization code on Anthropic's page for pasting into evoharness and works when the browser runs on another machine ([#10194](https://github.com/EvoHarness-AI/evoharness/pull/10194) by [@lucasmeijer](https://github.com/lucasmeijer)).
 
 ### Changed
 
-- Changed OAuth browser pages to use the color Pi logo.
+- Changed OAuth browser pages to use the color EvoHarness logo.
 
 ### Fixed
 
@@ -380,7 +380,7 @@
 - Fixed the Qwen Token Plan Individual catalog to include Qwen3.8 Flash ([#9021](https://github.com/EvoHarness-AI/evoharness/issues/9021)).
 - Fixed Baseten GLM-5.2 models incorrectly advertising image input support ([#8293](https://github.com/EvoHarness-AI/evoharness/pull/8293) by [@Panoplos](https://github.com/Panoplos)).
 - Fixed Fireworks GLM models using the wrong API adapter.
-- Removed the unnecessary Chord dependency from pi-ai by defining its exported `JsonValue` type directly.
+- Removed the unnecessary Chord dependency from evoharness-ai by defining its exported `JsonValue` type directly.
 - Fixed GitHub Copilot Claude Fable 5 requests to use the Anthropic Messages adapter so selected reasoning levels are sent ([#8961](https://github.com/EvoHarness-AI/evoharness/issues/8961)).
 - Fixed OpenAI Codex SSE parsing to process terminal events that are not followed by a blank line ([#9047](https://github.com/EvoHarness-AI/evoharness/issues/9047)).
 - Fixed `NO_PROXY` matching for both root domains and subdomains ([#8737](https://github.com/EvoHarness-AI/evoharness/pull/8737) by [@MeiSiristhebest](https://github.com/MeiSiristhebest)).
@@ -417,7 +417,7 @@
 ### Changed
 
 - Changed built-in xAI models to use the Responses API with encrypted reasoning replay and made Grok 4.6 the default xAI model ([#8124](https://github.com/EvoHarness-AI/evoharness/pull/8124) by [@Jaaneek](https://github.com/Jaaneek)).
-- Changed the Anthropic, Azure OpenAI, Google Generative AI, Google Vertex, Mistral, OpenAI Chat Completions, and OpenAI Responses adapters to send Pi's default `User-Agent` unless overridden ([#8305](https://github.com/EvoHarness-AI/evoharness/issues/8305)).
+- Changed the Anthropic, Azure OpenAI, Google Generative AI, Google Vertex, Mistral, OpenAI Chat Completions, and OpenAI Responses adapters to send EvoHarness's default `User-Agent` unless overridden ([#8305](https://github.com/EvoHarness-AI/evoharness/issues/8305)).
 
 ### Fixed
 
@@ -443,7 +443,7 @@
 
 ### Changed
 
-- Changed Kimi Coding requests to use pi's runtime `User-Agent` header.
+- Changed Kimi Coding requests to use evoharness's runtime `User-Agent` header.
 - Automatically converted supported strict tool schemas to provider-compatible closed objects with required nullable optional fields while preserving original tool definitions, and treated `null` values for optional non-nullable tool arguments as omitted.
 - Changed OpenAI Responses deferred tool loading to prefer message-anchored `additional_tools` where supported while retaining tool-search and top-level fallbacks ([#7709](https://github.com/EvoHarness-AI/evoharness/issues/7709)).
 - Replaced the Mistral SDK transport with a native Chat Completions HTTP stream, eliminating its generated client and schema runtime overhead.
@@ -665,7 +665,7 @@
 - Fixed OpenAI-compatible cross-provider replay to preserve unique tool call IDs when multiple calls share a provider call ID ([#6854](https://github.com/EvoHarness-AI/evoharness/pull/6854) by [@cristinaponcela](https://github.com/cristinaponcela)).
 - Fixed Kimi K3 to expose its supported low, high, and max thinking levels, and normalized the `k2p7` alias to the canonical `kimi-for-coding` model.
 - Fixed the OpenCode Go provider to support models routed through the OpenAI Responses API.
-- Fixed the `pi-ai` executable path to match npm registry metadata, avoiding repeated consumer lockfile changes ([#6812](https://github.com/EvoHarness-AI/evoharness/pull/6812) by [@jmfederico](https://github.com/jmfederico)).
+- Fixed the `evoharness-ai` executable path to match npm registry metadata, avoiding repeated consumer lockfile changes ([#6812](https://github.com/EvoHarness-AI/evoharness/pull/6812) by [@jmfederico](https://github.com/jmfederico)).
 - Fixed sessionless OpenAI Codex WebSocket requests to use UUIDv7 request IDs, enabling models that reject UUIDv4 IDs ([#6834](https://github.com/EvoHarness-AI/evoharness/pull/6834) by [@xl0](https://github.com/xl0)).
 - Fixed GitHub Copilot long-context pricing tiers in generated model metadata ([#6668](https://github.com/EvoHarness-AI/evoharness/issues/6668)).
 - Fixed Kimi Coding subscription models to report API-equivalent implied costs when models.dev reports zero pricing.
@@ -716,7 +716,7 @@
 - Added async non-secret credential enumeration through `CredentialStore.list()` and credential-aware `Provider.filterModels()` availability policy.
 - Added neutral auth-flow information/link events and provider-owned Amazon Bedrock and Google Vertex AI credential selection flows.
 - Added `ModelsStore` with an in-memory default for restoring and persisting dynamic provider catalogs.
-- Added the dynamic Radius `pi-messages` gateway provider with OAuth and credential-specific catalog refresh.
+- Added the dynamic Radius `evoharness-messages` gateway provider with OAuth and credential-specific catalog refresh.
 - Added `Models.refresh({ force: true })` to let providers bypass freshness checks for explicit refreshes.
 - Added xAI device-code OAuth login and routed Grok 4.5 through OpenAI Responses, with low, medium, and high thinking support ([#6651](https://github.com/EvoHarness-AI/evoharness/pull/6651) by [@Jaaneek](https://github.com/Jaaneek)).
 
@@ -779,7 +779,7 @@
 - Fixed Xiaomi Token Plan model metadata to follow the upstream models.dev token-plan catalogs, removing unsupported `mimo-v2-omni` variants ([#6204](https://github.com/EvoHarness-AI/evoharness/issues/6204)).
 - Fixed GitHub Copilot device-code login polling to wait before the first token poll, avoiding incorrect device-code failures for some users after browser authorization ([#6187](https://github.com/EvoHarness-AI/evoharness/issues/6187)).
 - Fixed OAuth device-code polling to honor the server-provided `slow_down` interval instead of only applying the RFC 8628 5-second increment, so GitHub Copilot login recovers instead of appearing to hang when polls arrive early (e.g. WSL/VM clock drift) ([#6187](https://github.com/EvoHarness-AI/evoharness/issues/6187)).
-- Fixed OpenAI Codex user-agent construction to synchronously load Node OS metadata, avoiding a startup race that could report `pi (browser)` in Node/Bun.
+- Fixed OpenAI Codex user-agent construction to synchronously load Node OS metadata, avoiding a startup race that could report `evoharness (browser)` in Node/Bun.
 - Fixed Fireworks GLM 5.2 Fast to use the OpenAI-compatible endpoint and `thinkingLevelMap`, aligning it with GLM 5.2 ([#6195](https://github.com/EvoHarness-AI/evoharness/issues/6195)).
 - Fixed Amazon Bedrock prompt-cache points for Claude Fable 5 and Claude Sonnet 5 ([#6235](https://github.com/EvoHarness-AI/evoharness/issues/6235)).
 - Fixed Amazon Bedrock Claude 5 prompt-cache pricing metadata by removing stale fallback overrides.
@@ -940,7 +940,7 @@ Migration guide:
 ### Added
 
 - Added `@evoharness/ai/base` and direct provider registration exports for bundlers that want selective provider transports without root built-in registration ([#5348](https://github.com/EvoHarness-AI/evoharness/pull/5348) by [@FredKSchott](https://github.com/FredKSchott)).
-- Added prompt caching for Mistral requests using the pi session ID as `prompt_cache_key`, including cached-token usage and cost accounting ([#5854](https://github.com/EvoHarness-AI/evoharness/issues/5854)).
+- Added prompt caching for Mistral requests using the evoharness session ID as `prompt_cache_key`, including cached-token usage and cost accounting ([#5854](https://github.com/EvoHarness-AI/evoharness/issues/5854)).
 - Added the OpenRouter Fusion alias as `openrouter/fusion` ([#5866](https://github.com/EvoHarness-AI/evoharness/pull/5866) by [@dannote](https://github.com/dannote)).
 
 ## [0.79.7] - 2026-06-18
@@ -1078,13 +1078,13 @@ Migration guide:
 - Fixed `openai-codex/gpt-5.3-codex-spark` generated metadata to use its 128k context window ([#4969](https://github.com/EvoHarness-AI/evoharness/issues/4969)).
 - Fixed OpenRouter/Poolside context overflow detection for `maximum allowed input length` errors ([#4943](https://github.com/EvoHarness-AI/evoharness/issues/4943)).
 - Fixed OpenAI Codex Responses WebSocket streams and SSE response-header waits to apply bounded timeouts instead of waiting indefinitely when no events arrive ([#4945](https://github.com/EvoHarness-AI/evoharness/issues/4945)).
-- Fixed provider retry controls so OpenAI Codex Responses honors `maxRetries`, SDK retries default to `0`, and quota/billing 429s are not retried behind Pi's retry handling ([#4991](https://github.com/EvoHarness-AI/evoharness/pull/4991) by [@mitsuhiko](https://github.com/mitsuhiko)).
+- Fixed provider retry controls so OpenAI Codex Responses honors `maxRetries`, SDK retries default to `0`, and quota/billing 429s are not retried behind EvoHarness's retry handling ([#4991](https://github.com/EvoHarness-AI/evoharness/pull/4991) by [@mitsuhiko](https://github.com/mitsuhiko)).
 
 ## [0.75.5] - 2026-05-23
 
 ### Breaking Changes
 
-- Changed `OAuthLoginCallbacks` to require `onDeviceCode` and `onSelect`, so OAuth providers can rely on pi supplying device-code and selection UI callbacks ([#4788](https://github.com/EvoHarness-AI/evoharness/pull/4788) by [@vegarsti](https://github.com/vegarsti)).
+- Changed `OAuthLoginCallbacks` to require `onDeviceCode` and `onSelect`, so OAuth providers can rely on evoharness supplying device-code and selection UI callbacks ([#4788](https://github.com/EvoHarness-AI/evoharness/pull/4788) by [@vegarsti](https://github.com/vegarsti)).
 
 ### Fixed
 
@@ -1205,7 +1205,7 @@ Migration guide:
 
 ### Breaking Changes
 
-- Replaced `OpenAICompletionsCompat.reasoningEffortMap` with top-level `Model.thinkingLevelMap` for model-specific thinking controls ([#3208](https://github.com/EvoHarness-AI/evoharness/issues/3208)). Migration: move mappings from `model.compat.reasoningEffortMap` to `model.thinkingLevelMap`. See `packages/ai/README.md#custom-models` and `packages/coding-agent/docs/models.md#thinking-level-map`. Map values keep the same provider-specific string semantics, and `null` marks a pi thinking level unsupported. Example:
+- Replaced `OpenAICompletionsCompat.reasoningEffortMap` with top-level `Model.thinkingLevelMap` for model-specific thinking controls ([#3208](https://github.com/EvoHarness-AI/evoharness/issues/3208)). Migration: move mappings from `model.compat.reasoningEffortMap` to `model.thinkingLevelMap`. See `packages/ai/README.md#custom-models` and `packages/coding-agent/docs/models.md#thinking-level-map`. Map values keep the same provider-specific string semantics, and `null` marks a evoharness thinking level unsupported. Example:
   ```ts
   // Before
   compat: { reasoningEffortMap: { high: "high", xhigh: "max" } }
@@ -1289,7 +1289,7 @@ Migration guide:
 - Fixed Bedrock prompt-caching and adaptive-thinking capability checks to use the model name when the model id is an inference profile ARN ([#3527](https://github.com/EvoHarness-AI/evoharness/pull/3527) by [@anirudhmarc](https://github.com/anirudhmarc)).
 - Fixed Anthropic SSE parsing to ignore unknown proxy events such as OpenAI-style `done` terminators ([#3708](https://github.com/EvoHarness-AI/evoharness/issues/3708)).
 - Fixed OpenAI-compatible prompt cache tests to cover proxies that explicitly disable long cache retention.
-- Stopped sending `tools: []` on OpenAI-compatible, Anthropic, OpenAI Responses, OpenAI Codex Responses, and Azure OpenAI Responses requests when no tools are active (e.g. `pi --no-tools`). DashScope/Aliyun Qwen (OpenAI-compatible) rejects empty tools arrays with `"[] is too short - 'tools'"` (HTTP 400); the field is now omitted unless the conversation has tool history (the existing LiteLLM/Anthropic-proxy workaround) ([#3650](https://github.com/EvoHarness-AI/evoharness/pull/3650) by [@HQidea](https://github.com/HQidea)).
+- Stopped sending `tools: []` on OpenAI-compatible, Anthropic, OpenAI Responses, OpenAI Codex Responses, and Azure OpenAI Responses requests when no tools are active (e.g. `evoharness --no-tools`). DashScope/Aliyun Qwen (OpenAI-compatible) rejects empty tools arrays with `"[] is too short - 'tools'"` (HTTP 400); the field is now omitted unless the conversation has tool history (the existing LiteLLM/Anthropic-proxy workaround) ([#3650](https://github.com/EvoHarness-AI/evoharness/pull/3650) by [@HQidea](https://github.com/HQidea)).
 - Fixed `supportsXhigh()` to recognize DeepSeek V4 Pro, preserving `xhigh` reasoning requests so they map to DeepSeek's `max` effort ([#3662](https://github.com/EvoHarness-AI/evoharness/issues/3662))
 - Fixed OpenAI-compatible DeepSeek V4 model replay to include empty `reasoning_content` on assistant messages when needed, preventing OpenRouter DeepSeek V4 sessions from failing after responses without reasoning deltas ([#3668](https://github.com/EvoHarness-AI/evoharness/issues/3668))
 
@@ -1442,7 +1442,7 @@ Migration guide:
 ### Fixed
 
 - Bumped default Antigravity User-Agent version to `1.21.9` ([#2901](https://github.com/EvoHarness-AI/evoharness/pull/2901) by [@aadishv](https://github.com/aadishv))
-- Fixed thinking levels for Gemma 4 models to use `thinkingLevel` and map Pi reasoning levels to the model's supported thinking levels ([#2903](https://github.com/EvoHarness-AI/evoharness/pull/2903) by [@aadishv](https://github.com/aadishv))
+- Fixed thinking levels for Gemma 4 models to use `thinkingLevel` and map EvoHarness reasoning levels to the model's supported thinking levels ([#2903](https://github.com/EvoHarness-AI/evoharness/pull/2903) by [@aadishv](https://github.com/aadishv))
 - Fixed Gemini 2.5 Flash Lite minimal thinking budget to use the model's supported 512-token minimum instead of the regular Flash 128-token minimum, avoiding invalid thinking budget errors ([#2861](https://github.com/EvoHarness-AI/evoharness/pull/2861) by [@JasonOA888](https://github.com/JasonOA888))
 - Fixed OpenAI Codex Responses requests to forward configured `serviceTier` values, restoring service-tier selection for Codex sessions ([#2996](https://github.com/EvoHarness-AI/evoharness/pull/2996) by [@markusylisiurunen](https://github.com/markusylisiurunen))
 
@@ -1555,7 +1555,7 @@ Migration guide:
 
 ### Changed
 
-- Lazy-load built-in provider modules and root provider wrappers so importing `@mariozechner/pi-ai` no longer eagerly loads provider SDKs, significantly reducing base startup cost without changing dependency installation footprint ([#2297](https://github.com/EvoHarness-AI/evoharness/issues/2297))
+- Lazy-load built-in provider modules and root provider wrappers so importing `@mariozechner/evoharness-ai` no longer eagerly loads provider SDKs, significantly reducing base startup cost without changing dependency installation footprint ([#2297](https://github.com/EvoHarness-AI/evoharness/issues/2297))
 
 ### Fixed
 
@@ -1638,7 +1638,7 @@ Migration guide:
 - Fixed OpenAI Responses replay to omit empty thinking blocks, avoiding invalid no-op reasoning items in follow-up turns.
 - Switched the Mistral provider from the OpenAI-compatible completions path to Mistral's native SDK and conversations API, preserving native thinking blocks and Mistral-specific message semantics across turns ([#1716](https://github.com/EvoHarness-AI/evoharness/issues/1716)).
 - Fixed Antigravity endpoint fallback: 403/404 responses now cascade to the next endpoint instead of throwing immediately, added `autopush-cloudcode-pa.sandbox` endpoint to the fallback list, and removed extra fingerprint headers (`X-Goog-Api-Client`, `Client-Metadata`) from Antigravity requests ([#1830](https://github.com/EvoHarness-AI/evoharness/issues/1830)).
-- Fixed `@mariozechner/pi-ai/oauth` package exports to point directly at built `dist` files, avoiding broken TypeScript resolution through unpublished wrapper targets ([#1856](https://github.com/EvoHarness-AI/evoharness/issues/1856)).
+- Fixed `@mariozechner/evoharness-ai/oauth` package exports to point directly at built `dist` files, avoiding broken TypeScript resolution through unpublished wrapper targets ([#1856](https://github.com/EvoHarness-AI/evoharness/issues/1856)).
 - Fixed Gemini 3 unsigned tool call replay: use `skip_thought_signature_validator` sentinel instead of converting function calls to text, preserving structured tool call context across multi-turn conversations ([#1829](https://github.com/EvoHarness-AI/evoharness/issues/1829)).
 
 ## [0.56.1] - 2026-03-05
@@ -1647,7 +1647,7 @@ Migration guide:
 
 ### Breaking Changes
 
-- Moved Node OAuth runtime exports off the top-level package entry. Import OAuth login/refresh functions from `@mariozechner/pi-ai/oauth` instead of `@mariozechner/pi-ai` ([#1814](https://github.com/EvoHarness-AI/evoharness/issues/1814))
+- Moved Node OAuth runtime exports off the top-level package entry. Import OAuth login/refresh functions from `@mariozechner/evoharness-ai/oauth` instead of `@mariozechner/evoharness-ai` ([#1814](https://github.com/EvoHarness-AI/evoharness/issues/1814))
 
 ### Added
 
@@ -1773,7 +1773,7 @@ Migration guide:
 ### Fixed
 
 - Set OpenAI Responses API requests to `store: false` by default to avoid server-side history logging ([#1308](https://github.com/EvoHarness-AI/evoharness/issues/1308))
-- Re-exported TypeBox `Type`, `Static`, and `TSchema` from `@mariozechner/pi-ai` to match documentation and avoid duplicate TypeBox type identity issues in pnpm setups ([#1338](https://github.com/EvoHarness-AI/evoharness/issues/1338))
+- Re-exported TypeBox `Type`, `Static`, and `TSchema` from `@mariozechner/evoharness-ai` to match documentation and avoid duplicate TypeBox type identity issues in pnpm setups ([#1338](https://github.com/EvoHarness-AI/evoharness/issues/1338))
 - Fixed Bedrock adaptive thinking handling for Claude Opus 4.6 with interleaved thinking beta responses ([#1323](https://github.com/EvoHarness-AI/evoharness/pull/1323) by [@markusylisiurunen](https://github.com/markusylisiurunen))
 - Fixed `AWS_BEDROCK_SKIP_AUTH` environment detection to avoid `process` access in non-Node.js environments
 
@@ -1947,7 +1947,7 @@ Migration guide:
 
 - Added `headers` option to `StreamOptions` for custom HTTP headers in API requests. Supported by all providers except Amazon Bedrock (which uses AWS SDK auth). Headers are merged with provider defaults and `model.headers`, with `options.headers` taking precedence.
 - Added `originator` option to `loginOpenAICodex()` for custom OAuth client identification
-- Browser compatibility for pi-ai: replaced top-level Node.js imports with dynamic imports for browser environments ([#873](https://github.com/EvoHarness-AI/evoharness/issues/873))
+- Browser compatibility for evoharness-ai: replaced top-level Node.js imports with dynamic imports for browser environments ([#873](https://github.com/EvoHarness-AI/evoharness/issues/873))
 
 ### Fixed
 
@@ -2079,7 +2079,7 @@ Migration guide:
 
 ### Changed
 
-- OpenAI Codex: switched to bundled system prompt matching opencode, changed originator to "pi", simplified prompt handling
+- OpenAI Codex: switched to bundled system prompt matching opencode, changed originator to "evoharness", simplified prompt handling
 
 ## [0.42.2] - 2026-01-10
 
@@ -2116,7 +2116,7 @@ Migration guide:
 ### Fixed
 
 - Fixed Gemini CLI abort handling: detect native `AbortError` in retry catch block, cancel SSE reader when abort signal fires ([#568](https://github.com/EvoHarness-AI/evoharness/pull/568) by [@tmustier](https://github.com/tmustier))
-- Fixed Antigravity provider 429 errors by aligning request payload with CLIProxyAPI v6.6.89: inject Antigravity system instruction with `role: "user"`, set `requestType: "agent"`, and use `antigravity` userAgent. Added bridge prompt to override Antigravity behavior (identity, paths, web dev guidelines) with Pi defaults. ([#571](https://github.com/EvoHarness-AI/evoharness/pull/571) by [@ben-vargas](https://github.com/ben-vargas))
+- Fixed Antigravity provider 429 errors by aligning request payload with CLIProxyAPI v6.6.89: inject Antigravity system instruction with `role: "user"`, set `requestType: "agent"`, and use `antigravity` userAgent. Added bridge prompt to override Antigravity behavior (identity, paths, web dev guidelines) with EvoHarness defaults. ([#571](https://github.com/EvoHarness-AI/evoharness/pull/571) by [@ben-vargas](https://github.com/ben-vargas))
 - Fixed thinking block handling for cross-model conversations: thinking blocks are now converted to plain text (no `<thinking>` tags) when switching models. Previously, `<thinking>` tags caused models to mimic the pattern and output literal tags. Also fixed empty thinking blocks causing API errors. ([#561](https://github.com/EvoHarness-AI/evoharness/issues/561))
 
 ## [0.38.0] - 2026-01-08
@@ -2224,7 +2224,7 @@ Migration guide:
 
 ### Breaking Changes
 
-- **Agent API moved**: All agent functionality (`agentLoop`, `agentLoopContinue`, `AgentContext`, `AgentEvent`, `AgentTool`, `AgentToolResult`, etc.) has moved to `@mariozechner/pi-agent-core`. Import from that package instead of `@mariozechner/pi-ai`.
+- **Agent API moved**: All agent functionality (`agentLoop`, `agentLoopContinue`, `AgentContext`, `AgentEvent`, `AgentTool`, `AgentToolResult`, etc.) has moved to `@mariozechner/evoharness-agent-core`. Import from that package instead of `@mariozechner/evoharness-ai`.
 
 ### Added
 

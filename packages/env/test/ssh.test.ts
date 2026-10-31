@@ -32,7 +32,7 @@ import {
 import { daemon } from "./daemon.ts";
 
 /** The deployed daemon is named by its content. */
-const deployedName = `pi-env-${createHash("sha256").update(readFileSync(daemon)).digest("hex").slice(0, 32)}`;
+const deployedName = `evoharness-env-${createHash("sha256").update(readFileSync(daemon)).digest("hex").slice(0, 32)}`;
 const context = BACKGROUND_CONTEXT;
 
 function which(program: string): string | undefined {
@@ -72,7 +72,7 @@ async function waitForPort(port: number): Promise<void> {
 
 // A disposable sshd on localhost with its own host key, client key and home directory.
 describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
-	const root = mkdtempSync(join(tmpdir(), "pi-env-ssh-"));
+	const root = mkdtempSync(join(tmpdir(), "evoharness-env-ssh-"));
 	const home = join(root, "home");
 	let server: ChildProcess | undefined;
 	let target: SshTarget;
@@ -107,7 +107,7 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 			user: userInfo().username,
 			identityFile: join(root, "client_key"),
 			knownHostsFile: join(root, "known_hosts"),
-			hostKeyAlias: "pi-env-test",
+			hostKeyAlias: "evoharness-env-test",
 			configFile: join(root, "ssh_config"),
 		};
 	});
@@ -127,18 +127,18 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 		expect(scanned.fingerprints.join("\n")).toContain(expected);
 		await acceptHostKey(target, scanned.lines);
 
-		mkdirSync(join(home, ".pi/mobile/tools"), { recursive: true });
-		writeFileSync(join(home, ".pi/mobile/tools/pi-env-0123456789abcdef0123456789abcdef"), "old");
+		mkdirSync(join(home, ".evoharness/mobile/tools"), { recursive: true });
+		writeFileSync(join(home, ".evoharness/mobile/tools/evoharness-env-0123456789abcdef0123456789abcdef"), "old");
 		const { connection, remote } = await connectSsh({ ...target, binary: daemon });
 		try {
 			expect(remote.home).toBe(home);
-			const deployed = readFileSync(join(home, ".pi/mobile/tools", deployedName));
+			const deployed = readFileSync(join(home, ".evoharness/mobile/tools", deployedName));
 			expect(deployed.equals(readFileSync(daemon))).toBe(true);
 			// Daemons of other contents are removed.
-			expect(readdirSync(join(home, ".pi/mobile/tools")).filter((name) => name.startsWith("pi-env-"))).toEqual([
+			expect(readdirSync(join(home, ".evoharness/mobile/tools")).filter((name) => name.startsWith("evoharness-env-"))).toEqual([
 				deployedName,
 			]);
-			const env = new RemoteExecutionEnv({ connection, id: "pi-env:test", cwd: home });
+			const env = new RemoteExecutionEnv({ connection, id: "evoharness-env:test", cwd: home });
 			getOrThrow(await env.writeFile("over-ssh.txt", "hello", context));
 			expect(getOrThrow(await env.readTextFile("over-ssh.txt", context))).toBe("hello");
 			const output: string[] = [];
@@ -153,7 +153,7 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 	}, 60_000);
 
 	it("reuses a verified daemon and replaces a tampered one", async () => {
-		const file = join(home, ".pi/mobile/tools", deployedName);
+		const file = join(home, ".evoharness/mobile/tools", deployedName);
 		const before = statSync(file).mtimeMs;
 		(await connectSsh({ ...target, binary: daemon })).connection.close();
 		expect(statSync(file).mtimeMs).toBe(before);
@@ -170,7 +170,7 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 
 	it("verifies the daemon again before starting it after a lost connection", async () => {
 		const { connection } = await connectSsh({ ...target, binary: daemon });
-		const file = join(home, ".pi/mobile/tools", deployedName);
+		const file = join(home, ".evoharness/mobile/tools", deployedName);
 		try {
 			const { pid } = await connection.info();
 			process.kill(pid, "SIGKILL");
@@ -196,7 +196,7 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 		const { connection } = await connectSsh({ ...target, binary: daemon });
 		const local = new Connection({ command: [daemon] });
 		try {
-			const remote = new RemoteExecutionEnv({ connection, id: "pi-env:test", cwd: home });
+			const remote = new RemoteExecutionEnv({ connection, id: "evoharness-env:test", cwd: home });
 			const listing = getOrThrow(await remote.listFiles("tree", { exclude: ["skip"] }, context));
 			expect(listing).toEqual({
 				entries: [
@@ -225,7 +225,7 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 		const login = async (loginShell: boolean) => {
 			const { connection } = await connectSsh({ ...target, binary: daemon, loginShell });
 			try {
-				const env = new RemoteExecutionEnv({ connection, id: "pi-env:test", cwd: home });
+				const env = new RemoteExecutionEnv({ connection, id: "evoharness-env:test", cwd: home });
 				const output: string[] = [];
 				getOrThrow(
 					await env.exec(
@@ -248,7 +248,7 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 		const { connection, remote } = sshConnection({ ...lazyTarget, binary: daemon });
 		try {
 			expect(remote()).toBeUndefined();
-			const env = new RemoteExecutionEnv({ connection, id: "pi-env:test", cwd: home });
+			const env = new RemoteExecutionEnv({ connection, id: "evoharness-env:test", cwd: home });
 			// Nothing is trusted yet: each operation fails with the reason and tries again.
 			const read = await env.readTextFile("missing.txt", context);
 			expect(read.ok ? "ok" : read.error.message).toMatch(/not trusted/);
@@ -274,16 +274,16 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 		const first = key("accept_first");
 		const second = key("accept_second");
 		await expect(acceptHostKey(scoped, [`other-alias ${first}`])).rejects.toThrow();
-		await expect(acceptHostKey(scoped, [`@cert-authority pi-env-test ${first}`])).rejects.toThrow();
+		await expect(acceptHostKey(scoped, [`@cert-authority evoharness-env-test ${first}`])).rejects.toThrow();
 		await Promise.all([
-			acceptHostKey(scoped, [`pi-env-test ${first}`]),
-			acceptHostKey(scoped, [`pi-env-test ${first}`]),
+			acceptHostKey(scoped, [`evoharness-env-test ${first}`]),
+			acceptHostKey(scoped, [`evoharness-env-test ${first}`]),
 		]);
-		expect(readFileSync(knownHosts, "utf8")).toBe(`pi-env-test ${first}\n`);
-		await expect(acceptHostKey(scoped, [`pi-env-test ${second}`])).rejects.toBeInstanceOf(HostKeyChangedError);
+		expect(readFileSync(knownHosts, "utf8")).toBe(`evoharness-env-test ${first}\n`);
+		await expect(acceptHostKey(scoped, [`evoharness-env-test ${second}`])).rejects.toBeInstanceOf(HostKeyChangedError);
 		await forgetHostKey(scoped);
-		await acceptHostKey(scoped, [`pi-env-test ${second}`]);
-		expect(readFileSync(knownHosts, "utf8")).toBe(`pi-env-test ${second}\n`);
+		await acceptHostKey(scoped, [`evoharness-env-test ${second}`]);
+		expect(readFileSync(knownHosts, "utf8")).toBe(`evoharness-env-test ${second}\n`);
 	});
 
 	it("refuses a changed host key", async () => {
@@ -291,7 +291,7 @@ describe.skipIf(sshd === undefined)("SSH bootstrap", () => {
 		execFileSync("ssh-keygen", ["-q", "-t", "ed25519", "-N", "", "-f", other]);
 		const key = readFileSync(`${other}.pub`, "utf8").split(" ").slice(0, 2).join(" ");
 		const knownHosts = join(root, "changed_known_hosts");
-		writeFileSync(knownHosts, `pi-env-test ${key}\n`);
+		writeFileSync(knownHosts, `evoharness-env-test ${key}\n`);
 		await expect(connectSsh({ ...target, knownHostsFile: knownHosts, binary: daemon })).rejects.toBeInstanceOf(
 			HostKeyChangedError,
 		);

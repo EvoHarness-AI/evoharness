@@ -38,7 +38,7 @@ afterEach(async () => {
 	tempDirectories.clear();
 });
 
-async function tempDirectory(prefix = "pi-durable-jsonl-"): Promise<string> {
+async function tempDirectory(prefix = "evoharness-durable-jsonl-"): Promise<string> {
 	const directory = await mkdtemp(join(tmpdir(), prefix));
 	tempDirectories.add(directory);
 	return directory;
@@ -129,7 +129,7 @@ class ReopeningStorage implements Storage {
 registerStorageConformance({ describe, expect, it }, "JsonlStorage", async (use) => use(await createStorage()));
 
 registerStorageConformance({ describe, expect, it }, "JsonlStorage across reopen", async (use) => {
-	const directory = await tempDirectory("pi-durable-jsonl-conformance-");
+	const directory = await tempDirectory("evoharness-durable-jsonl-conformance-");
 	const current = await JsonlStorage.open(directory, new NodeExecutionEnv({ cwd: directory }), context);
 	const storage = new ReopeningStorage(current, directory);
 	try {

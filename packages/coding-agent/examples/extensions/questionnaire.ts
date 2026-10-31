@@ -81,8 +81,8 @@ function errorResult(
 	};
 }
 
-export default function questionnaire(pi: ExtensionAPI) {
-	pi.registerTool({
+export default function questionnaire(evoharness: ExtensionAPI) {
+	evoharness.registerTool({
 		name: "questionnaire",
 		label: "Questionnaire",
 		description:

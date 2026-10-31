@@ -5,7 +5,7 @@
  * without replacing or reparsing the complete rendered prompt.
  *
  * Usage:
- * 1. Copy this file to ~/.pi/agent/extensions/ or your project's .pi/extensions/
+ * 1. Copy this file to ~/.evoharness/agent/extensions/ or your project's .evoharness/extensions/
  * 2. Use the extension — it automatically adapts to your active tools and skills
  */
 
@@ -37,8 +37,8 @@ function buildToolGuidance(options: BuildSystemPromptOptions): string {
 	return rules.join("\n");
 }
 
-export default function promptCustomizer(pi: ExtensionAPI) {
-	pi.on("before_agent_start", (event) => {
+export default function promptCustomizer(evoharness: ExtensionAPI) {
+	evoharness.on("before_agent_start", (event) => {
 		const guidance = buildToolGuidance(event.systemPromptOptions);
 		if (guidance) {
 			event.systemPromptOptions.sections.tool_guidance = guidance;

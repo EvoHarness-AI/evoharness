@@ -30,7 +30,7 @@ function model(id: string): Model<"openai-completions"> {
 }
 
 describe("extension provider model lifecycle", () => {
-	it("registers native pi-ai providers with their auth implementation", async () => {
+	it("registers native evoharness-ai providers with their auth implementation", async () => {
 		const runtime = await ModelRuntime.create({
 			credentials: AuthStorage.inMemory(),
 			modelsStore: new InMemoryModelsStore(),
@@ -136,7 +136,7 @@ describe("extension provider model lifecycle", () => {
 	});
 
 	it("preserves native deferred methods through provider overlays", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "pi-native-provider-deferred-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "evoharness-native-provider-deferred-"));
 		const modelsPath = join(tempDir, "models.json");
 		writeFileSync(
 			modelsPath,
@@ -260,7 +260,7 @@ describe("extension provider model lifecycle", () => {
 	});
 
 	it("applies models.json overrides above native providers", async () => {
-		const tempDir = mkdtempSync(join(tmpdir(), "pi-native-provider-"));
+		const tempDir = mkdtempSync(join(tmpdir(), "evoharness-native-provider-"));
 		const modelsPath = join(tempDir, "models.json");
 		writeFileSync(
 			modelsPath,

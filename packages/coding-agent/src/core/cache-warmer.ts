@@ -106,7 +106,7 @@ export interface CacheWarmingDecision {
 }
 
 /**
- * Fired before each refresh with pi's decision filled in. Everything else an
+ * Fired before each refresh with evoharness's decision filled in. Everything else an
  * extension might want (model, idle state, context size) is on the context.
  */
 export interface CacheWarmingDecisionEvent
@@ -165,7 +165,7 @@ export class CacheWarmer {
 	private readonly models: Pick<ModelRuntime, "streamSimple">;
 	private readonly sessionManager: Pick<SessionManager, "appendUsage" | "getBranch">;
 	private readonly getMode: () => CacheWarmingMode;
-	/** Lets extensions override `event.action`; failures fall back to pi's decision. */
+	/** Lets extensions override `event.action`; failures fall back to evoharness's decision. */
 	private readonly decide: (event: CacheWarmingDecisionEvent) => Promise<CacheWarmingAction>;
 	/** Called with the persisted usage entry after each successful refresh. */
 	onWarmed?: (entry: UsageEntry) => void;
@@ -313,7 +313,7 @@ export class CacheWarmer {
 				action,
 			});
 		} catch {
-			// Extension failures fall back to pi's own decision.
+			// Extension failures fall back to evoharness's own decision.
 		}
 		if (!this.validateRun(run) || this.refreshDeadlineMissed(run)) return;
 		const extensionOverride = action !== decision.action;
@@ -432,7 +432,7 @@ function formatCacheWarmingDecisionTime(nextWarmAt: number | undefined, now: num
 /** One-line status for `/session`. */
 export function formatCacheWarmingStatus(status: CacheWarmingStatus, now = Date.now()): string {
 	const decision = status.decision;
-	// A decision is attached once pi (or an extension) acted on it; "inactive"
+	// A decision is attached once evoharness (or an extension) acted on it; "inactive"
 	// without one never got that far.
 	if (!decision || (status.state === "inactive" && !decision.economicsAvailable && !status.extensionOverride)) {
 		return `Inactive (${status.reason ?? "unknown reason"})`;

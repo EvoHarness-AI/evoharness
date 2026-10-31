@@ -78,9 +78,9 @@ describe("jev-router example", () => {
 		const harness = await createHarness({
 			tools,
 			extensionFactories: [
-				(pi) => {
-					pi.registerProvider(codex.provider);
-					pi.registerProvider(typesafe);
+				(evoharness) => {
+					evoharness.registerProvider(codex.provider);
+					evoharness.registerProvider(typesafe);
 				},
 				jevRouter,
 			],

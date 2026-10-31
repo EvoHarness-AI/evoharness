@@ -588,7 +588,7 @@ describe("inbox", () => {
 	});
 
 	it("keeps queued submissions across reopen and settles them afterwards", async () => {
-		const directory = await mkdtemp(join(tmpdir(), "pi-durable-inbox-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-inbox-"));
 		directories.add(directory);
 		const path = join(directory, "session.sqlite");
 		const setup = chatSetup();
@@ -1047,7 +1047,7 @@ describe("usage", () => {
 	});
 
 	it("keeps usage totals exact across reopen, counting a partial converted after reopen once", async () => {
-		const directory = await mkdtemp(join(tmpdir(), "pi-durable-usage-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-usage-"));
 		directories.add(directory);
 		const path = join(directory, "session.sqlite");
 		const setup = chatSetup({ tokensPerSecond: 200, tokenSize: { min: 1, max: 1 } });

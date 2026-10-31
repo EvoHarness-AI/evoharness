@@ -28,7 +28,7 @@ type ReportAssertion = {
 };
 
 async function writeTaskReport(assertions: ReportAssertion[]) {
-	const directory = await mkdtemp(join(tmpdir(), "pi-eval-report-test-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-eval-report-test-"));
 	temporaryDirectories.push(directory);
 	const reportPath = join(directory, "vitest.json");
 	const results = assertions.map(({ caseId = task.caseId, status = "passed", meta = {} }) => ({

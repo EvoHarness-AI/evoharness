@@ -44,7 +44,7 @@ const harness = createPiCodingAgentHarness({
 describeEval("Audit documentation against implementation", { harness }, (it) => {
 	it.for(pages)("$path matches the implementation", async ({ path }, { run }) => {
 		const documentationPath = resolve(docsRoot, path);
-		const result = await run(`Audit this Pi documentation page against the repository implementation.
+		const result = await run(`Audit this EvoHarness documentation page against the repository implementation.
 
 Documentation page: ${documentationPath}
 Repository root: ${repositoryRoot}

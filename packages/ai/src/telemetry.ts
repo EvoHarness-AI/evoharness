@@ -60,7 +60,7 @@ const request = {
 	},
 } as const;
 
-/** Pi-owned request metadata, bounded error status, events, and low-cardinality metrics. */
+/** EvoHarness-owned request metadata, bounded error status, events, and low-cardinality metrics. */
 export const AI_TELEMETRY_SCHEMA = defineTelemetrySchema({
 	version: 1,
 	spans: {

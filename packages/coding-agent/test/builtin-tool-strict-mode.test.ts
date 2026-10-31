@@ -49,7 +49,7 @@ describe("strict built-in tools", () => {
 	it.each([{ activeTools: [] }, { activeTools: ["read"] }, { activeTools: [...strictToolNames] }])(
 		"allows extensions to re-register tools without strict sampling: $activeTools",
 		async ({ activeTools }) => {
-			const cwd = mkdtempSync(join(tmpdir(), "pi-non-strict-tools-"));
+			const cwd = mkdtempSync(join(tmpdir(), "evoharness-non-strict-tools-"));
 			const agentDir = join(cwd, "agent");
 			const settingsManager = SettingsManager.inMemory({ defaultTools: activeTools });
 			const resourceLoader = new DefaultResourceLoader({
@@ -61,13 +61,13 @@ describe("strict built-in tools", () => {
 				noPromptTemplates: true,
 				noThemes: true,
 				extensionFactories: [
-					(pi) => {
-						pi.on("session_start", () => {
+					(evoharness) => {
+						evoharness.on("session_start", () => {
 							const definitions = createAllToolDefinitions(cwd);
 							for (const name of strictToolNames) {
-								pi.registerTool({ ...definitions[name], constrainedSampling: false });
+								evoharness.registerTool({ ...definitions[name], constrainedSampling: false });
 							}
-							pi.setActiveTools(activeTools);
+							evoharness.setActiveTools(activeTools);
 						});
 					},
 				],

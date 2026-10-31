@@ -113,7 +113,7 @@ function delivered(watches: readonly Watch[], id: () => EntryId | undefined): Pr
 }
 
 async function run(scenario: Scenario): Promise<Record<string, number>> {
-	const directory = mkdtempSync(join(tmpdir(), "pi-durable-view-bench-"));
+	const directory = mkdtempSync(join(tmpdir(), "evoharness-durable-view-bench-"));
 	let storage: Storage | undefined;
 	try {
 		const path = join(directory, "session.sqlite");

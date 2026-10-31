@@ -426,7 +426,7 @@ describe("nested tool calls", () => {
 		await harness.close(context);
 	});
 
-	it("reports nested calls in pi.live.nestedTools with their parent", async () => {
+	it("reports nested calls in evoharness.live.nestedTools with their parent", async () => {
 		const setup = chatSetup();
 		const release = deferred();
 		const running = deferred();
@@ -549,7 +549,7 @@ describe("nested tool calls", () => {
 	});
 
 	it("reattaches a replay-safe caller to the nested calls it made before a restart", async () => {
-		const directory = await mkdtemp(join(tmpdir(), "pi-durable-nested-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-nested-"));
 		directories.add(directory);
 		const path = join(directory, "session.sqlite");
 		const setup = chatSetup();
@@ -651,7 +651,7 @@ describe("nested tool calls", () => {
 	});
 
 	it("aborts left-running nested calls of a caller interrupted while it cleaned them up", async () => {
-		const directory = await mkdtemp(join(tmpdir(), "pi-durable-nested-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-nested-"));
 		directories.add(directory);
 		const path = join(directory, "session.sqlite");
 		const setup = chatSetup();
@@ -1262,7 +1262,7 @@ describe("tool task version 1 and 2 records", () => {
 		checkpoint: JsonValue,
 		version: 1 | 2 = 1,
 	): Promise<{ path: string; id: TaskId }> {
-		const directory = await mkdtemp(join(tmpdir(), "pi-durable-tool-v1-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-tool-v1-"));
 		directories.add(directory);
 		const path = join(directory, "session.sqlite");
 		// No submission, so the Harness never starts scheduling and the task stays pending.

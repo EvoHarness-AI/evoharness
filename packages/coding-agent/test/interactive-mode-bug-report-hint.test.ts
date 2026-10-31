@@ -18,8 +18,8 @@ function errorMessage(errorMessage: string): AssistantMessage {
 
 describe("InteractiveMode bug report hints", () => {
 	test("identifies extensions with frames in a crash stack", () => {
-		expect(formatCrashExtensionHint(["npm:pi-observational-memory"])).toBe(
-			"A stack frame came from loaded extension `npm:pi-observational-memory`, which may be involved. Try disabling it with `pi config`, or run `pi -ne` to confirm.",
+		expect(formatCrashExtensionHint(["npm:evoharness-observational-memory"])).toBe(
+			"A stack frame came from loaded extension `npm:evoharness-observational-memory`, which may be involved. Try disabling it with `evoharness config`, or run `evoharness -ne` to confirm.",
 		);
 		expect(formatCrashExtensionHint(undefined)).toBeUndefined();
 	});

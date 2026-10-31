@@ -1,6 +1,6 @@
 # @evoharness/mcp
 
-A small, standalone Model Context Protocol client. It does not depend on the official MCP SDK or other pi packages.
+A small, standalone Model Context Protocol client. It does not depend on the official MCP SDK or other evoharness packages.
 
 The package provides a transport-neutral client core, stdio and Streamable HTTP transports, and an in-memory testing transport.
 
@@ -31,7 +31,7 @@ For a remote server, use `new StreamableHttpTransport({ url, headers })`. Fetch 
 
 `toLlmContent(result)` converts a `CallToolResult` to text and image content for a model, in the shape of `@evoharness/ai`'s `TextContent` and `ImageContent`. Text and images pass through, embedded text and image resources are unwrapped, and audio, resource links, and binary resources become short text placeholders. A result without content blocks but with `structuredContent` becomes its JSON.
 
-Wrapping an MCP tool as a `pi-agent-core` `AgentTool`:
+Wrapping an MCP tool as a `evoharness-agent-core` `AgentTool`:
 
 ```typescript
 import type { AgentTool } from "@evoharness/agent-core";

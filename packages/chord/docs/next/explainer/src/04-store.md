@@ -91,7 +91,7 @@ note "Authority is the view's: the reader variant has no add. The store does not
 binds it during activation and waits until the store is live (chapter VI). The view exposes the store's readables
 directly. Owner, Ann and Bob now give three `Notes` objects, one `NoteStore`, one note list and one redacted list.
 
-Any heavy or shared part belongs in a store like this: a pi-durable watch, a file watcher, a sandbox, a search index.
+Any heavy or shared part belongs in a store like this: a evoharness-durable watch, a file watcher, a sandbox, a search index.
 Base code uses the same pattern with the same primitives; nothing about it is special to core.
 
 ## Derived values, briefly

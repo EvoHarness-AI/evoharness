@@ -36,7 +36,7 @@ function requireSuccess(command: string, args: readonly string[]): void {
 }
 
 export function buildImages(): BuiltImages {
-	const prefix = `pi-evals-${createHash("sha256").update(repositoryRoot).digest("hex").slice(0, 12)}`;
+	const prefix = `evoharness-evals-${createHash("sha256").update(repositoryRoot).digest("hex").slice(0, 12)}`;
 	const images = {
 		without_docs: { name: `${prefix}-without-docs:local`, id: "" },
 		with_docs: { name: `${prefix}-with-docs:local`, id: "" },
@@ -66,7 +66,7 @@ function environment(name: string, value: string): string[] {
 
 export function requireEvalAuthFile(provider: string): string {
 	const path = join(
-		process.env.PI_CODING_AGENT_DIR ? resolve(process.env.PI_CODING_AGENT_DIR) : join(homedir(), ".pi", "agent"),
+		process.env.PI_CODING_AGENT_DIR ? resolve(process.env.PI_CODING_AGENT_DIR) : join(homedir(), ".evoharness", "agent"),
 		"auth.json",
 	);
 	if (!existsSync(path) || !statSync(path).isFile())
@@ -118,7 +118,7 @@ function dockerArgs(
 			...environment("PI_EVAL_ARTIFACT_GID", String(process.getgid())),
 		);
 	}
-	args.push("--mount", `type=bind,source=${context.authPath},target=/run/pi-eval-secrets/auth.json,readonly`);
+	args.push("--mount", `type=bind,source=${context.authPath},target=/run/evoharness-eval-secrets/auth.json,readonly`);
 	args.push(context.images[variant].name, ...entrypointArgs);
 	return args;
 }

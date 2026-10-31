@@ -51,7 +51,7 @@ afterEach(async () => {
 });
 
 async function sqlitePath(): Promise<string> {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-compaction-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-compaction-"));
 	directories.add(directory);
 	return join(directory, "session.sqlite");
 }
@@ -1010,7 +1010,7 @@ describe("background threshold compaction", () => {
 		await chat.harness.close(context);
 	});
 
-	it("records a failure in pi.live, in the commit that ends the compaction, until a summary is produced", async () => {
+	it("records a failure in evoharness.live, in the commit that ends the compaction, until a summary is produced", async () => {
 		const chat = await open({ contextWindow: 2000 });
 		await history(chat);
 		chat.setup.settings.compaction = BACKGROUND;

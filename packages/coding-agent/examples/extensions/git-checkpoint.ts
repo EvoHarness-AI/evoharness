@@ -7,26 +7,26 @@
 
 import type { ExtensionAPI } from "@evoharness/coding-agent";
 
-export default function (pi: ExtensionAPI) {
+export default function (evoharness: ExtensionAPI) {
 	const checkpoints = new Map<string, string>();
 	let currentEntryId: string | undefined;
 
 	// Track the current entry ID when user messages are saved
-	pi.on("tool_result", async (_event, ctx) => {
+	evoharness.on("tool_result", async (_event, ctx) => {
 		const leaf = ctx.sessionManager.getLeafEntry();
 		if (leaf) currentEntryId = leaf.id;
 	});
 
-	pi.on("turn_start", async () => {
+	evoharness.on("turn_start", async () => {
 		// Create a git stash entry before LLM makes changes
-		const { stdout } = await pi.exec("git", ["stash", "create"]);
+		const { stdout } = await evoharness.exec("git", ["stash", "create"]);
 		const ref = stdout.trim();
 		if (ref && currentEntryId) {
 			checkpoints.set(currentEntryId, ref);
 		}
 	});
 
-	pi.on("session_before_fork", async (event, ctx) => {
+	evoharness.on("session_before_fork", async (event, ctx) => {
 		const ref = checkpoints.get(event.entryId);
 		if (!ref) return;
 
@@ -41,12 +41,12 @@ export default function (pi: ExtensionAPI) {
 		]);
 
 		if (choice?.startsWith("Yes")) {
-			await pi.exec("git", ["stash", "apply", ref]);
+			await evoharness.exec("git", ["stash", "apply", ref]);
 			ctx.ui.notify("Code restored to checkpoint", "info");
 		}
 	});
 
-	pi.on("agent_settled", async () => {
+	evoharness.on("agent_settled", async () => {
 		// Clear checkpoints after the full agent run completes
 		checkpoints.clear();
 	});

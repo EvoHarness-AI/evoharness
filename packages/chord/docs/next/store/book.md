@@ -375,9 +375,9 @@ The `owner` string is opaque to the engine; each adapter fills it:
 
 | | namespace | owner | kind | key |
 | --- | --- | --- | --- | --- |
-| Durable session document | `pi-durable` | `session` | `evoharness.settings` | |
-| Durable conversation document | `pi-durable` | `conversation:7` | `evoharness.provider` | |
-| Durable task document | `pi-durable` | `task:31` | `evoharness.codemode` | |
+| Durable session document | `evoharness-durable` | `session` | `evoharness.settings` | |
+| Durable conversation document | `evoharness-durable` | `conversation:7` | `evoharness.provider` | |
+| Durable task document | `evoharness-durable` | `task:31` | `evoharness.codemode` | |
 | Chord persisted document | `chord` | `session:notes.store` | `notes` | `n-42` |
 
 What the owner string means (a conversation's documents fork and rewind with it, a task's are retired with the task)
@@ -606,9 +606,9 @@ self.on(conversation.entries, async ({ value: entries }, ctx) => {
 # What's Next {.epilogue lede="What is decided, and the order in which it gets built."}
 
 The direction and all seventeen review items are decided (decision log, 2026-10-21). The store is new code; the parts
-outside it are small changes in pi:
+outside it are small changes in evoharness:
 
-- **pi, one change:** `Storage.commit(writes, adopt, context)` with every storage calling `adopt` (S1), the
+- **evoharness, one change:** `Storage.commit(writes, adopt, context)` with every storage calling `adopt` (S1), the
   Session's handling of rejections after adoption, the narrowed `mintId` comment (S10), `traceIn(options, fn,
   context)` (context last), Durable's `WatchHandle`/`WatchEnd` moved into Chord with generic end reasons and explicit
   retirement (W2), and Durable's state getters and the `replicatedState` family removed (W14).

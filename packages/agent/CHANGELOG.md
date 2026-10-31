@@ -10,7 +10,7 @@
 
 ### Added
 
-- Added `AgentOptions.identity` and `Agent.identity` (a pi-ai `ClientIdentity`) to set the `User-Agent` and provider attribution of agent loop requests.
+- Added `AgentOptions.identity` and `Agent.identity` (a evoharness-ai `ClientIdentity`) to set the `User-Agent` and provider attribution of agent loop requests.
 
 ## [1.3.0] - 2026-10-15
 
@@ -38,7 +38,7 @@
 
 ### Breaking Changes
 
-- Removed the experimental harness from `@evoharness/agent-core`: `AgentHarness`, sessions and session storage, the durable runtime, pico3, harness tools, compaction, skills, prompt templates, system prompt helpers, telemetry schemas, the search service types, and the `uuidv7` and pi-telemetry re-exports. The `./node`, `./harness/*`, and `./experimental/pico3` subpath exports are gone. The package now contains only `Agent`, the agent loop, the proxy stream, and their types. Use `@evoharness/durable` for durable sessions.
+- Removed the experimental harness from `@evoharness/agent-core`: `AgentHarness`, sessions and session storage, the durable runtime, pico3, harness tools, compaction, skills, prompt templates, system prompt helpers, telemetry schemas, the search service types, and the `uuidv7` and evoharness-telemetry re-exports. The `./node`, `./harness/*`, and `./experimental/pico3` subpath exports are gone. The package now contains only `Agent`, the agent loop, the proxy stream, and their types. Use `@evoharness/durable` for durable sessions.
 
 ## [0.99.2] - 2026-09-30
 
@@ -188,7 +188,7 @@
 
 ### Fixed
 
-- Restored the `Agent` `streamFn` option and host-configurable fallback for omitted agent-loop stream functions without reintroducing a `pi-ai/compat` dependency ([#6915](https://github.com/EvoHarness-AI/evoharness/issues/6915)).
+- Restored the `Agent` `streamFn` option and host-configurable fallback for omitted agent-loop stream functions without reintroducing a `evoharness-ai/compat` dependency ([#6915](https://github.com/EvoHarness-AI/evoharness/issues/6915)).
 
 ## [0.81.0] - 2026-07-21
 
@@ -773,11 +773,11 @@
 
 - **`UserMessageWithAttachments` and `Attachment` types removed**: Attachment handling is now the responsibility of the `convertToLlm` function.
 
-- **Agent loop moved from `@mariozechner/pi-ai`**: The `agentLoop`, `agentLoopContinue`, and related types have moved to this package. Import from `@mariozechner/pi-agent-core` instead.
+- **Agent loop moved from `@mariozechner/evoharness-ai`**: The `agentLoop`, `agentLoopContinue`, and related types have moved to this package. Import from `@mariozechner/evoharness-agent-core` instead.
 
 ### Added
 
-- `streamFn` option on `Agent` for custom stream implementations. Default uses `streamSimple` from pi-ai.
+- `streamFn` option on `Agent` for custom stream implementations. Default uses `streamSimple` from evoharness-ai.
 
 - `streamProxy()` utility function for browser apps that need to proxy LLM calls through a backend server. Replaces the removed `AppTransport`.
 

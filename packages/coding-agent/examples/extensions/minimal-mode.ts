@@ -11,7 +11,7 @@
  * - Minimal: Shows only tool call, no output (this extension's collapsed mode)
  *
  * Usage:
- *   pi -e ./minimal-mode.ts
+ *   evoharness -e ./minimal-mode.ts
  *
  * Then use ctrl+o to toggle between minimal (collapsed) and full (expanded) views.
  */
@@ -53,13 +53,13 @@ function createBuiltInTools(cwd: string) {
 	};
 }
 
-export default function (pi: ExtensionAPI) {
+export default function (evoharness: ExtensionAPI) {
 	const tools = createBuiltInTools(process.cwd());
 
 	// =========================================================================
 	// Read Tool
 	// =========================================================================
-	pi.registerTool({
+	evoharness.registerTool({
 		...tools.read,
 
 		renderCall(args, theme, _context) {
@@ -95,7 +95,7 @@ export default function (pi: ExtensionAPI) {
 	// =========================================================================
 	// Bash Tool
 	// =========================================================================
-	pi.registerTool({
+	evoharness.registerTool({
 		...tools.bash,
 
 		renderCall(args, theme, _context) {
@@ -135,7 +135,7 @@ export default function (pi: ExtensionAPI) {
 	// =========================================================================
 	// Write Tool
 	// =========================================================================
-	pi.registerTool({
+	evoharness.registerTool({
 		...tools.write,
 
 		renderCall(args, theme, _context) {
@@ -168,7 +168,7 @@ export default function (pi: ExtensionAPI) {
 	// =========================================================================
 	// Edit Tool
 	// =========================================================================
-	pi.registerTool({
+	evoharness.registerTool({
 		...tools.edit,
 		renderShell: "default",
 
@@ -205,7 +205,7 @@ export default function (pi: ExtensionAPI) {
 	// =========================================================================
 	// Find Tool
 	// =========================================================================
-	pi.registerTool({
+	evoharness.registerTool({
 		...tools.find,
 
 		renderCall(args, theme, _context) {
@@ -254,7 +254,7 @@ export default function (pi: ExtensionAPI) {
 	// =========================================================================
 	// Grep Tool
 	// =========================================================================
-	pi.registerTool({
+	evoharness.registerTool({
 		...tools.grep,
 
 		renderCall(args, theme, _context) {
@@ -307,7 +307,7 @@ export default function (pi: ExtensionAPI) {
 	// =========================================================================
 	// Ls Tool
 	// =========================================================================
-	pi.registerTool({
+	evoharness.registerTool({
 		...tools.ls,
 
 		renderCall(args, theme, _context) {

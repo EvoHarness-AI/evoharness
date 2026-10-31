@@ -55,7 +55,7 @@ afterEach(async () => {
 });
 
 async function sqlitePath(): Promise<string> {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-nested-restart-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-nested-restart-"));
 	directories.add(directory);
 	return join(directory, "session.sqlite");
 }

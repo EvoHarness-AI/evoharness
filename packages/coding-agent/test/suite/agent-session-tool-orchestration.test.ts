@@ -11,15 +11,15 @@ import { createHarness, type Harness } from "./harness.ts";
  * A tool that calls other tools, built only on the extension API: its own name, exposure, loadout
  * hook, and ctx.executeTool(). Codemode and tool search use the same mechanisms.
  */
-function orchestratorExtension(pi: ExtensionAPI): void {
-	pi.registerTool({
+function orchestratorExtension(evoharness: ExtensionAPI): void {
+	evoharness.registerTool({
 		name: "echo",
 		label: "echo",
 		description: "Echo text.",
 		parameters: Type.Object({ text: Type.String() }),
 		execute: async (_id, { text }) => ({ content: [{ type: "text", text: `echo: ${text}` }], details: {} }),
 	});
-	pi.registerTool({
+	evoharness.registerTool({
 		name: "helper",
 		label: "helper",
 		description: "Only reachable from other tools.",
@@ -27,7 +27,7 @@ function orchestratorExtension(pi: ExtensionAPI): void {
 		exposure: "codemode",
 		execute: async () => ({ content: [{ type: "text", text: "helped" }], details: {} }),
 	});
-	pi.registerTool({
+	evoharness.registerTool({
 		name: "run_tools",
 		label: "run_tools",
 		description: "Runs tools.",
@@ -65,8 +65,8 @@ describe("AgentSession tool orchestration", () => {
 			initialActiveToolNames: [],
 			extensionFactories: [
 				orchestratorExtension,
-				(pi) => {
-					pi.on("tool_call", (event) => {
+				(evoharness) => {
+					evoharness.on("tool_call", (event) => {
 						toolCalls.push(`${event.toolName}:${event.parentToolCallId ?? "top"}`);
 					});
 				},

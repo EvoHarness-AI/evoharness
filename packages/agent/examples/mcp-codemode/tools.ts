@@ -1,5 +1,5 @@
 /**
- * Adapters that give a pi-agent-core `Agent` MCP tools and a codemode tool, using
+ * Adapters that give a evoharness-agent-core `Agent` MCP tools and a codemode tool, using
  * `@evoharness/mcp` and `@evoharness/codemode`. See main.ts for how they fit together.
  */
 
@@ -154,7 +154,7 @@ export function createCodemodeTool(
 			const sandbox = new CodemodeSandbox({ tools: sandboxTools, timeoutMs: 120_000 });
 			try {
 				const result = await sandbox.execute(params.code, { signal });
-				// Items from text(), console.*, and image(), in order. They have pi-ai's content shapes.
+				// Items from text(), console.*, and image(), in order. They have evoharness-ai's content shapes.
 				const content: (TextContent | ImageContent)[] = [...result.output];
 				if (result.ok && result.value !== undefined) {
 					const value = typeof result.value === "string" ? result.value : JSON.stringify(result.value);

@@ -117,7 +117,7 @@ every effect, order nothing by registration, and hold no state that must outlive
 | state | the plugin's own business; dsh's session log is a service | documents written in transactions, persisted, versioned and migrated (chapter V) |
 | reload | unload the old instance, load the new one: in-memory state and running work of that plugin end | pure objects swap their code in place with their documents and running work kept; only objects with natives restart (chapter XV) |
 | a running agent turn during reload | entries of changed plugins stop; unloading the agent provider stops its live agents | the harness is base code; Durable pins tools per task phase, so a running call finishes on old code and the next phase uses the new (chapter XIV) |
-| crash recovery of a turn | the turn is closed as `interrupted` | pi-durable continues the turn's tasks from their checkpoints; replay-safe tools rerun (chapter XIV) |
+| crash recovery of a turn | the turn is closed as `interrupted` | evoharness-durable continues the turn's tasks from their checkpoints; replay-safe tools rerun (chapter XIV) |
 | contracts and versions | TypeScript types only, pre-stable APIs, every consumer updated together; config validated with a schema | contract versions with fingerprints and provider-side mappings for old consumers (chapter XVI) |
 | status | in production in Koishi since 2019; dsh released | a design with the contract layer built |
 

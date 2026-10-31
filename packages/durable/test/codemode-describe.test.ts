@@ -87,7 +87,7 @@ describe("code mode description and section", () => {
 		expect(sections.codemode).not.toContain("mcp__github__get_issue");
 		// The code mode tool itself is not callable from scripts.
 		expect(sections.codemode).not.toContain("### `codemode`");
-		// The tool declaration carries the script grammar; pi-ai applies it only for models that support it.
+		// The tool declaration carries the script grammar; evoharness-ai applies it only for models that support it.
 		const tools = (system.model![0] as { toolsAdded?: { name: string; constrainedSampling?: unknown }[] })
 			.toolsAdded!;
 		expect(tools.find((candidate) => candidate.name === "codemode")?.constrainedSampling).toEqual({

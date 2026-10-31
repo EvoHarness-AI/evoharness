@@ -1593,8 +1593,8 @@ describe("TuiAltScreen", () => {
 		for (const { line, needle } of [
 			{ line: "extensions/starline/fixed-editor/compositor.ts", needle: "starline" },
 			{ line: "EvoHarness-AI/evoharness-tui", needle: "works" },
-			{ line: "~/.pi/agent/settings.json", needle: "agent" },
-			{ line: "~\\Documents\\pi", needle: "Documents" },
+			{ line: "~/.evoharness/agent/settings.json", needle: "agent" },
+			{ line: "~\\Documents\\evoharness", needle: "Documents" },
 			{ line: "foo+bar", needle: "bar" },
 		]) {
 			const copied: string[] = [];

@@ -3,9 +3,9 @@
  * and runs this script with the server URL as the last argument, the scenario name in
  * `MCP_CONFORMANCE_SCENARIO`, and scenario data in `MCP_CONFORMANCE_CONTEXT`.
  *
- * It drives the code pi runs for an `mcp.json` HTTP server: `McpServerConnection` connects and calls
+ * It drives the code evoharness runs for an `mcp.json` HTTP server: `McpServerConnection` connects and calls
  * tools, and `signInMcpServer` runs the OAuth sign-in that `/mcp` starts. The browser is simulated: the
- * authorization URL is fetched without following its redirect, and the redirect is delivered to pi's
+ * authorization URL is fetched without following its redirect, and the redirect is delivered to evoharness's
  * loopback callback server. Credentials stay in memory.
  *
  * Run through run.ts, which writes the outcome to `PI_MCP_CONFORMANCE_REPORT`.
@@ -24,7 +24,7 @@ import {
 } from "../../src/extensions/mcp/runtime.ts";
 
 /**
- * Sign-ins pi asks the user for are not limited, so a user who keeps approving them would loop
+ * Sign-ins evoharness asks the user for are not limited, so a user who keeps approving them would loop
  * forever against a server that never accepts the granted scope. This simulated user gives up after
  * three, the limit `auth/scope-retry-limit` checks.
  */
@@ -60,7 +60,7 @@ function toolCalls(scenario: string, connection: McpServerConnection): ToolCall[
 }
 
 function log(message: string): void {
-	process.stderr.write(`[pi-conformance] ${message}\n`);
+	process.stderr.write(`[evoharness-conformance] ${message}\n`);
 }
 
 function errorMessage(error: unknown): string {

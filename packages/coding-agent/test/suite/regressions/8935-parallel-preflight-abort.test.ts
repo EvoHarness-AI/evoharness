@@ -32,13 +32,13 @@ describe("#8935 parallel preflight abort", () => {
 		const harness = await createHarness({
 			tools: [externalWrite],
 			extensionFactories: [
-				(pi) => {
-					pi.on("tool_call", async (event, ctx) => {
+				(evoharness) => {
+					evoharness.on("tool_call", async (event, ctx) => {
 						const value = "value" in event.input ? String(event.input.value) : "";
 						preflights.push(value);
 						if (value === "second") ctx.abort();
 					});
-					pi.on("tool_result", async (event) => {
+					evoharness.on("tool_result", async (event) => {
 						resultHooks.push(event.toolCallId);
 					});
 				},

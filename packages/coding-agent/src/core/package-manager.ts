@@ -52,7 +52,7 @@ import {
 } from "../utils/paths.ts";
 import { stripBom } from "../utils/text.ts";
 import { isStdoutTakenOver } from "./output-guard.ts";
-import { type EvoHarnessManifest, readPiManifest } from "./pi-manifest.ts";
+import { type EvoHarnessManifest, readPiManifest } from "./evoharness-manifest.ts";
 import type { PackageSource, SettingsManager } from "./settings-manager.ts";
 import { BUILTIN_PATH_PREFIX, getResourcePathKey } from "./source-info.ts";
 
@@ -389,7 +389,7 @@ function collectFiles(
 	return files;
 }
 
-type SkillDiscoveryMode = "pi" | "agents";
+type SkillDiscoveryMode = "evoharness" | "agents";
 
 function collectSkillEntries(
 	dir: string,
@@ -452,7 +452,7 @@ function collectSkillEntries(
 				isFile &&
 				entry.name.endsWith(".md") &&
 				!ig.ignores(relPath) &&
-				((mode === "pi" && dir === root) || (mode === "agents" && dir !== root));
+				((mode === "evoharness" && dir === root) || (mode === "agents" && dir !== root));
 			if (shouldIncludeMarkdownFile) {
 				entries.push(fullPath);
 				continue;
@@ -673,7 +673,7 @@ function collectAutoExtensionEntries(dir: string): string[] {
  */
 function collectResourceFiles(dir: string, resourceType: ResourceType): string[] {
 	if (resourceType === "skills") {
-		return collectSkillEntries(dir, "pi");
+		return collectSkillEntries(dir, "evoharness");
 	}
 	if (resourceType === "extensions") {
 		return collectAutoExtensionEntries(dir);
@@ -681,8 +681,8 @@ function collectResourceFiles(dir: string, resourceType: ResourceType): string[]
 	return collectFiles(dir, FILE_PATTERNS[resourceType]);
 }
 
-// A `pi` object counts as an explicit resource manifest only when it lists resources. Packages whose
-// `pi` object holds only metadata (changelogPath, gallery image/video) still use directory auto-discovery.
+// A `evoharness` object counts as an explicit resource manifest only when it lists resources. Packages whose
+// `evoharness` object holds only metadata (changelogPath, gallery image/video) still use directory auto-discovery.
 function hasManifestResourceFields(manifest: EvoHarnessManifest): boolean {
 	return RESOURCE_TYPES.some((resourceType) => manifest[resourceType] !== undefined);
 }
@@ -1417,8 +1417,8 @@ export class DefaultPackageManager implements PackageManager {
 					!parsed.pinned &&
 					(await this.npmHasAvailableUpdate(parsed, installedPath))
 				) {
-					// Temporary (-e) sources have no `pi update` path, so refresh unpinned ones on load like
-					// temporary git sources. Like `pi update`, install `name@latest` for unversioned specs because a bare
+					// Temporary (-e) sources have no `evoharness update` path, so refresh unpinned ones on load like
+					// temporary git sources. Like `evoharness update`, install `name@latest` for unversioned specs because a bare
 					// `npm install name` keeps the range already saved in the temporary package.json.
 					const spec = parsed.version ? parsed.spec : `${parsed.name}@latest`;
 					try {
@@ -1958,10 +1958,10 @@ export class DefaultPackageManager implements PackageManager {
 		// npm writes broken nested package-lock.json paths when --prefix goes through a symlink.
 		const installRoot = existsSync(root) ? realpathSync(root) : root;
 		const packageManagerName = this.getPackageManagerName();
-		// Extension packages run inside pi and resolve pi APIs through loader aliases/virtual modules.
+		// Extension packages run inside evoharness and resolve evoharness APIs through loader aliases/virtual modules.
 		// Disable peer dependency resolution for managed installs (npm's --legacy-peer-deps, and
 		// equivalent bun/pnpm settings) so package managers do not install or solve host-provided
-		// @evoharness/* peers. Stale auto-installed pi peers can otherwise block updates.
+		// @evoharness/* peers. Stale auto-installed evoharness peers can otherwise block updates.
 		if (packageManagerName === "bun") {
 			return ["install", ...specs, "--cwd", installRoot, "--omit=peer"];
 		}
@@ -1976,7 +1976,7 @@ export class DefaultPackageManager implements PackageManager {
 				"--config.strict-dep-builds=false",
 			];
 		}
-		// npm audit fix would run without --legacy-peer-deps and install pi peers, so skip audit advice.
+		// npm audit fix would run without --legacy-peer-deps and install evoharness peers, so skip audit advice.
 		return ["install", ...specs, "--prefix", installRoot, "--legacy-peer-deps", "--no-audit", "--no-fund"];
 	}
 
@@ -2086,7 +2086,7 @@ export class DefaultPackageManager implements PackageManager {
 	}
 
 	private getGitUpdateMarkerPath(targetDir: string): string {
-		return join(dirname(targetDir), `.${basename(targetDir)}.pi-update-incomplete`);
+		return join(dirname(targetDir), `.${basename(targetDir)}.evoharness-update-incomplete`);
 	}
 
 	private async cleanAndInstallGitDependencies(targetDir: string, markerPath: string): Promise<void> {
@@ -2195,7 +2195,7 @@ export class DefaultPackageManager implements PackageManager {
 		this.ensureGitIgnore(installRoot);
 		const packageJsonPath = join(installRoot, "package.json");
 		if (!existsSync(packageJsonPath)) {
-			const pkgJson = { name: "pi-extensions", private: true };
+			const pkgJson = { name: "evoharness-extensions", private: true };
 			writeFileSync(packageJsonPath, JSON.stringify(pkgJson, null, 2), "utf-8");
 		}
 	}
@@ -2611,7 +2611,7 @@ export class DefaultPackageManager implements PackageManager {
 		};
 
 		if (projectTrusted) {
-			// Project extensions from .pi/
+			// Project extensions from .evoharness/
 			addResources(
 				"extensions",
 				collectAutoExtensionEntries(projectDirs.extensions),
@@ -2620,10 +2620,10 @@ export class DefaultPackageManager implements PackageManager {
 				projectBaseDir,
 			);
 
-			// Project skills from .pi/
+			// Project skills from .evoharness/
 			addResources(
 				"skills",
-				collectAutoSkillEntries(projectDirs.skills, "pi"),
+				collectAutoSkillEntries(projectDirs.skills, "evoharness"),
 				projectMetadata,
 				projectOverrides.skills,
 				projectBaseDir,
@@ -2663,7 +2663,7 @@ export class DefaultPackageManager implements PackageManager {
 			);
 		}
 
-		// User extensions from ~/.pi/agent/
+		// User extensions from ~/.evoharness/agent/
 		addResources(
 			"extensions",
 			collectAutoExtensionEntries(userDirs.extensions),
@@ -2672,10 +2672,10 @@ export class DefaultPackageManager implements PackageManager {
 			globalBaseDir,
 		);
 
-		// User skills from ~/.pi/agent/
+		// User skills from ~/.evoharness/agent/
 		addResources(
 			"skills",
-			collectAutoSkillEntries(userDirs.skills, "pi"),
+			collectAutoSkillEntries(userDirs.skills, "evoharness"),
 			userMetadata,
 			userOverrides.skills,
 			globalBaseDir,

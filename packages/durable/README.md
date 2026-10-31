@@ -77,7 +77,7 @@ What happened:
 
 Every async call takes a Chord `Context`, which carries cancellation and its current `TelemetrySpan`. `BACKGROUND_CONTEXT` never cancels and uses a NOOP span. The Harness owns the root adapter; adapters are never stored in a `Context`. Cancelling a wait only cancels that wait, never the work.
 
-`HarnessOptions.identity` sets how model requests identify the app to providers (a pi-ai `ClientIdentity`), merged over `DEFAULT_HARNESS_IDENTITY` (`{ attribution: PI_ATTRIBUTION }`: OpenRouter, NVIDIA NIM, and OpenCode attribution headers name pi). It applies to generation, compaction, hooks, and tools, over the identity the host's `Models` was created with. Pass your app's attribution, for example `{ attribution: { name: "my-app", url: "https://my-app.example" } }`, or `{ attribution: null }` to send none.
+`HarnessOptions.identity` sets how model requests identify the app to providers (a evoharness-ai `ClientIdentity`), merged over `DEFAULT_HARNESS_IDENTITY` (`{ attribution: PI_ATTRIBUTION }`: OpenRouter, NVIDIA NIM, and OpenCode attribution headers name evoharness). It applies to generation, compaction, hooks, and tools, over the identity the host's `Models` was created with. Pass your app's attribution, for example `{ attribution: { name: "my-app", url: "https://my-app.example" } }`, or `{ attribution: null }` to send none.
 
 `HarnessOptions.telemetry` accepts a host-owned `TelemetryContext` from `@evoharness/telemetry`, with optional `propagation` and `metrics` capabilities; omitted, it is a no-op. `DURABLE_TELEMETRY_SCHEMA`, exported from the package root, documents its typed spans, events, and metrics. Attributes contain IDs and control metadata, never messages, arguments, or results; IDs point to the transcript.
 
@@ -106,10 +106,10 @@ Every async call takes a Chord `Context`, which carries cancellation and its cur
 One answered input, as entries and tasks:
 
 ```text
-submit(input) → pi.user
-  pi.generation → pi.system (only if the prompt or tools changed), pi.assistant (tool calls)
-    pi.tool × n → pi.tool-result × n   (owned by the generation, which waits for them)
-  pi.generation → pi.assistant (answer) → submission done
+submit(input) → evoharness.user
+  evoharness.generation → evoharness.system (only if the prompt or tools changed), evoharness.assistant (tool calls)
+    evoharness.tool × n → evoharness.tool-result × n   (owned by the generation, which waits for them)
+  evoharness.generation → evoharness.assistant (answer) → submission done
 ```
 
 ## Persist and Resume
@@ -124,7 +124,7 @@ const root = await harness.root(context); // the same root as last time
 harness.resume(); // continue any run the last process left unfinished
 ```
 
-Work interrupted by a crash or close stays pending. `resume()` starts the task scheduler; submitting or waiting starts it too. A process that only shows a session another one drives opens it with `readOnly: true`: open recovers nothing, and every write, `resume()`, and every call that would run tasks rejects with `ReadOnlySession`. Each conversation has its own persisted UUIDv7 in `evoharness.provider`, forwarded to pi-ai as `sessionId` for provider prompt-cache and session affinity. It survives reopen, retries, reset, compaction, and model changes; a child or fork receives a fresh identity. A legacy conversation receives and persists one before its first generation or compaction request.
+Work interrupted by a crash or close stays pending. `resume()` starts the task scheduler; submitting or waiting starts it too. A process that only shows a session another one drives opens it with `readOnly: true`: open recovers nothing, and every write, `resume()`, and every call that would run tasks rejects with `ReadOnlySession`. Each conversation has its own persisted UUIDv7 in `evoharness.provider`, forwarded to evoharness-ai as `sessionId` for provider prompt-cache and session affinity. It survives reopen, retries, reset, compaction, and model changes; a child or fork receives a fresh identity. A legacy conversation receives and persists one before its first generation or compaction request.
 
 A retried submission with the same `requestId` returns the existing submission instead of submitting twice:
 
@@ -456,7 +456,7 @@ await env.exec(["git", "status", "--porcelain=v2", "-z"], {
 
 Abort the context to stop one call; `cleanup()` is for shutting the environment down. A custom environment can check itself with `registerEnvConformance()` from `@evoharness/durable/testing`, like storage below.
 
-Some environments also implement the optional `listFiles()`: the files and directories below a directory at any depth, as `fd` lists them, skipping what git ignores and stopping at bounds with `truncated`. `NodeExecutionEnv` does not; pi-env's `RemoteExecutionEnv` and `LocalExecutionEnv` do. Callers fall back to their own walk when the method is missing or fails with `not_supported`:
+Some environments also implement the optional `listFiles()`: the files and directories below a directory at any depth, as `fd` lists them, skipping what git ignores and stopping at bounds with `truncated`. `NodeExecutionEnv` does not; evoharness-env's `RemoteExecutionEnv` and `LocalExecutionEnv` do. Callers fall back to their own walk when the method is missing or fails with `not_supported`:
 
 ```typescript
 const listing = await env.listFiles?.(".", { exclude: ["node_modules"], maxEntries: 50_000 }, context);
@@ -867,9 +867,9 @@ SQLite storage can namespace its tables and indexes when sharing a database: pas
 need no support. A prefix must be a SQLite identifier and cannot begin with `sqlite_`; a host may reserve more, such
 as `_cf_` in Durable Objects. Changing the prefix does not migrate existing data.
 
-Multiple Pi storages opened through the Cloudflare adapter with the same storage object automatically share an
-operation queue. To share the database with host tables, create an adapter and use it for both Pi and all host queries;
-direct storage calls bypass the queue and may be rolled back with a Pi transaction:
+Multiple EvoHarness storages opened through the Cloudflare adapter with the same storage object automatically share an
+operation queue. To share the database with host tables, create an adapter and use it for both EvoHarness and all host queries;
+direct storage calls bypass the queue and may be rolled back with a EvoHarness transaction:
 
 ```typescript
 const database = new DurableObjectSqliteDatabase(ctx.storage);
@@ -905,7 +905,7 @@ registerStorageConformance({ describe, expect, it }, "My Storage", async (use) =
 });
 ```
 
-The package root loads TypeBox, because the tool task validates arguments with pi-ai's `validateToolArguments()`. That costs about 23 MB of peak RSS unbundled, about 4 MB in a tree-shaken bundle.
+The package root loads TypeBox, because the tool task validates arguments with evoharness-ai's `validateToolArguments()`. That costs about 23 MB of peak RSS unbundled, about 4 MB in a tree-shaken bundle.
 
 ## Errors
 

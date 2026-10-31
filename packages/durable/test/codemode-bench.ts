@@ -42,7 +42,7 @@ const plain = defineTool({
 });
 
 async function run(mode: "codemode" | "plain", shape: Shape, n: number): Promise<{ ms: number; commits: number }> {
-	const directory = await mkdtemp(join(tmpdir(), "pi-codemode-bench-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-codemode-bench-"));
 	try {
 		const faux = fauxProvider();
 		const models = createModels();

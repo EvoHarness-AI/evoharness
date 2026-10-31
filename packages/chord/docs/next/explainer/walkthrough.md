@@ -2,7 +2,7 @@
 title: Chord v2
 kind: walkthrough
 kicker: Walkthrough · Chord v2
-subtitle: Build an app like p2 on Chord v2 and pi-durable, one concept at a time, with a tutor that draws the figures and asks the questions
+subtitle: Build an app like p2 on Chord v2 and evoharness-durable, one concept at a time, with a tutor that draws the figures and asks the questions
 model: anthropic/claude-sonnet-5-5
 sources:
   - packages/chord/docs/next/explainer/book.md
@@ -16,7 +16,7 @@ truth: treat Chord v2 as fully built as designed; ignore what the sources say ab
 ---
 
 :::tutor
-The learner knows pi-durable (harness, conversations, tasks, tools) and nothing about Chord.
+The learner knows evoharness-durable (harness, conversations, tasks, tools) and nothing about Chord.
 
 Teach Chord v2 as a finished, working runtime: never say a part is "not built", "planned" or "the target design", even
 though the sources say so in places. Open decisions may be mentioned as "still being decided" when a concept depends on
@@ -33,8 +33,8 @@ a flow for structure, a stepper for lifecycles.
 :::intro
 #### What this is about
 
-Picture **p2** (Pi Mobile): a web app for working with pi agents from any device. It runs on your laptop as one
-**server** process. Every chat session gets its own **worker** process, and in each worker a pi-durable agent works
+Picture **p2** (EvoHarness Mobile): a web app for working with evoharness agents from any device. It runs on your laptop as one
+**server** process. Every chat session gets its own **worker** process, and in each worker a evoharness-durable agent works
 through its turns. You use it from **browser tabs** on your desktop or phone, and you can invite a colleague to watch.
 Most features (a notes panel, file browsing, terminals, provider logins) are **plugins**.
 
@@ -49,7 +49,7 @@ while its data stays.
 
 #### The example: Studio
 
-This walkthrough builds **Studio**, a small p2, on Chord v2 and pi-durable. It has the same three kinds of processes:
+This walkthrough builds **Studio**, a small p2, on Chord v2 and evoharness-durable. It has the same three kinds of processes:
 
 :::flow wide | Studio: one server, a worker per session with its agent, browser tabs as clients. The notes plugin is the first feature we build.
 row "Clients" muted
@@ -75,7 +75,7 @@ do what, saved data, live updates, background jobs, logins, extension points, th
 1. **The pieces:** processes, objects, callers, shared data, saved data.
 2. **Living objects:** references that survive restarts, revocation, computed values, OS handles, standing behaviour,
    background jobs, input from people.
-3. **The app:** extension points between plugins, and the pi-durable agent inside Chord.
+3. **The app:** extension points between plugins, and the evoharness-durable agent inside Chord.
 4. **Change:** reloading code while everything runs, evolving contracts, and what goes over the wire.
 :::
 
@@ -88,7 +88,7 @@ declare what they need); Studio's pieces from the introduction. Do not go into A
 :::check
 1. Why is restarting the worker processes not a good way to load new plugin code?
 +++ answers
-1. It loses the agent's turn in flight, open terminals and connections (pi-durable would resume the turn, but the running tool and the connections are gone).
+1. It loses the agent's turn in flight, open terminals and connections (evoharness-durable would resume the turn, but the running tool and the connections are gone).
 :::
 
 # The shape of an app {#shape part="The pieces"}

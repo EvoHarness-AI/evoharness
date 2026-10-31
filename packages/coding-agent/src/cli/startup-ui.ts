@@ -32,8 +32,8 @@ import {
 import { requestTerminalColors } from "../modes/interactive/theme/theme-controller.ts";
 
 const OFFICIAL_PACKAGE_NAME = "@evoharness/coding-agent";
-const OFFICIAL_APP_NAME = "pi";
-const OFFICIAL_CONFIG_DIR_NAME = ".pi";
+const OFFICIAL_APP_NAME = "evoharness";
+const OFFICIAL_CONFIG_DIR_NAME = ".evoharness";
 
 interface DistributionMetadata {
 	packageName: string;

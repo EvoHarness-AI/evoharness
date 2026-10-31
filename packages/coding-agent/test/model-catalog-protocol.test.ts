@@ -81,7 +81,7 @@ function startCatalogServer(requests: string[]): Promise<Server> {
 					.writeHead(200, {
 						"content-type": "application/json",
 						"last-modified": lastModified,
-						"x-pi-model-catalog-revision": catalog.revision,
+						"x-evoharness-model-catalog-revision": catalog.revision,
 					})
 					.end(JSON.stringify(body));
 			}
@@ -120,7 +120,7 @@ describe("model catalog protocol with the current client", () => {
 		expect([...refresh.errors]).toEqual([]);
 
 		const catalogUrl = "/api/models/providers/openrouter?types=chat%2Cimage%2Cclassifier";
-		expect(requests).toEqual([catalogUrl, `${catalogUrl}&pi-version=${VERSION}`]);
+		expect(requests).toEqual([catalogUrl, `${catalogUrl}&evoharness-version=${VERSION}`]);
 
 		const expectedModel =
 			selectModelCatalog(index, VERSION)?.revision === legacyRevision ? legacyModel : mixedApiModel;

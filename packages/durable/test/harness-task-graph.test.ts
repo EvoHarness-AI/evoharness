@@ -170,7 +170,7 @@ describe("task graph view", () => {
 	});
 
 	it("builds from committed tasks, shows surviving tasks as pending after reopen, and marks aborts", async () => {
-		const directory = await mkdtemp(join(tmpdir(), "pi-durable-graph-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-graph-"));
 		const path = join(directory, "session.sqlite");
 		const gate = deferred();
 		const Work = defineTask<null, { phase: "work" }, null>({

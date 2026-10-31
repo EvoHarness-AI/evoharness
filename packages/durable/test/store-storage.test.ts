@@ -116,7 +116,7 @@ registerStorageConformance({ describe, expect, it }, "StoreStorage", async (use)
 });
 
 registerStorageConformance({ describe, expect, it }, "StoreStorage across reopen", async (use) => {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-store-conformance-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-store-conformance-"));
 	const path = join(directory, "store.sqlite");
 	const storage = new ReopeningStorage(await openStoreStorage(path), path);
 	try {
@@ -331,7 +331,7 @@ describe("archives and batches of Durable data", () => {
 
 describe("head markers (the entry_heads table)", () => {
 	it("a head entry is found after reopen, in an imported archive and in a replayed outbox", async () => {
-		const directory = await mkdtemp(join(tmpdir(), "pi-durable-store-heads-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-store-heads-"));
 		const path = join(directory, "store.sqlite");
 		const open = async () =>
 			(await openStore(sqliteBackend(await openNodeSqliteDatabase(path)), context, { outbox: true })) as ChordStore;

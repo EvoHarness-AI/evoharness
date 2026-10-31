@@ -1,6 +1,6 @@
 import { compare, valid } from "semver";
 import { fetchWithRetry } from "./management-http.ts";
-import { getPiUserAgent } from "./pi-user-agent.ts";
+import { getPiUserAgent } from "./evoharness-user-agent.ts";
 
 const LATEST_VERSION_URL = "https://evoharness.dev/api/latest-version";
 const DEFAULT_VERSION_CHECK_TIMEOUT_MS = 10000;

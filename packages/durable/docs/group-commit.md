@@ -1,6 +1,6 @@
 # Group commit for the Durable Session
 
-Status: design, revision 2 (after three reviews). Branch `durable-perf` (worktree `~/pi-perf` on slayer), on top of the
+Status: design, revision 2 (after three reviews). Branch `durable-perf` (worktree `~/evoharness-perf` on slayer), on top of the
 uncommitted prerequisites (record cache, conversation tails, kept context ranges advanced at publish, task-document
 index, deferred tool-slot `running` and generation attempt). Read `docs/spec.md` §1, §4, §4.1, §5, §8, §10.1 alongside.
 

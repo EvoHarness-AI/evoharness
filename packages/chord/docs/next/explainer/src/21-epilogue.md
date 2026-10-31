@@ -20,13 +20,13 @@ preface while the agent keeps running. This last chapter says how much of that e
   garbage-collection tests, the cost-guard metrics, and a cleanup loop: L1 data and contracts; L2 readable and
   derive; L3 documents and store; L4 objects; L5 references and `ctx`; L6 protocol and links; L7 relay, routes,
   revocation; L8 routines and jobs; L9 registries; L10 reload and rollout; L11 telemetry in Chord.
-- **Built:** the contract layer (`src/next/contracts/`, commit `7d2bb8ea8`, chapter XVI). In pi: Delta,
-  `pi-telemetry`, `chord/context`, `chord/telemetry-sqlite`, pi-ai and Durable telemetry, Durable's required
+- **Built:** the contract layer (`src/next/contracts/`, commit `7d2bb8ea8`, chapter XVI). In evoharness: Delta,
+  `evoharness-telemetry`, `chord/context`, `chord/telemetry-sqlite`, evoharness-ai and Durable telemetry, Durable's required
   `checkpointWhen`.
 - **Next, in order** (`apps/p2/docs/p3-handoff.md`): decide Q12 and Q15, which the L1 spec needs; write the spec for
   the rest of L1 (values, inputs and identity, argument checks, principals, errors; draft in
   `packages/chord/docs/next/layer-1.md`); then Q11, Q13, Q14 and the cuts C3 to C17 before the layers they affect.
-- **In pi:** `mapShared` and bytes as atomic leaves in Delta's `diffRevisions`.
+- **In evoharness:** `mapShared` and bytes as atomic leaves in Delta's `diffRevisions`.
 - **Then** the playground web shell (React, esbuild) with the reload control and a preview at `p3.mariozechner.at`,
   and the first real proof: the harness, one tool with an approval pause, a code mode reload. Then the HTTP and
   channel components, then p3, domain by domain.

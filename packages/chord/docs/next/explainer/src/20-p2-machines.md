@@ -26,7 +26,7 @@ per environment name).
 
 **Execution in the agent.** The worker's harness asks `HarnessEnvironments` for an environment per target (chapter
 XIV). The envs plugin contributes it from its worker facet: local execution at the session's cwd, or a remote one over
-SSH through the `pi-env` daemon, deployed per platform and connecting at the first operation. A remote session never
+SSH through the `evoharness-env` daemon, deployed per platform and connecting at the first operation. A remote session never
 falls back to local tools. The environment follows `SessionLocation`: after a move, the old connection closes once
 the move has committed and watchers reopen at the new location.
 
@@ -149,7 +149,7 @@ alternative is that the start code keeps the entry point and gets channels from 
 
 ## Models and credentials
 
-The **models plugin** owns the model runtime (pi-ai's models with custom providers and the model cache) in a
+The **models plugin** owns the model runtime (evoharness-ai's models with custom providers and the model cache) in a
 host-lifetime object, and the credentials. It contributes the runtime to `HarnessModels` (chapter XIV), so after a
 models reload the next request uses the new runtime while a running stream finishes on the old one. **Credentials
 never go to clients**: the views expose providers, login methods and which type is signed in, never tokens. Every
@@ -161,7 +161,7 @@ settings (chapter XVIII).
 
 ### Login
 
-A login is the guide's flow example (chapter XII): a **job** on the server that runs pi-ai's login, and a flow that
+A login is the guide's flow example (chapter XII): a **job** on the server that runs evoharness-ai's login, and a flow that
 shows its steps to the starting owner.
 
 ```ts
@@ -199,7 +199,7 @@ reopen at the new location.
 
 ## Code mode
 
-Code mode is a plugin (chapter XIV): its `pi-codemode` sandbox is a native; scripts call tools as nested Durable calls
+Code mode is a plugin (chapter XIV): its `evoharness-codemode` sandbox is a native; scripts call tools as nested Durable calls
 and replay after a restart; the tool entry looks up the current sandbox when it starts. A reload seals and drains the
 old sandbox for at most 30 s. The on/off switch is a setting.
 
@@ -240,6 +240,6 @@ on client WebSockets, instead of p2's 1 MiB input cap and 32 pending calls), one
 snapshots after a reconnect, and a protocol version that makes an outdated web page reload.
 
 :::note | Built so far
-None of p3 exists. pi-ai's login API, pi-codemode and the `pi-env` daemon exist and are used by p2 today; the HTTP
+None of p3 exists. evoharness-ai's login API, evoharness-codemode and the `evoharness-env` daemon exist and are used by p2 today; the HTTP
 component and channels are deferred until after the kernel's first real proof (chapter XIII).
 :::

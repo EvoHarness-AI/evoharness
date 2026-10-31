@@ -7,7 +7,7 @@
  *
  * waits for the last of 200 reads would lose the script and every read it made.
  *
- * Solution: deterministic replay (`CodemodeSandboxBase.start()` in pi-codemode). The VM only runs when the host hands
+ * Solution: deterministic replay (`CodemodeSandboxBase.start()` in evoharness-codemode). The VM only runs when the host hands
  * it a result; given the same start data, clock, seed, and results in the same order, it makes the same calls with
  * the same arguments. The tool is replay-safe: after a restart, `execute()` runs again, starts the script again from
  * the stored start data, and hands it the results it got before, in the order it got them, from a journal written
@@ -241,7 +241,7 @@ export function createCodemodeTool(options: CodemodeToolOptions): ToolRegistrati
 		description: codemodeDescription(options.models !== false),
 		parameters: codemodeSchema,
 		outputLimits: OUTPUT_LIMITS,
-		// Capable models write the script as raw text instead of a JSON-escaped string; pi-ai applies it only for them.
+		// Capable models write the script as raw text instead of a JSON-escaped string; evoharness-ai applies it only for them.
 		constrainedSampling: { type: "grammar", variants: { openai_lark: CODEMODE_SOURCE_GRAMMAR } },
 		callers: ["model"],
 		replay: "safe",
@@ -605,7 +605,7 @@ class CodemodeCall {
 			this.context,
 		);
 		if (recorded !== undefined) return recorded;
-		const created = await env.createTempDir("pi-codemode-", this.context);
+		const created = await env.createTempDir("evoharness-codemode-", this.context);
 		if (!created.ok) throw new Error(created.error.message);
 		return this.api.commit(async (tx) => {
 			const run = await tx.doc(CodemodeRunDoc, this.api.taskId);

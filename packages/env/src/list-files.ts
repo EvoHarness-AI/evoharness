@@ -37,7 +37,7 @@ export async function listFilesOver(
 	if (aborted) return aborted;
 	try {
 		if (!(await connection.info()).features?.includes("listFiles")) {
-			return err(new FileError("not_supported", "The pi-env daemon does not list files; update it", path));
+			return err(new FileError("not_supported", "The evoharness-env daemon does not list files; update it", path));
 		}
 		const { json, payload } = await connection.request(
 			"listFiles",
@@ -77,7 +77,7 @@ export type LocalExecutionEnvOptions = ConstructorParameters<typeof NodeExecutio
 };
 
 /**
- * `NodeExecutionEnv` with `listFiles` through a pi-env daemon on the same machine, so local and remote environments
+ * `NodeExecutionEnv` with `listFiles` through a evoharness-env daemon on the same machine, so local and remote environments
  * list files with the same code. Everything else is `NodeExecutionEnv`'s. The connection belongs to the caller, who
  * closes it; several environments may share it.
  */

@@ -9,7 +9,7 @@ import {
 } from "@evoharness/ai";
 import { VERSION } from "../config.ts";
 import { fetchWithRetry } from "../utils/management-http.ts";
-import { getPiUserAgent } from "../utils/pi-user-agent.ts";
+import { getPiUserAgent } from "../utils/evoharness-user-agent.ts";
 
 const DEFAULT_CATALOG_BASE_URL = "https://evoharness.dev";
 const REMOTE_CATALOG_ATTEMPT_TIMEOUT_MS = 4_000;
@@ -63,7 +63,7 @@ async function readCatalog(
 	};
 }
 
-/** Whether a evoharness.dev catalog is newer than the model data shipped with pi. */
+/** Whether a evoharness.dev catalog is newer than the model data shipped with evoharness. */
 function isNewer(lastModified: number | undefined, localGeneratedAt: number | undefined): boolean {
 	return localGeneratedAt === undefined || (lastModified !== undefined && lastModified > localGeneratedAt);
 }
@@ -130,7 +130,7 @@ export function withRemoteCatalog(
 			}
 			if (!context.allowNetwork || context.signal.aborted) return;
 			// Skip the request if evoharness.dev was checked less than REMOTE_CATALOG_REFRESH_INTERVAL_MS ago.
-			// An entry without lastModified (saved by an older pi, or after a failed first request) is
+			// An entry without lastModified (saved by an older evoharness, or after a failed first request) is
 			// always refetched: remoteModels() ignores it, so waiting would leave the overlay empty.
 			if (
 				!context.force &&
@@ -189,7 +189,7 @@ export function withRemoteCatalog(
  * evoharness.dev catalog) is passed through `personalize` and the result is saved. The saved entry holds
  * the personalized list, not the evoharness.dev catalog, and replaces the catalog, including offline.
  * The refresh interval and etag revalidation are skipped. An empty list (nothing saved yet, or an
- * empty catalog saved by an older pi after a failed or missing evoharness.dev catalog) falls back to the
+ * empty catalog saved by an older evoharness after a failed or missing evoharness.dev catalog) falls back to the
  * built-in models.
  */
 export function withPersonalizedCatalog(

@@ -49,7 +49,7 @@
 		}
 	},
 	"bin": {
-		"pi-ai": "dist/cli.js"
+		"evoharness-ai": "dist/cli.js"
 	},
 	"files": [
 		"dist",

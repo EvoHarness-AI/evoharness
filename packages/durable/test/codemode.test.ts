@@ -53,7 +53,7 @@ afterEach(async () => {
 });
 
 async function sqlitePath(): Promise<string> {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-codemode-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-codemode-"));
 	directories.add(directory);
 	return join(directory, "session.sqlite");
 }
@@ -949,7 +949,7 @@ describe("durable code mode output and tool search", () => {
 	/** Run `code` once in a chat with a Node environment; the result's content and details. */
 	async function runScript(code: string, chat = codemodeChat()) {
 		chat.holds.block = false;
-		const cwd = await mkdtemp(join(tmpdir(), "pi-codemode-env-"));
+		const cwd = await mkdtemp(join(tmpdir(), "evoharness-codemode-env-"));
 		directories.add(cwd);
 		chat.setup.faux.setResponses([script(code), DONE]);
 		const { harness, root } = await openChat(await openNodeSqliteStorage(await sqlitePath()), chat.setup, {
@@ -1008,7 +1008,7 @@ describe("durable code mode output and tool search", () => {
 	it("writes the result's files to the same paths when it reruns after a crash", async () => {
 		const chat = codemodeChat();
 		chat.holds.block = false;
-		const cwd = await mkdtemp(join(tmpdir(), "pi-codemode-env-"));
+		const cwd = await mkdtemp(join(tmpdir(), "evoharness-codemode-env-"));
 		directories.add(cwd);
 		const written = deferred<string>();
 		// The process dies after the full output was written and before the result was committed.
@@ -1051,7 +1051,7 @@ describe("durable code mode output and tool search", () => {
 	// #11015
 	it("resolves the built-in read with an image's block, which image() shows, and with a text file's text", async () => {
 		const png = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==";
-		const files = await mkdtemp(join(tmpdir(), "pi-codemode-read-"));
+		const files = await mkdtemp(join(tmpdir(), "evoharness-codemode-read-"));
 		directories.add(files);
 		await writeFile(join(files, "pixel.png"), Buffer.from(png, "base64"));
 		await writeFile(join(files, "note.txt"), "hello");

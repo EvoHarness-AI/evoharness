@@ -39,7 +39,7 @@ afterEach(async () => {
 });
 
 async function sqlitePath(): Promise<string> {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-tools-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-tools-"));
 	directories.add(directory);
 	return join(directory, "session.sqlite");
 }

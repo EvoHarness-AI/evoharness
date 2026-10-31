@@ -21,7 +21,7 @@ export const VIRTUAL_MODULES: Record<string, unknown> = {
 	"@sinclair/typebox/value": bundledTypeboxValue,
 	"@evoharness/agent-core": bundledPiAgentCore,
 	"@evoharness/tui": bundledPiTui,
-	// Extensions resolve the pi-ai root to the compat entrypoint (a strict
+	// Extensions resolve the evoharness-ai root to the compat entrypoint (a strict
 	// superset of the core entrypoint): existing extensions using the old
 	// global API keep working at runtime until compat is removed.
 	"@evoharness/ai": bundledPiAiCompat,
@@ -30,12 +30,12 @@ export const VIRTUAL_MODULES: Record<string, unknown> = {
 	"@evoharness/ai/oauth": bundledPiAiOauth,
 	"@evoharness/ai/providers/all": bundledPiAiProviders,
 	"@evoharness/coding-agent": bundledPiCodingAgent,
-	"@mariozechner/pi-agent-core": bundledPiAgentCore,
-	"@mariozechner/pi-tui": bundledPiTui,
-	"@mariozechner/pi-ai": bundledPiAiCompat,
-	"@mariozechner/pi-ai/compat": bundledPiAiCompat,
-	"@mariozechner/pi-ai/models": bundledPiAiModels,
-	"@mariozechner/pi-ai/oauth": bundledPiAiOauth,
-	"@mariozechner/pi-ai/providers/all": bundledPiAiProviders,
-	"@mariozechner/pi-coding-agent": bundledPiCodingAgent,
+	"@mariozechner/evoharness-agent-core": bundledPiAgentCore,
+	"@mariozechner/evoharness-tui": bundledPiTui,
+	"@mariozechner/evoharness-ai": bundledPiAiCompat,
+	"@mariozechner/evoharness-ai/compat": bundledPiAiCompat,
+	"@mariozechner/evoharness-ai/models": bundledPiAiModels,
+	"@mariozechner/evoharness-ai/oauth": bundledPiAiOauth,
+	"@mariozechner/evoharness-ai/providers/all": bundledPiAiProviders,
+	"@mariozechner/evoharness-coding-agent": bundledPiCodingAgent,
 };

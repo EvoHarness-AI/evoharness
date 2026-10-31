@@ -2,7 +2,7 @@
 title: Chord v2: a guide to building apps that reload
 cover: Chord v2 / A Guide
 kicker: A guide · Chord v2 target design · 2026-10-20
-subtitle: How to build an app like p2 from nothing on Chord v2 and pi-durable, one object at a time, so that new plugin code takes over while the agent keeps running
+subtitle: How to build an app like p2 from nothing on Chord v2 and evoharness-durable, one object at a time, so that new plugin code takes over while the agent keeps running
 stats:
   - 11 | layers in the rebuild, L1 to L11
   - ~1,300 | lines built so far (L1 contracts)
@@ -15,8 +15,8 @@ note: |
   Chord v2 is being rebuilt layer by layer; only the L1 contract layer exists (`src/next/contracts/`, commit
   `7d2bb8ea8`). Code in this guide is therefore the target, not something you can run today. Every chapter says what is
   built. API names are working names. Notes marked *review* are points that are undecided, or where the sources
-  disagree; they name the files. The reader is assumed to know pi-durable; Chord is explained from the start.
-colophon: Chord v2 · a guide · first edition · 2026-10-20 · based on design.md (target design v2), redesign-decisions.md (review rounds 2 and 3), chord-next-walkthrough.md, layer-1.md, contracts/README.md, the p3 functionality map, questions.md and the pi-durable README
+  disagree; they name the files. The reader is assumed to know evoharness-durable; Chord is explained from the start.
+colophon: Chord v2 · a guide · first edition · 2026-10-20 · based on design.md (target design v2), redesign-decisions.md (review rounds 2 and 3), chord-next-walkthrough.md, layer-1.md, contracts/README.md, the p3 functionality map, questions.md and the evoharness-durable README
 ---
 
 # Before we begin {.preface}
@@ -31,7 +31,7 @@ agent's turn continues as if nothing happened. Ann's view does not flicker into 
 lost, and no process restarts.
 
 The obvious ways to get there fail. **Restarting the processes** loses the turn in flight, the open terminal and every
-connection; pi-durable would resume the turn, but the test run and the connections are gone. **Hot-swapping modules**
+connection; evoharness-durable would resume the turn, but the test run and the connections are gone. **Hot-swapping modules**
 in place, as front-end tooling does, leaves the old code alive in closures, timers, event listeners and sockets that
 nobody knows about: the old sort function keeps running inside a callback someone stored, a file watcher opened by the
 old code is never closed, and two versions of the plugin now write the same data without any order.
@@ -43,8 +43,8 @@ watcher, transaction and reference an object has, it can swap the object's code 
 what touches the operating system, and route calls between browser tabs, the server and per-session worker processes
 without the plugin author writing any of that.
 
-This guide teaches Chord v2 by building an app called **Studio**: a small version of p2 (Pi Mobile), with a server,
-one worker process per session, browser tabs as clients, and an agent from pi-durable on each worker. The first
+This guide teaches Chord v2 by building an app called **Studio**: a small version of p2 (EvoHarness Mobile), with a server,
+one worker process per session, browser tabs as clients, and an agent from evoharness-durable on each worker. The first
 chapters grow one plugin, `@studio/notes`, until it uses every concept; the last three chapters assemble the rest of a
 p2-like app from the same parts.
 
@@ -81,7 +81,7 @@ descriptions on the wire); do not read it as the target. Build on the design, no
 9. **Reload swaps pure objects in place and restarts native ones.** Objects without OS handles get the new code with
    their data and running work intact; objects with OS handles close and reopen them. A broken change leaves the whole
    host on its old code.
-10. **pi-durable runs inside a core object.** The agent harness is a host-lifetime object on each worker; models,
+10. **evoharness-durable runs inside a core object.** The agent harness is a host-lifetime object on each worker; models,
     environments and tools reach it through registries, and tools reach Chord through `chord(fn, context)`.
 :::
 

@@ -48,7 +48,7 @@ async function release(name: string): Promise<void> {
 type Sizes = Record<"live" | "settled" | "edges" | "below" | "roots" | "unloaded" | "dropQueue", number>;
 
 async function run(cycles: number) {
-	const directory = mkdtempSync(join(tmpdir(), "pi-durable-memory-bench-"));
+	const directory = mkdtempSync(join(tmpdir(), "evoharness-durable-memory-bench-"));
 	try {
 		const storage = await openNodeSqliteStorage(join(directory, "session.sqlite"));
 		const reads = { count: 0 };

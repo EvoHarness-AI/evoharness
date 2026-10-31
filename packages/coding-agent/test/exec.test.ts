@@ -5,7 +5,7 @@ import { execCommand } from "../src/core/exec.ts";
 describe("execCommand", () => {
 	// Regression test for https://github.com/EvoHarness-AI/evoharness/issues/11085
 	it("reports spawn errors in stderr", async () => {
-		const result = await execCommand("pi-command-that-does-not-exist-11085", [], process.cwd());
+		const result = await execCommand("evoharness-command-that-does-not-exist-11085", [], process.cwd());
 
 		expect(result).toMatchObject({
 			code: 1,
@@ -33,7 +33,7 @@ describe("execCommand", () => {
 	])("rejects invalid maxBuffer %s instead of attempting execution", async (maxBuffer) => {
 		// A missing command normally resolves to a failed result; invalid options must reject instead.
 		await expect(
-			execCommand("pi-command-that-does-not-exist-11360", [], process.cwd(), { maxBuffer }),
+			execCommand("evoharness-command-that-does-not-exist-11360", [], process.cwd(), { maxBuffer }),
 		).rejects.toThrow(RangeError);
 	});
 

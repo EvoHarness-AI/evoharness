@@ -17,7 +17,7 @@ describe("defaultTools setting", () => {
 	let agentDir: string;
 
 	beforeEach(() => {
-		tempDir = join(tmpdir(), `pi-default-tools-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+		tempDir = join(tmpdir(), `evoharness-default-tools-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 		agentDir = join(tempDir, "agent");
 		mkdirSync(agentDir, { recursive: true });
 	});
@@ -81,8 +81,8 @@ describe("defaultTools setting", () => {
 
 	it("activates an inactive extension tool with +name", async () => {
 		const session = await createSession(["+inactive_tool", "-write"], {}, [
-			(pi) => {
-				pi.registerTool({
+			(evoharness) => {
+				evoharness.registerTool({
 					name: "inactive_tool",
 					label: "Inactive Tool",
 					description: "Extension tool registered inactive",
@@ -112,16 +112,16 @@ describe("defaultTools setting", () => {
 				],
 			},
 			[
-				(pi) => {
-					pi.registerTool({
+				(evoharness) => {
+					evoharness.registerTool({
 						name: "static_tool",
 						label: "Static Tool",
 						description: "Statically registered extension tool",
 						parameters: Type.Object({}),
 						execute: async () => ({ content: [{ type: "text", text: "ok" }], details: {} }),
 					});
-					pi.on("session_start", () => {
-						pi.registerTool({
+					evoharness.on("session_start", () => {
+						evoharness.registerTool({
 							name: "dynamic_tool",
 							label: "Dynamic Tool",
 							description: "Dynamically registered extension tool",
@@ -157,8 +157,8 @@ describe("defaultTools setting", () => {
 	});
 
 	it("applies +name and -name tool options to the default selection", async () => {
-		const inactiveTool: InlineExtension = (pi) => {
-			pi.registerTool({
+		const inactiveTool: InlineExtension = (evoharness) => {
+			evoharness.registerTool({
 				name: "inactive_tool",
 				label: "Inactive Tool",
 				description: "Extension tool registered inactive",
@@ -166,7 +166,7 @@ describe("defaultTools setting", () => {
 				execute: async () => ({ content: [{ type: "text", text: "ok" }], details: {} }),
 				defaultActive: false,
 			});
-			pi.registerTool({
+			evoharness.registerTool({
 				name: "active_tool",
 				label: "Active Tool",
 				description: "Extension tool registered active",
@@ -201,8 +201,8 @@ describe("defaultTools setting", () => {
 	});
 
 	describe("reload", () => {
-		const inactiveTool: InlineExtension = (pi) => {
-			pi.registerTool({
+		const inactiveTool: InlineExtension = (evoharness) => {
+			evoharness.registerTool({
 				name: "inactive_tool",
 				label: "Inactive Tool",
 				description: "Extension tool registered inactive",
@@ -291,8 +291,8 @@ describe("defaultTools setting", () => {
 
 	// #10785
 	describe("resume", () => {
-		const extensionTools: InlineExtension = (pi) => {
-			pi.registerTool({
+		const extensionTools: InlineExtension = (evoharness) => {
+			evoharness.registerTool({
 				name: "inactive_tool",
 				label: "Inactive Tool",
 				description: "Extension tool registered inactive",
@@ -300,7 +300,7 @@ describe("defaultTools setting", () => {
 				execute: async () => ({ content: [{ type: "text", text: "ok" }], details: {} }),
 				defaultActive: false,
 			});
-			pi.registerTool({
+			evoharness.registerTool({
 				name: "active_tool",
 				label: "Active Tool",
 				description: "Extension tool registered active",

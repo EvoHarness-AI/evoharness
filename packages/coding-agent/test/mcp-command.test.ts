@@ -7,7 +7,7 @@ import { runMcpCommand } from "../src/extensions/mcp/cli.ts";
 
 const FIXTURE = resolve(import.meta.dirname, "../../mcp/test/fixtures/stdio-server.mjs");
 
-describe("pi mcp", () => {
+describe("evoharness mcp", () => {
 	const dirs: string[] = [];
 
 	afterEach(() => {
@@ -15,7 +15,7 @@ describe("pi mcp", () => {
 	});
 
 	async function run(args: string[], servers: Record<string, unknown> | undefined, dir?: string) {
-		const agentDir = dir ?? mkdtempSync(join(tmpdir(), "pi-mcp-command-"));
+		const agentDir = dir ?? mkdtempSync(join(tmpdir(), "evoharness-mcp-command-"));
 		if (!dir) dirs.push(agentDir);
 		if (servers) writeFileSync(join(agentDir, "mcp.json"), JSON.stringify({ mcpServers: servers }));
 		const output: string[] = [];
@@ -32,7 +32,7 @@ describe("pi mcp", () => {
 
 	const servers = {
 		fixture: { command: process.execPath, args: [FIXTURE] },
-		broken: { command: "pi-test-missing-mcp-server" },
+		broken: { command: "evoharness-test-missing-mcp-server" },
 		parked: { command: process.execPath, args: [FIXTURE], enabled: false },
 		bad: { args: ["no command"] },
 	};
@@ -43,7 +43,7 @@ describe("pi mcp", () => {
 		expect(output).toContain("fixture: connected, 1 tool (codemode, global)\n");
 		expect(output).toContain("  tools: echo");
 		expect(output).toContain(
-			"broken: failed (codemode, global)\n  pi-test-missing-mcp-server\n  spawn pi-test-missing-mcp-server ENOENT",
+			"broken: failed (codemode, global)\n  evoharness-test-missing-mcp-server\n  spawn evoharness-test-missing-mcp-server ENOENT",
 		);
 		expect(output).toContain("parked: disabled (codemode, global)");
 		expect(output).toContain("config error: ");
@@ -160,16 +160,16 @@ describe("pi mcp", () => {
 				"--url",
 				"https://mcp.sentry.dev/mcp",
 				"--oauth-client-id",
-				"pi",
+				"evoharness",
 				"--oauth-client-name",
 				"Claude Code",
 			],
 			undefined,
 			agentDir,
 		);
-		expect(oauth.output).toContain("If it requires sign-in: pi mcp login sentry");
+		expect(oauth.output).toContain("If it requires sign-in: evoharness mcp login sentry");
 		expect(readConfig(join(agentDir, "mcp.json")).mcpServers).toMatchObject({
-			sentry: { url: "https://mcp.sentry.dev/mcp", oauth: { clientId: "pi", clientName: "Claude Code" } },
+			sentry: { url: "https://mcp.sentry.dev/mcp", oauth: { clientId: "evoharness", clientName: "Claude Code" } },
 		});
 
 		await run(
@@ -204,7 +204,7 @@ describe("pi mcp", () => {
 	it("adds and removes project servers", async () => {
 		const added = await run(["add", "-l", "local", "--", "node", "server.js"], undefined);
 		expect(added.output).toContain("The project is not trusted");
-		const projectConfig = join(added.agentDir, ".pi", "mcp.json");
+		const projectConfig = join(added.agentDir, ".evoharness", "mcp.json");
 		expect(readConfig(projectConfig)).toEqual({ mcpServers: { local: { command: "node", args: ["server.js"] } } });
 
 		const wrongScope = await run(["remove", "local"], undefined, added.agentDir);

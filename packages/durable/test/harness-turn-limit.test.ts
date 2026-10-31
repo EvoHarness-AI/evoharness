@@ -303,7 +303,7 @@ describe("turn limit", () => {
 
 	// #11043
 	it("keeps the stored count across a restart", async () => {
-		const directory = await mkdtemp(join(tmpdir(), "pi-durable-turns-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-turns-"));
 		directories.add(directory);
 		const path = join(directory, "session.sqlite");
 		const setup = chatSetup();

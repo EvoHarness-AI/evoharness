@@ -175,7 +175,7 @@ exportText: async ({}, ctx) => {
 ```
 
 There are no code versions and no request ids in `ctx`. Durable's `Context` is the same module (`chord/context`):
-`ctx` extends it, so passing `ctx` into pi-durable needs no conversion. Code outside objects gets a `ctx` from
+`ctx` extends it, so passing `ctx` into evoharness-durable needs no conversion. Code outside objects gets a `ctx` from
 `host.root(fn, { principal?, signal? })`; inside Durable tools it uses `chord(fn, context)` (chapter XIV).
 
 :::note | Built so far

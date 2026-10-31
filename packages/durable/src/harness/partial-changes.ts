@@ -174,7 +174,7 @@ function applyChange(block: Draft<JsonRepresentation<ToolCall>>, change: JsonCha
 	else appendText(parent as Draft<Record<string, string>>, String(key), change.text);
 }
 
-/** The value a `set` change reports: JSON data, which pi-ai types with read-only arrays. */
+/** The value a `set` change reports: JSON data, which evoharness-ai types with read-only arrays. */
 function value(change: Extract<JsonChange, { kind: "set" }>): JsonValue {
 	return change.value as JsonValue;
 }

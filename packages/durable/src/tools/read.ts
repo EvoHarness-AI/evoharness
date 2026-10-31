@@ -143,7 +143,7 @@ export function createReadTool(options: ReadToolOptions = {}): ToolRegistration<
 /**
  * One image block, prepared by `processor` or, without one, as it is when its format is inline and it fits the limits
  * (its size is checked before reading it, its dimensions from its header); otherwise an error result saying why. What happened to the image is an `info` diagnostic, so programs get the
- * bare `ImageContent`. A model without image input sees pi-ai's placeholder instead; a diagnostic says so.
+ * bare `ImageContent`. A model without image input sees evoharness-ai's placeholder instead; a diagnostic says so.
  */
 async function readImage(
 	reader: BinaryReader,

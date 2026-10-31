@@ -14,7 +14,7 @@ const sha = "a".repeat(40);
 const newerSha = "b".repeat(40);
 
 function temporaryDirectory(t) {
-	const directory = mkdtempSync(join(tmpdir(), "pi-preview-packages-test-"));
+	const directory = mkdtempSync(join(tmpdir(), "evoharness-preview-packages-test-"));
 	t.after(() => rmSync(directory, { recursive: true, force: true }));
 	return directory;
 }

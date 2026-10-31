@@ -17,7 +17,7 @@ import { imageDimensions } from "../src/tools/image.ts";
 import { DEFAULT_IMAGE_LIMITS, type ImageProcessor, toBase64 } from "../src/tools/image-processor.ts";
 import { createReadTool } from "../src/tools/read.ts";
 
-const directory = mkdtempSync(join(tmpdir(), "pi-durable-images-"));
+const directory = mkdtempSync(join(tmpdir(), "evoharness-durable-images-"));
 let processor: ImageProcessor;
 
 beforeAll(async () => {

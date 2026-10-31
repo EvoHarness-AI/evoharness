@@ -22,7 +22,7 @@
  *   toggled the tool output open (via ctrl+e or clicking)
  *
  * Usage:
- *   pi -e ./built-in-tool-renderer.ts
+ *   evoharness -e ./built-in-tool-renderer.ts
  */
 
 import type { BashToolDetails, EditToolDetails, ExtensionAPI, ReadToolDetails } from "@evoharness/coding-agent";
@@ -34,12 +34,12 @@ import {
 } from "@evoharness/coding-agent";
 import { Text } from "@evoharness/tui";
 
-export default function (pi: ExtensionAPI) {
+export default function (evoharness: ExtensionAPI) {
 	const cwd = process.cwd();
 
 	// --- Read tool: show path and line count ---
 	const originalRead = createReadToolDefinition(cwd);
-	pi.registerTool({
+	evoharness.registerTool({
 		...originalRead,
 
 		renderCall(args, theme, _context) {
@@ -91,7 +91,7 @@ export default function (pi: ExtensionAPI) {
 
 	// --- Bash tool: show command and exit code ---
 	const originalBash = createBashToolDefinition(cwd);
-	pi.registerTool({
+	evoharness.registerTool({
 		...originalBash,
 
 		renderCall(args, theme, _context) {
@@ -143,7 +143,7 @@ export default function (pi: ExtensionAPI) {
 
 	// --- Edit tool: show path and diff stats ---
 	const originalEdit = createEditToolDefinition(cwd);
-	pi.registerTool({
+	evoharness.registerTool({
 		...originalEdit,
 
 		renderCall(args, theme, _context) {
@@ -200,7 +200,7 @@ export default function (pi: ExtensionAPI) {
 
 	// --- Write tool: show path and size ---
 	const originalWrite = createWriteToolDefinition(cwd);
-	pi.registerTool({
+	evoharness.registerTool({
 		...originalWrite,
 
 		renderCall(args, theme, _context) {

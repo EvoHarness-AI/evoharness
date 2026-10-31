@@ -40,7 +40,7 @@ const Work = defineTask<null, { phase: "work" }, null>({
 });
 
 async function run(conversations: number, documentRetentionMs: number) {
-	const directory = mkdtempSync(join(tmpdir(), "pi-durable-doc-cache-bench-"));
+	const directory = mkdtempSync(join(tmpdir(), "evoharness-durable-doc-cache-bench-"));
 	try {
 		const storage = await openNodeSqliteStorage(join(directory, "session.sqlite"));
 		const registry = createRegistry();

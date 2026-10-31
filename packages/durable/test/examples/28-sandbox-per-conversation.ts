@@ -57,7 +57,7 @@ const harness = await Harness.open(
 // Each user's conversation gets a fresh sandbox in the creating commit.
 const model = { provider: "faux", modelId: "faux-1" };
 async function conversationFor(user: string) {
-	const path = await mkdtemp(join(tmpdir(), `pi-durable-sandbox-${user}-`));
+	const path = await mkdtemp(join(tmpdir(), `evoharness-durable-sandbox-${user}-`));
 	const conversation = await harness.createConversation(
 		{
 			ownership: { kind: "ownerless" },

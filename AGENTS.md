@@ -29,7 +29,7 @@
 
 ## Chord v2 Code Style
 
-Binding for `packages/chord/src/next/` and its tests, when writing and when reviewing. The model is pi-durable's source.
+Binding for `packages/chord/src/next/` and its tests, when writing and when reviewing. The model is evoharness-durable's source.
 
 - Files: one concept per file, named after it; no one-helper files, no grab-bag files. First line: a comment saying what the file is for. Order: imports, exported types, then the public entry point first and its helpers below it in the order they are used; constants right above their first user. A blank line between top-level declarations. Split files by concept, never by size: one concept may take a long file (up to about 1,000 lines is fine); a second concept in a file is the reason to split.
 - Functions: every export has a one-line doc comment saying what it does or guarantees. Inline comments explain a non-obvious why (cost, race, decided rule), never what the next line does. Short functions with one job (about 40 lines needs a reason; one `switch` over a tagged union is fine). No boolean flag parameters that switch behaviour: two functions or a tagged value. Never write the same lines twice. Context last: required args, then `context`/`ctx` (always required, as in Durable; optional only on error-reporting paths), then optional args.
@@ -66,7 +66,7 @@ Binding for `packages/chord/src/next/` and its tests, when writing and when revi
 
 ## Git
 
-Multiple pi sessions may be running in this cwd at the same time, each modifying different files. Git operations that touch unstaged, staged, or untracked files outside your own changes will stomp on other sessions' work. Follow these rules:
+Multiple evoharness sessions may be running in this cwd at the same time, each modifying different files. Git operations that touch unstaged, staged, or untracked files outside your own changes will stomp on other sessions' work. Follow these rules:
 
 Committing:
 
@@ -110,9 +110,9 @@ When closing issues via commit:
 
 - Include `fixes #<number>` or `closes #<number>` in the message so merging auto-closes the issue. For multiple issues, repeat the keyword per issue (`closes #1, closes #2`); a shared keyword (`closes #1, #2`) only closes the first.
 
-## Testing pi Interactive Mode with tmux
+## Testing evoharness Interactive Mode with tmux
 
-For testing pi's interactive mode, load and follow [.pi/skills/interactive-testing.md](.pi/skills/interactive-testing.md).
+For testing evoharness's interactive mode, load and follow [.evoharness/skills/interactive-testing.md](.evoharness/skills/interactive-testing.md).
 
 ## Changelog
 
@@ -133,7 +133,7 @@ Attribution:
 
 ## Releasing
 
-For release preparation, publishing, verification, or recovery, load and follow [.pi/skills/release.md](.pi/skills/release.md).
+For release preparation, publishing, verification, or recovery, load and follow [.evoharness/skills/release.md](.evoharness/skills/release.md).
 
 ## User Override
 

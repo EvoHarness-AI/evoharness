@@ -52,8 +52,8 @@ describe("automatic compaction cancellation regressions", () => {
 				retry: { enabled: false },
 			},
 			extensionFactories: [
-				(pi) => {
-					pi.on("session_before_compact", () => ({ cancel: true }));
+				(evoharness) => {
+					evoharness.on("session_before_compact", () => ({ cancel: true }));
 				},
 			],
 		});
@@ -143,8 +143,8 @@ describe("automatic compaction cancellation regressions", () => {
 		const harness = await createHarness({
 			settings: { compaction: { keepRecentTokens: 1 } },
 			extensionFactories: [
-				(pi) => {
-					pi.on("session_before_compact", () => ({ cancel: true }));
+				(evoharness) => {
+					evoharness.on("session_before_compact", () => ({ cancel: true }));
 				},
 			],
 		});

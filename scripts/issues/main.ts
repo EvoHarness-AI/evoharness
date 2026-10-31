@@ -1,4 +1,4 @@
-// Issue triage: sync issues, triage new ones with a pi-durable agent, and serve a small web UI for decisions.
+// Issue triage: sync issues, triage new ones with a evoharness-durable agent, and serve a small web UI for decisions.
 // See README.md.
 import { randomBytes, timingSafeEqual } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";

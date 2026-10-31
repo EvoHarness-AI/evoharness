@@ -168,7 +168,7 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 		cwd: string;
 		createTransport: McpTransportFactory;
 		credentials: McpOAuthCredentialStore;
-		/** The current token of a pi provider, for servers with `auth.provider`. */
+		/** The current token of a evoharness provider, for servers with `auth.provider`. */
 		providerToken?: (provider: string) => Promise<string | undefined>;
 		onTools: (connection: McpServerConnection) => void;
 		/** Called when `state`, `error`, or `tools` change. */
@@ -358,7 +358,7 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 
 	private async connectOnce(): Promise<McpClient> {
 		const client = new McpClient({
-			name: "pi",
+			name: "evoharness",
 			version: VERSION,
 			requestTimeoutMs: this.timeoutMs,
 			roots: [{ uri: pathToFileURL(this.cwd).href, name: basename(this.cwd) }],

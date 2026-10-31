@@ -61,10 +61,10 @@ const HOST_PROVIDED_EXTENSION_PACKAGES = new Set([
 	"@evoharness/ai",
 	"@evoharness/coding-agent",
 	"@evoharness/tui",
-	"@mariozechner/pi-agent-core",
-	"@mariozechner/pi-ai",
-	"@mariozechner/pi-coding-agent",
-	"@mariozechner/pi-tui",
+	"@mariozechner/evoharness-agent-core",
+	"@mariozechner/evoharness-ai",
+	"@mariozechner/evoharness-coding-agent",
+	"@mariozechner/evoharness-tui",
 	"@sinclair/typebox",
 	"typebox",
 ]);
@@ -171,7 +171,7 @@ function omitReplacedExtensions(
 			const registeredName = kind === "command" ? `/${rawName}` : kind === "flag" ? `--${rawName}` : rawName;
 			warnings?.push({
 				path: extension.path,
-				warning: `Extension ${replacement.extension.path} registers ${kind} \`${registeredName}\`, so built-in extension \`${builtinName}\` was not loaded. To use \`${builtinName}\`, run \`pi config\` and make sure it is enabled under Built-in extensions, then disable or remove the existing extension. We recommend only having one or the other loaded at a time.`,
+				warning: `Extension ${replacement.extension.path} registers ${kind} \`${registeredName}\`, so built-in extension \`${builtinName}\` was not loaded. To use \`${builtinName}\`, run \`evoharness config\` and make sure it is enabled under Built-in extensions, then disable or remove the existing extension. We recommend only having one or the other loaded at a time.`,
 			});
 		}
 		return false;

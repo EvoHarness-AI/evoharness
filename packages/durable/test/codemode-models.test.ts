@@ -222,7 +222,7 @@ describe("code mode models.*", () => {
 	it("does not start a model call that waited for a slot after the script ended", async () => {
 		const chat = modelsChat();
 		chat.gate.open = deferred();
-		const directory = await mkdtemp(join(tmpdir(), "pi-codemode-models-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-codemode-models-"));
 		// The result spills to a file after the script ended and before the tool returns. Then the running
 		// calls finish and free their slots, which the two waiting calls would take.
 		class SlowTempFiles extends NodeExecutionEnv {

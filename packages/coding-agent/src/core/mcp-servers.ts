@@ -89,7 +89,7 @@ export interface McpStdioServerConfig extends McpServerConfigBase {
 
 /** OAuth client settings for servers that do not support dynamic client registration. */
 export interface McpOAuthConfig {
-	/** Pre-registered client id. Without it, pi registers a client with the authorization server. */
+	/** Pre-registered client id. Without it, evoharness registers a client with the authorization server. */
 	clientId?: string;
 	/** May reference environment variables (`${NAME}`) or commands (`!cmd`). */
 	clientSecret?: string;
@@ -108,11 +108,11 @@ export interface McpOAuthConfig {
 	scope?: string;
 	/**
 	 * `client_name` sent with dynamic client registration, for servers that only accept known clients.
-	 * Default: `pi`.
+	 * Default: `evoharness`.
 	 */
 	clientName?: string;
 	/**
-	 * How pi identifies itself without `clientId`. `auto` (default): pi's Client ID Metadata Document on
+	 * How evoharness identifies itself without `clientId`. `auto` (default): evoharness's Client ID Metadata Document on
 	 * evoharness.dev when the authorization server supports it for public clients, otherwise dynamic client
 	 * registration; with `clientName` or a `callbackUrl` other than `/callback` on localhost or 127.0.0.1,
 	 * always dynamic client registration. `cimd`: always the document, and sign-in fails without support.
@@ -129,7 +129,7 @@ export interface McpOAuthConfig {
 
 const LOOPBACK_HOSTS = ["localhost", "127.0.0.1", "[::1]"];
 
-/** Whether a redirect URI can be served by pi's loopback callback server. */
+/** Whether a redirect URI can be served by evoharness's loopback callback server. */
 export function isLoopbackRedirectUri(value: string): boolean {
 	if (!URL.canParse(value)) return false;
 	const url = new URL(value);
@@ -137,8 +137,8 @@ export function isLoopbackRedirectUri(value: string): boolean {
 }
 
 /**
- * Whether pi's Client ID Metadata Documents list a redirect URI for the loopback `callbackUrl`: they list
- * `/callback` on localhost and 127.0.0.1, on any port. Without `callbackUrl`, pi uses such a URI.
+ * Whether evoharness's Client ID Metadata Documents list a redirect URI for the loopback `callbackUrl`: they list
+ * `/callback` on localhost and 127.0.0.1, on any port. Without `callbackUrl`, evoharness uses such a URI.
  */
 export function isClientMetadataDocumentCallback(callbackUrl: string | undefined): boolean {
 	if (callbackUrl === undefined) return true;
@@ -153,7 +153,7 @@ export interface McpHttpServerConfig extends McpServerConfigBase {
 	headers?: Record<string, string>;
 	oauth?: McpOAuthConfig;
 	/**
-	 * Send the token of a pi provider (`/login <provider>`) instead of using OAuth. Not allowed in project
+	 * Send the token of a evoharness provider (`/login <provider>`) instead of using OAuth. Not allowed in project
 	 * `mcp.json` files, and requires https except on loopback hosts, since it sends the credential to `url`.
 	 */
 	auth?: { provider: string };

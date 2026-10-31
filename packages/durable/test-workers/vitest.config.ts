@@ -12,10 +12,10 @@ export default defineConfig({
 	resolve: {
 		conditions: ["source"],
 		alias: [
-			{ find: /^@earendil-works\/pi-durable$/, replacement: source("../src/index.ts") },
-			{ find: /^@earendil-works\/pi-durable\/testing$/, replacement: source("../src/testing/index.ts") },
+			{ find: /^@earendil-works\/evoharness-durable$/, replacement: source("../src/index.ts") },
+			{ find: /^@earendil-works\/evoharness-durable\/testing$/, replacement: source("../src/testing/index.ts") },
 			{
-				find: /^@earendil-works\/pi-durable\/storage\/sqlite\/cloudflare$/,
+				find: /^@earendil-works\/evoharness-durable\/storage\/sqlite\/cloudflare$/,
 				replacement: source("../src/storage/sqlite/cloudflare.ts"),
 			},
 		],

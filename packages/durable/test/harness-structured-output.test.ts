@@ -365,7 +365,7 @@ describe("structured output", () => {
 	});
 
 	it("gives callers of bash its retained output and exit code, also for a nonzero exit", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "pi-durable-structured-"));
+		const directory = mkdtempSync(join(tmpdir(), "evoharness-durable-structured-"));
 		try {
 			const setup = chatSetup();
 			addTool(setup.registry, createBashTool());

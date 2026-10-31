@@ -18,9 +18,9 @@ registerEnvConformance(
 	{ describe, expect, it },
 	"RemoteExecutionEnv over a pipe",
 	async (use) => {
-		const cwd = mkdtempSync(join(tmpdir(), "pi-env-conformance-"));
+		const cwd = mkdtempSync(join(tmpdir(), "evoharness-env-conformance-"));
 		try {
-			await use(new RemoteExecutionEnv({ connection, id: "pi-env:test", cwd, watch: { pollIntervalMs: 100 } }));
+			await use(new RemoteExecutionEnv({ connection, id: "evoharness-env:test", cwd, watch: { pollIntervalMs: 100 } }));
 		} finally {
 			// On Windows a killed command's processes can hold the directory for a moment.
 			rmSync(cwd, { recursive: true, force: true, maxRetries: 50, retryDelay: 100 });
@@ -34,7 +34,7 @@ registerEnvConformance(
 	{ describe, expect, it },
 	"LocalExecutionEnv",
 	async (use) => {
-		const cwd = mkdtempSync(join(tmpdir(), "pi-env-local-conformance-"));
+		const cwd = mkdtempSync(join(tmpdir(), "evoharness-env-local-conformance-"));
 		try {
 			await use(new LocalExecutionEnv({ connection, cwd, watch: { pollIntervalMs: 100 } }));
 		} finally {

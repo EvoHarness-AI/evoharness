@@ -336,7 +336,7 @@ function assertRequestAuth(provider: string, apiKey: string | undefined, headers
  * Anthropic SDK client that never runs the SDK's own credential chain
  * (ANTHROPIC_PROFILE config files, federation env vars). Without this, every
  * client built with `apiKey: null, authToken: null` for header-owned auth would
- * also resolve and exchange SDK credentials behind pi's auth resolver.
+ * also resolve and exchange SDK credentials behind evoharness's auth resolver.
  */
 class EvoHarnessAnthropic extends Anthropic {
 	protected override _shouldResolveDefaultCredentials(): boolean {
@@ -376,7 +376,7 @@ function getAnthropicFederation(
 }
 
 /**
- * The SDK caches the federated access token per client, but pi creates a client
+ * The SDK caches the federated access token per client, but evoharness creates a client
  * per request. Keep one client for the current federation config and fetch, and
  * clone it per request with `withOptions()`, which shares the token cache.
  */

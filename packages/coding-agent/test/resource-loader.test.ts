@@ -41,7 +41,7 @@ describe("DefaultResourceLoader", () => {
 		});
 
 		it("should not treat a project manifest as the owner of a project extension", async () => {
-			const extensionsDir = join(cwd, ".pi", "extensions");
+			const extensionsDir = join(cwd, ".evoharness", "extensions");
 			mkdirSync(extensionsDir, { recursive: true });
 			writeFileSync(
 				join(cwd, "package.json"),
@@ -103,11 +103,11 @@ describe("DefaultResourceLoader", () => {
 			expect(warnings).toHaveLength(1);
 			expect(warnings[0].path).toBe("npm:broken-package");
 			expect(warnings[0].warning).toMatch(/^failed to install \(.*failed with code 1\)\./);
-			expect(warnings[0].warning).toContain('Run "pi remove npm:broken-package" to remove it from settings.json.');
+			expect(warnings[0].warning).toContain('Run "evoharness remove npm:broken-package" to remove it from settings.json.');
 		});
 
 		// #11088
-		it("should point temporary extension sources at the source instead of pi remove", async () => {
+		it("should point temporary extension sources at the source instead of evoharness remove", async () => {
 			vi.stubEnv("PI_OFFLINE", "");
 			const loader = new DefaultResourceLoader({
 				cwd,
@@ -124,18 +124,18 @@ describe("DefaultResourceLoader", () => {
 			expect(warnings).toHaveLength(1);
 			expect(warnings[0].path).toBe("npm:broken-package");
 			expect(warnings[0].warning).toContain("Check the source and try again.");
-			expect(warnings[0].warning).not.toContain("pi remove");
+			expect(warnings[0].warning).not.toContain("evoharness remove");
 		});
 
 		// #11088
-		it("should point project extension packages at pi remove --local", async () => {
+		it("should point project extension packages at evoharness remove --local", async () => {
 			vi.stubEnv("PI_OFFLINE", "");
 			writeFileSync(
 				join(agentDir, "settings.json"),
 				JSON.stringify({ npmCommand: [process.execPath, "-e", "process.exit(1)"] }),
 			);
-			mkdirSync(join(cwd, ".pi"), { recursive: true });
-			writeFileSync(join(cwd, ".pi", "settings.json"), JSON.stringify({ packages: ["npm:broken-package"] }));
+			mkdirSync(join(cwd, ".evoharness"), { recursive: true });
+			writeFileSync(join(cwd, ".evoharness", "settings.json"), JSON.stringify({ packages: ["npm:broken-package"] }));
 			const loader = new DefaultResourceLoader({
 				cwd,
 				agentDir,
@@ -146,7 +146,7 @@ describe("DefaultResourceLoader", () => {
 
 			const warnings = loader.getExtensions().warnings ?? [];
 			expect(warnings).toHaveLength(1);
-			expect(warnings[0].warning).toContain('Run "pi remove npm:broken-package --local"');
+			expect(warnings[0].warning).toContain('Run "evoharness remove npm:broken-package --local"');
 		});
 
 		// #11088
@@ -204,7 +204,7 @@ Skill content here.`,
 		});
 
 		it("should ignore extra markdown files in auto-discovered skill dirs", async () => {
-			const skillDir = join(agentDir, "skills", "pi-skills", "browser-tools");
+			const skillDir = join(agentDir, "skills", "evoharness-skills", "browser-tools");
 			mkdirSync(skillDir, { recursive: true });
 			writeFileSync(
 				join(skillDir, "SKILL.md"),
@@ -266,7 +266,7 @@ Prompt content.`,
 
 		it("should prefer project resources over user on name collisions", async () => {
 			const userPromptsDir = join(agentDir, "prompts");
-			const projectPromptsDir = join(cwd, ".pi", "prompts");
+			const projectPromptsDir = join(cwd, ".evoharness", "prompts");
 			mkdirSync(userPromptsDir, { recursive: true });
 			mkdirSync(projectPromptsDir, { recursive: true });
 			const userPromptPath = join(userPromptsDir, "commit.md");
@@ -275,7 +275,7 @@ Prompt content.`,
 			writeFileSync(projectPromptPath, "Project prompt");
 
 			const userSkillDir = join(agentDir, "skills", "collision-skill");
-			const projectSkillDir = join(cwd, ".pi", "skills", "collision-skill");
+			const projectSkillDir = join(cwd, ".evoharness", "skills", "collision-skill");
 			mkdirSync(userSkillDir, { recursive: true });
 			mkdirSync(projectSkillDir, { recursive: true });
 			const userSkillPath = join(userSkillDir, "SKILL.md");
@@ -302,9 +302,9 @@ Project skill`,
 			) as { name: string; vars?: Record<string, string> };
 			baseTheme.name = "collision-theme";
 			const userThemePath = join(agentDir, "themes", "collision.json");
-			const projectThemePath = join(cwd, ".pi", "themes", "collision.json");
+			const projectThemePath = join(cwd, ".evoharness", "themes", "collision.json");
 			mkdirSync(join(agentDir, "themes"), { recursive: true });
-			mkdirSync(join(cwd, ".pi", "themes"), { recursive: true });
+			mkdirSync(join(cwd, ".evoharness", "themes"), { recursive: true });
 			writeFileSync(userThemePath, JSON.stringify(baseTheme, null, 2));
 			if (baseTheme.vars) {
 				baseTheme.vars.accent = "#ff00ff";
@@ -329,8 +329,8 @@ Project skill`,
 			mkdirSync(sharedExtDir, { recursive: true });
 			writeFileSync(
 				join(sharedExtDir, "shared.ts"),
-				`export default function(pi) {
-	pi.registerCommand("shared", {
+				`export default function(evoharness) {
+	evoharness.registerCommand("shared", {
 		description: "shared command",
 		handler: async () => {},
 	});
@@ -338,9 +338,9 @@ Project skill`,
 			);
 
 			mkdirSync(agentDir, { recursive: true });
-			mkdirSync(join(cwd, ".pi"), { recursive: true });
+			mkdirSync(join(cwd, ".evoharness"), { recursive: true });
 			symlinkSync(sharedExtDir, join(agentDir, "extensions"), "dir");
-			symlinkSync(sharedExtDir, join(cwd, ".pi", "extensions"), "dir");
+			symlinkSync(sharedExtDir, join(cwd, ".evoharness", "extensions"), "dir");
 
 			const loader = new DefaultResourceLoader({ cwd, agentDir });
 			await loader.reload();
@@ -351,12 +351,12 @@ Project skill`,
 
 			// mergePaths processes project paths before user paths, so the project
 			// alias is the canonical survivor.
-			expect(extensionsResult.extensions[0].path).toBe(join(cwd, ".pi", "extensions", "shared.ts"));
+			expect(extensionsResult.extensions[0].path).toBe(join(cwd, ".evoharness", "extensions", "shared.ts"));
 		});
 
 		it("should load user extensions before trust and reuse them after trust resolves", async () => {
 			const userExtDir = join(agentDir, "extensions");
-			const projectExtDir = join(cwd, ".pi", "extensions");
+			const projectExtDir = join(cwd, ".evoharness", "extensions");
 			mkdirSync(userExtDir, { recursive: true });
 			mkdirSync(projectExtDir, { recursive: true });
 			const loadCountKey = `__piTrustPreloadCount_${Date.now()}_${Math.random().toString(36).slice(2)}`;
@@ -365,9 +365,9 @@ Project skill`,
 			writeFileSync(
 				join(userExtDir, "user.ts"),
 				`globalThis[${JSON.stringify(loadCountKey)}] = (globalThis[${JSON.stringify(loadCountKey)}] ?? 0) + 1;
-export default function(pi) {
-	pi.on("project_trust", () => ({ trusted: "yes" }));
-	pi.registerCommand("user-trust", {
+export default function(evoharness) {
+	evoharness.on("project_trust", () => ({ trusted: "yes" }));
+	evoharness.registerCommand("user-trust", {
 		description: "user trust",
 		handler: async () => {},
 	});
@@ -375,8 +375,8 @@ export default function(pi) {
 			);
 			writeFileSync(
 				join(projectExtDir, "project.ts"),
-				`export default function(pi) {
-	pi.registerCommand("project-trusted", {
+				`export default function(evoharness) {
+	evoharness.registerCommand("project-trusted", {
 		description: "project trusted",
 		handler: async () => {},
 	});
@@ -395,7 +395,7 @@ export default function(pi) {
 
 			const extensionsResult = loader.getExtensions();
 			expect(extensionsResult.extensions.map((extension) => extension.path)).toEqual([
-				join(cwd, ".pi", "extensions", "project.ts"),
+				join(cwd, ".evoharness", "extensions", "project.ts"),
 				join(userExtDir, "user.ts"),
 			]);
 			expect(globalState[loadCountKey]).toBe(1);
@@ -403,18 +403,18 @@ export default function(pi) {
 
 		it("should keep both extensions loaded when command names collide", async () => {
 			const userExtDir = join(agentDir, "extensions");
-			const projectExtDir = join(cwd, ".pi", "extensions");
+			const projectExtDir = join(cwd, ".evoharness", "extensions");
 			mkdirSync(userExtDir, { recursive: true });
 			mkdirSync(projectExtDir, { recursive: true });
 
 			writeFileSync(
 				join(projectExtDir, "project.ts"),
-				`export default function(pi) {
-	pi.registerCommand("deploy", {
+				`export default function(evoharness) {
+	evoharness.registerCommand("deploy", {
 		description: "project deploy",
 		handler: async () => {},
 	});
-	pi.registerCommand("project-only", {
+	evoharness.registerCommand("project-only", {
 		description: "project only",
 		handler: async () => {},
 	});
@@ -423,12 +423,12 @@ export default function(pi) {
 
 			writeFileSync(
 				join(userExtDir, "user.ts"),
-				`export default function(pi) {
-	pi.registerCommand("deploy", {
+				`export default function(evoharness) {
+	evoharness.registerCommand("deploy", {
 		description: "user deploy",
 		handler: async () => {},
 	});
-	pi.registerCommand("user-only", {
+	evoharness.registerCommand("user-only", {
 		description: "user only",
 		handler: async () => {},
 	});
@@ -570,8 +570,8 @@ Content`,
 			expect(agentsFiles).toEqual([]);
 		});
 
-		it("should discover SYSTEM.md from cwd/.pi", async () => {
-			const evoharnessDir = join(cwd, ".pi");
+		it("should discover SYSTEM.md from cwd/.evoharness", async () => {
+			const evoharnessDir = join(cwd, ".evoharness");
 			mkdirSync(evoharnessDir, { recursive: true });
 			writeFileSync(join(evoharnessDir, "SYSTEM.md"), "You are a helpful assistant.");
 
@@ -582,7 +582,7 @@ Content`,
 		});
 
 		it("should skip project resources that require trust when project is not trusted", async () => {
-			const evoharnessDir = join(cwd, ".pi");
+			const evoharnessDir = join(cwd, ".evoharness");
 			const extensionsDir = join(evoharnessDir, "extensions");
 			const skillDir = join(evoharnessDir, "skills", "project-skill");
 			const promptsDir = join(evoharnessDir, "prompts");
@@ -628,7 +628,7 @@ Project skill content`,
 		});
 
 		it("should discover APPEND_SYSTEM.md", async () => {
-			const evoharnessDir = join(cwd, ".pi");
+			const evoharnessDir = join(cwd, ".evoharness");
 			mkdirSync(evoharnessDir, { recursive: true });
 			writeFileSync(join(evoharnessDir, "APPEND_SYSTEM.md"), "Additional instructions.");
 
@@ -641,7 +641,7 @@ Project skill content`,
 
 	describe("system prompt sources", () => {
 		it("exposes discovered project SYSTEM.md as the system prompt source", async () => {
-			const evoharnessDir = join(cwd, ".pi");
+			const evoharnessDir = join(cwd, ".evoharness");
 			const systemPromptPath = join(evoharnessDir, "SYSTEM.md");
 			mkdirSync(evoharnessDir, { recursive: true });
 			writeFileSync(systemPromptPath, "Project system prompt.");
@@ -684,7 +684,7 @@ Project skill content`,
 		});
 
 		it("exposes discovered APPEND_SYSTEM.md as an append system prompt source", async () => {
-			const evoharnessDir = join(cwd, ".pi");
+			const evoharnessDir = join(cwd, ".evoharness");
 			const appendSystemPromptPath = join(evoharnessDir, "APPEND_SYSTEM.md");
 			mkdirSync(evoharnessDir, { recursive: true });
 			writeFileSync(appendSystemPromptPath, "Project append prompt.");
@@ -1021,8 +1021,8 @@ Content`,
 				`
 import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { Type } from "typebox";
-export default function(pi: ExtensionAPI) {
-  pi.registerTool({
+export default function(evoharness: ExtensionAPI) {
+  evoharness.registerTool({
     name: "duplicate-tool",
     description: "First",
     parameters: Type.Object({}),
@@ -1036,8 +1036,8 @@ export default function(pi: ExtensionAPI) {
 				`
 import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { Type } from "typebox";
-export default function(pi: ExtensionAPI) {
-  pi.registerTool({
+export default function(evoharness: ExtensionAPI) {
+  evoharness.registerTool({
     name: "duplicate-tool",
     description: "Second",
     parameters: Type.Object({}),
@@ -1063,14 +1063,14 @@ export default function(pi: ExtensionAPI) {
 				`
 import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { Type } from "typebox";
-export default function(pi: ExtensionAPI) {
-  pi.registerTool({
+export default function(evoharness: ExtensionAPI) {
+  evoharness.registerTool({
     name: "duplicate-tool",
     description: "global tool",
     parameters: Type.Object({}),
     execute: async () => ({ result: "global" }),
   });
-  pi.registerCommand("deploy", {
+  evoharness.registerCommand("deploy", {
     description: "global command",
     handler: async () => {},
   });
@@ -1082,14 +1082,14 @@ export default function(pi: ExtensionAPI) {
 				`
 import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { Type } from "typebox";
-export default function(pi: ExtensionAPI) {
-  pi.registerTool({
+export default function(evoharness: ExtensionAPI) {
+  evoharness.registerTool({
     name: "duplicate-tool",
     description: "explicit tool",
     parameters: Type.Object({}),
     execute: async () => ({ result: "explicit" }),
   });
-  pi.registerCommand("deploy", {
+  evoharness.registerCommand("deploy", {
     description: "explicit command",
     handler: async () => {},
   });
@@ -1130,8 +1130,8 @@ export default function(pi: ExtensionAPI) {
 				join(globalExtDir, "other-mcp.ts"),
 				`
 import type { ExtensionAPI } from "@evoharness/coding-agent";
-export default function(pi: ExtensionAPI) {
-  pi.registerCommand("mcp", { description: "other mcp", handler: async () => {} });
+export default function(evoharness: ExtensionAPI) {
+  evoharness.registerCommand("mcp", { description: "other mcp", handler: async () => {} });
 }`,
 			);
 
@@ -1142,13 +1142,13 @@ export default function(pi: ExtensionAPI) {
 					{
 						name: "mcp",
 						replaceable: true,
-						factory: (pi) => pi.registerCommand("mcp", { description: "built-in mcp", handler: async () => {} }),
+						factory: (evoharness) => evoharness.registerCommand("mcp", { description: "built-in mcp", handler: async () => {} }),
 					},
 					{
 						name: "llama",
 						replaceable: true,
-						factory: (pi) =>
-							pi.registerCommand("llama", { description: "built-in llama", handler: async () => {} }),
+						factory: (evoharness) =>
+							evoharness.registerCommand("llama", { description: "built-in llama", handler: async () => {} }),
 					},
 				],
 			});
@@ -1195,8 +1195,8 @@ export default function(pi: ExtensionAPI) {
 		});
 
 		it("should skip disabledBuiltinExtensions even when settings or -e enable them", async () => {
-			mkdirSync(join(cwd, ".pi"), { recursive: true });
-			writeFileSync(join(cwd, ".pi", "settings.json"), JSON.stringify({ extensions: ["+builtin:mcp"] }));
+			mkdirSync(join(cwd, ".evoharness"), { recursive: true });
+			writeFileSync(join(cwd, ".evoharness", "settings.json"), JSON.stringify({ extensions: ["+builtin:mcp"] }));
 			const loaded: string[] = [];
 			const loader = new DefaultResourceLoader({
 				cwd,
@@ -1219,9 +1219,9 @@ export default function(pi: ExtensionAPI) {
 			const userExtDir = join(agentDir, "extensions");
 			mkdirSync(userExtDir, { recursive: true });
 			writeFileSync(join(userExtDir, "user.ts"), "export default function() {}");
-			mkdirSync(join(cwd, ".pi"), { recursive: true });
+			mkdirSync(join(cwd, ".evoharness"), { recursive: true });
 			// A project override gives the built-in project scope, which must not move it ahead.
-			writeFileSync(join(cwd, ".pi", "settings.json"), JSON.stringify({ extensions: ["+builtin:mcp"] }));
+			writeFileSync(join(cwd, ".evoharness", "settings.json"), JSON.stringify({ extensions: ["+builtin:mcp"] }));
 			const loader = new DefaultResourceLoader({
 				cwd,
 				agentDir,
@@ -1258,9 +1258,9 @@ export default function(pi: ExtensionAPI) {
 
 		it("should apply project built-in extension overrides after trust resolves", async () => {
 			writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ extensions: ["-builtin:mcp"] }));
-			mkdirSync(join(cwd, ".pi"), { recursive: true });
+			mkdirSync(join(cwd, ".evoharness"), { recursive: true });
 			writeFileSync(
-				join(cwd, ".pi", "settings.json"),
+				join(cwd, ".evoharness", "settings.json"),
 				JSON.stringify({ extensions: ["+builtin:mcp", "-builtin:llama"] }),
 			);
 			const loaded: string[] = [];

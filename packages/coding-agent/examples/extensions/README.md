@@ -1,15 +1,15 @@
 # Extension Examples
 
-Example extensions for pi-coding-agent.
+Example extensions for evoharness-coding-agent.
 
 ## Usage
 
 ```bash
 # Load an extension with --extension flag
-pi --extension examples/extensions/permission-gate.ts
+evoharness --extension examples/extensions/permission-gate.ts
 
 # Or copy to extensions directory for auto-discovery
-cp permission-gate.ts ~/.pi/agent/extensions/
+cp permission-gate.ts ~/.evoharness/agent/extensions/
 ```
 
 ## Examples
@@ -99,7 +99,7 @@ cp permission-gate.ts ~/.pi/agent/extensions/
 
 | Extension | Description |
 |-----------|-------------|
-| `mac-system-theme.ts` | Syncs pi theme with macOS dark/light mode |
+| `mac-system-theme.ts` | Syncs evoharness theme with macOS dark/light mode |
 
 ### Resources
 
@@ -128,7 +128,7 @@ cp permission-gate.ts ~/.pi/agent/extensions/
 | Extension | Description |
 |-----------|-------------|
 | `custom-provider-anthropic/` | Custom Anthropic provider with OAuth support and custom streaming implementation |
-| `custom-provider-gitlab-duo/` | GitLab Duo provider using pi-ai's built-in Anthropic/OpenAI streaming via proxy |
+| `custom-provider-gitlab-duo/` | GitLab Duo provider using evoharness-ai's built-in Anthropic/OpenAI streaming via proxy |
 | `jev-router.ts` | Virtual model via `registerVirtualModel` that plans on Codex Sol or Terra (picked by the Jev classifier) and switches to Luna after the first edit |
 
 ### External Dependencies
@@ -146,9 +146,9 @@ See [docs/extensions.md](../../docs/extensions.md) for full documentation.
 import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { Type } from "typebox";
 
-export default function (pi: ExtensionAPI) {
+export default function (evoharness: ExtensionAPI) {
   // Subscribe to lifecycle events
-  pi.on("tool_call", async (event, ctx) => {
+  evoharness.on("tool_call", async (event, ctx) => {
     if (event.toolName === "bash" && event.input.command?.includes("rm -rf")) {
       const ok = await ctx.ui.confirm("Dangerous!", "Allow rm -rf?");
       if (!ok) return { block: true, reason: "Blocked by user" };
@@ -156,7 +156,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   // Register custom tools
-  pi.registerTool({
+  evoharness.registerTool({
     name: "greet",
     label: "Greeting",
     description: "Generate a greeting",
@@ -172,7 +172,7 @@ export default function (pi: ExtensionAPI) {
   });
 
   // Register commands
-  pi.registerCommand("hello", {
+  evoharness.registerCommand("hello", {
     description: "Say hello",
     handler: async (args, ctx) => {
       ctx.ui.notify("Hello!", "info");
@@ -203,7 +203,7 @@ return {
 };
 
 // Reconstruct on session events
-pi.on("session_start", async (_event, ctx) => {
+evoharness.on("session_start", async (_event, ctx) => {
   for (const entry of ctx.sessionManager.getBranch()) {
     if (entry.type === "message" && entry.message.toolName === "my_tool") {
       const details = entry.message.details;

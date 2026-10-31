@@ -92,7 +92,7 @@ function noWrites(): Written {
 }
 
 async function runScenario(scenario: Scenario): Promise<{ perRun: Run[]; closedBytes: number }> {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-nested-bench-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-nested-bench-"));
 	try {
 		const faux = fauxProvider();
 		const models = createModels();

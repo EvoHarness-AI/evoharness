@@ -76,7 +76,7 @@ if (totalUpdates === 0) {
 	console.log(`\nUpdated ${totalUpdates} dependency version(s).`);
 }
 
-// pi-ai reports its version in the User-Agent without reading package.json, which browsers cannot do.
+// evoharness-ai reports its version in the User-Agent without reading package.json, which browsers cannot do.
 const aiPackage = workspacePackages.find((pkg) => pkg.data.name === "@evoharness/ai");
 const aiVersionPath = aiPackage && join(dirname(aiPackage.path), "src", "utils", "version.ts");
 if (aiVersionPath && existsSync(aiVersionPath)) {

@@ -1,7 +1,7 @@
 {
 	"name": "@evoharness/telemetry",
 	"version": "1.4.0",
-	"description": "Vendor-neutral telemetry contracts and typed schema utilities for pi",
+	"description": "Vendor-neutral telemetry contracts and typed schema utilities for evoharness",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

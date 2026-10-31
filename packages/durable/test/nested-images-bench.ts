@@ -167,7 +167,7 @@ function registryFor(scenario: Scenario, probe: Probe) {
 }
 
 async function runScenario(scenario: Scenario): Promise<Result> {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-images-bench-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-images-bench-"));
 	try {
 		const faux = fauxProvider();
 		const models = createModels();

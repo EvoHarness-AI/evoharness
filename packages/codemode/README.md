@@ -2,7 +2,7 @@
 
 Runs model-written JavaScript in a QuickJS VM (compiled to WebAssembly) where the only capability is calling injected tools. Nested tool calls never enter the LLM context; only the script's output and return value do.
 
-Scripts use `tools`, `ALL_TOOLS`, `text`, `image`, `exit`, `store`, and `load`, and may start with a `// @options:` line. The coding agent uses it for its built-in `codemode` tool. It has no pi dependencies and can be used on its own to expose any functions (remote APIs, MCP servers, application services) to model-written scripts.
+Scripts use `tools`, `ALL_TOOLS`, `text`, `image`, `exit`, `store`, and `load`, and may start with a `// @options:` line. The coding agent uses it for its built-in `codemode` tool. It has no evoharness dependencies and can be used on its own to expose any functions (remote APIs, MCP servers, application services) to model-written scripts.
 
 The package runs in two kinds of environments. Each has its own sandbox class, but they share one API, one script environment, and one result format:
 
@@ -160,7 +160,7 @@ export default {
 ```jsonc
 // sandbox/wrangler.jsonc
 {
-	"name": "pi-codemode-sandbox",
+	"name": "evoharness-codemode-sandbox",
 	"main": "src/index.ts",
 	"compatibility_date": "2026-04-22",
 	"workers_dev": false,
@@ -180,7 +180,7 @@ Bind the class with `script_name`. Binding a class exported from the agent's own
 // agent/wrangler.jsonc
 "durable_objects": {
 	"bindings": [
-		{ "name": "CODEMODE_SANDBOX", "class_name": "CodemodeSandbox", "script_name": "pi-codemode-sandbox" }
+		{ "name": "CODEMODE_SANDBOX", "class_name": "CodemodeSandbox", "script_name": "evoharness-codemode-sandbox" }
 	]
 }
 ```
@@ -263,7 +263,7 @@ renderDeclarations({ tools: sandbox.tools, globals: sandbox.globals });
 
 Property descriptions become `//` comments. Constraints the type cannot express follow as tags, such as `// @integer @minimum 1 @default 20`; they are dropped first when a type exceeds the size limit. Schemas only shape the declarations; values are not validated against them. Local references (`#/$defs/...`, `#/definitions/...`) are expanded; recursive and remote references render as `unknown`.
 
-## Using with pi-agent-core
+## Using with evoharness-agent-core
 
 To give an `Agent` a codemode tool, expose its other tools to the sandbox and wrap `execute()` as an `AgentTool`:
 

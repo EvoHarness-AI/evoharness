@@ -6,8 +6,8 @@ import { getNativeModuleCandidates } from "../src/native-module-path.ts";
 
 describe("getNativeModuleCandidates", () => {
 	it("resolves native helpers from the installed TUI package when the module is bundled elsewhere", () => {
-		const packageRoot = resolve("virtual", "node_modules", "@earendil-works", "pi-tui");
-		const bundledModule = resolve("virtual", "pi-coding-agent", "dist", "bundle", "chunks", "chunk.js");
+		const packageRoot = resolve("virtual", "node_modules", "@earendil-works", "evoharness-tui");
+		const bundledModule = resolve("virtual", "evoharness-coding-agent", "dist", "bundle", "chunks", "chunk.js");
 		const nativePath = join("native", "win32", "prebuilds", "win32-arm64", "win32-platform.node");
 
 		const candidates = getNativeModuleCandidates(nativePath, {
@@ -24,8 +24,8 @@ describe("getNativeModuleCandidates", () => {
 	});
 
 	it("keeps standalone binary fallbacks when the TUI package is unavailable", () => {
-		const bundledModule = resolve("virtual", "pi", "bundle", "chunks", "chunk.js");
-		const execPath = resolve("virtual", "pi", "evoharness.exe");
+		const bundledModule = resolve("virtual", "evoharness", "bundle", "chunks", "chunk.js");
+		const execPath = resolve("virtual", "evoharness", "evoharness.exe");
 		const nativePath = join("native", "darwin", "prebuilds", "darwin-arm64", "darwin-platform.node");
 
 		const candidates = getNativeModuleCandidates(nativePath, {

@@ -26,7 +26,7 @@ describe("createAgentSession client identity", () => {
 	let originalTelemetryEnv: string | undefined;
 
 	beforeEach(() => {
-		tempDir = join(tmpdir(), `pi-sdk-identity-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+		tempDir = join(tmpdir(), `evoharness-sdk-identity-test-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 		cwd = join(tempDir, "project");
 		agentDir = join(tempDir, "agent");
 		mkdirSync(cwd, { recursive: true });
@@ -139,7 +139,7 @@ describe("createAgentSession client identity", () => {
 		}
 	}
 
-	it("identifies pi with a detailed User-Agent and attribution as a CLI agent", async () => {
+	it("identifies evoharness with a detailed User-Agent and attribution as a CLI agent", async () => {
 		const model = createModel("openrouter", "https://openrouter.ai/api/v1");
 		const options = await captureOptions(model);
 
@@ -150,7 +150,7 @@ describe("createAgentSession client identity", () => {
 		});
 		expect(getAttributionHeaders(model, options?.identity)).toEqual({
 			"HTTP-Referer": "https://evoharness.dev",
-			"X-OpenRouter-Title": "pi",
+			"X-OpenRouter-Title": "evoharness",
 			"X-OpenRouter-Categories": "cli-agent",
 		});
 	});

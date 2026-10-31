@@ -196,7 +196,7 @@ Chord reports traces, events and metrics through `@evoharness/telemetry`. Each h
 `createHost({ telemetry })`, NOOP by default; the adapter decides sampling, buffering, export and filtering. Only hosts
 hold the adapter, to start root spans. Code sees spans:
 
-- `ctx.telemetry` is the current span (`Ctx` extends `Context`, so it is the same field Durable and pi-ai read). Every
+- `ctx.telemetry` is the current span (`Ctx` extends `Context`, so it is the same field Durable and evoharness-ai read). Every
   span carries its adapter's metrics and propagation, so code with a `ctx` can record a metric or inject a carrier.
 - `ctx.trace(name, attributes, fn)` runs `fn` in a child span with a child `ctx`.
 - App values such as the principal stay out of Durable's context.
@@ -227,25 +227,25 @@ closes are root spans too, linked to their trigger where there is one.
 
 Ids are attributes of spans, never of metrics. **Nothing is measured or walked for telemetry**; only sizes the code
 already has are reported. Errors carry a fixed category and a message cut to 500 characters; cancelling is not an
-error. Chord ships a typed telemetry schema, as pi-ai (`AI_TELEMETRY_SCHEMA`) and Durable
+error. Chord ships a typed telemetry schema, as evoharness-ai (`AI_TELEMETRY_SCHEMA`) and Durable
 (`DURABLE_TELEMETRY_SCHEMA`) do.
 
 **Storing and reading:** `@earendil-works/chord/telemetry-sqlite` over `chord/sqlite` (Node and Cloudflare) stores one
 row per settled span (events and links inline) and metrics aggregated per series per 10 s, flushes in batches every
 second, keeps 7 days, and drops (and counts) beyond a bounded queue. The read interface `TelemetryStore` is shared:
 `findTraces` (by name, attributes, errors, time window, with limit and cursor) returns complete traces, `getTrace`
-one, `findMetrics` metrics. One renderer, `pi-telemetry/render`, prints traces as above; it prints links and never
+one, `findMetrics` metrics. One renderer, `evoharness-telemetry/render`, prints traces as above; it prints links and never
 follows them. The playground's trace viewer reads the same store.
 
 **Durable** already emits submit and phase spans, stores carriers on submissions and tasks (`TaskOptions.trace`),
-and pi-ai emits `evoharness.ai.request` and `evoharness.ai.poll`. With the harness given the host's adapter (chapter XIV), an agent
+and evoharness-ai emits `evoharness.ai.request` and `evoharness.ai.poll`. With the harness given the host's adapter (chapter XIV), an agent
 tool that calls `Notes.add` through `chord(fn, context)` shows up as one tree from the model request down to the
 commit.
 
 :::note | Built so far
 Nothing of the protocol is built in v2: messages, relays, flow control and limits are layers L6 and L7, telemetry in
-Chord is L11. Built in pi: `pi-telemetry` (propagation, links, metrics, the store interface, the renderer),
-`chord/context` with `Context.telemetry`, pi-ai and Durable telemetry, and `chord/telemetry-sqlite`. Delta is built;
+Chord is L11. Built in evoharness: `evoharness-telemetry` (propagation, links, metrics, the store interface, the renderer),
+`chord/context` with `Context.telemetry`, evoharness-ai and Durable telemetry, and `chord/telemetry-sqlite`. Delta is built;
 `mapShared` and bytes as atomic leaves in `diffRevisions` are still to do. The frozen kernel sends descriptions on the
 wire and closes a link on an unknown id; both are replaced.
 :::

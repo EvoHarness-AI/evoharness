@@ -537,7 +537,7 @@ export function resolveCodemodeWorkerSpecifier(
 let codemodeWorkerDataUrl: URL | undefined;
 
 /**
- * Get the codemode worker entry, or undefined to use the worker that ships next to pi-codemode.
+ * Get the codemode worker entry, or undefined to use the worker that ships next to evoharness-codemode.
  * The Bun and Node release builds both pass the worker as an extra entrypoint.
  */
 export function getCodemodeWorkerSpecifier(): string | URL | undefined {
@@ -554,7 +554,7 @@ export function getCodemodeWorkerSpecifier(): string | URL | undefined {
 export type InstallChange = { kind: "updated"; version: string } | { kind: "removed" };
 
 /**
- * Detect that the package this process runs from changed on disk, for example after `pi update`
+ * Detect that the package this process runs from changed on disk, for example after `evoharness update`
  * in another terminal. Code loaded on demand can then be missing or from another version.
  *
  * Checks the package.json read at startup. Resolving it again would walk up past a deleted install
@@ -601,9 +601,9 @@ try {
 
 const evoharnessConfigName: string | undefined = pkg.evoharnessConfig?.name;
 export const PACKAGE_NAME: string = pkg.name || "@evoharness/coding-agent";
-export const APP_NAME: string = evoharnessConfigName || "pi";
-export const APP_TITLE: string = evoharnessConfigName ? APP_NAME : "π";
-export const CONFIG_DIR_NAME: string = pkg.evoharnessConfig?.configDir || ".pi";
+export const APP_NAME: string = evoharnessConfigName || "evoharness";
+export const APP_TITLE: string = evoharnessConfigName ? APP_NAME : "EvoHarness";
+export const CONFIG_DIR_NAME: string = pkg.evoharnessConfig?.configDir || ".evoharness";
 export const VERSION: string = pkg.version || "0.0.0";
 
 // e.g., PI_CODING_AGENT_DIR or TAU_CODING_AGENT_DIR
@@ -623,10 +623,10 @@ export function getShareViewerUrl(gistId: string): string {
 }
 
 // =============================================================================
-// User Config Paths (~/.pi/agent/*)
+// User Config Paths (~/.evoharness/agent/*)
 // =============================================================================
 
-/** Get the agent config directory (e.g., ~/.pi/agent/) */
+/** Get the agent config directory (e.g., ~/.evoharness/agent/) */
 export function getAgentDir(): string {
 	const envDir = process.env[ENV_AGENT_DIR];
 	if (envDir) {

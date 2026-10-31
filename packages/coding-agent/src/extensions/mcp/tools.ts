@@ -1,7 +1,7 @@
 /**
- * Adapts MCP tools to pi tool definitions.
+ * Adapts MCP tools to evoharness tool definitions.
  *
- * Results map onto pi's model-facing content (text and images). Text over 20KB keeps its start and
+ * Results map onto evoharness's model-facing content (text and images). Text over 20KB keeps its start and
  * end with the middle cut out, like Codex does, and the full text is saved to a temp file the model
  * can read. Binary resources other than images are saved to temp files too, and resource links name
  * the `read_mcp_resource` tool. Codemode scripts receive the whole `CallToolResult` without `_meta`
@@ -68,7 +68,7 @@ export interface McpToolDetails {
 export type McpOutputSaver = (data: string | Uint8Array, extension: string) => Promise<string>;
 
 export function saveToTempFile(data: string | Uint8Array, extension: string): Promise<string> {
-	return writeOutputFile("pi-mcp", extension, data);
+	return writeOutputFile("evoharness-mcp", extension, data);
 }
 
 export interface McpToolCaller {

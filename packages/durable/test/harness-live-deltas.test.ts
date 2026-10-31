@@ -283,7 +283,7 @@ describe("evoharness.live deltas", () => {
 	});
 
 	it("stores a complete base exactly in the commits where nothing runs", async () => {
-		// Storage that remembers whether each commit wrote pi.live as a base or a delta.
+		// Storage that remembers whether each commit wrote evoharness.live as a base or a delta.
 		const written = new Map<number, "base" | "delta">();
 		let liveId: number | undefined;
 		class RecordingStorage extends MemoryStorage {

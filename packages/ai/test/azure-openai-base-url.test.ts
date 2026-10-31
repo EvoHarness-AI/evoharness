@@ -263,7 +263,7 @@ describe("azure provider stream events", () => {
 });
 
 describe("azure user agent", () => {
-	it("uses pi's User-Agent by default", async () => {
+	it("uses evoharness's User-Agent by default", async () => {
 		expect((await captureClientHeaders())["User-Agent"]).toBe(PI_USER_AGENT);
 	});
 

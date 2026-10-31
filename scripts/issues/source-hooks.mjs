@@ -1,5 +1,5 @@
 // Resolve workspace packages to their TypeScript sources, so the triage tool runs without building packages.
-// A package without a "source" export condition (pi-ai) resolves to dist/*.js; this maps it to src/*.ts.
+// A package without a "source" export condition (evoharness-ai) resolves to dist/*.js; this maps it to src/*.ts.
 import { existsSync, realpathSync } from "node:fs";
 import { fileURLToPath, pathToFileURL } from "node:url";
 

@@ -569,7 +569,7 @@ describe("conversation view window", () => {
 
 	it("lets a long-lived watch drop the entries that left its window", async () => {
 		// On SQLite, which keeps no entry objects, so only the watch can hold the first one.
-		const directory = await mkdtemp(join(tmpdir(), "pi-durable-view-"));
+		const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-view-"));
 		const storage = await openNodeSqliteStorage(join(directory, "session.sqlite"));
 		const { harness, root } = await openChat(storage, chatSetup());
 		const watch = await root.watch(context, { min: 5, max: 10 });

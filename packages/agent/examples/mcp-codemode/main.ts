@@ -24,7 +24,7 @@ models.setProvider(anthropicProvider());
 const model = models.getModel("anthropic", "claude-sonnet-4-6");
 if (!model) throw new Error("Model not found");
 
-const client = new McpClient({ name: "pi-agent-example", version: "1.0.0" });
+const client = new McpClient({ name: "evoharness-agent-example", version: "1.0.0" });
 await client.connect(new StdioTransport({ command, args }));
 
 try {

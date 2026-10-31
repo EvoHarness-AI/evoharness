@@ -35,7 +35,7 @@ import type {
 export type AgentEventSink = (event: AgentEvent) => Promise<void> | void;
 
 /**
- * Request identity of agent loops: pi-ai's defaults with provider attribution to pi. `AgentLoopConfig.identity`
+ * Request identity of agent loops: evoharness-ai's defaults with provider attribution to evoharness. `AgentLoopConfig.identity`
  * overrides it field by field.
  */
 export const DEFAULT_AGENT_IDENTITY: ClientIdentity = { attribution: PI_ATTRIBUTION };

@@ -170,7 +170,7 @@ export class InteractiveThemeController {
 		return this.currentThemeSetting ?? this.getSettingsManager().getThemeSetting();
 	}
 
-	/** The theme for the current setting and terminal appearance. Without a setting, pi uses the system theme. */
+	/** The theme for the current setting and terminal appearance. Without a setting, evoharness uses the system theme. */
 	private resolveThemeName(): string {
 		return resolveThemeSetting(this.getThemeSetting(), getTerminalTheme()) ?? SYSTEM_THEME_NAME;
 	}

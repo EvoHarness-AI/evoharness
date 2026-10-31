@@ -35,7 +35,7 @@ type JsonObject = { [key: string]: JsonValue };
 type TaskOutcomeError = { message: string; detail?: JsonValue };
 ```
 
-Durable targets the transcript `SystemMessage` contract from pi-ai PR
+Durable targets the transcript `SystemMessage` contract from evoharness-ai PR
 [#9548](https://github.com/EvoHarness-AI/evoharness/pull/9548). `Message` includes that
 type once the PR lands.
 
@@ -138,7 +138,7 @@ type ConversationRecord = {
 };
 ```
 
-The referenced pi-ai member is:
+The referenced evoharness-ai member is:
 
 ```ts
 interface SystemMessage {
@@ -151,7 +151,7 @@ interface SystemMessage {
 }
 ```
 
-In pi-ai, `content` is the base prompt on the leading message and additional
+In evoharness-ai, `content` is the base prompt on the leading message and additional
 instruction text on later messages. `sections` is an ordered named patch: a
 string adds or replaces a section, while `null` removes it. `toolsRemoved` is
 applied before `toolsAdded` within one message. Replaying every system message
@@ -418,7 +418,7 @@ type AnyTask = {
 };
 
 type HarnessOptions<Tool extends ToolRegistration = ToolRegistration> = {
-  /** The pi-ai Models interface, or a function returning the current one, called at each use. */
+  /** The evoharness-ai Models interface, or a function returning the current one, called at each use. */
   readonly models: Models | (() => Models);
   readonly registry: RegistryReader<Tool>; // section 7.1
   /** Run settings, or a function returning the current ones; read at each use either way. */
@@ -458,7 +458,7 @@ type HarnessOptions<Tool extends ToolRegistration = ToolRegistration> = {
   readonly onReport?: (report: Report) => void;
 };
 
-/** Curated pi-ai request options; absent fields use pi-ai defaults. */
+/** Curated evoharness-ai request options; absent fields use evoharness-ai defaults. */
 type ConversationStreamOptions = {
   transport?: Transport;
   timeoutMs?: number;
@@ -471,7 +471,7 @@ type ConversationStreamOptions = {
   deferred?: boolean | { window?: "15m" | "1h" | "24h" };
 };
 
-/** Durable generation attempt retries; the JSON shape of pi-ai `RetryPolicy`. */
+/** Durable generation attempt retries; the JSON shape of evoharness-ai `RetryPolicy`. */
 type ConversationRetryPolicy = {
   enabled: boolean;
   maxRetries: number;
@@ -957,7 +957,7 @@ The UUID is a provider-facing conversation identity, not the numeric Durable
 `ConversationId` and not an enclosing application's Session ID. Every new,
 task-owned, raw-created, and forked conversation receives its own UUID in its
 creating commit; a fork never copies its parent's UUID. Generation requests and
-compaction summarization pass it to pi-ai as `options.sessionId`. Reset,
+compaction summarization pass it to evoharness-ai as `options.sessionId`. Reset,
 compaction, model changes, and reopen do not change it. A legacy conversation without the document creates and persists it
 on the Session line before its first generation or compaction provider request.
 Concurrent callers therefore observe one winner. Provider behavior still
@@ -3161,7 +3161,7 @@ The `Tool` parameter lets an application attach metadata, such as prompt
 snippets, to its tools and read it typed in its section renderers. The Harness
 only relies on `ToolRegistration`; its own surfaces, such as `runtime.agent()`,
 use the default. Metadata fields must be optional: the registry does not check
-them, and a default-typed extension may be installed. Pi-ai declarations derived from a tool keep only pi-ai `Tool`
+them, and a default-typed extension may be installed. EvoHarness-ai declarations derived from a tool keep only evoharness-ai `Tool`
 fields (`toToolDeclaration`), so application metadata never enters the
 transcript.
 
@@ -3381,7 +3381,7 @@ interface GenerationHooks {
     api: HookApi,
     context: Context,
   ): HookResult<{ readonly messages: readonly Message[] }>;
-  /** After pi-ai builds the provider request body, before it is sent; replaces the body for that request only. */
+  /** After evoharness-ai builds the provider request body, before it is sent; replaces the body for that request only. */
   beforeProviderRequest(
     request: { readonly model: Model<Api>; readonly payload: unknown },
     api: HookApi,
@@ -3749,7 +3749,7 @@ once `execute()` has returned, and rejects when the caller is aborted or the
 Harness closes; cancelling its `context` stops only the wait. An abort that
 arrives during this cleanup still aborts the caller, whose finished result is
 then replaced by the `aborted` one. The caller's result message lists none
-of its nested calls (no pi-ai `nestedCalls`): their task records keep every
+of its nested calls (no evoharness-ai `nestedCalls`): their task records keep every
 call and its arguments, and a tool that wants a list in its result, as code
 mode does, writes one into its own `details`. A crash between the
 caller's return and its result commit leaves it in `execute`: a replay-safe
@@ -3854,7 +3854,7 @@ pause. Changes made during the delay
 coalesce into the next commit. The throttle is Harness policy, not part of
 `outputLimits`, which only bounds what is retained. Explicit
 text in explicit result content is bounded by the same limits before transcript
-persistence; non-text content is retained as declared by its pi-ai type. When
+persistence; non-text content is retained as declared by its evoharness-ai type. When
 bounding drops text, the Harness adds a `warn` diagnostic with code `truncated`
 stating the dropped lines and bytes.
 
@@ -4129,7 +4129,7 @@ A tool result may request `addTools`, `terminate`, or `handoff`. The
 generation's `tools` phase (section 8.5) adds the named tools to the
 conversation's stored tools filter; they take effect at the next preparation. The round
 terminates only when every result of the round requests `terminate`, as in the
-pi agent loop; the `tools` phase then uses a final boundary. Any
+evoharness agent loop; the `tools` phase then uses a final boundary. Any
 `handoff` in the round, the last one in call order when several ask, appends a
 `evoharness.reset` entry with `head: "self"` and the handoff text as a user message
 (section 8.1), exactly what `reset(handoff)` writes, and the run continues: the
@@ -4183,7 +4183,7 @@ on Photon's WebAssembly, given its module or bytes; `/images/node` reads the
 wasm from the installed package and prepares images in a worker thread, which
 exits after 30 s without images (`{ worker: false }` prepares them inline);
 `/images/cloudflare` imports it as a Workers module and prepares inline. Neither is loaded unless imported. A conversation whose model
-does not take images still gets the image; pi-ai replaces it with a placeholder
+does not take images still gets the image; evoharness-ai replaces it with a placeholder
 in requests, and the diagnostic says so.
 
 For text, `read` reads a file through `openBinaryReader`: image detection reads
@@ -4316,7 +4316,7 @@ values and `null` removals.
 
 Tool changes are planned separately and ride on the last planned entry, or on
 one entry of their own when sections are unchanged. Declarations are compared
-with pi-ai `declarationsEqual()` and written with `toToolDeclaration()`, so
+with evoharness-ai `declarationsEqual()` and written with `toToolDeclaration()`, so
 application metadata never enters the transcript. A changed declaration is
 removed and re-added in the same message. Replay keeps retained tools in place
 and appends additions; when that would not yield the desired order, the message
@@ -4324,7 +4324,7 @@ removes every offered tool and re-adds the desired tools in order. A head
 rebaseline adds every desired tool.
 
 The rendered strings stored in historical `SystemMessage.sections` remain
-authoritative even if the current renderer changes. Pi-ai decides whether to
+authoritative even if the current renderer changes. EvoHarness-ai decides whether to
 send the messages positionally to a capable provider or fold them into one
 leading system message; Durable does not rewrite its stored transcript for provider
 compatibility.
@@ -4372,7 +4372,7 @@ any more (section 2.2).
 
 `@evoharness/durable/codemode` provides the `codemode` tool (`createCodemodeExtension({ sandbox })`):
 `callers: ["model"]`, `replay: "safe"`. Its argument is a script, run with
-pi-codemode's deterministic `sandbox.start()`. The script calls the agent's
+evoharness-codemode's deterministic `sandbox.start()`. The script calls the agent's
 `callable` tools as `tools.<name>(args)`; each call is a nested call with key
 `c<id>`, the VM's own number for the call. As in the coding agent, a tool that
 declares `structuredOutputSchema` resolves with its `structuredOutput`, also on an
@@ -4423,7 +4423,7 @@ calls of one script run at once, and a call waiting for a slot when the script
 has ended is not started. A script that
 received generated images and showed none gets a note in its result. The tool's
 declaration carries the Lark grammar of the script source as
-`constrainedSampling`, which pi-ai applies for models that support it.
+`constrainedSampling`, which evoharness-ai applies for models that support it.
 
 The result's \`details\` list the script's tool calls in call order
 (\`CodemodeToolDetails\`: id, name, cut arguments, status \`ok\`/\`error\`/
@@ -4497,12 +4497,12 @@ The initial implementation provides:
 | `evoharness.compaction` | select a transcript range, summarize, place a headed summary |
 
 Generation uses `HarnessOptions.models` without a Durable-specific model adapter. It
-resolves `models.getModel(ref.provider, ref.modelId)`, builds a pi-ai `Context`
+resolves `models.getModel(ref.provider, ref.modelId)`, builds a evoharness-ai `Context`
 from the prepared prompt/messages/tools, and calls `models.streamSimple()` with
 the task invocation's abort signal, the agent's thinking level, and the
 settings' stream options. Deferred
 continuation calls `models.fetchDeferred()` and `models.cancelDeferred()` with
-that same model and signal. Missing models and synchronous/streamed pi-ai errors
+that same model and signal. Missing models and synchronous/streamed evoharness-ai errors
 are classified into the durable generation outcomes below.
 
 Generation and tool progress are throttled document commits, deferred
@@ -4859,7 +4859,7 @@ The run's inputs live in `evoharness.live.run`, not in the task input.
   `contextWindow` is positive, and `compacted` is absent. The estimate starts at
   the newest assistant message in the committed model context whose entry was
   appended after the head marker (all qualify without one) and whose usage is
-  nonzero: pi-ai `calculateContextTokens()` of its usage, plus pi-ai
+  nonzero: evoharness-ai `calculateContextTokens()` of its usage, plus evoharness-ai
   `estimateMessageTokens()` of every context message after it and of the planned
   system messages. Its request included the marker, because a head is placed
   only while no request is in flight. Without such a message, every message is
@@ -4913,9 +4913,9 @@ The run's inputs live in `evoharness.live.run`, not in the task input.
   (section 4.1), so Storage gets them at the next commit that reads `evoharness.live`
   or within `settings.progress.persistWithinMs`.
   Before streaming, the `beforeRequest` chain may
-  replace the messages for this request only. Once pi-ai has built the provider
+  replace the messages for this request only. Once evoharness-ai has built the provider
   request body, the `beforeProviderRequest` chain may replace it, again for this
-  request only; it runs each time pi-ai builds a body. After a close, recovery resends
+  request only; it runs each time evoharness-ai builds a body. After a close, recovery resends
   the same committed messages with the same pinned model, thinking level, and
   stream options, and reruns `beforeRequest`; after a crash the attempt is
   charged instead, as above.
@@ -4948,7 +4948,7 @@ The run's inputs live in `evoharness.live.run`, not in the task input.
   - `toolUse` with at least one tool call: the commit appends the assistant
     entry and starts the tool round described below, moving to `waiting` in the
     `tools` phase. A `toolUse` message without calls is classified like `stop`.
-  - `error` that pi-ai `isContextOverflow()` recognizes, while the settings'
+  - `error` that evoharness-ai `isContextOverflow()` recognizes, while the settings'
     compaction policy is enabled, `compacted` is absent, and range selection finds a cut:
     the commit appends the error entry, removes `generation`, creates a
     compaction owned by the generation with reason `overflow`, adds its status,
@@ -5005,7 +5005,7 @@ The run's inputs live in `evoharness.live.run`, not in the task input.
 
 A tool round starts in the commit that appends the tool-calling answer:
 
-1. The offered tools are replayed with pi-ai `getCurrentTools()` from the
+1. The offered tools are replayed with evoharness-ai `getCurrentTools()` from the
    committed model context through `cutoff`: `request` already holds it, and
    `poll` derives it again.
 2. Every call gets a `evoharness.tool` task owned by the generation, in call order, with
@@ -5060,7 +5060,7 @@ Below, `{ entryId }` is a model-issued call's result.
 
 - `call` reads the call with `runtime.entry()`, resolves the tool among the
   phase's agent `tools` (section 7.3), validates
-  the arguments with pi-ai
+  the arguments with evoharness-ai
   `validateToolArguments()`, runs the `beforeTool` chain, and validates again
   (section 7.3). A deferred commit sets the slot `running`; one commit then
   records intent: it moves to `execute` with the final arguments and the tool's
@@ -5258,7 +5258,7 @@ markers, and the settings' `keepRecentTokens`.
    candidates, so a kept assistant message keeps its tool results. A user entry
    is not a candidate either while a result for a call of the assistant before
    it follows it, before the next assistant (section 2.1, rule 7).
-2. Walk the non-marker entries from newest to oldest, adding pi-ai
+2. Walk the non-marker entries from newest to oldest, adding evoharness-ai
    `estimateMessageTokens()` of each contribution. At the first entry where the
    sum reaches `keepRecentTokens`, the cut is the first candidate at or after
    that entry in transcript order, or the newest candidate when none follows.
@@ -6377,7 +6377,7 @@ These are contracts, not invitations to add defensive machinery:
   that summary still describes 10-84. Place such writes before compacting.
 - **Summary timestamps:** a queued summary's user message carries the time its
   compaction finished, not its placement. Code that judges usage staleness by
-  message timestamps, such as pi-ai `estimateContextTokens()` over view
+  message timestamps, such as evoharness-ai `estimateContextTokens()` over view
   messages, can misjudge; the Harness estimate uses entry order (section 8.3).
 - **Raw head writes into the past:** a head written directly with `tx.appendEntry()`
   that targets an entry before the conversation's active range changes model

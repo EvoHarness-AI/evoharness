@@ -64,7 +64,7 @@ const leavePlanMode = { extensions: null, tools: null };
 
 // ─── Host setup ─────────────────────────────────────────────────────────────
 
-const directory = await mkdtemp(join(tmpdir(), "pi-durable-plan-"));
+const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-plan-"));
 await writeFile(join(directory, "server.ts"), "app.listen(3000);\n");
 
 const faux = fauxProvider();

@@ -27,7 +27,7 @@ function runSyncVersions(root) {
 
 // #10865: caret ranges allowed older agents to install incompatible newer workspace dependencies.
 test("pins published and private dependencies without touching registry aliases, generated manifests, or published lockstep", async () => {
-	const root = await mkdtemp(join(tmpdir(), "pi-sync-versions-"));
+	const root = await mkdtemp(join(tmpdir(), "evoharness-sync-versions-"));
 	try {
 		await writeManifest(root, "packages/ai", {
 			name: "@evoharness/ai",
@@ -52,7 +52,7 @@ test("pins published and private dependencies without touching registry aliases,
 			private: true,
 			dependencies: {
 				"@evoharness/coding-agent": "^1.0.0",
-				"@mariozechner/pi-ai": "npm:@evoharness/ai@1.0.0",
+				"@mariozechner/evoharness-ai": "npm:@evoharness/ai@1.0.0",
 			},
 		});
 		await writeManifest(root, "packages/coding-agent/install-lock", {
@@ -73,7 +73,7 @@ test("pins published and private dependencies without touching registry aliases,
 		}
 		const evalsManifest = await readManifest(root, "packages/evals");
 		assert.equal(evalsManifest.dependencies["@evoharness/coding-agent"], "2.0.0");
-		assert.equal(evalsManifest.dependencies["@mariozechner/pi-ai"], "npm:@evoharness/ai@1.0.0");
+		assert.equal(evalsManifest.dependencies["@mariozechner/evoharness-ai"], "npm:@evoharness/ai@1.0.0");
 		const generatedManifest = await readManifest(root, "packages/coding-agent/install-lock");
 		assert.equal(generatedManifest.dependencies["@evoharness/coding-agent"], "^1.0.0");
 
@@ -92,8 +92,8 @@ test("pins published and private dependencies without touching registry aliases,
 	}
 });
 
-test("writes the pi-ai version constant", async () => {
-	const root = await mkdtemp(join(tmpdir(), "pi-sync-versions-"));
+test("writes the evoharness-ai version constant", async () => {
+	const root = await mkdtemp(join(tmpdir(), "evoharness-sync-versions-"));
 	try {
 		await writeManifest(root, "packages/ai", {
 			name: "@evoharness/ai",

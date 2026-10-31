@@ -16,7 +16,7 @@ const SCENARIOS = [
 	},
 	{
 		title: "Create a user prompt template",
-		request: `Make a ${COMMAND} prompt template available in all my Pi sessions containing exactly: ${TEMPLATE_PROMPT}`,
+		request: `Make a ${COMMAND} prompt template available in all my EvoHarness sessions containing exactly: ${TEMPLATE_PROMPT}`,
 		scope: "user",
 	},
 ] as const;
@@ -25,7 +25,7 @@ function registerScenario(scenario: (typeof SCENARIOS)[number]): void {
 	const harness = createPiDocumentationEvalHarness({
 		output: ({ session, agentDir }) => {
 			const workspace = session.sessionManager.getCwd();
-			const projectPath = join(workspace, ".pi", "prompts", `${TEMPLATE_NAME}.md`);
+			const projectPath = join(workspace, ".evoharness", "prompts", `${TEMPLATE_NAME}.md`);
 			const userPath = join(agentDir, "prompts", `${TEMPLATE_NAME}.md`);
 			const expectedPath = scenario.scope === "project" ? projectPath : userPath;
 			const otherPath = scenario.scope === "project" ? userPath : projectPath;

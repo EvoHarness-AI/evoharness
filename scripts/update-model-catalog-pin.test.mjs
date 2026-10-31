@@ -55,7 +55,7 @@ const typed = "types=chat,image,classifier";
 
 let root;
 beforeEach(() => {
-	root = mkdtempSync(join(tmpdir(), "pi-catalog-pin-"));
+	root = mkdtempSync(join(tmpdir(), "evoharness-catalog-pin-"));
 	mkdirSync(join(root, "packages/ai/src/providers"), { recursive: true });
 	mkdirSync(join(root, "nix"));
 	writeFileSync(
@@ -85,7 +85,7 @@ function mockPiDev({ live = liveRevision, failure } = {}) {
 		}
 		if (failure === "discovery-http") return new Response(null, { status: 503 });
 		return new Response(failure === "discovery-hash" ? "wrong" : bodies.get(live), {
-			headers: { "x-pi-model-catalog-revision": failure === "discovery-revision" ? "latest" : live },
+			headers: { "x-evoharness-model-catalog-revision": failure === "discovery-revision" ? "latest" : live },
 		});
 	});
 	return requests;
@@ -94,7 +94,7 @@ function mockPiDev({ live = liveRevision, failure } = {}) {
 test("pins the newest typed catalog after verifying its immutable URL", async () => {
 	const requests = mockPiDev();
 	assert.deepEqual(await pinned(updateModelCatalogPin(root)), { revision: liveRevision, updated: true });
-	// No pi-version: main's version is the last release, which evoharness.dev answers
+	// No evoharness-version: main's version is the last release, which evoharness.dev answers
 	// with the catalog for released clients (#10985).
 	assert.deepEqual(requests, [
 		`https://evoharness.dev/api/models?${typed}`,

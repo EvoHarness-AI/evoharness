@@ -1,7 +1,7 @@
 {
 	"name": "@evoharness/durable",
 	"version": "1.4.0",
-	"description": "Durable conversation, task, and document runtime for Pi",
+	"description": "Durable conversation, task, and document runtime for EvoHarness",
 	"type": "module",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",

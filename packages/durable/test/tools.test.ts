@@ -45,7 +45,7 @@ afterAll(() => {
 });
 
 function createTempDir(): string {
-	const dir = join(tmpdir(), `pi-durable-tools-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+	const dir = join(tmpdir(), `evoharness-durable-tools-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 	mkdirSync(dir, { recursive: true });
 	tempDirs.push(dir);
 	return dir;

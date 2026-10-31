@@ -1,5 +1,5 @@
 /**
- * Import a pi session shared as a gist by the issue-analysis CI workflow
+ * Import a evoharness session shared as a gist by the issue-analysis CI workflow
  * (.github/workflows/issue-analysis.yml), or a .jsonl session file served at a URL,
  * and switch to it.
  *
@@ -14,7 +14,7 @@
  *   /ir https://github.com/EvoHarness-AI/evoharness/issues/123
  *   /ir https://example.com/path/session.jsonl
  *
- *   pi "/ir <gist-id>"
+ *   evoharness "/ir <gist-id>"
  */
 
 import { Buffer } from "node:buffer";
@@ -24,7 +24,7 @@ import type { ExtensionAPI, ExtensionCommandContext } from "@evoharness/coding-a
 
 const GIST_ID_RE = /^[0-9a-fA-F]{20,}$/;
 const GIST_URL_RE = /^https:\/\/gist\.github\.com\/(?:[^/]+\/)?([0-9a-fA-F]{20,})(?:[/#?].*)?$/;
-const SHARE_URL_RE = /^https:\/\/pi\.dev\/session\/#([0-9a-fA-F]{20,})(?:[/#?].*)?$/;
+const SHARE_URL_RE = /^https:\/\/evoharness\.dev\/session\/#([0-9a-fA-F]{20,})(?:[/#?].*)?$/;
 const ISSUE_URL_RE = /^https:\/\/github\.com\/([^/]+)\/([^/]+)\/issues\/(\d+)(?:[/#?].*)?$/;
 const GIST_URL_IN_TEXT_RE = /https:\/\/gist\.github\.com\/(?:[^/\s]+\/)?([0-9a-fA-F]{20,})\b/g;
 const SESSION_DATA_RE = /<script id="session-data" type="application\/json">([^<]+)<\/script>/;
@@ -105,22 +105,22 @@ function parseSessionJsonl(raw: string): { header: SessionHeader; jsonl: string 
 
 function decodeExportedHtml(html: string): { header: SessionHeader; jsonl: string } {
 	const match = html.match(SESSION_DATA_RE);
-	if (!match) throw new Error("HTML does not contain embedded pi session data");
+	if (!match) throw new Error("HTML does not contain embedded evoharness session data");
 
 	let data: unknown;
 	try {
 		data = JSON.parse(Buffer.from(match[1], "base64").toString("utf8"));
 	} catch {
-		throw new Error("embedded pi session data is not valid JSON");
+		throw new Error("embedded evoharness session data is not valid JSON");
 	}
 
 	const sessionData = data as Partial<ExportedSessionData>;
 	const header = sessionData.header;
 	if (!header || header.type !== "session" || typeof header.id !== "string" || typeof header.cwd !== "string") {
-		throw new Error("embedded pi session data has no valid session header");
+		throw new Error("embedded evoharness session data has no valid session header");
 	}
 	if (!Array.isArray(sessionData.entries)) {
-		throw new Error("embedded pi session data has no entries array");
+		throw new Error("embedded evoharness session data has no entries array");
 	}
 
 	const lines = [header, ...sessionData.entries].map((entry) => JSON.stringify(entry));
@@ -181,7 +181,7 @@ function getCwdRewriteVariants(sourceCwd: string): string[] {
 
 function getCiWorkdirName(sourceCwd: string): string | undefined {
 	const name = getPathTailName(sourceCwd);
-	return /^pi-ci-[0-9a-f]{32}$/i.test(name) ? name : undefined;
+	return /^evoharness-ci-[0-9a-f]{32}$/i.test(name) ? name : undefined;
 }
 
 function detectSessionPlatform(cwd: string): SessionPlatform {
@@ -290,8 +290,8 @@ async function fetchGistSession(gistId: string): Promise<{ header: SessionHeader
 	throw new Error(`gist ${gistId} has no .jsonl or .html session file`);
 }
 
-export default function (pi: ExtensionAPI) {
-	pi.registerCommand("ir", {
+export default function (evoharness: ExtensionAPI) {
+	evoharness.registerCommand("ir", {
 		description:
 			"Import a CI issue-analysis session from a gist ID, share URL, issue URL, or .jsonl URL and switch to it",
 		handler: async (args: string, ctx: ExtensionCommandContext) => {

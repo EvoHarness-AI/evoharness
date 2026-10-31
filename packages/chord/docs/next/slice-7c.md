@@ -75,7 +75,7 @@ value a worker (slice 10) or a page (slice 11) evaluates where it runs.
 const facet = evaluateFacet(built, { hostPackages: HOST, plugin });   // returns the facet, or throws its error
 ```
 
-- `vm.Script` under a stable filename per (plugin, kind, digest), path-like (`/chord-plugins/@pi/notes/worker.ts`
+- `vm.Script` under a stable filename per (plugin, kind, digest), path-like (`/chord-plugins/@evoharness/notes/worker.ts`
   plus the digest), run in this context; the default export, checked to be a facet (a declaration error otherwise).
 - **The `require` it passes answers, in order:** the host-package map (each value is what Node's `require` would give:
   a CommonJS package's exports, an ESM package's namespace wrapped once with `__esModule: true`, so default and named
@@ -118,8 +118,8 @@ Decision "Per plugin at startup and reload" changes `host.load` and `host.reload
 
 ```ts
 const plugins = createPlugins({ roots: ["./plugins"], kinds: KINDS, hostPackages: HOST, base: ["./src"] }, ctx);
-plugins.state      // a JSON watchable: { dirty: ["@pi/notes"], install: ["@pi/notes"], set: false, base: false }
-const next = await plugins.build(["@pi/notes"], ctx);                 // built results per (plugin, kind), plain data
+plugins.state      // a JSON watchable: { dirty: ["@evoharness/notes"], install: ["@evoharness/notes"], set: false, base: false }
+const next = await plugins.build(["@evoharness/notes"], ctx);                 // built results per (plugin, kind), plain data
 await rollout([serverStep, ...workerSteps, ...clientSteps], next, ctx);   // the app's order (decision 3)
 ```
 

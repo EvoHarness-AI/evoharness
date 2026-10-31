@@ -49,8 +49,8 @@ describe("AgentSession compaction model overrides", () => {
 					},
 				},
 				extensionFactories: [
-					(pi) => {
-						pi.on("session_before_compact", (event) => {
+					(evoharness) => {
+						evoharness.on("session_before_compact", (event) => {
 							preparations.push(event);
 							return {
 								compaction: {
@@ -116,8 +116,8 @@ describe("AgentSession compaction model overrides", () => {
 				},
 			},
 			extensionFactories: [
-				(pi) => {
-					pi.on("session_before_compact", (event) => ({
+				(evoharness) => {
+					evoharness.on("session_before_compact", (event) => ({
 						compaction: {
 							summary: "big model summary",
 							firstKeptEntryId: event.preparation.firstKeptEntryId,

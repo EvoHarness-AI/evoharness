@@ -10,7 +10,7 @@ async function createWaitingHarness(
 		tools?: AgentTool[];
 		extensionFactories?: Harness["session"]["extensionRunner"] extends never
 			? never
-			: Array<(pi: ExtensionAPI) => void>;
+			: Array<(evoharness: ExtensionAPI) => void>;
 	} = {},
 ): Promise<{
 	harness: Harness;
@@ -70,8 +70,8 @@ describe("AgentSession queue characterization", () => {
 		const commandRuns: string[] = [];
 		const harness = await createHarness({
 			extensionFactories: [
-				(pi) => {
-					pi.registerCommand("testcmd", {
+				(evoharness) => {
+					evoharness.registerCommand("testcmd", {
 						description: "Test command",
 						handler: async (args) => {
 							commandRuns.push(args);
@@ -93,8 +93,8 @@ describe("AgentSession queue characterization", () => {
 		let extensionApi: ExtensionAPI | undefined;
 		const waiting = await createWaitingHarness({
 			extensionFactories: [
-				(pi) => {
-					extensionApi = pi;
+				(evoharness) => {
+					extensionApi = evoharness;
 				},
 			],
 		});
@@ -160,8 +160,8 @@ describe("AgentSession queue characterization", () => {
 		const inputEvents: Array<Pick<InputEvent, "text" | "source" | "streamingBehavior">> = [];
 		const waiting = await createWaitingHarness({
 			extensionFactories: [
-				(pi) => {
-					pi.on("input", (event) => {
+				(evoharness) => {
+					evoharness.on("input", (event) => {
 						inputEvents.push({
 							text: event.text,
 							source: event.source,
@@ -440,8 +440,8 @@ describe("AgentSession queue characterization", () => {
 	it("throws when queueing an extension command with steer", async () => {
 		const harness = await createHarness({
 			extensionFactories: [
-				(pi) => {
-					pi.registerCommand("testcmd", {
+				(evoharness) => {
+					evoharness.registerCommand("testcmd", {
 						description: "Test command",
 						handler: async () => {},
 					});
@@ -458,8 +458,8 @@ describe("AgentSession queue characterization", () => {
 	it("throws when queueing an extension command with followUp", async () => {
 		const harness = await createHarness({
 			extensionFactories: [
-				(pi) => {
-					pi.registerCommand("testcmd", {
+				(evoharness) => {
+					evoharness.registerCommand("testcmd", {
 						description: "Test command",
 						handler: async () => {},
 					});
@@ -477,11 +477,11 @@ describe("AgentSession queue characterization", () => {
 		let sent = false;
 		const harness = await createHarness({
 			extensionFactories: [
-				(pi: ExtensionAPI) => {
-					pi.on("agent_end", async () => {
+				(evoharness: ExtensionAPI) => {
+					evoharness.on("agent_end", async () => {
 						if (sent) return;
 						sent = true;
-						pi.sendUserMessage("conflict report", { deliverAs: "followUp" });
+						evoharness.sendUserMessage("conflict report", { deliverAs: "followUp" });
 					});
 				},
 			],

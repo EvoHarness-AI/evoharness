@@ -9,7 +9,7 @@ import test from "node:test";
 const script = fileURLToPath(new URL("./check-runtime-deps.mjs", import.meta.url));
 
 async function check(t, manifest, source, extraFiles = {}) {
-	const root = await mkdtemp(join(tmpdir(), "pi-runtime-deps-"));
+	const root = await mkdtemp(join(tmpdir(), "evoharness-runtime-deps-"));
 	t.after(() => rm(root, { recursive: true, force: true }));
 	const files = {
 		"packages/example/package.json": JSON.stringify({ name: "example", version: "1.0.0", ...manifest }),
@@ -30,7 +30,7 @@ test("rejects undeclared imports even when the workspace package exists", async 
 		"packages/server/package.json": JSON.stringify({ name: "@evoharness/server", version: "1.0.0" }),
 	});
 	assert.equal(result.status, 1);
-	assert.match(result.stderr, /src[\\/]index\.ts:1: @earendil-works\/pi-server\/unix is not declared/);
+	assert.match(result.stderr, /src[\\/]index\.ts:1: @earendil-works\/evoharness-server\/unix is not declared/);
 });
 
 test("accepts runtime declarations, builtins, self imports, relative imports, and erased types", async (t) => {

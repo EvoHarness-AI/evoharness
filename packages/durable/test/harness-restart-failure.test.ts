@@ -47,7 +47,7 @@ afterEach(async () => {
 });
 
 async function sqlitePath(): Promise<string> {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-restart-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-restart-"));
 	directories.add(directory);
 	return join(directory, "session.sqlite");
 }
@@ -692,7 +692,7 @@ describe("crash edges (#11139)", () => {
 			expect((await opened.harness.getTask(taskId, context))?.restarts).toBe(crash);
 			opened.harness.resume();
 		}
-		const detail = `Abort handler of task ${taskId} (pi.generation) was cut off 2 times`;
+		const detail = `Abort handler of task ${taskId} (evoharness.generation) was cut off 2 times`;
 		expect(await settled(opened.harness, id)).toMatchObject({ status: "unanswered", reason: "aborted", detail });
 		expect(await live(opened.harness)).toEqual({
 			runFailure: { taskId, inputs: [id], reason: "aborted", detail, first: expect.any(Number) },

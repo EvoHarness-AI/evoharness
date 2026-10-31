@@ -533,7 +533,7 @@ describe("tool results", () => {
 		expect(byId.get("ok")).toEqual([false, ""]);
 		expect(byId.get("invalid")![0]).toBe(true);
 		expect(byId.get("invalid")![1]).toContain("Validation failed");
-		// pi-ai coerces a number to a string before the first validation.
+		// evoharness-ai coerces a number to a string before the first validation.
 		expect(byId.get("coerced")).toEqual([false, ""]);
 		expect(seen).toEqual(expect.arrayContaining([{ text: "1!" }, { text: "x!" }]));
 		expect(seen).toHaveLength(2);
@@ -771,7 +771,7 @@ describe("generation hooks", () => {
 			beforeProviderRequest: ({ payload }) => ({ payload: { ...(payload as object), last: true } }),
 		});
 		const sent: unknown[] = [];
-		// pi-ai builds a body per provider call, and again when it resends within one attempt.
+		// evoharness-ai builds a body per provider call, and again when it resends within one attempt.
 		const respond: FauxResponseStep = async (_context, options, _state, model) => {
 			sent.push(await options!.onPayload!({ body: 1 }, model));
 			sent.push(await options!.onPayload!({ body: 2 }, model));
@@ -993,7 +993,7 @@ describe("tool execution api", () => {
 
 describe("coding tools", () => {
 	it("answers a failing command with its retained tail and diagnostics in order", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "pi-durable-coding-"));
+		const directory = mkdtempSync(join(tmpdir(), "evoharness-durable-coding-"));
 		try {
 			const setup = chatSetup();
 			addTool(setup.registry, createBashTool());
@@ -1023,7 +1023,7 @@ describe("coding tools", () => {
 	});
 
 	it("reads, edits, and runs a command in one run, then answers", async () => {
-		const directory = mkdtempSync(join(tmpdir(), "pi-durable-coding-"));
+		const directory = mkdtempSync(join(tmpdir(), "evoharness-durable-coding-"));
 		try {
 			writeFileSync(join(directory, "notes.txt"), "hello world\n");
 			const setup = chatSetup();

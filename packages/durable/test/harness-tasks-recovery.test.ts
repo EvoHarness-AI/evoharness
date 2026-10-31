@@ -24,7 +24,7 @@ import { aborted, abortedWith, completed, countingReader, deferred, eventually, 
 const directories = new Set<string>();
 
 async function sqlitePath(): Promise<string> {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-tasks-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-tasks-"));
 	directories.add(directory);
 	return join(directory, "session.sqlite");
 }

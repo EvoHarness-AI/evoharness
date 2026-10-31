@@ -185,7 +185,7 @@ async function until(check: () => boolean | Promise<boolean>): Promise<void> {
 const directories = new Set<string>();
 
 async function sqlitePath(): Promise<string> {
-	const directory = await mkdtemp(join(tmpdir(), "pi-durable-structured-"));
+	const directory = await mkdtemp(join(tmpdir(), "evoharness-durable-structured-"));
 	directories.add(directory);
 	return join(directory, "session.sqlite");
 }

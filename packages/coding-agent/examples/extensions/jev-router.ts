@@ -11,12 +11,12 @@
  * or `write` tool call, the next request of the same turn goes to Luna, and the session stays
  * there. A session therefore switches models once and accepts a single prompt-cache miss.
  *
- * The phase is router state: Pi stores it on the session branch, so it follows the session tree
+ * The phase is router state: EvoHarness stores it on the session branch, so it follows the session tree
  * and survives compaction. The selected thinking level passes through as the reasoning effort of
  * the chosen model. Requests outside the agent loop, such as compaction summaries, go to Luna.
  *
  * Requires TypeSafe credentials (TYPESAFE_API_KEY) and an OpenAI Codex login.
- * Usage: pi -e ./jev-router.ts --model jev/auto
+ * Usage: evoharness -e ./jev-router.ts --model jev/auto
  */
 
 import type { Message } from "@evoharness/ai";
@@ -87,8 +87,8 @@ async function choosePlanningModel(request: JevRequest, ctx: ExtensionContext): 
 	return answer?.type === "choice" && (answer.probabilities.complex ?? 0) >= 0.5 ? SOL : TERRA;
 }
 
-export default function (pi: ExtensionAPI) {
-	pi.registerVirtualModel<JevState>({
+export default function (evoharness: ExtensionAPI) {
+	evoharness.registerVirtualModel<JevState>({
 		provider: "jev",
 		id: "auto",
 		name: "Auto (Jev)",

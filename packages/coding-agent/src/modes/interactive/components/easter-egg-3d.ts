@@ -17,11 +17,11 @@ import { ARMIN_HEIGHT, ARMIN_WIDTH, isArminPixel } from "./armin.ts";
 import { formatKeyText } from "./keybinding-hints.ts";
 
 /**
- * Fullscreen 3D easter eggs: the pi logo (header logo click) and Armin (/arminsayshi). Both are bitmaps built from
+ * Fullscreen 3D easter eggs: the evoharness logo (header logo click) and Armin (/arminsayshi). Both are bitmaps built from
  * one block per pixel. The current screen dissolves into braille dust while the model spins in the center and its
  * blocks play a sliding puzzle. Leaving plays the same timeline backwards, so the screen reassembles.
  *
- * The pi logo lifts off the header, flies to the center, and grows; the dust spreads out from the header logo.
+ * The evoharness logo lifts off the header, flies to the center, and grows; the dust spreads out from the header logo.
  * Armin grows out of a speck at the center; the dust spreads out from the center.
  *
  * The blocks are ray cast per braille dot. A braille cell holds 2x4 roughly square dots, so one pixel of a
@@ -833,9 +833,9 @@ class BlockRaster {
 }
 
 /**
- * Which easter egg to play. The pi logo lifts off the header logo, whose top-left cell is at `column`, `row`.
+ * Which easter egg to play. The evoharness logo lifts off the header logo, whose top-left cell is at `column`, `row`.
  */
-export type EasterEgg3d = { kind: "pi-logo"; column: number; row: number } | { kind: "armin" };
+export type EasterEgg3d = { kind: "evoharness-logo"; column: number; row: number } | { kind: "armin" };
 
 let playing = false;
 
@@ -906,7 +906,7 @@ export class EasterEgg3dAnimation implements Component {
 		this.background = colors.background;
 		this.onDone = onDone;
 		this.timer = setInterval(() => {
-			// Also stop when no longer rendered, e.g. when pi hides all overlays on exit.
+			// Also stop when no longer rendered, e.g. when evoharness hides all overlays on exit.
 			if ((this.exit && this.exitProgress() >= 1) || performance.now() - this.lastRender > 1000) this.finish();
 			else this.tui.requestRender();
 		}, FRAME_MS);
