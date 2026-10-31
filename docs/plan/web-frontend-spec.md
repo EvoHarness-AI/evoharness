@@ -121,6 +121,7 @@
 | 3.10 | `scripts/check-package-layers.mjs`、`check-entry-graphs.mjs`、`check-runtime-deps.mjs` | 都只扫 `packages/` | **不改** | — |
 | 3.11 | 新增 `scripts/check-web-boundary.mjs` | — | 两条静态断言：①`packages/**` 不 import `apps/**`；②`apps/evoharness-web` 不 import `packages/*/src/**`。**③（`packages/**` 零 diff）不进脚本**：本仓 cwd 多会话并发（AGENTS.md Git 节），别的会话在 `packages/` 的在途改动会让全局静态守卫误红；③改为评审 A 的逐条核对项（对照执行 spec 白名单核对提交文件清单） | §0.1 D1 的禁令没有机器检查就只是建议；但守卫本身不能成为多会话下的误报源 |
 | 3.12 | 新增 `scripts/check-web-names.mjs` | — | 在 `apps/evoharness-web/{app,lib,components,hooks,bin,scripts}` 内 grep `abcwyc\|agegr\|earendil\|pi-web\|pi_web\|PI_[A-Z]`，白名单只放 `LICENSE`/`README` 的署名区 | 用 grep 做验收在 PowerShell 下语法不同，本机 grep 还是 ugrep（`parked.md` 已记过 `-e` 的坑）。跨平台守卫只能写成 mjs |
+| 3.13 | `scripts/check-ts-relative-imports.mjs` | 全树扫描 `.ts` 内的相对 `.js` 导入；上游 `next.config.ts`/`rpc-manager.ts` 合法地以 `.js` 相对导入加载 `bin/` 的 CJS 选项解析器 | `apps/evoharness-web` 从该守卫的扫描中豁免（vendored 例外，与 3.1 同理由）：app 的导入约定由它自己的 eslint 管 | 根约定强改上游导入形态 = 结构性重构 |
 
 ---
 
@@ -234,15 +235,16 @@
 
 | 来源 | 事项 | 结论 / 去向 |
 |---|---|---|
-| v1 草案 §6 | `EVOHARNESS_HOME` 是否被 core 尊重 | **已结案：不。** core 只认 `EVOHARNESS_CODING_AGENT_DIR`（`packages/coding-agent/src/config.ts` 的 `ENV_AGENT_DIR` / `getAgentDir()`）。`EVOHARNESS_HOME` 是 **App 私有**的重定向变量，只服务于 `userHome()` 的 NFT 规避（R9）。不写进 core，也不写进交叉校验表 |
+| v1 草案 §6 | `EVOHARNESS_HOME` 是否被 core 尊重 | **已结案：不。** core 只认 `EVOHARNESS_CODING_AGENT_DIR`（`packages/coding-agent/src/config.ts` 的 `ENV_AGENT_DIR` / `getAgentDir()`）。改名落地为 **`EVOHARNESS_AGENT_HOME`**（App 私有，只服务于 `userHome()` 的 NFT 规避，见 R9 与 Annex D）。不写进 core，也不写进交叉校验表 |
 | v1 草案 §6 | 6 个 dist 路径逐一验证 | 升级为 Annex F：**7 个模块 / 16 个符号**，写成测试 |
 | v1 草案 §6 | Windows 实机 PTY 冒烟 | Phase 1 DoD 已含 `cmd.exe` + `pwsh` |
 | v1 草案 §6 | `list_apps_for_file` / `open_path_with`（macOS-only）是否需要 Windows 等价物 | **Phase 3 首版不做**，`openPath`/`revealItemInDir` 覆盖 Windows 主路径；需要时另开一条 |
 | v1 草案 §6 | 参照物 `docs/agents/` 架构笔记与 7 篇 ADR | **迁 3 篇**（`ownership-boundaries.md`、`native-theme.md`、`scheduled-tasks-spec.md`）进 `apps/evoharness-web/docs/`；其余是上游同步语境，不迁 |
-| 新增 | `check-doc-links` 不覆盖 app 内文档 | 接受；`check:web` 内加一条相对链接自检 |
+| 新增 | `check-doc-links` 不覆盖 app 内文档 | **已实现**：`scripts/check-web-doc-links.mjs` 校验 `apps/evoharness-web` 内 README 与 docs/ 的相对链接，挂进 `check:web` |
 | 新增 | 参照物 14 个 e2e 中与壳/菜单相关的 | Phase 2 只跑 `conversation-navigator / chat-prompt-anchor / composer-outbox / option-controls / appearance / settings-controls / streaming-markdown / session-delete` 八个；其余 Phase 3 再定 |
 | 新增 | `apps/evoharness-web/docs/` 的 3 篇随迁文档与 §2 的 ADR | Phase 0 落地时一并提交 |
 | v3 | §2 的两处 `structure.md` 编辑（§2 树 `evoharness-desktop`→`evoharness-web`、§3.1 vendored 例外条款）**暂缓**：另一会话正在大改 `structure.md`（六条→七条原则），多会话规矩下不碰在途文件；待其落地后补编辑，期间例外条款由本 spec、AGENTS.md app 节与 `check-file-size` 豁免注释代行 | structure.md 稳定后的第一个 docs 提交 |
+| 执行期 | **app eslint 暂不进门禁**：typescript-eslint 8.72 的 peer 上限 `<6.1.0`，根工具链是 TS 7.0.2（根 check 依赖，规则禁止降级）；eslint-config-next 被提升到根后其内嵌 typescript-eslint 必然解析到根 TS。app 的 `lint` 脚本与配置保留（IDE 可用），`check:web` = tsc + 三守卫 + 版本断言 | typescript-eslint 支持 TS 7 后，把 `eslint .` 加回 app 的 `check` 即可 |
 
 **取数命令（文档不写快照，写命令）：**
 
@@ -358,7 +360,7 @@ node scripts/check-web-names.mjs
 | 推送 | `PI_WEB_PUSH_SUBJECT` → `EVOHARNESS_WEB_PUSH_SUBJECT` |
 | 壳契约 | `PI_DESKTOP_API_TOKEN`、`PI_DESKTOP_INSTANCE_ID`、`PI_DESKTOP_COMPILE_CACHE_DIR`、`PI_DESKTOP_NODE` → `EVOHARNESS_DESKTOP_*`（Electron 沿用） |
 | **语义项** | `PI_PACKAGE_DIR`→`EVOHARNESS_PACKAGE_DIR`（core 已支持；`pi-sdk-internals` 有硬守卫，设了会让 SDK 路径与 `getPackageDir()` 不一致）；`PI_PACKAGED_TERMINAL_OK`→`EVOHARNESS_PACKAGED_TERMINAL_OK`；`PI_OFFLINE`→`EVOHARNESS_OFFLINE`（core 原生）；`PI_CODING_AGENT_DIR`→`EVOHARNESS_CODING_AGENT_DIR`（core 原生，e2e 夹具用） |
-| **App 私有** | `PI_AGENT_HOME`→`EVOHARNESS_HOME`。**core 不读它**，它只给 `userHome()` 用（R9 的 NFT 规避）。文档里必须这样写，避免下一个人误以为改它能改 agent 目录 |
+| **App 私有** | `PI_AGENT_HOME`→`EVOHARNESS_AGENT_HOME`。**core 不读它**，它只给 `userHome()` 用（R9 的 NFT 规避）； relocated agent 目录是 `EVOHARNESS_CODING_AGENT_DIR` 的事。已在 `lib/user-home.ts` 头注释写明，避免下一个人误以为改它能改 agent 目录 |
 | 不变 | `PORT`、`NEXT_*`、`XDG_*`、`SystemRoot`、`LC_ALL`、`SKILLS_API_URL` |
 
 ---
