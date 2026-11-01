@@ -54,3 +54,15 @@
 | `scripts/file-size.baseline.json` | 记录上游大文件棘轮基线 | 35 个上游文件 >1500 行,属设计内路径 | 拆文件时下调 |
 
 **已知盲区**:被排除的 ~45k 行测试**不再经仓库 TS7 检查**;包自身 5.9.3 typecheck 与 TS7 语义不等价,统一 TS 版本前须知悉此处覆盖差异(若测试内混有真类型缺陷会被静默)。
+
+## CI 归属(已并入根 `.github`,包内不再有 workflow)
+
+上游 `pi-subagents/.github/workflows/` 的有用部分已并入根 `ci.yml` 的 **`test (subagents)`** job,包内 `.github/` 已删除。根 `test` job 也补了 `timeout-minutes: 30` 并把 `packages/subagents` 移出 `other` 循环(原来它在 node22/无超时下跑 `test:unit`,一个 watch/spawn 用例可挂到 6h)。
+
+- **并入(按 evoharness 改造)**:取上游 ubuntu 已验证配方——**node 24**(非根其它 job 的 22)、job/step `timeout-minutes`、integration 步 `NODE_DISABLE_COMPILE_CACHE=1`;并**先 `build:offline` 宿主**(register-loader 经 dist 解析 `@evoharness/*`,与上游用 npm 装独立 pi 不同)。
+- **integration 暂 report-only**(`continue-on-error`):monorepo 全量 integration 仍有跨文件 temp/lease 状态抖动(`result-publication`/`single-execution` 隔离绿、连跑偶红),Linux 首跑待观察,证稳后转 blocking。
+- **有意不并入**:
+  - `release.yml`——本包 `private`、不发 npm,无 `dist-pkg`/provenance 需求。
+  - `native-nested-wait`/`native-mcp-readiness`/`clean-install`/`official-standalone`/`runner-loader-capability`——均 `npm install @earendil-works/pi-coding-agent@1.2.0` 按独立发布版 pi 驱动;evoharness 已改名 `@evoharness/*` 且不发布,该宿主在此仓不存在,搬来必红。
+  - `bun-workflow-script` 与 macOS 专项(`calendar-timezones`/`worktree-cleanup-recovery`/`schedule-claim-contention`)——非必需平台矩阵,需要时再按需补。
+- **Linux CI 前置修复(已做)**:测试硬编码 `<pkg>/node_modules/jiti/lib/jiti-cli.mjs` 的独立安装路径在 monorepo(hoisting)下失效,`external-cli-runner`(5 处)与 `orca-progress-tabs`(2 处)已改按生产方式解析 hoisted 根 jiti。`oxlint` 不受影响(其 devDep 恰落在包内 `node_modules/oxlint`,未 hoist)。
