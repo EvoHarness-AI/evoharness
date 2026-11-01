@@ -2,11 +2,17 @@ import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
+import { createRequire } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { TEMP_ROOT_DIR } from "../../src/shared/types.ts";
 import { writeNodeCommand } from "../support/node-command.ts";
+
+const requireFromTestFile = createRequire(import.meta.url);
+// Resolve jiti the way the production runner does (hoisted to the workspace root in the monorepo),
+// instead of hardcoding a standalone-install path under this package's own node_modules.
+const jitiCliPath = path.join(path.dirname(requireFromTestFile.resolve("jiti/package.json")), "lib/jiti-cli.mjs");
 
 const tempDirs: string[] = [];
 afterEach(() => {
@@ -138,11 +144,7 @@ describe("Orca progress-tab observer", () => {
 			const repo = path.resolve(import.meta.dirname, "../..");
 			const exitCode = await runProcess(
 				process.execPath,
-				[
-					path.join(repo, "node_modules/jiti/lib/jiti-cli.mjs"),
-					path.join(repo, "src/runs/background/subagent-runner-bootstrap.ts"),
-					configPath,
-				],
+				[jitiCliPath, path.join(repo, "src/runs/background/subagent-runner-bootstrap.ts"), configPath],
 				repo,
 				{
 					...process.env,
@@ -237,11 +239,7 @@ describe("Orca progress-tab observer", () => {
 			const repo = path.resolve(import.meta.dirname, "../..");
 			const exitCode = await runProcess(
 				process.execPath,
-				[
-					path.join(repo, "node_modules/jiti/lib/jiti-cli.mjs"),
-					path.join(repo, "src/runs/background/subagent-runner-bootstrap.ts"),
-					configPath,
-				],
+				[jitiCliPath, path.join(repo, "src/runs/background/subagent-runner-bootstrap.ts"), configPath],
 				repo,
 				{
 					...process.env,
