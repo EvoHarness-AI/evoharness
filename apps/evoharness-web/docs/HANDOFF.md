@@ -114,7 +114,18 @@
 2. **spec Phase 0 第 7 条为部分交付**：localStorage 键已集中在 app-prefs.ts；Symbol.for / globalThis / entry 类型仍按上游风格散落（约 30 文件字面量，改名已全做、单点收敛未做）。所有者批准改判为部分交付后计入欠账；若要求真收敛，需触 30+ vendored 文件。
 3. **web-package-layout.test.mjs 未迁**：上游存在、spec B.4 列名；移植时（首次提交前）刻意删除——它钉的是 npm files 白名单，private app 无发布语义。删除决定当时未记录，在此补记。
 4. **data-tauri-drag-region 属性保留**是 Phase 3 的 CSS 契约（上游 native-theme.css 选择器依赖），非遗留——决定现在记于此。
-5. **三守卫自身无测试**（仓规 scripts 带 test 的惯例未循）——待补。
+5. **三守卫自身无测试**（仓规 scripts 带 test 的惯例未循）——**已补**：`scripts/check-web-guards.test.mjs`
+   夹具化验证"拦得住 + 不误拦"（进根 `test:scripts` 链）。
+6. **上一轮补的 `.pi` 形态守卫是一条死代码**：写进文件的正则里混入了一个退格符（0x08），
+   该形态实际从未拦住任何东西。本轮换成精确形态 `\.pi(?=[/"'\\])|~\/\.pi\b` 后立刻抓出真残留：
+   15 个 `PiWeb` PascalCase 标识符（lib 层 15 文件机械改为 `EvoharnessWeb`，同 `evoharnessWebFactory`
+   改名先例）、三语 i18n 用户可见文案里的 `.pi` 目录名（功能 bug：界面告诉用户一个不存在的目录）、
+   注释/测试名里的 `.pi` 叙述（改 `.evoharness`，只动描述不动断言）。`this.pi.xxx` 是 SDK MCP host
+   属性名（上游标识、非路径字面量），守卫的精确形态特意不拦它，夹具测试钉住这条不误拦。
+7. **`docs/build.md` 尾段曾以字面 `\uXXXX` 转义落盘**（写文件时 JSON 转义未解码），本轮已修；
+   OOM 候选路线已重排：第一优先实验 = webpack `resolve.symlinks: false`（论证见 build.md）。
+
+上述修正由 `npm run check`、`npm run test:web` 与守卫夹具测试复验。
 
 ## 未解决 / 欠账（按优先级）
 

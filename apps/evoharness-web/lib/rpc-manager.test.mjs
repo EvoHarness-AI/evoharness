@@ -36,7 +36,7 @@ test("only normal sessions load the codemode, tool-search, and mcp built-ins", a
 
   assert.match(
     startupSource,
-    /const builtins = subagentResources \|\| chatOnly\s*\? undefined\s*: await createPiWebBuiltinExtensions\(\{ agentDir \}\);/,
+    /const builtins = subagentResources \|\| chatOnly\s*\? undefined\s*: await createEvoharnessWebBuiltinExtensions\(\{ agentDir \}\);/,
   );
   // Spread into the chat-workspace and normal-session factories, never the chat-only or
   // subagent branches. A chat loads the built-ins (MCP, codemode) but not the
@@ -76,7 +76,7 @@ test("built-in subagents persist their selected resource policy", async () => {
   assert.match(source, /suppressCompletionNotifications: true/);
   assert.match(source, /suppressCompletionNotifications: Boolean\(subagentResources\)/);
   assert.match(startupSource, /createSubagentExtension\([\s\S]*?SUBAGENT_CONTROLLER\.extensionRuntime,[\s\S]*?\(\) => listSubagentProfiles\(sessionCwd\),[\s\S]*?isBuiltInSubagentsEnabled/);
-  assert.match(startupSource, /preferPiWebSubagentExtension\(base\)/);
+  assert.match(startupSource, /preferEvoharnessWebSubagentExtension\(base\)/);
 });
 
 test("running snapshots expose sessions with suppressed completion notifications", async () => {
@@ -726,9 +726,9 @@ test("normal sessions restore persisted tool selections before loading resources
     /chatOnly\s*\?\s*\{\s*\.\.\.CHAT_ONLY_RESOURCE_LOADER_OPTIONS/,
   );
   // ADR 0006: the codemode, tool-search and mcp built-ins load under their CLI
-  // names (builtin:<name>) through createPiWebBuiltinExtensions, with the
+  // names (builtin:<name>) through createEvoharnessWebBuiltinExtensions, with the
   // per-session MCP host deciding which servers connect.
-  assert.match(startupSource, /createPiWebBuiltinExtensions\(\{ agentDir \}\)/);
+  assert.match(startupSource, /createEvoharnessWebBuiltinExtensions\(\{ agentDir \}\)/);
   assert.match(startupSource, /const trustReloadOptions = subagentResources[\s\S]*?subagentLoadsResources[\s\S]*?chatOnly \|\| chatWorkspace\s*\? undefined\s*: projectTrustReloadOptions\(sessionCwd, agentDir\)/);
   assert.match(registrationSource, /if \(!wrapper\.isChatOnly\(\)\) wrapper\.beginExtensionBinding\(\)/);
 });

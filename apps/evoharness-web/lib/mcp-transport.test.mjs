@@ -8,7 +8,7 @@ import { createJiti } from "jiti";
 const jiti = createJiti(import.meta.url);
 const { loadPiSdkInternals } = await jiti.import("./evoharness-sdk-internals.ts");
 const {
-  createPiWebMcpTransportFactory,
+  createEvoharnessWebMcpTransportFactory,
   findWebPasswordField,
   findWebPasswordReference,
   resolvedConfigValues,
@@ -47,7 +47,7 @@ function stdioEntry(config = {}) {
 
 // Created before any test changes process.env: the factory must read the
 // environment when a server starts, not when the factory is made.
-const evoharnessWebFactory = createPiWebMcpTransportFactory(internals);
+const evoharnessWebFactory = createEvoharnessWebMcpTransportFactory(internals);
 
 /** A connection through evoharness-web's factory, recording the transports it builds. */
 function connect(entry, factory = evoharnessWebFactory) {
@@ -150,7 +150,7 @@ test("closing the connection ends the server and the processes it started", { sk
 });
 
 test("an entry's own env applies on top of the sanitized environment", () => {
-  const factory = createPiWebMcpTransportFactory(internals, {
+  const factory = createEvoharnessWebMcpTransportFactory(internals, {
     baseEnvironment: {
       EVOHARNESS_WEB_PASSWORD: "web-password",
       PORT: "30141",
@@ -166,7 +166,7 @@ test("an entry's own env applies on top of the sanitized environment", () => {
 });
 
 test("on Windows, names match whatever their casing", () => {
-  const factory = createPiWebMcpTransportFactory(internals, {
+  const factory = createEvoharnessWebMcpTransportFactory(internals, {
     baseEnvironment: { Path: "C:\\bin", EvoHarness_Web_Password: "web-password", Port: "30141", SystemRoot: "C:\\Windows" },
     platform: "win32",
   });
@@ -177,7 +177,7 @@ test("on Windows, names match whatever their casing", () => {
 test("stdio transports keep every option the SDK's transport passes", () => {
   const entry = stdioEntry({ command: "~/bin/server", args: ["~/data", "--flag"], cwd: "sub", env: { TOKEN: "literal" } });
   const sdkTransport = internals.createDefaultTransport(entry, "/work", undefined);
-  const transport = createPiWebMcpTransportFactory(internals)(entry, "/work", undefined);
+  const transport = createEvoharnessWebMcpTransportFactory(internals)(entry, "/work", undefined);
 
   assert.ok(transport instanceof internals.StdioTransport);
   assert.notEqual(transport, sdkTransport);
@@ -197,7 +197,7 @@ test("HTTP servers use the SDK's transport unchanged", async () => {
     };
     const authProvider = { token: async () => "token" };
     const sdkTransport = internals.createDefaultTransport(entry, "/work", authProvider);
-    const transport = createPiWebMcpTransportFactory(internals)(entry, "/work", authProvider);
+    const transport = createEvoharnessWebMcpTransportFactory(internals)(entry, "/work", authProvider);
 
     assert.equal(transport.constructor, sdkTransport.constructor);
     assert.ok(!(transport instanceof internals.StdioTransport));
@@ -224,7 +224,7 @@ test("refuses entries whose resolved values reference EVOHARNESS_WEB_PASSWORD", 
     ],
   ];
   let sdkCalls = 0;
-  const factory = createPiWebMcpTransportFactory({
+  const factory = createEvoharnessWebMcpTransportFactory({
     ...internals,
     createDefaultTransport: (...args) => {
       sdkCalls++;
@@ -260,10 +260,10 @@ test("a refused entry fails to connect without starting a process", async () => 
 });
 
 test("never falls back to a transport evoharness-web did not sanitize", () => {
-  const notStdio = createPiWebMcpTransportFactory({ ...internals, createDefaultTransport: () => ({}) });
+  const notStdio = createEvoharnessWebMcpTransportFactory({ ...internals, createDefaultTransport: () => ({}) });
   assert.throws(() => notStdio(stdioEntry(), "/work", undefined), /the SDK did not create a stdio transport/);
 
-  const extraEnvironment = createPiWebMcpTransportFactory({
+  const extraEnvironment = createEvoharnessWebMcpTransportFactory({
     ...internals,
     createDefaultTransport: () => new internals.StdioTransport({ command: "server", env: { HOME: "/home/pi" } }),
   });

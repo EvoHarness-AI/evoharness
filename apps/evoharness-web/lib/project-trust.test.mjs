@@ -319,7 +319,7 @@ test("the fresh check looks for exactly what makes the SDK require trust", async
     assert.equal(hasTrustRelevantEntries(cwd), true, entry);
     await rm(path);
   }
-  assert.equal(hasTrustRelevantEntries(cwd), false, "an empty .pi needs no trust");
+  assert.equal(hasTrustRelevantEntries(cwd), false, "an empty .evoharness needs no trust");
 });
 
 test("the fresh check also counts links to nothing, which existsSync skips", async (t) => {
@@ -331,7 +331,7 @@ test("the fresh check also counts links to nothing, which existsSync skips", asy
   await rm(join(cwd, ".evoharness"), { recursive: true });
 
   await linkDirectory(join(root, "nowhere"), join(cwd, ".evoharness"));
-  assert.equal(hasTrustRelevantEntries(cwd), true, "a .pi that is a link to nothing");
+  assert.equal(hasTrustRelevantEntries(cwd), true, "an .evoharness that is a link to nothing");
   await rm(join(cwd, ".evoharness"));
 
   // .agents/skills in an ancestor makes the SDK require trust too; the home folder's own does not.
@@ -512,13 +512,13 @@ test("the scan below a fresh folder finds each kind of project, deep enough and 
   await mkdir(join(work, "skills-repo", ".agents", "skills"), { recursive: true });
   assert.deepEqual(found(), { kind: "contains-project", path: join(work, "skills-repo") });
   await rm(join(work, "skills-repo"), { recursive: true });
-  // A .pi that is a link to nothing needs trust the moment its target appears.
+  // An .evoharness that is a link to nothing needs trust the moment its target appears.
   await mkdir(join(work, "linked"));
   await linkDirectory(join(root, "not-yet"), join(work, "linked", ".evoharness"));
   assert.deepEqual(found(), { kind: "contains-project", path: join(work, "linked") });
   await rm(join(work, "linked"), { recursive: true });
 
-  // An empty .pi, dependencies and history are not projects.
+  // An empty .evoharness, dependencies and history are not projects.
   await mkdir(join(work, "plain", ".evoharness"), { recursive: true });
   await mkdir(join(work, "app", "node_modules", "dep", ".evoharness", "extensions"), { recursive: true });
   await mkdir(join(work, "app", ".git", "x", ".evoharness", "extensions"), { recursive: true });

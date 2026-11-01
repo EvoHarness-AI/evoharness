@@ -12,7 +12,7 @@ import {
 } from "./mcp-secrets";
 import { guardedCredentialStore, mcpOAuthUrl, mcpSignInKey, mcpSignOutCount, mcpSignOutGuard, type McpSignInWriteGuard } from "./mcp-sign-out";
 import { recordMcpStatus } from "./mcp-status";
-import { createPiWebMcpTransportFactory, resolvedConfigValues } from "./mcp-transport";
+import { createEvoharnessWebMcpTransportFactory, resolvedConfigValues } from "./mcp-transport";
 import { createModelRuntimeWithExtensions } from "./model-runtime";
 import type {
   McpClient,
@@ -364,7 +364,7 @@ export function openTestConnection(
   const timeout = Math.min(config.timeout ?? SDK_DEFAULT_TIMEOUT_SECONDS, requestTimeoutMs / 1000);
   const entry: McpServerEntry = { name: target.name, config: { ...config, timeout }, source: target.sourcePath, scope: target.scope };
   const transports: McpTransport[] = [];
-  const factory = createPiWebMcpTransportFactory(internals);
+  const factory = createEvoharnessWebMcpTransportFactory(internals);
   const connection = new internals.McpServerConnection({
     entry,
     cwd: target.cwd,

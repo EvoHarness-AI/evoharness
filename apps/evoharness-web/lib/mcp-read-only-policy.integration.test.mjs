@@ -22,7 +22,7 @@ test.after(() => rm(agentDir, { recursive: true, force: true, maxRetries: 20, re
 
 const jiti = createJiti(import.meta.url, { interopDefault: true, moduleCache: false });
 const { AgentSessionWrapper } = await jiti.import("./rpc-manager.ts");
-const { createPiWebBuiltinExtensions } = await jiti.import("./builtin-extensions.ts");
+const { createEvoharnessWebBuiltinExtensions } = await jiti.import("./builtin-extensions.ts");
 const { createReadOnlyMcpPolicyExtension } = await jiti.import("./mcp-read-only-policy.ts");
 const { appendSessionToolSelection } = await jiti.import("./session-tool-selection.ts");
 
@@ -57,7 +57,7 @@ async function startSession(t, selection) {
   });
   modelRuntime.registerNativeProvider(faux.provider);
   const settingsManager = SettingsManager.inMemory({});
-  const { extensions, mcpHost } = await createPiWebBuiltinExtensions({ agentDir });
+  const { extensions, mcpHost } = await createEvoharnessWebBuiltinExtensions({ agentDir });
   const resourceLoader = new DefaultResourceLoader({
     cwd,
     agentDir,

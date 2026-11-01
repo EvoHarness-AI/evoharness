@@ -40,7 +40,7 @@ import {
 import { createHeadlessCustomUiTui, DEFAULT_CUSTOM_UI_COLUMNS, type HeadlessCustomUiTui } from "./custom-ui-terminal";
 import {
   createSubagentExtension,
-  preferPiWebSubagentExtension,
+  preferEvoharnessWebSubagentExtension,
 } from "./subagent-extension";
 import {
   listSubagentProfiles,
@@ -54,7 +54,7 @@ import { resolveShellTools } from "./powershell-settings";
 import { CHAT_ONLY_RESOURCE_LOADER_OPTIONS, contextFilesSystemPrompt } from "./chat-only";
 import { createExactSystemPromptExtension } from "./exact-system-prompt";
 import { createArtifactGuideExtension } from "./artifact-guide-extension";
-import { createPiWebBuiltinExtensions } from "./builtin-extensions";
+import { createEvoharnessWebBuiltinExtensions } from "./builtin-extensions";
 import type { McpHost } from "./mcp-host";
 import { mcpPromptPreparation, type McpCommandCandidate } from "./mcp-command";
 import { createReadOnlyMcpPolicyExtension } from "./mcp-read-only-policy";
@@ -2733,7 +2733,7 @@ export async function startRpcSession(
     // which MCP servers the session connects (ADR 0006).
     const builtins = subagentResources || chatOnly
       ? undefined
-      : await createPiWebBuiltinExtensions({ agentDir });
+      : await createEvoharnessWebBuiltinExtensions({ agentDir });
     const services = await createAgentSessionServices({
       cwd: sessionCwd,
       agentDir,
@@ -2805,7 +2805,7 @@ export async function startRpcSession(
                 isBuiltInSubagentsEnabled,
               ),
             ],
-            extensionsOverride: (base) => preferUserBashExtension(preferPiWebSubagentExtension(base)),
+            extensionsOverride: (base) => preferUserBashExtension(preferEvoharnessWebSubagentExtension(base)),
           },
       ...(trustReloadOptions ? { resourceLoaderReloadOptions: trustReloadOptions } : {}),
     });

@@ -953,7 +953,7 @@ export const enLocale: LocalePlugin = {
     "mcp.add.projectBlocked.untrusted-decision": "This folder is marked as not trusted, so a server in its .evoharness/mcp.json would never connect.",
     "mcp.add.projectBlocked.secret": "{fields} holds a secret as plain text, so this server can be saved only globally. To save it in the project, choose “Read it from a variable of the computer running EvoHarness” for it.",
     "mcp.add.projectBlocked.secretFixed": "{fields} holds a secret as plain text where pi reads no variable (the URL, the command or its arguments), so this server can be saved only globally.",
-    "mcp.add.projectBlocked.folder-not-fresh": "Something under this folder's .pi, or an .agents/skills folder above it, is a link to nothing. It would need trust once its target appears, so EvoHarness does not trust the folder by itself. Remove or fix the link, then press Refresh.",
+    "mcp.add.projectBlocked.folder-not-fresh": "Something under this folder's .evoharness, or an .agents/skills folder above it, is a link to nothing. It would need trust once its target appears, so EvoHarness does not trust the folder by itself. Remove or fix the link, then press Refresh.",
     "mcp.add.projectBlocked.file-problem": "{path} cannot be written: {reason}",
     "mcp.add.projectBlocked.trust-too-broad.home": "This is your home folder. EvoHarness does not trust it by itself, since every folder in it would be trusted too; add the server globally.",
     "mcp.add.projectBlocked.trust-too-broad.root": "This is a filesystem root. EvoHarness does not trust it by itself, since every folder on it would be trusted too; add the server globally.",

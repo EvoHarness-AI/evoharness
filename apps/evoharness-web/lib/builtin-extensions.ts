@@ -14,7 +14,7 @@ import {
   type ToolDefinition,
 } from "@evoharness/coding-agent";
 import { McpHost, type McpHostOptions } from "./mcp-host";
-import { createPiWebMcpTransportFactory } from "./mcp-transport";
+import { createEvoharnessWebMcpTransportFactory } from "./mcp-transport";
 import { loadPiSdkInternals, type PiSdkInternals, type PiSdkInternalsResult } from "./evoharness-sdk-internals";
 import { mayReadProjectConfigNow } from "./project-trust";
 import { PROJECT_SETTINGS_MAX_BYTES, readRegularFileText } from "./regular-file";
@@ -343,13 +343,13 @@ function builtin(name: string, factory: ExtensionFactory): InlineExtension {
   return { name, factory, replaceable: true, builtin: true };
 }
 
-export interface PiWebBuiltinExtensionsOptions {
+export interface EvoharnessWebBuiltinExtensionsOptions {
   agentDir: string;
   /** Timing overrides for tests. */
   mcpHost?: Pick<McpHostOptions, "idleMs" | "promptWaitMs">;
 }
 
-export interface PiWebBuiltinExtensions {
+export interface EvoharnessWebBuiltinExtensions {
   /** For the resource loader's `extensionFactories`, in the CLI's order, then the MCP host. */
   extensions: InlineExtension[];
   /** Decides which MCP servers the session connects; undefined while MCP is off. */
@@ -357,9 +357,9 @@ export interface PiWebBuiltinExtensions {
 }
 
 /** The built-in extensions of a normal session and the host that feeds the MCP one. */
-export async function createPiWebBuiltinExtensions(
-  options: PiWebBuiltinExtensionsOptions,
-): Promise<PiWebBuiltinExtensions> {
+export async function createEvoharnessWebBuiltinExtensions(
+  options: EvoharnessWebBuiltinExtensionsOptions,
+): Promise<EvoharnessWebBuiltinExtensions> {
   const [sandbox, mcp] = await Promise.all([checkCodemodeSandbox(), loadMcpRuntime()]);
   const mcpHost = mcp.available
     ? new McpHost({
@@ -377,7 +377,7 @@ export async function createPiWebBuiltinExtensions(
       mcp.available && mcpHost
         ? createMcpExtension({
             loadConfig: createMcpExtensionConfigLoader(mcp.internals, options.agentDir),
-            createTransport: mcpHost.wrapTransportFactory(createPiWebMcpTransportFactory(mcp.internals)),
+            createTransport: mcpHost.wrapTransportFactory(createEvoharnessWebMcpTransportFactory(mcp.internals)),
             // The host already waited, and Stop ends its wait. The extension's own wait for
             // servers with `direct` tools, at a session's first prompt, ignores Stop.
             startupWaitMs: 0,

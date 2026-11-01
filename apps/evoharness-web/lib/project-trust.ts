@@ -219,7 +219,7 @@ export function hasTrustRelevantEntries(cwd: string, home: string = process.env.
   }
 }
 
-/** What under `folder/.pi` makes it require trust, or a `.evoharness` that is a link to nothing, by `lstat`. */
+/** What under `folder/.evoharness` makes it require trust, or a `.evoharness` that is a link to nothing, by `lstat`. */
 function hasOwnTrustEntries(folder: string): boolean {
   const configDir = join(folder, ".evoharness");
   try {

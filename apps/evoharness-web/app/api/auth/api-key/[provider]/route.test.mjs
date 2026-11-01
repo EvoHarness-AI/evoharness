@@ -5,7 +5,7 @@ import path from "node:path";
 import test, { after, beforeEach } from "node:test";
 import { createJiti } from "jiti";
 
-// auth.json lives in a temporary agent dir; nothing here touches ~/.pi.
+// auth.json lives in a temporary agent dir; nothing here touches ~/.evoharness.
 const agentDir = await mkdtemp(path.join(os.tmpdir(), "evoharness-web-api-key-route-"));
 const authPath = path.join(agentDir, "auth.json");
 const originalAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;

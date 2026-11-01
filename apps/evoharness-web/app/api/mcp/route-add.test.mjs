@@ -190,7 +190,7 @@ test("a fresh folder that gained resources since the panel offered the step is n
   assert.equal(existsSync(projectPath(fresh)), false);
 });
 
-test("a fresh folder with a link to nothing under .pi is not offered the step, and the step refuses it", async () => {
+test("a fresh folder with a link to nothing under .evoharness is not offered the step, and the step refuses it", async () => {
   // The SDK's existsSync sees nothing that needs trust yet; the link would need it once its target appears.
   await mkdir(join(fresh, ".evoharness"));
   await linkDirectory(join(root, "not-there-yet"), join(fresh, ".evoharness", "extensions"));
@@ -264,7 +264,7 @@ test("two steps for one fresh folder at once: one trusts and adds, the other is 
 });
 
 test("a write that fails after trusting a fresh folder takes the trust back", async () => {
-  // A regular file where .pi should be: the folder is fresh, but nothing can be written under it.
+  // A regular file where .evoharness should be: the folder is fresh, but nothing can be written under it.
   await writeFile(join(fresh, ".evoharness"), "not a folder");
   const { status, body } = await add({ text: "npx -y @scope/lint-mcp", scope: "project", cwd: fresh, trustFolder: true });
   assert.equal(status, 500);

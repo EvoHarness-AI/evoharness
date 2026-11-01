@@ -1,4 +1,4 @@
-import { getPiWebSettingsPath, readStored, updatePiWebSettings } from "./artifact-settings";
+import { getEvoharnessWebSettingsPath, readStored, updateEvoharnessWebSettings } from "./artifact-settings";
 import {
   CHAT_ALLOWED_TOOLS_MAX,
   CHAT_INSTRUCTIONS_MAX_CHARS,
@@ -51,7 +51,7 @@ export function parseChatSettings(raw: unknown): ChatSettings {
 }
 
 /** The chat preferences; an unreadable file reads as "not set" rather than failing a session start. */
-export function readChatSettings(settingsPath = getPiWebSettingsPath()): ChatSettings {
+export function readChatSettings(settingsPath = getEvoharnessWebSettingsPath()): ChatSettings {
   try {
     return parseChatSettings(readStored(settingsPath).chats);
   } catch {
@@ -110,9 +110,9 @@ export function validateChatSettingsPatch(body: unknown): ChatSettingsPatch {
   return patch;
 }
 
-export function writeChatSettings(patch: ChatSettingsPatch, settingsPath = getPiWebSettingsPath()): ChatSettings {
+export function writeChatSettings(patch: ChatSettingsPatch, settingsPath = getEvoharnessWebSettingsPath()): ChatSettings {
   const next = { ...readChatSettings(settingsPath), ...patch };
-  updatePiWebSettings({
+  updateEvoharnessWebSettings({
     chats: {
       ...(next.model ? { model: next.model } : {}),
       ...(next.thinkingLevel ? { thinkingLevel: next.thinkingLevel } : {}),

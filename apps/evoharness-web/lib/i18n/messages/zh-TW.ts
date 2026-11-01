@@ -953,7 +953,7 @@ export const zhTWLocale: LocalePlugin = {
     "mcp.add.projectBlocked.untrusted-decision": "此資料夾被標記為不受信任，因此其 .evoharness/mcp.json 中的伺服器永遠不會連線。",
     "mcp.add.projectBlocked.secret": "{fields} 以明文保存了一項機密，因此此伺服器只能儲存在全域。要儲存在專案中，請為它選擇「從執行 EvoHarness 的電腦上的變數讀取」。",
     "mcp.add.projectBlocked.secretFixed": "{fields} 在 pi 不讀取變數的位置（URL、命令或其引數）以明文保存了一項機密，因此此伺服器只能儲存在全域。",
-    "mcp.add.projectBlocked.folder-not-fresh": "此資料夾的 .pi 下，或其上層某個 .agents/skills 資料夾中，有一個指向不存在目標的連結。目標出現後它就需要信任，因此 EvoHarness 不會自行信任此資料夾。請刪除或修正該連結，然後按「重新整理」。",
+    "mcp.add.projectBlocked.folder-not-fresh": "此資料夾的 .evoharness 下，或其上層某個 .agents/skills 資料夾中，有一個指向不存在目標的連結。目標出現後它就需要信任，因此 EvoHarness 不會自行信任此資料夾。請刪除或修正該連結，然後按「重新整理」。",
     "mcp.add.projectBlocked.file-problem": "無法寫入 {path}：{reason}",
     "mcp.add.projectBlocked.trust-too-broad.home": "這是你的主資料夾。EvoHarness 不會自行信任它，因為其中的每個資料夾都會一併受信任；請把伺服器新增到全域。",
     "mcp.add.projectBlocked.trust-too-broad.root": "這是檔案系統的根目錄。EvoHarness 不會自行信任它，因為其中的每個資料夾都會一併受信任；請把伺服器新增到全域。",

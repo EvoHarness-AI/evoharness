@@ -19,7 +19,7 @@ type TransportInternals = Pick<
 >;
 type ConfigValueInternals = Pick<PiSdkInternals, "getConfigValueEnvVarNames" | "isCommandConfigValue">;
 
-export interface PiWebMcpTransportOptions {
+export interface EvoharnessWebMcpTransportOptions {
   /** Environment stdio servers start from, before sanitizing. Defaults to `process.env` at connect time. */
   baseEnvironment?: NodeJS.ProcessEnv;
   platform?: NodeJS.Platform;
@@ -69,9 +69,9 @@ function serverEnvironment(
  * values resolved by the SDK, but started with `inheritEnv: false` from the
  * sanitized environment. It never falls back to the SDK's stdio transport.
  */
-export function createPiWebMcpTransportFactory(
+export function createEvoharnessWebMcpTransportFactory(
   internals: TransportInternals,
-  options: PiWebMcpTransportOptions = {},
+  options: EvoharnessWebMcpTransportOptions = {},
 ): McpTransportFactory {
   const platform = options.platform ?? process.platform;
   return (entry, cwd, authProvider) => {

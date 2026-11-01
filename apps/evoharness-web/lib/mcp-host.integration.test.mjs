@@ -24,7 +24,7 @@ test.after(() => rm(agentDir, { recursive: true, force: true, maxRetries: 20, re
 
 const jiti = createJiti(import.meta.url, { interopDefault: true, moduleCache: false });
 const { AgentSessionWrapper, MCP_WAIT_STOPPED_MESSAGE } = await jiti.import("./rpc-manager.ts");
-const { createPiWebBuiltinExtensions } = await jiti.import("./builtin-extensions.ts");
+const { createEvoharnessWebBuiltinExtensions } = await jiti.import("./builtin-extensions.ts");
 const { mcpConfigKey } = await jiti.import("./mcp-config-key.ts");
 const { readMcpOverview } = await jiti.import("./mcp-config-read.ts");
 const { clearMcpStatuses, readMcpStatus } = await jiti.import("./mcp-status.ts");
@@ -57,7 +57,7 @@ async function startSession(t, hostOptions, extraExtensions = []) {
   });
   modelRuntime.registerNativeProvider(faux.provider);
   const settingsManager = SettingsManager.inMemory({});
-  const { extensions, mcpHost } = await createPiWebBuiltinExtensions({ agentDir, mcpHost: hostOptions });
+  const { extensions, mcpHost } = await createEvoharnessWebBuiltinExtensions({ agentDir, mcpHost: hostOptions });
   assert.ok(mcpHost, "MCP is available");
   const resourceLoader = new DefaultResourceLoader({
     cwd,

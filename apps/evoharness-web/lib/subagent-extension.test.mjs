@@ -4,7 +4,7 @@ import { createJiti } from "jiti";
 
 const {
   createSubagentExtension,
-  preferPiWebSubagentExtension,
+  preferEvoharnessWebSubagentExtension,
   subagentFinalText,
   subagentNotificationText,
   SUBAGENT_NOTIFICATION_PREFIX,
@@ -203,7 +203,7 @@ test("integrated extension removes a legacy extension that owns the same tools",
     path: "/tmp/unrelated/index.ts",
     tools: new Map([["Agent", {}], ["get_subagent_result", {}], ["steer_subagent", {}], ["custom", {}]]),
   };
-  const result = preferPiWebSubagentExtension({
+  const result = preferEvoharnessWebSubagentExtension({
     extensions: [legacy, lookalike, host, other],
     errors: [{ path: legacy.path, error: "duplicate" }, { path: other.path, error: "other" }],
   });
@@ -222,7 +222,7 @@ test("integrated extension removes recognized legacy extensions with any reserve
       path: "/tmp/evoharness-subagents/index.ts",
       tools: new Map([[toolName, {}], ["other", {}]]),
     };
-    const result = preferPiWebSubagentExtension({
+    const result = preferEvoharnessWebSubagentExtension({
       extensions: [legacy, host],
       errors: [{
         path: host.path,
@@ -471,10 +471,10 @@ test("legacy preference leaves unrelated and partial-overlap extensions intact",
   const host = { path: "<inline:evoharness-web-subagents>", tools: new Map() };
   const partial = { path: "/tmp/partial.ts", tools: new Map([["Agent", {}]]) };
   const base = { extensions: [host, partial], errors: [] };
-  assert.equal(preferPiWebSubagentExtension(base), base);
+  assert.equal(preferEvoharnessWebSubagentExtension(base), base);
 
   const noHost = { extensions: [partial], errors: [] };
-  assert.equal(preferPiWebSubagentExtension(noHost), noHost);
+  assert.equal(preferEvoharnessWebSubagentExtension(noHost), noHost);
 });
 
 function consumingRuntime(runInfo, consumed) {

@@ -7,7 +7,7 @@ import test, { after } from "node:test";
 import { SessionManager } from "@evoharness/coding-agent";
 import { createJiti } from "jiti";
 
-// startRpcSession() builds real SDK sessions here; keep them out of ~/.pi.
+// startRpcSession() builds real SDK sessions here; keep them out of ~/.evoharness.
 const originalAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 const testAgentDir = await mkdtemp(join(tmpdir(), "evoharness-web-lifecycle-agent-"));
 process.env.EVOHARNESS_CODING_AGENT_DIR = testAgentDir;

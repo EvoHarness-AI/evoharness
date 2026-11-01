@@ -386,7 +386,7 @@ test("a project file is written only where the reader's link rule lets it be rea
   await assert.rejects(stat(join(root, "planted.json")));
   await rm(projectPath);
 
-  // The same for a .pi folder that is a link: outside the roots, or to nothing.
+  // The same for an .evoharness folder that is a link: outside the roots, or to nothing.
   await rm(join(cwd, ".evoharness"), { recursive: true });
   await mkdir(join(root, "elsewhere"));
   await symlink(join(root, "elsewhere"), join(cwd, ".evoharness"));

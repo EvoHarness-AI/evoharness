@@ -159,7 +159,7 @@ test("why Project is unavailable is visible text under the switch, never only a 
   assert.match(reason[2], /This folder holds .*repo\/app, another folder EvoHarness knows/);
   assert.match(html, new RegExp(`aria-describedby="${reason[1]}" disabled="" class="config-scope-switch-option">project`));
 
-  // A fresh folder with a link to nothing under .pi, which the step refuses.
+  // A fresh folder with a link to nothing under .evoharness, which the step refuses.
   html = pane({ data: overview({ cwd: "/Users/me/repo", trust: fresh, trustFolder: { allowed: false, reason: "folder-not-fresh" } }), draft: { text: "npx x" } });
   assert.match(text(html), /is a link to nothing\. It would need trust once its target appears, so EvoHarness does not trust the folder by itself\./);
 

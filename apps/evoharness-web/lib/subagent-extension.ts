@@ -317,7 +317,7 @@ export function createSubagentExtension(
 }
 
 /** Keep EvoHarness's integrated implementation when the legacy package is loaded. */
-export function preferPiWebSubagentExtension(base: LoadExtensionsResult): LoadExtensionsResult {
+export function preferEvoharnessWebSubagentExtension(base: LoadExtensionsResult): LoadExtensionsResult {
   const host = base.extensions.find((extension) => extension.path === HOST_SUBAGENT_EXTENSION_PATH);
   if (!host?.tools.has("Agent")) return base;
   const legacyPaths = new Set(base.extensions

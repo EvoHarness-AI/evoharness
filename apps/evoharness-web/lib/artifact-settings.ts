@@ -8,7 +8,7 @@ import { writePrivateFileAtomicSync } from "./atomic-file";
 
 type StoredSettings = Record<string, unknown> & { artifactsPrompt?: unknown };
 
-export function getPiWebSettingsPath(agentDir = getAgentDir()): string {
+export function getEvoharnessWebSettingsPath(agentDir = getAgentDir()): string {
   return join(agentDir, "evoharness-web", "settings.json");
 }
 
@@ -26,7 +26,7 @@ export function readStored(settingsPath: string): StoredSettings {
  * unreadable file keeps it on, since the cost of a wrong "on" is one prompt
  * section, while a silent "off" would look like the feature broke.
  */
-export function isArtifactsPromptEnabled(settingsPath = getPiWebSettingsPath()): boolean {
+export function isArtifactsPromptEnabled(settingsPath = getEvoharnessWebSettingsPath()): boolean {
   try {
     return readStored(settingsPath).artifactsPrompt !== false;
   } catch {
@@ -34,7 +34,7 @@ export function isArtifactsPromptEnabled(settingsPath = getPiWebSettingsPath()):
   }
 }
 
-export function writeArtifactsPromptEnabled(enabled: boolean, settingsPath = getPiWebSettingsPath()): boolean {
+export function writeArtifactsPromptEnabled(enabled: boolean, settingsPath = getEvoharnessWebSettingsPath()): boolean {
   const stored = readStored(settingsPath);
   mkdirSync(dirname(settingsPath), { recursive: true });
   writePrivateFileAtomicSync(settingsPath, JSON.stringify({ ...stored, version: 1, artifactsPrompt: enabled }, null, 2));
@@ -42,7 +42,7 @@ export function writeArtifactsPromptEnabled(enabled: boolean, settingsPath = get
 }
 
 /** Merge keys into EvoHarness's settings file, leaving every other key as it was. */
-export function updatePiWebSettings(patch: Record<string, unknown>, settingsPath = getPiWebSettingsPath()): void {
+export function updateEvoharnessWebSettings(patch: Record<string, unknown>, settingsPath = getEvoharnessWebSettingsPath()): void {
   const stored = readStored(settingsPath);
   mkdirSync(dirname(settingsPath), { recursive: true });
   writePrivateFileAtomicSync(settingsPath, JSON.stringify({ ...stored, version: 1, ...patch }, null, 2));

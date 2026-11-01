@@ -22,7 +22,7 @@ process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 
 const jiti = createJiti(import.meta.url, { interopDefault: true, moduleCache: false });
 const { AgentSessionWrapper } = await jiti.import("./rpc-manager.ts");
-const { createPiWebBuiltinExtensions } = await jiti.import("./builtin-extensions.ts");
+const { createEvoharnessWebBuiltinExtensions } = await jiti.import("./builtin-extensions.ts");
 const { bareMcpOpensSettings, isBuiltinMcpCommand } = await jiti.import("./mcp-command.ts");
 
 const FIXTURE = fileURLToPath(new URL("./__fixtures__/mcp-env-server.mjs", import.meta.url));
@@ -44,7 +44,7 @@ async function startSession(t, { settings = {}, extensionFactories = [] } = {}) 
     cwd,
     agentDir,
     settingsManager,
-    extensionFactories: [...(await createPiWebBuiltinExtensions({ agentDir })).extensions, ...extensionFactories],
+    extensionFactories: [...(await createEvoharnessWebBuiltinExtensions({ agentDir })).extensions, ...extensionFactories],
     noSkills: true,
     noPromptTemplates: true,
     noThemes: true,

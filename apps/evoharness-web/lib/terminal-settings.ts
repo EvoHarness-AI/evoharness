@@ -1,15 +1,15 @@
-import { getPiWebSettingsPath, readStored, updatePiWebSettings } from "./artifact-settings";
+import { getEvoharnessWebSettingsPath, readStored, updateEvoharnessWebSettings } from "./artifact-settings";
 import { discoverTerminalShells, type TerminalShell } from "./terminal-shells";
 import type { TerminalSettingsResponse } from "./api-types";
 import { samePath } from "./paths";
 
-export function readTerminalShellPreference(path = getPiWebSettingsPath()): string {
+export function readTerminalShellPreference(path = getEvoharnessWebSettingsPath()): string {
   const value = readStored(path).terminalShell;
   return typeof value === "string" && value ? value : "auto";
 }
 
-export function writeTerminalShellPreference(shell: string, path = getPiWebSettingsPath()): void {
-  updatePiWebSettings({ terminalShell: shell }, path);
+export function writeTerminalShellPreference(shell: string, path = getEvoharnessWebSettingsPath()): void {
+  updateEvoharnessWebSettings({ terminalShell: shell }, path);
 }
 
 export function getTerminalSettings(): TerminalSettingsResponse {
