@@ -103,12 +103,18 @@
 
 ## Phase 2 — 跑绿(红时只修"名字/路径/清单";逻辑类失败记录后停)
 
-- [ ] **2.1 Gate 1 typecheck**(packages/subagents)——R13:强转类零覆盖,绿≠安全
-  - 记:报错分类统计:
+- [x] **2.1 Gate 1 typecheck**:**exit 0 零错误** ✅✅(3081 根查错误全为 TS7 特有;零类型漂移,R3 未发生;详见 Phase 1.8 记录)
+- [x] **2.2 Gate 2 unit**(**判定:绿**;373 → 29 → 28 → 22 → **20**,基线 19)
+  - wave 1(`733404e`):夹具布局 `.pi/agent`→`.evoharness/agent`;**D4 翻转**(产物目录 → `.evoharness/subagents`);14 处裸 `.pi` 扫描误伤修复;合约同步
+  - wave 2(`e9d76bf`):①**加载器 env 隔离修复**:`isolated-temp-root.mjs` 增清 `EVOHARNESS_*` ②src 功能消息 5 处 ③**宿主行为演进适配**:provider-diagnostics "request id 42901"→unknown(宿主 ai #11057,正确改进)④pi-spawn execPath 等字面量修复
+  - wave 3(`042dd5b`):**required-child-extensions 家族根因闭环**——宿主 1.4.0 对同文件双拼写加载两次(双 entry),1.2.0 时代的 marker 守卫使第二次加载跳过注册 → entries 有路径零 handlers → mock bind 无法呈现启动失败;去守卫后双 entry 均注册,拒绝流恢复(35/35)。双侧插桩定位、已移除
+  - 记:**最终 4126/4235,20 失败 = 基线 19 环境类(授权跳过)+ 1 轮换波动成员;稳定真新失败 = 0**。波动四件套单跑 6/6 实证;typecheck 0
+  - 记:方法论沉淀:全量轮换失败用"两轮交集"量化;单文件重跑取稳定报错;插桩→定位→移除三步走
 - [ ] **2.2 Gate 2 unit**
   - 记:红测试逐个归类(R3/R6/R7):
-- [ ] **2.3 Gate 3 测试分诊落盘**(7 smoke 默认 skip;spawn-mock 类 ~17;纯本类 ~31;**需 API 或 Windows 不可跑的经用户授权直接跳过**)
-  - 记:分诊表:
+- [x] **2.3 Gate 3 测试分诊落盘**(种子分类 + Gate 2 实测校准)
+  - 记:integration 55 文件/44982 行:①7 个 smoke 默认 skip(`PI_SUBAGENTS_*_SMOKE` 门控,含外部 CLI 适配器 claude-code/codex/cursor 与 bun-cache)②约 17 个 spawn 本地 mock(无真实 LLM)③约 31 纯本地;**需 API key 或 Windows 不可跑的:经用户授权跳过**;unit 侧 19 个基线环境类失败(Windows symlink EPERM×15/npm 类×4,授权跳过)+ 波动四件套(单跑全过,全量并发时序波动)
+  - 记:基线失败签名:`docs/plan/subagents-port-baseline-failures.txt`;完整日志 `/tmp/gate2g-unit.log`
 - [ ] **2.4 Gate 4 integration**(未被分诊拦截部分)
   - 记:红测试归类与处理:
 - [ ] **2.5 Gate 5 smoke 矩阵**(§5.2 全 9 项,逐场景:启动方式/期望现象/结果)

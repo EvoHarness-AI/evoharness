@@ -152,7 +152,9 @@ describe("watchdog tool actions", () => {
 		);
 
 		assert.equal(result.isError, undefined);
-		const settings = JSON.parse(fs.readFileSync(path.join(tempHome, ".evoharness", "agent", "settings.json"), "utf-8"));
+		const settings = JSON.parse(
+			fs.readFileSync(path.join(tempHome, ".evoharness", "agent", "settings.json"), "utf-8"),
+		);
 		assert.equal(settings.subagents.watchdog.main.model, "openai-codex/gpt-5.5");
 		assert.equal(settings.subagents.watchdog.main.thinking, "high");
 	});

@@ -303,7 +303,9 @@ describe("agent discovery snapshots", () => {
 		fs.mkdirSync(path.join(outer, ".git"), { recursive: true });
 		writeAgent(path.join(outer, ".evoharness", "agents", "outer.md"), "outer", "Outer agent");
 		writeAgent(path.join(nested, ".evoharness", "agents", "nested.md"), "nested", "Nested agent");
-		writeJson(path.join(nested, ".evoharness", "settings.json"), { subagents: { projectRootResolution: "git-root" } });
+		writeJson(path.join(nested, ".evoharness", "settings.json"), {
+			subagents: { projectRootResolution: "git-root" },
+		});
 
 		const gitRoot = discoverAgents(nested, "both");
 		assert.equal(gitRoot.projectAgentsDir, path.join(outer, ".evoharness", "agents"));

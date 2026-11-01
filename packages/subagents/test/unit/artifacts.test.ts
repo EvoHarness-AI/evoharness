@@ -74,12 +74,16 @@ describe("project-local artifact paths", () => {
 			/artifactDir/,
 		);
 		assert.match(
-			getProjectArtifactPackagingWarning(packageDir({ name: "included", files: [".evoharness/subagents/**"] })) ?? "",
+			getProjectArtifactPackagingWarning(packageDir({ name: "included", files: [".evoharness/subagents/**"] })) ??
+				"",
 			/artifactDir/,
 		);
 		assert.equal(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "excluded-after-include", files: [".evoharness/subagents/**", "!.evoharness/subagents/**"] }),
+				packageDir({
+					name: "excluded-after-include",
+					files: [".evoharness/subagents/**", "!.evoharness/subagents/**"],
+				}),
 			),
 			undefined,
 		);

@@ -1220,7 +1220,11 @@ describe("project schedule management", () => {
 		});
 		manager.bindSession(ctx);
 		fs.mkdirSync(path.join(project, ".evoharness"));
-		fs.symlinkSync(outside, path.join(project, ".evoharness/subagents"), process.platform === "win32" ? "junction" : "dir");
+		fs.symlinkSync(
+			outside,
+			path.join(project, ".evoharness/subagents"),
+			process.platform === "win32" ? "junction" : "dir",
+		);
 
 		const result = await manager.handleToolCall(
 			{
@@ -1366,7 +1370,11 @@ describe("project schedule management", () => {
 		git(repository, ["worktree", "add", "-b", "feature", worktree]);
 		const primaryConfig = path.join(repository, ".evoharness");
 		fs.mkdirSync(primaryConfig, { recursive: true });
-		fs.symlinkSync(primaryConfig, path.join(worktree, ".evoharness"), process.platform === "win32" ? "junction" : "dir");
+		fs.symlinkSync(
+			primaryConfig,
+			path.join(worktree, ".evoharness"),
+			process.platform === "win32" ? "junction" : "dir",
+		);
 
 		const manager = createScheduledRunManager({
 			config: { scheduledRuns: { enabled: true } },
@@ -1397,7 +1405,11 @@ describe("project schedule management", () => {
 		const outsideConfig = path.join(outside, ".evoharness");
 		fs.mkdirSync(outsideConfig, { recursive: true });
 		fs.writeFileSync(path.join(outside, ".git"), `gitdir: ${path.join(repository, ".git")}\n`, "utf-8");
-		fs.symlinkSync(outsideConfig, path.join(worktree, ".evoharness"), process.platform === "win32" ? "junction" : "dir");
+		fs.symlinkSync(
+			outsideConfig,
+			path.join(worktree, ".evoharness"),
+			process.platform === "win32" ? "junction" : "dir",
+		);
 
 		const manager = createScheduledRunManager({
 			config: { scheduledRuns: { enabled: true } },

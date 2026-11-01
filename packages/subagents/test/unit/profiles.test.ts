@@ -204,7 +204,9 @@ describe("profiles helpers", () => {
 		);
 
 		applySubagentProfile("machine");
-		const settings = JSON.parse(fs.readFileSync(path.join(homeDir, ".evoharness", "agent", "settings.json"), "utf-8"));
+		const settings = JSON.parse(
+			fs.readFileSync(path.join(homeDir, ".evoharness", "agent", "settings.json"), "utf-8"),
+		);
 		assert.equal(settings.subagents.agentOverrides.worker.machine, "local-runner");
 		const worker = discoverAgents(process.cwd(), "both").agents.find((agent) => agent.name === "worker");
 		assert.equal(worker?.machine, "local-runner");

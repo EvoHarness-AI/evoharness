@@ -294,7 +294,7 @@ npm run test:integration   # 按 R10 分类后
 | D1 | 包名与位置 | `packages/subagents`,包名 `@evoharness/subagents` | 并入 coding-agent 内部目录(**不推荐**:耦合内核、失去边界) |
 | D2 | install.mjs / 发布元数据 | 退役(删 bin/files/pack 脚本,README 留档) | 保留但改造指向 evoharness(无意义,monorepo 不需要) |
 | D3 | 自有 53 个 `PI_*` 常量 | Phase 1–3 不动,Phase 3 后可选一次性改 `EVO_SUBAGENT_*` | 立即全改(diff 变大、易出错,不推荐) |
-| D4(v2 增) | `.pi/subagents/**` 运行产物目录与 `pi-subagents/` worktree 分支前缀 | 改为 `.evoharness/subagents/**` + 前缀,兑现 evoharness 自身 D-004 目录约定;测试断言同提交同步 | 保留 `.pi/subagents` 自留(源码零改动,但违背 D-004、用户侧两套目录困惑) |
+| D4(v2 增,**v3 执行期翻转**) | `.pi/subagents/**` 运行产物目录与 `pi-subagents/` worktree 分支前缀 | **产物目录已翻转为 `.evoharness/subagents/**`**(执行发现:产物目录住在配置目录内部,保留旧名会使 worktree 配置共享链接不再覆盖产物、上下游路径语义分裂——Gate 2 失败证据);分支前缀 `pi-subagents/` 保留(与路径无关) | ~~保留自留~~(已被执行证据否决) |
 
 ---
 

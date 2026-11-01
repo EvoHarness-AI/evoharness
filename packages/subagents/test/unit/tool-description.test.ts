@@ -184,7 +184,11 @@ describe("registered subagent tool description", () => {
 		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-compact-custom-"));
 		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-agent-"));
 		fs.mkdirSync(path.join(cwd, ".evoharness"), { recursive: true });
-		fs.writeFileSync(path.join(cwd, ".evoharness", "subagent-tool-description.md"), "{{compactDescription}}", "utf-8");
+		fs.writeFileSync(
+			path.join(cwd, ".evoharness", "subagent-tool-description.md"),
+			"{{compactDescription}}",
+			"utf-8",
+		);
 
 		const description = buildSubagentToolDescription({ toolDescriptionMode: "custom" }, { cwd, agentDir });
 

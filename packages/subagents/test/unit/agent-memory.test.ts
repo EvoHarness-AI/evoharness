@@ -329,7 +329,10 @@ describe("buildAgentMemoryInjection", () => {
 		}
 		assert.match(injection, /marker: shared-main-memory/);
 		assert.match(injection, new RegExp(`Memory file: ${escapeRegex(expectedFile)}`));
-		assert.doesNotMatch(injection, new RegExp(escapeRegex(path.join(worktree, ".evoharness", AGENT_MEMORY_DIR_NAME))));
+		assert.doesNotMatch(
+			injection,
+			new RegExp(escapeRegex(path.join(worktree, ".evoharness", AGENT_MEMORY_DIR_NAME))),
+		);
 
 		const marker = path.join(worktree, ".git");
 		const absoluteGitDir = fs.readFileSync(marker, "utf8").match(/^gitdir:\s*(.+?)\s*$/m)?.[1];

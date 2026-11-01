@@ -3000,7 +3000,10 @@ Answer only from the supplied synthetic text.
 			assert.equal(path.basename(result.details.asyncDir!), workflowRunId);
 			assert.equal(asyncJobs.has(workflowRunId), true);
 			assert.equal(asyncJobs.get(workflowRunId)?.cwd, workflowCwd);
-			assert.equal(asyncJobs.get(workflowRunId)?.sessionRoot, path.join(tempDir, ".evoharness/subagents", "sessions"));
+			assert.equal(
+				asyncJobs.get(workflowRunId)?.sessionRoot,
+				path.join(tempDir, ".evoharness/subagents", "sessions"),
+			);
 			assert.deepEqual(asyncJobs.get(workflowRunId)?.preflight, {
 				version: 1,
 				coverage: "complete",

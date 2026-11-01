@@ -2598,7 +2598,11 @@ Inspect cleanup.
 		};
 		fs.mkdirSync(path.join(tempDir, ".evoharness", "agents"), { recursive: true });
 		fs.mkdirSync(path.join(tempDir, ".evoharness", "skills", "deslop"), { recursive: true });
-		fs.writeFileSync(path.join(tempDir, ".evoharness", "skills", "deslop", "SKILL.md"), "Review for cleanup.\n", "utf-8");
+		fs.writeFileSync(
+			path.join(tempDir, ".evoharness", "skills", "deslop", "SKILL.md"),
+			"Review for cleanup.\n",
+			"utf-8",
+		);
 		for (const name of ["cleanup-a", "cleanup-b"]) {
 			fs.writeFileSync(
 				path.join(tempDir, ".evoharness", "agents", `${name}.md`),

@@ -426,7 +426,10 @@ describe(
 							createCommandContext({ cwd: root, model: opus, modelRegistry }),
 						);
 
-					assert.equal(fs.existsSync(path.join(process.env.HOME!, ".evoharness", "agent", "settings.json")), false);
+					assert.equal(
+						fs.existsSync(path.join(process.env.HOME!, ".evoharness", "agent", "settings.json")),
+						false,
+					);
 					const content = String((sent[0] as { content?: unknown }).content ?? "");
 					assert.match(content, /session model: openai-codex\/gpt-5\.5:high/);
 					assert.match(content, /Main model: openai-codex\/gpt-5\.5 \(session override\)/);

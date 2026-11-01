@@ -251,7 +251,9 @@ describe("agent definition directory inspection", () => {
 		withTempHome(() => {
 			const project = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-agent-report-"));
 			tempDirs.push(project);
-			writeJson(path.join(project, ".evoharness", "settings.json"), { subagents: { projectRootResolution: "nearest" } });
+			writeJson(path.join(project, ".evoharness", "settings.json"), {
+				subagents: { projectRootResolution: "nearest" },
+			});
 			const discovered = discoverAgents(project, "project");
 			assert.ok(discovered.directories.some((entry) => entry.source === "builtin"));
 			assert.deepEqual(
@@ -2939,13 +2941,15 @@ Skill-named agent prompt
 		);
 		assert.ok(
 			result.agents.find(
-				(agent) => agent.name === "canonical" && agent.filePath === path.join(dir, ".evoharness", "agents", "canonical.md"),
+				(agent) =>
+					agent.name === "canonical" && agent.filePath === path.join(dir, ".evoharness", "agents", "canonical.md"),
 			),
 		);
 		assert.ok(
 			result.agents.find(
 				(agent) =>
-					agent.name === "skill-named-agent" && agent.filePath === path.join(dir, ".evoharness", "agents", "SKILL.md"),
+					agent.name === "skill-named-agent" &&
+					agent.filePath === path.join(dir, ".evoharness", "agents", "SKILL.md"),
 			),
 		);
 		assert.equal(result.projectAgentsDir, path.join(dir, ".evoharness", "agents"));

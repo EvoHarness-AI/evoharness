@@ -1439,7 +1439,9 @@ describe("builtin agent overrides", () => {
 		assert.ok(override);
 		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
 		saveBuiltinAgentOverride(tempProject, "reviewer", "project", override);
-		const savedOverride = JSON.parse(fs.readFileSync(path.join(tempProject, ".evoharness", "settings.json"), "utf-8"));
+		const savedOverride = JSON.parse(
+			fs.readFileSync(path.join(tempProject, ".evoharness", "settings.json"), "utf-8"),
+		);
 		assert.equal(savedOverride.subagents.agentOverrides.reviewer.output, false);
 		assert.equal(savedOverride.subagents.agentOverrides.reviewer.defaultReads, false);
 		assert.equal(
