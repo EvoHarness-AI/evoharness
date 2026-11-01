@@ -390,7 +390,7 @@ describe("required child extension loaded identities", () => {
 									: "";
 				fs.writeFileSync(
 					requiredFile,
-					`import fs from 'node:fs'; export default (pi) => { if (!fs.existsSync(${JSON.stringify(marker)})) { fs.writeFileSync(${JSON.stringify(marker)}, 'x'); ${action} } };\n`,
+					`import fs from 'node:fs'; export default (pi) => { fs.writeFileSync(${JSON.stringify(marker)}, 'x'); ${action} };\n`,
 				);
 				const ordinary = path.join(dir, "ordinary.mjs");
 				fs.writeFileSync(ordinary, "export default () => {};\n");
