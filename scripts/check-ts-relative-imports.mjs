@@ -13,6 +13,9 @@ import {
 import { API } from "typescript/unstable/sync";
 
 const ignoredDirectories = new Set([".git", "coverage", "dist", "node_modules"]);
+// Compiled-package smoke fixtures: scripts/build-package.mjs rewrites these relative .js
+// specifiers into the dist layout, so they are load-bearing build conventions, not source imports.
+const ignoredFilePathPrefixes = ["packages/subagents/test/smoke/"];
 const files = [];
 
 function collectTypescriptFiles(directory) {
@@ -25,6 +28,8 @@ function collectTypescriptFiles(directory) {
 		}
 
 		if (entry.isFile() && entry.name.endsWith(".ts") && !entry.name.endsWith(".d.ts")) {
+			const normalized = join(directory, entry.name).split("\\").join("/");
+			if (ignoredFilePathPrefixes.some((prefix) => normalized.startsWith(prefix))) continue;
 			files.push(join(directory, entry.name));
 		}
 	}

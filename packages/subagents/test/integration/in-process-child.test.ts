@@ -1,0 +1,1489 @@
+/**
+ * Foreground children run as in-process evoharness sessions. These tests drive
+ * `runSync` against the scripted child session factory and check the seams
+ * the in-process launch owns: hook config, steering, interrupt, timeout,
+ * structured output capture, disposal, and detach.
+ */
+
+import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import { after, before, beforeEach, describe, it } from "node:test";
+import { buildRunnerChildLaunch } from "../../src/runs/background/runner-child-launch.ts";
+import { runSync } from "../../src/runs/foreground/execution.ts";
+import {
+	type ChildSessionFactory,
+	type ChildSessionLaunch,
+	type CodingAgentModule,
+	childSessionFactory,
+	createDefaultChildSessionFactory,
+	disposeChildSessions,
+} from "../../src/runs/shared/child-session.ts";
+import { createNestedRoute } from "../../src/runs/shared/nested-events.ts";
+import { createStructuredOutputRuntime } from "../../src/runs/shared/structured-output.ts";
+import type {
+	ForegroundChildSessionControls,
+	PlacementMachineReference,
+	SingleResult,
+} from "../../src/shared/types.ts";
+import type { MockPi } from "../support/helpers.ts";
+import { createMockPi, createTempDir, events, makeAgent, makeAgentConfigs, removeTempDir } from "../support/helpers.ts";
+
+async function waitFor(read: () => boolean, timeoutMs = 5_000): Promise<void> {
+	const deadline = Date.now() + timeoutMs;
+	while (!read()) {
+		if (Date.now() > deadline) throw new Error("Timed out waiting for test condition.");
+		await new Promise((resolve) => setTimeout(resolve, 5));
+	}
+}
+
+describe("in-process foreground child", () => {
+	let tempDir: string;
+	let mockPi: MockPi;
+	const savedEnv = { ...process.env };
+
+	before(() => {
+		mockPi = createMockPi();
+		mockPi.install();
+	});
+
+	after(() => {
+		mockPi.uninstall();
+	});
+
+	beforeEach(() => {
+		tempDir = createTempDir();
+		mockPi.reset();
+		process.env.EVOHARNESS_SUBAGENT_CHILD_AGENT = savedEnv.EVOHARNESS_SUBAGENT_CHILD_AGENT ?? "";
+		delete process.env.EVOHARNESS_SUBAGENT_CHILD_AGENT;
+	});
+
+	after(() => removeTempDir(tempDir));
+
+	it("passes the child hooks a typed config built without the environment", async () => {
+		process.env.EVOHARNESS_SUBAGENT_CHILD_AGENT = "leaked-parent-value";
+		try {
+			mockPi.onCall({ output: "done" });
+			const result = await runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+				runId: "hooks-config",
+				index: 3,
+				waitToolEnabled: false,
+			});
+			assert.equal(result.exitCode, 0);
+			const [session] = mockPi.sessions;
+			assert.ok(session, "child session was created");
+			assert.equal(session.launch.runtime.agent, "echo");
+			assert.equal(session.launch.runtime.runId, "hooks-config");
+			assert.equal(session.launch.runtime.childIndex, 3);
+			assert.equal(session.launch.runtime.fanoutChild, false);
+			assert.equal(session.launch.runtime.waitTool.enabled, false);
+			assert.equal(session.launch.runtime.steerInbox, undefined, "in-process children have no steer inbox");
+			assert.equal(session.launch.runtime.depth, 1);
+			assert.equal(session.task?.startsWith("Task: Task"), true);
+			assert.equal(session.launch.systemPrompt?.startsWith('<active_agent name="echo"/>'), true);
+			assert.deepEqual(session.launch.storage, { kind: "memory" });
+		} finally {
+			delete process.env.EVOHARNESS_SUBAGENT_CHILD_AGENT;
+		}
+	});
+
+	it("records the parent session in the run metadata and passes its file to the child session", async () => {
+		mockPi.onCall({ output: "done" });
+		const parentSessionFile = path.join(tempDir, "parent.jsonl");
+		const result = await runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+			runId: "parent-link",
+			parentSessionId: "parent-session-id",
+			parentSessionFile,
+			artifactsDir: path.join(tempDir, "artifacts"),
+			artifactConfig: { enabled: true, includeInput: false, includeOutput: false, includeMetadata: true },
+		});
+		assert.equal(result.exitCode, 0);
+		assert.ok(result.artifactPaths?.metadataPath);
+		const metadata = JSON.parse(fs.readFileSync(result.artifactPaths.metadataPath, "utf-8")) as {
+			parentSessionId?: string;
+		};
+		assert.equal(metadata.parentSessionId, "parent-session-id");
+		assert.equal(mockPi.sessions[0]?.launch.parentSessionFile, parentSessionFile);
+	});
+
+	it("passes a detached runner step's parent session file to the child session", () => {
+		const launch = buildRunnerChildLaunch(
+			{
+				agent: "worker",
+				task: "Work",
+				inheritProjectContext: false,
+				inheritGlobalContext: false,
+				inheritSkills: false,
+				parentSessionFile: "/sessions/parent.jsonl",
+			},
+			{ cwd: tempDir, id: "parent-file-runner", flatIndex: 0 },
+			{ sessionEnabled: true, sessionDir: path.join(tempDir, "run-0"), watchdogStatus() {} },
+		);
+		assert.equal(launch.session.parentSessionFile, "/sessions/parent.jsonl");
+	});
+
+	it("projects authoritative native-machine Git evidence into the public foreground result", async () => {
+		mockPi.onCall({ output: "done" });
+		const base = childSessionFactory();
+		const wrapped: ChildSessionFactory = {
+			async create(input) {
+				const child = await base.create(input);
+				Object.defineProperty(child, "machineEvidence", {
+					value: {
+						provider: "herdr",
+						machineId: "remote-machine",
+						initial: { head: "aaa", dirty: false },
+						final: { head: "bbb", dirty: true },
+					},
+				});
+				return child;
+			},
+			dispose: () => base.dispose(),
+		};
+		const result = await runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+			runId: "native-git-evidence",
+			waitToolEnabled: false,
+			childSessionFactory: wrapped,
+		});
+		assert.deepEqual(result.nativeMachine, {
+			provider: "herdr",
+			machineId: "remote-machine",
+			initialGit: { head: "aaa", dirty: false },
+			finalGit: { head: "bbb", dirty: true },
+		});
+	});
+
+	it("counts this disk's Git changes only for a machine 'local' child", async () => {
+		const repo = path.join(tempDir, "repo"),
+			file = path.join(repo, "input.md");
+		fs.mkdirSync(repo);
+		const git = (...args: string[]) =>
+			assert.equal(
+				spawnSync("git", ["-c", "user.email=t@example.com", "-c", "user.name=t", ...args], { cwd: repo }).status,
+				0,
+			);
+		fs.writeFileSync(file, "input\n");
+		git("init", "-q");
+		git("add", ".");
+		git("commit", "-qm", "init");
+		// The remote paths match the local repo, as when both Macs keep code at the same home path; only 'local' may count its changes.
+		const machines: Record<string, PlacementMachineReference> = {
+			local: { provider: "rex", id: "local", session: "session:s", cwd: repo },
+			rexSsh: { provider: "rex", id: "workmac", target: "100.82.67.118", cwd: repo },
+			herdr: { provider: "herdr", id: "h1", target: "100.82.67.118", cwd: repo },
+		};
+		const changed: Record<string, string[] | undefined> = {};
+		for (const [name, machine] of Object.entries(machines)) {
+			fs.writeFileSync(file, "input\n");
+			mockPi.onCall({ writeFiles: [{ path: file, content: "changed\n" }], hangUntilAbort: true });
+			const base = childSessionFactory();
+			const wrapped: ChildSessionFactory = {
+				async create(input) {
+					const child = await base.create({ ...input, machine: undefined });
+					Object.defineProperty(child, "machineEvidence", {
+						value: {
+							provider: machine.provider,
+							machineId: machine.id,
+							initial: { head: "aaa", dirty: false },
+							final: { head: "aaa", dirty: false },
+						},
+					});
+					return child;
+				},
+				dispose: () => base.dispose(),
+			};
+			const result = await runSync(repo, makeAgentConfigs(["echo"]), "echo", "Task", {
+				runId: `git-evidence-${name}`,
+				timeoutMs: 500,
+				machine,
+				waitToolEnabled: false,
+				childSessionFactory: wrapped,
+			});
+			changed[name] = result.timeoutRecovery?.changedFiles;
+		}
+		assert.deepEqual(changed, { local: ["input.md"], rexSsh: [], herdr: [] });
+	});
+
+	it("adds the fanout hook and nested route only for fanout-authorized children", async () => {
+		const route = createNestedRoute("hooks-fanout");
+		try {
+			mockPi.onCall({ output: "done" });
+			const result = await runSync(
+				tempDir,
+				[makeAgent("delegator", { tools: ["read", "subagent"] })],
+				"delegator",
+				"Task",
+				{
+					runId: "hooks-fanout",
+					nestedRoute: route,
+				},
+			);
+			assert.equal(result.exitCode, 0);
+			const [session] = mockPi.sessions;
+			assert.equal(session?.launch.runtime.fanoutChild, true);
+			assert.deepEqual(session?.launch.runtime.nestedRoute, route);
+			assert.deepEqual(session?.launch.runtime.nestedParent, {
+				parentRunId: "hooks-fanout",
+				parentChildIndex: 0,
+				depth: 1,
+				path: [{ runId: "hooks-fanout", stepIndex: 0, agent: "delegator" }],
+			});
+			assert.deepEqual(session?.launch.tools, ["read", "subagent"]);
+		} finally {
+			fs.rmSync(path.dirname(route.eventSink), { recursive: true, force: true });
+		}
+	});
+
+	it("routes steer and follow-up to the child session", async () => {
+		const release = path.join(tempDir, "release");
+		mockPi.onCall({
+			steps: [
+				{
+					waitForPath: release,
+					jsonl: [
+						{
+							type: "message_end",
+							message: {
+								role: "assistant",
+								content: [{ type: "text", text: "steered" }],
+								model: "mock/test-model",
+								stopReason: "stop",
+								usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } },
+							},
+						},
+					],
+				},
+			],
+		});
+		let controls: ForegroundChildSessionControls | undefined;
+		const run = runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+			runId: "steer-session",
+			onChildSession: (next) => {
+				controls = next;
+			},
+		});
+		await waitFor(() => controls !== undefined);
+		await controls!.steer("Focus on tests.");
+		await controls!.followUp("Then update docs.");
+		fs.writeFileSync(release, "go");
+		const result = await run;
+		assert.equal(result.exitCode, 0);
+		assert.deepEqual(mockPi.sessions[0]?.steers, [
+			{ text: "Focus on tests.", mode: "steer" },
+			{ text: "Then update docs.", mode: "followUp" },
+		]);
+	});
+
+	it("does not abort when a steer arrives after the final stop and turn_start is delayed", async () => {
+		mockPi.onCall({
+			jsonl: [events.assistantMessage("before steer")],
+			keepAliveAfterFinalMessageMs: 15_000,
+			queuedMessageTurnStartDelayMs: 1400,
+			queuedMessageOutput: "after steer",
+		});
+		let controls: ForegroundChildSessionControls | undefined;
+		const run = runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+			runId: "queued-steer-after-final",
+			onChildSession: (next) => {
+				controls = next;
+			},
+		});
+		await waitFor(() => controls !== undefined && mockPi.sessions[0]?.scriptedFinalEmitted === true);
+		await controls!.steer("Continue after the final stop.");
+		const result = await run;
+		assert.equal(result.exitCode, 0, result.error);
+		assert.equal(result.error, undefined);
+		assert.equal(result.finalOutput, "after steer");
+		assert.equal(mockPi.sessions[0]?.aborted, false);
+		assert.deepEqual(mockPi.sessions[0]?.steers, [{ text: "Continue after the final stop.", mode: "steer" }]);
+	});
+
+	for (const type of ["turn_start", "agent_start", "auto_retry_start"]) {
+		it(`foreground keeps resumed work alive after ${type}`, async () => {
+			mockPi.onCall({
+				steps: [
+					{ jsonl: [events.assistantMessage("before continuation"), { type }] },
+					// Queued steering/follow-up work is allowed to outlive the old final-stop grace.
+					{ delay: 1400, jsonl: [events.assistantMessage("after continuation")] },
+				],
+			});
+			const result = await runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+				runId: `resumed-${type}`,
+			});
+			assert.equal(result.exitCode, 0, result.error);
+			assert.equal(result.finalOutput, "after continuation");
+			assert.equal(mockPi.sessions[0]?.aborted, false);
+		});
+	}
+
+	it("aborts the child session on interrupt and disposes it", async () => {
+		mockPi.onCall({ hangUntilAbort: true });
+		const interrupt = new AbortController();
+		const run = runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+			runId: "interrupt-session",
+			interruptSignal: interrupt.signal,
+		});
+		await waitFor(() => mockPi.sessions.length === 1);
+		await waitFor(() => mockPi.sessions[0]?.task !== undefined);
+		interrupt.abort();
+		const result = await run;
+		assert.equal(result.interrupted, true);
+		assert.equal(result.exitCode, 0);
+		assert.equal(mockPi.sessions[0]?.aborted, true);
+		assert.equal(mockPi.sessions[0]?.disposed, true);
+	});
+
+	it("aborts the child session on timeout and disposes it", async () => {
+		mockPi.onCall({ hangUntilAbort: true });
+		const result = await runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+			runId: "timeout-session",
+			timeoutMs: 60,
+		});
+		assert.equal(result.timedOut, true);
+		assert.equal(result.exitCode, 1);
+		assert.match(result.error ?? "", /timed out after 60ms/);
+		assert.equal(mockPi.sessions[0]?.aborted, true);
+		assert.equal(mockPi.sessions[0]?.disposed, true);
+	});
+
+	it("disposes the child session after a normal completion", async () => {
+		mockPi.onCall({ output: "finished" });
+		const result = await runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", { runId: "dispose-session" });
+		assert.equal(result.exitCode, 0);
+		assert.equal(result.finalOutput, "finished");
+		assert.equal(mockPi.sessions[0]?.settled, true);
+		assert.equal(mockPi.sessions[0]?.disposed, true);
+	});
+
+	it("reports the run only after the child session's shutdown work finished", async () => {
+		mockPi.onCall({ output: "done" });
+		let shutdownDone = false;
+		const inner = childSessionFactory();
+		const wrapped: ChildSessionFactory = {
+			...inner,
+			create: async (launch) => {
+				const session = await inner.create(launch);
+				const dispose = session.dispose.bind(session);
+				session.dispose = () =>
+					dispose().then(
+						() =>
+							new Promise<void>((resolve) =>
+								setTimeout(() => {
+									shutdownDone = true;
+									resolve();
+								}, 30),
+							),
+					);
+				return session;
+			},
+		};
+		const result = await runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+			runId: "dispose-order",
+			childSessionFactory: wrapped,
+		});
+		assert.equal(result.exitCode, 0);
+		assert.equal(shutdownDone, true);
+	});
+
+	it("captures structured output in memory", async () => {
+		const structured = createStructuredOutputRuntime(
+			{ type: "object", required: ["ok"], properties: { ok: { type: "boolean" } } },
+			tempDir,
+		);
+		mockPi.onCall({ structuredOutput: { ok: true } });
+		const result = await runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+			runId: "structured-memory",
+			structuredOutput: structured,
+		});
+		assert.equal(result.exitCode, 0, result.error);
+		assert.deepEqual(result.structuredOutput, { ok: true });
+		assert.equal(mockPi.sessions[0]?.launch.runtime.structuredOutput?.schema.type, "object");
+		assert.deepEqual(JSON.parse(fs.readFileSync(structured.outputPath, "utf-8")), { ok: true });
+	});
+
+	it("preserves captured structured evidence when a later provider error fails the run", async () => {
+		const structured = createStructuredOutputRuntime(
+			{ type: "object", required: ["ok"], properties: { ok: { type: "boolean" } } },
+			tempDir,
+			{ acceptanceReport: "optional" },
+		);
+		const acceptanceReport = {
+			criteriaSatisfied: [{ id: "criterion-1", status: "satisfied", evidence: "captured" }],
+		};
+		mockPi.onCall({
+			structuredOutputCapture: { ok: true },
+			structuredOutputAcceptanceReport: acceptanceReport,
+			jsonl: [
+				{
+					type: "tool_execution_start",
+					toolName: "structured_output",
+					args: { value: { ok: true }, acceptanceReport },
+				},
+				{ type: "tool_execution_end", toolName: "structured_output" },
+				{
+					type: "message_end",
+					message: {
+						role: "toolResult",
+						toolName: "structured_output",
+						content: [{ type: "text", text: "Structured output captured." }],
+					},
+				},
+				{
+					type: "message_end",
+					message: {
+						role: "assistant",
+						content: [],
+						model: "mock/test-model",
+						stopReason: "error",
+						errorMessage: "later provider failure",
+						usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } },
+					},
+				},
+			],
+		});
+
+		const result = await runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+			runId: "structured-then-error",
+			acceptance: false,
+			structuredOutput: structured,
+		});
+		assert.equal(result.exitCode, 1);
+		assert.match(result.error ?? "", /later provider failure/);
+		assert.equal(result.progress?.status, "failed");
+		assert.deepEqual(result.structuredOutput, { ok: true });
+		assert.deepEqual(
+			(result as SingleResult & { structuredAcceptanceReport?: unknown }).structuredAcceptanceReport,
+			acceptanceReport,
+		);
+		assert.deepEqual(JSON.parse(fs.readFileSync(structured.outputPath, "utf-8")), { ok: true });
+		assert.deepEqual(JSON.parse(fs.readFileSync(structured.acceptanceReportPath!, "utf-8")), acceptanceReport);
+	});
+
+	it("preserves captured structured evidence when the run is explicitly aborted", async () => {
+		const structured = createStructuredOutputRuntime(
+			{ type: "object", required: ["ok"], properties: { ok: { type: "boolean" } } },
+			tempDir,
+		);
+		const controller = new AbortController();
+		mockPi.onCall({
+			structuredOutputCapture: { ok: true },
+			jsonl: [
+				{ type: "tool_execution_start", toolName: "structured_output", args: { value: { ok: true } } },
+				{ type: "tool_execution_end", toolName: "structured_output" },
+				{
+					type: "message_end",
+					message: {
+						role: "toolResult",
+						toolName: "structured_output",
+						content: [{ type: "text", text: "Structured output captured." }],
+					},
+				},
+			],
+			hangUntilAbort: true,
+		});
+
+		const run = runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+			runId: "structured-then-abort",
+			acceptance: false,
+			structuredOutput: structured,
+			signal: controller.signal,
+		});
+		await waitFor(() => mockPi.sessions[0]?.scriptedFinalEmitted === true);
+		controller.abort();
+		const result = await run;
+		assert.equal(result.exitCode, 1);
+		assert.match(result.error ?? "", /stopped before completion/i);
+		assert.equal(result.progress?.status, "failed");
+		assert.deepEqual(result.structuredOutput, { ok: true });
+		assert.deepEqual(JSON.parse(fs.readFileSync(structured.outputPath, "utf-8")), { ok: true });
+	});
+
+	it("keeps a rejected structured invocation absent and failed", async () => {
+		const structured = createStructuredOutputRuntime(
+			{ type: "object", required: ["ok"], properties: { ok: { type: "boolean" } } },
+			tempDir,
+		);
+		mockPi.onCall({
+			jsonl: [
+				{ type: "tool_execution_start", toolName: "structured_output", args: { value: { ok: "invalid" } } },
+				{ type: "tool_execution_end", toolName: "structured_output", isError: true },
+				{
+					type: "message_end",
+					message: {
+						role: "toolResult",
+						toolName: "structured_output",
+						content: [{ type: "text", text: "Structured output validation failed." }],
+						isError: true,
+					},
+				},
+			],
+		});
+
+		const result = await runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+			runId: "structured-invalid",
+			acceptance: false,
+			structuredOutput: structured,
+		});
+		assert.equal(result.exitCode, 1);
+		assert.match(result.error ?? "", /Structured output validation failed/);
+		assert.equal(result.structuredOutputFailed, true);
+		assert.equal(result.structuredOutput, undefined);
+		assert.equal(fs.existsSync(structured.outputPath), false);
+	});
+
+	it("fails when the child never calls structured_output", async () => {
+		const structured = createStructuredOutputRuntime({ type: "object" }, tempDir);
+		mockPi.onCall({ output: "prose only" });
+		const result = await runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+			runId: "structured-missing",
+			structuredOutput: structured,
+		});
+		assert.equal(result.exitCode, 1);
+		assert.match(result.error ?? "", /Missing structured_output call/);
+		assert.equal(result.structuredOutputFailed, true);
+		assert.equal(result.structuredOutput, undefined);
+	});
+
+	it("keeps a detached child running in-process and delivers its terminal result", async () => {
+		const release = path.join(tempDir, "release-detach");
+		mockPi.onCall({
+			steps: [
+				{
+					waitForPath: release,
+					jsonl: [
+						{
+							type: "message_end",
+							message: {
+								role: "assistant",
+								content: [{ type: "text", text: "after detach" }],
+								model: "mock/test-model",
+								stopReason: "stop",
+								usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } },
+							},
+						},
+					],
+				},
+			],
+		});
+		let detach: ((reason?: string) => boolean) | undefined;
+		let terminal: SingleResult | undefined;
+		const receipt = await new Promise<SingleResult>((resolve, reject) => {
+			runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
+				runId: "detach-session",
+				onDetachReady: (next) => {
+					detach = next;
+				},
+				onDetachReceipt: () => true,
+				onDetachedExit: (result) => {
+					terminal = result;
+				},
+			}).then(resolve, reject);
+			void waitFor(() => detach !== undefined && mockPi.sessions[0]?.task !== undefined).then(() => {
+				assert.equal(detach!("user request"), true);
+			}, reject);
+		});
+		assert.equal(receipt.detached, true);
+		assert.equal(receipt.detachedReason, "user request");
+		assert.equal(mockPi.sessions[0]?.aborted, false, "detach must not abort the session");
+		await disposeChildSessions();
+		assert.equal(mockPi.sessions[0]?.aborted, false, "parent session shutdown must not abort a detached child");
+		fs.writeFileSync(release, "go");
+		await waitFor(() => terminal !== undefined);
+		assert.equal(terminal?.exitCode, 0);
+		assert.equal(terminal?.finalOutput, "after detach");
+		assert.equal(terminal?.detachedReason, "user request");
+		assert.equal(mockPi.sessions[0]?.disposed, true);
+	});
+
+	it("reports a parent session shutdown as the reason an attached child stopped", async () => {
+		mockPi.onCall({ hangUntilAbort: true });
+		const run = runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", { runId: "shutdown-attached" });
+		await waitFor(() => mockPi.sessions[0]?.task !== undefined);
+		await disposeChildSessions();
+		const result = await run;
+		assert.equal(result.exitCode, 1);
+		assert.equal(result.error, "Subagent stopped because the parent session shut down.");
+	});
+});
+
+/** A evoharness module stub whose loader reads `process.env` after an await, the way a real extension load does. */
+function stubPi(session: Record<string, unknown> = {}, onReload?: () => void): CodingAgentModule {
+	return {
+		ModelRuntime: { create: async () => ({}) },
+		SettingsManager: { create: () => ({}) },
+		DefaultResourceLoader: class {
+			async reload() {
+				await new Promise((resolve) => setTimeout(resolve, 10));
+				onReload?.();
+			}
+		},
+		SessionManager: { inMemory: () => ({}) },
+		resolveCliModel: () => ({}),
+		createAgentSession: async () => ({
+			session: {
+				bindExtensions: async () => {},
+				dispose() {},
+				extensionRunner: { hasHandlers: () => false },
+				subscribe: () => () => {},
+				prompt: async () => {},
+				abort: async () => {},
+				steer: async () => {},
+				followUp: async () => {},
+				messages: [],
+				sessionId: "s",
+				...session,
+			},
+		}),
+	} as unknown as CodingAgentModule;
+}
+const stubLaunch: ChildSessionLaunch = {
+	cwd: process.cwd(),
+	storage: { kind: "memory" },
+	extensionPaths: [],
+	ambientExtensions: false,
+	hooks: [],
+	noSkills: true,
+	noContextFiles: true,
+	runtime: {
+		fanoutChild: false,
+		depth: 1,
+		waitTool: { enabled: false },
+		fast: false,
+	} as ChildSessionLaunch["runtime"],
+};
+
+describe("default child session factory", () => {
+	it("serializes process env through extension loading and session start across concurrent launches", async () => {
+		const seen: string[] = [];
+		const bound: string[] = [];
+		const bindExtensions = async () => {
+			await new Promise((resolve) => setTimeout(resolve, 10));
+			bound.push(process.env.EVOHARNESS_SUBAGENT_TEST_ENV ?? "");
+		};
+		const factory = createDefaultChildSessionFactory({
+			loadCodingAgent: async () =>
+				stubPi({ bindExtensions }, () => {
+					seen.push(process.env.EVOHARNESS_SUBAGENT_TEST_ENV ?? "");
+				}),
+		});
+		await Promise.all([
+			factory.create({ ...stubLaunch, processEnv: { EVOHARNESS_SUBAGENT_TEST_ENV: "a" } }),
+			factory.create({ ...stubLaunch, processEnv: { EVOHARNESS_SUBAGENT_TEST_ENV: "b" } }),
+		]);
+		delete process.env.EVOHARNESS_SUBAGENT_TEST_ENV;
+		assert.deepEqual(seen, ["a", "b"]);
+		assert.deepEqual(bound, ["a", "b"]);
+	});
+
+	it("restores the host's environment after a child that asks for it starts, and after it fails", async () => {
+		const seen: Array<string | undefined> = [];
+		const bound: Array<string | undefined> = [];
+		const bindExtensions = async () => {
+			bound.push(process.env.EVOHARNESS_SUBAGENT_TEST_ENV);
+		};
+		process.env.EVOHARNESS_SUBAGENT_TEST_ENV = "parent";
+		try {
+			const factory = createDefaultChildSessionFactory({
+				loadCodingAgent: async () =>
+					stubPi({ bindExtensions }, () => {
+						seen.push(process.env.EVOHARNESS_SUBAGENT_TEST_ENV);
+					}),
+			});
+			await factory.create({
+				...stubLaunch,
+				processEnv: { EVOHARNESS_SUBAGENT_TEST_ENV: "child" },
+				restoreProcessEnv: true,
+			});
+			assert.equal(process.env.EVOHARNESS_SUBAGENT_TEST_ENV, "parent");
+			await factory.create({
+				...stubLaunch,
+				processEnv: { EVOHARNESS_SUBAGENT_TEST_ENV: undefined },
+				restoreProcessEnv: true,
+			});
+			assert.equal(process.env.EVOHARNESS_SUBAGENT_TEST_ENV, "parent");
+			assert.deepEqual(seen, ["child", undefined]);
+			assert.deepEqual(bound, ["child", undefined]);
+
+			delete process.env.EVOHARNESS_SUBAGENT_TEST_ENV;
+			const failing = stubPi({}, () => {
+				throw new Error("load failed");
+			});
+			const failingFactory = createDefaultChildSessionFactory({ loadCodingAgent: async () => failing });
+			await assert.rejects(
+				failingFactory.create({
+					...stubLaunch,
+					processEnv: { EVOHARNESS_SUBAGENT_TEST_ENV: "child" },
+					restoreProcessEnv: true,
+				}),
+				/load failed/,
+			);
+			assert.equal(Object.hasOwn(process.env, "EVOHARNESS_SUBAGENT_TEST_ENV"), false);
+		} finally {
+			delete process.env.EVOHARNESS_SUBAGENT_TEST_ENV;
+		}
+	});
+
+	it("marks each child's loader as reloaded so evoharness resets its extension cache", async () => {
+		const flags: boolean[] = [];
+		const evoharness = stubPi();
+		evoharness.DefaultResourceLoader = class {
+			loaded = false;
+			async reload() {
+				flags.push(this.loaded);
+			}
+		} as unknown as CodingAgentModule["DefaultResourceLoader"];
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
+		await factory.create(stubLaunch);
+		await factory.create(stubLaunch);
+		assert.deepEqual(flags, [true, true]);
+	});
+
+	it("registers the host codemode provider only for children allowed to select it", async () => {
+		const registrations: string[] = [];
+		const loaded: Array<{ names: string[]; ambient: boolean; paths: string[] }> = [];
+		const evoharness = Object.assign(stubPi(), {
+			createCodemodeExtension: () => (api: { registerTool: (tool: { name: string }) => void }) =>
+				api.registerTool({ name: "codemode" }),
+		});
+		evoharness.DefaultResourceLoader = class {
+			private options: ConstructorParameters<CodingAgentModule["DefaultResourceLoader"]>[0];
+			constructor(options: ConstructorParameters<CodingAgentModule["DefaultResourceLoader"]>[0]) {
+				this.options = options;
+			}
+			async reload() {
+				const factories = this.options.extensionFactories ?? [];
+				const codemode = factories.find((entry) => typeof entry !== "function" && entry.name === "codemode");
+				loaded.push({
+					names: factories.map((entry) => (typeof entry === "function" ? "anonymous" : entry.name)),
+					ambient: !this.options.noExtensions,
+					paths: this.options.additionalExtensionPaths ?? [],
+				});
+				if (codemode && typeof codemode !== "function")
+					await codemode.factory({
+						registerTool: (tool: { name: string }) => registrations.push(tool.name),
+					} as never);
+			}
+		} as unknown as CodingAgentModule["DefaultResourceLoader"];
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
+		const hooks = [{ name: "existing-child-hook", factory() {} }];
+		const requested = {
+			...stubLaunch,
+			hooks,
+			tools: ["codemode", "read"],
+			extensionPaths: ["/provided.ts"],
+			ambientExtensions: true,
+		};
+		await factory.create(requested);
+		await factory.create({ ...requested, tools: ["read"] });
+		await factory.create({
+			...requested,
+			runtime: { ...requested.runtime, capabilityCeiling: { version: 1, denyExtensions: true, sources: ["test"] } },
+		});
+		await factory.create({ ...stubLaunch, excludeTools: ["codemode"] });
+		assert.deepEqual(registrations, ["codemode"]);
+		assert.deepEqual(loaded, [
+			{ names: ["existing-child-hook", "codemode"], ambient: true, paths: ["/provided.ts"] },
+			{ names: ["existing-child-hook"], ambient: true, paths: ["/provided.ts"] },
+			{ names: ["existing-child-hook"], ambient: true, paths: ["/provided.ts"] },
+			{ names: [], ambient: false, paths: [] },
+		]);
+		// The supported older SDK has no codemode export. Do not require it for ordinary children.
+		await createDefaultChildSessionFactory({ loadCodingAgent: async () => stubPi() }).create({
+			...stubLaunch,
+			tools: ["read"],
+		});
+	});
+
+	it("runs the child prompt filter first and the child boundary last without reordering other extensions", async () => {
+		const orderedPaths: string[][] = [];
+		const evoharness = stubPi();
+		evoharness.DefaultResourceLoader = class {
+			private readonly options: {
+				extensionsOverride?: (base: {
+					extensions: Array<{ path: string }>;
+					errors: unknown[];
+					runtime: object;
+				}) => { extensions: Array<{ path: string }>; errors: unknown[]; runtime: object };
+			};
+			private result = { extensions: [] as Array<{ path: string }>, errors: [] as unknown[], runtime: {} };
+			constructor(options: typeof this.options) {
+				this.options = options;
+			}
+			async reload() {
+				const base = {
+					extensions: [
+						{ path: "/ambient/first.ts" },
+						{ path: "/ambient/claude-bridge.ts" },
+						{ path: "<inline:subagents:prompt-runtime>" },
+						{ path: "<inline:subagents:prompt-boundary>" },
+						{ path: "/ambient/last.ts" },
+						{ path: "<inline:subagents:completion-intent>" },
+					],
+					errors: [] as unknown[],
+					runtime: {},
+				};
+				this.result = this.options.extensionsOverride?.(base) ?? base;
+				orderedPaths.push(this.result.extensions.map(({ path: extensionPath }) => extensionPath));
+			}
+			getExtensions() {
+				return this.result;
+			}
+		} as unknown as CodingAgentModule["DefaultResourceLoader"];
+
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
+		await factory.create({ ...stubLaunch, ambientExtensions: true });
+
+		assert.deepEqual(orderedPaths[0], [
+			"<inline:subagents:prompt-runtime>",
+			"/ambient/first.ts",
+			"/ambient/claude-bridge.ts",
+			"/ambient/last.ts",
+			"<inline:subagents:completion-intent>",
+			"<inline:subagents:prompt-boundary>",
+		]);
+	});
+
+	it("resolves models from providers queued during child extension loading", async () => {
+		const registeredProviders: string[] = [];
+		const registeredNativeProviders: string[] = [];
+		let refreshed = false;
+		let pendingRuntime:
+			| { pendingProviderRegistrations: unknown[]; pendingNativeProviderRegistrations: unknown[] }
+			| undefined;
+		const evoharness = stubPi();
+		evoharness.ModelRuntime = {
+			create: async () => ({
+				registerProvider: (name: string) => {
+					registeredProviders.push(name);
+				},
+				registerNativeProvider: (provider: { id: string }) => {
+					registeredNativeProviders.push(provider.id);
+				},
+				refresh: async () => {
+					refreshed = true;
+				},
+			}),
+		} as unknown as CodingAgentModule["ModelRuntime"];
+		evoharness.DefaultResourceLoader = class {
+			runtime = {
+				pendingProviderRegistrations: [
+					{ name: "router", config: { models: [{ id: "mimo-v2.5" }] }, extensionPath: "/extensions/router.ts" },
+				],
+				pendingNativeProviderRegistrations: [
+					{
+						provider: { id: "native-router", models: [{ id: "native-model" }] },
+						extensionPath: "/extensions/native-router.ts",
+					},
+				],
+			};
+			async reload() {
+				pendingRuntime = this.runtime;
+			}
+			getExtensions() {
+				return { extensions: [], errors: [], runtime: this.runtime };
+			}
+		} as unknown as CodingAgentModule["DefaultResourceLoader"];
+		evoharness.resolveCliModel = (({ cliModel }) => {
+			assert.equal(cliModel, "router/mimo-v2.5");
+			assert.deepEqual(registeredProviders, ["router"]);
+			assert.deepEqual(registeredNativeProviders, ["native-router"]);
+			assert.equal(refreshed, true);
+			return { model: { provider: "router", id: "mimo-v2.5" } };
+		}) as unknown as CodingAgentModule["resolveCliModel"];
+		evoharness.createAgentSession = (async ({ model }) => ({
+			session: {
+				bindExtensions: async () => {},
+				dispose() {},
+				extensionRunner: { hasHandlers: () => false },
+				subscribe: () => () => {},
+				prompt: async () => {},
+				abort: async () => {},
+				steer: async () => {},
+				followUp: async () => {},
+				messages: [],
+				sessionId: "s",
+				model,
+			},
+		})) as unknown as CodingAgentModule["createAgentSession"];
+
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
+		const child = await factory.create({ ...stubLaunch, model: "router/mimo-v2.5" });
+
+		assert.equal(child.modelId, "router/mimo-v2.5");
+		assert.deepEqual(pendingRuntime?.pendingProviderRegistrations, []);
+		assert.deepEqual(pendingRuntime?.pendingNativeProviderRegistrations, []);
+	});
+
+	it("reports the context window an extension raised while the child session started", async () => {
+		const session = {
+			model: { provider: "openai-codex", id: "gpt-6-sol", contextWindow: 272_000 },
+			async bindExtensions() {
+				this.model = { ...this.model, contextWindow: 1_050_000 };
+			},
+		};
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => stubPi(session) });
+		const child = await factory.create(stubLaunch);
+
+		assert.equal(child.contextWindow, 1_050_000);
+	});
+
+	it("resolves queued providers when the loader has no native provider queue", async () => {
+		const registeredProviders: string[] = [];
+		let refreshed = false;
+		let pendingRuntime: { pendingProviderRegistrations?: unknown[] } | undefined;
+		const evoharness = stubPi();
+		evoharness.ModelRuntime = {
+			create: async () => ({
+				registerProvider: (name: string) => {
+					registeredProviders.push(name);
+				},
+				registerNativeProvider: () => {},
+				refresh: async () => {
+					refreshed = true;
+				},
+			}),
+		} as unknown as CodingAgentModule["ModelRuntime"];
+		evoharness.DefaultResourceLoader = class {
+			runtime = {
+				pendingProviderRegistrations: [
+					{ name: "router", config: { models: [{ id: "mimo-v2.5" }] }, extensionPath: "/extensions/router.ts" },
+				],
+			};
+			async reload() {
+				pendingRuntime = this.runtime;
+			}
+			getExtensions() {
+				return { extensions: [], errors: [], runtime: this.runtime };
+			}
+		} as unknown as CodingAgentModule["DefaultResourceLoader"];
+		evoharness.resolveCliModel = (({ cliModel }) => {
+			assert.equal(cliModel, "router/mimo-v2.5");
+			assert.deepEqual(registeredProviders, ["router"]);
+			assert.equal(refreshed, true);
+			return { model: { provider: "router", id: "mimo-v2.5" } };
+		}) as unknown as CodingAgentModule["resolveCliModel"];
+		evoharness.createAgentSession = (async ({ model }) => ({
+			session: {
+				bindExtensions: async () => {},
+				dispose() {},
+				extensionRunner: { hasHandlers: () => false },
+				subscribe: () => () => {},
+				prompt: async () => {},
+				abort: async () => {},
+				steer: async () => {},
+				followUp: async () => {},
+				messages: [],
+				sessionId: "s",
+				model,
+			},
+		})) as unknown as CodingAgentModule["createAgentSession"];
+
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
+		const child = await factory.create({ ...stubLaunch, model: "router/mimo-v2.5" });
+
+		assert.equal(child.modelId, "router/mimo-v2.5");
+		assert.deepEqual(pendingRuntime?.pendingProviderRegistrations, []);
+	});
+
+	it("reports a missing extension cache reset when the child loads extension files", async () => {
+		const errors: string[] = [];
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => stubPi() });
+		await factory.create({ ...stubLaunch, onExtensionError: (error) => errors.push(error.extensionPath) });
+		await factory.create({
+			...stubLaunch,
+			extensionPaths: ["/tmp/ext.ts"],
+			onExtensionError: (error) => errors.push(error.extensionPath),
+		});
+		assert.deepEqual(errors, ["<loader>"]);
+	});
+
+	it("drops skills that extensions add to a child when inheritSkills is false", async () => {
+		const host = await import("@evoharness/coding-agent");
+		const skillDir = createTempDir("subagents-ext-skill-");
+		fs.writeFileSync(
+			path.join(skillDir, "SKILL.md"),
+			"---\nname: ext-skill\ndescription: Contributed by an extension.\n---\nBody\n",
+		);
+		try {
+			for (const noSkills of [true, false]) {
+				let loader: InstanceType<CodingAgentModule["DefaultResourceLoader"]> | undefined;
+				const evoharness = stubPi();
+				evoharness.SettingsManager = {
+					create: () => host.SettingsManager.inMemory(),
+				} as unknown as CodingAgentModule["SettingsManager"];
+				evoharness.DefaultResourceLoader = class extends host.DefaultResourceLoader {
+					constructor(options: ConstructorParameters<CodingAgentModule["DefaultResourceLoader"]>[0]) {
+						super(options);
+						loader = this;
+					}
+				};
+				await createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness }).create({
+					...stubLaunch,
+					noSkills,
+				});
+				// The same call evoharness's session makes with an extension's resources_discover skillPaths.
+				loader!.extendResources({
+					skillPaths: [{ path: skillDir, metadata: { source: "ext", scope: "temporary", origin: "top-level" } }],
+				});
+				assert.deepEqual(
+					loader!.getSkills().skills.map((skill) => skill.name),
+					noSkills ? [] : ["ext-skill"],
+				);
+			}
+		} finally {
+			removeTempDir(skillDir);
+		}
+	});
+
+	it("reads project resources only when the launching session trusts the project", async () => {
+		const host = await import("@evoharness/coding-agent");
+		const projectDir = createTempDir("subagents-project-trust-");
+		fs.mkdirSync(path.join(projectDir, ".evoharness"));
+		fs.writeFileSync(path.join(projectDir, ".evoharness", "SYSTEM.md"), "project system prompt");
+		try {
+			for (const projectTrusted of [true, false]) {
+				let loader: InstanceType<CodingAgentModule["DefaultResourceLoader"]> | undefined;
+				const evoharness = stubPi();
+				evoharness.SettingsManager = host.SettingsManager;
+				evoharness.DefaultResourceLoader = class extends host.DefaultResourceLoader {
+					constructor(options: ConstructorParameters<CodingAgentModule["DefaultResourceLoader"]>[0]) {
+						super(options);
+						loader = this;
+					}
+				};
+				await createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness }).create({
+					...stubLaunch,
+					cwd: projectDir,
+					projectTrusted,
+				});
+				assert.equal(loader!.getSystemPrompt() === "project system prompt", projectTrusted);
+			}
+		} finally {
+			removeTempDir(projectDir);
+		}
+	});
+
+	it("records the launching session as the parent of a new child session", async () => {
+		const host = await import("@evoharness/coding-agent");
+		const dir = createTempDir("subagents-parent-session-");
+		try {
+			const parentSessionFile = path.join(dir, "parent.jsonl");
+			const forkedFile = path.join(dir, "forks", "forked.jsonl");
+			fs.mkdirSync(path.join(dir, "run-0"));
+			fs.mkdirSync(path.dirname(forkedFile));
+			fs.writeFileSync(
+				forkedFile,
+				`${JSON.stringify({ type: "session", version: 3, id: "forked", timestamp: new Date().toISOString(), cwd: dir, parentSession: "/sessions/source.jsonl" })}\n`,
+			);
+			const managers: InstanceType<typeof host.SessionManager>[] = [];
+			const evoharness = stubPi();
+			evoharness.SessionManager = host.SessionManager;
+			const createAgentSession = evoharness.createAgentSession;
+			evoharness.createAgentSession = (async (options: {
+				sessionManager: InstanceType<typeof host.SessionManager>;
+			}) => {
+				managers.push(options.sessionManager);
+				return createAgentSession(options as Parameters<typeof createAgentSession>[0]);
+			}) as typeof createAgentSession;
+			const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
+			const storages: ChildSessionLaunch["storage"][] = [
+				{ kind: "file", sessionFile: path.join(dir, "run-0", "session.jsonl") },
+				{ kind: "dir", sessionDir: path.join(dir, "run-1") },
+				{ kind: "file", sessionFile: forkedFile },
+			];
+			for (const storage of storages) await factory.create({ ...stubLaunch, cwd: dir, storage, parentSessionFile });
+			const headers = managers.map((manager) => {
+				manager.appendMessage({ role: "user", content: "Task", timestamp: Date.now() });
+				manager.appendMessage({
+					role: "assistant",
+					content: [{ type: "text", text: "Done" }],
+					api: "test",
+					provider: "test",
+					model: "test",
+					usage: {
+						input: 0,
+						output: 0,
+						cacheRead: 0,
+						cacheWrite: 0,
+						totalTokens: 0,
+						cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+					},
+					stopReason: "stop",
+					timestamp: Date.now(),
+				});
+				return JSON.parse(fs.readFileSync(manager.getSessionFile()!, "utf-8").split("\n")[0]!) as {
+					parentSession?: string;
+				};
+			});
+			// evoharness records a fork's parent as the parent's session file; a forked child keeps the parent its fork recorded.
+			assert.deepEqual(
+				headers.map((header) => header.parentSession),
+				[parentSessionFile, parentSessionFile, "/sessions/source.jsonl"],
+			);
+		} finally {
+			removeTempDir(dir);
+		}
+	});
+
+	it("preserves an initialized parent theme when creating a child session", async () => {
+		const themeKey = Symbol.for("@evoharness/coding-agent:theme");
+		const globals = globalThis as Record<symbol, unknown>;
+		const previousTheme = globals[themeKey];
+		const initialized: Array<string | undefined> = [];
+		const evoharness = stubPi();
+		evoharness.initTheme = ((themeName?: string) => {
+			initialized.push(themeName);
+		}) as CodingAgentModule["initTheme"];
+		evoharness.SettingsManager = {
+			create: () => ({ getTheme: () => "vesper-light/vesper-dark" }),
+		} as unknown as CodingAgentModule["SettingsManager"];
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
+		globals[themeKey] = { name: "vesper-light" };
+		try {
+			await factory.create(stubLaunch);
+			assert.deepEqual(initialized, []);
+		} finally {
+			if (previousTheme === undefined) delete globals[themeKey];
+			else globals[themeKey] = previousTheme;
+		}
+	});
+
+	it("initializes the theme in a headless runner process", async () => {
+		const themeKey = Symbol.for("@evoharness/coding-agent:theme");
+		const globals = globalThis as Record<symbol, unknown>;
+		const previousTheme = globals[themeKey];
+		const initialized: Array<string | undefined> = [];
+		const evoharness = stubPi();
+		evoharness.initTheme = ((themeName?: string) => {
+			initialized.push(themeName);
+		}) as CodingAgentModule["initTheme"];
+		evoharness.SettingsManager = {
+			create: () => ({ getTheme: () => "vesper-light/vesper-dark" }),
+		} as unknown as CodingAgentModule["SettingsManager"];
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
+		delete globals[themeKey];
+		try {
+			await factory.create(stubLaunch);
+			assert.deepEqual(initialized, ["vesper-light/vesper-dark"]);
+		} finally {
+			if (previousTheme !== undefined) globals[themeKey] = previousTheme;
+		}
+	});
+
+	it("disposes the session when bindExtensions rejects", async () => {
+		let disposed = 0;
+		const factory = createDefaultChildSessionFactory({
+			loadCodingAgent: async () =>
+				stubPi({
+					bindExtensions: async () => {
+						throw new Error("bind failed");
+					},
+					dispose: () => {
+						disposed += 1;
+					},
+				}),
+		});
+		await assert.rejects(factory.create(stubLaunch), /bind failed/);
+		assert.equal(disposed, 1);
+	});
+
+	it("leaves detached children running on dispose and keeps the shared runtime", async () => {
+		let aborted = 0;
+		let runtimes = 0;
+		const evoharness = stubPi({
+			abort: async () => {
+				aborted += 1;
+			},
+		});
+		evoharness.ModelRuntime = {
+			create: async () => {
+				runtimes += 1;
+				return {};
+			},
+		} as unknown as CodingAgentModule["ModelRuntime"];
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
+		const child = await factory.create(stubLaunch);
+		child.detached = true;
+		await factory.dispose();
+		assert.equal(aborted, 0);
+		assert.equal(child.shutDown, undefined);
+		await factory.create(stubLaunch);
+		assert.equal(runtimes, 1, "runtime is kept while a detached child runs");
+	});
+
+	it("bounds the wait for a stuck session_shutdown handler", { timeout: 2_000 }, async () => {
+		const factory = createDefaultChildSessionFactory({
+			shutdownTimeoutMs: 50,
+			loadCodingAgent: async () =>
+				stubPi({ extensionRunner: { hasHandlers: () => true, emit: () => new Promise(() => {}) } }),
+		});
+		(await factory.create(stubLaunch)).dispose();
+		await factory.dispose();
+	});
+
+	// A detached runner has nothing else keeping Node alive while a child's shutdown handler hangs.
+	// If the bound did not hold the event loop, the process would exit with the disposal still pending
+	// and the runner would never publish its result (#3051).
+	it("finishes a stuck session_shutdown disposal in a process with nothing else pending", { timeout: 20_000 }, () => {
+		const childSession = new URL("../../src/runs/shared/child-session.ts", import.meta.url).href;
+		const script = `
+			import { createDefaultChildSessionFactory } from ${JSON.stringify(childSession)};
+			const session = { bindExtensions: async () => {}, dispose() {}, extensionRunner: { hasHandlers: () => true, emit: () => new Promise(() => {}) }, subscribe: () => () => {}, prompt: async () => {}, abort: async () => {}, steer: async () => {}, followUp: async () => {}, messages: [], sessionId: "s" };
+			const evoharness = { ModelRuntime: { create: async () => ({}) }, SettingsManager: { create: () => ({}) }, DefaultResourceLoader: class { async reload() {} }, SessionManager: { inMemory: () => ({}) }, resolveCliModel: () => ({}), createAgentSession: async () => ({ session }) };
+			const factory = createDefaultChildSessionFactory({ shutdownTimeoutMs: 200, loadCodingAgent: async () => evoharness });
+			const child = await factory.create(${JSON.stringify(stubLaunch)});
+			await child.dispose();
+			process.stdout.write("disposed");
+		`;
+		const loader = new URL("../support/register-loader.mjs", import.meta.url).href;
+		const result = spawnSync(
+			process.execPath,
+			["--experimental-strip-types", "--import", loader, "--input-type=module", "-e", script],
+			{ encoding: "utf8", timeout: 15_000 },
+		);
+		assert.equal(result.stdout, "disposed", result.stderr);
+		assert.equal(result.status, 0);
+	});
+});
+
+/** MCP connects after session_start. Its tool_call hook waits for the connection, not a separate registration timer. */
+function builtinMcpPi(
+	tools = [
+		["mcp__srv__echo", "srv/echo"],
+		["mcp__srv__add", "srv/add"],
+	],
+	connect?: Promise<void>,
+) {
+	type Tool = { name: string; label?: string; exposure: string; reachesTools?: () => string[] };
+	type Handler = (event: { toolName?: string }, ctx: { signal?: AbortSignal }) => unknown;
+	const registry = new Map<string, string>();
+	const definitions = new Map<string, Tool>();
+	const handlers = new Map<string, Handler[]>();
+	const loaded: Array<{ name: string; replaceable?: boolean }> = [];
+	const lifecycle: string[] = [];
+	let allowlist: string[] = [];
+	const getAllTools = () => [...definitions.values()].filter(({ name }) => allowlist.includes(name));
+	const evoharness = stubPi({
+		bindExtensions: async () => {
+			for (const handler of handlers.get("session_start") ?? []) await handler({}, {});
+		},
+		extensionRunner: {
+			hasHandlers: () => true,
+			emit: async () => {
+				lifecycle.push("session_shutdown");
+			},
+		},
+		dispose: () => {
+			lifecycle.push("dispose");
+		},
+		getAllTools,
+		getActiveToolNames: () =>
+			getAllTools()
+				.filter(({ exposure }) => exposure === "direct")
+				.map(({ name }) => name),
+	});
+	Object.assign(evoharness, {
+		createCodemodeExtension: () => (api: { registerTool(tool: Tool): void }) =>
+			api.registerTool({ name: "codemode", exposure: "codemode", reachesTools: () => ["mcp__srv"] }),
+		createMcpExtension:
+			() =>
+			(api: { registerTool(tool: Tool): void; on(type: string, handler: Handler): void; getAllTools(): Tool[] }) => {
+				let ready: Promise<void>;
+				api.on("session_start", () => {
+					ready = (async () => {
+						await (connect ?? new Promise((resolve) => setTimeout(resolve, 20)));
+						for (const [name, label, exposure = "codemode"] of tools)
+							api.registerTool({ name: name!, label: label!, exposure });
+					})();
+				});
+				api.on("tool_call", async (event, ctx) => {
+					assert.ok(
+						api.getAllTools().find(({ name }) => name === event.toolName)?.reachesTools,
+						"MCP must see the host-owned readiness metadata despite the child allowlist",
+					);
+					if (ctx.signal?.aborted) return;
+					let onAbort: () => void;
+					try {
+						await Promise.race([
+							ready,
+							new Promise<void>((resolve) => {
+								onAbort = resolve;
+								ctx.signal?.addEventListener("abort", onAbort, { once: true });
+							}),
+						]);
+					} finally {
+						ctx.signal?.removeEventListener("abort", onAbort!);
+					}
+				});
+			},
+	});
+	type Entry = { name: string; factory: (api: unknown) => unknown; builtin?: boolean; replaceable?: boolean };
+	evoharness.DefaultResourceLoader = class {
+		private readonly options: { additionalExtensionPaths: string[]; extensionFactories: Entry[] };
+		constructor(options: typeof this.options) {
+			this.options = options;
+		}
+		async reload() {
+			for (const entry of this.options.extensionFactories) {
+				if (entry.builtin && !this.options.additionalExtensionPaths.includes(`builtin:${entry.name}`)) continue;
+				if (entry.builtin) loaded.push({ name: entry.name, replaceable: entry.replaceable });
+				await entry.factory({
+					registerTool: (tool: Tool) => {
+						definitions.set(tool.name, tool);
+						if (tool.name.startsWith("mcp__")) registry.set(tool.name, tool.exposure);
+					},
+					getAllTools,
+					on: (type: string, handler: Handler) => {
+						const list = handlers.get(type) ?? [];
+						list.push(handler);
+						handlers.set(type, list);
+					},
+				});
+			}
+		}
+	} as unknown as CodingAgentModule["DefaultResourceLoader"];
+	const createSession = evoharness.createAgentSession;
+	evoharness.createAgentSession = ((options: { tools?: string[] }) => {
+		allowlist = options.tools ?? [];
+		return createSession(options);
+	}) as CodingAgentModule["createAgentSession"];
+	return { evoharness, registry, definitions, loaded, lifecycle };
+}
+
+describe("selected built-in MCP tools in a child session", () => {
+	const mcpLaunch: ChildSessionLaunch = {
+		...stubLaunch,
+		tools: ["read", "mcp__srv__echo"],
+		builtinMcpTools: [{ name: "mcp__srv__echo", selector: "srv/echo" }],
+	};
+
+	it("declares exactly the selected tools as direct and hides the other MCP tools", async () => {
+		const mcp = builtinMcpPi();
+		await createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness }).create(mcpLaunch);
+		assert.deepEqual(mcp.loaded, [{ name: "mcp", replaceable: true }]);
+		assert.deepEqual(
+			[...mcp.registry],
+			[
+				["mcp__srv__echo", "direct"],
+				["mcp__srv__add", "hidden"],
+			],
+		);
+		assert.equal(
+			mcp.definitions.get("codemode")?.exposure,
+			"hidden",
+			"the readiness metadata must not grant codemode",
+		);
+	});
+
+	it("grants a server's tools for its configured name and for its `-`→`_` form", async () => {
+		const name = "mcp__codebase_memory__list_projects";
+		for (const selector of ["codebase-memory", "codebase_memory", "codebase_memory/list_projects"]) {
+			const mcp = builtinMcpPi([[name, "codebase-memory/list_projects"]]);
+			await createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness }).create({
+				...stubLaunch,
+				tools: [name],
+				builtinMcpTools: [{ name, selector }],
+			});
+			assert.deepEqual([...mcp.registry], [[name, "direct"]], selector);
+		}
+	});
+
+	it("fails the launch and shuts the session down when a selected tool never registers", async () => {
+		const mcp = builtinMcpPi();
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness });
+		await assert.rejects(
+			factory.create({
+				...mcpLaunch,
+				tools: [...mcpLaunch.tools!, "mcp__gone__x"],
+				builtinMcpTools: [...mcpLaunch.builtinMcpTools!, { name: "mcp__gone__x", selector: "gone" }],
+			}),
+			/did not register in the child session: mcp__gone__x\. The MCP server may have failed to connect/,
+		);
+		assert.deepEqual(mcp.lifecycle, ["session_shutdown", "dispose"]);
+	});
+
+	it("does not expose a tool whose name evoharness gave to a different raw tool than the selector names", async () => {
+		const mcp = builtinMcpPi([["mcp__srv__a_b", "srv/a_b"]]);
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness });
+		await assert.rejects(
+			factory.create({
+				...stubLaunch,
+				tools: ["mcp__srv__a_b"],
+				builtinMcpTools: [{ name: "mcp__srv__a_b", selector: "srv/a.b" }],
+			}),
+			/did not register in the child session: mcp__srv__a_b\./,
+		);
+		assert.deepEqual([...mcp.registry], [["mcp__srv__a_b", "hidden"]]);
+	});
+
+	it("does not hold other child launches while it waits for MCP tools", async () => {
+		let connected!: () => void;
+		const mcp = builtinMcpPi(
+			undefined,
+			new Promise<void>((resolve) => {
+				connected = resolve;
+			}),
+		);
+		let waitEnded = false;
+		const waiting = createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness })
+			.create({ ...mcpLaunch, builtinMcpTools: [{ name: "mcp__gone__x", selector: "gone" }] })
+			.finally(() => {
+				waitEnded = true;
+			});
+		while (mcp.loaded.length === 0) await new Promise((resolve) => setTimeout(resolve, 5));
+		await createDefaultChildSessionFactory({ loadCodingAgent: async () => stubPi() }).create(stubLaunch);
+		assert.equal(waitEnded, false);
+		connected();
+		await assert.rejects(waiting, /mcp__gone__x/);
+	});
+
+	it("shuts down a child still waiting for MCP tools when the factory is disposed", async () => {
+		const mcp = builtinMcpPi(undefined, new Promise<void>(() => {}));
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness });
+		const creating = factory.create({ ...mcpLaunch, builtinMcpTools: [{ name: "mcp__gone__x", selector: "gone" }] });
+		while (mcp.loaded.length === 0) await new Promise((resolve) => setTimeout(resolve, 5));
+		await new Promise((resolve) => setTimeout(resolve, 20));
+		await factory.dispose();
+		assert.deepEqual(mcp.lifecycle, ["session_shutdown", "dispose"]);
+		await assert.rejects(creating, /disposed while the child waited for its MCP tools/);
+	});
+
+	it("loads no built-in MCP when no tools are selected", async () => {
+		const mcp = builtinMcpPi();
+		await createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness }).create({
+			...stubLaunch,
+			builtinMcpTools: [],
+		});
+		assert.deepEqual(mcp.loaded, []);
+	});
+
+	it("rejects selected tools when the host evoharness has no built-in MCP", async () => {
+		await assert.rejects(
+			createDefaultChildSessionFactory({ loadCodingAgent: async () => stubPi() }).create(mcpLaunch),
+			/mcp__srv__echo\) need a evoharness version with built-in MCP/,
+		);
+	});
+
+	it("names the evoharness 0.99.2 floor when built-in MCP has no connection readiness hook", async () => {
+		const mcp = builtinMcpPi();
+		type Api = { on(type: string, handler: unknown): void };
+		const create = (mcp.evoharness as unknown as { createMcpExtension: () => (api: Api) => unknown })
+			.createMcpExtension;
+		// evoharness 0.99.0 and 0.99.1 register no tool_call handler.
+		Object.assign(mcp.evoharness, {
+			createMcpExtension: () => (api: Api) =>
+				create()({
+					...api,
+					on: (type: string, handler: unknown) => {
+						if (type !== "tool_call") api.on(type, handler);
+					},
+				}),
+		});
+		await assert.rejects(
+			createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness }).create(mcpLaunch),
+			/mcp__srv__echo\) need evoharness 0\.99\.2 or later/,
+		);
+		assert.deepEqual(mcp.lifecycle, ["session_shutdown", "dispose"]);
+	});
+});
