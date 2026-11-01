@@ -17,6 +17,7 @@ import {
 	scanHostKey,
 } from "../src/ssh.ts";
 import { daemon } from "./daemon.ts";
+import { posixShell, posixShellMissing } from "./posix-shell.ts";
 
 /**
  * The conformance suite over a real SSH server on this machine, configured by CI: `EVOHARNESS_ENV_SSH_HOST`, `EVOHARNESS_ENV_SSH_USER`
@@ -65,7 +66,9 @@ afterAll(async () => {
 });
 
 const windows = process.platform === "win32";
-const gitBash = join(process.env.ProgramFiles ?? "C:\\Program Files", "Git", "bin", "bash.exe");
+// The conformance harness runs a local reference env with this shell, so it is the
+// local Git Bash that matters even when the system under test is remote.
+const scopedDescribe = describe.skipIf(posixShellMissing);
 
 describe.skipIf(host === undefined)("SSH to this machine's server", () => {
 	it("reaches the remote system through its default shell", async () => {
@@ -78,7 +81,7 @@ describe.skipIf(host === undefined)("SSH to this machine's server", () => {
 
 if (host !== undefined) {
 	registerEnvConformance(
-		{ describe, expect, it },
+		{ describe: scopedDescribe, expect, it },
 		"RemoteExecutionEnv over SSH",
 		async (use) => {
 			const { connection } = await connect();
@@ -98,6 +101,6 @@ if (host !== undefined) {
 				await home.remove(cwd, { recursive: true, force: true }, BACKGROUND_CONTEXT);
 			}
 		},
-		windows ? { shell: [gitBash, "-c"], symlinks: false, listFiles: true } : { listFiles: true },
+		windows && posixShell ? { shell: [posixShell, "-c"], symlinks: false, listFiles: true } : { listFiles: true },
 	);
 }

@@ -7,6 +7,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { Connection, nodePlatform } from "../src/connection.ts";
 import { RemoteExecutionEnv } from "../src/remote-env.ts";
 import { daemon } from "./daemon.ts";
+import { posixShell } from "./posix-shell.ts";
 
 const context = BACKGROUND_CONTEXT;
 const connections: Connection[] = [];
@@ -21,7 +22,10 @@ function environment(): { env: RemoteExecutionEnv; connection: Connection } {
 	dirs.push(cwd);
 	const connection = new Connection({ command: [daemon] });
 	connections.push(connection);
-	return { env: new RemoteExecutionEnv({ connection, id: "evoharness-env:test", cwd }), connection };
+	return {
+		env: new RemoteExecutionEnv({ connection, id: "evoharness-env:test", cwd, shellPath: posixShell }),
+		connection,
+	};
 }
 
 describe("RemoteExecutionEnv", () => {
@@ -86,7 +90,7 @@ describe("RemoteExecutionEnv", () => {
 		expect((await env.connection.info()).features).toContain("listFiles");
 		const connection = new Connection({ command: [process.execPath, join(import.meta.dirname, "old-daemon.ts")] });
 		connections.push(connection);
-		const old = new RemoteExecutionEnv({ connection, id: "evoharness-env:old", cwd: env.cwd });
+		const old = new RemoteExecutionEnv({ connection, id: "evoharness-env:old", cwd: env.cwd, shellPath: posixShell });
 		const listed = await old.listFiles(".", undefined, context);
 		expect(listed.ok ? "ok" : listed.error.code).toBe("not_supported");
 	});
@@ -172,7 +176,7 @@ describe("RemoteExecutionEnv", () => {
 			},
 		});
 		connections.push(connection);
-		const env = new RemoteExecutionEnv({ connection, id: "evoharness-env:test", cwd });
+		const env = new RemoteExecutionEnv({ connection, id: "evoharness-env:test", cwd, shellPath: posixShell });
 		const offline = await env.readTextFile("missing.txt", context);
 		expect(offline.ok ? "ok" : [offline.error.code, offline.error.message]).toEqual([
 			"unknown",

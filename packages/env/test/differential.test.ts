@@ -12,6 +12,7 @@ import { afterAll, describe, expect, it } from "vitest";
 import { Connection } from "../src/connection.ts";
 import { RemoteExecutionEnv } from "../src/remote-env.ts";
 import { daemon } from "./daemon.ts";
+import { posixShell } from "./posix-shell.ts";
 
 const connection = new Connection({ command: [daemon] });
 const context: Context = BACKGROUND_CONTEXT;
@@ -27,7 +28,10 @@ function pair(): { local: ExecutionEnv; remote: ExecutionEnv; roots: [string, st
 	dirs.push(localRoot, remoteRoot);
 	return {
 		local: new NodeExecutionEnv({ cwd: localRoot }),
-		remote: new RemoteExecutionEnv({ connection, id: "evoharness-env:test", cwd: remoteRoot }),
+		// A differential suite is only meaningful if both sides run the same kind of shell.
+		// NodeExecutionEnv resolves a Git Bash itself (D-011); the Rust daemon needs to be
+		// told, or it falls back to `sh`, which Windows has no answer for.
+		remote: new RemoteExecutionEnv({ connection, id: "evoharness-env:test", cwd: remoteRoot, shellPath: posixShell }),
 		roots: [localRoot, remoteRoot],
 	};
 }
