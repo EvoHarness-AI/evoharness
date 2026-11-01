@@ -80,5 +80,5 @@ export class ModelRuntime {}
 export class SettingsManager {}
 
 export function createAgentSession() {
-	throw new Error("Real Pi session tests require the real @earendil-works/pi-coding-agent package.");
+	throw new Error("Real Pi session tests require the real @evoharness/coding-agent package.");
 }

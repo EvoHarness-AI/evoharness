@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { it } from "node:test";
-import type { AgentSessionEvent, SessionBeforeCompactEvent } from "@earendil-works/pi-coding-agent";
+import type { AgentSessionEvent, SessionBeforeCompactEvent } from "@evoharness/coding-agent";
 import { createDefaultChildSessionFactory, type PiCodingAgentModule } from "../../src/runs/shared/child-session.ts";
 import { runSync } from "../../src/runs/foreground/execution.ts";
 import { runSingleStepInner } from "../../src/runs/background/subagent-runner.ts";
@@ -17,14 +17,14 @@ const sdkRoot = process.env.PI_SUBAGENTS_NATIVE_SDK;
 for (const host of ["foreground", "runner"] as const) {
 	for (const [systemPromptMode, structured] of [["append", false], ["replace", false], ["append", true], ["replace", true]] as const) {
 		it(`exact acceptance survives actual SDK split-turn compaction: ${host}/${systemPromptMode}/${structured ? "structured" : "fenced"}`, { skip: !sdkRoot && "Set PI_SUBAGENTS_NATIVE_SDK to the isolated 1.2.0 SDK root" }, async () => {
-			const entry = execFileSync(process.execPath, ["--input-type=module", "-e", "console.log(import.meta.resolve('@earendil-works/pi-coding-agent'))"], { cwd: sdkRoot, encoding: "utf8" }).trim();
+			const entry = execFileSync(process.execPath, ["--input-type=module", "-e", "console.log(import.meta.resolve('@evoharness/coding-agent'))"], { cwd: sdkRoot, encoding: "utf8" }).trim();
 			const pi: PiCodingAgentModule = await import(entry);
 			assert.equal(pi.VERSION, "1.2.0");
 			const cwd = mkdtempSync(join(tmpdir(), "acceptance-compaction-"));
 			const agentDir = join(cwd, "agent"); mkdirSync(agentDir);
-			const oldDir = process.env.PI_CODING_AGENT_DIR;
+			const oldDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 			const oldFetch = globalThis.fetch;
-			process.env.PI_CODING_AGENT_DIR = agentDir;
+			process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ retry: { enabled: false, provider: { maxRetries: 0 } }, compaction: { enabled: true, reserveTokens: 2048, keepRecentTokens: 32 } }));
 			writeFileSync(join(agentDir, "models.json"), JSON.stringify({ providers: { baseten: { baseUrl: "https://synthetic.invalid/v1", apiKey: "fixture-key", models: [{ id: "acceptance", name: "acceptance", api: "openai-completions", reasoning: false, input: ["text"], contextWindow: 128000, maxTokens: 512, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 } }] } } }));
 			writeFileSync(join(cwd, "marker.txt"), "WORK_EVIDENCE");
@@ -112,7 +112,7 @@ for (const host of ["foreground", "runner"] as const) {
 				assert.ok(retained.includes("WORK_EVIDENCE"), "tool evidence survives");
 			} finally {
 				await factory.dispose(); globalThis.fetch = oldFetch;
-				if (oldDir === undefined) delete process.env.PI_CODING_AGENT_DIR; else process.env.PI_CODING_AGENT_DIR = oldDir;
+				if (oldDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR; else process.env.EVOHARNESS_CODING_AGENT_DIR = oldDir;
 				rmSync(cwd, { recursive: true, force: true });
 			}
 		});

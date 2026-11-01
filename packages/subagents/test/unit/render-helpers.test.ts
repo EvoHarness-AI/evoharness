@@ -1,7 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 
-import { visibleWidth } from "@earendil-works/pi-tui";
+import { visibleWidth } from "@evoharness/tui";
 import { row, shouldSuppressSingleStep, stripRepeatedAgentPrefix, withDuplicateLabelDiscriminators } from "../../src/tui/render-helpers.ts";
 import { buildWidgetLines, renderSubagentResult, renderSubagentSummary, truncLine, widgetRenderKey } from "../../src/tui/render.ts";
 import { setMainThinkingLevelSource } from "../../src/tui/running-tone.ts";

@@ -18,7 +18,7 @@ import {
 const originalEnv = {
 	HOME: process.env.HOME,
 	USERPROFILE: process.env.USERPROFILE,
-	PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR,
+	EVOHARNESS_CODING_AGENT_DIR: process.env.EVOHARNESS_CODING_AGENT_DIR,
 };
 const originalCwd = process.cwd();
 const tempRoots: string[] = [];
@@ -33,7 +33,7 @@ function createFixture() {
 	fs.mkdirSync(projectDir, { recursive: true });
 	process.env.HOME = home;
 	process.env.USERPROFILE = home;
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	process.chdir(projectDir);
 	return { root, agentDir, projectDir };
 }
@@ -84,7 +84,7 @@ function escapeRegExp(value: string): string {
 describe("resolvePermissionSystemExtension", () => {
 	it("returns undefined when extension is not installed", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const result = resolvePermissionSystemExtension();
 		assert.equal(result, undefined);
 	});
@@ -102,7 +102,7 @@ describe("resolvePermissionSystemExtension", () => {
 
 	it("throws when package.json has no valid pi.extensions entry", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
 		const pkgPath = path.join(extDir, "package.json");
 		fs.mkdirSync(extDir, { recursive: true });
@@ -122,7 +122,7 @@ describe("resolvePermissionSystemExtension", () => {
 
 	it("throws when package.json is malformed", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
 		const pkgPath = path.join(extDir, "package.json");
 		fs.mkdirSync(extDir, { recursive: true });
@@ -136,7 +136,7 @@ describe("resolvePermissionSystemExtension", () => {
 
 	it("throws when package.json cannot be read", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
 		const pkgPath = path.join(extDir, "package.json");
 		fs.mkdirSync(pkgPath, { recursive: true });
@@ -149,7 +149,7 @@ describe("resolvePermissionSystemExtension", () => {
 
 	it("throws with manifest context when package.json is not an object", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
 		const pkgPath = path.join(extDir, "package.json");
 		fs.mkdirSync(extDir, { recursive: true });
@@ -195,7 +195,7 @@ describe("resolvePermissionSystemExtension", () => {
 
 	it("returns extension path when fully installed", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
 		fs.mkdirSync(extDir, { recursive: true });
 		fs.writeFileSync(
@@ -217,7 +217,7 @@ describe("resolvePermissionSystemExtension", () => {
 
 	it("throws when the configured entry file does not exist", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
 		const pkgPath = path.join(extDir, "package.json");
 		fs.mkdirSync(extDir, { recursive: true });
@@ -239,7 +239,7 @@ describe("resolvePermissionSystemExtension", () => {
 describe("resolvePiLaunchToolPlan with permission system", () => {
 	it("does not inject the permission system when no native permission rules are set", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
 		fs.mkdirSync(path.join(extDir, "src"), { recursive: true });
 		fs.writeFileSync(
@@ -261,7 +261,7 @@ describe("resolvePiLaunchToolPlan with permission system", () => {
 
 	it("injects the permission system when explicit native permission rules are set", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
 		fs.mkdirSync(path.join(extDir, "src"), { recursive: true });
 		fs.writeFileSync(
@@ -282,7 +282,7 @@ describe("resolvePiLaunchToolPlan with permission system", () => {
 
 	it("does NOT include permission system when not installed", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 
 		const plan = resolvePiLaunchToolPlan({});
 		const permExt = plan.runtimeExtensions.find((e) =>
@@ -293,7 +293,7 @@ describe("resolvePiLaunchToolPlan with permission system", () => {
 
 	it("does NOT include permission system when denyExtensions is set", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const extDir = path.join(
 			agentDir,
 			"npm",
@@ -329,7 +329,7 @@ describe("resolvePiLaunchToolPlan with permission system", () => {
 describe("child launch <active_agent> tag injection", () => {
 	it("prepends <active_agent> tag when childAgentName is set", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 
 		const promptContent = childSystemPrompt(buildInProcessChildLaunch(childLaunch({
 			systemPrompt: "You are a helpful assistant.",
@@ -347,7 +347,7 @@ describe("child launch <active_agent> tag injection", () => {
 
 	it("passes no system prompt when the agent has none", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 
 		const { session } = buildInProcessChildLaunch(childLaunch({ childAgentName: "helper" }));
 		assert.equal(session.systemPrompt, undefined);
@@ -356,7 +356,7 @@ describe("child launch <active_agent> tag injection", () => {
 
 	it("replaces the system prompt in replace mode", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 
 		const { session } = buildInProcessChildLaunch(childLaunch({ systemPrompt: "You are a helper.", systemPromptMode: "replace", childAgentName: "helper" }));
 		assert.equal(session.systemPrompt, '<active_agent name="helper"/>\n\nYou are a helper.');
@@ -365,7 +365,7 @@ describe("child launch <active_agent> tag injection", () => {
 
 	it("injects the tag even when systemPrompt is empty", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 
 		const promptContent = childSystemPrompt(buildInProcessChildLaunch(childLaunch({ systemPrompt: "", childAgentName: "worker" })));
 		assert.ok(promptContent.startsWith('<active_agent name="worker"/>'));
@@ -373,7 +373,7 @@ describe("child launch <active_agent> tag injection", () => {
 
 	it("escapes XML metacharacters in agent name", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 
 		const promptContent = childSystemPrompt(buildInProcessChildLaunch(childLaunch({
 			systemPrompt: "System prompt here",
@@ -387,7 +387,7 @@ describe("child launch <active_agent> tag injection", () => {
 
 	it("runtimeExtensions include prompt runtime path (pre-existing behavior)", () => {
 		const { agentDir } = createFixture();
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 
 		const plan = resolvePiLaunchToolPlan({});
 		assert.ok(plan.runtimeExtensions.length >= 1);

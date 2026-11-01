@@ -20,7 +20,7 @@ it("loads the executor and Fleet within seconds of a session starting, not at se
 	// A top-level session; this test may itself run inside a subagent child.
 	delete process.env.PI_SUBAGENT_CHILD;
 	const { default: registerSubagentExtension } = await import("../../src/extension/index.ts");
-	const { createEventBus } = await import("@earendil-works/pi-coding-agent");
+	const { createEventBus } = await import("@evoharness/coding-agent");
 	const handlers = new Map<string, Array<(event: unknown, ctx: unknown) => unknown>>();
 	const pi = new Proxy({
 		events: createEventBus(),

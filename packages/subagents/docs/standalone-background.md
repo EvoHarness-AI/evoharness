@@ -2,7 +2,7 @@
 
 Supported standalone target: **official Pi 1.2.0, Linux x64**. Keep its adjacent release assets with the executable. Other versions, operating systems, architectures and packagers are outside the fully validated support target; limited experimental Windows coverage is described below.
 
-Pi's extension loader supplies its embedded SDK to `binary-bootstrap.ts`, which awaits the existing configured runner before exiting. Startup authorization, revival leases, controls, disposal and process-close observation remain shared with npm. Each independent run has its own host; native sessions inside that run share it. No per-session CLI protocol, runtime download/install, alternate SDK or foreground fallback is introduced. Npm Pi keeps its Node runner, peer aliases and detected npm `PI_PACKAGE_DIR` override (including refusal when no npm root exists).
+Pi's extension loader supplies its embedded SDK to `binary-bootstrap.ts`, which awaits the existing configured runner before exiting. Startup authorization, revival leases, controls, disposal and process-close observation remain shared with npm. Each independent run has its own host; native sessions inside that run share it. No per-session CLI protocol, runtime download/install, alternate SDK or foreground fallback is introduced. Npm Pi keeps its Node runner, peer aliases and detected npm `EVOHARNESS_PACKAGE_DIR` override (including refusal when no npm root exists).
 
 Implementation and lifecycle fixtures derive from [@xz-dev](https://github.com/xz-dev)'s [PR #2049](https://github.com/nicobailon/pi-subagents/pull/2049), source commit `910807bfefcf9ee41d73fa25ec86dcd75ab8f4b2` (Xiangzhe, `xiangzhedev@gmail.com`). Integration retains the lifecycle contract and reduces commentary rather than removing its evidence gates.
 
@@ -50,7 +50,7 @@ node test/smoke/npm-background.mjs "$npm_checks/sdk" "$npm_checks/launch"
 To try a checkout without replacing your installation, start a separate supported Pi process with an isolated agent directory:
 
 ```bash
-PI_CODING_AGENT_DIR="$(mktemp -d)" "$release_dir/pi/pi" \
+EVOHARNESS_CODING_AGENT_DIR="$(mktemp -d)" "$release_dir/pi/pi" \
   --no-extensions --no-skills --no-prompt-templates --extension "$PWD/index.ts"
 ```
 

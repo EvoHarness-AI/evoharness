@@ -263,8 +263,8 @@ describe("child tool plan declared tools", () => {
 describe("production launch path keeps declared child tools", () => {
 	it("buildInProcessChildLaunch requires every declared tool from the child registry", () => {
 		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-launch-builtins-"));
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-		process.env.PI_CODING_AGENT_DIR = cwd;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = cwd;
 		try {
 			for (const childAgentName of ["test-agent", "scout"]) {
 				const launch = buildInProcessChildLaunch({
@@ -285,8 +285,8 @@ describe("production launch path keeps declared child tools", () => {
 				assert.deepEqual(launch.warnings, []);
 			}
 		} finally {
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 			fs.rmSync(cwd, { recursive: true, force: true });
 		}
 	});

@@ -1,5 +1,5 @@
-import { declarationsEqual, getCurrentSystemMessage, toToolDeclaration, type Message, type SystemMessage, type Tool } from "@earendil-works/pi-ai";
-import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { declarationsEqual, getCurrentSystemMessage, toToolDeclaration, type Message, type SystemMessage, type Tool } from "@evoharness/ai";
+import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@evoharness/coding-agent";
 import type { TSchema } from "typebox";
 
 // Pi records each declared tool definition and prompt section in the session transcript and

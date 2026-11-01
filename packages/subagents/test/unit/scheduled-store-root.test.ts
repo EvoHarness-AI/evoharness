@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { getConfigPath, loadConfig, resolveScheduledStoreRoot, saveConfig, updateConfig } from "../../src/extension/config.ts";
 
-const AGENT_DIR_ENV = "PI_CODING_AGENT_DIR";
+const AGENT_DIR_ENV = "EVOHARNESS_CODING_AGENT_DIR";
 const HOME_ENV = "HOME";
 const USERPROFILE_ENV = "USERPROFILE";
 let agentDir: string;

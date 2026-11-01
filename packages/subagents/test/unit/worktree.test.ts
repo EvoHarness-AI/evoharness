@@ -399,14 +399,14 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	it("rejects worktree base directories inside Pi extensions", async () => {
 		const repoDir = createRepo("pi-worktree-extension-dir-");
 		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
 		const extensionsDir = path.join(tempHome, ".pi", "agent", "extensions");
 		try {
 			process.env.HOME = tempHome;
 			process.env.USERPROFILE = tempHome;
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 			await assert.rejects(
 				() => createWorktrees(repoDir, "extension-dir", 1, { baseDir: extensionsDir }),
 				/worktree base directory cannot be inside Pi extensions directory/i,
@@ -416,8 +416,8 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 				/worktree base directory cannot be inside Pi extensions directory/i,
 			);
 		} finally {
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 			if (previousHome === undefined) delete process.env.HOME;
 			else process.env.HOME = previousHome;
 			if (previousUserProfile === undefined) delete process.env.USERPROFILE;
@@ -430,7 +430,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	it("rejects symlinked worktree base directories inside Pi extensions", async () => {
 		const repoDir = createRepo("pi-worktree-extension-symlink-");
 		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
 		const extensionsDir = path.join(tempHome, ".pi", "agent", "extensions");
@@ -438,7 +438,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		try {
 			process.env.HOME = tempHome;
 			process.env.USERPROFILE = tempHome;
-			delete process.env.PI_CODING_AGENT_DIR;
+			delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 			fs.mkdirSync(extensionsDir, { recursive: true });
 			fs.symlinkSync(extensionsDir, aliasDir, process.platform === "win32" ? "junction" : "dir");
 			await assert.rejects(
@@ -446,8 +446,8 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 				/worktree base directory cannot be inside Pi extensions directory/i,
 			);
 		} finally {
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 			if (previousHome === undefined) delete process.env.HOME;
 			else process.env.HOME = previousHome;
 			if (previousUserProfile === undefined) delete process.env.USERPROFILE;
@@ -462,14 +462,14 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
 		const agentDir = path.join(tempHome, ".pi", "agent");
 		const repoDir = path.join(agentDir, "extensions", "powerline-footer");
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
 		let setup: WorktreeSetup | undefined;
 		try {
 			fs.mkdirSync(path.dirname(repoDir), { recursive: true });
 			fs.renameSync(sourceRepo, repoDir);
-			process.env.PI_CODING_AGENT_DIR = agentDir;
+			process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			process.env.HOME = tempHome;
 			process.env.USERPROFILE = tempHome;
 
@@ -480,8 +480,8 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 			assert.equal(resolveExpectedWorktreeAgentCwd(repoDir, "extension-auto", 0), setup.worktrees[0]?.path);
 		} finally {
 			if (setup) cleanupWorktrees(setup, { kind: "setup-rollback" });
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 			if (previousHome === undefined) delete process.env.HOME;
 			else process.env.HOME = previousHome;
 			if (previousUserProfile === undefined) delete process.env.USERPROFILE;
@@ -497,13 +497,13 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
 		const agentDir = path.join(tempHome, ".pi", "agent");
 		const repoDir = path.join(agentDir, "extensions", "powerline-footer");
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
 		try {
 			fs.mkdirSync(path.dirname(repoDir), { recursive: true });
 			fs.renameSync(sourceRepo, repoDir);
-			process.env.PI_CODING_AGENT_DIR = agentDir;
+			process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			process.env.HOME = tempHome;
 			process.env.USERPROFILE = tempHome;
 
@@ -513,8 +513,8 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 			);
 			assert.equal(fs.existsSync(path.join(agentDir, "worktrees")), false);
 		} finally {
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 			if (previousHome === undefined) delete process.env.HOME;
 			else process.env.HOME = previousHome;
 			if (previousUserProfile === undefined) delete process.env.USERPROFILE;
@@ -531,13 +531,13 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		const repoDir = path.join(tempHome, "extensions");
 		const agentDir = path.join(tempHome, ".pi", "agent");
 		const extensionsDir = path.join(agentDir, "extensions");
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
 		try {
 			fs.renameSync(sourceRepo, repoDir);
 			fs.mkdirSync(extensionsDir, { recursive: true });
-			process.env.PI_CODING_AGENT_DIR = agentDir;
+			process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			process.env.HOME = tempHome;
 			process.env.USERPROFILE = tempHome;
 
@@ -552,8 +552,8 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 			assert.deepEqual(git(repoDir, ["worktree", "list", "--porcelain"]).split("\n").filter((line) => line.startsWith("worktree ")), [`worktree ${git(repoDir, ["rev-parse", "--show-toplevel"])}`]);
 			assert.deepEqual(fs.readdirSync(extensionsDir), []);
 		} finally {
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 			if (previousHome === undefined) delete process.env.HOME;
 			else process.env.HOME = previousHome;
 			if (previousUserProfile === undefined) delete process.env.USERPROFILE;
@@ -570,14 +570,14 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		const agentDir = path.join(tempHome, ".pi", "agent");
 		const extensionsDir = path.join(agentDir, "extensions");
 		const baseDir = path.join(tempHome, "worktree-root");
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
 		try {
 			fs.mkdirSync(extensionsDir, { recursive: true });
 			fs.mkdirSync(baseDir, { recursive: true });
 			fs.symlinkSync(extensionsDir, path.join(baseDir, path.basename(repoDir)), process.platform === "win32" ? "junction" : "dir");
-			process.env.PI_CODING_AGENT_DIR = agentDir;
+			process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			process.env.HOME = tempHome;
 			process.env.USERPROFILE = tempHome;
 
@@ -592,8 +592,8 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 			assert.deepEqual(git(repoDir, ["worktree", "list", "--porcelain"]).split("\n").filter((line) => line.startsWith("worktree ")), [`worktree ${git(repoDir, ["rev-parse", "--show-toplevel"])}`]);
 			assert.deepEqual(fs.readdirSync(extensionsDir), []);
 		} finally {
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 			if (previousHome === undefined) delete process.env.HOME;
 			else process.env.HOME = previousHome;
 			if (previousUserProfile === undefined) delete process.env.USERPROFILE;

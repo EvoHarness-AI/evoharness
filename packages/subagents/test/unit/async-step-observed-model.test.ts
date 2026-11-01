@@ -10,15 +10,15 @@ let previousAgentDir: string | undefined;
 let agentDir: string;
 
 beforeEach(() => {
-	previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+	previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-observed-model-agent-"));
 	fs.chmodSync(agentDir, 0o700);
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 });
 
 afterEach(() => {
-	if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-	else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+	if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+	else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 });
 
 function baseConfig(root: string, id: string, steps: SubagentRunConfig["steps"]): SubagentRunConfig {

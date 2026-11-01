@@ -6,7 +6,7 @@ import * as path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import type { ChildSessionLaunch } from "../../src/runs/shared/child-session.ts";
-import type { AssistantMessage } from "@earendil-works/pi-ai";
+import type { AssistantMessage } from "@evoharness/ai";
 import { createPlacementAwareChildSessionFactory, HerdrPiSession } from "../../src/runs/shared/herdr-placed-run.ts";
 import { resolveMachinePlacement } from "../../src/runs/shared/herdr-machine.ts";
 import { REX_BUNDLE_BIN, resolveRexBinary, rexCommandEnv } from "../../src/runs/shared/rex-machine.ts";

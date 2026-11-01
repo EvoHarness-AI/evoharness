@@ -20,7 +20,7 @@ function runWarmPhases(t: TestContext, pi: string, probe: (root: string, resultF
 	const extension = path.join(root, "probe.ts");
 	const resultFile = path.join(root, "result.json");
 	fs.writeFileSync(extension, probe(root, resultFile));
-	const env = { ...process.env, PI_CODING_AGENT_DIR: path.join(root, "profile"), PI_OFFLINE: "1", BUN_RUNTIME_TRANSPILER_CACHE_PATH: path.join(root, "cache") };
+	const env = { ...process.env, EVOHARNESS_CODING_AGENT_DIR: path.join(root, "profile"), EVOHARNESS_OFFLINE: "1", BUN_RUNTIME_TRANSPILER_CACHE_PATH: path.join(root, "cache") };
 	for (const phase of ["cold", "warm", "warm-repeat"]) {
 		fs.rmSync(resultFile, { force: true });
 		const result = spawnSync(pi, ["--offline", "--no-approve", "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-context-files", "--no-session", "--mode", "rpc", "--extension", extension], { cwd: root, env, encoding: "utf8", timeout: 15_000, windowsHide: true });

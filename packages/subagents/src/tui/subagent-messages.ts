@@ -1,5 +1,5 @@
-import { getMarkdownTheme, keyText, type Theme, type ThemeColor } from "@earendil-works/pi-coding-agent";
-import { Box, Container, Markdown, MouseRegion, Spacer, truncateToWidth, type Component } from "@earendil-works/pi-tui";
+import { getMarkdownTheme, keyText, type Theme, type ThemeColor } from "@evoharness/coding-agent";
+import { Box, Container, Markdown, MouseRegion, Spacer, truncateToWidth, type Component } from "@evoharness/tui";
 import { SUBAGENT_CONTROL_MESSAGE_TYPE } from "../extension/control-notices.ts";
 import { SUBAGENT_STEERING_MESSAGE_TYPE } from "../extension/steering-notices.ts";
 import { parseSupervisorReplyData, parseSupervisorRequestDetails, SUPERVISOR_REPLY_ENTRY_TYPE, SUPERVISOR_REQUEST_MESSAGE_TYPE } from "../intercom/supervisor-ui.ts";

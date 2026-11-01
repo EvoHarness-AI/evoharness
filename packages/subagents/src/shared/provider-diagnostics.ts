@@ -1,4 +1,4 @@
-import { isRetryableAssistantError, type AssistantMessage } from "@earendil-works/pi-ai";
+import { isRetryableAssistantError, type AssistantMessage } from "@evoharness/ai";
 import type { SubagentDelegationProviderDiagnostics } from "../api/delegation.ts";
 import type { ChildSessionEvent } from "../runs/shared/child-session.ts";
 

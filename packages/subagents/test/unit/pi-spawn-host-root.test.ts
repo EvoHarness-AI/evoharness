@@ -5,9 +5,9 @@ import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { findPiPackageRootFromEntry, resolvePiPackageRoot } from "../../src/runs/shared/pi-spawn.ts";
 
-const PACKAGE_DIR = path.join("@earendil-works", "pi-coding-agent");
+const PACKAGE_DIR = path.join("@evoharness", "coding-agent");
 
-function writePackageRoot(root: string, name = "@earendil-works/pi-coding-agent"): void {
+function writePackageRoot(root: string, name = "@evoharness/coding-agent"): void {
 	fs.mkdirSync(root, { recursive: true });
 	fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({ name, version: "0.0.0" }));
 }

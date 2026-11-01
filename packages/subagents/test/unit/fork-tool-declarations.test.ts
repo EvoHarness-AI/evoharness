@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { collapseSystemMessages, fauxAssistantMessage, fauxProvider, fauxToolCall, getCurrentTools, type FauxResponseFactory, type Message, type SystemMessage, type Tool } from "@earendil-works/pi-ai";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { collapseSystemMessages, fauxAssistantMessage, fauxProvider, fauxToolCall, getCurrentTools, type FauxResponseFactory, type Message, type SystemMessage, type Tool } from "@evoharness/ai";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
 import { topLevelSupervisorTool } from "../../src/intercom/native-supervisor-channel.ts";
 import { createDefaultChildSessionFactory } from "../../src/runs/shared/child-session.ts";
@@ -163,16 +163,16 @@ describe("a forked child's session-affinity header", () => {
 
 describe("a forked child session", () => {
 	let root: string;
-	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 
 	before(() => {
 		root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fork-tool-declarations-"));
-		process.env.PI_CODING_AGENT_DIR = path.join(root, "agent");
+		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(root, "agent");
 	});
 
 	after(() => {
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		fs.rmSync(root, { recursive: true, force: true });
 	});
 
@@ -195,7 +195,7 @@ describe("a forked child session", () => {
 			...(options.forkCacheKey ? { forkCacheKey: options.forkCacheKey } : {}),
 			...options.launch,
 		});
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: () => import("@earendil-works/pi-coding-agent") });
+		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: () => import("@evoharness/coding-agent") });
 		const hooks = [(pi: ExtensionAPI) => pi.registerProvider(faux.provider as never), ...options.hooks ?? []];
 		const child = await factory.create({ ...session, hooks: [...session.hooks, ...hooks.map((hook, index) => ({ name: `probe-${index}`, factory: hook }))] });
 		try {
@@ -210,7 +210,7 @@ describe("a forked child session", () => {
 	async function forkOfParent(name: string, parent: { tools?: string[]; hooks?: Array<(pi: ExtensionAPI) => void> } = {}): Promise<{ forkFile: string; parentTools: string[]; parentDeclarations: string; parentSystem: Message[] }> {
 		const parentFile = path.join(root, `${name}-parent.jsonl`);
 		const [parentRequest] = await run({ sessionFile: parentFile, tools: parent.tools ?? ["read", "bash", "ls"], replies: [fauxAssistantMessage("done")], hooks: parent.hooks });
-		const { SessionManager } = await import("@earendil-works/pi-coding-agent");
+		const { SessionManager } = await import("@evoharness/coding-agent");
 		const manager = SessionManager.open(parentFile, path.join(root, `${name}-forks`));
 		// The parent launched this fork through `subagent` and got a notice from an earlier run.
 		manager.appendMessage({ role: "custom", customType: "subagent-notify", content: "PARENT-NOTICE", display: false, timestamp: Date.now() } as never);
@@ -298,7 +298,7 @@ describe("a forked child session", () => {
 	});
 
 	it("keeps its working contact_supervisor in a background runner that loads this package as an ambient extension", async () => {
-		const extensions = path.join(process.env.PI_CODING_AGENT_DIR!, "extensions");
+		const extensions = path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "extensions");
 		fs.mkdirSync(extensions, { recursive: true });
 		// This package's own entry point, loaded the way a runner child discovers an installed copy.
 		const loaded = path.join(root, "ambient-loaded");

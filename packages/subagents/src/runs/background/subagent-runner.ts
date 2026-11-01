@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
-import type { Message } from "@earendil-works/pi-ai";
+import type { Message } from "@evoharness/ai";
 import { installRunnerHttpDispatcher } from "./runner-http-dispatcher.ts";
 import { writeAtomicJson } from "../../shared/atomic-json.ts";
 import { withResultRunLease, writeAsyncResultFile, writePendingAsyncResultFile } from "./result-files.ts";

@@ -1,5 +1,5 @@
 import { execFile, type ExecFileOptionsWithStringEncoding } from "node:child_process";
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import type { AgentToolResult } from "@evoharness/agent-core";
 import type { Details } from "../../shared/types.ts";
 import type { InspectorContext, InspectorLaunch, InspectorParams } from "../types.ts";
 

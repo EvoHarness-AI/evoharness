@@ -65,8 +65,8 @@ describe("mission store", () => {
 	it("finds a mission through a symlinked project root and its real path", () => {
 		const test = symlinkedFixture();
 		// prepareMissionLaunch takes no agentDir, so point the default at the fixture.
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-		process.env.PI_CODING_AGENT_DIR = test.agentDir;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = test.agentDir;
 		try {
 			for (const [from, to] of [[test.realRoot, test.linkRoot], [test.linkRoot, test.realRoot]]) {
 				const created = handleMissionAction("mission.create", { mission: { title: "Linked", objective: "Find me" } }, { cwd: from, agentDir: test.agentDir });
@@ -82,8 +82,8 @@ describe("mission store", () => {
 			fs.mkdirSync(missingRoot, { recursive: true });
 			assert.equal(resolveMissionStoreLocation({ projectRoot: missingRoot, agentDir: test.agentDir }).missionDir, beforeCreate.missionDir);
 		} finally {
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 			fs.rmSync(test.root, { recursive: true, force: true });
 		}
 	});

@@ -1,4 +1,4 @@
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import type { AgentToolResult } from "@evoharness/agent-core";
 import type { Details, SubagentState } from "../../shared/types.ts";
 import { readStatus } from "../../shared/utils.ts";
 import type { ResolvedSubagentRunId } from "../background/run-id-resolver.ts";

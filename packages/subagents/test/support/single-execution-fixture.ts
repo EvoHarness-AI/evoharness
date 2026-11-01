@@ -143,18 +143,18 @@ function writeWatchdogSettings(projectDir: string, tailMs = 120_000): void {
 }
 
 async function withIsolatedWatchdogSettings<T>(projectDir: string, run: () => Promise<T>): Promise<T> {
-	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	const previousHome = process.env.HOME;
 	const previousUserProfile = process.env.USERPROFILE;
 	const isolatedHome = path.join(projectDir, "isolated-home");
-	process.env.PI_CODING_AGENT_DIR = path.join(isolatedHome, ".pi", "agent");
+	process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(isolatedHome, ".pi", "agent");
 	process.env.HOME = isolatedHome;
 	process.env.USERPROFILE = isolatedHome;
 	try {
 		return await run();
 	} finally {
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		if (previousHome === undefined) delete process.env.HOME;
 		else process.env.HOME = previousHome;
 		if (previousUserProfile === undefined) delete process.env.USERPROFILE;
@@ -293,14 +293,14 @@ export function installSingleExecutionHooks() {
 	beforeEach(() => {
 		tempDir = createTempDir();
 		agentDir = createTempDir("pi-subagent-agent-");
-		previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		mockPi.reset();
 	});
 
 	afterEach(() => {
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		removeTempDir(agentDir);
 		removeTempDir(tempDir);
 	});

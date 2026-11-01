@@ -1,7 +1,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import type { AgentToolResult } from "@evoharness/agent-core";
 import { discoverAgents, formatUnknownAgentError, resolveAgentName, unknownAgentDiagnosticContext, type AgentConfig } from "./agents.ts";
 import { getProjectSubagentsDir } from "../shared/artifacts.ts";
 import type { Details, JsonSchemaObject, SingleResult, SubagentState } from "../shared/types.ts";
@@ -454,7 +454,7 @@ export function validateRefinementProposal(proposal: unknown, evidenceIds: strin
 	if (editsValue.length > 3) return { ok: false, error: "Refinement proposal may contain at most 3 edits." };
 	const allowed = new Set(evidenceIds);
 	const protectedInstruction = "(?:acceptance|output|safety|policy|policies|tools?|developer|system)";
-	const blocked = new RegExp(`\\b(all agents|every agent|global|(?:disable|ignore|bypass|skip|override)\\s+(?:the\\s+)?${protectedInstruction}(?:\\s+instructions?)?|${protectedInstruction}\\s+(?:instructions?|overrides?)|tool safety|review gates|rewrite base|base agent file|settings\\.json|\\.pi/agent|agents/.*\\.md)\\b`, "i");
+	const blocked = new RegExp(`\\b(all agents|every agent|global|(?:disable|ignore|bypass|skip|override)\\s+(?:the\\s+)?${protectedInstruction}(?:\\s+instructions?)?|${protectedInstruction}\\s+(?:instructions?|overrides?)|tool safety|review gates|rewrite base|base agent file|settings\\.json|\\.evoharness/agent|\\.pi/agent|agents/.*\\.md)\\b`, "i");
 	const edits: RefinementProposalEdit[] = [];
 	for (const [index, editValue] of editsValue.entries()) {
 		const edit = record(editValue);

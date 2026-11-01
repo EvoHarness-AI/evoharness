@@ -117,7 +117,7 @@ describe("getPiSpawnCommand", () => {
 				execPath,
 				argv1: "/missing/host.js",
 				packageJsonPath,
-				packageJsonContent: JSON.stringify({ name: "@earendil-works/pi-coding-agent", bin: { pi: "dist/cli.js" } }),
+				packageJsonContent: JSON.stringify({ name: "@evoharness/coding-agent", bin: { pi: "dist/cli.js" } }),
 				existing: [packageJsonPath, cliPath],
 			});
 			const args = ["--mode", "json", "-p", "Task: review diff"];
@@ -139,7 +139,7 @@ describe("getPiSpawnCommand", () => {
 				fs.writeFileSync(argv1, "#!/usr/bin/env node\n");
 				fs.writeFileSync(
 					path.join(tempDir, "package.json"),
-					JSON.stringify({ name: "@earendil-works/pi-coding-agent" }),
+					JSON.stringify({ name: "@evoharness/coding-agent" }),
 				);
 				const args = ["--mode", "json", 'Task: review "quotes" & pipes | too'];
 				const result = getPiSpawnCommand(args, {
@@ -169,7 +169,7 @@ describe("getPiSpawnCommand", () => {
 			execPath: "/usr/local/bin/node",
 			argv1: "/opt/pi/subagent-runner.ts",
 			packageJsonPath,
-			packageJsonContent: JSON.stringify({ name: "@earendil-works/pi-coding-agent", bin: { pi: "dist/cli/index.js" } }),
+			packageJsonContent: JSON.stringify({ name: "@evoharness/coding-agent", bin: { pi: "dist/cli/index.js" } }),
 			existing: [packageJsonPath, cliPath],
 		});
 		const args = ["-p", "Task: hello"];
@@ -192,7 +192,7 @@ describe("getPiSpawnCommand", () => {
 			execPath: "C:\\Program Files\\nodejs\\node.exe",
 			argv1: "/opt/pi-web/dist/server.js",
 			packageJsonPath,
-			packageJsonContent: JSON.stringify({ name: "@earendil-works/pi-coding-agent", bin: { pi: "dist/cli/index.js" } }),
+			packageJsonContent: JSON.stringify({ name: "@evoharness/coding-agent", bin: { pi: "dist/cli/index.js" } }),
 			existing: [packageJsonPath],
 		});
 		deps.existsSync = (filePath) =>
@@ -224,7 +224,7 @@ describe("getPiSpawnCommand", () => {
 			env: { [PI_CODING_AGENT_PACKAGE_ROOT_ENV]: "/opt/pi" },
 			existsSync: (filePath) => filePath === packageJsonPath || filePath === cliPath,
 			readFileSync: () => JSON.stringify({
-				name: "@earendil-works/pi-coding-agent",
+				name: "@evoharness/coding-agent",
 				bin: { pi: "dist/cli/index.js" },
 			}),
 		});
@@ -242,7 +242,7 @@ describe("getPiSpawnCommand", () => {
 		try {
 			const wrongRoot = path.join(tempDir, "not-pi");
 			const wrongCli = path.join(wrongRoot, "bin", "evil.js");
-			const piRoot = path.join(tempDir, "node_modules", "@earendil-works", "pi-coding-agent");
+			const piRoot = path.join(tempDir, "node_modules", "@evoharness", "coding-agent");
 			const piEntry = path.join(piRoot, "dist", "index.js");
 			const piCli = path.join(piRoot, "dist", "cli.js");
 			fs.mkdirSync(path.dirname(wrongCli), { recursive: true });
@@ -251,7 +251,7 @@ describe("getPiSpawnCommand", () => {
 			fs.writeFileSync(path.join(wrongRoot, "package.json"), JSON.stringify({ name: "not-pi", bin: { pi: "bin/evil.js" } }));
 			fs.writeFileSync(piEntry, "export {};\n");
 			fs.writeFileSync(piCli, "#!/usr/bin/env node\n");
-			fs.writeFileSync(path.join(piRoot, "package.json"), JSON.stringify({ name: "@earendil-works/pi-coding-agent", bin: { pi: "dist/cli.js" } }));
+			fs.writeFileSync(path.join(piRoot, "package.json"), JSON.stringify({ name: "@evoharness/coding-agent", bin: { pi: "dist/cli.js" } }));
 
 			assert.throws(() => getPiSpawnCommand(["-p", "Task: hello"], {
 				platform: "win32",
@@ -259,7 +259,7 @@ describe("getPiSpawnCommand", () => {
 				argv1: "/opt/pi-web/dist/server.js",
 				env: { [PI_CODING_AGENT_PACKAGE_ROOT_ENV]: wrongRoot },
 				resolvePackageEntry: () => piEntry,
-			}), /expected "@earendil-works\/pi-coding-agent"/);
+			}), /expected "@evoharness\/pi-coding-agent"/);
 		} finally {
 			fs.rmSync(tempDir, { recursive: true, force: true });
 		}
@@ -290,8 +290,8 @@ describe("getPiSpawnCommand", () => {
 			const piRoot = path.join(
 				tempDir,
 				"node_modules",
-				"@earendil-works",
-				"pi-coding-agent",
+				"@evoharness",
+				"coding-agent",
 			);
 			const piCli = path.join(piRoot, "dist", "cli.js");
 			fs.mkdirSync(path.dirname(hostEntry), { recursive: true });
@@ -305,7 +305,7 @@ describe("getPiSpawnCommand", () => {
 			fs.writeFileSync(
 				path.join(piRoot, "package.json"),
 				JSON.stringify({
-					name: "@earendil-works/pi-coding-agent",
+					name: "@evoharness/coding-agent",
 					bin: { pi: "dist/cli.js" },
 				}),
 			);
@@ -350,7 +350,7 @@ describe("getPiSpawnCommand", () => {
 		try {
 			const hostRoot = path.join(tempDir, "embedded-host");
 			const hostEntry = path.join(hostRoot, "dist", "server.js");
-			const piRoot = path.join(tempDir, "node_modules", "@earendil-works", "pi-coding-agent");
+			const piRoot = path.join(tempDir, "node_modules", "@evoharness", "coding-agent");
 			const disguisedEntry = path.join(piRoot, "dist", "cli.js");
 			const piCli = path.join(piRoot, "dist", "real-cli.js");
 			fs.mkdirSync(path.dirname(hostEntry), { recursive: true });
@@ -359,7 +359,7 @@ describe("getPiSpawnCommand", () => {
 			fs.writeFileSync(path.join(hostRoot, "package.json"), JSON.stringify({ name: "embedded-host" }));
 			fs.writeFileSync(piCli, "#!/usr/bin/env node\n");
 			fs.writeFileSync(path.join(piRoot, "package.json"), JSON.stringify({
-				name: "@earendil-works/pi-coding-agent",
+				name: "@evoharness/coding-agent",
 				bin: { pi: "dist/real-cli.js" },
 			}));
 
@@ -394,7 +394,7 @@ describe("getPiSpawnCommand", () => {
 			execPath: "/usr/local/bin/node",
 			argv1: "/opt/pi/subagent-runner.ts",
 			packageJsonPath,
-			packageJsonContent: JSON.stringify({ name: "@earendil-works/pi-coding-agent", bin: { pi: "dist/cli/index.js" } }),
+			packageJsonContent: JSON.stringify({ name: "@evoharness/coding-agent", bin: { pi: "dist/cli/index.js" } }),
 			existing: [packageJsonPath, cliPath],
 		});
 		const result = getPiSpawnCommand(["-p", "Task: hello"], deps);
@@ -410,8 +410,8 @@ describe("getPiSpawnCommand", () => {
 			const packageRoot = path.join(
 				tempDir,
 				"node_modules",
-				"@earendil-works",
-				"pi-coding-agent",
+				"@evoharness",
+				"coding-agent",
 			);
 			const entry = path.join(packageRoot, "dist", "index.js");
 			const cliPath = path.join(packageRoot, "dist", "cli", "index.js");
@@ -422,7 +422,7 @@ describe("getPiSpawnCommand", () => {
 			fs.writeFileSync(
 				path.join(packageRoot, "package.json"),
 				JSON.stringify({
-					name: "@earendil-works/pi-coding-agent",
+					name: "@evoharness/coding-agent",
 					bin: { pi: "dist/cli/index.js" },
 				}),
 			);
@@ -453,7 +453,7 @@ describe("getPiSpawnCommand with piPackageRoot", () => {
 			execPath: "/usr/local/bin/node",
 			argv1: "/opt/pi/subagent-runner.ts",
 			packageJsonPath,
-			packageJsonContent: JSON.stringify({ name: "@earendil-works/pi-coding-agent", bin: { pi: "dist/cli/index.js" } }),
+			packageJsonContent: JSON.stringify({ name: "@evoharness/coding-agent", bin: { pi: "dist/cli/index.js" } }),
 			existing: [packageJsonPath, cliPath],
 		});
 		deps.piPackageRoot = "/opt/pi";
@@ -485,7 +485,7 @@ describe("resolvePiCliScript", () => {
 			platform: "win32",
 			argv1: "/opt/pi/subagent-runner.ts",
 			packageJsonPath,
-			packageJsonContent: JSON.stringify({ name: "@earendil-works/pi-coding-agent", bin: "dist/cli/index.mjs" }),
+			packageJsonContent: JSON.stringify({ name: "@evoharness/coding-agent", bin: "dist/cli/index.mjs" }),
 			existing: [packageJsonPath, cliPath],
 		});
 		assert.equal(resolvePiCliScript(deps), cliPath);

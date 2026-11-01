@@ -6,7 +6,7 @@ import { syncBuiltinESMExports } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext } from "@evoharness/coding-agent";
 import {
 	SCHEDULED_RUN_ACTIONS,
 	createScheduledRunManager,

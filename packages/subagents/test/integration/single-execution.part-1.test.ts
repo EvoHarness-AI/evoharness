@@ -3771,8 +3771,8 @@ Answer only from the supplied synthetic text.
 		fs.writeFileSync(path.join(projectDir, "base.txt"), "base\n", "utf-8");
 		execFileSync("git", ["add", "base.txt"], { cwd: projectDir });
 		execFileSync("git", ["commit", "-m", "base"], { cwd: projectDir, stdio: "ignore" });
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		try {
 			const executor = makeExecutor([makeAgent("echo")], { missions: { globalIndex: false } });
 			const result = await executor.execute(
@@ -3806,8 +3806,8 @@ Answer only from the supplied synthetic text.
 			assert.deepEqual(result.details.workflow?.trace.filter((entry) => entry.state === "completed").map((entry) => entry.key), ["scan", "review"]);
 			assert.equal(execFileSync("git", ["status", "--porcelain"], { cwd: projectDir, encoding: "utf-8" }), "");
 		} finally {
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		}
 	});
 
@@ -3843,11 +3843,11 @@ Answer only from the supplied synthetic text.
 	});
 
 	it("shares durable workflow state across a mission and omits it for mission:false", { skip: !createSubagentExecutor ? "executor not importable" : undefined }, async () => {
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const projectDir = path.join(tempDir, "project");
 		const agentDir = path.join(tempDir, "agent");
 		fs.mkdirSync(projectDir);
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		try {
 			const executor = makeExecutor([makeAgent("echo")], { missions: { globalIndex: false } });
 			const first = await executor.execute(
@@ -3890,8 +3890,8 @@ Answer only from the supplied synthetic text.
 			assert.equal(ephemeral.details.workflow?.value, "undefined");
 			assert.equal(ephemeral.details.missionId, undefined);
 		} finally {
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		}
 	});
 

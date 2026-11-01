@@ -11,7 +11,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@evoharness/agent-core";
 import type { ChildSession, ChildSessionEvent, ChildSessionFactory, ChildSessionLaunch } from "../../src/runs/shared/child-session.ts";
 import { isChildWatchdogStatusEvent } from "../../src/watchdog/child-status.ts";
 

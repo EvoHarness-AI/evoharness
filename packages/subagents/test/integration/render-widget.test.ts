@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { visibleWidth } from "@earendil-works/pi-tui";
+import { visibleWidth } from "@evoharness/tui";
 import { extractToolArgsPreview } from "../../src/shared/utils.ts";
 
 const { buildWidgetLines, clearLegacyResultAnimationTimer, compactTaskText, projectAsyncLane, renderWidget, widgetRenderKey } = await import("../../src/tui/render.ts") as {

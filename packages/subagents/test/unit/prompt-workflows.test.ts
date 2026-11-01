@@ -7,7 +7,7 @@ import { discoverPromptWorkflows, registerPromptWorkflowCommands } from "../../s
 import { runWorkflowScript } from "../../src/workflows/scripted-workflow.ts";
 import type { SubagentParamsLike } from "../../src/runs/foreground/subagent-executor.ts";
 
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 
 function writePrompt(dir: string, name: string, content: string): void {
 	fs.mkdirSync(dir, { recursive: true });
@@ -37,12 +37,12 @@ describe("prompt workflows", () => {
 		agentDir = path.join(tempDir, "agent");
 		cwd = path.join(tempDir, "repo");
 		fs.mkdirSync(cwd, { recursive: true });
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	});
 
 	afterEach(() => {
-		if (originalAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
+		if (originalAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = originalAgentDir;
 		fs.rmSync(tempDir, { recursive: true, force: true });
 	});
 

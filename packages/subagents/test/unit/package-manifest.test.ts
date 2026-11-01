@@ -8,30 +8,30 @@ import test from "node:test";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-const sourceImportPattern = /from\s+["'](@earendil-works\/[^"']+)["']|import\s+["'](@earendil-works\/[^"']+)["']/g;
+const sourceImportPattern = /from\s+["'](@evoharness\/[^"']+)["']|import\s+["'](@evoharness\/[^"']+)["']/g;
 const oldPiScopePattern = /@mariozechner\/pi-/;
-const piPackageJsonSubpathPattern = /@earendil-works\/pi-[^"']+\/package\.json/;
-const cjsPiPackageResolutionPattern = /require(?:\.resolve)?\(\s*["']@earendil-works\/pi-/;
+const piPackageJsonSubpathPattern = /@evoharness\/pi-[^"']+\/package\.json/;
+const cjsPiPackageResolutionPattern = /require(?:\.resolve)?\(\s*["']@evoharness\/pi-/;
 const exactVersionPattern = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
 const hostPeerPackages = [
-	"@earendil-works/pi-agent-core",
-	"@earendil-works/pi-ai",
-	"@earendil-works/pi-coding-agent",
-	"@earendil-works/pi-tui",
+	"@evoharness/agent-core",
+	"@evoharness/ai",
+	"@evoharness/coding-agent",
+	"@evoharness/tui",
 	"typebox",
 ] as const;
 const expectedHostPeerRanges = {
-	"@earendil-works/pi-agent-core": "*",
-	"@earendil-works/pi-ai": ">=1.2.0",
-	"@earendil-works/pi-coding-agent": "*",
-	"@earendil-works/pi-tui": "*",
+	"@evoharness/agent-core": "*",
+	"@evoharness/ai": "*",
+	"@evoharness/coding-agent": "*",
+	"@evoharness/tui": "*",
 	typebox: "*",
 } satisfies Record<(typeof hostPeerPackages)[number], string>;
 const expectedHostDevVersions = {
-	"@earendil-works/pi-agent-core": "1.2.0",
-	"@earendil-works/pi-ai": "1.2.0",
-	"@earendil-works/pi-coding-agent": "1.2.0",
-	"@earendil-works/pi-tui": "1.2.0",
+	"@evoharness/agent-core": "0.0.2",
+	"@evoharness/ai": "0.0.2",
+	"@evoharness/coding-agent": "0.0.2",
+	"@evoharness/tui": "0.0.2",
 	typebox: "1.3.27",
 } satisfies Record<(typeof hostPeerPackages)[number], string>;
 
@@ -39,9 +39,9 @@ test("the root entrypoint exposes the runtime error flag to TypeScript consumers
 	const consumerRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-types-"));
 	try {
 		fs.writeFileSync(path.join(consumerRoot, "consumer.ts"), `
-import "pi-subagents";
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
-import { registerWorkflowResource, type RegisterWorkflowResourceInput, type WorkflowResourceDefinition, type WorkflowResourceRegistration } from "pi-subagents/workflow-resources";
+import "@evoharness/subagents";
+import type { AgentToolResult } from "@evoharness/agent-core";
+import { registerWorkflowResource, type RegisterWorkflowResourceInput, type WorkflowResourceDefinition, type WorkflowResourceRegistration } from "@evoharness/subagents/workflow-resources";
 
 const definition: WorkflowResourceDefinition = {
 	name: "consumer.check", version: 1,
@@ -74,9 +74,9 @@ void result.isError;
 				allowImportingTsExtensions: true,
 				baseUrl: consumerRoot,
 				paths: {
-					"pi-subagents": [path.join(projectRoot, "index.ts")],
-					"pi-subagents/workflow-resources": [path.join(projectRoot, "src/api/workflow-resources.ts")],
-				"@earendil-works/pi-agent-core": [path.join(projectRoot, "node_modules", "@earendil-works", "pi-agent-core", "dist", "index.d.ts")],
+					"@evoharness/subagents": [path.join(projectRoot, "index.ts")],
+					"@evoharness/subagents/workflow-resources": [path.join(projectRoot, "src/api/workflow-resources.ts")],
+				"@evoharness/agent-core": [path.join(projectRoot, "node_modules", "@evoharness", "agent-core", "dist", "index.d.ts")],
 				},
 			},
 			files: [path.join(consumerRoot, "consumer.ts")],
@@ -108,12 +108,8 @@ test("published extension APIs use supported package entrypoints", async () => {
 	const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf-8"));
 
 	assert.equal(packageJson.private, true, "the source checkout must not be publishable");
-	assert.deepEqual(packageJson.pi?.extensions, ["./index.ts"]);
-	assert.equal(packageJson.files?.includes("index.ts"), true);
-	assert.equal(packageJson.files?.includes("*.mjs"), true);
+	assert.deepEqual(packageJson.evoharness?.extensions, ["./index.ts"]);
 	assert.equal(fs.existsSync(path.join(projectRoot, "async-retention-discovery-worker.mjs")), true);
-	assert.equal(packageJson.files?.includes("workflow-script-worker.cjs"), true);
-	assert.equal(packageJson.files?.includes("workflow-script-process.cjs"), true);
 	const entrySource = fs.readFileSync(path.join(projectRoot, "index.ts"), "utf-8");
 	assert.match(entrySource, /import type \{\} from "\.\/src\/types\/pi-runtime-compat\.d\.ts";/);
 	assert.equal(entrySource.includes('export { default } from "./src/extension/index.ts";'), false);
@@ -138,56 +134,56 @@ test("published extension APIs use supported package entrypoints", async () => {
 		"./shared-types": "./src/api/shared-types.ts",
 		"./project-panes": "./src/api/project-panes.ts",
 	});
-	const agents = await import("pi-subagents/agents");
+	const agents = await import("@evoharness/subagents/agents");
 	assert.equal(agents.RUNTIME_AGENT_REGISTER_EVENT, "pi-subagents:runtime-agent-register:v1");
 	assert.equal(agents.RUNTIME_AGENT_REGISTER_VERSION, 1);
 	assert.equal(typeof agents.registerAgentViaEvents, "function");
-	const inspectors = await import("pi-subagents/inspectors");
+	const inspectors = await import("@evoharness/subagents/inspectors");
 	assert.equal(inspectors.INSPECTOR_REGISTER_EVENT, "pi-subagents:inspector-register:v1");
 	assert.deepEqual(Object.keys(inspectors).sort(), ["INSPECTOR_REGISTER_EVENT", "registerInspector"]);
-	const backgroundWork = await import("pi-subagents/background-work");
+	const backgroundWork = await import("@evoharness/subagents/background-work");
 	assert.equal(backgroundWork.BACKGROUND_WORK_PROTOCOL_VERSION, 1);
 	assert.equal(backgroundWork.BACKGROUND_WORK_REGISTRY_KEY, "pi-subagents.background-work.v1");
-	const externalJobProvider = await import("pi-subagents/external-job-provider");
+	const externalJobProvider = await import("@evoharness/subagents/external-job-provider");
 	assert.equal(externalJobProvider.EXTERNAL_JOB_PROVIDER_PROTOCOL_VERSION, 1);
 	assert.equal(externalJobProvider.EXTERNAL_JOB_PROVIDER_REGISTRY_KEY, "pi-subagents.external-job-providers.v1");
 	assert.equal(typeof externalJobProvider.registerExternalJobProvider, "function");
-	const externalRuns = await import("pi-subagents/external-runs");
+	const externalRuns = await import("@evoharness/subagents/external-runs");
 	assert.equal(externalRuns.EXTERNAL_RUN_REGISTRY_VERSION, 2);
 	assert.equal(typeof externalRuns.registerExternalRun, "function");
 	assert.equal(typeof externalRuns.updateExternalRun, "function");
 	assert.equal(typeof externalRuns.snapshotExternalRuns, "function");
 	assert.equal(typeof externalRuns.unregisterExternalRun, "function");
-	const capability = await import("pi-subagents/capability-ceiling");
-	const workflowResources = await import("pi-subagents/workflow-resources");
+	const capability = await import("@evoharness/subagents/capability-ceiling");
+	const workflowResources = await import("@evoharness/subagents/workflow-resources");
 	assert.deepEqual(Object.keys(workflowResources), ["registerWorkflowResource"]);
 	assert.equal(typeof workflowResources.registerWorkflowResource, "function");
 	assert.equal(capability.SUBAGENT_CAPABILITY_CEILING_VERSION, 1);
 	assert.equal(capability.SUBAGENT_CAPABILITY_CEILING_REGISTRY_KEY, "pi-subagents.capability-ceiling.v1");
-	const delegation = await import("pi-subagents/delegation");
+	const delegation = await import("@evoharness/subagents/delegation");
 	assert.equal(delegation.SUBAGENT_DELEGATION_REQUEST_EVENT, "prompt-template:subagent:request");
-	const preflight = await import("pi-subagents/preflight");
+	const preflight = await import("@evoharness/subagents/preflight");
 	assert.equal(preflight.SUBAGENT_LAUNCH_CONTRACT_VERSION, 3);
 	assert.equal(typeof preflight.resolveSubagentLaunchContract, "function");
-	const controlChannel = await import("pi-subagents/control-channel");
+	const controlChannel = await import("@evoharness/subagents/control-channel");
 	assert.equal(typeof controlChannel.requestAsyncStop, "function");
-	const intercomBridge = await import("pi-subagents/intercom-bridge");
+	const intercomBridge = await import("@evoharness/subagents/intercom-bridge");
 	assert.equal(typeof intercomBridge.resolveIntercomSessionTarget, "function");
-	const childToolPlan = await import("pi-subagents/child-tool-plan");
+	const childToolPlan = await import("@evoharness/subagents/child-tool-plan");
 	assert.equal(typeof childToolPlan.resolvePiLaunchToolPlan, "function");
 	assert.deepEqual(Object.keys(childToolPlan).sort(), ["resolvePiLaunchToolPlan"]);
-	const sharedTypes = await import("pi-subagents/shared-types");
+	const sharedTypes = await import("@evoharness/subagents/shared-types");
 	assert.equal(typeof sharedTypes.wrapForkTask, "function");
 	assert.equal(typeof sharedTypes.DEFAULT_FORK_PREAMBLE, "string");
 	assert.equal("TEMP_ROOT_DIR" in sharedTypes, false);
-	const projectPanes = await import("pi-subagents/project-panes");
+	const projectPanes = await import("@evoharness/subagents/project-panes");
 	assert.equal(projectPanes.PROJECT_PANES_API_VERSION, 1);
 	assert.equal(typeof projectPanes.openProjectPane, "function");
 	assert.equal(typeof projectPanes.getProjectPaneStatus, "function");
 	assert.equal(typeof projectPanes.closeProjectPane, "function");
 });
 
-test("direct @earendil-works runtime imports are declared for CI installs", () => {
+test("direct @evoharness runtime imports are declared for CI installs", () => {
 	const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf-8"));
 	const declared = new Set([
 		...Object.keys(packageJson.dependencies ?? {}),

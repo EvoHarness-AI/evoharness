@@ -30,14 +30,14 @@ describe("agent management config parsing", () => {
 		// physical user home, so an unanchored test can climb into ~/.pi and
 		// write fixture agents into the operator's real configuration.
 		fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
-		oldAgentDir = process.env.PI_CODING_AGENT_DIR;
-		process.env.PI_CODING_AGENT_DIR = path.join(tempDir, "agent-home");
+		oldAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(tempDir, "agent-home");
 		clearSkillCache();
 	});
 
 	afterEach(() => {
-		if (oldAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = oldAgentDir;
+		if (oldAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = oldAgentDir;
 		clearSkillCache();
 		fs.rmSync(tempDir, { recursive: true, force: true });
 	});
@@ -586,8 +586,8 @@ Advise only.
 			process.env[EXTRA_AGENT_DIRS_ENV] = extraAgentsDir;
 			fs.mkdirSync(extraAgentsDir, { recursive: true });
 			fs.writeFileSync(path.join(extraAgentsDir, "foo.md"), "---\nname: foo\ndescription: Extra user foo\n---\nExtra user foo.\n");
-			fs.mkdirSync(path.join(process.env.PI_CODING_AGENT_DIR!, "agents"), { recursive: true });
-			fs.writeFileSync(path.join(process.env.PI_CODING_AGENT_DIR!, "agents", "foo.md"), "---\nname: foo\ndescription: Broken configured user foo\nrunner:\n  type: unknown\n---\nBroken user foo.\n");
+			fs.mkdirSync(path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "agents"), { recursive: true });
+			fs.writeFileSync(path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "agents", "foo.md"), "---\nname: foo\ndescription: Broken configured user foo\nrunner:\n  type: unknown\n---\nBroken user foo.\n");
 			const result = handleManagementAction("get", { agent: "foo", agentScope: "user" }, { cwd: tempDir, modelRegistry: { getAvailable: () => [] } });
 			assert.equal(result.isError, true);
 			assert.match(readText(result), /Agent 'foo' has invalid configuration: Agent 'foo' has invalid runner\.type/);
@@ -625,8 +625,8 @@ Advise only.
 		fs.mkdirSync(path.join(tempDir, ".pi", "agents"), { recursive: true });
 		fs.writeFileSync(path.join(tempDir, ".pi", "settings.json"), JSON.stringify({ packages: [packageRoot] }));
 		fs.writeFileSync(path.join(tempDir, ".pi", "agents", "foo.md"), "---\nname: foo\ndescription: Broken project foo\nrunner:\n  type: unknown\n---\nBroken foo.\n");
-		fs.mkdirSync(path.join(process.env.PI_CODING_AGENT_DIR!, "agents"), { recursive: true });
-		fs.writeFileSync(path.join(process.env.PI_CODING_AGENT_DIR!, "agents", "foo.md"), "---\nname: foo\ndescription: User foo\n---\nUser foo.\n");
+		fs.mkdirSync(path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "agents"), { recursive: true });
+		fs.writeFileSync(path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "agents", "foo.md"), "---\nname: foo\ndescription: User foo\n---\nUser foo.\n");
 		const result = handleManagementAction("get", { agent: "foo" }, { cwd: tempDir, modelRegistry: { getAvailable: () => [] } });
 		assert.equal(result.isError, true);
 		assert.match(readText(result), /Agent 'foo' has invalid configuration: Agent 'foo' has invalid runner\.type/);
@@ -680,7 +680,7 @@ Advise only.
 		const packageRoot = path.join(tempDir, "coding-agent-root");
 		try {
 			fs.mkdirSync(packageRoot, { recursive: true });
-			fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ name: "@earendil-works/pi-coding-agent", piConfig: { configDir: ".custom-pi" } }));
+			fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ name: "@evoharness/coding-agent", piConfig: { configDir: ".custom-pi" } }));
 			process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = packageRoot;
 			const canonicalAgentsDir = path.join(tempDir, ".custom-pi", "agents");
 			const legacyAgentsDir = path.join(tempDir, ".agents");
@@ -702,7 +702,7 @@ Advise only.
 		const packageRoot = path.join(tempDir, "coding-agent-root");
 		try {
 			fs.mkdirSync(packageRoot, { recursive: true });
-			fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ name: "@earendil-works/pi-coding-agent", piConfig: { configDir: ".agents" } }));
+			fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ name: "@evoharness/coding-agent", piConfig: { configDir: ".agents" } }));
 			process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = packageRoot;
 			const legacyAgentsDir = path.join(tempDir, ".agents");
 			const canonicalAgentsDir = path.join(legacyAgentsDir, "agents");
@@ -1153,7 +1153,7 @@ Advise only.
 
 	it("does not serialize settings overrides into custom agent frontmatter during updates", () => {
 		const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [{ provider: "anthropic", id: "claude-sonnet-4-6" }] } };
-		const userSettingsPath = path.join(process.env.PI_CODING_AGENT_DIR!, "settings.json");
+		const userSettingsPath = path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "settings.json");
 		const settingsPath = path.join(tempDir, ".pi", "settings.json");
 		const agentPath = path.join(tempDir, ".pi", "agents", "implementer.md");
 		fs.mkdirSync(path.dirname(agentPath), { recursive: true });

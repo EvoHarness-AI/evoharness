@@ -18,14 +18,14 @@ try {
 	fs.writeFileSync(aliasTarget, 'export const identity = "HOST_TUI_IDENTITY";\n');
 	fs.writeFileSync(path.join(root, "dep.ts"), 'export const value: string = "TS_REDIRECT";\n');
 	fs.writeFileSync(path.join(root, "target.ts"), [
-		'import { identity } from "@earendil-works/pi-tui";',
+		'import { identity } from "@evoharness/tui";',
 		expected === "native" ? 'import { value } from "./dep.js";' : 'const value = "JITI";',
 		`if (identity !== "HOST_TUI_IDENTITY" || value !== ${JSON.stringify(expected === "native" ? "TS_REDIRECT" : "JITI")}) throw new Error("wrong loader identity");`,
 		`console.log(${JSON.stringify(`PASS_${expected.toUpperCase()}_LOADER`)})`,
 	].join("\n"));
 	const env = {
 		...process.env,
-		JITI_ALIAS: JSON.stringify({ "@earendil-works/pi-tui": aliasTarget }),
+		JITI_ALIAS: JSON.stringify({ "@evoharness/tui": aliasTarget }),
 		PI_ASYNC_NATIVE_RUNNER: expected === "native" ? "1" : "0",
 	};
 	const preload = pathToFileURL(path.join(source, "runner-peer-preload.mjs")).href;

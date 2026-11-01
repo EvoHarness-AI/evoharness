@@ -10,7 +10,7 @@ let home = "";
 let project = "";
 const previousHome = process.env.HOME;
 const previousUserProfile = process.env.USERPROFILE;
-const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 
 function writeJson(filePath: string, value: unknown): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -23,13 +23,13 @@ describe("thinking ceilings", () => {
 		project = fs.mkdtempSync(path.join(os.tmpdir(), "pi-thinking-ceiling-project-"));
 		process.env.HOME = home;
 		process.env.USERPROFILE = home;
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 	});
 
 	afterEach(() => {
 		if (previousHome === undefined) delete process.env.HOME; else process.env.HOME = previousHome;
 		if (previousUserProfile === undefined) delete process.env.USERPROFILE; else process.env.USERPROFILE = previousUserProfile;
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR; else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR; else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		fs.rmSync(home, { recursive: true, force: true });
 		fs.rmSync(project, { recursive: true, force: true });
 	});

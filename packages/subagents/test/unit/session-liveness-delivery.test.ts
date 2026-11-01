@@ -4,8 +4,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { fauxAssistantMessage, fauxProvider } from "@earendil-works/pi-ai";
-import { DefaultResourceLoader, ModelRuntime, SessionManager, SettingsManager, createAgentSession } from "@earendil-works/pi-coding-agent";
+import { fauxAssistantMessage, fauxProvider } from "@evoharness/ai";
+import { DefaultResourceLoader, ModelRuntime, SessionManager, SettingsManager, createAgentSession } from "@evoharness/coding-agent";
 import registerSubagentExtension from "../../src/extension/index.ts";
 import { PI_WEB_SESSION_LIVENESS_REGISTRY_KEY } from "../../src/integrations/pi-web-session-liveness.ts";
 import { currentCompletionOwnerId } from "../../src/shared/completion-owner.ts";
@@ -17,7 +17,7 @@ const terminalBeforePublicationScript = String.raw`
 	import assert from "node:assert/strict";
 	import * as fs from "node:fs";
 	import * as path from "node:path";
-	import { createEventBus } from "@earendil-works/pi-coding-agent";
+	import { createEventBus } from "@evoharness/coding-agent";
 	import registerSubagentExtension from "./src/extension/index.ts";
 	import { currentCompletionOwnerId } from "./src/shared/completion-owner.ts";
 	import { DIRS, SUBAGENT_ASYNC_COMPLETE_EVENT, SUBAGENT_ASYNC_STARTED_EVENT, SUBAGENT_PROCESS_TERMINAL_EVENT } from "./src/shared/types.ts";
@@ -45,7 +45,7 @@ const terminalBeforePublicationScript = String.raw`
 		else originalClearTimeout(timer);
 	});
 
-	const configDir = path.join(process.env.PI_CODING_AGENT_DIR, "extensions", "subagent");
+	const configDir = path.join(process.env.EVOHARNESS_CODING_AGENT_DIR, "extensions", "subagent");
 	fs.mkdirSync(configDir, { recursive: true });
 	fs.writeFileSync(path.join(configDir, "config.json"), JSON.stringify({ completionBatch: { enabled: false } }));
 	const sessionId = "11111111-1111-4111-8111-111111111111";
@@ -164,7 +164,7 @@ describe("session liveness through result delivery", () => {
 			Object.assign(env, {
 				HOME: path.join(root, "home"),
 				USERPROFILE: path.join(root, "home"),
-				PI_CODING_AGENT_DIR: path.join(root, "agent"),
+				EVOHARNESS_CODING_AGENT_DIR: path.join(root, "agent"),
 				PI_SUBAGENTS_TEMP_ROOT: path.join(root, "temp"),
 				TMPDIR: root,
 				TMP: root,
@@ -184,8 +184,8 @@ describe("session liveness through result delivery", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-session-liveness-sdk-"));
 		const agentDir = path.join(root, "agent");
 		fs.mkdirSync(agentDir);
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const registryKey = Symbol.for(PI_WEB_SESSION_LIVENESS_REGISTRY_KEY);
 		let provider: { isActive(): boolean } | undefined;
 		(globalThis as Record<PropertyKey, unknown>)[registryKey] = {
@@ -241,8 +241,8 @@ describe("session liveness through result delivery", () => {
 		} finally {
 			session?.dispose();
 			delete (globalThis as Record<PropertyKey, unknown>)[registryKey];
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});
@@ -251,8 +251,8 @@ describe("session liveness through result delivery", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-session-liveness-reload-"));
 		const agentDir = path.join(root, "agent");
 		fs.mkdirSync(agentDir);
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const registryKey = Symbol.for(PI_WEB_SESSION_LIVENESS_REGISTRY_KEY);
 		const globals = globalThis as Record<PropertyKey, unknown>;
 		const previousRegistry = globals[registryKey];
@@ -329,8 +329,8 @@ describe("session liveness through result delivery", () => {
 			session?.dispose();
 			if (previousRegistry === undefined) delete globals[registryKey];
 			else globals[registryKey] = previousRegistry;
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});

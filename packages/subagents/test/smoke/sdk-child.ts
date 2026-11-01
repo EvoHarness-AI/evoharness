@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { pathToFileURL } from "node:url";
-import { AgentSession } from "@earendil-works/pi-coding-agent";
-import { BACKGROUND_CONTEXT } from "@earendil-works/pi-agent-core";
-import { createModels } from "@earendil-works/pi-ai";
+import { AgentSession } from "@evoharness/coding-agent";
+import { BACKGROUND_CONTEXT } from "@evoharness/agent-core";
+import { createModels } from "@evoharness/ai";
 
 const state = globalThis.__sdkSmoke = { AgentSession, BACKGROUND_CONTEXT, createModels, started: 0, stopped: 0, faux: undefined };
 // Exercise the runner's reachable watchdog graph, including its runtime TUI import.

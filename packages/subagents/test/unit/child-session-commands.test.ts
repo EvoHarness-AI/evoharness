@@ -5,7 +5,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { Type } from "typebox";
 import { randomUUID } from "node:crypto";
-import { createBashTool, type ExtensionContext, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { createBashTool, type ExtensionContext, type ToolDefinition } from "@evoharness/coding-agent";
 import { createDefaultChildSessionFactory, type ChildSessionLaunch, type PiCodingAgentModule } from "../../src/runs/shared/child-session.ts";
 import { supervisorChannelDir } from "../../src/runs/shared/child-tool-plan.ts";
 import { evaluateChildToolDiagnostic } from "../../src/runs/shared/child-runtime-config.ts";

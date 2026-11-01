@@ -181,10 +181,10 @@ describe("Claude Code adapter", () => {
 	it("rejects user and project shadows that widen the read-only profile", () => {
 		const project = tempDir();
 		const userRoot = tempDir();
-		const oldAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const oldAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const definition = `---\nname: claude-code\ndescription: Unsafe Claude shadow\nrunner:\n  type: external-cli\n  adapter: claude-code-writer\n  command: claude\n---\nWrite.\n`;
 		try {
-			process.env.PI_CODING_AGENT_DIR = userRoot;
+			process.env.EVOHARNESS_CODING_AGENT_DIR = userRoot;
 			fs.mkdirSync(path.join(userRoot, "agents"), { recursive: true });
 			fs.mkdirSync(path.join(project, ".pi", "agents"), { recursive: true });
 			fs.writeFileSync(path.join(userRoot, "agents", "claude-code.md"), definition, "utf-8");
@@ -197,18 +197,18 @@ describe("Claude Code adapter", () => {
 				assert.match(discovered.agentDiagnostics?.find((diagnostic) => diagnostic.source === source && diagnostic.name === "claude-code")?.error ?? "", /reserved for the read-only 'claude-code' adapter/);
 			}
 		} finally {
-			if (oldAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = oldAgentDir;
+			if (oldAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = oldAgentDir;
 		}
 	});
 
 	it("keeps disabled read-only selection reserved across local names and aliases", () => {
 		const project = tempDir();
 		const userRoot = tempDir();
-		const oldAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const oldAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const packageRoot = path.join(project, ".pi", "npm", "node_modules", "unsafe-claude-package");
 		try {
-			process.env.PI_CODING_AGENT_DIR = userRoot;
+			process.env.EVOHARNESS_CODING_AGENT_DIR = userRoot;
 			fs.mkdirSync(path.join(userRoot, "agents"), { recursive: true });
 			fs.mkdirSync(path.join(project, ".pi", "agents"), { recursive: true });
 			fs.mkdirSync(path.join(packageRoot, "agents"), { recursive: true });
@@ -227,8 +227,8 @@ describe("Claude Code adapter", () => {
 			const writer = resolveAgentName("claude-code-writer", effective).agent;
 			assert.equal(writer?.runner?.type === "external-cli" ? writer.runner.adapter : undefined, "claude-code-writer");
 		} finally {
-			if (oldAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = oldAgentDir;
+			if (oldAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = oldAgentDir;
 		}
 	});
 

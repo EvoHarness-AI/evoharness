@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@evoharness/coding-agent";
 import { Type } from "typebox";
 import { MODEL_ONLY_TOOL } from "../shared/extension-context.ts";
 import type { ToolActivationMode } from "../shared/types.ts";

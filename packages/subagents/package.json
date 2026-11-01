@@ -1,8 +1,8 @@
 {
-  "name": "pi-subagents",
+  "name": "@evoharness/subagents",
   "version": "0.84.0",
   "private": true,
-  "description": "Pi extension for single-agent delegation and scripted multi-agent workflows",
+  "description": "Evoharness extension for single-agent delegation and scripted multi-agent workflows (ported from pi-subagents v0.84.0)",
   "author": "Nico Bailon",
   "license": "MIT",
   "type": "module",
@@ -34,33 +34,14 @@
   },
   "keywords": [
     "pi-package",
-    "pi",
-    "pi-coding-agent",
+    "evoharness-package",
     "extension",
     "subagents",
     "ai",
     "agents",
     "cli"
   ],
-  "bin": {
-    "pi-subagents": "install.mjs"
-  },
-  "files": [
-    "index.ts",
-    "src/**/*.ts",
-    "*.mjs",
-    "workflow-script-worker.cjs",
-    "workflow-script-process.cjs",
-    "agents/",
-    "skills/**/*",
-    "prompts/**/*",
-    "docs/**/*",
-    "README.md",
-    "CHANGELOG.md"
-  ],
   "scripts": {
-    "build:pkg": "node scripts/build-package.mjs",
-    "pack:pkg": "npm run build:pkg && npm pack ./dist-pkg",
     "typecheck": "tsc --noEmit",
     "test": "npm run test:unit",
     "test:unit": "node --experimental-strip-types --import ./test/support/isolated-temp-root.mjs --test test/unit/*.test.ts",
@@ -68,7 +49,7 @@
     "test:smoke:tool-activation": "node --experimental-strip-types --test test/smoke/tool-activation.test.ts",
     "test:all": "npm run test:unit && npm run test:integration"
   },
-  "pi": {
+  "evoharness": {
     "extensions": [
       "./index.ts"
     ],
@@ -80,23 +61,23 @@
     ]
   },
   "peerDependencies": {
-    "@earendil-works/pi-agent-core": "*",
-    "@earendil-works/pi-ai": ">=1.2.0",
-    "@earendil-works/pi-coding-agent": "*",
-    "@earendil-works/pi-tui": "*",
+    "@evoharness/agent-core": "*",
+    "@evoharness/ai": "*",
+    "@evoharness/coding-agent": "*",
+    "@evoharness/tui": "*",
     "typebox": "*"
   },
   "peerDependenciesMeta": {
-    "@earendil-works/pi-agent-core": {
+    "@evoharness/agent-core": {
       "optional": true
     },
-    "@earendil-works/pi-ai": {
+    "@evoharness/ai": {
       "optional": true
     },
-    "@earendil-works/pi-coding-agent": {
+    "@evoharness/coding-agent": {
       "optional": true
     },
-    "@earendil-works/pi-tui": {
+    "@evoharness/tui": {
       "optional": true
     },
     "typebox": {
@@ -111,18 +92,15 @@
     "yaml": "2.8.3"
   },
   "devDependencies": {
-    "@earendil-works/pi-agent-core": "1.2.0",
-    "@earendil-works/pi-ai": "1.2.0",
-    "@earendil-works/pi-coding-agent": "1.2.0",
-    "@earendil-works/pi-tui": "1.2.0",
+    "@evoharness/agent-core": "0.0.2",
+    "@evoharness/ai": "0.0.2",
+    "@evoharness/coding-agent": "0.0.2",
+    "@evoharness/tui": "0.0.2",
     "@oxlint/plugins": "1.80.0",
     "@types/node": "24.13.3",
     "esbuild": "0.28.2",
     "oxlint": "1.80.0",
     "typebox": "1.3.27",
     "typescript": "5.9.3"
-  },
-  "overrides": {
-    "undici": "$undici"
   }
 }

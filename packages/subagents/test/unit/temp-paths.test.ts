@@ -79,7 +79,7 @@ describe("shared temp paths", () => {
 		}
 	});
 
-	it("isolates agent-dir profile writes from an inherited PI_CODING_AGENT_DIR", () => {
+	it("isolates agent-dir profile writes from an inherited EVOHARNESS_CODING_AGENT_DIR", () => {
 		const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-agent-isolation-"));
 		const tempRoot = path.join(fixture, "temp-root");
 		const callerAgentDir = path.join(fixture, "caller-agent");
@@ -102,7 +102,7 @@ console.log(JSON.stringify({ agentDir: getAgentDir(), profilePath: path.join(pro
 `;
 			const env = {
 				...process.env,
-				PI_CODING_AGENT_DIR: callerAgentDir,
+				EVOHARNESS_CODING_AGENT_DIR: callerAgentDir,
 				PI_SUBAGENTS_TEMP_ROOT: tempRoot,
 			};
 			delete env.PI_SUBAGENTS_TEST_LOADER;

@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import type { StreamFn } from "@earendil-works/pi-agent-core";
+import type { StreamFn } from "@evoharness/agent-core";
 import { Type } from "typebox";
 import { WATCHDOG_GUIDANCE_MAX_CHARS } from "../../src/watchdog/guidance.ts";
 import {
@@ -16,7 +16,7 @@ import {
 	type Model,
 	type SimpleStreamOptions,
 	type TranscriptContext,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import { DEFAULT_WATCHDOG_CONFIG } from "../../src/watchdog/settings.ts";
 import { createMainWatchdogReview, resolveWatchdogReviewModel } from "../../src/watchdog/review.ts";
 import { MainWatchdogRuntime, type WatchdogReviewRequest } from "../../src/watchdog/runtime.ts";
@@ -324,9 +324,9 @@ describe("main watchdog review adapter", () => {
 
 	it("includes WATCHDOG.md guidance in the system prompt", async () => {
 		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "watchdog-review-guidance-"));
-		const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const originalAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		try {
-			process.env.PI_CODING_AGENT_DIR = path.join(dir, "agent");
+			process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(dir, "agent");
 			fs.mkdirSync(path.join(dir, "project", ".pi"), { recursive: true });
 			fs.writeFileSync(path.join(dir, "project", ".pi", "WATCHDOG.md"), "Never accept skipped tests.\n", "utf-8");
 			fs.mkdirSync(path.join(dir, "agent"), { recursive: true });
@@ -346,8 +346,8 @@ describe("main watchdog review adapter", () => {
 			await createMainWatchdogReview(ctx, { streamFn: second.streamFn })(request(disabled, []));
 			assert.doesNotMatch(getCurrentSystemPrompt(second.calls[0]!.context.messages), /Standing instructions/);
 		} finally {
-			if (originalAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
+			if (originalAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = originalAgentDir;
 			fs.rmSync(dir, { recursive: true, force: true });
 		}
 	});

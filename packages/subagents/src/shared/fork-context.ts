@@ -11,7 +11,7 @@
 // it asked for.
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { SessionManager } from "@earendil-works/pi-coding-agent";
+import { SessionManager } from "@evoharness/coding-agent";
 
 type SubagentExecutionContext = "fresh" | "fork";
 

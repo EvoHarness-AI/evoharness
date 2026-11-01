@@ -74,11 +74,11 @@ function withTempHome<T>(fn: (home: string) => T): T {
 	tempDirs.push(home);
 	const oldHome = process.env.HOME;
 	const oldUserProfile = process.env.USERPROFILE;
-	const oldPiCodingAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const oldPiCodingAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	const oldExtraAgentDirs = process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
 	process.env.HOME = home;
 	process.env.USERPROFILE = home;
-	delete process.env.PI_CODING_AGENT_DIR;
+	delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 	delete process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
 	try {
 		return fn(home);
@@ -87,8 +87,8 @@ function withTempHome<T>(fn: (home: string) => T): T {
 		else process.env.HOME = oldHome;
 		if (oldUserProfile === undefined) delete process.env.USERPROFILE;
 		else process.env.USERPROFILE = oldUserProfile;
-		if (oldPiCodingAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = oldPiCodingAgentDir;
+		if (oldPiCodingAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = oldPiCodingAgentDir;
 		if (oldExtraAgentDirs === undefined) delete process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
 		else process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS = oldExtraAgentDirs;
 	}

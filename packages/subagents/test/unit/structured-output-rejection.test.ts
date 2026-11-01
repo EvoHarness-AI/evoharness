@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { Message } from "@earendil-works/pi-ai";
+import type { Message } from "@evoharness/ai";
 import {
 	formatStructuredOutputRejectionError,
 	INVALID_STRUCTURED_OUTPUT_SCHEMA_ERROR,

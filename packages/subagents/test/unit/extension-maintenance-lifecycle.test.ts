@@ -19,7 +19,7 @@ const script = String.raw`
 	globalThis.clearTimeout = ((timer) => { active.delete(timer); return originalClearTimeout(timer); });
 	globalThis.clearInterval = ((timer) => { active.delete(timer); return originalClearInterval(timer); });
 	const { default: registerSubagentExtension } = await import("./src/extension/index.ts");
-	const { createEventBus } = await import("@earendil-works/pi-coding-agent");
+	const { createEventBus } = await import("@evoharness/coding-agent");
 	const { registerInspector } = await import("./src/api/inspectors.ts");
 	const { getInspectorPlugins } = await import("./src/inspectors/plugins.ts");
 	const events = createEventBus();

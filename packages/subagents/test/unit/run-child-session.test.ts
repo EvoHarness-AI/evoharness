@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { fauxAssistantMessage } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage } from "@evoharness/ai";
 import { runSync } from "../../src/runs/foreground/execution.ts";
 import { makeAgentConfigs } from "../support/helpers.ts";
 import { runChildSession } from "../../src/runs/background/run-child-session.ts";

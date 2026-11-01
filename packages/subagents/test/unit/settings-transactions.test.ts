@@ -13,7 +13,7 @@ function writer(root: string, project: string, target: string, role: string, ope
 	const tempRoot = fs.mkdtempSync(path.join(root, `temp-${role}-`));
 	const child = fork(fixture, [project, target, root, role, operation], {
 		execArgv: ["--experimental-strip-types"],
-		env: { ...process.env, PI_CODING_AGENT_DIR: agentDir, PI_SUBAGENTS_TEMP_ROOT: tempRoot },
+		env: { ...process.env, EVOHARNESS_CODING_AGENT_DIR: agentDir, PI_SUBAGENTS_TEMP_ROOT: tempRoot },
 		stdio: ["ignore", "ignore", "pipe", "ipc"],
 	});
 	let stderr = "";

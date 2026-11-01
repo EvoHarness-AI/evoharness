@@ -4,11 +4,11 @@
 
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Message } from "@earendil-works/pi-ai";
+import type { Message } from "@evoharness/ai";
 import type { SubagentDelegationProviderDiagnostics } from "../api/delegation.ts";
 import type { AgentConfig } from "../agents/agents.ts";
 import type { FSWatcher } from "node:fs";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext } from "@evoharness/coding-agent";
 import type { ModelScopeRule } from "../runs/shared/model-scope.ts";
 import type { ResolvedSubagentCapabilityCeiling, SubagentCapabilityAudit } from "../runs/shared/capability-ceiling.ts";
 import type { AuthorityPolicyConfig } from "../policy/authority.ts";
@@ -2567,7 +2567,7 @@ export interface RunSyncOptions {
 	allowZeroToolBudget?: boolean;
 	allowIntercomDetach?: boolean;
 	intercomEvents?: IntercomEventBus;
-	onUpdate?: (r: import("@earendil-works/pi-agent-core").AgentToolResult<Details>) => void;
+	onUpdate?: (r: import("@evoharness/agent-core").AgentToolResult<Details>) => void;
 	/** Internal structured-delegation transport optimization: skip unchanged live snapshots. */
 	suppressUnchangedDelegationUpdates?: boolean;
 	onControlEvent?: (event: ControlEvent) => void;

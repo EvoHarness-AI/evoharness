@@ -11,7 +11,7 @@ const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..")
 
 it("emits bounded file-only snapshots, refreshes through management, and performs zero prompt-time filesystem calls", () => {
 	const home = fs.mkdtempSync(path.join(os.tmpdir(), "advertised-refresh-"));
-	const env = { ...process.env, PI_CODING_AGENT_DIR: home };
+	const env = { ...process.env, EVOHARNESS_CODING_AGENT_DIR: home };
 	delete env[SUBAGENT_CHILD_ENV];
 	try {
 		const output = execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", String.raw`
@@ -21,7 +21,7 @@ it("emits bounded file-only snapshots, refreshes through management, and perform
 			import { syncBuiltinESMExports } from "node:module";
 			import register from "./src/extension/index.ts";
 			import { registerSubagentCapabilityCeiling } from "./src/runs/shared/capability-ceiling.ts";
-			const home = process.env.PI_CODING_AGENT_DIR;
+			const home = process.env.EVOHARNESS_CODING_AGENT_DIR;
 			const cwd = path.join(home, "project");
 			fs.mkdirSync(path.join(cwd, ".pi"), { recursive: true });
 			const dir = path.join(home, "agents");
@@ -169,7 +169,7 @@ it("emits bounded file-only snapshots, refreshes through management, and perform
 
 it("delivers the catalog as a structured prompt section instead of replacing the system prompt", () => {
 	const home = fs.mkdtempSync(path.join(os.tmpdir(), "advertised-section-"));
-	const env = { ...process.env, PI_CODING_AGENT_DIR: home };
+	const env = { ...process.env, EVOHARNESS_CODING_AGENT_DIR: home };
 	delete env[SUBAGENT_CHILD_ENV];
 	try {
 		const output = execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", String.raw`
@@ -178,7 +178,7 @@ it("delivers the catalog as a structured prompt section instead of replacing the
 			import path from "node:path";
 			import register from "./src/extension/index.ts";
 			import { registerSubagentCapabilityCeiling } from "./src/runs/shared/capability-ceiling.ts";
-			const home = process.env.PI_CODING_AGENT_DIR;
+			const home = process.env.EVOHARNESS_CODING_AGENT_DIR;
 			const cwd = path.join(home, "project");
 			fs.mkdirSync(path.join(cwd, ".pi"), { recursive: true });
 			const dir = path.join(home, "agents");

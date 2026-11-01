@@ -1,15 +1,15 @@
 const modules = {
-	"@earendil-works/pi-agent-core": `
+	"@evoharness/agent-core": `
 		export class Agent {}
 	`,
-	"@earendil-works/pi-coding-agent": `
+	"@evoharness/coding-agent": `
 		export function createReadOnlyTools() { return []; }
 		export function convertToLlm(messages) { return messages; }
 	`,
-	"@earendil-works/pi-ai": `
+	"@evoharness/ai": `
 		export const stableHostSurface = true;
 	`,
-	"@earendil-works/pi-ai/compat": `
+	"@evoharness/ai/compat": `
 		export function streamSimple() { throw new Error("not invoked by the linking smoke test"); }
 	`,
 };

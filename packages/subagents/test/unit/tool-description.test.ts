@@ -25,7 +25,7 @@ function escapeRegex(value: string): string {
 function parentToolEnv(agentDir?: string): NodeJS.ProcessEnv {
 	const env = { ...process.env };
 	delete env[SUBAGENT_CHILD_ENV];
-	if (agentDir) env.PI_CODING_AGENT_DIR = agentDir;
+	if (agentDir) env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	return env;
 }
 

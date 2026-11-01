@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { buildAsyncRunnerSteps, assertClaudeCodeOverrideIsLocal, DEFAULT_ASYNC_TIMEOUT_MS, emitProcessTerminalEvent, formatAsyncStartedMessage, resolveAsyncRunnerLogPaths } from "../../src/runs/background/async-execution.ts";
 import type { AgentConfig } from "../../src/agents/agents.ts";
 import { SUBAGENT_PROCESS_TERMINAL_EVENT } from "../../src/shared/types.ts";
@@ -126,8 +126,8 @@ describe("async runner execution", () => {
 	it("loads launch rules from the resolved async step cwd", () => {
 		const repo = fs.mkdtempSync(path.join(os.tmpdir(), "async-step-rules-"));
 		const app = path.join(repo, "packages", "app");
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-		process.env.PI_CODING_AGENT_DIR = path.join(repo, "agent-home");
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(repo, "agent-home");
 		try {
 			fs.mkdirSync(path.join(app, ".pi"), { recursive: true });
 			fs.writeFileSync(path.join(app, ".pi", "settings.json"), JSON.stringify({ subagents: { watchdog: { rules: { action: "block", roleModels: { worker: { deny: ["mock/*"] } } } } } }, null, 2), "utf-8");
@@ -143,8 +143,8 @@ describe("async runner execution", () => {
 			assert.ok("error" in result);
 			assert.match(result.error, /Launch blocked by subagents\.watchdog\.rules: Agent 'worker' was launched with denied model 'mock\/denied'/);
 		} finally {
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 			fs.rmSync(repo, { recursive: true, force: true });
 		}
 	});

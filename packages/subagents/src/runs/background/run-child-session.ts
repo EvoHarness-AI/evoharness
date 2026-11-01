@@ -5,7 +5,7 @@
  * interrupt, timeout, stop, and steer requests, and folds the run into the
  * step result the runner finalizes.
  */
-import type { Message } from "@earendil-works/pi-ai";
+import type { Message } from "@evoharness/ai";
 import type { ChildTranscriptWriter } from "../../shared/child-transcript.ts";
 import { SUBAGENT_STOPPED_MESSAGE, SUBAGENT_TIMED_OUT_MESSAGE, assistantMessageError, extractTextFromContent, extractToolArgsPreview, getFinalOutput, hasEmptyTerminalAssistantResponse } from "../../shared/utils.ts";
 import { qualifyModelWithProvider } from "../../shared/model-info.ts";

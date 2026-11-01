@@ -25,13 +25,13 @@ function writeJson(filePath: string, value: unknown): void {
 
 describe("Rex SSH machine resolution", () => {
 	let home: string, project: string, userSettings: string, projectSettings: string, noHerdr: string;
-	const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR };
+	const saved = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, EVOHARNESS_CODING_AGENT_DIR: process.env.EVOHARNESS_CODING_AGENT_DIR };
 	beforeEach(() => {
 		home = fs.mkdtempSync(path.join(os.tmpdir(), "rex-ssh-home-"));
 		project = fs.mkdtempSync(path.join(os.tmpdir(), "rex-ssh-project-"));
 		process.env.HOME = home;
 		process.env.USERPROFILE = home;
-		process.env.PI_CODING_AGENT_DIR = path.join(home, ".pi", "agent");
+		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(home, ".pi", "agent");
 		userSettings = path.join(home, ".pi", "agent", "settings.json");
 		projectSettings = path.join(project, ".pi", "settings.json");
 		noHerdr = path.join(home, "no-herdr");

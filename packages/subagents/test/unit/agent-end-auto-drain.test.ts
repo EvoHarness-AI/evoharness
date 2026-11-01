@@ -16,7 +16,7 @@ const script = String.raw`
 	const hasOwner = process.env.PI_SUBAGENTS_TEST_NO_OWNER !== "1";
 	console.error = (...args) => errors.push(args.map((value) => value instanceof Error ? value.message : String(value)).join(" "));
 	const { default: registerSubagentExtension } = await import("./src/extension/index.ts");
-	const { createEventBus } = await import("@earendil-works/pi-coding-agent");
+	const { createEventBus } = await import("@evoharness/coding-agent");
 	const { registerBackgroundWorkProvider } = await import("./src/api/background-work.ts");
 	const { createMission, resolveMissionStoreLocation } = await import("./src/missions/store.ts");
 	const events = createEventBus();
@@ -84,7 +84,7 @@ function runScript(root: string, env: Record<string, string | undefined>) {
 		env: {
 			...process.env,
 			HOME: path.join(root, "home"), USERPROFILE: path.join(root, "home"),
-			PI_CODING_AGENT_DIR: path.join(root, "agent"),
+			EVOHARNESS_CODING_AGENT_DIR: path.join(root, "agent"),
 			TMPDIR: root, TMP: root, TEMP: root,
 			PI_SUBAGENT_CHILD: undefined,
 			...env,

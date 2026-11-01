@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { StreamFn } from "@earendil-works/pi-agent-core";
+import type { StreamFn } from "@evoharness/agent-core";
 import { agentStreamOptions } from "../../src/shared/agent-stream-options.ts";
 
 describe("agent stream options", () => {

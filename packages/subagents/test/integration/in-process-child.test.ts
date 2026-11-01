@@ -593,7 +593,7 @@ describe("default child session factory", () => {
 	});
 
 	it("drops skills that extensions add to a child when inheritSkills is false", async () => {
-		const host = await import("@earendil-works/pi-coding-agent");
+		const host = await import("@evoharness/coding-agent");
 		const skillDir = createTempDir("pi-subagents-ext-skill-");
 		fs.writeFileSync(path.join(skillDir, "SKILL.md"), "---\nname: ext-skill\ndescription: Contributed by an extension.\n---\nBody\n");
 		try {
@@ -615,7 +615,7 @@ describe("default child session factory", () => {
 	});
 
 	it("reads project resources only when the launching session trusts the project", async () => {
-		const host = await import("@earendil-works/pi-coding-agent");
+		const host = await import("@evoharness/coding-agent");
 		const projectDir = createTempDir("pi-subagents-project-trust-");
 		fs.mkdirSync(path.join(projectDir, ".pi"));
 		fs.writeFileSync(path.join(projectDir, ".pi", "SYSTEM.md"), "project system prompt");
@@ -636,7 +636,7 @@ describe("default child session factory", () => {
 	});
 
 	it("records the launching session as the parent of a new child session", async () => {
-		const host = await import("@earendil-works/pi-coding-agent");
+		const host = await import("@evoharness/coding-agent");
 		const dir = createTempDir("pi-subagents-parent-session-");
 		try {
 			const parentSessionFile = path.join(dir, "parent.jsonl");
@@ -672,7 +672,7 @@ describe("default child session factory", () => {
 	});
 
 	it("preserves an initialized parent theme when creating a child session", async () => {
-		const themeKey = Symbol.for("@earendil-works/pi-coding-agent:theme");
+		const themeKey = Symbol.for("@evoharness/coding-agent:theme");
 		const globals = globalThis as Record<symbol, unknown>;
 		const previousTheme = globals[themeKey];
 		const initialized: Array<string | undefined> = [];
@@ -691,7 +691,7 @@ describe("default child session factory", () => {
 	});
 
 	it("initializes the theme in a headless runner process", async () => {
-		const themeKey = Symbol.for("@earendil-works/pi-coding-agent:theme");
+		const themeKey = Symbol.for("@evoharness/coding-agent:theme");
 		const globals = globalThis as Record<symbol, unknown>;
 		const previousTheme = globals[themeKey];
 		const initialized: Array<string | undefined> = [];

@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { DefaultResourceLoader, SettingsManager } from "@earendil-works/pi-coding-agent";
+import { DefaultResourceLoader, SettingsManager } from "@evoharness/coding-agent";
 import { createDefaultChildSessionFactory, type ChildSessionLaunch, type PiCodingAgentModule } from "../../src/runs/shared/child-session.ts";
 
 // Real Pi resource loading, stopped right before a session is created.
@@ -46,13 +46,13 @@ describe("default child factory and the operator's APPEND_SYSTEM.md", () => {
 		fs.mkdirSync(agentDir);
 		fs.mkdirSync(path.join(root, "project"));
 		fs.writeFileSync(path.join(agentDir, "APPEND_SYSTEM.md"), "OPERATOR-APPEND-MARKER");
-		previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	});
 
 	afterEach(async () => {
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		await fs.promises.rm(root, { recursive: true, force: true });
 	});
 

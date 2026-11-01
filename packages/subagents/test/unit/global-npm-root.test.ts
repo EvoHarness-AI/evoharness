@@ -36,7 +36,7 @@ describe("resolveGlobalNpmRoot", () => {
 		const marker = path.join(dir, "called");
 		const command = path.join(dir, "bin", process.platform === "win32" ? "npm.cmd" : "npm");
 		fs.writeFileSync(command, process.platform === "win32" ? `@echo off\r\necho called > "${marker}"\r\n` : `#!/bin/sh\necho called > '${marker}'\n`, { mode: 0o755 });
-		assert.equal(await resolveGlobalNpmRoot({ env: { ...env, PI_OFFLINE: "YeS" } }), null);
+		assert.equal(await resolveGlobalNpmRoot({ env: { ...env, EVOHARNESS_OFFLINE: "YeS" } }), null);
 		assert.equal(fs.existsSync(marker), false);
 	});
 

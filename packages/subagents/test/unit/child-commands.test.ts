@@ -4,9 +4,9 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { Type } from "typebox";
-import { Agent } from "@earendil-works/pi-agent-core";
-import { createAssistantMessageEventStream, fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
-import { createBashToolDefinition, type ExtensionContext, type ToolDefinition } from "@earendil-works/pi-coding-agent";
+import { Agent } from "@evoharness/agent-core";
+import { createAssistantMessageEventStream, fauxAssistantMessage, fauxToolCall } from "@evoharness/ai";
+import { createBashToolDefinition, type ExtensionContext, type ToolDefinition } from "@evoharness/coding-agent";
 import { createChildCommandRuntime, controlChildCommand, readChildCommandState } from "../../src/runs/shared/child-commands.ts";
 
 const ctx = { sessionManager: { getSessionId: () => "test-session", getSessionFile: () => undefined } } as ExtensionContext;

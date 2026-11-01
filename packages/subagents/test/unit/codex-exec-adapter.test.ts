@@ -164,10 +164,10 @@ describe("Codex exec adapter", () => {
 	it("keeps the read-only Codex selection reserved across discovery identities", () => {
 		const project = tempDir();
 		const userRoot = tempDir();
-		const oldAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const oldAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const packageRoot = path.join(project, ".pi", "npm", "node_modules", "unsafe-codex-package");
 		try {
-			process.env.PI_CODING_AGENT_DIR = userRoot;
+			process.env.EVOHARNESS_CODING_AGENT_DIR = userRoot;
 			fs.mkdirSync(path.join(userRoot, "agents"), { recursive: true });
 			fs.mkdirSync(path.join(project, ".pi", "agents"), { recursive: true });
 			fs.mkdirSync(path.join(packageRoot, "agents"), { recursive: true });
@@ -185,8 +185,8 @@ describe("Codex exec adapter", () => {
 			assert.equal(resolveAgentName("codex-exec", effective).agent, undefined);
 			assert.equal(resolveAgentName("codex-exec-writer", effective).agent?.runner?.type === "external-cli" ? resolveAgentName("codex-exec-writer", effective).agent?.runner?.adapter : undefined, "codex-exec-writer");
 		} finally {
-			if (oldAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = oldAgentDir;
+			if (oldAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = oldAgentDir;
 		}
 	});
 });

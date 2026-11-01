@@ -2,8 +2,8 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { Type } from "typebox";
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
-import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult } from "@evoharness/agent-core";
+import type { ToolDefinition } from "@evoharness/coding-agent";
 import { createAtomicJsonWriter } from "../../shared/atomic-json.ts";
 import { watchAsyncControlInbox, requestAsyncCommand, type CommandRequest } from "../background/control-channel.ts";
 

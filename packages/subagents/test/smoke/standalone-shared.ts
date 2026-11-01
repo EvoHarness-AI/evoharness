@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import fs from "node:fs";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
 import { discoverAgents } from "../../src/agents/agents.js";
 import { executeAsyncChain } from "../../src/runs/background/async-execution.js";
 import { requestAsyncStop } from "../../src/runs/background/control-channel.js";

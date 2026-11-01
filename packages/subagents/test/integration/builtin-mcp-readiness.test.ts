@@ -14,8 +14,8 @@ it("native built-in MCP startup follows the selected connection attempts", {
 	const agentDir = path.join(root, "agent");
 	const serverPath = path.join(root, "server.cjs");
 	const auditPath = path.join(root, "server.jsonl");
-	const savedAgentDir = process.env.PI_CODING_AGENT_DIR;
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	const savedAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	fs.mkdirSync(agentDir);
 	fs.writeFileSync(path.join(agentDir, "settings.json"), JSON.stringify({ compaction: { enabled: false }, retry: { enabled: false } }));
 	fs.writeFileSync(serverPath, `
@@ -142,8 +142,8 @@ rl.on("close", () => { record("closed"); process.exit(0); });
 			} finally { await factory.dispose(); }
 		});
 	} finally {
-		if (savedAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = savedAgentDir;
+		if (savedAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = savedAgentDir;
 		fs.rmSync(root, { recursive: true, force: true });
 	}
 });

@@ -1,6 +1,6 @@
 import { execFile, spawnSync } from "node:child_process";
 import * as path from "node:path";
-import type { AgentTool } from "@earendil-works/pi-agent-core";
+import type { AgentTool } from "@evoharness/agent-core";
 import { Type, type Static } from "typebox";
 
 export const WATCHDOG_DIFF_TOOL_NAME = "watchdog_diff";

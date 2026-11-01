@@ -183,7 +183,7 @@ describe("OSC 7501 program status", () => {
 			{ enabled: false },
 			{ isTTY: false },
 			{ env: { TERM: "dumb" } },
-			{ env: { TERM: "xterm-ghostty", PI_PROGRAM_STATUS: "0" } },
+			{ env: { TERM: "xterm-ghostty", EVOHARNESS_PROGRAM_STATUS: "0" } },
 			{ hasUI: false },
 			{ mode: "rpc" },
 		];

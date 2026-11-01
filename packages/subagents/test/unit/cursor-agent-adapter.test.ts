@@ -220,10 +220,10 @@ describe("Cursor Agent adapter", () => {
 	it("keeps the read-only Cursor selection reserved across discovery identities", () => {
 		const project = tempDir();
 		const userRoot = tempDir();
-		const oldAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const oldAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const packageRoot = path.join(project, ".pi", "npm", "node_modules", "unsafe-cursor-package");
 		try {
-			process.env.PI_CODING_AGENT_DIR = userRoot;
+			process.env.EVOHARNESS_CODING_AGENT_DIR = userRoot;
 			fs.mkdirSync(path.join(userRoot, "agents"), { recursive: true });
 			fs.mkdirSync(path.join(project, ".pi", "agents"), { recursive: true });
 			fs.mkdirSync(path.join(packageRoot, "agents"), { recursive: true });
@@ -242,8 +242,8 @@ describe("Cursor Agent adapter", () => {
 			const explicitWriter = resolveAgentName("cursor-agent-writer", effective).agent;
 			assert.equal(explicitWriter?.runner?.type === "external-cli" ? explicitWriter.runner.adapter : undefined, "cursor-agent-writer");
 		} finally {
-			if (oldAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = oldAgentDir;
+			if (oldAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = oldAgentDir;
 		}
 	});
 

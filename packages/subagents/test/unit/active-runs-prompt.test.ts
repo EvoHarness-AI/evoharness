@@ -53,7 +53,7 @@ function promptSections(config: Record<string, unknown>): Record<string, string 
 	try {
 		fs.mkdirSync(path.join(home, "extensions", "subagent"), { recursive: true });
 		fs.writeFileSync(path.join(home, "extensions", "subagent", "config.json"), JSON.stringify(config));
-		const env = { ...process.env, PI_CODING_AGENT_DIR: home };
+		const env = { ...process.env, EVOHARNESS_CODING_AGENT_DIR: home };
 		delete env[SUBAGENT_CHILD_ENV];
 		const output = execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: root, env, encoding: "utf-8" });
 		const line = output.split("\n").find((entry) => entry.startsWith("RESULT "));

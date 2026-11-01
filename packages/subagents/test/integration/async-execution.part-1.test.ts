@@ -595,9 +595,9 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 	it("matches preflight launch digest in equivalent foreground and async execution", { skip: !isAsyncAvailable() ? "jiti not available" : undefined }, async () => {
 		const agentName = `contract-worker-${Date.now().toString(36)}`;
 		const task = "Compare the resolved launch inputs.";
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const agentDir = path.join(tempDir, "agent-home");
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const permissionExtDir = path.join(agentDir, "extensions", "pi-permission-system");
 		fs.mkdirSync(path.join(permissionExtDir, "src"), { recursive: true });
 		fs.writeFileSync(path.join(permissionExtDir, "src", "index.ts"), "export default () => {};", "utf-8");
@@ -636,8 +636,8 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 			assert.equal(payload.launchContractDigest, preflight.contract.launchContractDigest);
 			assert.equal(payload.results[0]?.launchContractDigest, preflight.contract.launchContractDigest);
 		} finally {
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		}
 	});
 
@@ -1185,10 +1185,10 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 		fs.writeFileSync(path.join(agentDir, "agents", "trust-probe.md"), "---\nname: trust-probe\ndescription: Trust probe\n---\nUser body.\n", "utf-8");
 		writeJson(path.join(agentDir, "settings.json"), { subagents: { agentOverrides: { "trust-probe": { model: "openai/luna" } }, modelScope: { enforce: true, allow: ["openai/luna"] } } });
 		writeJson(path.join(project, ".pi", "settings.json"), { subagents: { agentOverrides: { "trust-probe": { model: "openai/astra" } }, modelScope: { enforce: true, allow: ["openai/astra"] } } });
-		const previous = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR };
+		const previous = { HOME: process.env.HOME, USERPROFILE: process.env.USERPROFILE, EVOHARNESS_CODING_AGENT_DIR: process.env.EVOHARNESS_CODING_AGENT_DIR };
 		process.env.HOME = home;
 		process.env.USERPROFILE = home;
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		try {
 			const executor = createSubagentExecutor!({
 				pi: { events: createEventBus(), getSessionName: () => undefined },

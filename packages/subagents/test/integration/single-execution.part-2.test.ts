@@ -56,7 +56,7 @@ import { currentPidNamespaceScope } from "../../src/runs/background/pid-namespac
 import { waitForSubagents } from "../../src/runs/background/subagent-wait.ts";
 import { listAsyncRuns } from "../../src/runs/background/async-status.ts";
 import { formatControlNoticeMessage } from "../../src/runs/shared/subagent-control.ts";
-import type { ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { ToolDefinition } from "@evoharness/coding-agent";
 import { createChildCommandRuntime } from "../../src/runs/shared/child-commands.ts";
 import { supervisorChannelDir } from "../../src/runs/shared/child-tool-plan.ts";
 import { CHILD_WATCHDOG_STATUS_EVENT } from "../../src/watchdog/child-status.ts";
@@ -840,7 +840,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 
 	for (const mode of ["single", "workflow"] as const) {
 		it(`stops a detached ${mode} foreground child when its runtime is replaced and reports it as stopped`, { timeout: 30_000 }, async () => {
-			const agentDir = process.env.PI_CODING_AGENT_DIR!;
+			const agentDir = process.env.EVOHARNESS_CODING_AGENT_DIR!;
 			fs.mkdirSync(path.join(agentDir, "agents"), { recursive: true });
 			fs.writeFileSync(path.join(agentDir, "agents", "asker.md"), "---\nname: asker\ndescription: Asks its supervisor\n---\nIntercom orchestration channel: ask the supervisor before deciding.\n");
 			if (mode === "workflow") {

@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
 import { startWatchdogDiffBaselineCapture, type WatchdogDiffBaseline } from "./diff-tool.ts";
 import { MainWatchdogRuntime } from "./runtime.ts";
 import { createMainWatchdogReview } from "./review.ts";

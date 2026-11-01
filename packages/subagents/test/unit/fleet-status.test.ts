@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { Editor, type EditorComponent, visibleWidth } from "@earendil-works/pi-tui";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Editor, type EditorComponent, visibleWidth } from "@evoharness/tui";
+import type { ExtensionContext } from "@evoharness/coding-agent";
 import type { SubagentState } from "../../src/shared/types.ts";
 import { EXTERNAL_RUN_REGISTRY_KEY, EXTERNAL_RUN_REGISTRY_VERSION, registerExternalRun } from "../../src/api/external-runs.ts";
 import { collectFleetSnapshot } from "../../src/tui/fleet.ts";

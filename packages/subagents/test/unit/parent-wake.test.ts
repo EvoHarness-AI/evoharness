@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { it } from "node:test";
-import { fauxAssistantMessage, fauxProvider, fauxToolCall } from "@earendil-works/pi-ai";
-import { DefaultResourceLoader, ModelRuntime, SessionManager, SettingsManager, createAgentSession } from "@earendil-works/pi-coding-agent";
+import { fauxAssistantMessage, fauxProvider, fauxToolCall } from "@evoharness/ai";
+import { DefaultResourceLoader, ModelRuntime, SessionManager, SettingsManager, createAgentSession } from "@evoharness/coding-agent";
 import { Type } from "typebox";
 import registerSubagentExtension from "../../src/extension/index.ts";
 import { currentCompletionOwnerId } from "../../src/shared/completion-owner.ts";
@@ -156,8 +156,8 @@ it("wakes a real SDK parent with the notice itself and holds the wake until the 
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parent-wake-notice-"));
 	const agentDir = path.join(root, "agent");
 	fs.mkdirSync(agentDir);
-	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	const faux = fauxProvider({ provider: "parent-wake-notice", models: [{ id: "local" }], tokensPerSecond: 100_000 });
 	faux.setResponses([() => fauxAssistantMessage("Handled the notice.")]);
 	let wake: ReturnType<typeof createParentWake> | undefined;
@@ -197,8 +197,8 @@ it("wakes a real SDK parent with the notice itself and holds the wake until the 
 		assert.deepEqual(session.messages.filter((message) => message.role === "user"), [], "no user-role wake message");
 	} finally {
 		session?.dispose();
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		fs.rmSync(root, { recursive: true, force: true });
 	}
 });
@@ -207,8 +207,8 @@ for (const emptyResponse of [false, true]) it(`starts an idle parent's completio
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parent-wake-sdk-"));
 	const agentDir = path.join(root, "agent");
 	fs.mkdirSync(agentDir);
-	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	const sessionManager = SessionManager.inMemory(root);
 	const sessionId = sessionManager.getSessionId();
 	const faux = fauxProvider({ provider: "parent-wake", models: [{ id: "local" }], tokensPerSecond: 100_000 });
@@ -260,8 +260,8 @@ for (const emptyResponse of [false, true]) it(`starts an idle parent's completio
 	} finally {
 		if (session) await (session.extensionRunner as unknown as { emit(event: unknown): Promise<unknown> }).emit({ type: "session_shutdown", reason: "quit" });
 		session?.dispose();
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		fs.rmSync(root, { recursive: true, force: true });
 	}
 });
@@ -271,8 +271,8 @@ for (const stopWith of ["abort", "compact"] as const) it(`${stopWith === "abort"
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parent-wake-abort-"));
 	const agentDir = path.join(root, "agent");
 	fs.mkdirSync(agentDir);
-	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	const sessionManager = SessionManager.inMemory(root);
 	const sessionId = sessionManager.getSessionId();
 	const faux = fauxProvider({ provider: "parent-wake-abort", models: [{ id: "local" }], tokensPerSecond: 100_000 });
@@ -342,8 +342,8 @@ for (const stopWith of ["abort", "compact"] as const) it(`${stopWith === "abort"
 	} finally {
 		if (session) await (session.extensionRunner as unknown as { emit(event: unknown): Promise<unknown> }).emit({ type: "session_shutdown", reason: "quit" });
 		session?.dispose();
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		fs.rmSync(root, { recursive: true, force: true });
 	}
 });
@@ -354,8 +354,8 @@ it("composes prior drafts, unresolved supervisor and empty completion safeguards
 	const channelDir = path.join(root, "channel");
 	fs.mkdirSync(agentDir);
 	fs.mkdirSync(path.join(channelDir, "requests"), { recursive: true });
-	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	const manager = SessionManager.inMemory(root);
 	const sessionId = manager.getSessionId();
 	const requestFile = path.join(channelDir, "requests", "ask.json");
@@ -422,8 +422,8 @@ it("composes prior drafts, unresolved supervisor and empty completion safeguards
 		channel!?.dispose();
 		notifier!?.dispose();
 		session?.dispose();
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		fs.rmSync(root, { recursive: true, force: true });
 	}
 });
@@ -432,8 +432,8 @@ it("does no idle settle work without delegated work", { timeout: 30_000 }, async
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-demand-settle-"));
 	const agentDir = path.join(root, "agent");
 	fs.mkdirSync(agentDir);
-	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	const manager = SessionManager.inMemory(root);
 	const faux = fauxProvider({ provider: "demand-settle", models: [{ id: "local" }], tokensPerSecond: 100_000 });
 	let responses = 0;
@@ -475,8 +475,8 @@ it("does no idle settle work without delegated work", { timeout: 30_000 }, async
 	} finally {
 		if (session) await session.extensionRunner.emit({ type: "session_shutdown", reason: "quit" });
 		session?.dispose();
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		fs.rmSync(root, { recursive: true, force: true });
 	}
 });

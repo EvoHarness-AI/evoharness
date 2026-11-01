@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
 import { describe, it } from "node:test";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext } from "@evoharness/coding-agent";
 import { createEventBus, makeMinimalCtx } from "../support/helpers.ts";
 import {
 	ASYNC_DIR,

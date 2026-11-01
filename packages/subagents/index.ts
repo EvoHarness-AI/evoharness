@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 import type {} from "./src/types/pi-runtime-compat.d.ts";
 import { HERDR_PI_MODE_ENV } from "./src/runs/shared/herdr-pi-protocol.ts";
 import { loadedPackageVersion, readInstalledPackageVersion } from "./src/shared/package-version.ts";

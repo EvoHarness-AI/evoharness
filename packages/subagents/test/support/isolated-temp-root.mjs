@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 
-// The root test process starts with no inherited Pi runtime env: a host Pi shell (PI_PACKAGE_DIR, ...) or a
+// The root test process starts with no inherited Pi runtime env: a host Pi shell (EVOHARNESS_PACKAGE_DIR, ...) or a
 // pi-subagents child shell (PI_SUBAGENT_CHILD, ...) would otherwise change what the tests exercise.
 // Kept: harness inputs that CI or a developer passes in on purpose. Nested test processes inherit the cleaned env.
 const harnessInput = /^PI_SUBAGENTS_(TEMP_ROOT|TERMINAL_EVIDENCE_DIR|NATIVE_PI_ROOT|NATIVE_SDK|\w+_SMOKE(_\w+)?)$/;

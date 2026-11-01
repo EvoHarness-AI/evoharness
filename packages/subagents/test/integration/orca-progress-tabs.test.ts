@@ -113,7 +113,7 @@ describe("Orca progress-tab observer", () => {
 			repo,
 			{
 				...process.env,
-				PI_CODING_AGENT_DIR: agentDir,
+				EVOHARNESS_CODING_AGENT_DIR: agentDir,
 				PI_SUBAGENT_ORCA_BINARY: fakeOrca,
 				MOCK_PI_QUEUE_DIR: queueDir,
 				ORCA_TEST_CAPTURE: capture,
@@ -173,7 +173,7 @@ describe("Orca progress-tab observer", () => {
 			repo,
 			{
 				...process.env,
-				PI_CODING_AGENT_DIR: agentDir,
+				EVOHARNESS_CODING_AGENT_DIR: agentDir,
 				PI_SUBAGENT_ORCA_BINARY: fakeOrca,
 				MOCK_PI_QUEUE_DIR: queueDir,
 				ORCA_TEST_CAPTURE_DIR: captures,

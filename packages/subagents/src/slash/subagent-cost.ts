@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext } from "@evoharness/coding-agent";
 import { getArtifactPaths, getArtifactsDir } from "../shared/artifacts.ts";
 import { formatTokens } from "../shared/formatters.ts";
 import { DIRS, SLASH_RESULT_TYPE, type Details, type SubagentState, type Usage } from "../shared/types.ts";

@@ -1,4 +1,4 @@
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import type { AgentToolResult } from "@evoharness/agent-core";
 import type { Details } from "../shared/types.ts";
 
 export const INSPECTOR_ACTIONS = ["inspector.open", "inspector.command", "inspector.status", "inspector.close"] as const;

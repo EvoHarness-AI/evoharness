@@ -9,7 +9,7 @@ export async function resolveGlobalNpmRoot(options: {
 	timeoutMs?: number;
 } = {}): Promise<string | null> {
 	const env = options.env ?? process.env;
-	const offline = env.PI_OFFLINE?.toLowerCase();
+	const offline = env.EVOHARNESS_OFFLINE?.toLowerCase();
 	if (offline === "1" || offline === "true" || offline === "yes") return null;
 
 	if ((options.platform ?? process.platform) === "win32" && env.APPDATA) {

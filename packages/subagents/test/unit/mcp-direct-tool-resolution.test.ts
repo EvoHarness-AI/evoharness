@@ -11,7 +11,7 @@ import type { McpServerDefinition } from "../../src/runs/shared/mcp-config-sourc
 // before importing it, so a direct `node --test` run without the repository test
 // preload neither reads a developer's real MCP config nor touches a real agent
 // directory.
-const managedEnv = ["HOME", "USERPROFILE", "PI_CODING_AGENT_DIR"] as const;
+const managedEnv = ["HOME", "USERPROFILE", "EVOHARNESS_CODING_AGENT_DIR"] as const;
 const previousEnv: Record<string, string | undefined> = {};
 const tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "mcp-resolution-"));
 const homeDir = path.join(tempRoot, "home");
@@ -20,7 +20,7 @@ const projectDir = path.join(tempRoot, "project");
 for (const name of managedEnv) previousEnv[name] = process.env[name];
 process.env.HOME = homeDir;
 process.env.USERPROFILE = homeDir;
-process.env.PI_CODING_AGENT_DIR = agentDir;
+process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 assert.equal(os.homedir(), homeDir, "test isolation must redirect the home directory before the resolver loads");
 
 const { computeMcpServerHash, resolveMcpDirectToolResolution } = await import("../../src/runs/shared/mcp-direct-tool-allowlist.ts");

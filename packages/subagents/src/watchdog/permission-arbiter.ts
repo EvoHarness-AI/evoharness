@@ -1,5 +1,5 @@
-import { Agent, type AgentTool, type StreamFn } from "@earendil-works/pi-agent-core";
-import { convertToLlm, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { Agent, type AgentTool, type StreamFn } from "@evoharness/agent-core";
+import { convertToLlm, type ExtensionContext } from "@evoharness/coding-agent";
 import { Type, type Static } from "typebox";
 import { appendPermissionAudit, permissionArgsPreview } from "../runs/shared/permissions.ts";
 import { agentStreamOptions } from "../shared/agent-stream-options.ts";

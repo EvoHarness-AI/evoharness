@@ -28,7 +28,7 @@ let tempHome = "";
 let tempProject = "";
 const originalHome = process.env.HOME;
 const originalUserProfile = process.env.USERPROFILE;
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 
 function writeJson(filePath: string, value: unknown): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -48,7 +48,7 @@ describe("Herdr machine placement", () => {
 		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-project-"));
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
-		process.env.PI_CODING_AGENT_DIR = path.join(tempHome, ".pi", "agent");
+		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(tempHome, ".pi", "agent");
 	});
 
 	afterEach(() => {
@@ -56,8 +56,8 @@ describe("Herdr machine placement", () => {
 		else process.env.HOME = originalHome;
 		if (originalUserProfile === undefined) delete process.env.USERPROFILE;
 		else process.env.USERPROFILE = originalUserProfile;
-		if (originalAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = originalAgentDir;
+		if (originalAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = originalAgentDir;
 		fs.rmSync(tempHome, { recursive: true, force: true });
 		fs.rmSync(tempProject, { recursive: true, force: true });
 	});

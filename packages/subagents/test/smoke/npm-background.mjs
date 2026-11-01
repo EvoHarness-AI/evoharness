@@ -15,7 +15,7 @@ const root = process.argv[3];
 assert.ok(npmRoot && path.isAbsolute(npmRoot));
 assert.ok(root && path.isAbsolute(root) && !fs.existsSync(root), "fresh artifact root required");
 const installed = path.join(npmRoot, "extension/node_modules/pi-subagents");
-const sdk = "host/node_modules/@earendil-works/pi-coding-agent";
+const sdk = "host/node_modules/@evoharness/coding-agent";
 const version = JSON.parse(fs.readFileSync(path.join(npmRoot, sdk, "package.json"), "utf8")).version;
 assert.equal(version, "1.2.0");
 for (const name of ["", "tmp", "home", "agent", "work/.pi/agents"]) fs.mkdirSync(path.join(root, name), { recursive: true });
@@ -30,7 +30,7 @@ const mapped = Object.fromEntries(Object.entries(aliases).map(([key, value]) => 
 const args = ["--die-with-parent", "--unshare-net", "--unshare-pid", "--ro-bind", "/usr", "/usr", "--symlink", "usr/bin", "/bin"];
 for (const lib of ["/lib", "/lib64", "/etc/ld.so.cache"]) if (fs.existsSync(lib)) args.push("--ro-bind", lib, lib);
 args.push("--proc", "/proc", "--dev", "/dev", "--bind", root, "/stage", "--bind", path.join(root, "tmp"), "/tmp", "--ro-bind", npmRoot, "/npm-fixture", "--ro-bind", path.join(npmRoot, "extension/node_modules"), "/stage/node_modules", "--chdir", "/stage/work", "--clearenv");
-for (const [key, value] of Object.entries({ PATH: "/stage:/usr/bin:/bin", HOME: "/stage/home", PI_CODING_AGENT_DIR: "/stage/agent", PI_OFFLINE: "1", JITI_FS_CACHE: "false", JITI_ALIAS: JSON.stringify(mapped), TERM: "dumb", PI_STANDALONE_SMOKE_MODE: "single" })) args.push("--setenv", key, value);
+for (const [key, value] of Object.entries({ PATH: "/stage:/usr/bin:/bin", HOME: "/stage/home", EVOHARNESS_CODING_AGENT_DIR: "/stage/agent", EVOHARNESS_OFFLINE: "1", JITI_FS_CACHE: "false", JITI_ALIAS: JSON.stringify(mapped), TERM: "dumb", PI_STANDALONE_SMOKE_MODE: "single" })) args.push("--setenv", key, value);
 args.push("--", "/stage/node", "--import", "/stage/package/runner-peer-preload.mjs", `/npm-fixture/${sdk}/dist/cli.js`, "--no-extensions", "--no-skills", "--no-prompt-templates", "--no-session", "--mode", "rpc", "--extension", "/stage/package/test/smoke/standalone-provider.ts", "--extension", "/stage/package/test/smoke/standalone-parent.ts");
 const result = spawnSync("bwrap", args, { encoding: "utf8", timeout: 90000, maxBuffer: 10 * 1024 * 1024 });
 fs.writeFileSync(path.join(root, "parent.log"), `${result.stdout ?? ""}${result.stderr ?? ""}`);

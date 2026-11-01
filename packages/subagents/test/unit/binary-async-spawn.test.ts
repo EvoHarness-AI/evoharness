@@ -24,7 +24,7 @@ for (const [entry, missingBootstrap] of [
 		Object.defineProperty(process.versions, "bun", { value: "1.3.14", configurable: true });
 		process.argv[1] = entry;
 		process.env.PI_SUBAGENT_PI_BINARY = path.join(root, "pi-native");
-		process.env.PI_PACKAGE_DIR = path.join(root, "release-assets");
+		process.env.EVOHARNESS_PACKAGE_DIR = path.join(root, "release-assets");
 		process.env.PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT = "/stale/npm-root";
 		process.env.JITI_ALIAS = '{"stale":"alias"}';
 		process.env.PI_SUBAGENT_PARENT_SESSION = "ambient-other-root";
@@ -54,7 +54,7 @@ for (const [entry, missingBootstrap] of [
 				assert.ok(args.at(-1).endsWith("binary-bootstrap.ts"));
 				assert.equal(options.env.JITI_ALIAS, undefined);
 				assert.equal(options.env.PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT, undefined);
-				assert.equal(options.env.PI_PACKAGE_DIR, process.env.PI_PACKAGE_DIR);
+				assert.equal(options.env.EVOHARNESS_PACKAGE_DIR, process.env.EVOHARNESS_PACKAGE_DIR);
 				assert.equal(options.env.PI_SUBAGENT_PARENT_SESSION, "binary-spawn");
 				assert.ok(path.isAbsolute(options.env.PI_SUBAGENT_RUNNER_CONFIG));
 				assert.equal(options.cwd, root);

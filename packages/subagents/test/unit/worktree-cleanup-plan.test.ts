@@ -840,7 +840,7 @@ describe("worktree cleanup plan", () => {
 		const agentDir = path.join(tempHome, ".pi", "agent");
 		const extensionsDir = path.join(agentDir, "extensions");
 		const baseDir = path.join(tempHome, "worktree-root");
-		const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
 		const projectDir = path.join(baseDir, path.basename(repo));
@@ -851,7 +851,7 @@ describe("worktree cleanup plan", () => {
 			fs.mkdirSync(extensionsDir, { recursive: true });
 			fs.mkdirSync(baseDir, { recursive: true });
 			fs.symlinkSync(extensionsDir, projectDir, process.platform === "win32" ? "junction" : "dir");
-			process.env.PI_CODING_AGENT_DIR = agentDir;
+			process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			process.env.HOME = tempHome;
 			process.env.USERPROFILE = tempHome;
 
@@ -869,8 +869,8 @@ describe("worktree cleanup plan", () => {
 			assert.equal(entry?.state, "ineligible");
 			assert.match(entry?.reasons.join(" ") ?? "", /Pi extensions directory/i);
 		} finally {
-			if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 			if (previousHome === undefined) delete process.env.HOME;
 			else process.env.HOME = previousHome;
 			if (previousUserProfile === undefined) delete process.env.USERPROFILE;

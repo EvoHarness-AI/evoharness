@@ -1,8 +1,8 @@
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { declarationsEqual, getCurrentSystemMessage, getCurrentTools, type AnthropicMessagesCompat, type SystemMessage, type TranscriptMessages } from "@earendil-works/pi-ai";
-import type { BeforeAgentStartEvent, BeforeProviderRequestEvent, ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { declarationsEqual, getCurrentSystemMessage, getCurrentTools, type AnthropicMessagesCompat, type SystemMessage, type TranscriptMessages } from "@evoharness/ai";
+import type { BeforeAgentStartEvent, BeforeProviderRequestEvent, ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
 import { registerNativeSupervisorClient } from "../../intercom/native-supervisor-channel.ts";
 import { permissionDecision } from "./permissions.ts";
 import type { SteerRequest } from "../background/control-channel.ts";

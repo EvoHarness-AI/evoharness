@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { splitKnownThinkingSuffix } from "../shared/model-info.ts";
 import { resolveWatchdogConfig } from "./settings.ts";
 import type { WatchdogRulesConfig, WatchdogWarning } from "./types.ts";

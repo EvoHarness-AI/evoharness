@@ -1,4 +1,4 @@
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext } from "@evoharness/coding-agent";
 import type { ThinkingLevel } from "../shared/model-info.ts";
 import { isStaleExtensionContextError, isUnboundExtensionRuntimeError } from "../shared/extension-context.ts";
 

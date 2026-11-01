@@ -24,7 +24,7 @@ function fakeHostRoot(base: string, directory = "fake-pi-coding-agent", source =
 	const root = path.join(base, directory);
 	fs.mkdirSync(path.join(root, "dist"), { recursive: true });
 	writeManifest(root, {
-		name: "@earendil-works/pi-coding-agent",
+		name: "@evoharness/coding-agent",
 		version: "0.0.0-fake",
 		type: "module",
 		exports: { ".": { import: "./dist/index.js" } },
@@ -68,7 +68,7 @@ describe("loadHostPiCodingAgent", () => {
 			[null, { browser: "./dist/missing.js" }, { import: "./dist/index.js" }],
 			{ ".": "./dist/index.js" },
 		]) {
-			writeManifest(root, { name: "@earendil-works/pi-coding-agent", type: "module", exports });
+			writeManifest(root, { name: "@evoharness/coding-agent", type: "module", exports });
 			const mod = await loadHostPiCodingAgent() as { __fakeHostSdk?: unknown };
 			assert.equal(mod.__fakeHostSdk, true, JSON.stringify(exports));
 		}
@@ -76,7 +76,7 @@ describe("loadHostPiCodingAgent", () => {
 
 	it("honors an explicit null export target", async () => {
 		writeManifest(root, {
-			name: "@earendil-works/pi-coding-agent",
+			name: "@evoharness/coding-agent",
 			exports: { ".": { import: null, default: "./dist/index.js" } },
 		});
 		await assert.rejects(loadHostPiCodingAgent(), /no resolvable root export/);
@@ -84,7 +84,7 @@ describe("loadHostPiCodingAgent", () => {
 
 	it("treats top-level null exports as absent", async () => {
 		writeManifest(root, {
-			name: "@earendil-works/pi-coding-agent",
+			name: "@evoharness/coding-agent",
 			type: "module",
 			exports: null,
 			main: "./dist/index.js",
@@ -96,7 +96,7 @@ describe("loadHostPiCodingAgent", () => {
 	it("preserves null blocking when an export fallback array is exhausted", async () => {
 		for (const blocked of [[], [null], [[null]]]) {
 			writeManifest(root, {
-				name: "@earendil-works/pi-coding-agent",
+				name: "@evoharness/coding-agent",
 				exports: { ".": { import: blocked, default: "./dist/index.js" } },
 			});
 			await assert.rejects(loadHostPiCodingAgent(), /no resolvable root export/);
@@ -105,7 +105,7 @@ describe("loadHostPiCodingAgent", () => {
 
 	it("selects the most specific export pattern before applying null blocking", () => {
 		writeManifest(root, {
-			name: "@earendil-works/pi-coding-agent",
+			name: "@evoharness/coding-agent",
 			exports: { "./*": null, "./x/*": "./dist/*.js" },
 		});
 		assert.equal(resolvePackageSubpath(root, "./x/y"), path.join(root, "dist/y.js"));
@@ -113,7 +113,7 @@ describe("loadHostPiCodingAgent", () => {
 
 	it("replaces every export wildcard with literal capture text", () => {
 		writeManifest(root, {
-			name: "@earendil-works/pi-coding-agent",
+			name: "@evoharness/coding-agent",
 			exports: { "./x/*": "./dist/*/*.js" },
 		});
 		assert.equal(resolvePackageSubpath(root, "./x/$&"), path.join(root, "dist/$&/$&.js"));
@@ -152,7 +152,7 @@ describe("loadHostPiCodingAgent", () => {
 	it("rejects when an auto-discovered root's selected entry is missing", async () => {
 		const runningRoot = fakeHostRoot(tmp, "missing-entry-pi-coding-agent");
 		writeManifest(runningRoot, {
-			name: "@earendil-works/pi-coding-agent",
+			name: "@evoharness/coding-agent",
 			version: "0.0.0-fake",
 			type: "module",
 			exports: { ".": { import: "./dist/missing.js" } },
@@ -197,7 +197,7 @@ describe("loadHostPiCodingAgent", () => {
 		const broken = path.join(tmp, "broken-pi-coding-agent");
 		fs.mkdirSync(path.join(broken, "dist"), { recursive: true });
 		writeManifest(broken, {
-			name: "@earendil-works/pi-coding-agent",
+			name: "@evoharness/coding-agent",
 			version: "0.0.0-fake",
 			type: "module",
 			exports: { ".": { import: "./dist/index.js" } },
@@ -218,6 +218,6 @@ describe("loadHostPiCodingAgent", () => {
 		});
 		fs.writeFileSync(path.join(wrong, "dist", "index.js"), "throw new Error('must not be imported');");
 		process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = wrong;
-		await assert.rejects(loadHostPiCodingAgent(), /expected "@earendil-works\/pi-coding-agent"/);
+		await assert.rejects(loadHostPiCodingAgent(), /expected "@evoharness\/pi-coding-agent"/);
 	});
 });

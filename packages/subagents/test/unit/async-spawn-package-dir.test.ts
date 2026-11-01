@@ -9,14 +9,14 @@ import { resolveHostPiPackageRoot, resolveInstalledPiPackageRoot, resolvePiPacka
 import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
 import { makeAgent } from "../support/helpers.ts";
 
-test("detached spawn does not keep an inherited bundled-layout PI_PACKAGE_DIR", async (t) => {
+test("detached spawn does not keep an inherited bundled-layout EVOHARNESS_PACKAGE_DIR", async (t) => {
 	const bundled = fs.mkdtempSync(path.join(os.tmpdir(), "bundled-pi-"));
-	const previous = process.env.PI_PACKAGE_DIR;
+	const previous = process.env.EVOHARNESS_PACKAGE_DIR;
 	const previousRoot = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
 	// The launch path consults this variable when argv discovery cannot identify
 	// the host; an ambient value from the outer environment would change the spawn env.
 	delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
-	process.env.PI_PACKAGE_DIR = bundled;
+	process.env.EVOHARNESS_PACKAGE_DIR = bundled;
 	const spawn = t.mock.method(childProcess, "spawn", () => {
 		throw new Error("spawn boundary captured");
 	});
@@ -38,13 +38,13 @@ test("detached spawn does not keep an inherited bundled-layout PI_PACKAGE_DIR", 
 		});
 		assert.match(result.content[0]!.text, /spawn boundary captured/);
 		const npmRoot = resolveHostPiPackageRoot();
-		assert.equal(spawn.mock.calls[0]!.arguments[2].env.PI_PACKAGE_DIR, npmRoot);
+		assert.equal(spawn.mock.calls[0]!.arguments[2].env.EVOHARNESS_PACKAGE_DIR, npmRoot);
 		assert.notEqual(npmRoot, bundled);
 	} finally {
 		t.mock.restoreAll();
 		syncBuiltinESMExports();
-		if (previous === undefined) delete process.env.PI_PACKAGE_DIR;
-		else process.env.PI_PACKAGE_DIR = previous;
+		if (previous === undefined) delete process.env.EVOHARNESS_PACKAGE_DIR;
+		else process.env.EVOHARNESS_PACKAGE_DIR = previous;
 		if (previousRoot === undefined) delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
 		else process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = previousRoot;
 		fs.rmSync(bundled, { recursive: true, force: true });
@@ -197,7 +197,7 @@ test("detached spawn drops inherited Git repository routing variables and keeps 
 		}
 		assert.equal(env.GIT_AUTHOR_NAME, "Kept Author");
 		assert.equal(env.GIT_ENV_SENTINEL_KEEP, "kept");
-		assert.ok(env.PI_PACKAGE_DIR, "launch-owned variables are still set");
+		assert.ok(env.EVOHARNESS_PACKAGE_DIR, "launch-owned variables are still set");
 	} finally {
 		t.mock.restoreAll();
 		syncBuiltinESMExports();

@@ -198,8 +198,8 @@ describe("supervisor ask registration", () => {
 	for (const platform of ["darwin", "win32", "linux"] as const) {
 		it(`drains foreground and workflow progress completed between ticks exactly once (${platform})`, async (t) => {
 			const root = fs.mkdtempSync(path.join(os.tmpdir(), "nested-final-progress-"));
-			const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-			process.env.PI_CODING_AGENT_DIR = root;
+			const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+			process.env.EVOHARNESS_CODING_AGENT_DIR = root;
 			fs.mkdirSync(path.join(root, "agents"), { recursive: true });
 			fs.writeFileSync(path.join(root, "agents", "leaf.md"), "---\nname: leaf\ndescription: Read-only leaf\ntools: read, contact_supervisor\nmodel: mock/test-model\n---\nInspect only.\n");
 			const launch = buildInProcessChildLaunch({
@@ -270,8 +270,8 @@ describe("supervisor ask registration", () => {
 				for (const leaf of leaves) await leaf.emit("session_shutdown");
 				await runtime.emit("session_shutdown");
 				polling.restore();
-				if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-				else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+				if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+				else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 				fs.rmSync(root, { recursive: true, force: true });
 			}
 		});
@@ -335,8 +335,8 @@ describe("supervisor ask registration", () => {
 	for (const platform of ["darwin", "win32"] as const) {
 		it(`answers nested A → B → C asks through the child hooks and executor (${platform})`, { timeout: 15_000 }, async () => {
 			const root = fs.mkdtempSync(path.join(os.tmpdir(), "nested-supervisor-"));
-			const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-			process.env.PI_CODING_AGENT_DIR = root;
+			const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+			process.env.EVOHARNESS_CODING_AGENT_DIR = root;
 			const agentsDir = path.join(root, "agents");
 			fs.mkdirSync(agentsDir, { recursive: true });
 			fs.writeFileSync(path.join(agentsDir, "leaf.md"), "---\nname: leaf\ndescription: Read-only leaf\ntools: read, contact_supervisor\nmodel: mock/test-model\n---\nInspect only.\n");
@@ -452,8 +452,8 @@ describe("supervisor ask registration", () => {
 				setChildSessionFactory(undefined);
 				for (const runtime of runtimes) await runtime.emit("session_shutdown");
 				parent.dispose();
-				if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-				else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+				if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+				else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 				for (const dir of workflows) fs.rmSync(dir, { recursive: true, force: true });
 				fs.rmSync(root, { recursive: true, force: true });
 			}

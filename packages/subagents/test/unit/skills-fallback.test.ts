@@ -376,9 +376,9 @@ describe("skills filesystem fallback", () => {
 			discoverAvailableSkills(process.cwd());
 			discoverAgents(process.cwd(), "both");
 			if (fs.existsSync(process.env.PI_DISCOVERY_MARKER)) {
-				throw new Error("npm was invoked while PI_OFFLINE was enabled");
+				throw new Error("npm was invoked while EVOHARNESS_OFFLINE was enabled");
 			}
-			delete process.env.PI_OFFLINE;
+			delete process.env.EVOHARNESS_OFFLINE;
 			clearSkillCache();
 			discoverAvailableSkills(process.cwd());
 			discoverAgents(process.cwd(), "both");
@@ -394,7 +394,7 @@ describe("skills filesystem fallback", () => {
 					USERPROFILE: fakeHome,
 					PATH: `${binDir}${path.delimiter}${process.env.PATH ?? ""}`,
 					PI_DISCOVERY_MARKER: marker,
-					PI_OFFLINE: "1",
+					EVOHARNESS_OFFLINE: "1",
 				},
 				stdio: "pipe",
 			},
@@ -427,7 +427,7 @@ describe("skills filesystem fallback", () => {
 			env: {
 				...process.env,
 				PATH: emptyBinDir,
-				PI_OFFLINE: "",
+				EVOHARNESS_OFFLINE: "",
 			},
 			encoding: "utf-8",
 		});

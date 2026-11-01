@@ -77,7 +77,7 @@ function asDataModule(source) {
 
 export function resolve(specifier, context, nextResolve) {
   if (context.parentURL?.endsWith("/render.ts")) {
-    if (specifier === "@earendil-works/pi-tui") {
+    if (specifier === "@evoharness/tui") {
       return { url: asDataModule(renderPiTuiShim), shortCircuit: true };
     }
   }

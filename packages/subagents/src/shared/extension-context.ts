@@ -1,4 +1,4 @@
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext } from "@evoharness/coding-agent";
 
 /**
  * Declares a tool to the model but keeps it out of codemode scripts and other `ctx.executeTool()`

@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { INSPECTOR_REGISTER_EVENT, type InspectorRegistrationRequest } from "../api/inspectors.ts";
 import { createHerdrInspectorPlugin } from "./herdr/plugin.ts";
 import { createGhosttyInspectorPlugin } from "./ghostty/plugin.ts";

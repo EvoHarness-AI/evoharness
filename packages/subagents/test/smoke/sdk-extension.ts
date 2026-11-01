@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
-import { AgentSession } from "@earendil-works/pi-coding-agent";
-import { BACKGROUND_CONTEXT } from "@earendil-works/pi-agent-core";
-import { createModels, fauxProvider, fauxAssistantMessage } from "@earendil-works/pi-ai";
+import { AgentSession } from "@evoharness/coding-agent";
+import { BACKGROUND_CONTEXT } from "@evoharness/agent-core";
+import { createModels, fauxProvider, fauxAssistantMessage } from "@evoharness/ai";
 
 export default function(pi) {
 	const state = globalThis.__sdkSmoke;

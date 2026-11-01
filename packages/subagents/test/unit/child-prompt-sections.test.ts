@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { fauxAssistantMessage, fauxProvider, fauxToolCall, getSystemMessageText, type FauxResponseFactory } from "@earendil-works/pi-ai";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { fauxAssistantMessage, fauxProvider, fauxToolCall, getSystemMessageText, type FauxResponseFactory } from "@evoharness/ai";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
 import { createDefaultChildSessionFactory } from "../../src/runs/shared/child-session.ts";
 import { createStructuredOutputRuntime } from "../../src/runs/shared/structured-output.ts";
@@ -20,7 +20,7 @@ describe("child provider system prompt", () => {
 	let root: string;
 	let agentDir: string;
 	let repo: string;
-	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 
 	before(() => {
 		root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-child-prompt-sections-"));
@@ -29,12 +29,12 @@ describe("child provider system prompt", () => {
 		fs.mkdirSync(repo);
 		writeSkill("probe-skill");
 		fs.writeFileSync(path.join(repo, "notes.txt"), "notes");
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	});
 
 	after(() => {
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		fs.rmSync(root, { recursive: true, force: true });
 	});
 
@@ -70,7 +70,7 @@ describe("child provider system prompt", () => {
 		});
 		// Unset flags make the prompt runtime leave the prompt alone, so the same launch yields Pi's original render.
 		if (run.unsetFlags) Object.assign(config, { inheritProjectContext: undefined, inheritGlobalContext: undefined, inheritSkills: undefined });
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: () => import("@earendil-works/pi-coding-agent") });
+		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: () => import("@evoharness/coding-agent") });
 		const hooks = [(pi: ExtensionAPI) => pi.registerProvider(faux.provider as never), ...run.hooks ?? []];
 		const child = await factory.create({ ...session, hooks: [...session.hooks, ...hooks.map((factory, index) => ({ name: `probe-${index}`, factory }))] });
 		try {

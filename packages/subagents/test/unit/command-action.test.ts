@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { randomUUID } from "node:crypto";
-import { createBashToolDefinition, type ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { createBashToolDefinition, type ExtensionContext } from "@evoharness/coding-agent";
 import { commandAction } from "../../src/runs/foreground/command-action.ts";
 import { createChildCommandRuntime } from "../../src/runs/shared/child-commands.ts";
 import { supervisorChannelDir } from "../../src/runs/shared/child-tool-plan.ts";

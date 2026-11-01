@@ -6,7 +6,7 @@ import {
 	type Model,
 	type SimpleStreamOptions,
 	type TranscriptContext,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import { rewritePromptWithGuidance } from "../../src/runs/foreground/prompt-audit.ts";
 
 function model(): Model<any> {

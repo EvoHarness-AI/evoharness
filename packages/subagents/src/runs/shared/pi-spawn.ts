@@ -3,7 +3,7 @@ import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../shared/utils.ts";
 
-export const PI_CODING_AGENT_PACKAGE = "@earendil-works/pi-coding-agent";
+export const PI_CODING_AGENT_PACKAGE = "@evoharness/coding-agent";
 export const PI_SUBAGENT_PI_BINARY_ENV = "PI_SUBAGENT_PI_BINARY";
 
 export function findPiPackageRootFromEntry(entryPoint: string): string | undefined {

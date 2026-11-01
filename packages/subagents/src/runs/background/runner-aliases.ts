@@ -2,7 +2,7 @@
  * Module aliases for the detached async runner.
  *
  * The runner is a plain Node process started through jiti. The child hooks it
- * loads import pi's host packages (`@earendil-works/pi-coding-agent`,
+ * loads import pi's host packages (`@evoharness/coding-agent`,
  * `pi-agent-core`, `pi-ai`, `pi-tui`, `typebox`), which are peer packages of
  * this extension and are not installed next to it. pi's own extension loader
  * aliases those specifiers to the copies shipped inside the installed pi
@@ -16,25 +16,25 @@ export const JITI_ALIAS_ENV = "JITI_ALIAS";
 
 /** Specifiers the runner's import graph may use, with the package and export subpath each resolves to. */
 export const HOST_PEER_ALIASES: ReadonlyArray<{ specifier: string; pkg: string; subpath: string; optional?: boolean }> = [
-	{ specifier: "@earendil-works/pi-coding-agent", pkg: "@earendil-works/pi-coding-agent", subpath: "." },
-	{ specifier: "@earendil-works/pi-agent-core", pkg: "@earendil-works/pi-agent-core", subpath: "." },
+	{ specifier: "@evoharness/coding-agent", pkg: "@evoharness/coding-agent", subpath: "." },
+	{ specifier: "@evoharness/agent-core", pkg: "@evoharness/agent-core", subpath: "." },
 	// Optional: hosts whose pi-agent-core declares no "./node" export cannot import it, so no alias is needed.
-	{ specifier: "@earendil-works/pi-agent-core/node", pkg: "@earendil-works/pi-agent-core", subpath: "./node", optional: true },
-	{ specifier: "@earendil-works/pi-tui", pkg: "@earendil-works/pi-tui", subpath: "." },
-	{ specifier: "@earendil-works/pi-ai", pkg: "@earendil-works/pi-ai", subpath: "./compat" },
-	{ specifier: "@earendil-works/pi-ai/compat", pkg: "@earendil-works/pi-ai", subpath: "./compat" },
-	{ specifier: "@earendil-works/pi-ai/oauth", pkg: "@earendil-works/pi-ai", subpath: "./oauth" },
-	{ specifier: "@earendil-works/pi-ai/providers/all", pkg: "@earendil-works/pi-ai", subpath: "./providers/all" },
+	{ specifier: "@evoharness/agent-core/node", pkg: "@evoharness/agent-core", subpath: "./node", optional: true },
+	{ specifier: "@evoharness/tui", pkg: "@evoharness/tui", subpath: "." },
+	{ specifier: "@evoharness/ai", pkg: "@evoharness/ai", subpath: "./compat" },
+	{ specifier: "@evoharness/ai/compat", pkg: "@evoharness/ai", subpath: "./compat" },
+	{ specifier: "@evoharness/ai/oauth", pkg: "@evoharness/ai", subpath: "./oauth" },
+	{ specifier: "@evoharness/ai/providers/all", pkg: "@evoharness/ai", subpath: "./providers/all" },
 	{ specifier: "typebox", pkg: "typebox", subpath: "." },
 	{ specifier: "typebox/compile", pkg: "typebox", subpath: "./compile" },
 	{ specifier: "typebox/value", pkg: "typebox", subpath: "./value" },
 ];
 
 /** Pi manifests declare chord from 0.85.0 through 1.1.x; earlier hosts and 1.2.0+ do not ship it. */
-const CHORD_PACKAGE = "@earendil-works/chord";
+const CHORD_PACKAGE = "@evoharness/chord";
 const CHORD_PEER_ALIASES: typeof HOST_PEER_ALIASES = [
-	{ specifier: "@earendil-works/chord", pkg: "@earendil-works/chord", subpath: "." },
-	{ specifier: "@earendil-works/chord/context", pkg: "@earendil-works/chord", subpath: "./context" },
+	{ specifier: "@evoharness/chord", pkg: "@evoharness/chord", subpath: "." },
+	{ specifier: "@evoharness/chord/context", pkg: "@evoharness/chord", subpath: "./context" },
 ];
 
 interface PackageManifest {

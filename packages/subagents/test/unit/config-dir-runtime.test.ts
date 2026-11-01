@@ -40,7 +40,7 @@ describe("config directory resolution", () => {
 			const cliPath = path.join(distDir, "cli.js");
 			fs.writeFileSync(cliPath, "", "utf-8");
 			fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({
-				name: "@earendil-works/pi-coding-agent",
+				name: "@evoharness/coding-agent",
 				piConfig: { configDir: ".custom-pi" },
 			}), "utf-8");
 
@@ -56,7 +56,7 @@ describe("config directory resolution", () => {
 			const packageRoot = path.join(tempDir, "coding-agent-root");
 			fs.mkdirSync(packageRoot, { recursive: true });
 			fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({
-				name: "@earendil-works/pi-coding-agent",
+				name: "@evoharness/coding-agent",
 				piConfig: { configDir: ".root-pi" },
 			}), "utf-8");
 
@@ -74,7 +74,7 @@ describe("config directory resolution", () => {
 			for (const [root, configDir] of [[firstRoot, ".first-pi"], [secondRoot, ".second-pi"]] as const) {
 				fs.mkdirSync(root, { recursive: true });
 				fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({
-					name: "@earendil-works/pi-coding-agent",
+					name: "@evoharness/coding-agent",
 					piConfig: { configDir },
 				}), "utf-8");
 			}
@@ -102,6 +102,6 @@ describe("config directory resolution", () => {
 
 	it("does not runtime-import the coding agent peer from shared utils", () => {
 		const source = fs.readFileSync(path.join(repoRoot, "src/shared/utils.ts"), "utf-8");
-		assert.doesNotMatch(source, /import\s+[^;]*from\s+["']@earendil-works\/pi-coding-agent["']/);
+		assert.doesNotMatch(source, /import\s+[^;]*from\s+["']@evoharness\/pi-coding-agent["']/);
 	});
 });

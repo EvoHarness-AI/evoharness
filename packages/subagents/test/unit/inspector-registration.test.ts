@@ -4,7 +4,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
-import { createEventBus } from "@earendil-works/pi-coding-agent";
+import { createEventBus } from "@evoharness/coding-agent";
 import { INSPECTOR_REGISTER_EVENT, registerInspector, type InspectorPlugin, type InspectorRegistrationRequest } from "../../src/api/inspectors.ts";
 import { handleInspectorAction } from "../../src/inspectors/actions.ts";
 import { getInspectorPlugins, registerInspectorEventListener } from "../../src/inspectors/plugins.ts";

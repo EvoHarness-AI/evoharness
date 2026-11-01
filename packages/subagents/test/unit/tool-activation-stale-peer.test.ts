@@ -6,7 +6,7 @@ test("activates against the running Pi when a package-local pi-ai lacks transcri
 	// Simulate an older pi-ai installed beside this package, not the running host.
 	const hook = registerHooks({
 		resolve(specifier, context, nextResolve) {
-			if (specifier === "@earendil-works/pi-ai" && context.parentURL &&
+			if (specifier === "@evoharness/ai" && context.parentURL &&
 				new URL(context.parentURL).pathname.endsWith("/src/extension/tool-activation.ts")) {
 				return { url: "data:text/javascript,export const legacy = true", shortCircuit: true };
 			}

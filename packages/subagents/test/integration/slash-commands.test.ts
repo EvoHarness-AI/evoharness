@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { beforeEach, describe, it } from "node:test";
-import { visibleWidth } from "@earendil-works/pi-tui";
+import { visibleWidth } from "@evoharness/tui";
 
 import { registerAgent } from "../../src/api/agents.ts";
 import { clearRuntimeAgentsForPi } from "../../src/agents/runtime-agent-registry.ts";
@@ -129,17 +129,17 @@ function createState(cwd: string) {
 
 async function withIsolatedHome<T>(fn: () => Promise<T>): Promise<T> {
 	const home = fs.mkdtempSync(path.join(os.tmpdir(), "pi-slash-home-"));
-	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	const previousHome = process.env.HOME;
 	const previousUserProfile = process.env.USERPROFILE;
-	process.env.PI_CODING_AGENT_DIR = path.join(home, ".pi", "agent");
+	process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(home, ".pi", "agent");
 	process.env.HOME = home;
 	process.env.USERPROFILE = home;
 	try {
 		return await fn();
 	} finally {
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		if (previousHome === undefined) delete process.env.HOME;
 		else process.env.HOME = previousHome;
 		if (previousUserProfile === undefined) delete process.env.USERPROFILE;

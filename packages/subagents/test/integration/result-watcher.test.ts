@@ -6,7 +6,7 @@ import { syncBuiltinESMExports } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext } from "@evoharness/coding-agent";
 import { buildCompletionKey } from "../../src/runs/background/completion-dedupe.ts";
 import { createResultWatcher as createRawResultWatcher } from "../../src/runs/background/result-watcher.ts";
 import { collectWaitCompletions } from "../../src/runs/background/wait-completions.ts";

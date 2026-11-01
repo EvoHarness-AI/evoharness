@@ -6,7 +6,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
-import { SessionManager } from "@earendil-works/pi-coding-agent";
+import { SessionManager } from "@evoharness/coding-agent";
 import registerSubagentNotify, {
 	buildCompletionDetails,
 	createCompletionSendRegistry,

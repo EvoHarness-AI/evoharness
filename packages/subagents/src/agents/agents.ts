@@ -519,7 +519,7 @@ function resolveSettingsPackageRoot(source: string, baseDir: string): string | u
 }
 
 function getGlobalNpmRoot(): string | null {
-	const offline = process.env.PI_OFFLINE?.toLowerCase();
+	const offline = process.env.EVOHARNESS_OFFLINE?.toLowerCase();
 	if (offline === "1" || offline === "true" || offline === "yes") return null;
 	if (cachedGlobalNpmRoot !== null) return cachedGlobalNpmRoot;
 
@@ -1888,7 +1888,7 @@ export function removeBuiltinAgentOverrideFields(
 	});
 }
 
-const DISCOVERY_PRUNED_DIR_NAMES = new Set([".git", "node_modules", ".pi", "sync-backups"]);
+const DISCOVERY_PRUNED_DIR_NAMES = new Set([".git", "node_modules", ".pi", ".evoharness", "sync-backups"]);
 
 function isDiscoveryNestedProjectRoot(dir: string): boolean {
 	return isDirectory(getProjectConfigDir(dir)) || isDirectory(path.join(dir, ".agents"));
@@ -2722,7 +2722,7 @@ function discoveryCacheKey(cwd: string, preferredModelProvider: string | undefin
 		process.env.HOME ?? "",
 		process.env.USERPROFILE ?? "",
 		process.env[EXTRA_AGENT_DIRS_ENV] ?? "",
-		process.env.PI_OFFLINE ?? "",
+		process.env.EVOHARNESS_OFFLINE ?? "",
 		process.env.APPDATA ?? "",
 	]);
 }
@@ -2793,7 +2793,7 @@ function buildAgentDiscoverySources(cwd: string, preferredModelProvider: string 
 	for (const directory of projectLoaded) addDirectoryWatchPaths(watchPaths, directory.dir, directory.inspection.files, inspectedAgentDefinitionDirectories(directory.inspection, directory.dir));
 	for (const directory of packageLoaded) addDirectoryWatchPaths(watchPaths, directory.dir, directory.inspection.files, inspectedAgentDefinitionDirectories(directory.inspection, directory.dir));
 
-	const userDir = process.env.PI_CODING_AGENT_DIR ? userDirOld : fs.existsSync(userDirNew) ? userDirNew : userDirOld;
+	const userDir = process.env.EVOHARNESS_CODING_AGENT_DIR ? userDirOld : fs.existsSync(userDirNew) ? userDirNew : userDirOld;
 	return {
 		cwd: effectiveCwd,
 		...(preferredModelProvider !== undefined ? { preferredModelProvider } : {}),

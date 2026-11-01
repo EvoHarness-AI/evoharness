@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { StreamFn } from "@earendil-works/pi-agent-core";
+import type { StreamFn } from "@evoharness/agent-core";
 import { childCacheRetention, childCacheRetentionEnv, pinChildCacheRetention } from "../../src/shared/child-cache-retention.ts";
 
 type StreamOptions = Parameters<StreamFn>[2];
@@ -31,20 +31,20 @@ describe("childCacheRetention", () => {
 	});
 
 	it("ignores the parent's own retention", () => {
-		assert.equal(childCacheRetention({ PI_CACHE_RETENTION: "long" }), undefined);
+		assert.equal(childCacheRetention({ EVOHARNESS_CACHE_RETENTION: "long" }), undefined);
 	});
 });
 
 describe("childCacheRetentionEnv", () => {
 	it("contributes nothing when unset so a spawned child inherits the parent value", () => {
 		assert.deepEqual(childCacheRetentionEnv({}), {});
-		const launchEnv = { ...{ PI_CACHE_RETENTION: "long" }, ...childCacheRetentionEnv({}) };
-		assert.equal(launchEnv.PI_CACHE_RETENTION, "long");
+		const launchEnv = { ...{ EVOHARNESS_CACHE_RETENTION: "long" }, ...childCacheRetentionEnv({}) };
+		assert.equal(launchEnv.EVOHARNESS_CACHE_RETENTION, "long");
 	});
 
 	it("overrides the inherited value in a spawned child's launch environment", () => {
-		const launchEnv = { ...{ PI_CACHE_RETENTION: "long" }, ...childCacheRetentionEnv({ PI_SUBAGENT_CACHE_RETENTION: "short" }) };
-		assert.equal(launchEnv.PI_CACHE_RETENTION, "short");
+		const launchEnv = { ...{ EVOHARNESS_CACHE_RETENTION: "long" }, ...childCacheRetentionEnv({ PI_SUBAGENT_CACHE_RETENTION: "short" }) };
+		assert.equal(launchEnv.EVOHARNESS_CACHE_RETENTION, "short");
 	});
 });
 
@@ -54,15 +54,15 @@ describe("pinChildCacheRetention", () => {
 		const { agent, calls, original } = recordingAgent();
 		pinChildCacheRetention(agent, {});
 		assert.equal(agent.streamFunction, original);
-		call(agent, { env: { PI_CACHE_RETENTION: "long" } });
-		assert.deepEqual(calls[0]?.env, { PI_CACHE_RETENTION: "long" });
+		call(agent, { env: { EVOHARNESS_CACHE_RETENTION: "long" } });
+		assert.deepEqual(calls[0]?.env, { EVOHARNESS_CACHE_RETENTION: "long" });
 	});
 
 	it("overrides an inherited parent tier on the request env", () => {
 		const { agent, calls } = recordingAgent();
 		pinChildCacheRetention(agent, { PI_SUBAGENT_CACHE_RETENTION: "short" });
-		call(agent, { env: { PI_CACHE_RETENTION: "long" } });
-		assert.equal(calls[0]?.env?.PI_CACHE_RETENTION, "short");
+		call(agent, { env: { EVOHARNESS_CACHE_RETENTION: "long" } });
+		assert.equal(calls[0]?.env?.EVOHARNESS_CACHE_RETENTION, "short");
 	});
 
 	it("preserves other request env values and options", () => {
@@ -70,18 +70,18 @@ describe("pinChildCacheRetention", () => {
 		pinChildCacheRetention(agent, { PI_SUBAGENT_CACHE_RETENTION: "short" });
 		call(agent, { env: { ANTHROPIC_API_KEY: "sk-test" }, headers: { "x-trace": "1" } } as StreamOptions);
 		assert.equal(calls[0]?.env?.ANTHROPIC_API_KEY, "sk-test");
-		assert.equal(calls[0]?.env?.PI_CACHE_RETENTION, "short");
+		assert.equal(calls[0]?.env?.EVOHARNESS_CACHE_RETENTION, "short");
 		assert.deepEqual((calls[0] as { headers?: Record<string, string> })?.headers, { "x-trace": "1" });
 	});
 
 	it("leaves a sibling session's stream function alone", () => {
-		const before = process.env.PI_CACHE_RETENTION;
+		const before = process.env.EVOHARNESS_CACHE_RETENTION;
 		const child = recordingAgent();
 		const parent = recordingAgent();
 		pinChildCacheRetention(child.agent, { PI_SUBAGENT_CACHE_RETENTION: "short" });
 		assert.equal(parent.agent.streamFunction, parent.original);
-		call(parent.agent, { env: { PI_CACHE_RETENTION: "long" } });
-		assert.equal(parent.calls[0]?.env?.PI_CACHE_RETENTION, "long");
-		assert.equal(process.env.PI_CACHE_RETENTION, before);
+		call(parent.agent, { env: { EVOHARNESS_CACHE_RETENTION: "long" } });
+		assert.equal(parent.calls[0]?.env?.EVOHARNESS_CACHE_RETENTION, "long");
+		assert.equal(process.env.EVOHARNESS_CACHE_RETENTION, before);
 	});
 });

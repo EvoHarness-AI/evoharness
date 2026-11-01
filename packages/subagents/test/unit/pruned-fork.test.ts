@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { createAssistantMessageEventStream, fauxAssistantMessage } from "@earendil-works/pi-ai";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { createAssistantMessageEventStream, fauxAssistantMessage } from "@evoharness/ai";
+import type { ExtensionContext } from "@evoharness/coding-agent";
 import { createForkContextResolver } from "../../src/shared/fork-context.ts";
 import { createPrunedForkSessionWriter, pruneForkSessionFile, prunedForkRecoveryPath, type PrunedForkRecoveryPayload } from "../../src/shared/pruned-fork.ts";
 

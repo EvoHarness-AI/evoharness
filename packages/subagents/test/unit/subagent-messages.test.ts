@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { describe, it, type TestContext } from "node:test";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { visibleWidth } from "@earendil-works/pi-tui";
-import { CustomMessageComponent, initTheme } from "@earendil-works/pi-coding-agent";
+import { visibleWidth } from "@evoharness/tui";
+import { CustomMessageComponent, initTheme } from "@evoharness/coding-agent";
 import { renderSubagentEntry, renderSubagentMessage } from "../../src/tui/subagent-messages.ts";
 
 // Markdown bodies read Pi's markdown theme, which Pi initializes at startup.
@@ -58,9 +58,9 @@ function tonedHeadline(customType: string, details: unknown, content = ""): stri
 
 // keyText resolves Pi's expand key through the pi-tui copy that pi-coding-agent loads.
 async function bindExpandKey(t: TestContext, keys: string): Promise<void> {
-	const agentEntry = fileURLToPath(import.meta.resolve("@earendil-works/pi-coding-agent"));
+	const agentEntry = fileURLToPath(import.meta.resolve("@evoharness/coding-agent"));
 	// SAFETY: this path is pi-tui's package entry, resolved from where pi-coding-agent loads it.
-	const tui = await import(pathToFileURL(createRequire(agentEntry).resolve("@earendil-works/pi-tui")).href) as typeof import("@earendil-works/pi-tui");
+	const tui = await import(pathToFileURL(createRequire(agentEntry).resolve("@evoharness/tui")).href) as typeof import("@evoharness/tui");
 	const previous = tui.getKeybindings();
 	tui.setKeybindings(new tui.KeybindingsManager({ ...tui.TUI_KEYBINDINGS, "app.tools.expand": { defaultKeys: keys, description: "Toggle tool output" } }));
 	t.after(() => tui.setKeybindings(previous));

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { mock } from "bun:test";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 
 // Bun's named fs binding requires mock.module; fault only atomic rename after real spawn.
 export default function injectStartupFailure(pi: ExtensionAPI) {

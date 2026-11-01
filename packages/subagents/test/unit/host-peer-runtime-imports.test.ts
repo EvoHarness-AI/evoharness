@@ -13,10 +13,10 @@ import type { JsonSchemaObject } from "../../src/shared/types.ts";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const hostPeerPackages = [
-	"@earendil-works/pi-agent-core",
-	"@earendil-works/pi-ai",
-	"@earendil-works/pi-coding-agent",
-	"@earendil-works/pi-tui",
+	"@evoharness/agent-core",
+	"@evoharness/ai",
+	"@evoharness/coding-agent",
+	"@evoharness/tui",
 	"typebox",
 ] as const;
 
@@ -112,12 +112,12 @@ test("the standalone inspector runner reaches no host peer package, because its 
 
 test("resolves pi-agent-core/node to its exact package export instead of appending to the root alias", () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-agent-core-node-alias-"));
-	const packageDir = path.join(root, "node_modules", "@earendil-works", "pi-agent-core");
+	const packageDir = path.join(root, "node_modules", "@evoharness", "agent-core");
 	const distDir = path.join(packageDir, "dist");
 	try {
 		fs.mkdirSync(distDir, { recursive: true });
 		fs.writeFileSync(path.join(packageDir, "package.json"), JSON.stringify({
-			name: "@earendil-works/pi-agent-core",
+			name: "@evoharness/agent-core",
 			version: "0.85.1-test",
 			exports: {
 				".": "./dist/index.js",
@@ -128,9 +128,9 @@ test("resolves pi-agent-core/node to its exact package export instead of appendi
 		fs.writeFileSync(path.join(distDir, "node.js"), "export {};\n", "utf-8");
 
 		const resolved = resolveHostPeerAliases(root);
-		assert.equal(resolved.aliases["@earendil-works/pi-agent-core"], fs.realpathSync(path.join(distDir, "index.js")));
-		assert.equal(resolved.aliases["@earendil-works/pi-agent-core/node"], fs.realpathSync(path.join(distDir, "node.js")));
-		assert.notEqual(resolved.aliases["@earendil-works/pi-agent-core/node"], path.join(distDir, "index.js", "node"));
+		assert.equal(resolved.aliases["@evoharness/agent-core"], fs.realpathSync(path.join(distDir, "index.js")));
+		assert.equal(resolved.aliases["@evoharness/agent-core/node"], fs.realpathSync(path.join(distDir, "node.js")));
+		assert.notEqual(resolved.aliases["@evoharness/agent-core/node"], path.join(distDir, "index.js", "node"));
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true });
 	}
@@ -173,9 +173,9 @@ test("resolveCompileFromPackageRoot resolves typebox hoisted to an ancestor node
 	const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-hoisted-root-"));
 	try {
 		writeFakeTypeboxPackage(path.join(tmp, "node_modules", "typebox"));
-		const packageRoot = path.join(tmp, "apps", "pi", "node_modules", "@earendil-works", "pi-coding-agent");
+		const packageRoot = path.join(tmp, "apps", "pi", "node_modules", "@evoharness", "coding-agent");
 		fs.mkdirSync(packageRoot, { recursive: true });
-		fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ name: "@earendil-works/pi-coding-agent", version: "0.0.0" }));
+		fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ name: "@evoharness/coding-agent", version: "0.0.0" }));
 
 		const compile = await resolveCompileFromPackageRoot(packageRoot);
 		assert.equal(typeof compile, "function");
@@ -203,7 +203,7 @@ test("validateStructuredOutputValue finds typebox/compile through the running Pi
 		const pi = path.join(root, "pi");
 		fs.mkdirSync(path.join(pi, "dist"), { recursive: true });
 		fs.mkdirSync(path.join(pi, "node_modules"));
-		fs.writeFileSync(path.join(pi, "package.json"), JSON.stringify({ name: "@earendil-works/pi-coding-agent", type: "module" }));
+		fs.writeFileSync(path.join(pi, "package.json"), JSON.stringify({ name: "@evoharness/coding-agent", type: "module" }));
 		fs.symlinkSync(fs.realpathSync(path.join(projectRoot, "node_modules", "typebox")), path.join(pi, "node_modules", "typebox"), "junction");
 		const cli = path.join(pi, "dist", "cli.js");
 		fs.writeFileSync(cli, [
@@ -241,7 +241,7 @@ test("chord is required only when the host declares it, and aliased host-first w
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-chord-alias-"));
 	const host = path.join(root, "host");
 	const extension = path.join(root, "extension");
-	const chord = "@earendil-works/chord";
+	const chord = "@evoharness/chord";
 	function writePackage(dir: string, name: string, version: string, exports: Record<string, string>, extra: Record<string, unknown> = {}) {
 		fs.mkdirSync(dir, { recursive: true });
 		fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name, version, exports, ...extra }));
@@ -256,9 +256,9 @@ test("chord is required only when the host declares it, and aliased host-first w
 			packages.set(pkg, exports);
 		}
 		for (const [pkg, exports] of packages) {
-			writePackage(pkg === "@earendil-works/pi-coding-agent" ? host : path.join(host, "node_modules", pkg), pkg, "0.84.3", exports);
+			writePackage(pkg === "@evoharness/coding-agent" ? host : path.join(host, "node_modules", pkg), pkg, "0.84.3", exports);
 		}
-		const hostExports = packages.get("@earendil-works/pi-coding-agent")!;
+		const hostExports = packages.get("@evoharness/coding-agent")!;
 		const preChord = resolveHostPeerAliases(host);
 		assert.deepEqual(preChord.missing, []);
 		assert.equal(preChord.aliases[chord], undefined);
@@ -267,18 +267,18 @@ test("chord is required only when the host declares it, and aliased host-first w
 		writePackage(path.join(extension, "node_modules", chord), chord, "0.85.1", { ".": "./index.mjs", "./context": "./context.mjs" });
 		// Pi 1.2.0+ no longer depends on chord: an undeclared, absent chord is not required.
 		for (const version of ["1.2.0", "2.0.0-test"]) {
-			writePackage(host, "@earendil-works/pi-coding-agent", version, hostExports, { dependencies: { "@earendil-works/pi-tui": "^1.2.0" } });
+			writePackage(host, "@evoharness/coding-agent", version, hostExports, { dependencies: { "@evoharness/tui": "^1.2.0" } });
 			const result = resolveHostPeerAliases(host);
 			assert.deepEqual(result.missing, [], version);
 			assert.equal(result.aliases[chord], undefined, version);
 		}
 		// A host that declares chord (0.85 through 1.1) fails closed when it is missing.
 		for (const field of ["dependencies", "optionalDependencies"]) {
-			writePackage(host, "@earendil-works/pi-coding-agent", "1.1.0", hostExports, { [field]: { [chord]: "^1.1.0" } });
+			writePackage(host, "@evoharness/coding-agent", "1.1.0", hostExports, { [field]: { [chord]: "^1.1.0" } });
 			const result = resolveHostPeerAliases(host);
 			for (const specifier of [chord, `${chord}/context`]) assert.ok(result.missing.includes(specifier), field);
 		}
-		writePackage(host, "@earendil-works/pi-coding-agent", "0.85.1", hostExports, { dependencies: { [chord]: "^0.85.1" } });
+		writePackage(host, "@evoharness/coding-agent", "0.85.1", hostExports, { dependencies: { [chord]: "^0.85.1" } });
 		writePackage(hostChord, chord, "0.85.1", { ".": "./index.mjs", "./context": "./context.mjs" });
 		let result = resolveHostPeerAliases(host);
 		assert.deepEqual(result.missing, []);
@@ -286,10 +286,10 @@ test("chord is required only when the host declares it, and aliased host-first w
 		assert.equal(result.aliases[`${chord}/context`], fs.realpathSync(path.join(hostChord, "context.mjs")));
 		fs.unlinkSync(path.join(hostChord, "context.mjs"));
 		assert.deepEqual(resolveHostPeerAliases(host).missing, [`${chord}/context`]);
-		writePackage(host, "@earendil-works/pi-coding-agent", "0.84.3", hostExports);
-		fs.rmSync(path.join(host, "node_modules", "@earendil-works/pi-tui"), { recursive: true });
+		writePackage(host, "@evoharness/coding-agent", "0.84.3", hostExports);
+		fs.rmSync(path.join(host, "node_modules", "@evoharness/tui"), { recursive: true });
 		result = resolveHostPeerAliases(host);
-		assert.deepEqual(result.missing, ["@earendil-works/pi-tui"], "pre-chord hosts still require TUI");
+		assert.deepEqual(result.missing, ["@evoharness/tui"], "pre-chord hosts still require TUI");
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true });
 	}
@@ -297,21 +297,21 @@ test("chord is required only when the host declares it, and aliased host-first w
 
 test("skips the pi-agent-core/node alias when the host package declares no ./node export", () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-agent-core-no-node-"));
-	const packageDir = path.join(root, "node_modules", "@earendil-works", "pi-agent-core");
+	const packageDir = path.join(root, "node_modules", "@evoharness", "agent-core");
 	const distDir = path.join(packageDir, "dist");
 	try {
 		fs.mkdirSync(distDir, { recursive: true });
 		fs.writeFileSync(path.join(packageDir, "package.json"), JSON.stringify({
-			name: "@earendil-works/pi-agent-core",
+			name: "@evoharness/agent-core",
 			version: "1.0.0",
 			exports: { ".": { types: "./dist/index.d.ts", import: "./dist/index.js" }, "./package.json": "./package.json" },
 		}), "utf-8");
 		fs.writeFileSync(path.join(distDir, "index.js"), "export {};\n", "utf-8");
 
 		const resolved = resolveHostPeerAliases(root);
-		assert.equal(resolved.aliases["@earendil-works/pi-agent-core"], fs.realpathSync(path.join(distDir, "index.js")));
-		assert.equal(resolved.aliases["@earendil-works/pi-agent-core/node"], undefined);
-		assert.ok(!resolved.missing.includes("@earendil-works/pi-agent-core/node"));
+		assert.equal(resolved.aliases["@evoharness/agent-core"], fs.realpathSync(path.join(distDir, "index.js")));
+		assert.equal(resolved.aliases["@evoharness/agent-core/node"], undefined);
+		assert.ok(!resolved.missing.includes("@evoharness/agent-core/node"));
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true });
 	}

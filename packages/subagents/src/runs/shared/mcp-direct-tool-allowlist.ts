@@ -221,7 +221,7 @@ export function extensionOnlyMcpServers(selections: readonly ResolvedMcpDirectTo
 	const registered = new Set(host.getMcpServers?.().map(({ name }) => name));
 	const servers = [...new Set(selections.map(({ selector }) => selector.split("/")[0]!))].filter((server) => registered.has(server));
 	if (servers.length === 0) return [];
-	const files = [path.join(getAgentDir(), "mcp.json"), ...(projectTrusted ? [path.join(cwd, ".pi", "mcp.json")] : [])];
+	const files = [path.join(getAgentDir(), "mcp.json"), ...(projectTrusted ? [path.join(cwd, ".evoharness", "mcp.json"), path.join(cwd, ".pi", "mcp.json")] : [])];
 	const configured = new Set(files.flatMap((file) => {
 		let parsed: unknown;
 		try {

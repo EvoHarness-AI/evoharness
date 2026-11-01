@@ -24,16 +24,16 @@ describe("settings subagents.agentScanDirs", () => {
 		agentDir = tempDir("agent");
 		projectDir = tempDir("project");
 		scanRoot = tempDir("scan");
-		previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		fs.mkdirSync(path.join(agentDir, "agents"), { recursive: true });
 		fs.mkdirSync(path.join(projectDir, ".pi"), { recursive: true });
 		clearAgentDiscoveryCache();
 	});
 
 	afterEach(() => {
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		for (const dir of [agentDir, projectDir, scanRoot]) fs.rmSync(dir, { recursive: true, force: true });
 		clearAgentDiscoveryCache();
 	});

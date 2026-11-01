@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { it } from "node:test";
-import { fauxAssistantMessage, fauxProvider, fauxToolCall, getCurrentSystemMessage, type AssistantMessage, type Message } from "@earendil-works/pi-ai";
-import { DefaultResourceLoader, ModelRuntime, SessionManager, SettingsManager, createAgentSession } from "@earendil-works/pi-coding-agent";
+import { fauxAssistantMessage, fauxProvider, fauxToolCall, getCurrentSystemMessage, type AssistantMessage, type Message } from "@evoharness/ai";
+import { DefaultResourceLoader, ModelRuntime, SessionManager, SettingsManager, createAgentSession } from "@evoharness/coding-agent";
 import registerSubagentExtension from "../../src/extension/index.ts";
 import { SubagentFlatParams } from "../../src/extension/schemas.ts";
 
@@ -20,9 +20,9 @@ function pinningHarness() {
 	// An advertised agent makes every session record the advertised_subagents prompt section.
 	fs.mkdirSync(path.join(agentDir, "agents"));
 	fs.writeFileSync(path.join(agentDir, "agents", "specialist.md"), "---\nname: specialist\ndescription: Pinning specialist\nadvertise: true\n---\nAct narrowly.\n");
-	const priorAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const priorAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	const priorChild = process.env.PI_SUBAGENT_CHILD;
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	delete process.env.PI_SUBAGENT_CHILD;
 	const faux = fauxProvider({ provider: "declaration-pinning", models: [{ id: "local" }], tokensPerSecond: 100_000 });
 	// Runs one prompt, and optionally a background wake, and returns the messages of every request.
@@ -55,7 +55,7 @@ function pinningHarness() {
 		return requests;
 	};
 	const dispose = () => {
-		if (priorAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR; else process.env.PI_CODING_AGENT_DIR = priorAgentDir;
+		if (priorAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR; else process.env.EVOHARNESS_CODING_AGENT_DIR = priorAgentDir;
 		if (priorChild === undefined) delete process.env.PI_SUBAGENT_CHILD; else process.env.PI_SUBAGENT_CHILD = priorChild;
 		fs.rmSync(root, { recursive: true, force: true });
 	};

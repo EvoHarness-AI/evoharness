@@ -10,7 +10,7 @@ let tempHome = "";
 let tempProject = "";
 const originalHome = process.env.HOME;
 const originalUserProfile = process.env.USERPROFILE;
-const originalPiCodingAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalPiCodingAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 
 function createCtx(current: { provider: string; id: string }) {
 	const models = [
@@ -42,7 +42,7 @@ describe("watchdog tool actions", () => {
 		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "pi-watchdog-tool-project-"));
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
-		process.env.PI_CODING_AGENT_DIR = path.join(tempHome, ".pi", "agent");
+		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(tempHome, ".pi", "agent");
 	});
 
 	afterEach(() => {
@@ -50,8 +50,8 @@ describe("watchdog tool actions", () => {
 		else process.env.HOME = originalHome;
 		if (originalUserProfile === undefined) delete process.env.USERPROFILE;
 		else process.env.USERPROFILE = originalUserProfile;
-		if (originalPiCodingAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = originalPiCodingAgentDir;
+		if (originalPiCodingAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = originalPiCodingAgentDir;
 		fs.rmSync(tempHome, { recursive: true, force: true });
 		fs.rmSync(tempProject, { recursive: true, force: true });
 	});

@@ -36,14 +36,14 @@ describe("settings subagents.agentExcludeDirs", () => {
 		project = path.join(root, "project");
 		fs.mkdirSync(user);
 		fs.mkdirSync(path.join(project, ".pi"), { recursive: true });
-		previousAgentDir = process.env.PI_CODING_AGENT_DIR;
-		process.env.PI_CODING_AGENT_DIR = user;
+		previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = user;
 		clearAgentDiscoveryCache();
 	});
 	afterEach(() => {
 		mock.restoreAll();
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		fs.rmSync(root, { recursive: true, force: true });
 		clearAgentDiscoveryCache();
 	});

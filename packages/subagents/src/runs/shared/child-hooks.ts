@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { listBackgroundWorkProviders } from "../../api/background-work.ts";
 import { ReadonlyDrainObservation } from "./readonly-drain-observation.ts";
 import registerFanoutChildSubagentExtension, { createChildSafeState } from "../../extension/fanout-child.ts";

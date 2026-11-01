@@ -378,7 +378,7 @@ Sets the layout of the unfolded under-editor async widget. Defaults to `"adaptiv
 
 Reports each background run's state to the terminal with [OSC 7501, the Program Status Protocol](https://www.superlogical.com/rex/docs/build/program-status), so a terminal that supports it (Ghostty and Rex, for example) can show which runs are working, waiting on you, finished, or failed. It defaults to `true`; set it to `false` to send nothing. Terminals that don't support OSC 7501 ignore it, so turn it off only if your terminal prints unknown escape sequences.
 
-Reports are sent only from an interactive TUI session whose standard output is a terminal and whose `TERM` is not `dumb`, and only when a record changes. `PI_PROGRAM_STATUS=0`, Pi's own switch for its OSC 7501 reports, turns these off too. Each run gets its own record under `subagents/`: `subagents/<run>` for a run, where `<run>` is the first 12 characters of its run id, and `subagents/<workflow-run>.<key>` for a background workflow child. A key made only of letters, digits, `_`, `+` and `-`, and at most 19 characters long, is used as is; any other key becomes its first 12 characters (other characters replaced by `-`) plus a short hash of the full key, so different keys never share an id. Workflow children are siblings of their workflow's record, not nested under it, so clearing a finished workflow never removes a running child. The root record belongs to Pi itself, so this extension never writes it.
+Reports are sent only from an interactive TUI session whose standard output is a terminal and whose `TERM` is not `dumb`, and only when a record changes. `EVOHARNESS_PROGRAM_STATUS=0`, Pi's own switch for its OSC 7501 reports, turns these off too. Each run gets its own record under `subagents/`: `subagents/<run>` for a run, where `<run>` is the first 12 characters of its run id, and `subagents/<workflow-run>.<key>` for a background workflow child. A key made only of letters, digits, `_`, `+` and `-`, and at most 19 characters long, is used as is; any other key becomes its first 12 characters (other characters replaced by `-`) plus a short hash of the full key, so different keys never share an id. Workflow children are siblings of their workflow's record, not nested under it, so clearing a finished workflow never removes a running child. The root record belongs to Pi itself, so this extension never writes it.
 
 | Run | Reported state |
 |---|---|
@@ -583,13 +583,13 @@ Overrides the `pi` command pi-subagents spawns for project panes and the profile
 
 Foreground children remain sessions inside the parent. Npm background children retain their Node runner and host-package peer aliases; this variable does not turn npm Pi into a binary-backed runner. See [Standalone background execution](standalone-background.md) for the official tested target.
 
-## `PI_PACKAGE_DIR`
+## `EVOHARNESS_PACKAGE_DIR`
 
 ```bash
-export PI_PACKAGE_DIR=/path/to/pi-coding-agent-package
+export EVOHARNESS_PACKAGE_DIR=/path/to/pi-coding-agent-package
 ```
 
-Pi's own package/assets root. Npm background children receive the detected npm host root as `PI_PACKAGE_DIR`, which overrides an inherited bundled layout; Bun-compiled hosts pass the parent's value through so children keep their release assets.
+Pi's own package/assets root. Npm background children receive the detected npm host root as `EVOHARNESS_PACKAGE_DIR`, which overrides an inherited bundled layout; Bun-compiled hosts pass the parent's value through so children keep their release assets.
 
 ## `PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT`
 
@@ -756,12 +756,12 @@ Native child tool permission rules. See [watchdog.md](watchdog.md#native-child-t
 
 ## `PI_SUBAGENT_CACHE_RETENTION`
 
-Sets the prompt-cache retention tier for child sessions, overriding `PI_CACHE_RETENTION` for children only. Environment-only; there is no config key. Accepts the same values Pi accepts, normally `short` or `long`.
+Sets the prompt-cache retention tier for child sessions, overriding `EVOHARNESS_CACHE_RETENTION` for children only. Environment-only; there is no config key. Accepts the same values Pi accepts, normally `short` or `long`.
 
 Anthropic prices a cache write by the retention it is asked for: the 1h tier costs more per write than the 5m one. A parent that keeps a long-lived conversation earns that back by surviving idle gaps, but children are short-lived and rarely idle long enough to claim the longer window, so on a wide fanout the higher write price is paid without the benefit:
 
 ```text
-PI_CACHE_RETENTION=long PI_SUBAGENT_CACHE_RETENTION=short
+EVOHARNESS_CACHE_RETENTION=long PI_SUBAGENT_CACHE_RETENTION=short
 ```
 
 Unset by default, so children inherit the parent's retention and behaviour is unchanged unless you opt in. Both spawned children (through the launch environment) and in-process children (through the session's own stream function) honour it; the in-process path scopes the value per session rather than mutating `process.env`, so a child cannot change retention for a parent turn streaming at the same time.

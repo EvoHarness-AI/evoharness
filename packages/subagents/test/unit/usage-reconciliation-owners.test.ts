@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@evoharness/agent-core";
 import type { ChildSession, ChildSessionEvent, ChildSessionFactory } from "../../src/runs/shared/child-session.ts";
 import { runSync } from "../../src/runs/foreground/execution.ts";
 import { runChildSession } from "../../src/runs/background/run-child-session.ts";

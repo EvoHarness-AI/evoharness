@@ -7,14 +7,14 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { registerAgent } from "../../src/api/agents.ts";
 import { clearAgentDiscoveryCache, discoverAgentSnapshot, discoverAgents, discoverAgentsAll } from "../../src/agents/agents.ts";
 import { mergeRuntimeAgents, clearRuntimeAgentsForPi } from "../../src/agents/runtime-agent-registry.ts";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 
 let tempRoot = "";
 let home = "";
 let project = "";
 let pi: ExtensionAPI;
 const previousEnv: Record<string, string | undefined> = {};
-const managedEnv = ["HOME", "USERPROFILE", "PI_CODING_AGENT_DIR", "PI_SUBAGENT_EXTRA_AGENT_DIRS", "PI_OFFLINE"];
+const managedEnv = ["HOME", "USERPROFILE", "EVOHARNESS_CODING_AGENT_DIR", "PI_SUBAGENT_EXTRA_AGENT_DIRS", "EVOHARNESS_OFFLINE"];
 
 function writeAgent(filePath: string, name: string, description: string): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -38,8 +38,8 @@ describe("agent discovery snapshots", () => {
 		for (const name of managedEnv) previousEnv[name] = process.env[name];
 		process.env.HOME = home;
 		process.env.USERPROFILE = home;
-		process.env.PI_CODING_AGENT_DIR = path.join(home, ".pi", "agent");
-		process.env.PI_OFFLINE = "true";
+		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(home, ".pi", "agent");
+		process.env.EVOHARNESS_OFFLINE = "true";
 		delete process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
 		pi = makePi();
 		clearAgentDiscoveryCache();

@@ -1,5 +1,5 @@
-import type { AssistantMessage } from "@earendil-works/pi-ai";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { AssistantMessage } from "@evoharness/ai";
+import type { ExtensionContext } from "@evoharness/coding-agent";
 
 const WORKFLOW_FENCE = /^```(?:js|javascript) workflow[ \t]*$/;
 const PLAIN_JS_FENCE = /^```(?:js|javascript)[ \t]*$/;

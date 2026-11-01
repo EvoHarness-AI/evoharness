@@ -25,7 +25,7 @@ assert.equal(createHash("sha256").update(fs.readFileSync(binary)).digest("hex"),
 const root = process.argv[3] ? path.resolve(process.argv[3]) : fs.mkdtempSync(path.join(os.tmpdir(), "pi-standalone-smoke-"));
 fs.mkdirSync(root, { recursive: true });
 assert.deepEqual(fs.readdirSync(root), [], "requires an empty artifact directory");
-const coreSdk = /(?:^|\/)(?:@earendil-works\/(?:pi-coding-agent|pi-agent-core|pi-ai|pi-tui)|typebox)(?:\/|$)/;
+const coreSdk = /(?:^|\/)(?:@evoharness\/(?:coding-agent|agent-core|ai|tui)|typebox)(?:\/|$)/;
 function run(name, command, args) {
 	const result = spawnSync(command, args, { cwd: source, encoding: "utf8", timeout: 90_000, maxBuffer: 10 * 1024 * 1024 });
 	fs.writeFileSync(path.join(root, `${name}.log`), `${result.stdout ?? ""}${result.stderr ?? ""}`);
@@ -60,7 +60,7 @@ for (const name of ["theme", "assets", "export-html", "photon_rs_bg.wasm"]) {
 }
 for (const name of ["standalone-parent.ts", "standalone-provider.ts", "standalone-observer.ts", "standalone-fault.ts", "standalone-revival.ts", "standalone-shared.ts"]) fs.copyFileSync(new URL(name, import.meta.url), path.join(root, "package/test/smoke", name));
 fs.writeFileSync(path.join(root, "work/bunfig.toml"), '[install]\nauto = "disable"\n');
-fs.writeFileSync(path.join(root, "work/negative.ts"), 'import "@earendil-works/pi-coding-agent";\n');
+fs.writeFileSync(path.join(root, "work/negative.ts"), 'import "@evoharness/coding-agent";\n');
 fs.mkdirSync(path.join(root, "work/.pi/agents"), { recursive: true });
 fs.writeFileSync(path.join(root, "work/.pi/agents/binary-smoke.md"), `---\nname: binary-smoke\ndescription: Isolated native async regression\nmodel: standalone-smoke/local\ntools: ${mode === "tool-timeout" ? "bash" : ""}\nextensions:\n  - /stage/package/test/smoke/standalone-observer.ts\n  - /stage/package/test/smoke/standalone-provider.ts\n---\nReturn the scripted response.\n`);
 fs.writeFileSync(path.join(root, "agent/settings.json"), JSON.stringify({ defaultProvider: "standalone-smoke", defaultModel: "local", packages: [] }));
@@ -71,10 +71,10 @@ for (const lib of ["/lib", "/lib64"]) if (fs.existsSync(lib)) sandbox.push("--ro
 // glibc may dlopen libgcc_s when a workflow worker exits; expose only the loader cache.
 if (fs.existsSync("/etc/ld.so.cache")) sandbox.push("--ro-bind", "/etc/ld.so.cache", "/etc/ld.so.cache");
 sandbox.push("--proc", "/proc", "--dev", "/dev", "--bind", root, "/stage", "--bind", path.join(root, "tmp"), "/tmp", "--chdir", "/stage/work", "--clearenv");
-for (const [key, value] of Object.entries({ PATH: "/usr/bin:/bin", HOME: "/stage/home", PI_CODING_AGENT_DIR: "/stage/agent", XDG_CACHE_HOME: "/stage/cache", BUN_INSTALL_CACHE_DIR: "/stage/bun-cache", JITI_FS_CACHE: "false", PI_OFFLINE: "1", TERM: "dumb", PI_STANDALONE_SMOKE_MODE: mode })) sandbox.push("--setenv", key, value);
+for (const [key, value] of Object.entries({ PATH: "/usr/bin:/bin", HOME: "/stage/home", EVOHARNESS_CODING_AGENT_DIR: "/stage/agent", XDG_CACHE_HOME: "/stage/cache", BUN_INSTALL_CACHE_DIR: "/stage/bun-cache", JITI_FS_CACHE: "false", EVOHARNESS_OFFLINE: "1", TERM: "dumb", PI_STANDALONE_SMOKE_MODE: mode })) sandbox.push("--setenv", key, value);
 const negative = run("negative", "bwrap", [...sandbox, "--setenv", "BUN_BE_BUN", "1", "--", "/stage/pi-native", "--no-install", "/stage/work/negative.ts"]);
 assert.notEqual(negative.status, 0, "bare Bun must not resolve a downloaded or installed SDK");
-assert.match(negative.stderr, /Cannot find (?:module|package).*pi-coding-agent/);
+assert.match(negative.stderr, /Cannot find (?:module|package).*coding-agent/);
 const version = run("version", "bwrap", [...sandbox, "--", "/stage/pi-native", "--version"]);
 assert.equal(version.status, 0, version.stderr);
 fs.writeFileSync(path.join(root, "identity.json"), JSON.stringify({ binary, sha256: release.binarySha256, version: version.stdout.trim(), packed: tarball.filename, network: "unshared", automaticInstall: "disabled; negative control verified" }, null, 2));

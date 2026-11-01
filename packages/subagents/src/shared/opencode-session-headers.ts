@@ -1,4 +1,4 @@
-import type { Api, Model, ProviderHeaders } from "@earendil-works/pi-ai";
+import type { Api, Model, ProviderHeaders } from "@evoharness/ai";
 
 const OPENCODE_HOST = "opencode.ai";
 

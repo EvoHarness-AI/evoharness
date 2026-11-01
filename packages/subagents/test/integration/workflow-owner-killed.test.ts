@@ -107,8 +107,8 @@ async function reopenSession(sessionFile: string, agentDir: string) {
 		ui: new Proxy({}, { get: () => () => undefined }),
 		sessionManager: { getSessionId: () => path.basename(sessionFile), getSessionFile: () => sessionFile, getEntries: () => [], getBranch: () => [] },
 	};
-	const previous = { agentDir: process.env.PI_CODING_AGENT_DIR, childEnv: process.env[SUBAGENT_CHILD_ENV] };
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	const previous = { agentDir: process.env.EVOHARNESS_CODING_AGENT_DIR, childEnv: process.env[SUBAGENT_CHILD_ENV] };
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	delete process.env[SUBAGENT_CHILD_ENV];
 	try {
 		registerSubagentExtension(pi as never);
@@ -120,8 +120,8 @@ async function reopenSession(sessionFile: string, agentDir: string) {
 		sent,
 		close: async () => {
 			for (const handler of handlers.get("session_shutdown") ?? []) await handler({ reason: "quit" }, ctx);
-			if (previous.agentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-			else process.env.PI_CODING_AGENT_DIR = previous.agentDir;
+			if (previous.agentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+			else process.env.EVOHARNESS_CODING_AGENT_DIR = previous.agentDir;
 		},
 	};
 }

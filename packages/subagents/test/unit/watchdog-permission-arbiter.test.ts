@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import type { StreamFn } from "@earendil-works/pi-agent-core";
-import { createAssistantMessageEventStream, fauxAssistantMessage, fauxToolCall, getCurrentTools, type AssistantMessage, type Model, type TranscriptContext } from "@earendil-works/pi-ai";
+import type { StreamFn } from "@evoharness/agent-core";
+import { createAssistantMessageEventStream, fauxAssistantMessage, fauxToolCall, getCurrentTools, type AssistantMessage, type Model, type TranscriptContext } from "@evoharness/ai";
 import { createWatchdogPermissionArbiter } from "../../src/watchdog/permission-arbiter.ts";
 
 function model(): Model<any> {

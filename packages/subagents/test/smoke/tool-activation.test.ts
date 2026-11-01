@@ -11,14 +11,14 @@ import {
 	getCurrentTools,
 	type FauxResponseFactory,
 	type FauxResponseStep,
-} from "@earendil-works/pi-ai";
+} from "@evoharness/ai";
 import {
 	DefaultResourceLoader,
 	ModelRuntime,
 	SessionManager,
 	SettingsManager,
 	createAgentSession,
-} from "@earendil-works/pi-coding-agent";
+} from "@evoharness/coding-agent";
 import { createSubagentParamsSchema } from "../../src/extension/schemas.ts";
 
 const packageToolNames = new Set(["subagents_enable", "bg_wait", "subagent_supervisor", "subagent"]);
@@ -41,9 +41,9 @@ async function runNativeSession(config: Record<string, unknown> | undefined, res
 		fs.mkdirSync(path.join(agentDir, "extensions", "subagent"), { recursive: true });
 		fs.writeFileSync(path.join(agentDir, "extensions", "subagent", "config.json"), JSON.stringify(config));
 	}
-	const priorAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const priorAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	const priorChild = process.env.PI_SUBAGENT_CHILD;
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	delete process.env.PI_SUBAGENT_CHILD;
 	let session: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
 	try {
@@ -69,7 +69,7 @@ async function runNativeSession(config: Record<string, unknown> | undefined, res
 			await (session.extensionRunner as any).emit({ type: "session_shutdown", reason: "quit" });
 			session.dispose();
 		}
-		if (priorAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR; else process.env.PI_CODING_AGENT_DIR = priorAgentDir;
+		if (priorAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR; else process.env.EVOHARNESS_CODING_AGENT_DIR = priorAgentDir;
 		if (priorChild === undefined) delete process.env.PI_SUBAGENT_CHILD; else process.env.PI_SUBAGENT_CHILD = priorChild;
 		fs.rmSync(root, { recursive: true, force: true });
 	}

@@ -123,7 +123,7 @@ for (const layout of ["npm", "pnpm"] as const) {
 		assert.equal(calls.length, 1);
 		const options = calls[0]!.arguments[2];
 		assert.equal(options.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV], pi);
-		assert.equal(options.env.PI_PACKAGE_DIR, pi);
+		assert.equal(options.env.EVOHARNESS_PACKAGE_DIR, pi);
 		const aliases = JSON.parse(options.env.JITI_ALIAS);
 		assert.equal(aliases[PI_CODING_AGENT_PACKAGE], path.join(pi, "index.mjs"));
 		// Execute only the peer preload in an isolated process, not a real agent or daemon.
@@ -163,7 +163,7 @@ test("an extensionless .bin/pi symlink honors the override across SDK, CLI and b
 	}
 	const { calls } = await captureBackground(t, tmp);
 	assert.equal(calls.length, 1);
-	assert.equal(calls[0]!.arguments[2].env.PI_PACKAGE_DIR, override);
+	assert.equal(calls[0]!.arguments[2].env.EVOHARNESS_PACKAGE_DIR, override);
 
 	fs.writeFileSync(path.join(override, "package.json"), "{");
 	assert.throws(() => resolveHostPiPackageRoot(), /malformed JSON/);
@@ -216,7 +216,7 @@ test("an invalid host dependency manifest fails closed instead of falling back",
 	const { pi } = fixture(t);
 	for (const [manifest, expected] of [
 		["{", /malformed JSON/],
-		[JSON.stringify({ name: "not-pi" }), /expected "@earendil-works\/pi-coding-agent"/],
+		[JSON.stringify({ name: "not-pi" }), /expected "@evoharness\/pi-coding-agent"/],
 		["null", /expected a JSON object/],
 	] as const) {
 		fs.writeFileSync(path.join(pi, "package.json"), manifest);
@@ -231,7 +231,7 @@ test("selected host SDK missing entry, blocked export and import errors never lo
 	await assert.rejects(loadHostPiCodingAgent(), /ENOENT/);
 	let background = await captureBackground(t, tmp);
 	assert.equal(background.calls.length, 0);
-	assert.match(background.result.content[0]!.text, /does not provide @earendil-works\/pi-coding-agent/);
+	assert.match(background.result.content[0]!.text, /does not provide @evoharness\/pi-coding-agent/);
 	fs.writeFileSync(path.join(pi, "package.json"), JSON.stringify({ name: PI_CODING_AGENT_PACKAGE, exports: { ".": null } }));
 	await assert.rejects(loadHostPiCodingAgent(), /no resolvable root export/);
 	background = await captureBackground(t, tmp);

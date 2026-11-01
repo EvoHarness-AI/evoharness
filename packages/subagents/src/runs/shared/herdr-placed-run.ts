@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import * as fs from "node:fs";
 import * as net from "node:net";
 import * as path from "node:path";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@evoharness/agent-core";
 import packageJson from "../../../package.json" with { type: "json" };
 import type { HerdrRemoteGitStatus, PlacementMachineReference } from "../../shared/types.ts";
 import type { ChildSession, ChildSessionEvent, ChildSessionFactory, ChildSessionLaunch } from "./child-session.ts";

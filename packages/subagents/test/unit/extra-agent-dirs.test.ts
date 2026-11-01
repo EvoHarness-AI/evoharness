@@ -9,7 +9,7 @@ let tempDir = "";
 let agentDir = "";
 let cwd = "";
 const saved: Record<string, string | undefined> = {};
-const MANAGED_ENV = ["PI_CODING_AGENT_DIR", "HOME", "USERPROFILE", EXTRA_AGENT_DIRS_ENV];
+const MANAGED_ENV = ["EVOHARNESS_CODING_AGENT_DIR", "HOME", "USERPROFILE", EXTRA_AGENT_DIRS_ENV];
 
 function writeAgent(dir: string, name: string): string {
 	const filePath = path.join(dir, `${name}.md`);
@@ -28,7 +28,7 @@ describe("PI_SUBAGENT_EXTRA_AGENT_DIRS discovery", () => {
 		cwd = path.join(tempDir, "workspace");
 		fs.mkdirSync(cwd, { recursive: true });
 		fs.mkdirSync(homeDir, { recursive: true });
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		process.env.HOME = homeDir;
 		process.env.USERPROFILE = homeDir;
 		delete process.env[EXTRA_AGENT_DIRS_ENV];

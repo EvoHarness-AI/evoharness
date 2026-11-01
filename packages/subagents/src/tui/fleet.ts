@@ -1,8 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
-import { getMarkdownTheme, type ExtensionContext } from "@earendil-works/pi-coding-agent";
-import { matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi, type Component, type MarkdownTheme, type TuiMouseEvent, type TuiMouseEventResult } from "@earendil-works/pi-tui";
+import type { AgentToolResult } from "@evoharness/agent-core";
+import { getMarkdownTheme, type ExtensionContext } from "@evoharness/coding-agent";
+import { matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi, type Component, type MarkdownTheme, type TuiMouseEvent, type TuiMouseEventResult } from "@evoharness/tui";
 import { fleetContains, fleetLayout, type FleetLayout } from "./fleet-layout.ts";
 import { FleetViewport } from "./fleet-viewport.ts";
 import { snapshotExternalRuns, type ExternalRun } from "../api/external-runs.ts";
@@ -1436,7 +1436,7 @@ export async function openSubagentFleet(ctx: ExtensionContext, state: SubagentSt
 	state.fleetInspectorOpen = true;
 	if (typeof ctx.ui.setWidget === "function") ctx.ui.setWidget(FLEET_STATUS_WIDGET_KEY, undefined);
 	const copyText = options.copyText ?? (async (text: string) => {
-		const module = await import("@earendil-works/pi-coding-agent");
+		const module = await import("@evoharness/coding-agent");
 		const copyToClipboard = (module as { copyToClipboard?: (value: string) => Promise<void> | void }).copyToClipboard;
 		if (!copyToClipboard) throw new Error("Clipboard is unavailable in this Pi version.");
 		await copyToClipboard(text);

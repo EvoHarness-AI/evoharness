@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
-import { createAssistantMessageEventStream, type AssistantMessage, type ToolCall } from "@earendil-works/pi-ai";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { createAssistantMessageEventStream, type AssistantMessage, type ToolCall } from "@evoharness/ai";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 
 /** Only the model is scripted: delegation, wait, read, sessions, and runners are native. */
 export default function (pi: ExtensionAPI) {

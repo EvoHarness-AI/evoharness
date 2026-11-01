@@ -1,4 +1,4 @@
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionContext } from "@evoharness/coding-agent";
 import { normalizeModelSegment, resolveModelCandidate } from "../runs/shared/model-resolution.ts";
 import type { WatchdogEndpointConfig } from "./types.ts";
 import {

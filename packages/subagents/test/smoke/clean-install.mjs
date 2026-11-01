@@ -20,9 +20,9 @@ for (const dir of [host, extension, cwd, path.join(root, "home")]) fs.mkdirSync(
 assert.ok(!fs.existsSync(path.join(host, "node_modules")), "requires a pristine host install");
 assert.ok(!fs.existsSync(path.join(extension, "node_modules")), "requires a pristine extension install");
 const env = {
-	...process.env, HOME: path.join(root, "home"), USERPROFILE: path.join(root, "home"), PI_CODING_AGENT_DIR: path.join(root, "agent"),
+	...process.env, HOME: path.join(root, "home"), USERPROFILE: path.join(root, "home"), EVOHARNESS_CODING_AGENT_DIR: path.join(root, "agent"),
 	XDG_CACHE_HOME: path.join(root, "cache"), npm_config_cache: path.join(root, "npm-cache"),
-	NODE_COMPILE_CACHE: path.join(root, "node-cache"), JITI_FS_CACHE: "false", PI_OFFLINE: "1",
+	NODE_COMPILE_CACHE: path.join(root, "node-cache"), JITI_FS_CACHE: "false", EVOHARNESS_OFFLINE: "1",
 };
 // Do not inherit loader/alias overrides or operator credentials into the child.
 for (const key of Object.keys(env)) {
@@ -36,7 +36,7 @@ function run(name, command, args, workdir, extra = {}, success = true, timeout =
 	else assert.notEqual(result.status, 0, `${name} unexpectedly passed`);
 	return result;
 }
-fs.writeFileSync(path.join(host, "package.json"), JSON.stringify({ private: true, dependencies: { "@earendil-works/pi-coding-agent": version } }));
+fs.writeFileSync(path.join(host, "package.json"), JSON.stringify({ private: true, dependencies: { "@evoharness/coding-agent": version } }));
 // Installing the Pi host from the registry has taken over four minutes on slow days; the job timeout still bounds it.
 run("host-install", "npm", ["install", "--no-audit", "--no-fund"], host, {}, true, 420000);
 run("build-package", process.execPath, ["scripts/build-package.mjs"], source);
@@ -63,29 +63,29 @@ const inspector = run("inspector", process.execPath, [
 	path.join(installed, "inspector-runner.mjs"), "--async-dir", inspectorRun, "--run-id", "smoke-inspector",
 ], cwd);
 assert.match(inspector.stdout, /pi-subagents inspector for smoke-inspector/);
-const pi = path.join(host, "node_modules/@earendil-works/pi-coding-agent");
+const pi = path.join(host, "node_modules/@evoharness/coding-agent");
 const { createJiti } = await import(pathToFileURL(path.join(extension, "node_modules/jiti/lib/jiti.mjs")).href);
 const { resolveHostPeerAliases, findHostPeerPackageDir, resolvePackageSubpath } = await import(pathToFileURL(path.join(installed, "src/runs/background/runner-aliases.js")).href);
-assert.equal(findHostPeerPackageDir(pi, "@earendil-works/pi-client"), undefined, "stable host must remain missing client");
+assert.equal(findHostPeerPackageDir(pi, "@evoharness/pi-client"), undefined, "stable host must remain missing client");
 run("pristine-public-sdk", process.execPath, ["--input-type=module", "-e", `await import(${JSON.stringify(pathToFileURL(resolvePackageSubpath(pi, ".")).href)})`], cwd);
 const resolved = resolveHostPeerAliases(pi);
 assert.deepEqual(resolved.missing, []);
-const tui = findHostPeerPackageDir(pi, "@earendil-works/pi-tui");
+const tui = findHostPeerPackageDir(pi, "@evoharness/tui");
 assert.ok(tui.startsWith(host + path.sep), "TUI must come from the host install");
-assert.equal(resolved.aliases["@earendil-works/pi-tui"], resolvePackageSubpath(tui, "."));
+assert.equal(resolved.aliases["@evoharness/tui"], resolvePackageSubpath(tui, "."));
 // Pi 1.2.0 dropped chord: alias it exactly when the real host install declares it.
-const hostDeclaresChord = Boolean(JSON.parse(fs.readFileSync(path.join(pi, "package.json"), "utf8")).dependencies?.["@earendil-works/chord"]);
-for (const specifier of ["@earendil-works/chord", "@earendil-works/chord/context"]) {
+const hostDeclaresChord = Boolean(JSON.parse(fs.readFileSync(path.join(pi, "package.json"), "utf8")).dependencies?.["@evoharness/chord"]);
+for (const specifier of ["@evoharness/chord", "@evoharness/chord/context"]) {
 	assert.equal(Boolean(resolved.aliases[specifier]), hostDeclaresChord, specifier);
 }
-assert.equal(resolved.aliases["@earendil-works/pi-client/unix"], undefined);
+assert.equal(resolved.aliases["@evoharness/pi-client/unix"], undefined);
 fs.writeFileSync(path.join(root, "aliases.json"), JSON.stringify(resolved, null, 2));
 // Pi serves its own packages to extensions as virtual modules; the fixture stands in with jiti aliases to the host install.
 delete process.env.PI_SUBAGENT_CHILD;
 const entryLoader = createJiti(import.meta.url, {
 	moduleCache: false,
 	tryNative: false,
-	alias: { "@earendil-works/pi-coding-agent": resolvePackageSubpath(pi, "."), ...resolved.aliases },
+	alias: { "@evoharness/coding-agent": resolvePackageSubpath(pi, "."), ...resolved.aliases },
 });
 const entryStarted = performance.now();
 const [extensionEntry] = JSON.parse(fs.readFileSync(path.join(installed, "package.json"), "utf8")).pi.extensions;
@@ -117,5 +117,5 @@ const packedSelection = run("packed-selection", process.execPath, [
 	resolvePackageSubpath(pi, "."),
 ], cwd, childEnv);
 assert.match(packedSelection.stdout, /PASS packed node_modules selects compiled JavaScript/);
-assert.equal(findHostPeerPackageDir(pi, "@earendil-works/pi-client"), undefined);
+assert.equal(findHostPeerPackageDir(pi, "@evoharness/pi-client"), undefined);
 console.log(`${positive.stdout.trim()}\nArtifacts: ${root}`);

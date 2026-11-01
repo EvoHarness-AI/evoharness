@@ -2,10 +2,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createJiti } from "jiti";
-import * as piCore from "@earendil-works/pi-agent-core";
-import * as piAi from "@earendil-works/pi-ai/compat";
-import * as piTui from "@earendil-works/pi-tui";
-import * as sdk from "@earendil-works/pi-coding-agent";
+import * as piCore from "@evoharness/agent-core";
+import * as piAi from "@evoharness/ai/compat";
+import * as piTui from "@evoharness/tui";
+import * as sdk from "@evoharness/coding-agent";
 import * as typebox from "typebox";
 import * as typeboxCompile from "typebox/compile";
 import * as typeboxValue from "typebox/value";
@@ -45,11 +45,11 @@ export default async function runBinaryBootstrap(): Promise<never> {
 					tryNative: false,
 					moduleCache: false,
 					virtualModules: {
-						"@earendil-works/pi-agent-core": piCore,
-						"@earendil-works/pi-ai": piAi,
-						"@earendil-works/pi-ai/compat": piAi,
-						"@earendil-works/pi-tui": piTui,
-						"@earendil-works/pi-coding-agent": sdk,
+						"@evoharness/agent-core": piCore,
+						"@evoharness/ai": piAi,
+						"@evoharness/ai/compat": piAi,
+						"@evoharness/tui": piTui,
+						"@evoharness/coding-agent": sdk,
 						typebox,
 						"typebox/compile": typeboxCompile,
 						"typebox/value": typeboxValue,

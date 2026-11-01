@@ -4,8 +4,8 @@ import { syncBuiltinESMExports } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { TuiAltScreen, TuiMainScreen, visibleWidth, type Component, type TuiMouseEvent, type MarkdownTheme } from "@earendil-works/pi-tui";
-import { createEventBus } from "@earendil-works/pi-coding-agent";
+import { TuiAltScreen, TuiMainScreen, visibleWidth, type Component, type TuiMouseEvent, type MarkdownTheme } from "@evoharness/tui";
+import { createEventBus } from "@evoharness/coding-agent";
 import { registerInspector } from "../../src/api/inspectors.ts";
 import { getInspectorPlugins, registerInspectorEventListener } from "../../src/inspectors/plugins.ts";
 import { EXTERNAL_RUN_REGISTRY_KEY, EXTERNAL_RUN_REGISTRY_VERSION, registerExternalRun } from "../../src/api/external-runs.ts";
@@ -22,8 +22,8 @@ import { getArtifactPaths, getArtifactsDir, getProjectArtifactsDir } from "../..
 import type { HerdrClient } from "../../src/inspectors/herdr/client.ts";
 import { createHerdrInspectorPlugin } from "../../src/inspectors/herdr/plugin.ts";
 import type { ForegroundResumeRun, SubagentState } from "../../src/shared/types.ts";
-import { fauxAssistantMessage } from "@earendil-works/pi-ai/providers/faux";
-import { createAssistantMessageEventStream } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage } from "@evoharness/ai/providers/faux";
+import { createAssistantMessageEventStream } from "@evoharness/ai";
 import { updateActiveRunIndex } from "../../src/runs/background/active-run-index.ts";
 import { encodeIndexSegment } from "../../src/runs/background/index-segment.ts";
 

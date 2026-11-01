@@ -628,7 +628,7 @@ describe("external CLI async lifecycle", () => {
 			process.execPath,
 			[path.join(repo, "node_modules/jiti/lib/jiti-cli.mjs"), path.join(repo, "src/runs/background/subagent-runner-bootstrap.ts"), configPath],
 			repo,
-			{ ...process.env, PI_CODING_AGENT_DIR: agentDir, PI_SUBAGENT_ORCA_BINARY: fakeOrca, ORCA_TEST_CAPTURE: capture },
+			{ ...process.env, EVOHARNESS_CODING_AGENT_DIR: agentDir, PI_SUBAGENT_ORCA_BINARY: fakeOrca, ORCA_TEST_CAPTURE: capture },
 		);
 		assert.equal(exitCode, 0);
 		const result = JSON.parse(fs.readFileSync(resultPath, "utf-8"));

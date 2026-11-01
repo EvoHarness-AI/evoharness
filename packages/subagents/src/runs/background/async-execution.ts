@@ -8,7 +8,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as nodeModule from "node:module";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 import type { ParentProviderRegistry } from "../shared/child-session.ts";
 import { discoverAgents, formatUnknownAgentError, unknownAgentDiagnosticContext, type AgentConfig, type UnknownAgentDiagnosticContext } from "../../agents/agents.ts";
 import { createAtomicJsonWriter, writePrivateAtomicJson } from "../../shared/atomic-json.ts";
@@ -787,7 +787,7 @@ function spawnRunner(cfg: object, suffix: string, cwd: string, initialStatus: Om
 			...childCacheRetentionEnv(),
 			[PI_CODING_AGENT_PACKAGE_ROOT_ENV]: binaryHost ? undefined : piPackageRoot,
 			// npm must override inherited bundled layouts (#2071); binaries retain release assets.
-			PI_PACKAGE_DIR: binaryHost ? process.env.PI_PACKAGE_DIR : piPackageRoot,
+			EVOHARNESS_PACKAGE_DIR: binaryHost ? process.env.EVOHARNESS_PACKAGE_DIR : piPackageRoot,
 			[JITI_ALIAS_ENV]: binaryHost ? undefined : JSON.stringify(hostPeerAliases.aliases),
 			PI_ASYNC_NATIVE_RUNNER: !binaryHost && (runnerIsJavaScript || nativeRunnerSupported) ? "1" : "0",
 			PI_SUBAGENT_RUNNER_CONFIG: binaryHost ? cfgPath : undefined,

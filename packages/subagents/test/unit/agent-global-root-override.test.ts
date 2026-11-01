@@ -7,7 +7,7 @@ import { clearAgentDiscoveryCache, discoverAgentSnapshot, discoverAgents } from 
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-agent-global-root-"));
 const fixtureRoot = path.join(temp, "quote's & space");
-const previous = Object.fromEntries(["HOME", "USERPROFILE", "APPDATA", "PI_CODING_AGENT_DIR", "PI_OFFLINE", "PATH"].map((key) => [key, process.env[key]]));
+const previous = Object.fromEntries(["HOME", "USERPROFILE", "APPDATA", "EVOHARNESS_CODING_AGENT_DIR", "EVOHARNESS_OFFLINE", "PATH"].map((key) => [key, process.env[key]]));
 const project = path.join(fixtureRoot, "project");
 const rootA = path.join(fixtureRoot, "prefix-a", "lib", "node_modules");
 const rootB = path.join(fixtureRoot, "prefix-b", "lib", "node_modules");
@@ -29,8 +29,8 @@ before(() => {
 	process.env.HOME = path.join(temp, "home");
 	process.env.USERPROFILE = process.env.HOME;
 	process.env.APPDATA = path.join(temp, "missing-appdata");
-	process.env.PI_CODING_AGENT_DIR = path.join(temp, "home", ".pi", "agent");
-	delete process.env.PI_OFFLINE;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(temp, "home", ".pi", "agent");
+	delete process.env.EVOHARNESS_OFFLINE;
 	writeAgent(path.join(project, ".pi", "agents", "local.md"), "local-only");
 	writePackage(rootA, "global-a");
 	writePackage(rootB, "global-b");

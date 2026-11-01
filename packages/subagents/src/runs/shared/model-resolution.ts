@@ -353,7 +353,7 @@ function enforceModelScopes(
  * sentinel), the child must inherit the parent session's *in-memory* model
  * (`provider/id`) instead of being left to resolve its own model. Without an
  * explicit `provider/id`, the child falls back to the global
- * `~/.pi/agent/settings.json` default, which is shared across every open PI
+ * `~/.evoharness/agent/settings.json` default, which is shared across every open host
  * session — so a different session that last changed its model in the TUI would
  * silently contaminate this session's subagents (see issue #266). Passing an
  * explicit `provider/id` keeps each session's children isolated to that

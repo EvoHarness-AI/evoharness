@@ -17,8 +17,8 @@ it("native reviewer consumes nested persona results via exact, prefix, and aggre
 	const agentDir = path.join(root, "agent");
 	const auditPath = path.join(root, "audit.jsonl");
 	const savedEnv = { ...process.env };
-	process.env.PI_CODING_AGENT_DIR = agentDir;
-	process.env.PI_OFFLINE = "1";
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
+	process.env.EVOHARNESS_OFFLINE = "1";
 	process.env.PI_SUBAGENTS_NATIVE_WAIT_AUDIT = auditPath;
 	const extension = fileURLToPath(new URL("../fixtures/native-nested-wait-provider.ts", import.meta.url));
 	fs.mkdirSync(path.join(agentDir, "agents"), { recursive: true });
@@ -53,7 +53,7 @@ it("native reviewer consumes nested persona results via exact, prefix, and aggre
 	} finally {
 		await factory.dispose();
 		setChildSessionFactory(undefined);
-		for (const key of ["PI_CODING_AGENT_DIR", "PI_OFFLINE", "PI_SUBAGENTS_NATIVE_WAIT_AUDIT"]) {
+		for (const key of ["EVOHARNESS_CODING_AGENT_DIR", "EVOHARNESS_OFFLINE", "PI_SUBAGENTS_NATIVE_WAIT_AUDIT"]) {
 			if (savedEnv[key] === undefined) delete process.env[key]; else process.env[key] = savedEnv[key];
 		}
 		fs.rmSync(root, { recursive: true, force: true });

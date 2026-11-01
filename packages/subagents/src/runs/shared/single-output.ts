@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { Message } from "@earendil-works/pi-ai";
+import type { Message } from "@evoharness/ai";
 import type { OutputMode, SavedOutputReference } from "../../shared/types.ts";
 
 const READ_ONLY_OUTPUT_TOOLS = new Set([

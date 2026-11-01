@@ -13,9 +13,9 @@ const userAgentsDir = path.join(homeDir, ".agents");
 const userAgentsCanary = path.join(userAgentsDir, ".data-loss-canary");
 const originalHome = process.env.HOME;
 const originalUserProfile = process.env.USERPROFILE;
-const originalAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 
-function restoreEnv(name: "HOME" | "USERPROFILE" | "PI_CODING_AGENT_DIR", value: string | undefined): void {
+function restoreEnv(name: "HOME" | "USERPROFILE" | "EVOHARNESS_CODING_AGENT_DIR", value: string | undefined): void {
 	if (value === undefined) delete process.env[name];
 	else process.env[name] = value;
 }
@@ -27,7 +27,7 @@ before(() => {
 	process.env.HOME = homeDir;
 	process.env.USERPROFILE = homeDir;
 	assert.equal(os.homedir(), homeDir);
-	process.env.PI_CODING_AGENT_DIR = path.join(homeDir, ".pi", "agent");
+	process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(homeDir, ".pi", "agent");
 });
 
 after(() => {
@@ -36,7 +36,7 @@ after(() => {
 	} finally {
 		restoreEnv("HOME", originalHome);
 		restoreEnv("USERPROFILE", originalUserProfile);
-		restoreEnv("PI_CODING_AGENT_DIR", originalAgentDir);
+		restoreEnv("EVOHARNESS_CODING_AGENT_DIR", originalAgentDir);
 		clearSkillCache();
 		fs.rmSync(tmpDir, { recursive: true, force: true });
 	}

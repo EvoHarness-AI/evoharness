@@ -32,7 +32,7 @@ function writeJson(filePath: string, value: unknown): void {
 }
 
 function writeMcpFixture(): void {
-	const agentDir = process.env.PI_CODING_AGENT_DIR;
+	const agentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	assert.equal(typeof agentDir, "string");
 	const definition = { command: "github-mcp" };
 	writeJson(path.join(agentDir, "mcp-adapter.json"), { mcpServers: { github: definition } });
@@ -54,11 +54,11 @@ describe("public launch contract preflight", () => {
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-preflight-"));
 		previousHome = process.env.HOME;
 		previousUserProfile = process.env.USERPROFILE;
-		previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+		previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const home = path.join(tempDir, "home");
 		process.env.HOME = home;
 		process.env.USERPROFILE = home;
-		process.env.PI_CODING_AGENT_DIR = path.join(home, ".pi", "agent");
+		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(home, ".pi", "agent");
 		clearSkillCache();
 	});
 
@@ -68,8 +68,8 @@ describe("public launch contract preflight", () => {
 		else process.env.HOME = previousHome;
 		if (previousUserProfile === undefined) delete process.env.USERPROFILE;
 		else process.env.USERPROFILE = previousUserProfile;
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		fs.rmSync(tempDir, { recursive: true, force: true });
 	});
 
@@ -106,7 +106,7 @@ describe("public launch contract preflight", () => {
 		assert.equal(invalidModel.code, "unsupported_mode");
 		assert.match(invalidModel.message, /Invalid Claude Code model/u);
 
-		const agentDir = process.env.PI_CODING_AGENT_DIR;
+		const agentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		assert.equal(typeof agentDir, "string");
 		writeJson(path.join(agentDir!, "settings.json"), { subagents: { modelScope: { enforce: true, allow: ["anthropic/claude-opus-4-5"] } } });
 
@@ -126,7 +126,7 @@ describe("public launch contract preflight", () => {
 
 	it("resolves models from user settings when the session declined project trust", async () => {
 		const cwd = path.join(tempDir, "untrusted-repo");
-		const agentDir = process.env.PI_CODING_AGENT_DIR!;
+		const agentDir = process.env.EVOHARNESS_CODING_AGENT_DIR!;
 		writeAgent(path.join(agentDir, "agents", "probe.md"), "---\nname: probe\ndescription: Probe\n---\nUser body.\n");
 		writeJson(path.join(agentDir, "settings.json"), { subagents: { agentOverrides: { probe: { model: "openai/luna" } }, modelScope: { enforce: true, allow: ["openai/luna"] } } });
 		writeJson(path.join(cwd, ".pi", "settings.json"), { subagents: { agentOverrides: { probe: { model: "openai/astra" } }, modelScope: { enforce: true, allow: ["openai/astra"] } } });
@@ -670,7 +670,7 @@ Broken prompt.
 		assert.equal(spacedBrokenReviewer.ok, false);
 		assert.equal(spacedBrokenReviewer.code, "missing_agent");
 		assert.match(spacedBrokenReviewer.message, /Agent ' reviewer ' has invalid configuration: Agent 'reviewer' has invalid runner\.type/);
-		writeAgent(path.join(process.env.PI_CODING_AGENT_DIR!, "agents", "foo.md"), `---
+		writeAgent(path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "agents", "foo.md"), `---
 name: foo
 description: User foo
 ---
@@ -690,7 +690,7 @@ Broken prompt.
 		const brokenPackagedFoo = await resolveSubagentLaunchContract({ agent: "acme.foo", cwd, agentScope: "both" });
 		assert.equal(brokenPackagedFoo.ok, false);
 		assert.match(brokenPackagedFoo.message, /Agent 'acme\.foo' has invalid configuration: Agent 'foo' has invalid runner\.type/);
-		writeAgent(path.join(process.env.PI_CODING_AGENT_DIR!, "agents", "package-shadow.md"), `---
+		writeAgent(path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "agents", "package-shadow.md"), `---
 name: package-shadow
 description: User package shadow
 ---
@@ -733,7 +733,7 @@ Package prompt.
 `);
 		fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ "pi-subagents": { agents: ["agents"] } }));
 		fs.writeFileSync(path.join(cwd, ".pi", "settings.json"), JSON.stringify({ packages: [packageRoot] }));
-		writeAgent(path.join(process.env.PI_CODING_AGENT_DIR!, "agents", "ambiguous.md"), `---
+		writeAgent(path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "agents", "ambiguous.md"), `---
 name: ambiguous
 description: User ambiguous
 ---
@@ -1028,7 +1028,7 @@ defaultContext: fresh
 ---
 Project prompt.
 `);
-		writeJson(path.join(process.env.PI_CODING_AGENT_DIR!, "extensions", "subagent", "config.json"), {
+		writeJson(path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "extensions", "subagent", "config.json"), {
 			defaultSubagentContext: "fork",
 		});
 		const parentSessionFile = path.join(tempDir, "global-parent.jsonl");
@@ -1068,7 +1068,7 @@ defaultContext: fork
 ---
 Project prompt.
 `);
-		writeJson(path.join(process.env.PI_CODING_AGENT_DIR!, "extensions", "subagent", "config.json"), {
+		writeJson(path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "extensions", "subagent", "config.json"), {
 			defaultSubagentContext: "fresh",
 		});
 

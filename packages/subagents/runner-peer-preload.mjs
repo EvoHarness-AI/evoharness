@@ -4,7 +4,7 @@ import { pathToFileURL } from "node:url";
 const aliases = JSON.parse(process.env.JITI_ALIAS ?? "{}");
 const nativeRunner = process.env.PI_ASYNC_NATIVE_RUNNER === "1";
 const redirected = new Set([
-	"@earendil-works/pi-tui",
+	"@evoharness/tui",
 ]);
 
 if (typeof nodeModule.registerHooks === "function") {

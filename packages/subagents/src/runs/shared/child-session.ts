@@ -10,8 +10,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
-import type { ExtensionAPI, ExtensionContext, ToolCallEvent, ToolCallEventResult, ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { AgentMessage } from "@evoharness/agent-core";
+import type { ExtensionAPI, ExtensionContext, ToolCallEvent, ToolCallEventResult, ToolDefinition } from "@evoharness/coding-agent";
 import { CHILD_COMMAND_TOOL, createChildCommandRuntime } from "./child-commands.ts";
 import { supervisorChannelDir } from "./child-tool-plan.ts";
 import { pinChildCacheRetention } from "../../shared/child-cache-retention.ts";
@@ -154,7 +154,7 @@ export interface ChildSessionFactory {
 	dispose(): Promise<void>;
 }
 
-export type PiCodingAgentModule = typeof import("@earendil-works/pi-coding-agent");
+export type PiCodingAgentModule = typeof import("@evoharness/coding-agent");
 
 export interface DefaultChildSessionFactoryOptions {
 	/**
@@ -505,7 +505,7 @@ export function createDefaultChildSessionFactory(options: DefaultChildSessionFac
 			// Foreground children share Pi's global theme with the parent, so reinitializing it
 			// would overwrite the parent's active light/dark appearance. Detached runners have
 			// no initialized theme and must initialize one for headless extension renderers.
-			const themeKey = Symbol.for("@earendil-works/pi-coding-agent:theme");
+			const themeKey = Symbol.for("@evoharness/coding-agent:theme");
 			const themeInitialized = Boolean((globalThis as Record<symbol, unknown>)[themeKey]);
 			if (!themeInitialized && typeof pi.initTheme === "function") pi.initTheme(settingsManager.getTheme());
 			// SDK sessions do not install Pi's CLI built-ins. Use the host's own

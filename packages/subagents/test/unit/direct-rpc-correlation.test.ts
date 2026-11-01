@@ -4,7 +4,7 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
 import type { AgentConfig } from "../../src/agents/agents.ts";
 import { createSubagentExecutor } from "../../src/runs/foreground/subagent-executor.ts";
 import { DIRS, SUBAGENT_ASYNC_STARTED_EVENT, type AsyncStatus, type Details, type SubagentState } from "../../src/shared/types.ts";

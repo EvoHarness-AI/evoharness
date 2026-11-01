@@ -183,7 +183,7 @@ export function registerProgramStatusReporter(options: ProgramStatusReporterOpti
 
 	return {
 		sessionStarted({ hasUI, mode }) {
-			active = options.enabled && hasUI && mode === "tui" && isTTY && env.TERM !== "dumb" && env.PI_PROGRAM_STATUS !== "0";
+			active = options.enabled && hasUI && mode === "tui" && isTTY && env.TERM !== "dumb" && env.EVOHARNESS_PROGRAM_STATUS !== "0";
 			if (active && !listeningForResume && process.platform !== "win32") {
 				process.on("SIGCONT", resend);
 				listeningForResume = true;

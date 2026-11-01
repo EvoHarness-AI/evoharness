@@ -1,4 +1,4 @@
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 import type { InspectorPlugin } from "../inspectors/types.ts";
 
 export type { InspectorContext, InspectorLaunch, InspectorParams, InspectorPlugin, InspectorTarget } from "../inspectors/types.ts";

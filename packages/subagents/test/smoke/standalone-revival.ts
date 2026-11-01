@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
 import { inspectSessionLease } from "../../src/runs/shared/session-lease.js";
 
 type Run = { asyncId: string; asyncDir: string };

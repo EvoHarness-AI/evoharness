@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
-import { toToolDeclaration, validateToolArguments } from "@earendil-works/pi-ai";
+import { toToolDeclaration, validateToolArguments } from "@evoharness/ai";
 import { ensureSupervisorChannelDir, registerNativeSupervisorClient, resolveSupervisorChannelDir, TOP_LEVEL_SUPERVISOR_REFUSAL } from "../../src/intercom/native-supervisor-channel.ts";
 import registerSubagentExtension from "../../src/extension/index.ts";
 import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
@@ -59,21 +59,21 @@ function createRuntime(messages: any[] = [], excluded: string[] = [], missingApi
 		modelRegistry: { getAvailable() { return []; } },
 	};
 	const childEnv = process.env.PI_SUBAGENT_CHILD;
-	const priorAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const priorAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "tool-activation-agent-"));
 	if (options.config) {
 		fs.mkdirSync(path.join(agentDir, "extensions", "subagent"), { recursive: true });
 		fs.writeFileSync(path.join(agentDir, "extensions", "subagent", "config.json"), JSON.stringify(options.config));
 	}
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	delete process.env.PI_SUBAGENT_CHILD;
 	try {
 		registerSubagentExtension(pi as any);
 	} finally {
 		if (childEnv === undefined) delete process.env.PI_SUBAGENT_CHILD;
 		else process.env.PI_SUBAGENT_CHILD = childEnv;
-		if (priorAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = priorAgentDir;
+		if (priorAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = priorAgentDir;
 	}
 	runtimes.push({ handlers, context });
 	return {
@@ -182,9 +182,9 @@ describe("subagent tool activation", () => {
 describe("host dynamic tool support detection", () => {
 	it("activates the loader on an in-process host with no Pi package root evidence", async () => {
 		const prior = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
-		const priorPiPackageDir = process.env.PI_PACKAGE_DIR;
+		const priorPiPackageDir = process.env.EVOHARNESS_PACKAGE_DIR;
 		delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
-		delete process.env.PI_PACKAGE_DIR;
+		delete process.env.EVOHARNESS_PACKAGE_DIR;
 		try {
 			assert.equal(resolvePiPackageRoot(), undefined, "the test process must not look like a running host package");
 			const runtime = createRuntime([], [], [], DYNAMIC);
@@ -193,7 +193,7 @@ describe("host dynamic tool support detection", () => {
 			assert.equal(runtime.active().includes("subagent"), false);
 		} finally {
 			if (prior !== undefined) process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = prior;
-			if (priorPiPackageDir !== undefined) process.env.PI_PACKAGE_DIR = priorPiPackageDir;
+			if (priorPiPackageDir !== undefined) process.env.EVOHARNESS_PACKAGE_DIR = priorPiPackageDir;
 		}
 	});
 });

@@ -13,27 +13,27 @@ for (const nativeRunner of [true, false]) {
 			const root = fs.mkdtempSync(path.join(os.tmpdir(), "runner-peer-symlinks-"));
 			try {
 				const host = path.join(root, "host");
-				const storeModules = path.join(root, "store", "pi-tui", "node_modules");
-				const tui = path.join(storeModules, "@earendil-works", "pi-tui");
+				const storeModules = path.join(root, "store", "tui", "node_modules");
+				const tui = path.join(storeModules, "@evoharness", "tui");
 				const marked = path.join(storeModules, "marked");
-				const link = path.join(host, "node_modules", "@earendil-works", "pi-tui");
+				const link = path.join(host, "node_modules", "@evoharness", "tui");
 				fs.mkdirSync(path.dirname(link), { recursive: true });
 				fs.mkdirSync(tui, { recursive: true });
 				fs.mkdirSync(marked, { recursive: true });
-				fs.writeFileSync(path.join(host, "package.json"), JSON.stringify({ name: "@earendil-works/pi-coding-agent", version: "0.87.0" }));
-				fs.writeFileSync(path.join(tui, "package.json"), JSON.stringify({ name: "@earendil-works/pi-tui", type: "module", exports: "./index.js" }));
+				fs.writeFileSync(path.join(host, "package.json"), JSON.stringify({ name: "@evoharness/coding-agent", version: "0.87.0" }));
+				fs.writeFileSync(path.join(tui, "package.json"), JSON.stringify({ name: "@evoharness/tui", type: "module", exports: "./index.js" }));
 				fs.writeFileSync(path.join(tui, "index.js"), "export { marker } from 'marked';\n");
 				fs.writeFileSync(path.join(marked, "package.json"), JSON.stringify({ name: "marked", type: "module", exports: "./index.js" }));
 				fs.writeFileSync(path.join(marked, "index.js"), "export const marker = 'resolved-from-store';\n");
 				fs.symlinkSync(tui, link, "junction");
 				const { aliases } = resolveHostPeerAliases(host);
-				assert.ok(aliases["@earendil-works/pi-tui"]);
+				assert.ok(aliases["@evoharness/tui"]);
 				const preload = loader === "preload"
 					? new URL("../../runner-peer-preload.mjs", import.meta.url).href
 					: `data:text/javascript,${encodeURIComponent(`import { register } from 'node:module'; register(${JSON.stringify(new URL("../../runner-peer-loader.mjs", import.meta.url).href)}, { data: { aliases: JSON.parse(process.env.JITI_ALIAS), nativeRunner: ${nativeRunner} } });`)}`;
 				const child = spawnSync(process.execPath, [
 					"--import", preload, "--input-type=module", "-e",
-					"import assert from 'node:assert/strict'; const peer = await import('@earendil-works/pi-tui'); const direct = await import(process.argv[1]); assert.strictEqual(peer, direct); console.log(peer.marker);",
+					"import assert from 'node:assert/strict'; const peer = await import('@evoharness/tui'); const direct = await import(process.argv[1]); assert.strictEqual(peer, direct); console.log(peer.marker);",
 					pathToFileURL(fs.realpathSync(path.join(tui, "index.js"))).href,
 				], {
 					encoding: "utf8",

@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import type { AgentToolResult } from "@evoharness/agent-core";
 import { closeStopInbox, consumeStopRequestPayload, stopRequestPath, stopRequestsDir } from "../../src/runs/background/control-channel.ts";
 import { getArtifactPaths, getArtifactsDir } from "../../src/shared/artifacts.ts";
 import { readStatus } from "../../src/shared/utils.ts";

@@ -33,9 +33,9 @@ function readText(result: { content: Array<{ type: string; text?: string }> }): 
 	return first.text;
 }
 
-describe("PI_CODING_AGENT_DIR runtime paths", () => {
+describe("EVOHARNESS_CODING_AGENT_DIR runtime paths", () => {
 	beforeEach(() => {
-		oldAgentDir = process.env.PI_CODING_AGENT_DIR;
+		oldAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		oldHome = process.env.HOME;
 		oldUserProfile = process.env.USERPROFILE;
 		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-coding-agent-dir-"));
@@ -46,13 +46,13 @@ describe("PI_CODING_AGENT_DIR runtime paths", () => {
 		fs.mkdirSync(tempHome, { recursive: true });
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		clearSkillCache();
 	});
 
 	afterEach(() => {
-		if (oldAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = oldAgentDir;
+		if (oldAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = oldAgentDir;
 		if (oldHome === undefined) delete process.env.HOME;
 		else process.env.HOME = oldHome;
 		if (oldUserProfile === undefined) delete process.env.USERPROFILE;
@@ -68,16 +68,16 @@ describe("PI_CODING_AGENT_DIR runtime paths", () => {
 		assert.equal(getProjectConfigDir(cwd), path.join(cwd, ".pi"));
 		assert.equal(getAgentDir(), agentDir);
 
-		process.env.PI_CODING_AGENT_DIR = "~";
+		process.env.EVOHARNESS_CODING_AGENT_DIR = "~";
 		assert.equal(getAgentDir(), tempHome);
 
-		process.env.PI_CODING_AGENT_DIR = "~/custom-agent-dir";
+		process.env.EVOHARNESS_CODING_AGENT_DIR = "~/custom-agent-dir";
 		assert.equal(getAgentDir(), path.join(tempHome, "custom-agent-dir"));
 
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 		assert.equal(getAgentDir(), path.join(tempHome, ".pi", "agent"));
 
-		process.env.PI_CODING_AGENT_DIR = agentDir;
+		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const configPath = path.join(agentDir, "extensions", "subagent", "config.json");
 		writeFile(configPath, JSON.stringify({ asyncByDefault: true, defaultSubagentContext: "fresh", maxSubagentDepth: 3, artifactDir: "session", artifactConfig: { cleanupDays: 9007199254740991 } }));
 

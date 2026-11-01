@@ -64,13 +64,13 @@ describe("auto-resuming interrupted workflows at session start", { skip: !availa
 	installSingleExecutionHooks();
 
 	beforeEach(() => {
-		const agentDir = process.env.PI_CODING_AGENT_DIR!;
+		const agentDir = process.env.EVOHARNESS_CODING_AGENT_DIR!;
 		fs.mkdirSync(path.join(agentDir, "agents"), { recursive: true });
 		fs.writeFileSync(path.join(agentDir, "agents", "echo.md"), "---\nname: echo\ndescription: Echoes\n---\nEcho the task.\n");
 		fs.writeFileSync(path.join(agentDir, "agents", "bg.md"), "---\nname: bg\ndescription: Background echo\nasync: true\n---\nEcho the task.\n");
 	});
 	const writeConfig = (config: Record<string, unknown>) => {
-		const dir = path.join(process.env.PI_CODING_AGENT_DIR!, "extensions", "subagent");
+		const dir = path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "extensions", "subagent");
 		fs.mkdirSync(dir, { recursive: true });
 		fs.writeFileSync(path.join(dir, "config.json"), JSON.stringify(config));
 	};

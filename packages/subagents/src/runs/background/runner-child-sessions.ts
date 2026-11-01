@@ -1,7 +1,7 @@
 /**
  * Child session factory for the detached async runner.
  *
- * The runner imports `@earendil-works/pi-coding-agent` like the parent does;
+ * The runner imports `@evoharness/coding-agent` like the parent does;
  * the parent aliases that specifier (and the other host peer packages) to the
  * installed pi package through `JITI_ALIAS` when it spawns the runner, see
  * `runner-aliases.ts`. Tests replace the factory with a scripted one by

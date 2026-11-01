@@ -1,6 +1,6 @@
-import type { Agent, StreamFn, ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { ProviderHeaders } from "@earendil-works/pi-ai";
+import type { Agent, StreamFn, ThinkingLevel } from "@evoharness/agent-core";
+import type { ExtensionContext } from "@evoharness/coding-agent";
+import type { ProviderHeaders } from "@evoharness/ai";
 import { agentStreamOptions } from "../../shared/agent-stream-options.ts";
 import { opencodeSessionHeaders } from "../../shared/opencode-session-headers.ts";
 import type { ForegroundRunControl } from "../../shared/types.ts";
@@ -65,8 +65,8 @@ export async function rewritePromptWithGuidance(input: {
 	const model = input.ctx.model;
 	if (!model) throw new Error("Prompt redo needs the current session model to rewrite the authored task.");
 	const [{ Agent }, { convertToLlm }] = await Promise.all([
-		import("@earendil-works/pi-agent-core"),
-		import("@earendil-works/pi-coding-agent"),
+		import("@evoharness/agent-core"),
+		import("@evoharness/coding-agent"),
 	]);
 	const auth = await resolveRewriteAuth(input.ctx, model);
 	const baseStreamFn: StreamFn = input.streamFn ?? ((nextModel, context, streamOptions) => input.ctx.modelRegistry.streamSimple(nextModel, context, streamOptions));

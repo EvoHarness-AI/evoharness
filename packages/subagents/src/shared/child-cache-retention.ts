@@ -1,4 +1,4 @@
-import type { StreamFn } from "@earendil-works/pi-agent-core";
+import type { StreamFn } from "@evoharness/agent-core";
 
 /**
  * Anthropic prices a cache write by the TTL it is asked for: 1.25x base input
@@ -17,11 +17,11 @@ export function childCacheRetention(env: NodeJS.ProcessEnv = process.env): strin
 
 /**
  * Launch-environment form for spawned children. Empty when unset, so the child
- * inherits the parent's `PI_CACHE_RETENTION` rather than having it cleared.
+ * inherits the parent's `EVOHARNESS_CACHE_RETENTION` rather than having it cleared.
  */
-export function childCacheRetentionEnv(env?: NodeJS.ProcessEnv): { PI_CACHE_RETENTION?: string } {
+export function childCacheRetentionEnv(env?: NodeJS.ProcessEnv): { EVOHARNESS_CACHE_RETENTION?: string } {
 	const retention = childCacheRetention(env);
-	return retention ? { PI_CACHE_RETENTION: retention } : {};
+	return retention ? { EVOHARNESS_CACHE_RETENTION: retention } : {};
 }
 
 /**
@@ -38,6 +38,6 @@ export function pinChildCacheRetention(agent: { streamFunction: StreamFn } | und
 	agent.streamFunction = (model, context, options) =>
 		base(model, context, {
 			...options,
-			env: { ...(options?.env ?? {}), PI_CACHE_RETENTION: retention },
+			env: { ...(options?.env ?? {}), EVOHARNESS_CACHE_RETENTION: retention },
 		});
 }

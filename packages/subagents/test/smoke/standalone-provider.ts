@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
-import { fauxProvider, fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
-import { SessionManager, type ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { fauxProvider, fauxAssistantMessage, fauxToolCall } from "@evoharness/ai";
+import { SessionManager, type ExtensionAPI } from "@evoharness/coding-agent";
 
 function waitForRelease(signal?: AbortSignal): Promise<void> {
 	return new Promise((resolve) => {

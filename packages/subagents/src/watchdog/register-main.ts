@@ -1,4 +1,4 @@
-import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI, ExtensionCommandContext, ExtensionContext } from "@evoharness/coding-agent";
 import { resolveEffectiveThinking, splitKnownThinkingSuffix, THINKING_LEVELS, type ThinkingLevel } from "../shared/model-info.ts";
 import { SLASH_TEXT_RESULT_TYPE, SLASH_TEXT_VIEW_ONLY_DETAILS } from "../shared/types.ts";
 import { startWatchdogDiffBaselineCapture, type WatchdogDiffBaseline } from "./diff-tool.ts";

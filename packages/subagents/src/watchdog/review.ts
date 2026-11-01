@@ -1,6 +1,6 @@
-import { Agent, type AgentTool, type StreamFn, type ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { createReadOnlyTools, convertToLlm, type ExtensionContext } from "@earendil-works/pi-coding-agent";
-import type { Model, ProviderHeaders } from "@earendil-works/pi-ai";
+import { Agent, type AgentTool, type StreamFn, type ThinkingLevel } from "@evoharness/agent-core";
+import { createReadOnlyTools, convertToLlm, type ExtensionContext } from "@evoharness/coding-agent";
+import type { Model, ProviderHeaders } from "@evoharness/ai";
 import { Type, type Static } from "typebox";
 import { resolveModelCandidate } from "../runs/shared/model-resolution.ts";
 import { agentStreamOptions } from "../shared/agent-stream-options.ts";

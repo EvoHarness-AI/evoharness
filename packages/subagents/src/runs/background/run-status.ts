@@ -1,6 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import type { AgentToolResult } from "@evoharness/agent-core";
 import { safeTerminalText } from "../../shared/display-text.ts";
 import { getArtifactPaths, getArtifactsDir } from "../../shared/artifacts.ts";
 import { readFleetTranscript } from "../../tui/fleet-transcript.ts";

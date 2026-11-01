@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { RUNTIME_AGENT_REGISTER_EVENT, registerAgent, registerAgentViaEvents, type RuntimeAgentRegistrationRequest } from "../../src/api/agents.ts";
 import { registerRuntimeAgentEventListener } from "../../src/agents/runtime-agent-events.ts";
 import { handleList, handleManagementAction } from "../../src/agents/agent-management.ts";
@@ -12,7 +12,7 @@ import { clearRuntimeAgentsForPi, mergeRuntimeAgents } from "../../src/agents/ru
 
 const originalHome = process.env.HOME;
 const originalUserProfile = process.env.USERPROFILE;
-const originalPiCodingAgentDir = process.env.PI_CODING_AGENT_DIR;
+const originalPiCodingAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 
 let tempHome = "";
 let tempProject = "";
@@ -67,7 +67,7 @@ describe("runtime agent registration", () => {
 		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "pi-runtime-agent-project-"));
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
-		delete process.env.PI_CODING_AGENT_DIR;
+		delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 		pi = makePi();
 	});
 
@@ -77,8 +77,8 @@ describe("runtime agent registration", () => {
 		else process.env.HOME = originalHome;
 		if (originalUserProfile === undefined) delete process.env.USERPROFILE;
 		else process.env.USERPROFILE = originalUserProfile;
-		if (originalPiCodingAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = originalPiCodingAgentDir;
+		if (originalPiCodingAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = originalPiCodingAgentDir;
 		fs.rmSync(tempHome, { recursive: true, force: true });
 		fs.rmSync(tempProject, { recursive: true, force: true });
 	});

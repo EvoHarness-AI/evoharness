@@ -14,7 +14,7 @@ function parentToolEnv(agentDir?: string): NodeJS.ProcessEnv {
 	const env = { ...process.env };
 	delete env[SUBAGENT_CHILD_ENV];
 	delete env[WAIT_TOOL_ENABLED_ENV];
-	if (agentDir) env.PI_CODING_AGENT_DIR = agentDir;
+	if (agentDir) env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	return env;
 }
 
@@ -328,7 +328,7 @@ describe("subagent extension child mode", () => {
 				if (contextError.length !== 1 || contextError[0] !== "✗ management · failed") throw new Error("unexpected context error summary: " + JSON.stringify(contextError));
 			`;
 			const env = parentToolEnv();
-			env.PI_CODING_AGENT_DIR = agentDir;
+			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
@@ -358,7 +358,7 @@ describe("subagent extension child mode", () => {
 				if (call.length !== 1 || call[0] !== "subagentworker[async]") throw new Error("unexpected call row: " + JSON.stringify(call));
 			`;
 			const env = parentToolEnv();
-			env.PI_CODING_AGENT_DIR = agentDir;
+			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
@@ -396,7 +396,7 @@ describe("subagent extension child mode", () => {
 				if (!lines[4].includes("rows hidden")) throw new Error("compact cap was not applied: " + JSON.stringify(lines));
 			`;
 			const env = parentToolEnv();
-			env.PI_CODING_AGENT_DIR = agentDir;
+			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
@@ -501,7 +501,7 @@ describe("subagent extension child mode", () => {
 			`;
 
 			const env = parentToolEnv();
-			env.PI_CODING_AGENT_DIR = agentDir;
+			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			const output = execFileSync(
 				process.execPath,
 				[
@@ -673,7 +673,7 @@ describe("subagent extension child mode", () => {
 				for (const handler of handlers.get("session_shutdown")) await handler();
 			`;
 			const env = parentToolEnv();
-			env.PI_CODING_AGENT_DIR = agentDir;
+			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
@@ -761,7 +761,7 @@ describe("subagent extension child mode", () => {
 				for (const handler of handlers.get("session_shutdown")) await handler();
 			`;
 			const env = parentToolEnv();
-			env.PI_CODING_AGENT_DIR = agentDir;
+			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
@@ -1055,7 +1055,7 @@ describe("subagent extension child mode", () => {
 		const script = String.raw`
 			import registerSubagentExtension from "./index.ts";
 			import { currentCompletionOwnerId } from "./src/shared/completion-owner.ts";
-			process.env.PI_OFFLINE = "1";
+			process.env.EVOHARNESS_OFFLINE = "1";
 			const completionOwnerId = currentCompletionOwnerId();
 			const pendingTimers = new Map();
 			const realSetTimeout = globalThis.setTimeout;
@@ -1112,7 +1112,7 @@ describe("subagent extension child mode", () => {
 
 		try {
 			const env = parentToolEnv();
-			env.PI_CODING_AGENT_DIR = agentDir;
+			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			execFileSync(
 				process.execPath,
 				["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script],
@@ -1131,7 +1131,7 @@ describe("subagent extension child mode", () => {
 		const script = String.raw`
 			import registerSubagentExtension from "./index.ts";
 			import { currentCompletionOwnerId } from "./src/shared/completion-owner.ts";
-			process.env.PI_OFFLINE = "1";
+			process.env.EVOHARNESS_OFFLINE = "1";
 			const completionOwnerId = currentCompletionOwnerId();
 			const pendingTimers = new Map();
 			const realSetTimeout = globalThis.setTimeout;
@@ -1225,7 +1225,7 @@ describe("subagent extension child mode", () => {
 
 		try {
 			const env = parentToolEnv();
-			env.PI_CODING_AGENT_DIR = agentDir;
+			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			execFileSync(
 				process.execPath,
 				["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script],
@@ -1273,7 +1273,7 @@ describe("subagent extension child mode", () => {
 
 		try {
 			const env = parentToolEnv(agentDir);
-			env.PI_CODING_AGENT_DIR = agentDir;
+			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			execFileSync(
 				process.execPath,
 				["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script],
@@ -1315,7 +1315,7 @@ describe("subagent extension child mode", () => {
 				return { handlers, events, sent };
 			};
 			const emit = async (instance, name, event, ctx) => { for (const handler of instance.handlers.get(name) ?? []) await handler(event, ctx); };
-			const sessions = path.join(process.env.PI_CODING_AGENT_DIR, "sessions");
+			const sessions = path.join(process.env.EVOHARNESS_CODING_AGENT_DIR, "sessions");
 			fs.mkdirSync(sessions, { recursive: true });
 			const oldSession = path.join(sessions, "old.jsonl");
 			const newSession = path.join(sessions, "new.jsonl");
@@ -1352,7 +1352,7 @@ describe("subagent extension child mode", () => {
 
 		try {
 			const env = parentToolEnv();
-			env.PI_CODING_AGENT_DIR = agentDir;
+			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
@@ -1381,7 +1381,7 @@ describe("subagent extension child mode", () => {
 				return { handlers, tools };
 			};
 			const emit = async (instance, name, event, ctx) => { for (const handler of instance.handlers.get(name) ?? []) await handler(event, ctx); };
-			const sessions = path.join(process.env.PI_CODING_AGENT_DIR, "sessions");
+			const sessions = path.join(process.env.EVOHARNESS_CODING_AGENT_DIR, "sessions");
 			fs.mkdirSync(sessions, { recursive: true });
 			const sessionFile = (name) => { const file = path.join(sessions, name + ".jsonl"); fs.writeFileSync(file, ""); return file; };
 			const [a, b, foreign, fresh, childSession] = ["a", "b", "foreign", "fresh", "child"].map(sessionFile);
@@ -1448,7 +1448,7 @@ describe("subagent extension child mode", () => {
 		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "slash-context-agent-"));
 		const script = String.raw`
 			import assert from "node:assert/strict";
-			import { ExtensionRunner } from "@earendil-works/pi-coding-agent";
+			import { ExtensionRunner } from "@evoharness/coding-agent";
 			import registerSubagentExtension from "./index.ts";
 			const handlers = new Map();
 			const commands = new Map();

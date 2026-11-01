@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import type { AssistantMessage } from "@earendil-works/pi-ai";
+import type { AssistantMessage } from "@evoharness/ai";
 import type { ChildSessionLaunch } from "../../src/runs/shared/child-session.ts";
 import { remoteShellCommand } from "../../src/runs/shared/herdr-connection.ts";
 import { createPlacementAwareChildSessionFactory, HerdrPiSession } from "../../src/runs/shared/herdr-placed-run.ts";

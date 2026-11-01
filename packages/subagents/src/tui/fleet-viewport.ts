@@ -1,4 +1,4 @@
-import { ScrollView, type Component } from "@earendil-works/pi-tui";
+import { ScrollView, type Component } from "@evoharness/tui";
 
 /** Overlay-local clipping: ordinary overlays do not enter Pi's scroll layout traversal. */
 export class FleetViewport {

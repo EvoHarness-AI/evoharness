@@ -43,10 +43,10 @@ function withTempHome<T>(fn: (home: string) => T): T {
 	const home = mkdtemp("pi-subagents-mem-home-");
 	const oldHome = process.env.HOME;
 	const oldUserProfile = process.env.USERPROFILE;
-	const oldPiCodingAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const oldPiCodingAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	process.env.HOME = home;
 	process.env.USERPROFILE = home;
-	delete process.env.PI_CODING_AGENT_DIR;
+	delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 	try {
 		return fn(home);
 	} finally {
@@ -54,8 +54,8 @@ function withTempHome<T>(fn: (home: string) => T): T {
 		else process.env.HOME = oldHome;
 		if (oldUserProfile === undefined) delete process.env.USERPROFILE;
 		else process.env.USERPROFILE = oldUserProfile;
-		if (oldPiCodingAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = oldPiCodingAgentDir;
+		if (oldPiCodingAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = oldPiCodingAgentDir;
 	}
 }
 

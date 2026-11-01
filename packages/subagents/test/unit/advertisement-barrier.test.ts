@@ -48,8 +48,8 @@ if (phase === "old") {
 			? `@echo off\r\n"${process.execPath}" "%~dp0fake-npm.cjs" %*\r\n`
 			: `#!/bin/sh\nexec "${process.execPath}" "$(dirname "$0")/fake-npm.cjs" "$@"\n`);
 		if (process.platform !== "win32") fs.chmodSync(npm, 0o755);
-		const env = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}`, HOME: path.join(temp, "home"), USERPROFILE: path.join(temp, "home"), PI_CODING_AGENT_DIR: path.join(temp, "home"), TEST_PROJECT: path.join(fixtureRoot, "project"), TEST_OLD_DONE: oldDone, TEST_OLD_RELEASE: oldRelease, TEST_NPM_PHASE: "initial", APPDATA: path.join(temp, "missing-appdata") };
-		delete env.PI_OFFLINE;
+		const env = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}`, HOME: path.join(temp, "home"), USERPROFILE: path.join(temp, "home"), EVOHARNESS_CODING_AGENT_DIR: path.join(temp, "home"), TEST_PROJECT: path.join(fixtureRoot, "project"), TEST_OLD_DONE: oldDone, TEST_OLD_RELEASE: oldRelease, TEST_NPM_PHASE: "initial", APPDATA: path.join(temp, "missing-appdata") };
+		delete env.EVOHARNESS_OFFLINE;
 		delete env[SUBAGENT_CHILD_ENV];
 		const output = execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", String.raw`
 			import assert from "node:assert/strict";
@@ -155,7 +155,7 @@ if (phase === "old") {
 			const local = await advertise();
 			assert.match(local, /<name>local-specialist<\/name>/);
 			assert.doesNotMatch(local, /<name>(global|new)-specialist<\/name>/);
-			fs.writeFileSync(path.join(process.env.PI_CODING_AGENT_DIR, "settings.json"), "{");
+			fs.writeFileSync(path.join(process.env.EVOHARNESS_CODING_AGENT_DIR, "settings.json"), "{");
 			start({ reason: "reload" }, ctx);
 			await assert.rejects(tools.get("subagent").execute("invalid", { action: "list" }, new AbortController().signal, undefined, ctx), /Failed to parse settings file/);
 			console.log("responsive session_start; complete first prompt and loader");

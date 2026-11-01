@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { initTheme } from "@earendil-works/pi-coding-agent";
+import { initTheme } from "@evoharness/coding-agent";
 import { SelectorComponent } from "../../src/slash/selector.ts";
 
 initTheme("dark");

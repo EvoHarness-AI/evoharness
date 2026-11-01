@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { parseFrontmatter, parseFrontmatterList } from "../../src/agents/frontmatter.js";
 import registerSubagents from "../../index.js";
 import { requestAsyncInterrupt, requestAsyncSteer, requestAsyncStop } from "../../src/runs/background/control-channel.js";

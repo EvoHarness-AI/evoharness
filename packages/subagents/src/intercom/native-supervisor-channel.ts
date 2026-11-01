@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
-import type { AgentBeforeSettleEvent, AgentBeforeSettleEventResult, ExtensionAPI, MessageStartEvent, ToolDefinition } from "@earendil-works/pi-coding-agent";
+import type { AgentToolResult } from "@evoharness/agent-core";
+import type { AgentBeforeSettleEvent, AgentBeforeSettleEventResult, ExtensionAPI, MessageStartEvent, ToolDefinition } from "@evoharness/coding-agent";
 import { Type } from "typebox";
 import type { ChildSupervisorMetadata } from "../runs/shared/child-runtime-config.ts";
 import type { ParentWake } from "../shared/parent-wake.ts";

@@ -15,16 +15,16 @@ it("native Pi delivers a yielded question and continues without a reply action o
 	skip: !sdkRoot && "Set PI_SUBAGENTS_NATIVE_SDK to an installed real Pi SDK root",
 	timeout: 30_000,
 }, async () => {
-	const entry = execFileSync(process.execPath, ["--input-type=module", "-e", "console.log(import.meta.resolve('@earendil-works/pi-coding-agent'))"], { cwd: sdkRoot, encoding: "utf8" }).trim();
+	const entry = execFileSync(process.execPath, ["--input-type=module", "-e", "console.log(import.meta.resolve('@evoharness/coding-agent'))"], { cwd: sdkRoot, encoding: "utf8" }).trim();
 	assert.match(entry, /\/dist\/index\.js$/);
 	const pi = await import(entry);
 	assert.equal(pi.__piSubagentsTestShim, undefined);
 	const cwd = mkdtempSync(join(tmpdir(), "watchdog-native-"));
 	const agentDir = join(cwd, "agent");
 	mkdirSync(agentDir);
-	const previousDir = process.env.PI_CODING_AGENT_DIR;
+	const previousDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	const previousFetch = globalThis.fetch;
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	let session: any;
 	let runtime: ReturnType<typeof registerMainWatchdog> | undefined;
 	let context: any;
@@ -101,7 +101,7 @@ it("native Pi delivers a yielded question and continues without a reply action o
 		runtime?.dispose();
 		session?.dispose();
 		globalThis.fetch = previousFetch;
-		if (previousDir === undefined) delete process.env.PI_CODING_AGENT_DIR; else process.env.PI_CODING_AGENT_DIR = previousDir;
+		if (previousDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR; else process.env.EVOHARNESS_CODING_AGENT_DIR = previousDir;
 		rmSync(cwd, { recursive: true, force: true });
 	}
 });

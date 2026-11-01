@@ -40,7 +40,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
+import type { AgentToolResult } from "@evoharness/agent-core";
 import {
 	listBackgroundWorkWakeChannels,
 	snapshotBackgroundWork,

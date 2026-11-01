@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { DefaultResourceLoader, SettingsManager } from "@earendil-works/pi-coding-agent";
+import { DefaultResourceLoader, SettingsManager } from "@evoharness/coding-agent";
 import { registerRequiredChildExtensions } from "../../src/api/required-child-extensions.ts";
 import { assertRequiredChildExtensionsAdmitted, resolveRequiredChildExtensions, snapshotRequiredChildExtensions } from "../../src/shared/required-child-extensions.ts";
 import { buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
@@ -22,17 +22,17 @@ function baseInput(sessionId: string) {
 	return { parentSessionId: sessionId, sessionEnabled: false, inheritProjectContext: false, inheritGlobalContext: false, inheritSkills: false, cwd: process.cwd(), childAgentName: "worker", childIndex: 0, host: "parent" as const };
 }
 
-/** Expects the child session to be refused with `pi` and PI_CODING_AGENT_DIR=`agentDir`; then restores the variable and removes `dir`. */
+/** Expects the child session to be refused with `pi` and EVOHARNESS_CODING_AGENT_DIR=`agentDir`; then restores the variable and removes `dir`. */
 async function rejectsChildCreate(dir: string, agentDir: string, pi: PiCodingAgentModule, session: ChildSessionLaunch, expected: RegExp): Promise<void> {
-	const previousAgentDir = process.env.PI_CODING_AGENT_DIR;
+	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
-	process.env.PI_CODING_AGENT_DIR = agentDir;
+	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	try {
 		await assert.rejects(() => factory.create(session), expected);
 	} finally {
 		await factory.dispose();
-		if (previousAgentDir === undefined) delete process.env.PI_CODING_AGENT_DIR;
-		else process.env.PI_CODING_AGENT_DIR = previousAgentDir;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		fs.rmSync(dir, { recursive: true, force: true });
 	}
 }
