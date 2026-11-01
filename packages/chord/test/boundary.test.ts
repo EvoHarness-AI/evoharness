@@ -1,5 +1,5 @@
 import { readdir, readFile } from "node:fs/promises";
-import { dirname, resolve } from "node:path";
+import { dirname, isAbsolute, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, test } from "vitest";
 
@@ -30,8 +30,12 @@ describe("package boundary", () => {
 				const specifier = match[1]!;
 				const pkg = specifier.split("/").slice(0, 2).join("/");
 				if (specifier.startsWith("@evoharness/") && !ALLOWED.has(pkg)) violations.push(`${path}: ${specifier}`);
-				if (specifier.startsWith(".") && !resolve(dirname(file), specifier).startsWith(`${sourceDirectory}/`)) {
-					violations.push(`${path}: ${specifier}`);
+				// Compare with relative(), not a string prefix: resolve() yields native separators, so
+				// `${sourceDirectory}/` never matched on Windows and flagged every internal import.
+				// An escape reads as "..\...", and a sibling like src-evil/ no longer slips past a `/` suffix.
+				if (specifier.startsWith(".")) {
+					const inside = relative(sourceDirectory, resolve(dirname(file), specifier));
+					if (inside.startsWith("..") || isAbsolute(inside)) violations.push(`${path}: ${specifier}`);
 				}
 			}
 		}
