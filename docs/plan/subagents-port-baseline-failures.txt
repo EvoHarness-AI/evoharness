@@ -1,0 +1,27 @@
+✖ Pi agent loop command cancellation
+✖ async run status inspection
+✖ bg_wait tool
+✖ continues after a yielded command and observes targeted cancellation through the child tool
+✖ discovers symlinked prompt files and skips dangling links
+✖ does no idle settle work without delegated work
+✖ failing tests:
+✖ inspects live foreground artifacts on demand with child selection, ownership and bounded tails
+✖ invalidates excluded environment root aliases on reverse retarget
+✖ invalidates excluded explicit scan-root aliases when retargeted to allowed storage
+✖ invalidates excluded fixed root aliases on reverse retarget
+✖ invalidates excluded package root aliases on reverse retarget
+✖ invalidates excluded wildcard root aliases on reverse retarget
+✖ matches real paths and symlink aliases without matching sibling prefixes
+✖ prompt workflows
+✖ refuses symlink session transcript paths even under trusted roots
+✖ rejects symlinked prefix entries during foreign exact-id fallback
+✖ rejects symlinked targeted run directories before reconciliation
+✖ resolveGlobalNpmRoot
+✖ resolves home paths and missing descendants through symlinked ancestors
+✖ returns immediately to the event loop while a slow npm command runs
+✖ returns null silently when npm fails or produces a nonexistent root
+✖ settings subagents.agentExcludeDirs
+✖ skills filesystem fallback
+✖ skips optional global npm discovery in offline mode
+✖ times out a slow npm command without waiting for its output
+✖ validateStructuredOutputValue finds typebox/compile through the running Pi when the extension tree has none (#2765)
