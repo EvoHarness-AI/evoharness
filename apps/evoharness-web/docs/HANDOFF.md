@@ -108,6 +108,14 @@
 | 37 | 我自己留下的死代码被 lint 抓到（asPathArray、SettingsPanel 孤儿 onBusyChange/busy 链）——**busy 的三处守卫在功能删除后恒为 false** | 删死代码；守卫简化为无条件关闭并注释原因 | 解决 |
 | 38 | spec 三处字段错误被外部评审纠正（agent-core 包名、16 符号、408 测试）；评审也有两处不准确被我纠正（lazy.ts 是字面量；内存开关上游本就 desktop-only）——**双方都要实测** | 已双向修正并记录 | 解决 |
 
+## 欠账补记（外部审计后，2026-11-01）
+
+1. **pre-commit 触发面**：曾收窄（去掉 package.json|package-lock.json 触发），审计指出这会漏掉版本锁步与依赖变更的 app 门禁——**已恢复原触发面**。
+2. **spec Phase 0 第 7 条为部分交付**：localStorage 键已集中在 app-prefs.ts；Symbol.for / globalThis / entry 类型仍按上游风格散落（约 30 文件字面量，改名已全做、单点收敛未做）。所有者批准改判为部分交付后计入欠账；若要求真收敛，需触 30+ vendored 文件。
+3. **web-package-layout.test.mjs 未迁**：上游存在、spec B.4 列名；移植时（首次提交前）刻意删除——它钉的是 npm files 白名单，private app 无发布语义。删除决定当时未记录，在此补记。
+4. **data-tauri-drag-region 属性保留**是 Phase 3 的 CSS 契约（上游 native-theme.css 选择器依赖），非遗留——决定现在记于此。
+5. **三守卫自身无测试**（仓规 scripts 带 test 的惯例未循）——待补。
+
 ## 未解决 / 欠账（按优先级）
 
 1. **生产构建 OOM**（≥24G 堆，三档实验全崩）。诊断与四条候选路线见 `docs/build.md`。

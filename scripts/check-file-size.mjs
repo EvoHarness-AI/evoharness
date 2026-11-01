@@ -43,7 +43,7 @@ const GROWTH_PATHS = [
 const SOURCE_EXTENSIONS = /\.(?:[cm]?[jt]s|[jt]sx)$/u;
 const SKIPPED_DIRECTORIES = new Set(["node_modules", "dist", ".artifacts", ".git", "coverage", ".cache"]);
 const GENERATED_FILE = /\.generated\.[cm]?[jt]sx?$/u;
-// apps/evoharness-web is a vendored MIT-fork port (docs/plan/web-frontend-spec.md):
+// apps/evoharness-web is a vendored MIT-fork port (apps/evoharness-web/docs/spec.md):
 // its file sizes and layout are owned by the upstream project, so the 1500-line
 // ratchet deliberately does not apply inside it. Files there need no baseline
 // entries and never turn red here; the app's own review flow governs them.

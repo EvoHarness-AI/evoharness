@@ -52,7 +52,8 @@ const nextConfig: NextConfig = {
   // next/image is only used for the static logo, so the /_next/image optimizer
   // (and its sharp/libheif attack surface, see GHSA-2xp9-vwfh-vxw4) is not needed.
   images: { unoptimized: true },
-  // `next dev` runs Turbopack and `npm run build` runs webpack. The root pins
+  // Dev runs `next dev --webpack` and build runs webpack (Turbopack bundles
+  // workspace-symlinked externals — see docs/build.md). The root pins
   // Turbopack's workspace root to the repository, so the hoisted packages at
   // the root node_modules resolve.
   turbopack: {

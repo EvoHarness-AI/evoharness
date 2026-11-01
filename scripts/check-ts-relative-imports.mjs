@@ -6,7 +6,7 @@ import ts from "typescript";
 import process from "node:process";
 
 const ignoredDirectories = new Set([".git", "coverage", "dist", "node_modules"]);
-// apps/evoharness-web is a vendored fork port (docs/plan/web-frontend-spec.md):
+// apps/evoharness-web is a vendored fork port (apps/evoharness-web/docs/spec.md):
 // its `.js` relative imports into bin/ are upstream's working convention
 // (next.config.ts loads the CJS option parser before any bundling), so the
 // root convention does not govern it — the app's own eslint does.

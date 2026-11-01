@@ -458,4 +458,5 @@ Phase 2 起追加 `npm run --prefix apps/evoharness-web build` 与 `test:e2e` �
 
 | 日期 | 范围 | 结论 |
 |---|---|---|
-| — | — | 待所有者批准 |
+| 2026-11-01 | 本 spec 全文（含 v3 修订） | 所有者批准（对话确认） |
+| 2026-11-01 | 评审 B：独立子代理对未提交 diff 的全面复核 | **APPROVE** + 3 项非阻塞修正（已全部落实：pre-commit 触发面恢复、app-keys 部分交付改判入欠账、僵尸引用清理） |

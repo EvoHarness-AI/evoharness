@@ -2,7 +2,7 @@
 /**
  * Guard against rename residue in the vendored web app (apps/evoharness-web).
  *
- * The port (docs/plan/web-frontend-spec.md) mechanically renamed the upstream
+ * The port (apps/evoharness-web/docs/spec.md) mechanically renamed the upstream
  * pi-web branding, package names and environment variables. This guard keeps
  * the rename complete: any return of the old tokens turns red, so a copied-in
  * upstream patch cannot silently reintroduce them.
@@ -16,7 +16,7 @@
  * - `pi-codegraph` / `pi-gui` / `pi-agent-test` are opaque fixture strings in
  *   tests, not brand references.
  * - The PI_* identifiers listed in ALLOWED_PI_IDENTIFIERS are local constants
- *   or simulated user data (see docs/plan/web-frontend-spec.md Annex D).
+ *   or simulated user data (see apps/evoharness-web/docs/spec.md Annex D).
  */
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join, relative, sep } from "node:path";
@@ -66,6 +66,7 @@ const TOKEN_CHECKS = [
 	[/\bPi Agent\b/gu, "upstream product name"],
 	[/\bpi-cwd\b/gu, "upstream scratch directory"],
 	[/X-Pi-[A-Z]/gu, "upstream header name"],
+	[/.pi/gu, "upstream config directory literal"],
 	[/piWeb[A-Z]/gu, "upstream camelCase identifier"],
 ];
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Structural boundary guard for the vendored web app (docs/plan/web-frontend-spec.md §3.11).
+ * Structural boundary guard for the vendored web app (apps/evoharness-web/docs/spec.md §3.11).
  *
  * Three assertions:
  * 1. `packages/**` never imports `apps/**` — the dependency direction is one-way:

@@ -166,7 +166,7 @@ export function projectTrustReloadOptions(
 /**
  * The SDK's `TRUST_REQUIRING_PROJECT_CONFIG_RESOURCES`
  * (`dist/core/trust-manager.js`), which it does not export: what under
- * `<cwd>/.pi` makes a folder require trust. `lib/project-trust.test.mjs`
+ * `<cwd>/.evoharness` makes a folder require trust. `lib/project-trust.test.mjs`
  * compares it with the SDK's own list, so an upgrade that adds one fails there.
  */
 export const TRUST_REQUIRING_PROJECT_ENTRIES = [
