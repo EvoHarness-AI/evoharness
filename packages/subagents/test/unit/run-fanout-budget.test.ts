@@ -18,13 +18,13 @@ import { type AsyncStatus, resolveMaxSubagentSpawnsPerRun } from "../../src/shar
 
 const directories: string[] = [];
 const externalDirectories: string[] = [];
-const previousEnv = process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN;
+const previousEnv = process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_RUN;
 
 afterEach(() => {
 	for (const directory of directories.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
 	for (const directory of externalDirectories.splice(0)) fs.rmSync(directory, { recursive: true, force: true });
-	if (previousEnv === undefined) delete process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN;
-	else process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN = previousEnv;
+	if (previousEnv === undefined) delete process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_RUN;
+	else process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_RUN = previousEnv;
 });
 
 function budget(limit: number) {
@@ -35,14 +35,14 @@ function budget(limit: number) {
 
 describe("run fan-out budget", () => {
 	it("resolves environment over config and falls back to 64", () => {
-		delete process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN;
+		delete process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_RUN;
 		assert.equal(resolveMaxSubagentSpawnsPerRun(undefined), 64);
 		assert.equal(resolveMaxSubagentSpawnsPerRun(12), 12);
 		for (const invalid of [0, -1, 1.5, "bad"]) assert.equal(resolveMaxSubagentSpawnsPerRun(invalid as number), 64);
-		process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN = "7";
+		process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_RUN = "7";
 		assert.equal(resolveMaxSubagentSpawnsPerRun(12), 7);
 		for (const invalid of ["0", "-1", "1.5", "bad"]) {
-			process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN = invalid;
+			process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_RUN = invalid;
 			assert.equal(resolveMaxSubagentSpawnsPerRun(undefined), 64);
 		}
 	});
@@ -50,7 +50,7 @@ describe("run fan-out budget", () => {
 	it("degrades status projection when persisted budget state is removed", () => {
 		const descriptor = budget(2);
 		fs.rmSync(path.join(descriptor.directory, "claims"), { recursive: true, force: true });
-		const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-fanout-status-"));
+		const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-fanout-status-"));
 		directories.push(asyncDir);
 		fs.writeFileSync(path.join(asyncDir, "run-fanout-budget.json"), JSON.stringify(descriptor), "utf-8");
 		const fallback = { used: 1, limit: 2, remaining: 1 };
@@ -70,7 +70,7 @@ describe("run fan-out budget", () => {
 
 	it("keeps nested status projection when persisted budget state is removed", () => {
 		const runId = "run-fanout-nested-status";
-		const asyncRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-fanout-nested-root-"));
+		const asyncRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-fanout-nested-root-"));
 		directories.push(asyncRoot);
 		const asyncDir = path.join(asyncRoot, runId);
 		fs.mkdirSync(asyncDir, { recursive: true });
@@ -206,7 +206,7 @@ describe("run fan-out budget", () => {
 		const descriptor = budget(2);
 		assert.throws(() => validateRunFanoutBudgetDescriptor({ ...descriptor, limit: 3 }), /does not match/);
 
-		const outside = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-fanout-outside-"));
+		const outside = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-fanout-outside-"));
 		externalDirectories.push(outside);
 		fs.mkdirSync(path.join(outside, "claims"));
 		fs.writeFileSync(

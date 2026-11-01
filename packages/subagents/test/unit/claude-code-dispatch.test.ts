@@ -135,7 +135,7 @@ describe("Claude Code override dispatch", () => {
 		);
 	});
 
-	it("never passes a Pi default model to the CLI", () => {
+	it("never passes a evoharness default model to the CLI", () => {
 		const model = "anthropic/claude-sonnet-4-5";
 		const fromSettings = agent("claude-code", {
 			model,
@@ -228,7 +228,7 @@ describe("Claude Code override dispatch", () => {
 				task: "Review",
 				agentConfig: agent("claude-code"),
 				ctx: {
-					pi: { events: { emit() {} } },
+					evoharness: { events: { emit() {} } },
 					cwd: process.cwd(),
 					currentSessionId: "session-1",
 					...(params.ctx as object | undefined),

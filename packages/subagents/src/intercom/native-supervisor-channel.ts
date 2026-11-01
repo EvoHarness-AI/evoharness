@@ -203,7 +203,7 @@ function delay(ms: number, signal?: AbortSignal): Promise<void> {
 	});
 }
 
-/** The owning parent moves `expiresAt` forward while Pi still holds the request's notice back from its model. */
+/** The owning parent moves `expiresAt` forward while evoharness still holds the request's notice back from its model. */
 function extendedDeadline(requestFile: string, deadline: number): number {
 	try {
 		const expiresAt = (JSON.parse(fs.readFileSync(requestFile, "utf-8")) as { expiresAt?: unknown }).expiresAt;
@@ -304,9 +304,9 @@ async function sendSupervisorRequest(
 	}
 }
 
-function hasTool(pi: ExtensionAPI, name: string): boolean {
+function hasTool(evoharness: ExtensionAPI, name: string): boolean {
 	try {
-		return pi.getAllTools?.().some((tool: { name?: unknown }) => tool.name === name) === true;
+		return evoharness.getAllTools?.().some((tool: { name?: unknown }) => tool.name === name) === true;
 	} catch {
 		return false;
 	}
@@ -348,15 +348,18 @@ export function topLevelSupervisorTool(): ToolDefinition<
  * Register the child-side `contact_supervisor` tool. The host passes the
  * channel metadata in the child runtime config.
  */
-export function registerNativeSupervisorClient(pi: ExtensionAPI, metadata: ChildSupervisorMetadata | undefined): void {
-	if (!metadata || hasTool(pi, CONTACT_SUPERVISOR_TOOL_NAME)) return;
+export function registerNativeSupervisorClient(
+	evoharness: ExtensionAPI,
+	metadata: ChildSupervisorMetadata | undefined,
+): void {
+	if (!metadata || hasTool(evoharness, CONTACT_SUPERVISOR_TOOL_NAME)) return;
 	const tool: ToolDefinition<typeof ContactSupervisorParamsSchema, Record<string, unknown>> = {
 		...CONTACT_SUPERVISOR_DECLARATION,
 		execute(id, params, signal) {
 			return sendSupervisorRequest(params as ContactSupervisorParams, metadata, signal, id);
 		},
 	};
-	pi.registerTool(tool);
+	evoharness.registerTool(tool);
 }
 
 function parseRequestFile(file: string, channelDir: string): PendingSupervisorRequest | undefined {
@@ -502,9 +505,9 @@ function requestMatchesOwner(
 ): boolean {
 	const currentSessionId = state.supervisorOwnerSessionId;
 	if (currentSessionId && request.orchestratorSessionId === currentSessionId) return true;
-	// orchestratorSessionId is Pi's runtime session id, while inherited sessions are known by session file,
+	// orchestratorSessionId is evoharness's runtime session id, while inherited sessions are known by session file,
 	// so an inherited run's ask is matched through the run's recorded owner. This runs inside the poll's
-	// timers and watchers, where a throw exits Pi, so an unreadable status counts as not owned.
+	// timers and watchers, where a throw exits evoharness, so an unreadable status counts as not owned.
 	if (!state.currentSessionId || inheritedSessionIds(state.currentSessionId).length === 0) return false;
 	if (!request.runId || request.runId.startsWith(".") || path.basename(request.runId) !== request.runId) return false;
 	try {
@@ -675,15 +678,19 @@ function writeReply(request: PendingSupervisorRequest, message: string): Supervi
 	return reply;
 }
 
-function appendSupervisorReplyEntry(pi: ExtensionAPI, request: PendingSupervisorRequest, reply: SupervisorReply): void {
+function appendSupervisorReplyEntry(
+	evoharness: ExtensionAPI,
+	request: PendingSupervisorRequest,
+	reply: SupervisorReply,
+): void {
 	const appendEntry = (
-		pi as unknown as {
+		evoharness as unknown as {
 			appendEntry?: (customType: string, data?: SupervisorReplyEntryData) => void;
 		}
 	).appendEntry;
 	if (typeof appendEntry !== "function") return;
 	try {
-		appendEntry.call(pi, SUPERVISOR_REPLY_ENTRY_TYPE, {
+		appendEntry.call(evoharness, SUPERVISOR_REPLY_ENTRY_TYPE, {
 			requestId: request.id,
 			reason: request.reason,
 			runId: request.runId,
@@ -748,7 +755,7 @@ function publicPendingRequests(pending: Map<string, PendingSupervisorRequest>): 
 }
 
 function buildParentSupervisorTool(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	pending: Map<string, PendingSupervisorRequest>,
 	state: SubagentState,
 	onLifecycle: SupervisorRequestLifecycleObserver,
@@ -760,7 +767,7 @@ function buildParentSupervisorTool(
 		...MODEL_ONLY_TOOL,
 		label: "Subagent Supervisor",
 		description:
-			"Native pi-subagents supervisor channel. Use reply/pending/status to answer child subagent requests without overriding pi-intercom.",
+			"Native subagents supervisor channel. Use reply/pending/status to answer child subagent requests without overriding pi-intercom.",
 		parameters: IntercomParamsSchema,
 		async execute(_id, params) {
 			// Discover new request files even when demand-gated polling is idle.
@@ -783,7 +790,7 @@ function buildParentSupervisorTool(
 			if (input.action === "reply") {
 				const request = resolvePendingRequest(pending, input);
 				const reply = writeReply(request, input.message ?? "");
-				appendSupervisorReplyEntry(pi, request, reply);
+				appendSupervisorReplyEntry(evoharness, request, reply);
 				pending.delete(request.id);
 				onLifecycle(request, "resolved");
 				clearForegroundSupervisorAttention(request, pending, state);
@@ -798,7 +805,7 @@ function buildParentSupervisorTool(
 }
 
 export function createNativeSupervisorChannel(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	state: SubagentState,
 	deps: NativeSupervisorChannelDeps = {},
 ): {
@@ -823,7 +830,7 @@ export function createNativeSupervisorChannel(
 	// One continuation and one warning per request; never auto-answer or loop.
 	const settleNotices = new Map<string, "reminded" | "warned" | "handled">();
 	let unsubscribeSettle: (() => void) | undefined;
-	// Asks whose notice Pi queued behind a busy parent run. The child's wait counts from its request,
+	// Asks whose notice evoharness queued behind a busy parent run. The child's wait counts from its request,
 	// so until the parent's model can see one, its expiresAt keeps moving forward.
 	const queuedNotices = new Set<string>();
 	let unsubscribeDelivery: Array<(() => void) | undefined> | undefined;
@@ -917,23 +924,23 @@ export function createNativeSupervisorChannel(
 	};
 
 	const registerParentTools = (): void => {
-		if (!hasTool(pi, NATIVE_SUPERVISOR_TOOL_NAME))
-			pi.registerTool(
-				buildParentSupervisorTool(pi, pending, state, observeRequestLifecycle, () => poll(), runState),
+		if (!hasTool(evoharness, NATIVE_SUPERVISOR_TOOL_NAME))
+			evoharness.registerTool(
+				buildParentSupervisorTool(evoharness, pending, state, observeRequestLifecycle, () => poll(), runState),
 			);
 	};
 	// A session that never delegated through `subagent` does not declare the reply tool (scheduled runs, runs
 	// adopted after a resume), so declare it before the model is asked to use it.
 	const declareParentTool = (): void => {
-		if (typeof pi.getActiveTools !== "function" || typeof pi.setActiveTools !== "function") return;
-		const active = pi.getActiveTools();
+		if (typeof evoharness.getActiveTools !== "function" || typeof evoharness.setActiveTools !== "function") return;
+		const active = evoharness.getActiveTools();
 		if (
 			!Array.isArray(active) ||
 			active.includes(NATIVE_SUPERVISOR_TOOL_NAME) ||
-			!hasTool(pi, NATIVE_SUPERVISOR_TOOL_NAME)
+			!hasTool(evoharness, NATIVE_SUPERVISOR_TOOL_NAME)
 		)
 			return;
-		pi.setActiveTools([...active, NATIVE_SUPERVISOR_TOOL_NAME]);
+		evoharness.setActiveTools([...active, NATIVE_SUPERVISOR_TOOL_NAME]);
 	};
 
 	const cleanupStaleChannelsIfDue = (): void => {
@@ -967,7 +974,7 @@ export function createNativeSupervisorChannel(
 				continue;
 			}
 			if (request.expectsReply && runState(request).blockingWorkflowChildren?.has(request.runId)) {
-				// Pi cannot deliver an ask behind the workflow tool call that awaits this child.
+				// evoharness cannot deliver an ask behind the workflow tool call that awaits this child.
 				// Return a tool error instead of renewing an unreachable ask until the run deadline.
 				try {
 					writePrivateAtomicJson(replyPath(channelDir, request.id), {
@@ -1001,7 +1008,7 @@ export function createNativeSupervisorChannel(
 			// The ask is already queued above. A sendMessage failure (no UI, stale context) must not
 			// lose it, and must not abort the loop before the remaining asks register.
 			try {
-				const appended = (deps.parentWake ?? pi).sendMessage(
+				const appended = (deps.parentWake ?? evoharness).sendMessage(
 					{
 						customType: SUPERVISOR_REQUEST_MESSAGE_TYPE,
 						content: requestVisibleText(request),
@@ -1022,7 +1029,7 @@ export function createNativeSupervisorChannel(
 					},
 					{ triggerTurn: true },
 				);
-				// false: Pi emits message_start for the notice (steered into a busy run, or starting an idle one); track it until then.
+				// false: evoharness emits message_start for the notice (steered into a busy run, or starting an idle one); track it until then.
 				if (appended === false && started && pending.has(request.id)) {
 					queuedNotices.add(request.id);
 					updateDeliverySubscription();
@@ -1030,7 +1037,7 @@ export function createNativeSupervisorChannel(
 			} catch (error) {
 				console.error(`Failed to surface supervisor request ${request.id} as a user turn:`, error);
 			}
-			(pi as { events?: IntercomEventBus }).events?.emit(INTERCOM_DETACH_REQUEST_EVENT, {
+			(evoharness as { events?: IntercomEventBus }).events?.emit(INTERCOM_DETACH_REQUEST_EVENT, {
 				requestId: request.id,
 				runId: request.runId,
 				agent: request.agent,
@@ -1129,7 +1136,7 @@ export function createNativeSupervisorChannel(
 					settleNotices.get(request.id) !== "warned" &&
 					settleNotices.get(request.id) !== "handled",
 			);
-		if (needed && !unsubscribeSettle) unsubscribeSettle = pi.on?.("agent_before_settle", handleBeforeSettle);
+		if (needed && !unsubscribeSettle) unsubscribeSettle = evoharness.on?.("agent_before_settle", handleBeforeSettle);
 		if (!needed) {
 			unsubscribeSettle?.();
 			unsubscribeSettle = undefined;
@@ -1142,14 +1149,17 @@ export function createNativeSupervisorChannel(
 		if (typeof requestId === "string" && queuedNotices.delete(requestId)) updateDeliverySubscription();
 	};
 	const parentRunSettled = (): void => {
-		// Pi delivers steered messages before a run settles; one still queued was dropped, so stop extending it.
+		// evoharness delivers steered messages before a run settles; one still queued was dropped, so stop extending it.
 		queuedNotices.clear();
 		updateDeliverySubscription();
 	};
 	const updateDeliverySubscription = (): void => {
 		const needed = started && queuedNotices.size > 0;
 		if (needed && !unsubscribeDelivery) {
-			unsubscribeDelivery = [pi.on?.("message_start", noticeDelivered), pi.on?.("agent_settled", parentRunSettled)];
+			unsubscribeDelivery = [
+				evoharness.on?.("message_start", noticeDelivered),
+				evoharness.on?.("agent_settled", parentRunSettled),
+			];
 		}
 		if (!needed) {
 			for (const unsubscribe of unsubscribeDelivery ?? []) unsubscribe?.();

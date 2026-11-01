@@ -4,7 +4,7 @@ import { createRequire } from "node:module";
 import * as path from "node:path";
 import { getConfigDirName } from "../../shared/utils.ts";
 
-/** Pi's default undici header/body idle timeout. */
+/** evoharness's default undici header/body idle timeout. */
 export const DEFAULT_HTTP_IDLE_TIMEOUT_MS = 300_000;
 
 export interface HttpIdleTimeoutResolution {
@@ -14,7 +14,7 @@ export interface HttpIdleTimeoutResolution {
 }
 
 /**
- * Mirrors pi-coding-agent's `parseHttpIdleTimeoutMs`: numbers (or numeric
+ * Mirrors the host coding-agent's `parseHttpIdleTimeoutMs`: numbers (or numeric
  * strings) are floored, `"disabled"` means 0, anything else is invalid.
  */
 export function parseHttpIdleTimeoutMs(value: unknown): number | undefined {
@@ -53,11 +53,11 @@ function readSetting(file: string): { present: boolean; value?: unknown; error?:
 }
 
 /**
- * Resolves Pi's `httpIdleTimeoutMs` the way the host does: the project
+ * Resolves evoharness's `httpIdleTimeoutMs` the way the host does: the project
  * `.pi/settings.json` overrides the global `<agentDir>/settings.json`, and an
  * unset value falls back to 300 000 ms. Detached runners install their own
- * undici dispatcher before pi-coding-agent is loaded, so they cannot borrow
- * Pi's SettingsManager and must read the setting themselves.
+ * undici dispatcher before the host is loaded, so they cannot borrow
+ * evoharness's SettingsManager and must read the setting themselves.
  */
 export function resolveHttpIdleTimeoutMs(options: { agentDir: string; cwd: string }): HttpIdleTimeoutResolution {
 	const candidates: Array<{ source: "project" | "global"; file: string }> = [
@@ -74,7 +74,7 @@ export function resolveHttpIdleTimeoutMs(options: { agentDir: string; cwd: strin
 		if (!read.present) continue;
 		const timeoutMs = parseHttpIdleTimeoutMs(read.value);
 		if (timeoutMs === undefined) {
-			// Pi rejects the merged value outright; a malformed override must not
+			// evoharness rejects the merged value outright; a malformed override must not
 			// silently fall through to a different scope's setting.
 			warnings.push(`invalid httpIdleTimeoutMs in ${candidate.file}: ${String(read.value)}`);
 			return { timeoutMs: DEFAULT_HTTP_IDLE_TIMEOUT_MS, source: "default", warning: warnings.join("; ") };
@@ -98,21 +98,21 @@ export function runnerHttpDispatcherOptions(timeoutMs: number): {
 } {
 	return {
 		allowH2: false,
-		// Keep HTTP origins on CONNECT tunnels, matching Pi's dispatcher.
+		// Keep HTTP origins on CONNECT tunnels, matching evoharness's dispatcher.
 		proxyTunnel: true,
 		headersTimeout: timeoutMs,
 		bodyTimeout: timeoutMs,
-		// Match Pi's dispatcher: Node's 250ms default ends valid connection attempts on high-latency routes.
+		// Match evoharness's dispatcher: Node's 250ms default ends valid connection attempts on high-latency routes.
 		connect: { autoSelectFamilyAttemptTimeout: 2_000 },
 	};
 }
 
 /**
  * Installs the runner's proxy-aware undici dispatcher as the process global and
- * routes global fetch through it, with header/body idle clocks taken from Pi's
- * `httpIdleTimeoutMs`. Detached runners skip Pi's CLI dispatcher setup: the Node
+ * routes global fetch through it, with header/body idle clocks taken from evoharness's
+ * `httpIdleTimeoutMs`. Detached runners skip evoharness's CLI dispatcher setup: the Node
  * entrypoint never runs it, and the binary bootstrap runs inside the extension
- * factory, before Pi applies the setting to its own dispatcher. Best effort: a
+ * factory, before evoharness applies the setting to its own dispatcher. Best effort: a
  * failure logs and leaves the existing dispatcher in place.
  */
 export function installRunnerHttpDispatcher(options: { agentDir: string; cwd: string }): void {
@@ -120,7 +120,7 @@ export function installRunnerHttpDispatcher(options: { agentDir: string; cwd: st
 		// SAFETY: require loads the pinned direct dependency described by these types.
 		const undici = createRequire(import.meta.url)("undici") as typeof import("undici");
 		const idle = resolveHttpIdleTimeoutMs(options);
-		if (idle.warning) console.error(`[pi-subagents] httpIdleTimeoutMs: ${idle.warning}; using ${idle.timeoutMs}ms`);
+		if (idle.warning) console.error(`[subagents] httpIdleTimeoutMs: ${idle.warning}; using ${idle.timeoutMs}ms`);
 		const dispatcher = new undici.EnvHttpProxyAgent(runnerHttpDispatcherOptions(idle.timeoutMs));
 		// Fetch rejects stream errors; the listener prevents an unhandled EventEmitter error.
 		EventEmitter.prototype.on.call(dispatcher, "error", () => {});
@@ -128,7 +128,7 @@ export function installRunnerHttpDispatcher(options: { agentDir: string; cwd: st
 		undici.install();
 	} catch (error) {
 		console.error(
-			`[pi-subagents] proxy-aware HTTP dispatcher not installed: ${error instanceof Error ? error.message : String(error)}`,
+			`[subagents] proxy-aware HTTP dispatcher not installed: ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}
 }

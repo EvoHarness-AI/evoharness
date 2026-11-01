@@ -3,9 +3,9 @@ import { describe, it } from "node:test";
 import {
 	type ChildSession,
 	type ChildSessionLaunch,
+	type CodingAgentModule,
 	childSessionHasQueuedMessages,
 	createDefaultChildSessionFactory,
-	type PiCodingAgentModule,
 } from "../../src/runs/shared/child-session.ts";
 
 describe("childSessionHasQueuedMessages", () => {
@@ -35,7 +35,7 @@ describe("default factory queued-message probe", () => {
 		let modelResolved = false;
 		const requiredPath = "/tmp/required-provider.mjs";
 		const factory = createDefaultChildSessionFactory({
-			loadPiCodingAgent: async () =>
+			loadCodingAgent: async () =>
 				({
 					ModelRuntime: { create: async () => ({ refresh: async () => {} }) },
 					SettingsManager: { create: () => ({}) },
@@ -53,7 +53,7 @@ describe("default factory queued-message probe", () => {
 						modelResolved = true;
 						return {};
 					},
-				}) as unknown as PiCodingAgentModule,
+				}) as unknown as CodingAgentModule,
 		});
 		await assert.rejects(
 			() =>
@@ -83,7 +83,7 @@ describe("default factory queued-message probe", () => {
 		let modelResolved = false;
 		const requiredPath = "/tmp/required-provider.mjs";
 		const factory = createDefaultChildSessionFactory({
-			loadPiCodingAgent: async () =>
+			loadCodingAgent: async () =>
 				({
 					ModelRuntime: {
 						create: async () => ({
@@ -113,7 +113,7 @@ describe("default factory queued-message probe", () => {
 						modelResolved = true;
 						return {};
 					},
-				}) as unknown as PiCodingAgentModule,
+				}) as unknown as CodingAgentModule,
 		});
 		await assert.rejects(
 			() =>
@@ -143,7 +143,7 @@ describe("default factory queued-message probe", () => {
 		const events: string[] = [];
 		const definition = { provider: "router", id: "auto", name: "Auto", route: async () => ({}) };
 		const factory = createDefaultChildSessionFactory({
-			loadPiCodingAgent: async () =>
+			loadCodingAgent: async () =>
 				({
 					ModelRuntime: {
 						create: async () => ({
@@ -192,7 +192,7 @@ describe("default factory queued-message probe", () => {
 							sessionId: "virtual-model-child",
 						},
 					}),
-				}) as unknown as PiCodingAgentModule,
+				}) as unknown as CodingAgentModule,
 		});
 		const child = await factory.create({
 			cwd: process.cwd(),
@@ -218,7 +218,7 @@ describe("default factory queued-message probe", () => {
 		let modelResolved = false;
 		const requiredPath = "/tmp/required-router.mjs";
 		const factory = createDefaultChildSessionFactory({
-			loadPiCodingAgent: async () =>
+			loadCodingAgent: async () =>
 				({
 					ModelRuntime: {
 						create: async () => ({
@@ -247,7 +247,7 @@ describe("default factory queued-message probe", () => {
 						modelResolved = true;
 						return {};
 					},
-				}) as unknown as PiCodingAgentModule,
+				}) as unknown as CodingAgentModule,
 		});
 		await assert.rejects(
 			() =>
@@ -280,7 +280,7 @@ describe("default factory queued-message probe", () => {
 		const lifecycle: string[] = [];
 		const createFactory = (failingPath: string) =>
 			createDefaultChildSessionFactory({
-				loadPiCodingAgent: async () =>
+				loadCodingAgent: async () =>
 					({
 						ModelRuntime: { create: async () => ({ refresh: async () => {} }) },
 						SettingsManager: { create: () => ({}) },
@@ -322,7 +322,7 @@ describe("default factory queued-message probe", () => {
 								sessionId: "policy-child",
 							},
 						}),
-					}) as unknown as PiCodingAgentModule,
+					}) as unknown as CodingAgentModule,
 			});
 		const launch = {
 			cwd: process.cwd(),
@@ -354,7 +354,7 @@ describe("default factory queued-message probe", () => {
 
 	it("reports no queued messages for an agent-less wrapped session", async () => {
 		const factory = createDefaultChildSessionFactory({
-			loadPiCodingAgent: async () =>
+			loadCodingAgent: async () =>
 				({
 					ModelRuntime: { create: async () => ({}) },
 					SettingsManager: { create: () => ({}) },
@@ -377,7 +377,7 @@ describe("default factory queued-message probe", () => {
 							sessionId: "agent-less",
 						},
 					}),
-				}) as unknown as PiCodingAgentModule,
+				}) as unknown as CodingAgentModule,
 		});
 		const child = await factory.create({
 			cwd: process.cwd(),
@@ -400,7 +400,7 @@ describe("default factory queued-message probe", () => {
 
 	it("re-arms from a wrapped session whose agent reports queued input", async () => {
 		const factory = createDefaultChildSessionFactory({
-			loadPiCodingAgent: async () =>
+			loadCodingAgent: async () =>
 				({
 					ModelRuntime: { create: async () => ({}) },
 					SettingsManager: { create: () => ({}) },
@@ -424,7 +424,7 @@ describe("default factory queued-message probe", () => {
 							sessionId: "queued",
 						},
 					}),
-				}) as unknown as PiCodingAgentModule,
+				}) as unknown as CodingAgentModule,
 		});
 		const child = await factory.create({
 			cwd: process.cwd(),
@@ -447,7 +447,7 @@ describe("default factory queued-message probe", () => {
 });
 
 describe("default factory virtual model selection", () => {
-	it("reports the live selection only when Pi marks it virtual", async () => {
+	it("reports the live selection only when evoharness marks it virtual", async () => {
 		const session = {
 			model: { provider: "router", id: "auto", api: "openai-responses" } as {
 				provider: string;
@@ -462,7 +462,7 @@ describe("default factory virtual model selection", () => {
 			sessionId: "virtual",
 		};
 		const factory = createDefaultChildSessionFactory({
-			loadPiCodingAgent: async () =>
+			loadCodingAgent: async () =>
 				({
 					ModelRuntime: { create: async () => ({}) },
 					SettingsManager: { create: () => ({}) },
@@ -472,7 +472,7 @@ describe("default factory virtual model selection", () => {
 					SessionManager: { inMemory: () => ({}) },
 					resolveCliModel: () => ({}),
 					createAgentSession: async () => ({ session }),
-				}) as unknown as PiCodingAgentModule,
+				}) as unknown as CodingAgentModule,
 		});
 		const child = await factory.create({
 			cwd: process.cwd(),
@@ -490,7 +490,7 @@ describe("default factory virtual model selection", () => {
 			} as ChildSessionLaunch["runtime"],
 		});
 		assert.equal(child.virtualModelId, undefined);
-		session.model = { provider: "router", id: "auto", api: "pi-virtual" };
+		session.model = { provider: "router", id: "auto", api: "evoharness-virtual" };
 		assert.equal(child.virtualModelId, "router/auto");
 		assert.equal(child.modelId, "router/auto");
 	});

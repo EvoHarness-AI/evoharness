@@ -1,7 +1,7 @@
 import type { AgentToolResult } from "@evoharness/agent-core";
 
 /**
- * Convert pi-subagents' internal logical-error result into the rejection Pi's
+ * Convert subagents' internal logical-error result into the rejection evoharness's
  * public tool boundary uses to emit a canonical errored ToolResult.
  *
  * Keep this at registered tool boundaries. Internal workflows intentionally
@@ -15,5 +15,5 @@ export function finalizeToolResult<T>(result: AgentToolResult<T>): AgentToolResu
 		.join("\n")
 		.trim();
 
-	throw new Error(message || "pi-subagents reported a logical tool failure.");
+	throw new Error(message || "subagents reported a logical tool failure.");
 }

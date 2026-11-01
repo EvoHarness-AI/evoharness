@@ -5,7 +5,7 @@ import type { ChildSessionEvent } from "../runs/shared/child-session.ts";
 type Diagnostics = SubagentDelegationProviderDiagnostics;
 
 // Account exhaustion can also carry 429. Do not present it as transient throttling.
-// Pi's classifier supplies its own provider-specific quota/billing exclusions too.
+// evoharness's classifier supplies its own provider-specific quota/billing exclusions too.
 const ACCOUNT_LIMIT =
 	/quota|billing|out of budget|available balance|(?:account|subscription|credits?|balance|usage)[\s_-]*(?:(?:is|are|has been|have been)[\s_-]*)?(?:limit|exhaust|deplet|exceed)|(?:insufficient|exhausted|depleted|low|no(?:[\s_-]+remaining)?)[\s_-]*(?:credits?|balance|fund)/i;
 const RATE_LIMIT =

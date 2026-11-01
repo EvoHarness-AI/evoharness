@@ -10,7 +10,7 @@ let tempProject = "";
 const originalHome = process.env.HOME;
 const originalUserProfile = process.env.USERPROFILE;
 const originalPiCodingAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
-const originalExtraAgentDirs = process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
+const originalExtraAgentDirs = process.env.EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS;
 
 function writeJson(filePath: string, value: unknown): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -19,12 +19,12 @@ function writeJson(filePath: string, value: unknown): void {
 
 describe("subagents.modelScope discovery", () => {
 	beforeEach(() => {
-		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-scope-home-"));
-		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-scope-project-"));
+		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-scope-home-"));
+		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-scope-project-"));
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
 		delete process.env.EVOHARNESS_CODING_AGENT_DIR;
-		delete process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
+		delete process.env.EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS;
 	});
 
 	afterEach(() => {
@@ -34,8 +34,8 @@ describe("subagents.modelScope discovery", () => {
 		else process.env.USERPROFILE = originalUserProfile;
 		if (originalPiCodingAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 		else process.env.EVOHARNESS_CODING_AGENT_DIR = originalPiCodingAgentDir;
-		if (originalExtraAgentDirs === undefined) delete process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
-		else process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS = originalExtraAgentDirs;
+		if (originalExtraAgentDirs === undefined) delete process.env.EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS;
+		else process.env.EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS = originalExtraAgentDirs;
 		fs.rmSync(tempHome, { recursive: true, force: true });
 		fs.rmSync(tempProject, { recursive: true, force: true });
 	});

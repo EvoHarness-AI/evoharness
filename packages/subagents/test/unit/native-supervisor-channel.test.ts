@@ -156,7 +156,7 @@ describe("native supervisor channel", () => {
 				{ execute(id: string, params: unknown, signal?: AbortSignal): Promise<unknown> }
 			>();
 			const notices: unknown[] = [];
-			const pi = {
+			const evoharness = {
 				getAllTools: () => [...tools.keys()].map((name) => ({ name })),
 				registerTool: (tool: {
 					name: string;
@@ -169,14 +169,14 @@ describe("native supervisor channel", () => {
 			};
 			const state = makeState(owner, { sessionManager: { getSessionId: () => owner } });
 			state.blockingWorkflowChildren = new Set([runId]);
-			registerNativeSupervisorClient(pi as never, {
+			registerNativeSupervisorClient(evoharness as never, {
 				channelDir,
 				runId,
 				agent: "worker",
 				childIndex: 0,
 				orchestratorSessionId: owner,
 			});
-			const channel = createNativeSupervisorChannel(pi as never, state);
+			const channel = createNativeSupervisorChannel(evoharness as never, state);
 			const controller = new AbortController();
 			const timeout = setTimeout(() => controller.abort(), 2_000);
 			const ask = tools.get("contact_supervisor")!.execute(
@@ -376,7 +376,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool: (tool: (typeof registeredTools)[number]) => {
 				registeredTools.push(tool);
@@ -389,7 +389,7 @@ describe("native supervisor channel", () => {
 			},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx), {
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx), {
 			platform: "darwin",
 		});
 
@@ -424,7 +424,7 @@ describe("native supervisor channel", () => {
 		const tools = new Map<string, unknown>();
 		let active = ["read"];
 		const activeAtNotice: string[][] = [];
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [...tools.keys()].map((name) => ({ name })),
 			registerTool: (tool: { name: string }) => {
 				tools.set(tool.name, tool);
@@ -441,7 +441,7 @@ describe("native supervisor channel", () => {
 		const ctx = {
 			sessionManager: { getSessionId: () => currentSessionId, getSessionFile: () => null, getEntries: () => [] },
 		};
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx), {
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx), {
 			platform: "darwin",
 		});
 		try {
@@ -469,7 +469,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool: () => {},
 			sendMessage: (message: { details?: { id?: string } }, options?: { triggerTurn?: boolean }) => {
@@ -477,7 +477,7 @@ describe("native supervisor channel", () => {
 			},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx), {
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx), {
 			platform: "darwin",
 		});
 
@@ -503,7 +503,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool: () => {},
 			sendMessage: (message: { details?: { id?: string } }) => {
@@ -512,7 +512,7 @@ describe("native supervisor channel", () => {
 			getSessionName: () => "shared-name",
 		};
 		let watchCalls = 0;
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx), {
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx), {
 			platform: "win32",
 			watch: (() => {
 				watchCalls += 1;
@@ -672,7 +672,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool: () => {},
 			sendMessage: () => {},
@@ -680,7 +680,7 @@ describe("native supervisor channel", () => {
 		};
 		let watchCalls = 0;
 		const intervals: number[] = [];
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx), {
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx), {
 			platform: "darwin",
 			watch: (() => {
 				watchCalls += 1;
@@ -715,7 +715,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool: () => {},
 			sendMessage: () => {},
@@ -730,7 +730,7 @@ describe("native supervisor channel", () => {
 			schedulingOwners: 1,
 		} as never);
 		const intervals: number[] = [];
-		const channel = createNativeSupervisorChannel(pi as never, state, {
+		const channel = createNativeSupervisorChannel(evoharness as never, state, {
 			platform: "darwin",
 			watch: (() => {
 				throw new Error("Darwin must not call fs.watch.");
@@ -767,7 +767,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool: () => {},
 			sendMessage: (message: { details?: { id?: string } }) => {
@@ -776,7 +776,7 @@ describe("native supervisor channel", () => {
 			getSessionName: () => "shared-name",
 		};
 		const watchListeners: fs.WatchListener<string>[] = [];
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx), {
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx), {
 			platform: "linux",
 			watch: ((_filename: fs.PathLike, listener: fs.WatchListener<string>) => {
 				watchListeners.push(listener);
@@ -811,7 +811,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool: () => {},
 			sendMessage: (message: { details?: { id?: string } }) => {
@@ -819,7 +819,7 @@ describe("native supervisor channel", () => {
 			},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx));
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx));
 
 		channel.start();
 		channel.dispose();
@@ -843,13 +843,13 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool: () => {},
 			sendMessage: () => {},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx));
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx));
 
 		channel.start();
 		channel.dispose();
@@ -876,7 +876,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool: () => {},
 			sendMessage: () => {
@@ -893,7 +893,7 @@ describe("native supervisor channel", () => {
 			},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx));
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx));
 
 		channel.start();
 		try {
@@ -941,7 +941,7 @@ describe("native supervisor channel", () => {
 				},
 			],
 		]);
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [...registeredTools.keys()].map((name) => ({ name })),
 			registerTool: (tool: {
 				name: string;
@@ -952,7 +952,7 @@ describe("native supervisor channel", () => {
 			sendMessage: () => {},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, state);
+		const channel = createNativeSupervisorChannel(evoharness as never, state);
 
 		try {
 			channel.start();
@@ -986,7 +986,7 @@ describe("native supervisor channel", () => {
 			},
 		};
 		const state = makeState(currentSessionId, ctx);
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool: () => {},
 			sendMessage: () => {},
@@ -1009,7 +1009,7 @@ describe("native supervisor channel", () => {
 			},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, state);
+		const channel = createNativeSupervisorChannel(evoharness as never, state);
 		try {
 			channel.start();
 			const child = state.foregroundRuns.get(runId)!.children[0]!;
@@ -1039,7 +1039,7 @@ describe("native supervisor channel", () => {
 		};
 		const state = makeState(currentSessionId, ctx);
 		state.foregroundRuns = new Map();
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [...registeredTools.keys()].map((name) => ({ name })),
 			registerTool: (tool: {
 				name: string;
@@ -1073,7 +1073,7 @@ describe("native supervisor channel", () => {
 			},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, state);
+		const channel = createNativeSupervisorChannel(evoharness as never, state);
 		try {
 			channel.start();
 			const child = state.foregroundRuns.get(runId)!.children[0]!;
@@ -1126,7 +1126,7 @@ describe("native supervisor channel", () => {
 				},
 			],
 		]);
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [...registeredTools.keys()].map((name) => ({ name })),
 			registerTool: (tool: {
 				name: string;
@@ -1137,7 +1137,7 @@ describe("native supervisor channel", () => {
 			sendMessage: () => {},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, state);
+		const channel = createNativeSupervisorChannel(evoharness as never, state);
 		try {
 			channel.start();
 			state.foregroundRuns.get(runId)!.children[0]!.currentTool = "edit";
@@ -1168,7 +1168,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool: () => {},
 			sendMessage: (message: { details?: { id?: string } }) => {
@@ -1176,7 +1176,7 @@ describe("native supervisor channel", () => {
 			},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, makeState(persistedSessionFile, ctx));
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(persistedSessionFile, ctx));
 
 		channel.start();
 		channel.dispose();
@@ -1238,7 +1238,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [...tools.keys()].map((name) => ({ name })),
 			registerTool: (tool: {
 				name: string;
@@ -1253,7 +1253,7 @@ describe("native supervisor channel", () => {
 			appendEntry: () => {},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentFile, ctx));
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentFile, ctx));
 
 		try {
 			channel.start();
@@ -1298,7 +1298,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [{ name: "intercom" }, ...[...registeredTools.keys()].map((name) => ({ name }))],
 			registerTool: (tool: {
 				name: string;
@@ -1309,7 +1309,7 @@ describe("native supervisor channel", () => {
 			sendMessage: () => {},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx));
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx));
 
 		try {
 			assert.deepEqual([...registeredTools.keys()], []);
@@ -1360,7 +1360,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [...registeredTools.keys()].map((name) => ({ name })),
 			registerTool: (tool: {
 				name: string;
@@ -1378,7 +1378,7 @@ describe("native supervisor channel", () => {
 			},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx));
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx));
 
 		try {
 			channel.start();
@@ -1464,7 +1464,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool: () => {},
 			sendMessage: (message: { content?: string; details?: Record<string, unknown> }) => {
@@ -1472,7 +1472,7 @@ describe("native supervisor channel", () => {
 			},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx));
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx));
 
 		channel.start();
 		channel.dispose();
@@ -1529,7 +1529,7 @@ describe("native supervisor channel", () => {
 				},
 			],
 		]);
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool: () => {},
 			sendMessage: (message: { details?: { id?: string } }) => {
@@ -1537,7 +1537,7 @@ describe("native supervisor channel", () => {
 			},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, state);
+		const channel = createNativeSupervisorChannel(evoharness as never, state);
 
 		channel.start();
 		assert.equal(channel.hasPendingRequests(), false, "resolved, expired, and inactive requests are not barriers");
@@ -1571,7 +1571,7 @@ describe("native supervisor channel", () => {
 			hasUI: false,
 			sessionManager: { getSessionId: () => currentSessionId, getSessionFile: () => null, getEntries: () => [] },
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [...registeredTools.keys()].map((name) => ({ name })),
 			registerTool: (tool: {
 				name: string;
@@ -1582,7 +1582,7 @@ describe("native supervisor channel", () => {
 			sendMessage: () => {},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx));
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx));
 		try {
 			channel.start();
 			const result = await registeredTools
@@ -1619,7 +1619,7 @@ describe("native supervisor channel", () => {
 				getEntries: () => [],
 			},
 		};
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [...registeredTools.keys()].map((name) => ({ name })),
 			registerTool: (tool: {
 				name: string;
@@ -1635,7 +1635,7 @@ describe("native supervisor channel", () => {
 			},
 			getSessionName: () => "shared-name",
 		};
-		const channel = createNativeSupervisorChannel(pi as never, makeState(currentSessionId, ctx));
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(currentSessionId, ctx));
 
 		try {
 			channel.start();
@@ -1673,7 +1673,7 @@ describe("native supervisor channel", () => {
 			string,
 			{ execute: (_id: string, params: { reason: string; message?: string }) => Promise<unknown> | unknown }
 		>();
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [...registeredTools.keys()].map((name) => ({ name })),
 			registerTool: (tool: {
 				name: string;
@@ -1682,7 +1682,7 @@ describe("native supervisor channel", () => {
 				registeredTools.set(tool.name, tool);
 			},
 		};
-		registerNativeSupervisorClient(pi as never, {
+		registerNativeSupervisorClient(evoharness as never, {
 			channelDir,
 			runId,
 			agent: "worker",
@@ -1727,7 +1727,7 @@ describe("native supervisor channel", () => {
 				) => Promise<unknown> | unknown;
 			}
 		>();
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [...registeredTools.keys()].map((name) => ({ name })),
 			registerTool: (tool: {
 				name: string;
@@ -1740,7 +1740,7 @@ describe("native supervisor channel", () => {
 				registeredTools.set(tool.name, tool);
 			},
 		};
-		registerNativeSupervisorClient(pi as never, {
+		registerNativeSupervisorClient(evoharness as never, {
 			channelDir,
 			runId,
 			agent: "worker",
@@ -1776,7 +1776,7 @@ describe("native supervisor channel", () => {
 				) => Promise<{ content: Array<{ text?: string }> }>;
 			}
 		>();
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [...registeredTools.keys()].map((name) => ({ name })),
 			registerTool: (tool: {
 				name: string;
@@ -1788,7 +1788,7 @@ describe("native supervisor channel", () => {
 				registeredTools.set(tool.name, tool);
 			},
 		};
-		registerNativeSupervisorClient(pi as never, {
+		registerNativeSupervisorClient(evoharness as never, {
 			channelDir,
 			runId,
 			agent: "worker",

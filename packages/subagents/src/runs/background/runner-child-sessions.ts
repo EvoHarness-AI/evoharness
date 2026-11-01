@@ -3,7 +3,7 @@
  *
  * The runner imports `@evoharness/coding-agent` like the parent does;
  * the parent aliases that specifier (and the other host peer packages) to the
- * installed pi package through `JITI_ALIAS` when it spawns the runner, see
+ * installed evoharness package through `JITI_ALIAS` when it spawns the runner, see
  * `runner-aliases.ts`. Tests replace the factory with a scripted one by
  * naming a module in the runner config. The binary bootstrap supplies its
  * embedded SDK through the default factory's existing loader option instead.

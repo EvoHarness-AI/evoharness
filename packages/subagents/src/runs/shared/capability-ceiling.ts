@@ -1,7 +1,7 @@
 import { Buffer } from "node:buffer";
 
 export const SUBAGENT_CAPABILITY_CEILING_VERSION = 1 as const;
-export const SUBAGENT_CAPABILITY_CEILING_REGISTRY_KEY = "pi-subagents.capability-ceiling.v1";
+export const SUBAGENT_CAPABILITY_CEILING_REGISTRY_KEY = "subagents.capability-ceiling.v1";
 
 export type SubagentCapabilityCeiling =
 	| { allowedTools: readonly string[]; allowedAgents?: readonly string[]; denyExtensions?: boolean }
@@ -201,9 +201,9 @@ export function resolveSubagentCapabilityCeiling(
 
 /** Ceilings are registered under `ctx.sessionManager.getSessionId()`; pass that id, never the session file path. */
 export function resolveCurrentSubagentCapabilityCeiling(
-	piSessionId: string | undefined,
+	hostSessionId: string | undefined,
 ): ResolvedSubagentCapabilityCeiling | undefined {
-	return resolveSubagentCapabilityCeiling(piSessionId, undefined);
+	return resolveSubagentCapabilityCeiling(hostSessionId, undefined);
 }
 
 export function isAgentAllowedByCapabilityCeiling(

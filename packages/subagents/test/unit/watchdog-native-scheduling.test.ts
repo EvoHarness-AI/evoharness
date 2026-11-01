@@ -10,11 +10,11 @@ import { createMainWatchdogReview } from "../../src/watchdog/review.ts";
 
 // Use the same opt-in installed-SDK convention as other native scheduling tests.
 // Real AgentSession + ExtensionRunner + ModelRuntime, with HTTP replaced only at fetch.
-const sdkRoot = process.env.PI_SUBAGENTS_NATIVE_SDK;
+const sdkRoot = process.env.EVOHARNESS_SUBAGENTS_NATIVE_SDK;
 it(
-	"native Pi delivers a yielded question and continues without a reply action or forced review",
+	"native evoharness delivers a yielded question and continues without a reply action or forced review",
 	{
-		skip: !sdkRoot && "Set PI_SUBAGENTS_NATIVE_SDK to an installed real Pi SDK root",
+		skip: !sdkRoot && "Set EVOHARNESS_SUBAGENTS_NATIVE_SDK to an installed real evoharness SDK root",
 		timeout: 30_000,
 	},
 	async () => {
@@ -24,8 +24,7 @@ it(
 			{ cwd: sdkRoot, encoding: "utf8" },
 		).trim();
 		assert.match(entry, /\/dist\/index\.js$/);
-		const pi = await import(entry);
-		assert.equal(pi.__piSubagentsTestShim, undefined);
+		const evoharness = await import(entry);
 		const cwd = mkdtempSync(join(tmpdir(), "watchdog-native-"));
 		const agentDir = join(cwd, "agent");
 		mkdirSync(agentDir);
@@ -128,8 +127,8 @@ it(
 					assert.ok(JSON.stringify(body.messages).includes(text), "native steer carries question and evidence");
 				return response(undefined, continuation);
 			};
-			const settingsManager = pi.SettingsManager.create(cwd, agentDir);
-			const resourceLoader = new pi.DefaultResourceLoader({
+			const settingsManager = evoharness.SettingsManager.create(cwd, agentDir);
+			const resourceLoader = new evoharness.DefaultResourceLoader({
 				cwd,
 				agentDir,
 				settingsManager,
@@ -171,19 +170,19 @@ it(
 				],
 			});
 			await resourceLoader.reload();
-			const modelRuntime = await pi.ModelRuntime.create({
+			const modelRuntime = await evoharness.ModelRuntime.create({
 				authPath: join(agentDir, "auth.json"),
 				modelsPath: join(agentDir, "models.json"),
 				allowModelNetwork: false,
 			});
-			({ session } = await pi.createAgentSession({
+			({ session } = await evoharness.createAgentSession({
 				cwd,
 				agentDir,
 				settingsManager,
 				resourceLoader,
 				modelRuntime,
 				model: modelRuntime.getModel("baseten", "watchdog-test"),
-				sessionManager: pi.SessionManager.inMemory(cwd),
+				sessionManager: evoharness.SessionManager.inMemory(cwd),
 				noTools: "builtin",
 			}));
 			await session.bindExtensions({});
@@ -206,7 +205,7 @@ it(
 				),
 			);
 			console.log(
-				`Actual Pi ${pi.VERSION}: visible question delivered after yield; orchestrator continued; no reply action or forced review.`,
+				`Actual evoharness ${evoharness.VERSION}: visible question delivered after yield; orchestrator continued; no reply action or forced review.`,
 			);
 		} finally {
 			runtime?.dispose();

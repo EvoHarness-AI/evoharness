@@ -248,7 +248,7 @@ export function resolveCleanupRepoRoot(repo: string): string {
 }
 
 function resolveCleanupBaseDir(repoRoot: string, configuredBaseDir: string | undefined): string {
-	const raw = configuredBaseDir ?? process.env.PI_SUBAGENTS_WORKTREE_DIR;
+	const raw = configuredBaseDir ?? process.env.EVOHARNESS_SUBAGENTS_WORKTREE_DIR;
 	let dedicatedRoot: string;
 	if (raw === undefined || (configuredBaseDir === undefined && !raw.trim())) {
 		dedicatedRoot = path.join(path.dirname(repoRoot), "worktrees");
@@ -775,7 +775,7 @@ function buildManagedEntry(input: {
 			entry,
 			"ineligible",
 			"keep",
-			`worktree real path is inside Pi extensions directory '${extensionsDir}'`,
+			`worktree real path is inside evoharness extensions directory '${extensionsDir}'`,
 		);
 	if (input.containmentInvalid || !pathInside(baseDir, pathInspection.realpath, true))
 		return blockedEntry(

@@ -62,7 +62,7 @@ const NO_USAGE = {
 
 describe("buildDoctorReport", () => {
 	it("formats a bounded successful environment summary", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-doctor-success-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-doctor-success-"));
 		try {
 			const state = makeState(root);
 			const paths = {
@@ -128,7 +128,7 @@ describe("buildDoctorReport", () => {
 						mode: "always",
 						wantsIntercom: true,
 						supervisorChannelAvailable: true,
-						extensionDir: "native:pi-subagents-supervisor-channel",
+						extensionDir: "native:subagents-supervisor-channel",
 						orchestratorTarget: "subagent-chat-abc123",
 					}),
 				},
@@ -161,11 +161,11 @@ describe("buildDoctorReport", () => {
 			);
 			assert.match(
 				report,
-				/if runs\.all is missing, reload or update pi-subagents; await Promise\.all\(\[runs\.run\(\.\.\.\)\]\) is also supported/,
+				/if runs\.all is missing, reload or update subagents; await Promise\.all\(\[runs\.run\(\.\.\.\)\]\) is also supported/,
 			);
 			assert.match(report, /- skills: total 2 \(project 1, user-package 1\)/);
 			assert.match(report, /- bridge: active/);
-			assert.match(report, /- supervisor channel: available \(native:pi-subagents-supervisor-channel\)/);
+			assert.match(report, /- supervisor channel: available \(native:subagents-supervisor-channel\)/);
 			assert.doesNotMatch(report, /Companion packages/);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
@@ -173,10 +173,10 @@ describe("buildDoctorReport", () => {
 	});
 
 	it("reports the effective source when the run fan-out environment value is invalid", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-doctor-fanout-source-"));
-		const previous = process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN;
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-doctor-fanout-source-"));
+		const previous = process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_RUN;
 		try {
-			process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN = "invalid";
+			process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_RUN = "invalid";
 			const report = buildDoctorReport({
 				cwd: root,
 				config: { maxSubagentSpawnsPerRun: 12 },
@@ -208,16 +208,16 @@ describe("buildDoctorReport", () => {
 			});
 			assert.match(report, /Run fan-out budget\n- configured limit: 12 \(config\)/);
 		} finally {
-			if (previous === undefined) delete process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN;
-			else process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN = previous;
+			if (previous === undefined) delete process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_RUN;
+			else process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_RUN = previous;
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});
 
 	it("distinguishes dedicated runner forwarding from root state", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-doctor-parent-routing-"));
-		const previousChild = process.env.PI_SUBAGENT_CHILD;
-		const previousParent = process.env.PI_SUBAGENT_PARENT_SESSION;
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-doctor-parent-routing-"));
+		const previousChild = process.env.EVOHARNESS_SUBAGENT_CHILD;
+		const previousParent = process.env.EVOHARNESS_SUBAGENT_PARENT_SESSION;
 		const report = () =>
 			buildDoctorReport({
 				cwd: root,
@@ -249,8 +249,8 @@ describe("buildDoctorReport", () => {
 				},
 			});
 		try {
-			process.env.PI_SUBAGENT_CHILD = "1";
-			process.env.PI_SUBAGENT_PARENT_SESSION = "launch-parent";
+			process.env.EVOHARNESS_SUBAGENT_CHILD = "1";
+			process.env.EVOHARNESS_SUBAGENT_PARENT_SESSION = "launch-parent";
 			const runnerReport = report();
 			assert.match(
 				runnerReport,
@@ -258,8 +258,8 @@ describe("buildDoctorReport", () => {
 			);
 			assert.doesNotMatch(runnerReport, /foreground external ask forwarding/);
 
-			delete process.env.PI_SUBAGENT_CHILD;
-			process.env.PI_SUBAGENT_PARENT_SESSION = "legacy-root";
+			delete process.env.EVOHARNESS_SUBAGENT_CHILD;
+			process.env.EVOHARNESS_SUBAGENT_PARENT_SESSION = "legacy-root";
 			const legacyReport = report();
 			assert.match(
 				legacyReport,
@@ -270,22 +270,22 @@ describe("buildDoctorReport", () => {
 				/foreground external ask forwarding: unavailable until the permission extension supports a session-scoped target/,
 			);
 
-			delete process.env.PI_SUBAGENT_PARENT_SESSION;
+			delete process.env.EVOHARNESS_SUBAGENT_PARENT_SESSION;
 			assert.match(
 				report(),
 				/root parent session: not set \(healthy\) — detached forwarding is attached at runner launch/,
 			);
 		} finally {
-			if (previousChild === undefined) delete process.env.PI_SUBAGENT_CHILD;
-			else process.env.PI_SUBAGENT_CHILD = previousChild;
-			if (previousParent === undefined) delete process.env.PI_SUBAGENT_PARENT_SESSION;
-			else process.env.PI_SUBAGENT_PARENT_SESSION = previousParent;
+			if (previousChild === undefined) delete process.env.EVOHARNESS_SUBAGENT_CHILD;
+			else process.env.EVOHARNESS_SUBAGENT_CHILD = previousChild;
+			if (previousParent === undefined) delete process.env.EVOHARNESS_SUBAGENT_PARENT_SESSION;
+			else process.env.EVOHARNESS_SUBAGENT_PARENT_SESSION = previousParent;
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});
 
 	it("keeps reporting when a directory or discovery check fails", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-doctor-failure-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-doctor-failure-"));
 		try {
 			const asyncPath = path.join(root, "async-file");
 			fs.writeFileSync(asyncPath, "not a directory");
@@ -311,7 +311,7 @@ describe("buildDoctorReport", () => {
 						mode: "fork-only",
 						wantsIntercom: false,
 						supervisorChannelAvailable: true,
-						extensionDir: "native:pi-subagents-supervisor-channel",
+						extensionDir: "native:subagents-supervisor-channel",
 						reason: "bridge mode is fork-only and context is not fork",
 					}),
 				},

@@ -15,7 +15,7 @@ import type { SubagentState, WaitCompletion } from "../../src/shared/types.ts";
 
 describe("workflow wait completion projection", () => {
 	it("returns readable evidence references from the matched result namespace and its replay", (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-evidence-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-evidence-"));
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		const resultsDir = path.join(root, "nested", "root-run");
 		const runId = "persona";
@@ -64,7 +64,7 @@ describe("workflow wait completion projection", () => {
 	});
 
 	it("only references an unindexed public fallback owned by the completed run session", (t) => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-public-fallback-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-public-fallback-"));
 		t.after(() => fs.rmSync(resultsDir, { recursive: true, force: true }));
 		const runId = "shared-run";
 		const terminal: AsyncRunSummary[] = [
@@ -119,7 +119,7 @@ describe("workflow wait completion projection", () => {
 	});
 
 	it("does not surface an in-memory completion after the run id is reused by another session", (t) => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-memory-owner-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-memory-owner-"));
 		t.after(() => fs.rmSync(resultsDir, { recursive: true, force: true }));
 		const runId = "shared-run";
 		const state = { currentSessionId: "session-b" } as SubagentState;
@@ -152,7 +152,7 @@ describe("workflow wait completion projection", () => {
 	});
 
 	it("owner-gates the in-memory completion discovered during the result-file race", (t) => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-late-memory-owner-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-late-memory-owner-"));
 		t.after(() => fs.rmSync(resultsDir, { recursive: true, force: true }));
 		const runId = "shared-run";
 		const completion = toWaitCompletion({ agent: "recorded-agent", success: true }, runId);
@@ -175,7 +175,7 @@ describe("workflow wait completion projection", () => {
 	});
 
 	it("refuses to record a completion without matching payload and persistence ownership", (t) => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-record-owner-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-record-owner-"));
 		t.after(() => fs.rmSync(resultsDir, { recursive: true, force: true }));
 		const state = { currentSessionId: "session-a" } as SubagentState;
 
@@ -213,7 +213,7 @@ describe("workflow wait completion projection", () => {
 	});
 
 	it("rejects foreign unindexed public payloads before the watcher records completion", (t) => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-public-prewatcher-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-public-prewatcher-"));
 		t.after(() => fs.rmSync(resultsDir, { recursive: true, force: true }));
 		const runId = "shared-run";
 		const terminal: AsyncRunSummary[] = [
@@ -262,7 +262,7 @@ describe("workflow wait completion projection", () => {
 	});
 
 	it("validates stale indexed public payload ownership with and without memory", (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-stale-index-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-stale-index-"));
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		for (const hasMemory of [false, true]) {
 			for (const payloadOwner of ["owner", "foreign"]) {
@@ -319,7 +319,7 @@ describe("workflow wait completion projection", () => {
 	});
 
 	it("reports malformed indexed payloads", (t) => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-malformed-indexed-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-malformed-indexed-"));
 		t.after(() => fs.rmSync(resultsDir, { recursive: true, force: true }));
 		const runId = "malformed-run";
 		const resultPath = path.join(resultsDir, `${runId}.json`);

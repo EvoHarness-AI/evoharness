@@ -55,7 +55,7 @@ function makeState(): Parameters<typeof hasLiveSubagentWork>[0] {
 	};
 }
 
-describe("pi-web session liveness integration", () => {
+describe("subagents-web session liveness integration", () => {
 	it("reports only queued or running async jobs as live", () => {
 		const state = makeState();
 		state.asyncJobs.set("retained", { status: "complete" } as never);
@@ -203,7 +203,7 @@ describe("pi-web session liveness integration", () => {
 			isActive: () => active,
 		});
 		assert.equal(release.registered, true);
-		assert.equal(provider?.name, "pi-subagents");
+		assert.equal(provider?.name, "subagents");
 		assert.equal(provider?.sessionId, "session-a");
 		assert.equal(provider?.sessionFile, "/tmp/session-a.jsonl");
 		assert.equal(provider?.isActive(), true);

@@ -61,7 +61,7 @@ describe("foreign workflow tool steering (separate processes)", () => {
 				lastForegroundControlId: null,
 			};
 			const executor = createSubagentExecutor({
-				pi: { events: createEventBus(), getSessionName: () => undefined },
+				evoharness: { events: createEventBus(), getSessionName: () => undefined },
 				state,
 				config: {},
 				asyncByDefault: false,

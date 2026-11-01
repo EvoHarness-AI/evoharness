@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { Message, Usage as PiUsage } from "@evoharness/ai";
+import type { Usage as HostUsage, Message } from "@evoharness/ai";
 import { validateAsyncStatusLaneMetadata } from "../runs/shared/lane-metadata.ts";
 import { ERROR_REPLY_TEXT_SEPARATOR } from "../runs/shared/model-resolution.ts";
 import { previewDisplayText, sanitizeDisplayText, truncateDisplayText } from "./display-text.ts";
@@ -19,8 +19,8 @@ import type {
 } from "./types.ts";
 
 const DEFAULT_CONFIG_DIR_NAME = ".evoharness";
-const PI_CODING_AGENT_PACKAGE_NAME = "@evoharness/coding-agent";
-export const PI_CODING_AGENT_PACKAGE_ROOT_ENV = "PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT";
+const CODING_AGENT_PACKAGE_NAME = "@evoharness/coding-agent";
+export const CODING_AGENT_PACKAGE_ROOT_ENV = "EVOHARNESS_SUBAGENTS_CODING_AGENT_PACKAGE_ROOT";
 export const PROMPT_REDACTED = "[prompt redacted]";
 export const SUBAGENT_STOPPED_MESSAGE = "Subagent stopped.";
 export const SUBAGENT_TIMED_OUT_MESSAGE = "Subagent timed out.";
@@ -46,10 +46,10 @@ function readConfigDirNameFromPackageRoot(packageRoot: string | undefined): stri
 	try {
 		const pkg = JSON.parse(fs.readFileSync(path.join(packageRoot, "package.json"), "utf-8")) as {
 			name?: unknown;
-			piConfig?: { configDir?: unknown };
+			evoharnessConfig?: { configDir?: unknown };
 		};
-		if (pkg.name !== PI_CODING_AGENT_PACKAGE_NAME) return undefined;
-		return validConfigDirName(pkg.piConfig?.configDir);
+		if (pkg.name !== CODING_AGENT_PACKAGE_NAME) return undefined;
+		return validConfigDirName(pkg.evoharnessConfig?.configDir);
 	} catch {
 		return undefined;
 	}
@@ -57,7 +57,7 @@ function readConfigDirNameFromPackageRoot(packageRoot: string | undefined): stri
 
 function resolveConfigDirNameFromPackageJson(
 	entryPoint = process.argv[1],
-	packageRoot = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV],
+	packageRoot = process.env[CODING_AGENT_PACKAGE_ROOT_ENV],
 ): string | undefined {
 	const packageRootValue = readConfigDirNameFromPackageRoot(packageRoot);
 	if (packageRootValue) return packageRootValue;
@@ -87,7 +87,7 @@ let cachedConfigDirName: { entryPoint: string | undefined; packageRoot: string |
 
 export function getConfigDirName(): string {
 	const entryPoint = process.argv[1];
-	const packageRoot = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
+	const packageRoot = process.env[CODING_AGENT_PACKAGE_ROOT_ENV];
 	if (
 		cachedConfigDirName &&
 		cachedConfigDirName.entryPoint === entryPoint &&
@@ -401,7 +401,7 @@ export function sumResultsUsage(results: SingleResult[]): Usage {
 	return usage;
 }
 
-export function toAgentToolUsage(usage: Usage): PiUsage {
+export function toAgentToolUsage(usage: Usage): HostUsage {
 	return {
 		input: usage.input,
 		output: usage.output,

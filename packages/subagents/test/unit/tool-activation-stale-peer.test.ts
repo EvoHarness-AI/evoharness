@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import { test } from "node:test";
 
-test("activates against the running Pi when a package-local ai lacks transcript helpers", async () => {
+test("activates against the running evoharness when a package-local ai lacks transcript helpers", async () => {
 	// Simulate an older ai installed beside this package, not the running host.
 	const hook = registerHooks({
 		resolve(specifier, context, nextResolve) {
@@ -19,7 +19,7 @@ test("activates against the running Pi when a package-local ai lacks transcript 
 	try {
 		const { registerSubagentToolActivation } = await import("../../src/extension/tool-activation.ts");
 		const tools = new Set(["read", "subagent"]);
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [...tools].map((name) => ({ name })),
 			getActiveTools: () => ["read", "subagent"],
 			setActiveTools() {},
@@ -28,8 +28,8 @@ test("activates against the running Pi when a package-local ai lacks transcript 
 			},
 			on: () => () => {},
 		};
-		// SAFETY: activation calls only the five Pi methods supplied by this fixture.
-		registerSubagentToolActivation(pi as never, { advertisedPrompt: () => undefined });
+		// SAFETY: activation calls only the five evoharness methods supplied by this fixture.
+		registerSubagentToolActivation(evoharness as never, { advertisedPrompt: () => undefined });
 		assert.ok(tools.has("subagents_enable"), "host API should enable the self-service loader");
 	} finally {
 		hook.deregister();

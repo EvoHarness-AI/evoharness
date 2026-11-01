@@ -38,7 +38,7 @@ describe("resolveSubagentContext", () => {
 
 describe("canPreferFork", () => {
 	it("requires a persisted session file and a current leaf", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-prefer-fork-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-prefer-fork-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			assert.equal(
@@ -150,7 +150,7 @@ describe("createForkContextResolver", () => {
 	});
 
 	it("opens a throwaway manager from the persisted parent session file", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-open-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-open-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			writeMinimalSessionFile(parentSessionFile, "parent");
@@ -190,7 +190,7 @@ describe("createForkContextResolver", () => {
 	});
 
 	it("creates forked sessions through the default package opener", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-default-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-default-"));
 		try {
 			const sessionDir = path.join(tempDir, "sessions");
 			const parent = SessionManager.create(tempDir, sessionDir);
@@ -221,13 +221,13 @@ describe("createForkContextResolver", () => {
 		}
 	});
 
-	it("nests forked sessions under a per-parent directory so pi -c never picks them", () => {
+	it("nests forked sessions under a per-parent directory so evoharness -c never picks them", () => {
 		// Regression test: fork files used to be created as top-level siblings of
-		// the parent session. Pi's findMostRecentSession (`pi -c`) scans that
+		// the parent session. evoharness's findMostRecentSession (`evoharness -c`) scans that
 		// directory non-recursively and picks the largest-mtime *.jsonl, so a
 		// still-running forked subagent out-writes the idle parent and the next
-		// `pi -c` resumed the subagent instead of the conversation the user left.
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-nested-"));
+		// `evoharness -c` resumed the subagent instead of the conversation the user left.
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-nested-"));
 		try {
 			const sessionDir = path.join(tempDir, "sessions");
 			const parent = SessionManager.create(tempDir, sessionDir);
@@ -259,7 +259,7 @@ describe("createForkContextResolver", () => {
 				path.dirname(childSessionFile),
 				path.join(sessionDir, path.basename(parentSessionFile, ".jsonl"), "forks", "child-run-id"),
 			);
-			// Top-level listing — what pi -c sees — still contains only the parent.
+			// Top-level listing — what evoharness -c sees — still contains only the parent.
 			const topLevel = fs.readdirSync(sessionDir).filter((f) => f.endsWith(".jsonl"));
 			assert.deepEqual(topLevel, [path.basename(parentSessionFile)]);
 			// The official parentSession header still records the tree relationship.
@@ -271,7 +271,7 @@ describe("createForkContextResolver", () => {
 	});
 
 	it("fails clearly when the parent session file is missing", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-user-only-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-user-only-"));
 		try {
 			const sessionDir = path.join(tempDir, "sessions");
 			const parent = SessionManager.create(tempDir, sessionDir);
@@ -281,13 +281,13 @@ describe("createForkContextResolver", () => {
 
 			assert.ok(parentSessionFile);
 			assert.ok(leafId);
-			// Pi 1.2 persists a user-only parent at once, so remove the file to reach the missing-parent path.
+			// evoharness 1.2 persists a user-only parent at once, so remove the file to reach the missing-parent path.
 			fs.rmSync(parentSessionFile);
 
 			const resolver = createForkContextResolver(parent, "fork", { runDirName: () => "child-run" });
 			assert.throws(
 				() => resolver.sessionFileForIndex(0),
-				/Failed to create forked subagent session: Parent session file does not exist: .*Pi has not persisted enough history to fork yet\./,
+				/Failed to create forked subagent session: Parent session file does not exist: .*evoharness has not persisted enough history to fork yet\./,
 			);
 			assert.equal(parent.getSessionFile(), parentSessionFile);
 			assert.equal(parent.getLeafId(), leafId);
@@ -298,7 +298,7 @@ describe("createForkContextResolver", () => {
 	});
 
 	it("creates isolated branched sessions per index (parallel and chain compatible)", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-index-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-index-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			writeMinimalSessionFile(parentSessionFile, "parent");
@@ -336,7 +336,7 @@ describe("createForkContextResolver", () => {
 	});
 
 	it("memoizes per index to keep behavior deterministic", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-memo-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-memo-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			writeMinimalSessionFile(parentSessionFile, "parent");
@@ -369,8 +369,8 @@ describe("createForkContextResolver", () => {
 		}
 	});
 
-	it("persists a forked session when Pi defers writing the branched file", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-deferred-child-"));
+	it("persists a forked session when evoharness defers writing the branched file", () => {
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-deferred-child-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			const childSessionFile = path.join(tempDir, "nested", "child.jsonl");
@@ -424,7 +424,7 @@ describe("createForkContextResolver", () => {
 	});
 
 	it("keeps verbatim signed Anthropic thinking blocks so the fork reuses the parent's prompt cache", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-thinking-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-thinking-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			const childSessionFile = path.join(tempDir, "child.jsonl");
@@ -485,7 +485,7 @@ describe("createForkContextResolver", () => {
 	});
 
 	it("removes signed Anthropic thinking blocks from context-edit replacements", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-context-edit-thinking-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-context-edit-thinking-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			const childSessionFile = path.join(tempDir, "child.jsonl");
@@ -551,7 +551,7 @@ describe("createForkContextResolver", () => {
 	});
 
 	it("removes signed Anthropic thinking blocks from a fork that will be pruned", async () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-pruned-thinking-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-pruned-thinking-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			const childSessionFile = path.join(tempDir, "child.jsonl");
@@ -608,7 +608,7 @@ describe("createForkContextResolver", () => {
 	});
 
 	it("allows unsigned thinking blocks in forked sessions", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-unsigned-thinking-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-unsigned-thinking-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			const childSessionFile = path.join(tempDir, "child.jsonl");
@@ -662,7 +662,7 @@ describe("createForkContextResolver", () => {
 	});
 
 	it("allows non-Anthropic signed thinking blocks in forked sessions", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-openai-thinking-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-openai-thinking-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			const childSessionFile = path.join(tempDir, "child.jsonl");
@@ -716,7 +716,7 @@ describe("createForkContextResolver", () => {
 	});
 
 	it("removes redacted thinking blocks before fallback-persisting a forked session", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-redacted-thinking-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-redacted-thinking-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			const childSessionFile = path.join(tempDir, "child.jsonl");
@@ -782,7 +782,7 @@ describe("createForkContextResolver", () => {
 	});
 
 	it("fails clearly when branch extraction returns a missing child file without fallback state", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-missing-child-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-missing-child-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			const missingChildSessionFile = path.join(tempDir, "missing-child.jsonl");
@@ -811,7 +811,7 @@ describe("createForkContextResolver", () => {
 	});
 
 	it("does not silently fallback to fresh when branch extraction fails", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-fork-no-path-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-no-path-"));
 		try {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
 			writeMinimalSessionFile(parentSessionFile, "parent");

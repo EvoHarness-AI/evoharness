@@ -112,7 +112,7 @@ describe("watchdog LSP diagnostics", () => {
 	});
 
 	it("returns a failed result for malformed language-server JSON", async () => {
-		const temp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-watchdog-lsp-"));
+		const temp = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-watchdog-lsp-"));
 		try {
 			const binDir = path.join(temp, "node_modules", ".bin");
 			fs.mkdirSync(path.join(temp, "src"), { recursive: true });

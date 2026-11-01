@@ -25,11 +25,11 @@ it("session startup yields to the event loop and both first advertisements await
 		fs.mkdirSync(localDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(packageDir, "package.json"),
-			JSON.stringify({ name: "example", "pi-subagents": { agents: ["agents"] } }),
+			JSON.stringify({ name: "example", subagents: { agents: ["agents"] } }),
 		);
 		fs.writeFileSync(
 			path.join(newerPackage, "package.json"),
-			JSON.stringify({ name: "example", "pi-subagents": { agents: ["agents"] } }),
+			JSON.stringify({ name: "example", subagents: { agents: ["agents"] } }),
 		);
 		const agent = (name: string) => `---\nname: ${name}\ndescription: ${name}\nadvertise: true\n---\nWork.\n`;
 		fs.writeFileSync(path.join(packageDir, "agents", "global-specialist.md"), agent("global-specialist"));
@@ -92,7 +92,7 @@ if (phase === "old") {
 			const hooks = new Map();
 			const tools = new Map();
 			let active = ["subagents_enable"];
-			const pi = new Proxy({
+			const evoharness = new Proxy({
 				events: { on() { return () => {}; }, emit() {} },
 				on(name, handler) { hooks.set(name, [...(hooks.get(name) ?? []), handler]); },
 				registerTool(tool) { tools.set(tool.name, tool); },
@@ -100,7 +100,7 @@ if (phase === "old") {
 				getActiveTools() { return active; },
 				setActiveTools(next) { active = next; },
 			}, { get(target, key) { return key in target ? target[key] : () => undefined; } });
-			register(pi);
+			register(evoharness);
 			const ctx = {
 				cwd: process.env.TEST_PROJECT, isIdle() { return false; }, hasUI: false, model: { provider: "test", id: "test" },
 				modelRegistry: { getAvailable() { return []; }, getAll() { return []; } },
@@ -136,7 +136,7 @@ if (phase === "old") {
 			}
 			assert.match(loader.content[0].text, /If your tool list includes subagent \(possibly prefixed\), call it now\./);
 			assert.match(loader.content[0].text, /Otherwise, wait for the next user prompt; do not retry now\./);
-			assert.match(loader.content[0].text, /Start Pi with --exclude-tools subagents_enable to keep subagent always available\./);
+			assert.match(loader.content[0].text, /Start evoharness with --exclude-tools subagents_enable to keep subagent always available\./);
 			process.env.TEST_NPM_PHASE = "seed";
 			assert.ok(discoverAgents(ctx.cwd, "both").agents.some((agent) => agent.name === "global-specialist"));
 			process.env.TEST_NPM_PHASE = "old";
@@ -145,7 +145,7 @@ if (phase === "old") {
 			await new Promise((resolve) => setTimeout(resolve, 50));
 			const waitingOnOld = advertise();
 			const waitingLoader = tools.get("subagents_enable").execute("reload", {}, new AbortController().signal, undefined, ctx);
-			const registration = registerRuntimeAgent({ pi, name: "runtime-test", definition: { description: "Test", systemPrompt: "Test" } });
+			const registration = registerRuntimeAgent({ evoharness, name: "runtime-test", definition: { description: "Test", systemPrompt: "Test" } });
 			process.env.TEST_NPM_PHASE = "latest";
 			start({ reason: "reload" }, ctx);
 			const mergedExecution = tools.get("subagent").execute("merged-runtime", { agent: "new-specialist", task: "Probe", async: false }, new AbortController().signal, undefined, ctx)

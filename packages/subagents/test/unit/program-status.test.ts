@@ -67,7 +67,7 @@ describe("OSC 7501 program status", () => {
 		const { instance, writes, jobs, records } = reporter({ jobs: [job(runId, "running", { currentTool: "bash" })] });
 		assert.equal(
 			writes[0],
-			`\x1b]7501;state=working:id=subagents/0f1e2d3c4b5a:app=pi-subagents:title=${Buffer.from("worker").toString("base64")}:msg=${Buffer.from("Running bash").toString("base64")}\x1b\\`,
+			`\x1b]7501;state=working:id=subagents/0f1e2d3c4b5a:app=subagents:title=${Buffer.from("worker").toString("base64")}:msg=${Buffer.from("Running bash").toString("base64")}\x1b\\`,
 		);
 		instance.sync();
 		instance.sync();
@@ -88,7 +88,7 @@ describe("OSC 7501 program status", () => {
 			assert.deepEqual(records().at(-1), {
 				state,
 				id: "subagents/0f1e2d3c4b5a",
-				app: "pi-subagents",
+				app: "subagents",
 				title: "worker",
 				msg,
 			});
@@ -105,7 +105,7 @@ describe("OSC 7501 program status", () => {
 		assert.deepEqual(records().at(-1), {
 			state: "blocked",
 			id: "subagents/runa",
-			app: "pi-subagents",
+			app: "subagents",
 			kind: "question",
 			title: "worker",
 			msg: "Waiting for a reply",
@@ -218,7 +218,7 @@ describe("OSC 7501 program status", () => {
 		assert.notEqual(ids[0], ids[1]);
 	});
 
-	it("clears every record it sent when its runtime is replaced, but leaves them when Pi quits", () => {
+	it("clears every record it sent when its runtime is replaced, but leaves them when evoharness quits", () => {
 		const jobs = [job("run-f", "complete"), job("run-g", "running")];
 		const reloaded = reporter({ jobs });
 		reloaded.instance.dispose("reload");
@@ -239,7 +239,7 @@ describe("OSC 7501 program status", () => {
 		const quit = reporter({ jobs });
 		quit.instance.dispose("quit");
 		quit.instance.sync();
-		assert.equal(quit.writes.length, 2, "done and error records stay after Pi exits");
+		assert.equal(quit.writes.length, 2, "done and error records stay after evoharness exits");
 	});
 
 	it("writes nothing when turned off or not on an interactive terminal", () => {
@@ -260,7 +260,7 @@ describe("OSC 7501 program status", () => {
 	});
 
 	it(
-		"sends its records again when Pi resumes from a suspend, until it is disposed",
+		"sends its records again when evoharness resumes from a suspend, until it is disposed",
 		{ skip: process.platform === "win32" ? "no SIGCONT on Windows" : undefined },
 		() => {
 			const { instance, writes } = reporter({ jobs: [job("run-h", "running"), job("run-i", "complete")] });

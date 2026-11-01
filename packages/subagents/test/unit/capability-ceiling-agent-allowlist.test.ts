@@ -70,7 +70,7 @@ describe("capability ceiling agent allowlist", () => {
 		try {
 			const result = handleList(
 				{},
-				{ cwd: process.cwd(), piSessionId: sessionId, modelRegistry: { getAvailable: () => [] } },
+				{ cwd: process.cwd(), hostSessionId: sessionId, modelRegistry: { getAvailable: () => [] } },
 			);
 			const text = result.content[0]?.text ?? "";
 			assert.match(text, /Executable agents:/);

@@ -11,7 +11,7 @@ export function setMainThinkingLevelSource(source: () => ThinkingLevel | undefin
 	mainThinkingLevelSource = source;
 }
 
-/** Reads the main session's level through `read`; a stale or not-yet-bound Pi runtime has no level to show. */
+/** Reads the main session's level through `read`; a stale or not-yet-bound evoharness runtime has no level to show. */
 export function readMainThinkingLevel(read: () => ThinkingLevel): ThinkingLevel | undefined {
 	try {
 		return read();
@@ -21,7 +21,7 @@ export function readMainThinkingLevel(read: () => ThinkingLevel): ThinkingLevel 
 	}
 }
 
-/** The running tone of a glyph: Pi's prompt-box color for the recorded level of the one child it stands for, else for the main session's current level, else accent. */
+/** The running tone of a glyph: evoharness's prompt-box color for the recorded level of the one child it stands for, else for the main session's current level, else accent. */
 export function runningTone(theme: Theme, childLevel?: ThinkingLevel): (text: string) => string {
 	const level = childLevel ?? mainThinkingLevelSource();
 	return level ? theme.getThinkingBorderColor(level) : (text) => theme.fg("accent", text);

@@ -18,7 +18,7 @@ interface FakePi {
 	api: unknown;
 }
 
-function fakePi(available: string[]): FakePi {
+function fakeHostExe(available: string[]): FakePi {
 	const handlers = new Map<string, Array<(event?: unknown, ctx?: unknown) => unknown>>();
 	const tools: Array<{ name: string }> = [];
 	const api = {
@@ -40,15 +40,15 @@ describe("child runtime config", () => {
 	it("creates the prompt runtime hook always and the fast and fanout hooks on demand", () => {
 		assert.deepEqual(
 			createChildHooks(baseConfig()).map((hook) => hook.name),
-			["pi-subagents:prompt-runtime", "pi-subagents:prompt-boundary"],
+			["subagents:prompt-runtime", "subagents:prompt-boundary"],
 		);
 		assert.deepEqual(
 			createChildHooks(baseConfig({ fast: true })).map((hook) => hook.name),
-			["pi-subagents:prompt-runtime", "pi-subagents:fast-mode", "pi-subagents:prompt-boundary"],
+			["subagents:prompt-runtime", "subagents:fast-mode", "subagents:prompt-boundary"],
 		);
 		assert.deepEqual(
 			createChildHooks(baseConfig({ fanoutChild: true })).map((hook) => hook.name),
-			["pi-subagents:prompt-runtime", "pi-subagents:fanout-child", "pi-subagents:prompt-boundary"],
+			["subagents:prompt-runtime", "subagents:fanout-child", "subagents:prompt-boundary"],
 		);
 	});
 
@@ -71,23 +71,25 @@ describe("child runtime config", () => {
 				inheritGlobalContext: false,
 				inheritSkills: false,
 			});
-			const pi = fakePi([]);
-			for (const hook of launch.session.hooks) hook.factory(pi.api as never);
+			const evoharness = fakeHostExe([]);
+			for (const hook of launch.session.hooks) hook.factory(evoharness.api as never);
 			const ctx = {
 				sessionManager: { getSessionId: () => "coordinator-B", getSessionFile: () => "/sessions/B.jsonl" },
 			};
 			try {
-				for (const handler of pi.handlers.get("session_start") ?? []) await handler({}, ctx);
+				for (const handler of evoharness.handlers.get("session_start") ?? []) await handler({}, ctx);
 				assert.equal(
-					pi.tools.some((tool) => tool.name === "subagent_supervisor"),
+					evoharness.tools.some((tool) => tool.name === "subagent_supervisor"),
 					tools.includes("subagent"),
 				);
-				for (const handler of pi.handlers.get("agent_start") ?? []) await handler({}, ctx);
-				const selected = pi.tools.map((tool) => tool.name).filter((name) => launch.session.tools?.includes(name));
+				for (const handler of evoharness.handlers.get("agent_start") ?? []) await handler({}, ctx);
+				const selected = evoharness.tools
+					.map((tool) => tool.name)
+					.filter((name) => launch.session.tools?.includes(name));
 				assert.equal(selected.includes("subagent_supervisor"), tools.includes("subagent_supervisor"));
 				assert.deepEqual(launch.session.tools, tools, "registration must not expand explicit tools");
 			} finally {
-				for (const handler of pi.handlers.get("session_shutdown") ?? []) await handler({}, ctx);
+				for (const handler of evoharness.handlers.get("session_shutdown") ?? []) await handler({}, ctx);
 			}
 		}
 	});
@@ -104,11 +106,11 @@ describe("child runtime config", () => {
 			inheritGlobalContext: true,
 			inheritSkills: true,
 		});
-		const pi = fakePi(["read"]);
-		for (const hook of createChildHooks(config)) hook.factory(pi.api as never);
+		const evoharness = fakeHostExe(["read"]);
+		for (const hook of createChildHooks(config)) hook.factory(evoharness.api as never);
 
 		assert.throws(
-			() => pi.handlers.get("agent_start")?.[0]?.({}),
+			() => evoharness.handlers.get("agent_start")?.[0]?.({}),
 			/Agent 'config-agent' requested unavailable child tools: fixture_search/,
 		);
 		assert.deepEqual(diagnostics, [
@@ -120,16 +122,16 @@ describe("child runtime config", () => {
 			},
 		]);
 
-		const structured = pi.tools.find((tool) => tool.name === "structured_output") as
+		const structured = evoharness.tools.find((tool) => tool.name === "structured_output") as
 			| { execute: (id: string, params: { value: unknown }) => Promise<unknown> }
 			| undefined;
 		assert.ok(structured, "structured_output tool registered from config");
 		await structured.execute("call-1", { value: { done: true } });
 		assert.deepEqual(captured, [{ done: true }]);
 
-		const rewritten = (await pi.handlers.get("before_agent_start")?.at(-1)?.({ systemPrompt: "base prompt" })) as
-			| { systemPrompt: string }
-			| undefined;
+		const rewritten = (await evoharness.handlers.get("before_agent_start")?.at(-1)?.({
+			systemPrompt: "base prompt",
+		})) as { systemPrompt: string } | undefined;
 		assert.match(rewritten?.systemPrompt ?? "", /strict structured output contract/);
 	});
 

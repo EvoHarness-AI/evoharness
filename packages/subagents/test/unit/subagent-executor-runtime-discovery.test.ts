@@ -4,11 +4,11 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
-import { PI_CODING_AGENT_PACKAGE } from "../../src/runs/shared/pi-spawn.ts";
-import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
+import { CODING_AGENT_PACKAGE } from "../../src/runs/shared/host-spawn.ts";
+import { CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
 
 test("executor doctor/status remain available when the selected SDK root is broken", (t) => {
-	const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-executor-discovery-"));
+	const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-executor-discovery-"));
 	t.after(() => fs.rmSync(tmp, { recursive: true, force: true }));
 	const host = path.join(tmp, "host");
 	fs.mkdirSync(host);
@@ -16,15 +16,15 @@ test("executor doctor/status remain available when the selected SDK root is brok
 	const entry = path.join(host, "sessiond.mjs");
 	fs.writeFileSync(entry, "throw new Error('host entry must not execute');\n");
 	// A working host dependency must not hide the broken explicit override.
-	const dependency = path.join(host, "node_modules", PI_CODING_AGENT_PACKAGE);
+	const dependency = path.join(host, "node_modules", CODING_AGENT_PACKAGE);
 	fs.mkdirSync(dependency, { recursive: true });
-	fs.writeFileSync(path.join(dependency, "package.json"), JSON.stringify({ name: PI_CODING_AGENT_PACKAGE }));
+	fs.writeFileSync(path.join(dependency, "package.json"), JSON.stringify({ name: CODING_AGENT_PACKAGE }));
 	const env = {
 		...process.env,
 		HOME: path.join(tmp, "home"),
 		USERPROFILE: path.join(tmp, "home"),
-		PI_SUBAGENTS_TEMP_ROOT: path.join(tmp, "runs"),
-		[PI_CODING_AGENT_PACKAGE_ROOT_ENV]: path.join(tmp, "absent-override"),
+		EVOHARNESS_SUBAGENTS_TEMP_ROOT: path.join(tmp, "runs"),
+		[CODING_AGENT_PACKAGE_ROOT_ENV]: path.join(tmp, "absent-override"),
 	};
 	// A fresh process gives the executor a static dependency graph that has never resolved a working SDK.
 	const result = spawnSync(
@@ -51,9 +51,9 @@ test("executor doctor/status remain available when the selected SDK root is brok
 			cleanupTimers: new Map(), lastUiContext: null, poller: null, completionSeen: new Map(),
 			watcher: null, watcherRestartTimer: null, resultFileCoalescer: { schedule: () => false, clear() {} },
 		};
-		const pi = { events: createEventBus(), getSessionName: () => undefined };
+		const evoharness = { events: createEventBus(), getSessionName: () => undefined };
 		const executor = createSubagentExecutor({
-			pi, state, config: {}, asyncByDefault: false, tempArtifactsDir: cwd,
+			evoharness, state, config: {}, asyncByDefault: false, tempArtifactsDir: cwd,
 			getSubagentSessionRoot: () => cwd, expandTilde: (value) => value,
 			discoverAgents: () => ({ agents: [] }),
 		});
@@ -71,7 +71,7 @@ test("executor doctor/status remain available when the selected SDK root is brok
 		const { executeAsyncSingle } = await import(${JSON.stringify(new URL("../../src/runs/background/async-execution.ts", import.meta.url).href)});
 		const launch = await executeAsyncSingle("invalid-sdk", {
 			agent: "worker", task: "Check discovery", agentConfig: makeAgent("worker"),
-			ctx: { pi, cwd, currentSessionId: "session-123" },
+			ctx: { evoharness, cwd, currentSessionId: "session-123" },
 			artifactConfig: { enabled: false, includeInput: false, includeOutput: false, includeJsonl: false, includeMetadata: false, cleanupDays: 7 },
 			shareEnabled: false, sessionRoot: cwd, maxSubagentDepth: 1, acceptance: false,
 		});

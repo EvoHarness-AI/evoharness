@@ -1153,7 +1153,7 @@ export function inspectSubagentStatus(params: RunStatusParams, deps: RunStatusDe
 					allExternal
 						? hasExternalJobFollowUpHint
 							? "Resume: use the external-job follow-up hint above."
-							: "Resume: unavailable; external runners do not persist Pi sessions."
+							: "Resume: unavailable; external runners do not persist evoharness sessions."
 						: formatResumeGuidance(status.runId, status.steps ?? [], status.sessionFile, {
 								stopped: status.state === "stopped" || status.stopped === true,
 								otherSession: foreign(status.sessionId),

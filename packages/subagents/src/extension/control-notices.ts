@@ -15,7 +15,7 @@ export interface SubagentControlMessageDetails {
 }
 
 function deliverControlNotice(input: {
-	pi: Pick<ExtensionAPI, "sendMessage">;
+	evoharness: Pick<ExtensionAPI, "sendMessage">;
 	visibleControlNotices: Set<string>;
 	details: SubagentControlMessageDetails;
 }): void {
@@ -24,7 +24,7 @@ function deliverControlNotice(input: {
 	if (input.visibleControlNotices.has(key)) return;
 	input.visibleControlNotices.add(key);
 	const noticeText = input.details.noticeText ?? formatControlNoticeMessage(input.details.event, childIntercomTarget);
-	input.pi.sendMessage(
+	input.evoharness.sendMessage(
 		{
 			customType: SUBAGENT_CONTROL_MESSAGE_TYPE,
 			content: noticeText,
@@ -36,7 +36,7 @@ function deliverControlNotice(input: {
 }
 
 export function handleSubagentControlNotice(input: {
-	pi: Pick<ExtensionAPI, "sendMessage">;
+	evoharness: Pick<ExtensionAPI, "sendMessage">;
 	state: SubagentState;
 	visibleControlNotices: Set<string>;
 	details: SubagentControlMessageDetails;
@@ -44,8 +44,8 @@ export function handleSubagentControlNotice(input: {
 	if (!input.details?.event || input.details.event.type === "active_long_running") return;
 	if (input.details.noticeDeferred) return;
 	if (input.details.source === "foreground") {
-		// A foreground tool blocks Pi from displaying this message. The run can
-		// finish before Pi flushes it, and queued messages cannot be withdrawn.
+		// A foreground tool blocks evoharness from displaying this message. The run can
+		// finish before evoharness flushes it, and queued messages cannot be withdrawn.
 		// Foreground control remains available through the live tool and fleet state.
 		return;
 	}

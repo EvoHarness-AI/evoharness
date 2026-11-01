@@ -16,12 +16,12 @@ const script = String.raw`
 	import register from "./src/extension/index.ts";
 	const handlers = new Map();
 	const events = { listeners: new Map(), on(name, handler) { this.listeners.set(name, handler); return () => this.listeners.delete(name); }, emit(name, payload) { this.listeners.get(name)?.(payload); } };
-	const pi = new Proxy({
+	const evoharness = new Proxy({
 		events,
 		on(name, handler) { handlers.set(name, [...(handlers.get(name) ?? []), handler]); },
 		getActiveTools() { return ["subagent"]; },
 	}, { get(target, key) { return key in target ? target[key] : () => undefined; } });
-	register(pi);
+	register(evoharness);
 	const ctx = {
 		cwd: process.cwd(), isIdle() { return false; }, hasUI: false, model: { provider: "test", id: "test" },
 		modelRegistry: { getAvailable() { return []; }, getAll() { return []; } },

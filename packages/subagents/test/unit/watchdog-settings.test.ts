@@ -31,8 +31,8 @@ function projectSettingsPath(): string {
 
 describe("watchdog settings", () => {
 	beforeEach(() => {
-		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-watchdog-home-"));
-		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-watchdog-project-"));
+		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-watchdog-home-"));
+		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-watchdog-project-"));
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
 		delete process.env.EVOHARNESS_CODING_AGENT_DIR;

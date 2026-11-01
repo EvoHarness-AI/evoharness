@@ -19,7 +19,7 @@ describe("getFinalOutput", () => {
 		assert.equal(getFinalOutput(messages), "Summary");
 	});
 
-	it("removes a trailing Pi turn-timing footer from final output", () => {
+	it("removes a trailing evoharness turn-timing footer from final output", () => {
 		const report = "## Review\n\nVERDICT: FINDINGS";
 		const timingFooter = "\x1b[38;2;136;136;136m✻ Turn took 5m 54s (Total time 5m 54s · 2 turns)\x1b[0m";
 		const messages = [assistantContent([{ type: "text", text: `${report}\n\n${timingFooter}` }])];
@@ -27,7 +27,7 @@ describe("getFinalOutput", () => {
 		assert.equal(getFinalOutput(messages), report);
 	});
 
-	it("ignores a separate Pi turn-timing footer text part", () => {
+	it("ignores a separate evoharness turn-timing footer text part", () => {
 		const report = "## Review\n\nVERDICT: CLEAN";
 		const timingFooter = "\x1b[38;2;136;136;136m✻ Turn took 2m 19s (Total time 2m 18s · 1 turn)\x1b[0m";
 		const messages = [

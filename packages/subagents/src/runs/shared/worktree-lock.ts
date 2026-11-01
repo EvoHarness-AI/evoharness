@@ -28,7 +28,7 @@ export async function withRepositoryWorktreeLock<T>(
 	});
 	if (git.status !== 0)
 		throw new Error(git.error?.message || git.stderr.trim() || "Cannot resolve Git common directory.");
-	const lockPath = path.join(fs.realpathSync(git.stdout.trim()), "pi-subagents-worktree.lock");
+	const lockPath = path.join(fs.realpathSync(git.stdout.trim()), "subagents-worktree.lock");
 	const deadline = Date.now() + (options.waitMs ?? 2_000);
 	while (true) {
 		options.signal?.throwIfAborted();

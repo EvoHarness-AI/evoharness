@@ -7,7 +7,7 @@ import { createHash } from "node:crypto";
  * Oversized or non-portable values use a deterministic digest so callers can
  * resolve the same index without persisting a separate lookup table.
  *
- * Encoded backslashes and trailing file extensions are not portable. Pi session
+ * Encoded backslashes and trailing file extensions are not portable. evoharness session
  * ids are often the full session `.jsonl` path. On Windows, `readdir` of a
  * directory whose name ends in `.jsonl` or contains `%5C` can fail with EPERM.
  */

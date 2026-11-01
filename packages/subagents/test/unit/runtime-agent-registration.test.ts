@@ -21,7 +21,7 @@ const originalPiCodingAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 
 let tempHome = "";
 let tempProject = "";
-let pi: ExtensionAPI;
+let evoharness: ExtensionAPI;
 
 function makePi(): ExtensionAPI {
 	return {
@@ -76,16 +76,16 @@ function writeUserAgent(name: string, aliases: string[] = []): void {
 
 describe("runtime agent registration", () => {
 	beforeEach(() => {
-		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-runtime-agent-home-"));
-		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "pi-runtime-agent-project-"));
+		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-runtime-agent-home-"));
+		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-runtime-agent-project-"));
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
 		delete process.env.EVOHARNESS_CODING_AGENT_DIR;
-		pi = makePi();
+		evoharness = makePi();
 	});
 
 	afterEach(() => {
-		clearRuntimeAgentsForPi(pi);
+		clearRuntimeAgentsForPi(evoharness);
 		if (originalHome === undefined) delete process.env.HOME;
 		else process.env.HOME = originalHome;
 		if (originalUserProfile === undefined) delete process.env.USERPROFILE;
@@ -99,7 +99,7 @@ describe("runtime agent registration", () => {
 	it("adds runtime agents to extension discovery without writing config", () => {
 		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		const registration = registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-helper",
 			definition: {
 				description: "Runtime helper",
@@ -109,7 +109,7 @@ describe("runtime agent registration", () => {
 			},
 		});
 
-		const agents = mergeRuntimeAgents(pi, discoverAgents(tempProject, "both")).agents;
+		const agents = mergeRuntimeAgents(evoharness, discoverAgents(tempProject, "both")).agents;
 		const agent = agents.find((candidate) => candidate.name === "runtime-helper");
 		assert.equal(agent?.source, "runtime");
 		assert.deepEqual(agent?.aliases, ["helper"]);
@@ -118,7 +118,7 @@ describe("runtime agent registration", () => {
 
 		registration.dispose();
 		assert.equal(
-			mergeRuntimeAgents(pi, discoverAgents(tempProject, "both")).agents.some(
+			mergeRuntimeAgents(evoharness, discoverAgents(tempProject, "both")).agents.some(
 				(candidate) => candidate.name === "runtime-helper",
 			),
 			false,
@@ -128,7 +128,7 @@ describe("runtime agent registration", () => {
 
 	it("accepts inheritGlobalContext in a runtime agent definition", () => {
 		const registration = registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-global-helper",
 			definition: {
 				description: "Runtime global helper",
@@ -138,7 +138,7 @@ describe("runtime agent registration", () => {
 			},
 		});
 
-		const agents = mergeRuntimeAgents(pi, discoverAgents(tempProject, "both")).agents;
+		const agents = mergeRuntimeAgents(evoharness, discoverAgents(tempProject, "both")).agents;
 		const agent = agents.find((candidate) => candidate.name === "runtime-global-helper");
 		assert.equal(agent?.inheritProjectContext, true);
 		assert.equal(agent?.inheritGlobalContext, true);
@@ -148,7 +148,7 @@ describe("runtime agent registration", () => {
 
 	it("preserves excludeTools on runtime agents", () => {
 		const registration = registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-exclude-helper",
 			definition: {
 				description: "Runtime exclude helper",
@@ -158,7 +158,7 @@ describe("runtime agent registration", () => {
 			},
 		});
 
-		const agent = mergeRuntimeAgents(pi, discoverAgents(tempProject, "both")).agents.find(
+		const agent = mergeRuntimeAgents(evoharness, discoverAgents(tempProject, "both")).agents.find(
 			(candidate) => candidate.name === "runtime-exclude-helper",
 		);
 		assert.deepEqual(agent?.excludeTools, ["write", "unknown_tool"]);
@@ -171,7 +171,7 @@ describe("runtime agent registration", () => {
 		const consumerPi = makePiWithEvents(events);
 		const unsubscribe = registerRuntimeAgentEventListener(ownerPi);
 		const registration = registerAgentViaEvents({
-			pi: consumerPi,
+			evoharness: consumerPi,
 			name: "runtime-event-helper",
 			definition: { description: "Event helper", systemPrompt: "Help through the owner." },
 		});
@@ -191,7 +191,7 @@ describe("runtime agent registration", () => {
 		assert.throws(
 			() =>
 				registerAgentViaEvents({
-					pi: consumerPi,
+					evoharness: consumerPi,
 					name: "runtime-event-helper",
 					definition: { description: "Duplicate", systemPrompt: "Duplicate." },
 				}),
@@ -218,7 +218,7 @@ describe("runtime agent registration", () => {
 		const unsubscribeSecond = registerRuntimeAgentEventListener(secondOwner);
 
 		const registration = registerAgentViaEvents({
-			pi: consumer,
+			evoharness: consumer,
 			name: "first-owner-agent",
 			definition: { description: "First owner", systemPrompt: "Use the first owner." },
 		});
@@ -265,7 +265,7 @@ describe("runtime agent registration", () => {
 		assert.throws(
 			() =>
 				registerAgentViaEvents({
-					pi: consumer,
+					evoharness: consumer,
 					name: "no-owner",
 					definition: { description: "Missing", systemPrompt: "Missing." },
 				}),
@@ -277,7 +277,7 @@ describe("runtime agent registration", () => {
 		assert.throws(
 			() =>
 				registerAgentViaEvents({
-					pi: consumer,
+					evoharness: consumer,
 					name: "malformed-result",
 					definition: { description: "Malformed", systemPrompt: "Malformed." },
 				}),
@@ -287,16 +287,16 @@ describe("runtime agent registration", () => {
 		clearRuntimeAgentsForPi(owner);
 	});
 
-	it("lists runtime agents for the matching Pi runtime", () => {
+	it("lists runtime agents for the matching evoharness runtime", () => {
 		registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-helper",
 			definition: { description: "Runtime helper", systemPrompt: "Help at runtime.", aliases: ["helper"] },
 		});
 
 		const listed = handleList(
 			{},
-			{ cwd: tempProject, modelRegistry: { getAvailable: () => [] }, runtimeAgentOwner: pi },
+			{ cwd: tempProject, modelRegistry: { getAvailable: () => [] }, runtimeAgentOwner: evoharness },
 		);
 		const text = listed.content.map((part) => (part.type === "text" ? (part.text ?? "") : "")).join("\n");
 		assert.match(text, /- runtime-helper \(runtime, aliases: helper\): Runtime helper/);
@@ -304,7 +304,7 @@ describe("runtime agent registration", () => {
 
 	it("reports runtime agent model mappings by name and alias", () => {
 		const registration = registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-model-helper",
 			definition: {
 				description: "Runtime model helper",
@@ -324,7 +324,7 @@ describe("runtime agent registration", () => {
 					],
 				},
 				model: { provider: "openai", id: "gpt-5-mini" },
-				runtimeAgentOwner: pi,
+				runtimeAgentOwner: evoharness,
 			};
 			const all = handleManagementAction("models", {}, ctx);
 			const allText = all.content.map((part) => (part.type === "text" ? (part.text ?? "") : "")).join("\n");
@@ -352,12 +352,12 @@ describe("runtime agent registration", () => {
 			subagents: { defaultModel: "openai/gpt-5-mini", defaultThinking: "low" },
 		});
 		const unpinned = registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-default-helper",
 			definition: { description: "Runtime default helper", systemPrompt: "Help.", tools: ["read"] },
 		});
 		const pinned = registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-pinned-helper",
 			definition: {
 				description: "Runtime pinned helper",
@@ -367,7 +367,7 @@ describe("runtime agent registration", () => {
 		});
 		try {
 			const settings = { cwd: tempProject, scope: "both" as const };
-			const merged = mergeRuntimeAgents(pi, discoverAgents(tempProject, "both"), undefined, settings).agents;
+			const merged = mergeRuntimeAgents(evoharness, discoverAgents(tempProject, "both"), undefined, settings).agents;
 			const defaulted = merged.find((candidate) => candidate.name === "runtime-default-helper");
 			assert.equal(defaulted?.model, "openai/gpt-5-mini");
 			assert.equal(defaulted?.thinking, "low");
@@ -381,7 +381,7 @@ describe("runtime agent registration", () => {
 			assert.equal(kept?.modelSource, undefined);
 			assert.equal(kept?.thinking, "low");
 
-			const bare = mergeRuntimeAgents(pi, discoverAgents(tempProject, "both")).agents.find(
+			const bare = mergeRuntimeAgents(evoharness, discoverAgents(tempProject, "both")).agents.find(
 				(candidate) => candidate.name === "runtime-default-helper",
 			);
 			assert.equal(bare?.model, undefined, "without a settings context the registered definition is returned as-is");
@@ -416,17 +416,17 @@ describe("runtime agent registration", () => {
 			},
 		});
 		const overridden = registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-override-helper",
 			definition: { description: "Runtime override helper", systemPrompt: "Help.", tools: ["read"] },
 		});
 		const cleared = registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-cleared-helper",
 			definition: { description: "Runtime cleared helper", systemPrompt: "Help.", model: "openai/gpt-5-mini" },
 		});
 		try {
-			const merged = mergeRuntimeAgents(pi, discoverAgents(tempProject, "both"), undefined, {
+			const merged = mergeRuntimeAgents(evoharness, discoverAgents(tempProject, "both"), undefined, {
 				cwd: tempProject,
 				scope: "both",
 			}).agents;
@@ -455,7 +455,7 @@ describe("runtime agent registration", () => {
 			subagents: { defaultModel: "openai/gpt-5-mini" },
 		});
 		const registration = registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-default-source-helper",
 			definition: { description: "Runtime default source helper", systemPrompt: "Help." },
 		});
@@ -464,7 +464,7 @@ describe("runtime agent registration", () => {
 				cwd: tempProject,
 				modelRegistry: { getAvailable: () => [{ provider: "openai", id: "gpt-5-mini" }] },
 				model: { provider: "anthropic", id: "claude-sonnet-4" },
-				runtimeAgentOwner: pi,
+				runtimeAgentOwner: evoharness,
 			};
 			const filtered = handleManagementAction("models", { agent: "runtime-default-source-helper" }, ctx);
 			const text = filtered.content.map((part) => (part.type === "text" ? (part.text ?? "") : "")).join("\n");
@@ -487,7 +487,7 @@ describe("runtime agent registration", () => {
 			},
 		});
 		const registration = registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-provider-helper",
 			definition: { description: "Runtime provider helper", systemPrompt: "Help." },
 		});
@@ -499,7 +499,7 @@ describe("runtime agent registration", () => {
 					cwd: tempProject,
 					modelRegistry: { getAvailable: () => [{ provider: "anthropic", id: "claude-sonnet-4" }] },
 					model: { provider: "anthropic", id: "claude-sonnet-4" },
-					runtimeAgentOwner: pi,
+					runtimeAgentOwner: evoharness,
 				},
 			);
 			const text = managed.content.map((part) => (part.type === "text" ? (part.text ?? "") : "")).join("\n");
@@ -515,7 +515,7 @@ describe("runtime agent registration", () => {
 		assert.throws(
 			() =>
 				registerAgent({
-					pi,
+					evoharness,
 					name: "claude-code",
 					definition: {
 						description: "Unsafe",
@@ -528,7 +528,7 @@ describe("runtime agent registration", () => {
 		assert.throws(
 			() =>
 				registerAgent({
-					pi,
+					evoharness,
 					name: "runtime-writer",
 					definition: {
 						description: "Unsafe alias",
@@ -546,7 +546,7 @@ describe("runtime agent registration", () => {
 			assert.throws(
 				() =>
 					registerAgent({
-						pi,
+						evoharness,
 						name: readOnly,
 						definition: {
 							description: "Unsafe",
@@ -559,7 +559,7 @@ describe("runtime agent registration", () => {
 			assert.throws(
 				() =>
 					registerAgent({
-						pi,
+						evoharness,
 						name: `runtime-${writer}`,
 						definition: {
 							description: "Unsafe alias",
@@ -572,19 +572,19 @@ describe("runtime agent registration", () => {
 			);
 		}
 		assert.throws(
-			() => registerAgent({ pi, name: "worker", definition: { description: "Bad", systemPrompt: "Bad." } }),
+			() => registerAgent({ evoharness, name: "worker", definition: { description: "Bad", systemPrompt: "Bad." } }),
 			/Worker|builtin agent 'worker'|collides with builtin agent 'worker'/i,
 		);
 
 		registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-a",
 			definition: { description: "A", systemPrompt: "A.", aliases: ["shared"] },
 		});
 		assert.throws(
 			() =>
 				registerAgent({
-					pi,
+					evoharness,
 					name: "runtime-b",
 					definition: { description: "B", systemPrompt: "B.", aliases: ["shared"] },
 				}),
@@ -608,7 +608,7 @@ describe("runtime agent registration", () => {
 			assert.throws(
 				() =>
 					registerAgent({
-						pi,
+						evoharness,
 						name: `runtime-${name}`,
 						definition: { description: "Bad", systemPrompt: "Bad.", ...extra },
 					}),
@@ -619,20 +619,24 @@ describe("runtime agent registration", () => {
 
 	it("fails closed when cwd discovery introduces a configured collision", () => {
 		registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-helper",
 			definition: { description: "Runtime helper", systemPrompt: "Help.", aliases: ["helper"] },
 		});
 		writeProjectAgent("project-helper", ["helper"]);
 
 		assert.throws(
-			() => mergeRuntimeAgents(pi, discoverAgents(tempProject, "both")),
+			() => mergeRuntimeAgents(evoharness, discoverAgents(tempProject, "both")),
 			/collides with configured agent 'project-helper' on name or alias 'helper'/,
 		);
 	});
 
 	it("fails closed against configured definitions hidden by scope precedence", () => {
-		registerAgent({ pi, name: "hidden-user", definition: { description: "Runtime helper", systemPrompt: "Help." } });
+		registerAgent({
+			evoharness,
+			name: "hidden-user",
+			definition: { description: "Runtime helper", systemPrompt: "Help." },
+		});
 		writeUserAgent("hidden-user");
 		writeProjectAgent("hidden-user");
 		const discovered = discoverAgents(tempProject, "both");
@@ -641,13 +645,17 @@ describe("runtime agent registration", () => {
 		const allDiscovered = discoverAgentsAll(tempProject);
 		const all = [...allDiscovered.builtin, ...allDiscovered.package, ...allDiscovered.user, ...allDiscovered.project];
 		assert.throws(
-			() => mergeRuntimeAgents(pi, discovered, all),
+			() => mergeRuntimeAgents(evoharness, discovered, all),
 			/collides with configured agent 'hidden-user' on name or alias 'hidden-user'/,
 		);
 	});
 
 	it("fails closed against configured definitions hidden by explicit scope", () => {
-		registerAgent({ pi, name: "hidden-user", definition: { description: "Runtime helper", systemPrompt: "Help." } });
+		registerAgent({
+			evoharness,
+			name: "hidden-user",
+			definition: { description: "Runtime helper", systemPrompt: "Help." },
+		});
 		writeUserAgent("hidden-user");
 		const projectScoped = discoverAgents(tempProject, "project");
 		const allProject = discoverAgentsAll(tempProject);
@@ -657,7 +665,7 @@ describe("runtime agent registration", () => {
 		);
 		assert.throws(
 			() =>
-				mergeRuntimeAgents(pi, projectScoped, [
+				mergeRuntimeAgents(evoharness, projectScoped, [
 					...allProject.builtin,
 					...allProject.package,
 					...allProject.user,
@@ -668,14 +676,18 @@ describe("runtime agent registration", () => {
 	});
 
 	it("fails closed for management lists when scoped discovery hides a configured collision", () => {
-		registerAgent({ pi, name: "hidden-user", definition: { description: "Runtime hidden", systemPrompt: "Help." } });
+		registerAgent({
+			evoharness,
+			name: "hidden-user",
+			definition: { description: "Runtime hidden", systemPrompt: "Help." },
+		});
 		writeUserAgent("hidden-user");
 
 		assert.throws(
 			() =>
 				handleList(
 					{ agentScope: "project" },
-					{ cwd: tempProject, modelRegistry: { getAvailable: () => [] }, runtimeAgentOwner: pi },
+					{ cwd: tempProject, modelRegistry: { getAvailable: () => [] }, runtimeAgentOwner: evoharness },
 				),
 			/collides with configured agent 'hidden-user' on name or alias 'hidden-user'/,
 		);

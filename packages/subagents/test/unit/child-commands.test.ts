@@ -46,12 +46,12 @@ function serviceCommand(pidFile: string) {
 	return `${JSON.stringify(process.execPath.replaceAll("\\", "/"))} ${JSON.stringify(script.replaceAll("\\", "/"))}`;
 }
 
-describe("child commands using Pi's real bash backend", () => {
+describe("child commands using evoharness's real bash backend", () => {
 	it(
 		"yields a live process, runs another command, and cancels only the selected process",
 		{ timeout: 30_000 },
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-child-commands-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-child-commands-"));
 			const commands = createChildCommandRuntime(dir);
 			const bash = commands.wrap(createBashToolDefinition(dir));
 			try {
@@ -106,7 +106,7 @@ describe("child commands using Pi's real bash backend", () => {
 	);
 
 	it("lets the supervisor yield a bash call that was already blocking", { timeout: 30_000 }, async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-child-yield-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-child-yield-"));
 		const commands = createChildCommandRuntime(dir);
 		try {
 			const pidFile = path.join(dir, "service.pid");
@@ -130,7 +130,7 @@ describe("child commands using Pi's real bash backend", () => {
 		"returns command failures and per-command timeouts without poisoning the session",
 		{ timeout: 30_000 },
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-child-errors-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-child-errors-"));
 			const commands = createChildCommandRuntime(dir);
 			const bash = commands.wrap(createBashToolDefinition(dir));
 			try {
@@ -154,7 +154,7 @@ describe("child commands using Pi's real bash backend", () => {
 	);
 
 	it("cancels unfinished background work and fails closed when the child finishes", { timeout: 30_000 }, async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-child-finish-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-child-finish-"));
 		const commands = createChildCommandRuntime(dir);
 		try {
 			const pidFile = path.join(dir, "service.pid");
@@ -173,12 +173,12 @@ describe("child commands using Pi's real bash backend", () => {
 	});
 });
 
-describe("Pi agent loop command cancellation", () => {
+describe("evoharness agent loop command cancellation", () => {
 	it(
 		"continues the same agent turn after the supervisor cancels a blocking command",
 		{ timeout: 30_000 },
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-command-agent-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-command-agent-"));
 			const commands = createChildCommandRuntime(dir);
 			const pidFile = path.join(dir, "agent.pid");
 			const responses = [
@@ -224,7 +224,7 @@ describe("Pi agent loop command cancellation", () => {
 		"continues after a yielded command and observes targeted cancellation through the child tool",
 		{ timeout: 30_000 },
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-command-yield-agent-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-command-yield-agent-"));
 			const commands = createChildCommandRuntime(dir);
 			const responses = [
 				fauxAssistantMessage(
@@ -288,7 +288,7 @@ describe("Pi agent loop command cancellation", () => {
 
 describe("command identities and bounded observation", () => {
 	it("does not cancel a newer command when an old id is supplied, and preserves a custom backend", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-child-identity-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-child-identity-"));
 		const commands = createChildCommandRuntime(dir);
 		let signal: AbortSignal | undefined;
 		const custom: ToolDefinition = {
@@ -318,7 +318,7 @@ describe("command identities and bounded observation", () => {
 	});
 
 	it("answers status without rewriting command state and persists a real change", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-child-status-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-child-status-"));
 		const commands = createChildCommandRuntime(dir);
 		const custom: ToolDefinition = {
 			name: "bash",
@@ -368,7 +368,7 @@ describe("command identities and bounded observation", () => {
 	});
 
 	it("retains the native run abort signal after yielding", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-child-abort-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-child-abort-"));
 		const commands = createChildCommandRuntime(dir);
 		const controller = new AbortController();
 		const pidFile = path.join(dir, "service.pid");

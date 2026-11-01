@@ -295,8 +295,8 @@ describe("background-work provider protocol", () => {
 });
 
 describe("bg_wait with background-work providers", () => {
-	it("waits for provider work keyed by the Pi session id in a session that has a file", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-provider-session-id-"));
+	it("waits for provider work keyed by the evoharness session id in a session that has a file", async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-provider-session-id-"));
 		try {
 			let active = true;
 			registerBackgroundWorkProvider({
@@ -320,7 +320,7 @@ describe("bg_wait with background-work providers", () => {
 	});
 
 	it("detects completion when another item replaces it at the same count", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-provider-replace-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-provider-replace-"));
 		try {
 			let stage = 0;
 			const backgroundWork = {
@@ -346,7 +346,7 @@ describe("bg_wait with background-work providers", () => {
 	});
 
 	it("waits for both initial async and provider identities in all mode", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-provider-mixed-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-provider-mixed-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			writeStatus(asyncRoot, "run-a", "running");
@@ -373,7 +373,7 @@ describe("bg_wait with background-work providers", () => {
 	});
 
 	it("fails closed when a provider disappears or its snapshot throws", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-provider-missing-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-provider-missing-"));
 		try {
 			let calls = 0;
 			const disappeared = await waitForSubagents(
@@ -418,7 +418,7 @@ describe("bg_wait with background-work providers", () => {
 	});
 
 	it("can continue through needs-attention while draining", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-provider-attention-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-provider-attention-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			writeStatus(asyncRoot, "run-a", "running");
@@ -442,7 +442,7 @@ describe("bg_wait with background-work providers", () => {
 	});
 
 	it("wakes on a provider channel instead of the poll interval", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-provider-event-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-provider-event-"));
 		try {
 			let active = true;
 			const handlers = new Map<string, Array<(data: unknown) => void>>();

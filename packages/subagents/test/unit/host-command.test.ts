@@ -83,7 +83,7 @@ describe("workflow host commands", () => {
 	});
 
 	it("runs without stdin and saves bounded command evidence", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-host-command-"));
 		roots.push(root);
 		const outputPath = path.join(root, "reports", "command.log");
 		fs.mkdirSync(path.dirname(outputPath), { recursive: true });
@@ -112,7 +112,7 @@ describe("workflow host commands", () => {
 	});
 
 	it("returns failed and timed-out command evidence", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-failure-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-host-command-failure-"));
 		roots.push(root);
 		const failed = await executeWorkflowHostCommand({
 			key: "failed",
@@ -144,8 +144,8 @@ describe("workflow host commands", () => {
 		"rejects symlinked output parents before creating outside directories",
 		{ skip: process.platform === "win32" ? "symlink permissions vary on Windows" : undefined },
 		async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-symlink-"));
-			const outside = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-outside-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-host-command-symlink-"));
+			const outside = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-host-command-outside-"));
 			roots.push(root, outside);
 			fs.symlinkSync(outside, path.join(root, "link-out"), "dir");
 
@@ -172,8 +172,8 @@ describe("workflow host commands", () => {
 		"rejects an explicit output parent redirected while the command runs",
 		{ skip: process.platform === "win32" ? "symlink permissions vary on Windows" : undefined },
 		async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-symlink-race-"));
-			const outside = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-symlink-target-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-host-command-symlink-race-"));
+			const outside = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-host-command-symlink-target-"));
 			roots.push(root, outside);
 			const outputParent = path.join(root, "reports");
 			const outsidePath = path.join(outside, "outside.log");
@@ -202,7 +202,7 @@ describe("workflow host commands", () => {
 	);
 
 	it("stops the owned process tree when the workflow aborts", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-abort-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-host-command-abort-"));
 		roots.push(root);
 		const readyPath = path.join(root, "ready");
 		const leakedPath = path.join(root, "leaked");

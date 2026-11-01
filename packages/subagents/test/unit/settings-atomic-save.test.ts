@@ -139,7 +139,7 @@ try {
 }
 
 it("saves settings with the existing JSON format and unrelated values intact", () => {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-atomic-controls-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-settings-atomic-controls-"));
 	tempRoots.push(root);
 	const project = createProject(root);
 	const settingsPath = path.join(project, ".evoharness", "settings.json");
@@ -159,7 +159,7 @@ it(
 	"preserves POSIX settings modes and follows symlink targets",
 	{ skip: process.platform === "win32" ? "POSIX mode and symlink semantics vary on Windows" : undefined },
 	() => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-atomic-posix-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-settings-atomic-posix-"));
 		tempRoots.push(root);
 		const before = { topLevelSentinel: "keep-me", packages: ["keep-this-package"] };
 		const expected = { ...before, subagents: { agentOverrides: { reviewer: { disabled: true } } } };
@@ -237,7 +237,7 @@ it(
 		skip: process.platform === "win32" ? "POSIX symlink semantics vary on Windows" : undefined,
 	},
 	() => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-symlink-chain-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-settings-symlink-chain-"));
 		tempRoots.push(root);
 		const project = createProject(root);
 		const settingsPath = path.join(project, ".evoharness", "settings.json");
@@ -276,7 +276,7 @@ for (const absolute of [false, true]) {
 				skip: process.platform === "win32" ? "POSIX symlink semantics vary on Windows" : undefined,
 			},
 			() => {
-				const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-physical-path-"));
+				const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-settings-physical-path-"));
 				tempRoots.push(root);
 				const project = createProject(root);
 				const configDir = path.join(project, ".evoharness");
@@ -323,7 +323,7 @@ it(
 	},
 	() => {
 		for (const linkText of ["missing/target.json", "missing/../target.json"]) {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-missing-parent-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-settings-missing-parent-"));
 			tempRoots.push(root);
 			const project = createProject(root);
 			const configDir = path.join(project, ".evoharness");
@@ -352,7 +352,7 @@ for (const absolute of [false, true]) {
 					skip: process.platform === "win32" ? "POSIX symlink semantics vary on Windows" : undefined,
 				},
 				() => {
-					const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-directory-target-"));
+					const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-settings-directory-target-"));
 					tempRoots.push(root);
 					const project = createProject(root);
 					const configDir = path.join(project, ".evoharness");
@@ -383,7 +383,7 @@ it(
 		skip: process.platform === "win32" ? "POSIX symlink semantics vary on Windows" : undefined,
 	},
 	() => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-cycle-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-settings-cycle-"));
 		tempRoots.push(root);
 		const project = createProject(root);
 		const settingsPath = path.join(project, ".evoharness", "settings.json");
@@ -402,7 +402,7 @@ it(
 	(t) => {
 		const identity = getReadOnlyTestIdentity();
 		assert.ok(identity);
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-read-only-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-settings-read-only-"));
 		tempRoots.push(root);
 		const project = createProject(root);
 		const settingsDir = path.join(project, ".evoharness");
@@ -441,7 +441,7 @@ it(
 );
 
 it("keeps the previous settings file intact when the real API process exits during its temporary write", () => {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-atomic-interrupt-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-settings-atomic-interrupt-"));
 	tempRoots.push(root);
 	const project = createProject(root);
 	const settingsPath = path.join(project, ".evoharness", "settings.json");
@@ -460,7 +460,7 @@ it("keeps the previous settings file intact when the real API process exits duri
 });
 
 it("keeps the previous settings file intact and cleans up when replacing it fails with EIO", () => {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-atomic-rename-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-settings-atomic-rename-"));
 	tempRoots.push(root);
 	const project = createProject(root);
 	const settingsPath = path.join(project, ".evoharness", "settings.json");

@@ -36,7 +36,7 @@ it("only the installed runtime drain can complete evidence, not acknowledgements
 		const { hooks } = createCapturedChildHooks(config);
 		type Handler = (event: unknown, ctx: unknown) => unknown;
 		const handlers = new Map<string, Handler[]>();
-		const pi = {
+		const evoharness = {
 			on(event: string, handler: Handler) {
 				handlers.set(event, [...(handlers.get(event) ?? []), handler]);
 			},
@@ -47,7 +47,7 @@ it("only the installed runtime drain can complete evidence, not acknowledgements
 			},
 		};
 		observeReadonlyChildHookDrain(hooks, true, file);
-		hooks[0].factory(pi as never);
+		hooks[0].factory(evoharness as never);
 		const settled = captureReadonlyChildDrain(hooks);
 		const ctx = {
 			hasUI: kind === "UI",
@@ -63,7 +63,7 @@ it("only the installed runtime drain can complete evidence, not acknowledgements
 		if (kind === "second") await ends[1]({}, ctx);
 		if (kind === "reinstalled") {
 			observeReadonlyChildHookDrain(hooks, true, file);
-			hooks[0].factory(pi as never);
+			hooks[0].factory(evoharness as never);
 		}
 		if (kind === "missing-installation") {
 			observeReadonlyChildHookDrain(hooks, true, file);

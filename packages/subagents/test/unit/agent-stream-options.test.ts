@@ -4,7 +4,7 @@ import type { StreamFn } from "@evoharness/agent-core";
 import { agentStreamOptions } from "../../src/shared/agent-stream-options.ts";
 
 describe("agent stream options", () => {
-	it("supports the Pi 0.81 and 0.84 constructor option names", () => {
+	it("supports the evoharness 0.81 and 0.84 constructor option names", () => {
 		const streamFn: StreamFn = () => {
 			throw new Error("not called");
 		};

@@ -6,15 +6,15 @@ import test from "node:test";
 import { resolveClaudeCodeLaunch } from "../../src/runs/shared/claude-code-adapter.ts";
 import { runExternalCli } from "../../src/runs/shared/external-cli-runner.ts";
 
-const enabled = process.env.PI_SUBAGENTS_CLAUDE_CODE_SMOKE === "1";
+const enabled = process.env.EVOHARNESS_SUBAGENTS_CLAUDE_CODE_SMOKE === "1";
 
 test(
 	"maintainer Claude Code no-tools smoke",
-	{ skip: enabled ? undefined : "set PI_SUBAGENTS_CLAUDE_CODE_SMOKE=1" },
+	{ skip: enabled ? undefined : "set EVOHARNESS_SUBAGENTS_CLAUDE_CODE_SMOKE=1" },
 	async () => {
-		const reportPath = process.env.PI_SUBAGENTS_CLAUDE_CODE_SMOKE_REPORT;
-		assert.ok(reportPath, "PI_SUBAGENTS_CLAUDE_CODE_SMOKE_REPORT is required");
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-claude-smoke-"));
+		const reportPath = process.env.EVOHARNESS_SUBAGENTS_CLAUDE_CODE_SMOKE_REPORT;
+		assert.ok(reportPath, "EVOHARNESS_SUBAGENTS_CLAUDE_CODE_SMOKE_REPORT is required");
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-claude-smoke-"));
 		const canaryPath = path.join(dir, "write-canary.txt");
 		try {
 			const launch = resolveClaudeCodeLaunch({ adapter: "claude-code", command: "claude" });

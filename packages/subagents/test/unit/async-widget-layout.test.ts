@@ -95,7 +95,7 @@ describe("async widget layout", () => {
 		}
 	});
 
-	it("shows the detailed layout while Pi's expand key is on, in both layouts", () => {
+	it("shows the detailed layout while evoharness's expand key is on, in both layouts", () => {
 		for (const layout of ["adaptive", "rows"] as const) {
 			const widget = mountWidget(layout);
 			const unfolded = widget.lines();

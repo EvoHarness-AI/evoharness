@@ -62,7 +62,7 @@ function makeState(cwd: string) {
 
 function makeExecutor(cwd: string) {
 	return createSubagentExecutor!({
-		pi: {
+		evoharness: {
 			events: { emit: () => {} },
 			getSessionName: () => undefined,
 			setSessionName: () => {},
@@ -123,7 +123,7 @@ describe(
 		});
 
 		beforeEach(() => {
-			tempDir = createTempDir("pi-subagent-payload-test-");
+			tempDir = createTempDir("subagents-subagent-payload-test-");
 			mockPi.reset();
 		});
 

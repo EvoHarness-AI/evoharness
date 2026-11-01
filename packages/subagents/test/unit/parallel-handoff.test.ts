@@ -54,7 +54,7 @@ function cleanup(state: "complete" | "partial" = "complete"): WorktreeCleanupRep
 
 describe("parallel handoff", () => {
 	it("journals worktree ownership before child results exist", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parallel-handoff-pending-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parallel-handoff-pending-"));
 		try {
 			const manifestPath = path.join(dir, "handoff.json");
 			const reference = writeParallelHandoffGroup({
@@ -110,7 +110,7 @@ describe("parallel handoff", () => {
 	});
 
 	it("writes and aggregates versioned worktree handoff groups", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parallel-handoff-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parallel-handoff-"));
 		try {
 			const manifestPath = path.join(dir, "handoff.json");
 			const first = writeParallelHandoffGroup({
@@ -183,7 +183,7 @@ describe("parallel handoff", () => {
 	});
 
 	it("records missing diff artifacts instead of throwing", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parallel-handoff-missing-diff-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parallel-handoff-missing-diff-"));
 		try {
 			const manifestPath = path.join(dir, "handoff.json");
 			const reference = writeParallelHandoffGroup({
@@ -225,7 +225,7 @@ describe("parallel handoff", () => {
 	});
 
 	it("rejects reusing a manifest path for another run", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parallel-handoff-owner-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parallel-handoff-owner-"));
 		try {
 			const manifestPath = path.join(dir, "handoff.json");
 			const common = {
@@ -248,14 +248,14 @@ describe("parallel handoff", () => {
 	});
 
 	it("round-trips lane identity and resolves a workflow child to its manifest task", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parallel-handoff-lane-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parallel-handoff-lane-"));
 		try {
 			const manifestPath = path.join(dir, "handoff.json");
 			const lane = {
 				version: 1 as const,
 				key: "writer",
 				mode: "mutation" as const,
-				sourceRef: "nicobailon/pi-subagents#1621",
+				sourceRef: "evoharness/subagents#1621",
 				claims: ["src/shared/types.ts"],
 				outputPaths: ["reports/lane.md"],
 			};
@@ -308,7 +308,7 @@ describe("parallel handoff", () => {
 	});
 
 	it("fails closed when persisted lane identity does not match the workflow key", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parallel-handoff-lane-invalid-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parallel-handoff-lane-invalid-"));
 		try {
 			const manifestPath = path.join(dir, "handoff.json");
 			writeParallelHandoffGroup({
@@ -344,7 +344,7 @@ describe("parallel handoff", () => {
 	});
 
 	it("records merge evidence and renders stored terminal eligibility without deleting", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parallel-handoff-merge-evidence-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parallel-handoff-merge-evidence-"));
 		try {
 			const manifestPath = path.join(dir, "handoff.json");
 			writeParallelHandoffGroup({
@@ -365,7 +365,7 @@ describe("parallel handoff", () => {
 				laneId: "lane-merge",
 				supersession: {
 					supersededBy: "replacement-lane",
-					attestedBy: "nicobailon",
+					attestedBy: "evoharness",
 					attestedAt: "2026-08-27T16:22:00.000Z",
 				},
 			});
@@ -380,7 +380,7 @@ describe("parallel handoff", () => {
 					mergeCommit: "2222222222222222222222222222222222222222",
 					treeEquivalent: true,
 					postMergeChecks: "recorded",
-					attestedBy: "nicobailon",
+					attestedBy: "evoharness",
 					attestedAt: "2026-08-27T16:23:00.000Z",
 				},
 				now: 200,
@@ -454,7 +454,7 @@ describe("parallel handoff", () => {
 	});
 
 	it("rejects mismatched lanes and stale reviewed heads", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parallel-handoff-merge-stale-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parallel-handoff-merge-stale-"));
 		try {
 			const manifestPath = path.join(dir, "handoff.json");
 			writeParallelHandoffGroup({
@@ -476,7 +476,7 @@ describe("parallel handoff", () => {
 				mergeCommit: "4444444444444444444444444444444444444444",
 				treeEquivalent: true as const,
 				postMergeChecks: "recorded" as const,
-				attestedBy: "nicobailon",
+				attestedBy: "evoharness",
 				attestedAt: "2026-08-27T16:23:00.000Z",
 			};
 			recordParallelHandoffMerge({ manifestPath, laneId: "lane-stale", merge });
@@ -499,7 +499,7 @@ describe("parallel handoff", () => {
 	});
 
 	it("keeps pending, unknown, and ineligible stored states fail closed", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parallel-handoff-merge-unknown-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parallel-handoff-merge-unknown-"));
 		try {
 			const manifestPath = path.join(dir, "handoff.json");
 			writeParallelHandoffGroup({
@@ -536,7 +536,7 @@ describe("parallel handoff", () => {
 				mergeCommit: "7777777777777777777777777777777777777777",
 				treeEquivalent: "unknown" as const,
 				postMergeChecks: "unknown" as const,
-				attestedBy: "nicobailon",
+				attestedBy: "evoharness",
 				attestedAt: "2026-08-27T16:23:00.000Z",
 			};
 			assert.throws(
@@ -550,7 +550,7 @@ describe("parallel handoff", () => {
 						laneId: "lane-unknown",
 						supersession: {
 							supersededBy: "replacement-lane",
-							attestedBy: "nicobailon",
+							attestedBy: "evoharness",
 							attestedAt: "2026-08-27T16:23:00.000Z",
 						},
 					}),
@@ -595,7 +595,7 @@ describe("parallel handoff", () => {
 	});
 
 	it("refuses to record evidence while a stored child owner is active", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parallel-handoff-active-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parallel-handoff-active-"));
 		try {
 			const manifestPath = path.join(dir, "handoff.json");
 			for (const status of ["running", "detached"] as const) {
@@ -620,7 +620,7 @@ describe("parallel handoff", () => {
 							laneId: "lane-active",
 							supersession: {
 								supersededBy: "lane-replacement",
-								attestedBy: "nicobailon",
+								attestedBy: "evoharness",
 								attestedAt: "2026-08-27T16:23:00.000Z",
 							},
 						}),
@@ -633,7 +633,7 @@ describe("parallel handoff", () => {
 	});
 
 	it("records supersession evidence as an eligible stored state", () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parallel-handoff-supersession-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parallel-handoff-supersession-"));
 		try {
 			const manifestPath = path.join(dir, "handoff.json");
 			writeParallelHandoffGroup({
@@ -654,7 +654,7 @@ describe("parallel handoff", () => {
 				laneId: "lane-review",
 				supersession: {
 					supersededBy: "lane-replacement",
-					attestedBy: "nicobailon",
+					attestedBy: "evoharness",
 					attestedAt: "2026-08-27T16:23:00.000Z",
 				},
 			});

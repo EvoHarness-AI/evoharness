@@ -8,7 +8,7 @@ import { ownsRun } from "../shared/run-ownership.ts";
 
 function commandChildren(state: SubagentState, target: ResolvedSubagentRunId): Array<{ index: number; agent: string }> {
 	if (!state.currentSessionId) throw new Error("Command controls require an owning parent session.");
-	if (target.kind === "nested") throw new Error("Command controls support direct local Pi children only.");
+	if (target.kind === "nested") throw new Error("Command controls support direct local evoharness children only.");
 	if (target.kind === "foreground") {
 		const live = state.foregroundControls.get(target.id);
 		const retained = state.foregroundRuns?.get(target.id);

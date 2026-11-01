@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { handleUpdate } from "../../src/agents/agent-management.ts";
 import { buildBuiltinOverrideConfig, discoverAgents, discoverAgentsAll } from "../../src/agents/agents.ts";
-import { resolvePiLaunchToolPlan } from "../../src/api/child-tool-plan.ts";
+import { resolveHostLaunchToolPlan } from "../../src/api/child-tool-plan.ts";
 
 let tempHome = "";
 let tempProject = "";
@@ -30,8 +30,8 @@ function writeProjectAgent(name: string, extensionFrontmatter = ""): void {
 
 describe("subagent extension defaults", () => {
 	beforeEach(() => {
-		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-home-"));
-		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-project-"));
+		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-home-"));
+		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-project-"));
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
 		delete process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -69,7 +69,7 @@ describe("subagent extension defaults", () => {
 		assert.equal(scout.extensions, undefined);
 		assert.deepEqual(scout.subagentOnlyExtensions, ["./child.ts"]);
 
-		const plan = resolvePiLaunchToolPlan(scout);
+		const plan = resolveHostLaunchToolPlan(scout);
 		assert.equal(plan.disableAmbientExtensions, false);
 		assert.ok(plan.extensionArgs.includes("./child.ts"));
 
@@ -81,7 +81,7 @@ describe("subagent extension defaults", () => {
 		});
 		const allowlisted = discoverAgentsAll(tempProject).builtin.find((agent) => agent.name === "scout");
 		assert.ok(allowlisted);
-		const allowlistedPlan = resolvePiLaunchToolPlan(allowlisted);
+		const allowlistedPlan = resolveHostLaunchToolPlan(allowlisted);
 		assert.equal(allowlistedPlan.disableAmbientExtensions, true);
 		assert.ok(allowlistedPlan.extensionArgs.includes("./allowlisted.ts"));
 		assert.ok(allowlistedPlan.extensionArgs.includes("./child.ts"));

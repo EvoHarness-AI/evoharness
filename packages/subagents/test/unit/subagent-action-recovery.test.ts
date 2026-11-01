@@ -25,7 +25,7 @@ function createState(): SubagentState {
 
 function createExecutor() {
 	return createSubagentExecutor({
-		pi: {
+		evoharness: {
 			events: {
 				emit() {},
 				on() {

@@ -14,11 +14,11 @@ reviewer ──► reports/review.md            runs.all(classifier × N)
      script branches on .verdict          script JSON.parse()s and routes
 ```
 
-Run it from this directory. The agent's `command: classify` is a PATH lookup (a relative path would resolve against the runner process, not the run cwd), so put the directory on PATH before starting Pi:
+Run it from this directory. The agent's `command: classify` is a PATH lookup (a relative path would resolve against the runner process, not the run cwd), so put the directory on PATH before starting evoharness:
 
 ```bash
 export PATH="$PWD:$PATH"
-pi
+evoharness
 ```
 
 ```js

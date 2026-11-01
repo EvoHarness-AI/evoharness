@@ -24,7 +24,7 @@ function root(runId = "root-run", index = 0) {
 
 describe("async chain root attachment", () => {
 	beforeEach(() => {
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-chain-root-attachment-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-chain-root-attachment-"));
 	});
 
 	afterEach(() => {

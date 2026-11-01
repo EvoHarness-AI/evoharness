@@ -96,7 +96,7 @@ function textOf(result: { content: Array<{ type: string; text?: string }> }): st
 
 describe("non-blocking wait subscriptions", () => {
 	it("returns immediately and binds an id prefix to one exact run", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-arm-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-arm-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			writeStatus(asyncRoot, "run-alpha", "running", { sessionId: "session-a", pid: 999_999 });
@@ -131,7 +131,7 @@ describe("non-blocking wait subscriptions", () => {
 	});
 
 	it("registers bg_wait and rejects non-blocking subscriptions from headless tool calls", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-headless-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-headless-"));
 		try {
 			const state = makeState();
 			state.foregroundRuns = new Map([
@@ -185,15 +185,15 @@ describe("non-blocking wait subscriptions", () => {
 
 	it("tells the root session that async runs wake it natively and a child to collect its descendants", () => {
 		const descriptions: string[] = [];
-		const pi = {
+		const evoharness = {
 			events: new TestBus(),
 			on() {},
 			registerTool(value: { description: string }) {
 				descriptions.push(value.description);
 			},
 		} as never;
-		registerWaitTool(pi, makeState(), true);
-		registerWaitTool(pi, makeState(), true, undefined, undefined, { nestedRootRunId: "root" });
+		registerWaitTool(evoharness, makeState(), true);
+		registerWaitTool(evoharness, makeState(), true, undefined, undefined, { nestedRootRunId: "root" });
 		assert.match(descriptions[0]!, /async subagent runs already wake this session natively/);
 		assert.match(
 			descriptions[1]!,
@@ -255,7 +255,7 @@ describe("non-blocking wait subscriptions", () => {
 	});
 
 	it("restores durable registrations and wakes on exact completion", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-restore-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-restore-"));
 		const asyncRoot = path.join(root, "runs");
 		const resultsDir = path.join(root, "results");
 		const subscriptionsDir = path.join(root, "subscriptions");
@@ -264,7 +264,7 @@ describe("non-blocking wait subscriptions", () => {
 			message: { content?: unknown; details?: { completions?: Array<{ runId?: string; archivePath?: string }> } };
 			options?: { triggerTurn?: boolean };
 		}> = [];
-		const pi = {
+		const evoharness = {
 			events: bus,
 			sendMessage(
 				message: { content?: unknown; details?: { completions?: Array<{ runId?: string; archivePath?: string }> } },
@@ -276,7 +276,7 @@ describe("non-blocking wait subscriptions", () => {
 		try {
 			writeStatus(asyncRoot, "run-exact", "running", { sessionId: "session-a", pid: 999_999 });
 			const firstState = makeState();
-			const first = createWaitSubscriptionManager(pi as never, firstState, {
+			const first = createWaitSubscriptionManager(evoharness as never, firstState, {
 				asyncDirRoot: asyncRoot,
 				resultsDir,
 				subscriptionsDir,
@@ -293,7 +293,7 @@ describe("non-blocking wait subscriptions", () => {
 			first.dispose();
 
 			const restoredState = makeState();
-			const restored = createWaitSubscriptionManager(pi as never, restoredState, {
+			const restored = createWaitSubscriptionManager(evoharness as never, restoredState, {
 				asyncDirRoot: asyncRoot,
 				resultsDir,
 				subscriptionsDir,
@@ -345,7 +345,7 @@ describe("non-blocking wait subscriptions", () => {
 	});
 
 	it("keeps subscriptions active across a session restart", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-restart-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-restart-"));
 		const asyncRoot = path.join(root, "runs");
 		const subscriptionsDir = path.join(root, "subscriptions");
 		const bus = new TestBus();
@@ -385,7 +385,7 @@ describe("non-blocking wait subscriptions", () => {
 	});
 
 	it("tells the parent to revive the failed child before replacing resumable async runs", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-revive-first-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-revive-first-"));
 		const asyncRoot = path.join(root, "runs");
 		const subscriptionsDir = path.join(root, "subscriptions");
 		const completedSessionFile = path.join(root, "completed-session.jsonl");
@@ -433,7 +433,7 @@ describe("non-blocking wait subscriptions", () => {
 	});
 
 	it("tells the parent to reply and wait for an intercom-detached failed async run", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-intercom-detach-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-intercom-detach-"));
 		const asyncRoot = path.join(root, "runs");
 		const subscriptionsDir = path.join(root, "subscriptions");
 		const sessionFile = path.join(root, "worker-session.jsonl");
@@ -480,7 +480,7 @@ describe("non-blocking wait subscriptions", () => {
 	});
 
 	it("waits for foreground run restoration before reconciling a restored subscription", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-foreground-restore-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-foreground-restore-"));
 		const subscriptionsDir = path.join(root, "subscriptions");
 		const bus = new TestBus();
 		const sent: string[] = [];
@@ -498,13 +498,13 @@ describe("non-blocking wait subscriptions", () => {
 				},
 			],
 		]);
-		const pi = {
+		const evoharness = {
 			events: bus,
 			sendMessage(message: { content?: unknown }) {
 				sent.push(String(message.content));
 			},
 		};
-		const first = createWaitSubscriptionManager(pi as never, firstState, {
+		const first = createWaitSubscriptionManager(evoharness as never, firstState, {
 			subscriptionsDir,
 			pollIntervalMs: 60_000,
 		});
@@ -519,7 +519,7 @@ describe("non-blocking wait subscriptions", () => {
 
 			const restoredState = makeState();
 			restoredState.foregroundRuns = new Map();
-			const restored = createWaitSubscriptionManager(pi as never, restoredState, {
+			const restored = createWaitSubscriptionManager(evoharness as never, restoredState, {
 				subscriptionsDir,
 				pollIntervalMs: 60_000,
 			});
@@ -554,7 +554,7 @@ describe("non-blocking wait subscriptions", () => {
 	});
 
 	it("settles a missing live foreground run as unreconcilable", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-foreground-missing-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-foreground-missing-"));
 		const state = makeState();
 		state.foregroundRuns = new Map();
 		const sent: string[] = [];
@@ -579,7 +579,7 @@ describe("non-blocking wait subscriptions", () => {
 	});
 
 	it("keeps a subscription armed when cleanup fails before delivery", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-cleanup-failure-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-cleanup-failure-"));
 		const asyncRoot = path.join(root, "runs");
 		const subscriptionsDir = path.join(root, "subscriptions");
 		const sent: string[] = [];
@@ -621,7 +621,7 @@ describe("non-blocking wait subscriptions", () => {
 	});
 
 	it("wakes when an exact async run cannot be reconciled", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-reconcile-error-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-reconcile-error-"));
 		const asyncRoot = path.join(root, "not-a-directory");
 		const subscriptionsDir = path.join(root, "subscriptions");
 		const bus = new TestBus();
@@ -656,7 +656,7 @@ describe("non-blocking wait subscriptions", () => {
 	});
 
 	it("wakes for attention and timeout without treating subscriptions as child work", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-outcomes-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-outcomes-"));
 		const asyncRoot = path.join(root, "runs");
 		const resultsDir = path.join(root, "results");
 		const subscriptionsDir = path.join(root, "subscriptions");
@@ -721,10 +721,10 @@ describe("wait subscriptions armed by another session", () => {
 	}
 
 	it("sweeps an expired record whose owning session never came back", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-orphan-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-orphan-"));
 		const subscriptionsDir = path.join(root, "subscriptions");
 		const sent: string[] = [];
-		const pi = {
+		const evoharness = {
 			events: new TestBus(),
 			sendMessage(message: { content?: unknown }) {
 				sent.push(String(message.content));
@@ -732,7 +732,7 @@ describe("wait subscriptions armed by another session", () => {
 		};
 		let now = 1_000;
 		const owner = makeState("session-a");
-		const armer = createWaitSubscriptionManager(pi as never, owner, {
+		const armer = createWaitSubscriptionManager(evoharness as never, owner, {
 			subscriptionsDir,
 			pollIntervalMs: 60_000,
 			now: () => now,
@@ -747,7 +747,7 @@ describe("wait subscriptions armed by another session", () => {
 			// out, so it stayed on disk forever.
 			now = 1_101 + 86400000;
 			const other = makeState("session-b");
-			const restarted = createWaitSubscriptionManager(pi as never, other, {
+			const restarted = createWaitSubscriptionManager(evoharness as never, other, {
 				subscriptionsDir,
 				pollIntervalMs: 60_000,
 				now: () => now,
@@ -765,15 +765,15 @@ describe("wait subscriptions armed by another session", () => {
 	});
 
 	it("keeps another session's record until it expires", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-foreign-live-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-foreign-live-"));
 		const subscriptionsDir = path.join(root, "subscriptions");
-		const pi = {
+		const evoharness = {
 			events: new TestBus(),
 			sendMessage() {},
 		};
 		let now = 1_000;
 		const owner = makeState("session-a");
-		const armer = createWaitSubscriptionManager(pi as never, owner, {
+		const armer = createWaitSubscriptionManager(evoharness as never, owner, {
 			subscriptionsDir,
 			pollIntervalMs: 60_000,
 			now: () => now,
@@ -784,7 +784,7 @@ describe("wait subscriptions armed by another session", () => {
 
 			now = 1_500; // still well inside the window
 			const other = makeState("session-b");
-			const restarted = createWaitSubscriptionManager(pi as never, other, {
+			const restarted = createWaitSubscriptionManager(evoharness as never, other, {
 				subscriptionsDir,
 				pollIntervalMs: 60_000,
 				now: () => now,
@@ -809,14 +809,14 @@ describe("wait subscriptions armed by another session", () => {
 		// map, which holds current-session records only. A record that is still live
 		// when the next session starts is therefore retained by restore() and, without
 		// a periodic sweep, never looked at again once it expires.
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-late-expiry-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-late-expiry-"));
 		const subscriptionsDir = path.join(root, "subscriptions");
-		const pi = {
+		const evoharness = {
 			events: new TestBus(),
 			sendMessage() {},
 		};
 		let now = 1_000;
-		const armer = createWaitSubscriptionManager(pi as never, makeState("session-a"), {
+		const armer = createWaitSubscriptionManager(evoharness as never, makeState("session-a"), {
 			subscriptionsDir,
 			pollIntervalMs: 60_000,
 			now: () => now,
@@ -826,7 +826,7 @@ describe("wait subscriptions armed by another session", () => {
 			armer.dispose();
 
 			const other = makeState("session-b");
-			const open = createWaitSubscriptionManager(pi as never, other, {
+			const open = createWaitSubscriptionManager(evoharness as never, other, {
 				subscriptionsDir,
 				pollIntervalMs: 60_000,
 				now: () => now,
@@ -851,11 +851,11 @@ describe("wait subscriptions armed by another session", () => {
 		// The owner settles its own expired records with a timeout notice on its next
 		// restore(). Sweeping the instant it expires would take that away from a
 		// session that had simply not resumed yet.
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-grace-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-grace-"));
 		const subscriptionsDir = path.join(root, "subscriptions");
-		const pi = { events: new TestBus(), sendMessage() {} };
+		const evoharness = { events: new TestBus(), sendMessage() {} };
 		let now = 1_000;
-		const armer = createWaitSubscriptionManager(pi as never, makeState("session-a"), {
+		const armer = createWaitSubscriptionManager(evoharness as never, makeState("session-a"), {
 			subscriptionsDir,
 			pollIntervalMs: 60_000,
 			now: () => now,
@@ -865,7 +865,7 @@ describe("wait subscriptions armed by another session", () => {
 			armer.dispose();
 
 			now = 1_101 + 60_000; // expired, but well inside the grace window
-			const other = createWaitSubscriptionManager(pi as never, makeState("session-b"), {
+			const other = createWaitSubscriptionManager(evoharness as never, makeState("session-b"), {
 				subscriptionsDir,
 				pollIntervalMs: 60_000,
 				now: () => now,
@@ -882,11 +882,11 @@ describe("wait subscriptions armed by another session", () => {
 	});
 
 	it("still gives the owning session its timeout notice after a restart", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-subscribe-owner-timeout-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-subscribe-owner-timeout-"));
 		const asyncRoot = path.join(root, "runs");
 		const subscriptionsDir = path.join(root, "subscriptions");
 		const sent: string[] = [];
-		const pi = {
+		const evoharness = {
 			events: new TestBus(),
 			sendMessage(message: { content?: unknown }) {
 				sent.push(String(message.content));
@@ -894,7 +894,7 @@ describe("wait subscriptions armed by another session", () => {
 		};
 		let now = 1_000;
 		writeStatus(asyncRoot, "run-owned", "running", { sessionId: "session-a", pid: 999_997 });
-		const first = createWaitSubscriptionManager(pi as never, makeState("session-a"), {
+		const first = createWaitSubscriptionManager(evoharness as never, makeState("session-a"), {
 			asyncDirRoot: asyncRoot,
 			subscriptionsDir,
 			pollIntervalMs: 60_000,
@@ -906,7 +906,7 @@ describe("wait subscriptions armed by another session", () => {
 			first.dispose();
 
 			now = 1_101; // expired, but this session owns it
-			const resumed = createWaitSubscriptionManager(pi as never, makeState("session-a"), {
+			const resumed = createWaitSubscriptionManager(evoharness as never, makeState("session-a"), {
 				asyncDirRoot: asyncRoot,
 				subscriptionsDir,
 				pollIntervalMs: 60_000,

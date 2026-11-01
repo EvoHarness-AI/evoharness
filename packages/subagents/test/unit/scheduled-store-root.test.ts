@@ -24,8 +24,8 @@ beforeEach(() => {
 	previousAgentDir = process.env[AGENT_DIR_ENV];
 	previousHome = process.env[HOME_ENV];
 	previousUserProfile = process.env[USERPROFILE_ENV];
-	agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-schedule-store-root-"));
-	homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-schedule-home-"));
+	agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-schedule-store-root-"));
+	homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-schedule-home-"));
 	process.env[AGENT_DIR_ENV] = agentDir;
 	process.env[HOME_ENV] = homeDir;
 	process.env[USERPROFILE_ENV] = homeDir;
@@ -44,12 +44,9 @@ afterEach(() => {
 
 describe("config.scheduledRuns.storeRoot", () => {
 	it("accepts an absolute path and expands a ~/ path", () => {
-		const absolute = path.join(os.tmpdir(), "pi-subagents-schedules");
+		const absolute = path.join(os.tmpdir(), "subagents-schedules");
 		assert.equal(resolveScheduledStoreRoot(absolute), path.normalize(absolute));
-		assert.equal(
-			resolveScheduledStoreRoot("~/pi-subagents/schedules"),
-			path.join(homeDir, "pi-subagents", "schedules"),
-		);
+		assert.equal(resolveScheduledStoreRoot("~/subagents/schedules"), path.join(homeDir, "subagents", "schedules"));
 	});
 
 	it("rejects project-relative paths during config load", () => {
@@ -63,7 +60,7 @@ describe("config.scheduledRuns.storeRoot", () => {
 	});
 
 	it("preserves a configured store root", () => {
-		const storeRoot = path.join(os.tmpdir(), "pi-subagents-schedules");
+		const storeRoot = path.join(os.tmpdir(), "subagents-schedules");
 		saveConfig({ scheduledRuns: { storeRoot } });
 		assert.equal(loadConfig().scheduledRuns?.storeRoot, storeRoot);
 	});

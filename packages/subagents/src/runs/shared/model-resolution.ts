@@ -22,7 +22,7 @@ export { splitThinkingSuffix };
 
 /**
  * Aliases apply only to the resolved launch candidate (without its thinking suffix) and the exact raw response ID.
- * When the child's live selection is a Pi virtual model, assistant messages name the physical model it dispatched
+ * When the child's live selection is a evoharness virtual model, assistant messages name the physical model it dispatched
  * to, so the virtual selection's provider/id is compared exactly with the launch candidate instead.
  */
 export function formatSubagentModelVerificationError(
@@ -37,7 +37,7 @@ export function formatSubagentModelVerificationError(
 	if (observedVirtualModel !== undefined) {
 		return observedVirtualModel === expectedBase
 			? undefined
-			: `model_verification_failed: native Pi child selected virtual model '${observedVirtualModel}', but the launch candidate was '${expectedModel}'. modelResponseAliases does not apply to a virtual-model selection.`;
+			: `model_verification_failed: native evoharness child selected virtual model '${observedVirtualModel}', but the launch candidate was '${expectedModel}'. modelResponseAliases does not apply to a virtual-model selection.`;
 	}
 	if (
 		modelResponseAliases &&
@@ -54,7 +54,7 @@ export function formatSubagentModelVerificationError(
 		const expectedFullIdLeaf = expectedEntry.fullId.slice(expectedEntry.fullId.lastIndexOf("/") + 1);
 		if (expectedIdLeaf === observedBase || expectedFullIdLeaf === observedBase) return undefined;
 	}
-	return `model_verification_failed: native Pi child reported a different model than the launch candidate. Expected '${expectedModel}' but observed '${observedModel}'. If you have independently verified this response ID identifies the requested model, declare the exact mapping in modelResponseAliases in ~/.evoharness/agent/extensions/subagent/config.json (see docs/configuration.md#modelresponsealiases). Use the resolved provider/model ID without its thinking suffix as the key. This leaves the outgoing request unchanged. Configuration changes affect new independent native runs; resumed native runs retain their launch-time declaration. External CLI adapters do not use this setting.`;
+	return `model_verification_failed: native evoharness child reported a different model than the launch candidate. Expected '${expectedModel}' but observed '${observedModel}'. If you have independently verified this response ID identifies the requested model, declare the exact mapping in modelResponseAliases in ~/.evoharness/agent/extensions/subagent/config.json (see docs/configuration.md#modelresponsealiases). Use the resolved provider/model ID without its thinking suffix as the key. This leaves the outgoing request unchanged. Configuration changes affect new independent native runs; resumed native runs retain their launch-time declaration. External CLI adapters do not use this setting.`;
 }
 
 /** Sentinel model value requesting that a subagent inherit the parent session's model. */
@@ -76,7 +76,7 @@ export function normalizeParentModel(model: unknown): ParentModel | undefined {
 
 /**
  * Provider/id ids of the host session's scoped-model snapshot (`ctx.scopedModels`).
- * Pi reports an empty set when the session is unscoped (nothing configured, or no
+ * evoharness reports an empty set when the session is unscoped (nothing configured, or no
  * pattern matched), and then allows every model; `scoped` narrows that to `inherit`.
  */
 export function scopedModelIdsFromContext(ctx: { scopedModels?: ReadonlyArray<{ model?: unknown }> }): string[] {
@@ -321,7 +321,7 @@ function resolveRequiredSubagentModelCandidate(
 	const suggestion = suggestAlternateProviderModel(model, availableModels);
 	const candidates = closestModelCandidates(model, availableModels).filter((candidate) => candidate !== suggestion);
 	throw new Error(
-		`Unknown subagent model '${model}' in the active Pi model registry.${suggestion ? ` Did you mean '${suggestion}'?` : ""}${candidates.length ? ` Closest registry models: ${candidates.join(", ")}.` : ""}`,
+		`Unknown subagent model '${model}' in the active evoharness model registry.${suggestion ? ` Did you mean '${suggestion}'?` : ""}${candidates.length ? ` Closest registry models: ${candidates.join(", ")}.` : ""}`,
 	);
 }
 
@@ -335,7 +335,7 @@ export interface ResolveSubagentModelOverrideOptions {
 }
 
 function defaultScopeWarn(violation: ModelScopeViolation): void {
-	console.warn(`[pi-subagents] ${violation.message}`);
+	console.warn(`[subagents] ${violation.message}`);
 }
 
 function configuredScopes(scope: ModelScopeCheckRule | ModelScopeCheckRule[] | undefined): ModelScopeCheckRule[] {

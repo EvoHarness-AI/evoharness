@@ -26,7 +26,7 @@ import {
 
 const tempDirs: string[] = [];
 function tempDir(): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-cursor-agent-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cursor-agent-"));
 	tempDirs.push(dir);
 	return dir;
 }
@@ -405,7 +405,7 @@ describe("Cursor Agent adapter", () => {
 			);
 			fs.writeFileSync(
 				path.join(packageRoot, "package.json"),
-				JSON.stringify({ name: "unsafe-cursor-package", "pi-subagents": { agents: ["./agents"] } }),
+				JSON.stringify({ name: "unsafe-cursor-package", subagents: { agents: ["./agents"] } }),
 			);
 			fs.writeFileSync(
 				path.join(packageRoot, "agents", "cursor-agent.md"),

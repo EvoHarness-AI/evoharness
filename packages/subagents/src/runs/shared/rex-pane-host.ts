@@ -5,8 +5,8 @@ import { Compile, type Validator } from "typebox/compile";
 import type { PlacementMachineReference, RexMachineReference, RexSshMachineReference } from "../../shared/types.ts";
 import { remoteShellCommand, sshMachineAccess } from "./herdr-connection.ts";
 import type { HerdrRunIdentity } from "./herdr-placed-run.ts";
+import { getHostSpawnCommand } from "./host-spawn.ts";
 import { localMachineAccess } from "./local-machine-access.ts";
-import { getPiSpawnCommand } from "./pi-spawn.ts";
 import {
 	createPlacedRuntimeDir,
 	PLACED_MANIFEST_READ_SCRIPT,
@@ -158,7 +158,7 @@ async function resolveRemoteRexBinary(
 	return bin;
 }
 
-/** The pane's cwd as the remote Pi will report it: `~` expanded and symlinks resolved. Rex does not expand `~` itself. */
+/** The pane's cwd as the remote evoharness will report it: `~` expanded and symlinks resolved. Rex does not expand `~` itself. */
 async function resolveRemoteCwd(access: PlacementMachineAccess, machine: RexSshMachineReference): Promise<string> {
 	const script = `case "$1" in "~") d=$HOME;; "~/"*) d=$HOME/\${1#"~/"};; *) d=$1;; esac; cd -P -- "$d" 2>/dev/null && pwd -P`;
 	const resolved = await access.runAsync(access.shellCommand(script, [machine.cwd]), {
@@ -172,23 +172,25 @@ async function resolveRemoteCwd(access: PlacementMachineAccess, machine: RexSshM
 	const cwd = resolved.stdout.trim();
 	if (resolved.status !== 0 || !path.posix.isAbsolute(cwd) || cwd.includes("\n"))
 		throw new Error(
-			`Nothing at ${machine.cwd} on ${machine.id}. Clone the repo there first; pi-subagents never clones, pulls, or checks out on a machine.`,
+			`Nothing at ${machine.cwd} on ${machine.id}. Clone the repo there first; subagents never clones, pulls, or checks out on a machine.`,
 		);
 	return cwd;
 }
 
-/** The remote Pi as a Rex tab's login environment finds it. */
+/** The remote evoharness as a Rex tab's login environment finds it. */
 async function resolveRemotePi(access: PlacementMachineAccess, machine: RexSshMachineReference): Promise<string> {
-	const found = await access.runAsync(access.shellCommand(`exec "\${SHELL:-/bin/sh}" -lc 'command -v pi'`), {
+	const found = await access.runAsync(access.shellCommand(`exec "\${SHELL:-/bin/sh}" -lc 'command -v evoharness'`), {
 		timeout: REX_CALL_TIMEOUT_MS,
 		maxBuffer: 64 * 1024,
 	});
 	if (found.error)
-		throw new Error(`Could not look for Pi on ${machine.id}: ${found.error.message}`, { cause: found.error });
-	const pi = found.stdout.trim().split("\n").at(-1)?.trim() ?? "";
-	if (found.status !== 0 || !path.posix.isAbsolute(pi))
-		throw new Error(`Pi was not found on ${machine.id}: its login shell has no pi on PATH. Install Pi there.`);
-	return pi;
+		throw new Error(`Could not look for evoharness on ${machine.id}: ${found.error.message}`, { cause: found.error });
+	const evoharness = found.stdout.trim().split("\n").at(-1)?.trim() ?? "";
+	if (found.status !== 0 || !path.posix.isAbsolute(evoharness))
+		throw new Error(
+			`evoharness was not found on ${machine.id}: its login shell has no evoharness on PATH. Install evoharness there.`,
+		);
+	return evoharness;
 }
 
 async function labeledSessions(endpoint: Pick<RexEndpoint, "access" | "bin">): Promise<string[]> {
@@ -288,7 +290,7 @@ function reconcileRexPlacedRun(
 ): PlacementReconnectCheck {
 	if (!candidate.present) return { ok: false, reason: "Owned Rex block is gone." };
 	if (candidate.foregroundPid === undefined || candidate.foregroundPid !== candidate.bridgePid)
-		return { ok: false, reason: "The owned Rex block's foreground process is not the placed Pi." };
+		return { ok: false, reason: "The owned Rex block's foreground process is not the placed evoharness." };
 	const proof = proveEvidence();
 	if (!proof.ok) return proof;
 	return { ok: true, state: "unknown", paneId: identity.paneId, cursor: proof.cursor };
@@ -364,8 +366,8 @@ async function openRexWindow(connection: RexConnection, label: string, cwd: stri
 /**
  * Rex pane host: rex CLI calls on this machine, always with an explicit session. A local child opens as a background
  * window in the parent's session; a Rex SSH child in the remote `subagents` session, with every rex call run over SSH.
- * Pi starts through the login shell's environment (as Rex starts any window) with the bridge variables set by
- * /usr/bin/env. There is no status subscription: a dead Pi closes the bridge socket (directly, or through the SSH
+ * evoharness starts through the login shell's environment (as Rex starts any window) with the bridge variables set by
+ * /usr/bin/env. There is no status subscription: a dead evoharness closes the bridge socket (directly, or through the SSH
  * forward), and the reconnect that follows checks the block with `rex block call process` and fails closed.
  */
 export const rexPaneHost = {
@@ -374,24 +376,24 @@ export const rexPaneHost = {
 		return connection.session;
 	},
 	async launch(connection, machine, runId, _runtimeDir, request, onPane) {
-		if (request.kind !== "pi") throw new Error("Rex supports native Pi children only.");
+		if (request.kind !== "evoharness") throw new Error("Rex supports native evoharness children only.");
 		const environment = Object.entries(request.environment ?? {});
 		if (environment.some(([name]) => !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(name)))
 			throw new Error("Rex launch environment names must be shell variable names.");
 		const rex = asRexMachine(machine);
-		let pi: { command: string; args: string[] };
+		let evoharness: { command: string; args: string[] };
 		if (isRexLocalMachine(rex)) {
-			pi = getPiSpawnCommand(request.args);
-			if (!path.isAbsolute(pi.command))
+			evoharness = getHostSpawnCommand(request.args);
+			if (!path.isAbsolute(evoharness.command))
 				throw new Error(
-					"Rex placement needs an absolute Pi executable; set PI_SUBAGENT_PI_BINARY to the Pi binary path.",
+					"Rex placement needs an absolute evoharness executable; set EVOHARNESS_SUBAGENT_HOST_BINARY to the evoharness binary path.",
 				);
-		} else pi = { command: await resolveRemotePi(connection.access, rex), args: request.args };
+		} else evoharness = { command: await resolveRemotePi(connection.access, rex), args: request.args };
 		const window = await openRexWindow(connection, `subagent-${runId.slice(-8)}`, rex.cwd, [
 			"/usr/bin/env",
 			...environment.map(([name, value]) => `${name}=${value}`),
-			pi.command,
-			...pi.args,
+			evoharness.command,
+			...evoharness.args,
 		]);
 		const owned = { workspaceId: connection.session, tabId: window.window_id, paneId: window.block_ids[0] };
 		await onPane(owned);
@@ -442,7 +444,7 @@ function runtimeDirPresent(access: PlacementMachineAccess, runtimeDir: string): 
 	return result.status === 0;
 }
 
-/** A closed local Pi removes its own runtime directory on shutdown, so already-removed counts as removed. */
+/** A closed local evoharness removes its own runtime directory on shutdown, so already-removed counts as removed. */
 function removeRexRuntimeDir(access: PlacementMachineAccess, runtimeDir: string): void {
 	if (!runtimeDirPresent(access, runtimeDir)) return;
 	try {
@@ -470,7 +472,7 @@ export class RexPlacedRunOwner extends PlacedRunOwner<RexConnection, RexMachineR
 		runId: string,
 		options: { sshAccess?: PlacementMachineAccess } = {},
 	): Promise<RexPlacedRunOwner> {
-		// A short hash names the directory, so /tmp/pi-subagents-herdr-<hash>-XXXXXXXX/bridge.sock (57 bytes) fits the 103-byte macOS socket path limit for any run id.
+		// A short hash names the directory, so /tmp/subagents-herdr-<hash>-XXXXXXXX/bridge.sock (57 bytes) fits the 103-byte macOS socket path limit for any run id.
 		const hash = createHash("sha256").update(runId).digest("hex").slice(0, 12);
 		if (isRexLocalMachine(machine)) {
 			const access = rexAccess(),

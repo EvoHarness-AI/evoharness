@@ -14,7 +14,7 @@ import { readMission } from "../../src/missions/store.ts";
 import { PROMPT_REDACTED } from "../../src/shared/utils.ts";
 
 function projectFixture() {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-mission-lifecycle-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-mission-lifecycle-"));
 	const projectRoot = path.join(root, "project");
 	fs.mkdirSync(projectRoot, { recursive: true });
 	return {

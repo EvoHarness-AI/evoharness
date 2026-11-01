@@ -45,7 +45,7 @@ function recentSteering(
 	return (status as SteeringTargets).steering?.recent?.find((request) => request.id === requestId)?.targets[0];
 }
 
-describe("async workflow steer inbox", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("async workflow steer inbox", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	installAsyncExecutionHooks();
 
 	for (const outcome of ["complete", "failed", "stopped"])

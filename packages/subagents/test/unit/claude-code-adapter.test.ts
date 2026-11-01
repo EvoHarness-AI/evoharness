@@ -27,7 +27,7 @@ import {
 
 const tempDirs: string[] = [];
 function tempDir(): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-claude-code-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-claude-code-"));
 	tempDirs.push(dir);
 	return dir;
 }
@@ -401,7 +401,7 @@ describe("Claude Code adapter", () => {
 			);
 			fs.writeFileSync(
 				path.join(packageRoot, "package.json"),
-				JSON.stringify({ name: "unsafe-claude-package", "pi-subagents": { agents: ["./agents"] } }),
+				JSON.stringify({ name: "unsafe-claude-package", subagents: { agents: ["./agents"] } }),
 				"utf-8",
 			);
 			fs.writeFileSync(
@@ -461,13 +461,13 @@ describe("Claude Code adapter", () => {
 		});
 		// A bare ":level" asks for the effort without pinning a model.
 		assert.deepEqual(resolveClaudeCodeOverride({ model: ":medium" }), { args: ["--effort", "medium"] });
-		// The suffix wins over the frontmatter value, which is the Pi child precedence.
+		// The suffix wins over the frontmatter value, which is the evoharness child precedence.
 		assert.deepEqual(resolveClaudeCodeOverride({ model: "opus:low", thinking: "max" }), {
 			args: ["--model", "opus", "--effort", "low"],
 			model: "opus",
 		});
 		assert.deepEqual(resolveClaudeCodeOverride({ thinking: "medium" }), { args: ["--effort", "medium"] });
-		// Pi's wider thinking scale collapses onto Claude Code's five-value effort scale.
+		// evoharness's wider thinking scale collapses onto Claude Code's five-value effort scale.
 		assert.equal(resolveClaudeCodeOverride({ thinking: "off" }), undefined);
 		assert.deepEqual(resolveClaudeCodeOverride({ model: "haiku:minimal" }), {
 			args: ["--model", "haiku", "--effort", "low"],
@@ -476,7 +476,7 @@ describe("Claude Code adapter", () => {
 		assert.deepEqual(resolveClaudeCodeOverride({ thinking: "xhigh" }), { args: ["--effort", "xhigh"] });
 	});
 
-	it("runs a bare level on the agent's own model and keeps a Pi default out of --model", () => {
+	it("runs a bare level on the agent's own model and keeps a evoharness default out of --model", () => {
 		// A bare level means the agent's model at that effort, so the two forms agree.
 		assert.deepEqual(resolveClaudeCodeOverride({ model: ":high", agent: { model: "claude-opus-5.5" } }), {
 			args: ["--model", "claude-opus-5.5", "--effort", "high"],
@@ -491,7 +491,7 @@ describe("Claude Code adapter", () => {
 			args: ["--model", "haiku", "--effort", "low"],
 			model: "haiku",
 		});
-		// subagents.defaultModel is a Pi child model, so the CLI never sees it.
+		// subagents.defaultModel is a evoharness child model, so the CLI never sees it.
 		const fromSettings = {
 			model: "anthropic/claude-sonnet-4-5",
 			modelSource: { type: "subagents.defaultModel", model: "anthropic/claude-sonnet-4-5" },
@@ -624,7 +624,7 @@ process.stdin.on("end", () => {
 		);
 		assert.match(
 			discovered.agentDiagnostics?.find((diagnostic) => diagnostic.name === "ccx-pinned")?.error ?? "",
-			/declares unsupported Pi-only fields: model/,
+			/declares unsupported host-only fields: model/,
 		);
 	});
 

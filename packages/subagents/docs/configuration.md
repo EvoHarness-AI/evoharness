@@ -1,12 +1,12 @@
 # Configuration
 
-`pi-subagents` reads optional JSON config from `~/.pi/agent/extensions/subagent/config.json`. This page lists every key, plus the environment variables and the settings-file keys that affect config resolution.
+`subagents` reads optional JSON config from `~/.evoharness/agent/extensions/subagent/config.json`. This page lists every key, plus the environment variables and the settings-file keys that affect config resolution.
 
-Settings-level keys (`subagents.defaultModel`, `defaultProvider`, `defaultThinking`, `defaultExtensions`, `defaultSubagentOnlyExtensions`, `agentOverrides`, `machines`, `agentScanDirs`, `agentExcludeDirs`, `modelScope`, `disableThinking`, `disableBuiltins`, watchdog settings) live in Pi settings files, not this config file. `modelScope.agents.<name>` adds per-agent restrictions, `allow: ["inherit"]` permits the current parent model, and `allow: ["scoped"]` permits the parent session's scoped models (the parent model when the session is unscoped). See [models.md](models.md), [agents.md](agents.md), and [watchdog.md](watchdog.md).
+Settings-level keys (`subagents.defaultModel`, `defaultProvider`, `defaultThinking`, `defaultExtensions`, `defaultSubagentOnlyExtensions`, `agentOverrides`, `machines`, `agentScanDirs`, `agentExcludeDirs`, `modelScope`, `disableThinking`, `disableBuiltins`, watchdog settings) live in evoharness settings files, not this config file. `modelScope.agents.<name>` adds per-agent restrictions, `allow: ["inherit"]` permits the current parent model, and `allow: ["scoped"]` permits the parent session's scoped models (the parent model when the session is unscoped). See [models.md](models.md), [agents.md](agents.md), and [watchdog.md](watchdog.md).
 
 ## Project root resolution (settings)
 
-By default, project settings resolve from the nearest parent directory that contains `.pi` or `.agents`, preserving existing nested-project behavior. Discovery stops at the user home directory, including when the home is reached through a filesystem alias such as a symlink or Windows junction, so home-level `.pi` and `.agents` remain user configuration rather than project configuration. In monorepos or git worktrees where an incidental nested `.pi` directory should not shadow the repository-level config, set this in the repository root `.pi/settings.json`:
+By default, project settings resolve from the nearest parent directory that contains `.evoharness` or `.agents`, preserving existing nested-project behavior. Discovery stops at the user home directory, including when the home is reached through a filesystem alias such as a symlink or Windows junction, so home-level `.evoharness` and `.agents` remain user configuration rather than project configuration. In monorepos or git worktrees where an incidental nested `.evoharness` directory should not shadow the repository-level config, set this in the repository root `.evoharness/settings.json`:
 
 ```json
 {
@@ -16,16 +16,16 @@ By default, project settings resolve from the nearest parent directory that cont
 }
 ```
 
-`"git-root"` keeps package discovery, project agents, chains, and `agentOverrides` anchored to the git worktree root when that root also has Pi project config. A nested project can still opt back into nearest-root behavior by setting `"projectRootResolution": "nearest"` in its own `.pi/settings.json`.
+`"git-root"` keeps package discovery, project agents, chains, and `agentOverrides` anchored to the git worktree root when that root also has evoharness project config. A nested project can still opt back into nearest-root behavior by setting `"projectRootResolution": "nearest"` in its own `.evoharness/settings.json`.
 
 ## Extra agent scan directories (settings)
 
-Add recursive user or project agent roots with `subagents.agentScanDirs` in Pi settings:
+Add recursive user or project agent roots with `subagents.agentScanDirs` in evoharness settings:
 
 ```json
 {
   "subagents": {
-    "agentScanDirs": ["~/.pi/flows/*/agents"]
+    "agentScanDirs": ["~/.evoharness/flows/*/agents"]
   }
 }
 ```
@@ -44,13 +44,13 @@ Prune directory subtrees from recursive agent-definition discovery with `subagen
 }
 ```
 
-Entries are literal directory paths (no globs), supporting `~` and absolute paths. Relative paths resolve from the directory containing their settings file: the user agent config directory for user settings, or the project config directory (normally `.pi/`) for project settings. Thus `../.agents/plugins` in project `.pi/settings.json` excludes the project's legacy plugin subtree without excluding ordinary `.agents/*.md` agents.
+Entries are literal directory paths (no globs), supporting `~` and absolute paths. Relative paths resolve from the directory containing their settings file: the user agent config directory for user settings, or the project config directory (normally `.evoharness/`) for project settings. Thus `../.agents/plugins` in project `.evoharness/settings.json` excludes the project's legacy plugin subtree without excluding ordinary `.agents/*.md` agents.
 
 User and nearest-project exclusions are combined for every discovery scope, including all-source diagnostics. They apply before traversal and definition reads; explicit scan roots, environment roots, and installed packages cannot re-include an excluded tree. Normalized and real-path containment also excludes symlink aliases without matching sibling directory prefixes. Settings changes invalidate cached discovery. Excluded agent trees are not fingerprinted; chain discovery keeps its own unchanged watches when it shares a directory. Skills, chains, and the extension's bundled builtin snapshot are outside this setting's scope.
 
 ## `modelResponseAliases`
 
-In `~/.pi/agent/extensions/subagent/config.json` (top-level, not under `subagents`):
+In `~/.evoharness/agent/extensions/subagent/config.json` (top-level, not under `subagents`):
 
 ```json
 {
@@ -64,7 +64,7 @@ Optionally accept exact response model IDs for an exact provider-qualified launc
 
 This is your explicit assertion that the declared response IDs identify the requested model, not proof from model output. It does not rewrite the outgoing model or provider route, or bypass verification for other routes. Foreground and background runs capture this declaration for launch and retain it on revival, including when no aliases were declared. Changing config affects new independent runs, not the retained declaration. Without a matching declaration, existing strict verification remains unchanged.
 
-For a native Pi `model_verification_failed` where your proxy accepts `claude-haiku-4-5` but reports `anthropic.claude-haiku-4-5-20251001-v1:0`, independently confirm your proxy's mapping, then configure:
+For a native evoharness `model_verification_failed` where your proxy accepts `claude-haiku-4-5` but reports `anthropic.claude-haiku-4-5-20251001-v1:0`, independently confirm your proxy's mapping, then configure:
 
 ```json
 {
@@ -74,17 +74,17 @@ For a native Pi `model_verification_failed` where your proxy accepts `claude-hai
 }
 ```
 
-Replace `YOUR_PROVIDER` with the resolved Pi provider ID. Keep the outgoing model alias unchanged. This native remedy already exists in v0.65.1; it does not infer equivalence from provider prefixes or dates. The built-in external `claude-code` adapter does not invoke this verifier or use this setting. If an external run shows this diagnostic, identify the installed version, resolved runner kind/adapter, and error location before applying a native remedy. Thanks to [sixtus](https://github.com/sixtus) for the concrete request-ID/response-ID example in [#1922](https://github.com/nicobailon/pi-subagents/issues/1922).
+Replace `YOUR_PROVIDER` with the resolved evoharness provider ID. Keep the outgoing model alias unchanged. The built-in external `claude-code` adapter does not invoke this verifier or use this setting. If an external run shows this diagnostic, identify the installed version, resolved runner kind/adapter, and error location before applying a native remedy.
 
-A local Pi child whose selected model is a virtual model (`pi.registerVirtualModel()`, such as a router) needs no alias. Its assistant messages name whichever physical model the router picked, so verification compares the child's selected virtual `provider/id` with the launch model instead, exactly. A different virtual selection fails, and `modelResponseAliases` does not override it.
+A local evoharness child whose selected model is a virtual model (`evoharness.registerVirtualModel()`, such as a router) needs no alias. Its assistant messages name whichever physical model the router picked, so verification compares the child's selected virtual `provider/id` with the launch model instead, exactly. A different virtual selection fails, and `modelResponseAliases` does not override it.
 
 ## Tool activation lifecycle
 
 When the model can take a new tool mid-conversation (see [`toolActivation`](#toolactivation)), a fresh unrestricted parent starts with only `subagents_enable` active while `subagent`, `bg_wait`, and `subagent_supervisor` stay registered but inactive. Calling `subagents_enable({})` preserves unrelated active tools and exposes all three on the next model request. It does not launch a child or infer authority from prompt keywords. `bg_wait` is also declared without `subagent` once another extension registers a [background-work provider](extension-api.md#background-work-provider-api), because only `bg_wait` waits for that work. `subagent_supervisor`, which answers this session's children, is also declared when a child request reaches a session that does not have it, such as one from a scheduled run. With other models, a fresh parent starts with `subagent`, `bg_wait`, and `subagent_supervisor` active and no `subagents_enable`. `contact_supervisor` is active whenever `subagent` is, with the definition children use, so a forked child declares the same tools as its parent and can reuse its prompt cache; called in a session that is not a subagent, it returns an error.
 
-The recorded native `subagent` selection is restored on resume, reload, and tree navigation, so an activated session stays activated and a cold session stays cold. The recorded `bg_wait` and `subagent_supervisor` selections are restored the same way, so a session that declared them, for example on an earlier version, keeps them. With the default `toolActivation`, the recorded `subagents_enable` selection is restored too, so a session that started without the loader never gets it later. Older history without tool-selection records keeps eager `subagent`, `bg_wait`, and `subagent_supervisor` availability. If Pi's allowlist or exclusions remove the loader, the extension does not hide `subagent` or `bg_wait`; if they remove `subagent`, the loader reports it unavailable. The host version is not read from disk, so in-process hosts such as pi-web activate the same way as the Pi CLI.
+The recorded native `subagent` selection is restored on resume, reload, and tree navigation, so an activated session stays activated and a cold session stays cold. The recorded `bg_wait` and `subagent_supervisor` selections are restored the same way, so a session that declared them, for example on an earlier version, keeps them. With the default `toolActivation`, the recorded `subagents_enable` selection is restored too, so a session that started without the loader never gets it later. Older history without tool-selection records keeps eager `subagent`, `bg_wait`, and `subagent_supervisor` availability. If evoharness's allowlist or exclusions remove the loader, the extension does not hide `subagent` or `bg_wait`; if they remove `subagent`, the loader reports it unavailable. The host version is not read from disk, so in-process hosts such as pi-web activate the same way as the evoharness CLI.
 
-Some providers fix the tool list for a whole prompt, for example bridges that hand Pi's tools to another agent SDK. There `subagent` appears only on the next user prompt, not the next model request. Start Pi with `--exclude-tools subagents_enable` to keep `subagent` active from the start.
+Some providers fix the tool list for a whole prompt, for example bridges that hand evoharness's tools to another agent SDK. There `subagent` appears only on the next user prompt, not the next model request. Start evoharness with `--exclude-tools subagents_enable` to keep `subagent` active from the start.
 
 ## `toolActivation`
 
@@ -94,11 +94,11 @@ Some providers fix the tool list for a whole prompt, for example bridges that ha
 
 Controls how a new parent session offers the `subagent` tool. The default is `"auto"`.
 
-- `"auto"`: a new session starts with the `subagents_enable` loader only when its model can take a new tool mid-conversation. Otherwise it starts with `subagent` active and no loader, because calling the loader on such a model makes Pi resend the conversation in a form the provider may not have cached. A model qualifies when its Pi `compat` settings set `supportsMidConvoSystemMessages: true` and, for its API, `supportsMidConvoToolChanges: true` (`anthropic-messages`), `supportsMidConvoToolAdditions: true` (`openai-completions`), or `supportsAdditionalTools: true` or `supportsToolSearch: true` (`openai-responses`, `openai-codex-responses`, `azure-openai-responses`). Other APIs, missing settings, and no model do not qualify.
+- `"auto"`: a new session starts with the `subagents_enable` loader only when its model can take a new tool mid-conversation. Otherwise it starts with `subagent` active and no loader, because calling the loader on such a model makes evoharness resend the conversation in a form the provider may not have cached. A model qualifies when its evoharness `compat` settings set `supportsMidConvoSystemMessages: true` and, for its API, `supportsMidConvoToolChanges: true` (`anthropic-messages`), `supportsMidConvoToolAdditions: true` (`openai-completions`), or `supportsAdditionalTools: true` or `supportsToolSearch: true` (`openai-responses`, `openai-codex-responses`, `azure-openai-responses`). Other APIs, missing settings, and no model do not qualify.
 - `"dynamic"`: every new session starts with the loader, whatever the model. This was the behavior before `toolActivation` existed.
 - `"eager"`: the loader is not registered, so `subagent` is active from the first request, as with `--exclude-tools subagents_enable`. A resumed session that recorded the loader changes its tool list once on the next request.
 
-The choice is made at session start or tree navigation, and only for a session with no messages. If a compaction that kept no tool checkpoint dropped the record of this choice, the session is decided again as a new session would be; tool selections recorded after that compaction (for `bg_wait` or another extension's tools) are not evidence that the choice survived. Resumed sessions keep the tools they recorded, and switching models mid-session does not change them. `"auto"` avoids only the loader's cache miss; other tool-list or provider changes can still miss the cache. An active `subagent` sends its full schema on every request. An invalid value is a config error, not a fallback to the default. Restart Pi after changing it.
+The choice is made at session start or tree navigation, and only for a session with no messages. If a compaction that kept no tool checkpoint dropped the record of this choice, the session is decided again as a new session would be; tool selections recorded after that compaction (for `bg_wait` or another extension's tools) are not evidence that the choice survived. Resumed sessions keep the tools they recorded, and switching models mid-session does not change them. `"auto"` avoids only the loader's cache miss; other tool-list or provider changes can still miss the cache. An active `subagent` sends its full schema on every request. An invalid value is a config error, not a fallback to the default. Restart evoharness after changing it.
 
 ## `toolDescriptionMode`
 
@@ -106,9 +106,9 @@ The choice is made at session start or tree navigation, and only for a session w
 { "toolDescriptionMode": "compact" }
 ```
 
-Controls the parent-facing `subagent` tool description registered at startup. The default registers the short execution/safety description, which states the delegation authorization rule, plus a one-line `promptSnippet`. Explicit `"compact"` uses the same description without the snippet; `"full"` adds workflow and management detail, also without the snippet. All modes retain the same flat parameter schema. Extended examples and recipes are available on demand through `action:"guide"` and the bundled pi-subagents skill; full mode is not an exhaustive manual. Count the default snippet as well as the tool definition when comparing prompt footprints.
+Controls the parent-facing `subagent` tool description registered at startup. The default registers the short execution/safety description, which states the delegation authorization rule, plus a one-line `promptSnippet`. Explicit `"compact"` uses the same description without the snippet; `"full"` adds workflow and management detail, also without the snippet. All modes retain the same flat parameter schema. Extended examples and recipes are available on demand through `action:"guide"` and the bundled subagents skill; full mode is not an exhaustive manual. Count the default snippet as well as the tool definition when comparing prompt footprints.
 
-`custom` reads `subagent-tool-description.md` from the project config directory, then from `~/.pi/agent/subagent-tool-description.md`. Missing, empty, unreadable, or oversized custom files fall back to the full description. Custom templates may use `{{fullDescription}}`, `{{compactDescription}}`, `{{safetyGuidance}}`, `{{agentDir}}`, and `{{projectConfigDir}}`; the safety guidance is always present so custom prose cannot remove the runtime guardrails. Restart Pi after changing the mode or custom file. The change applies to new sessions; a resumed session keeps the tool definition and prompt text it already declared, so its prompt cache stays valid. To apply it to resumed sessions too, set [`pinToolDeclarations`](#pintooldeclarations) to `false`.
+`custom` reads `subagent-tool-description.md` from the project config directory, then from `~/.evoharness/agent/subagent-tool-description.md`. Missing, empty, unreadable, or oversized custom files fall back to the full description. Custom templates may use `{{fullDescription}}`, `{{compactDescription}}`, `{{safetyGuidance}}`, `{{agentDir}}`, and `{{projectConfigDir}}`; the safety guidance is always present so custom prose cannot remove the runtime guardrails. Restart evoharness after changing the mode or custom file. The change applies to new sessions; a resumed session keeps the tool definition and prompt text it already declared, so its prompt cache stays valid. To apply it to resumed sessions too, set [`pinToolDeclarations`](#pintooldeclarations) to `false`.
 
 ## `pinToolDeclarations`
 
@@ -116,7 +116,7 @@ Controls the parent-facing `subagent` tool description registered at startup. Th
 { "pinToolDeclarations": false }
 ```
 
-Pi records each tool definition and prompt section a session declares, and declares any difference again before the next request; a changed definition makes the provider read the whole conversation again without its prompt cache. So by default (`true`) a resumed or reloaded session keeps the `subagent`, `bg_wait`, and `subagents_enable` definitions and the pi-subagents prompt text it already declared, and only a session that never declared a tool gets its current definition. With `false`, every parent session gets the current definitions (subagent children stay pinned): a long-lived session picks up an upgrade, a changed `toolDescriptionMode`, `disabledFeatures`, or an edited custom description on the next restart, and pays one cache miss on its next request. Restart Pi after changing it.
+evoharness records each tool definition and prompt section a session declares, and declares any difference again before the next request; a changed definition makes the provider read the whole conversation again without its prompt cache. So by default (`true`) a resumed or reloaded session keeps the `subagent`, `bg_wait`, and `subagents_enable` definitions and the subagents prompt text it already declared, and only a session that never declared a tool gets its current definition. With `false`, every parent session gets the current definitions (subagent children stay pinned): a long-lived session picks up an upgrade, a changed `toolDescriptionMode`, `disabledFeatures`, or an edited custom description on the next restart, and pays one cache miss on its next request. Restart evoharness after changing it.
 
 ## `disabledFeatures`
 
@@ -144,7 +144,7 @@ Removes feature groups you do not use from the `subagent` tool. Each listed feat
 | `external-machines` | `machine` | |
 | `workflow-scripts` | `workflow`, `args`, `preflight`, `globalConcurrencyLimit`, `maxSubagentSpawnsPerRun` | `validate` |
 
-Disabling a per-call option removes only the per-call override. Configured defaults such as `toolBudget`, `usageBudget`, and `control` in this file still apply, the watchdog still follows its own settings, missions still attach automatically when [`missions`](#missions) enables them, and agents with a `machine` in their definition still run there. Operator screens that do not go through the `subagent` executor, such as `/subagents-admin`, are unchanged. With every feature and [`scheduledRuns.enabled`](#scheduledruns) disabled, the default `subagent` tool declaration (name, description, and parameter schema as JSON) shrinks from 18,239 to 10,263 characters (80 to 41 parameters). Restart Pi after changing this setting. The smaller declaration applies to new sessions; a resumed session keeps the tool declaration it already sent, so its prompt cache stays valid. Disabled options and actions are still rejected in every session.
+Disabling a per-call option removes only the per-call override. Configured defaults such as `toolBudget`, `usageBudget`, and `control` in this file still apply, the watchdog still follows its own settings, missions still attach automatically when [`missions`](#missions) enables them, and agents with a `machine` in their definition still run there. Operator screens that do not go through the `subagent` executor, such as `/subagents-admin`, are unchanged. With every feature and [`scheduledRuns.enabled`](#scheduledruns) disabled, the default `subagent` tool declaration (name, description, and parameter schema as JSON) shrinks from 18,239 to 10,263 characters (80 to 41 parameters). Restart evoharness after changing this setting. The smaller declaration applies to new sessions; a resumed session keeps the tool declaration it already sent, so its prompt cache stays valid. Disabled options and actions are still rejected in every session.
 
 ### Chain and tasks without workflow scripts
 
@@ -167,7 +167,7 @@ A top-level `task` is the original request. Tasks can use three placeholders:
 { "inlineToolDisplay": "summary" }
 ```
 
-Controls the `subagent` tool result shown inline in chat. The default, `"rich"`, shows live child activity and expands to detailed output. `"summary"` keeps the inline result at one stable row for running, completed, failed, stopped, and paused runs; it does not animate, show elapsed time, preview child output, or change when Pi's expand key is pressed. FleetView remains available for live progress and detailed inspection.
+Controls the `subagent` tool result shown inline in chat. The default, `"rich"`, shows live child activity and expands to detailed output. `"summary"` keeps the inline result at one stable row for running, completed, failed, stopped, and paused runs; it does not animate, show elapsed time, preview child output, or change when evoharness's expand key is pressed. FleetView remains available for live progress and detailed inspection.
 
 This is one result row **per tool call**, not one panel per run; the call heading remains. Separate `status` calls for the same run remain separate historical transcript entries. Summary mode neither merges those calls nor changes cross-extension ordering. For a compact chat plus one live editor surface, see [Reducing status display noise](observability.md#reducing-status-display-noise).
 
@@ -200,20 +200,20 @@ With `"summary"`, a tool result looks like this:
 { "enableSlashCommands": false }
 ```
 
-Set to `false` to register none of the pi-subagents slash commands (`/run`, `/subagents`, `/subagents-fleet`, `/subagents-watchdog`, `/prompt-workflow`, and the rest) and no [`foregroundDetachShortcut`](#foregrounddetachshortcut). The `subagent` tool, RPC, the async widget, and the extension's other features are unchanged. Prompt templates whose frontmatter has `chain:` launch through `/prompt-workflow`, so they stop working too. Defaults to `true`. Restart Pi or run `/reload` after changing it.
+Set to `false` to register none of the subagents slash commands (`/run`, `/subagents`, `/subagents-fleet`, `/subagents-watchdog`, `/prompt-workflow`, and the rest) and no [`foregroundDetachShortcut`](#foregrounddetachshortcut). The `subagent` tool, RPC, the async widget, and the extension's other features are unchanged. Prompt templates whose frontmatter has `chain:` launch through `/prompt-workflow`, so they stop working too. Defaults to `true`. Restart evoharness or run `/reload` after changing it.
 
-The package's prompt shortcuts, such as `/parallel-review` and `/review-loop`, are Pi prompt templates, not commands, so this setting leaves them alone. The same goes for its skills (`pi-subagents` and `council-mode`) and built-in agents. To turn them off, use Pi's package filter for prompts and skills and `disableBuiltins` for the agents, in Pi's `settings.json`. This turns off every prompt, the `council-mode` skill and every built-in agent:
+The package's prompt shortcuts, such as `/parallel-review` and `/review-loop`, are evoharness prompt templates, not commands, so this setting leaves them alone. The same goes for its skills (`subagents` and `council-mode`) and built-in agents. To turn them off, use evoharness's package filter for prompts and skills and `disableBuiltins` for the agents, in evoharness's `settings.json`. This turns off every prompt, the `council-mode` skill and every built-in agent:
 
 ```json
 {
   "packages": [
-    { "source": "npm:pi-subagents", "prompts": [], "skills": ["!council-mode"] }
+    { "source": "npm:subagents", "prompts": [], "skills": ["!council-mode"] }
   ],
   "subagents": { "disableBuiltins": true }
 }
 ```
 
-A `!` entry such as `"!review-loop.md"` drops one file, and `[]` drops all of that type. `subagents.agentOverrides.<name>.disabled: true` turns off one built-in agent instead of all of them ([agents.md](agents.md)). `pi config` toggles the package's prompts and skills interactively.
+A `!` entry such as `"!review-loop.md"` drops one file, and `[]` drops all of that type. `subagents.agentOverrides.<name>.disabled: true` turns off one built-in agent instead of all of them ([agents.md](agents.md)). `evoharness config` toggles the package's prompts and skills interactively.
 
 ## `foregroundDetachShortcut`
 
@@ -221,9 +221,9 @@ A `!` entry such as `"!review-loop.md"` drops one file, and `[]` drops all of th
 { "foregroundDetachShortcut": "ctrl+b" }
 ```
 
-Optionally binds a shortcut that detaches the active foreground single-subagent run without terminating it. The running foreground card shows the configured shortcut beside its live-detail hint. The default is unset, so pi-subagents does not reserve a global key.
+Optionally binds a shortcut that detaches the active foreground single-subagent run without terminating it. The running foreground card shows the configured shortcut beside its live-detail hint. The default is unset, so subagents does not reserve a global key.
 
-Pi binds `Ctrl+B` to editor cursor-left by default. The extension shortcut takes precedence, but Pi reports the conflict at startup. To reserve the key without that warning, override the editor action in `~/.pi/agent/keybindings.json`:
+evoharness binds `Ctrl+B` to editor cursor-left by default. The extension shortcut takes precedence, but evoharness reports the conflict at startup. To reserve the key without that warning, override the editor action in `~/.evoharness/agent/keybindings.json`:
 
 ```json
 {
@@ -241,11 +241,11 @@ Pi binds `Ctrl+B` to editor cursor-left by default. The extension shortcut takes
 }
 ```
 
-Opt in to a best-effort Orca observer that creates one Orca terminal tab for each top-level subagent call and mirrors the run's live tool and assistant progress. Parallel and chain children share that one tab, with child section headers in the mirrored log. Tab titles use a persistent worktree-local sequence (`subagents · <run-label> · 1`, `... · 2`, and so on), so separate top-level calls do not reuse the same number. For the same worktree, `orca terminal create` runs one at a time in that sequence so observer tabs appear from left to right as `1`, then `2`, then `3`. This does **not** replace Pi as the runner: native Pi children keep the same lifecycle, status, control, artifact, and result paths. External CLI profiles also keep their existing runner and can mirror their stdout/stderr.
+Opt in to a best-effort Orca observer that creates one Orca terminal tab for each top-level subagent call and mirrors the run's live tool and assistant progress. Parallel and chain children share that one tab, with child section headers in the mirrored log. Tab titles use a persistent worktree-local sequence (`subagents · <run-label> · 1`, `... · 2`, and so on), so separate top-level calls do not reuse the same number. For the same worktree, `orca terminal create` runs one at a time in that sequence so observer tabs appear from left to right as `1`, then `2`, then `3`. This does **not** replace evoharness as the runner: native evoharness children keep the same lifecycle, status, control, artifact, and result paths. External CLI profiles also keep their existing runner and can mirror their stdout/stderr.
 
-The integration is off by default and supports macOS and Linux. It is disabled on Windows. When enabled, `pi-subagents` looks for executable `orca` on `PATH`, or uses the executable path in `PI_SUBAGENT_ORCA_BINARY`. If no executable is available, Orca is not running, the cwd is not an Orca-managed worktree, or `terminal create` fails, the authoritative subagent still runs normally. Tab creation is deliberately best-effort and never changes the child result. A passive observer manifest is also written under `<worktree>/.pi/subagents/views/orca/` when possible so future view surfaces can discover the Orca tab without making Orca authoritative.
+The integration is off by default and supports macOS and Linux. It is disabled on Windows. When enabled, `subagents` looks for executable `orca` on `PATH`, or uses the executable path in `EVOHARNESS_SUBAGENT_ORCA_BINARY`. If no executable is available, Orca is not running, the cwd is not an Orca-managed worktree, or `terminal create` fails, the authoritative subagent still runs normally. Tab creation is deliberately best-effort and never changes the child result. A passive observer manifest is also written under `<worktree>/.evoharness/subagents/views/orca/` when possible so future view surfaces can discover the Orca tab without making Orca authoritative.
 
-Set `enabled` to `false` (or remove the block) as a kill switch. In that state, `pi-subagents` does not invoke `orca` and creates no Orca tabs. The temporary mirror files contain child output, use private file modes where supported, and are removed shortly after the run finishes. Each mirror is capped at 1 MiB. The observer stops accepting progress when the cap or stream backpressure is reached and appends a truncation notice. The viewer removes terminal control sequences with parser state that persists across file reads. On completion, the viewer exits back to the Orca terminal's shell prompt; the tab and its terminal scrollback remain open until the user closes the tab. A successfully completed native Pi run with a recorded session ends with a safely quoted `rm -- <exact-session-path>` command; failed, stopped, timed-out, and sessionless runs do not show the removal command.
+Set `enabled` to `false` (or remove the block) as a kill switch. In that state, `subagents` does not invoke `orca` and creates no Orca tabs. The temporary mirror files contain child output, use private file modes where supported, and are removed shortly after the run finishes. Each mirror is capped at 1 MiB. The observer stops accepting progress when the cap or stream backpressure is reached and appends a truncation notice. The viewer removes terminal control sequences with parser state that persists across file reads. On completion, the viewer exits back to the Orca terminal's shell prompt; the tab and its terminal scrollback remain open until the user closes the tab. A successfully completed native evoharness run with a recorded session ends with a safely quoted `rm -- <exact-session-path>` command; failed, stopped, timed-out, and sessionless runs do not show the removal command.
 
 ## `asyncByDefault`
 
@@ -261,7 +261,7 @@ Workflow script calls use background execution when the request omits `async`. S
 { "autoResume": false }
 ```
 
-Default `true`. When a session is reopened (`pi -c`, `pi --session`, `/resume`) or reloaded (`/reload`), its own async workflows that a Pi exit or a reload interrupted in the last 24 hours are resumed once, without delaying session start; set `autoResume` to `false` to resume them only by hand. A one-shot `pi -p` run does not auto-resume, so it does not wait on the workflow. See [Workflows](workflows.md).
+Default `true`. When a session is reopened (`evoharness -c`, `evoharness --session`, `/resume`) or reloaded (`/reload`), its own async workflows that a evoharness exit or a reload interrupted in the last 24 hours are resumed once, without delaying session start; set `autoResume` to `false` to resume them only by hand. A one-shot `evoharness -p` run does not auto-resume, so it does not wait on the workflow. See [Workflows](workflows.md).
 
 ## `runnerLaunchers`
 
@@ -338,7 +338,7 @@ Places the persistent FleetView either `"belowEditor"` or `"aboveEditor"`. The d
 }
 ```
 
-Customizes only the full Fleet inspector opened by `/subagents-fleet` or FleetView inspection. It does not change Pi's global keybindings or the compact persistent FleetView.
+Customizes only the full Fleet inspector opened by `/subagents-fleet` or FleetView inspection. It does not change evoharness's global keybindings or the compact persistent FleetView.
 
 Each action accepts a non-empty array of key strings. Configured actions replace their defaults. Unset actions keep the defaults: `selectUp` is `up`/`k`, `selectDown` is `down`/`j`, `scrollUp` is `K`, `scrollDown` is `J`, `pageUp` is `pageUp`, `pageDown` is `pageDown`, `selectFirst` is `home`, `selectLast` is `end`, `toggleTools` is `x`/`X`/`ctrl+o`, `refresh` is `r`/`R`, `steer` is `s`, `stop` is `D`, `inspect` is `H`, and `close` is `escape`/`ctrl+c`/`q`.
 
@@ -358,7 +358,7 @@ Controls the under-editor widget for active background runs. It defaults to `tru
 { "asyncWidgetCollapsed": true }
 ```
 
-Starts each newly mounted under-editor async widget in its one-line folded state. It defaults to `false`. A header click still toggles the widget, and the folded state still resets when the widget is removed or Pi reloads.
+Starts each newly mounted under-editor async widget in its one-line folded state. It defaults to `false`. A header click still toggles the widget, and the folded state still resets when the widget is removed or evoharness reloads.
 
 ## `asyncWidgetLayout`
 
@@ -368,7 +368,7 @@ Starts each newly mounted under-editor async widget in its one-line folded state
 
 Sets the layout of the unfolded under-editor async widget. Defaults to `"adaptive"`; valid values are `"adaptive"` and `"rows"`.
 
-`"adaptive"` gives each run its own detail rows while the terminal has room, and switches to one line per run on a short terminal. `"rows"` shows a header line and one line per run even when the terminal has room for detail rows. It uses no more rows than the adaptive layout may: runs that do not fit are counted on a `+N more` line, and a workflow's lanes fill any rows left over. In both layouts, a header click and `asyncWidgetCollapsed` fold the widget to its count line, and Pi's expand key shows the detailed layout.
+`"adaptive"` gives each run its own detail rows while the terminal has room, and switches to one line per run on a short terminal. `"rows"` shows a header line and one line per run even when the terminal has room for detail rows. It uses no more rows than the adaptive layout may: runs that do not fit are counted on a `+N more` line, and a workflow's lanes fill any rows left over. In both layouts, a header click and `asyncWidgetCollapsed` fold the widget to its count line, and evoharness's expand key shows the detailed layout.
 
 ## `programStatus`
 
@@ -378,7 +378,7 @@ Sets the layout of the unfolded under-editor async widget. Defaults to `"adaptiv
 
 Reports each background run's state to the terminal with [OSC 7501, the Program Status Protocol](https://www.superlogical.com/rex/docs/build/program-status), so a terminal that supports it (Ghostty and Rex, for example) can show which runs are working, waiting on you, finished, or failed. It defaults to `true`; set it to `false` to send nothing. Terminals that don't support OSC 7501 ignore it, so turn it off only if your terminal prints unknown escape sequences.
 
-Reports are sent only from an interactive TUI session whose standard output is a terminal and whose `TERM` is not `dumb`, and only when a record changes. `EVOHARNESS_PROGRAM_STATUS=0`, Pi's own switch for its OSC 7501 reports, turns these off too. Each run gets its own record under `subagents/`: `subagents/<run>` for a run, where `<run>` is the first 12 characters of its run id, and `subagents/<workflow-run>.<key>` for a background workflow child. A key made only of letters, digits, `_`, `+` and `-`, and at most 19 characters long, is used as is; any other key becomes its first 12 characters (other characters replaced by `-`) plus a short hash of the full key, so different keys never share an id. Workflow children are siblings of their workflow's record, not nested under it, so clearing a finished workflow never removes a running child. The root record belongs to Pi itself, so this extension never writes it.
+Reports are sent only from an interactive TUI session whose standard output is a terminal and whose `TERM` is not `dumb`, and only when a record changes. `EVOHARNESS_PROGRAM_STATUS=0`, evoharness's own switch for its OSC 7501 reports, turns these off too. Each run gets its own record under `subagents/`: `subagents/<run>` for a run, where `<run>` is the first 12 characters of its run id, and `subagents/<workflow-run>.<key>` for a background workflow child. A key made only of letters, digits, `_`, `+` and `-`, and at most 19 characters long, is used as is; any other key becomes its first 12 characters (other characters replaced by `-`) plus a short hash of the full key, so different keys never share an id. Workflow children are siblings of their workflow's record, not nested under it, so clearing a finished workflow never removes a running child. The root record belongs to evoharness itself, so this extension never writes it.
 
 | Run | Reported state |
 |---|---|
@@ -388,7 +388,7 @@ Reports are sent only from an interactive TUI session whose standard output is a
 | failed, partial, or rejected | `error` |
 | stopped or paused | `idle` |
 
-Each record's `title` is the agent names or workflow key, and its `msg` is the current tool while working, or the outcome. Neither includes the task text. Finished runs keep their `done`, `error`, or `idle` record after they leave the async widget, for as long as they are in Fleet's recent history (the last 20 finished runs). Records of runs this session no longer tracks, for example after switching sessions, are cleared. At most 64 records are shown: running and waiting runs first, then finished ones, most recently updated first; older finished records are cleared to make room. When the extension is reloaded or the session is replaced, it clears every record it sent and the new session reports the runs it still tracks. Pi reports its own state on the root record and clears every record, these included, when it quits, suspends with Ctrl+Z, or opens an external editor. After a suspend, this extension sends its records again; after an external editor, each record comes back the next time it changes. Foreground runs are not reported, and tmux drops these sequences unless you configure passthrough.
+Each record's `title` is the agent names or workflow key, and its `msg` is the current tool while working, or the outcome. Neither includes the task text. Finished runs keep their `done`, `error`, or `idle` record after they leave the async widget, for as long as they are in Fleet's recent history (the last 20 finished runs). Records of runs this session no longer tracks, for example after switching sessions, are cleared. At most 64 records are shown: running and waiting runs first, then finished ones, most recently updated first; older finished records are cleared to make room. When the extension is reloaded or the session is replaced, it clears every record it sent and the new session reports the runs it still tracks. evoharness reports its own state on the root record and clears every record, these included, when it quits, suspends with Ctrl+Z, or opens an external editor. After a suspend, this extension sends its records again; after an external editor, each record comes back the next time it changes. Foreground runs are not reported, and tmux drops these sequences unless you configure passthrough.
 
 ## `activeRunsPrompt`
 
@@ -396,7 +396,7 @@ Each record's `title` is the agent names or workflow key, and its `msg` is the c
 { "activeRunsPrompt": true }
 ```
 
-Adds a short `active_subagents` section to the parent's system prompt while this session has queued or running background runs, so the model remembers work it launched earlier instead of starting it again. Off by default. Each run gets one line, for example `- <run id> researcher (chain, step 2/3)`, built from in-memory run state with no file reads; at most 10 runs are listed, then a `+N more` line. The line holds only the run id, agents, mode, and chain step (task text is redacted at launch), so the section changes only when a run starts, finishes, or moves to another chain step. Pi sends such a change as a mid-conversation system update where the provider supports it; on other providers it rebuilds the system prompt, so the prompt cache starts over on those turns. Nothing is added when no run is active.
+Adds a short `active_subagents` section to the parent's system prompt while this session has queued or running background runs, so the model remembers work it launched earlier instead of starting it again. Off by default. Each run gets one line, for example `- <run id> researcher (chain, step 2/3)`, built from in-memory run state with no file reads; at most 10 runs are listed, then a `+N more` line. The line holds only the run id, agents, mode, and chain step (task text is redacted at launch), so the section changes only when a run starts, finishes, or moves to another chain step. evoharness sends such a change as a mid-conversation system update where the provider supports it; on other providers it rebuilds the system prompt, so the prompt cache starts over on those turns. Nothing is added when no run is active.
 
 ## `waitTool`
 
@@ -404,10 +404,10 @@ Adds a short `active_subagents` section to the parent's system prompt while this
 { "waitTool": { "enabled": true, "defaultTimeoutMs": 120000 } }
 ```
 
-`defaultTimeoutMs` sets the blocking window used when a `bg_wait` call omits `timeoutMs`; explicit call values win, followed by this setting, then the 30-minute fallback. `bg_wait` is the only registered wait tool. When the window elapses, the tool returns a non-error `window_elapsed` result with the still-active work identities, and that work keeps running. Set `enabled` to `false` to make direct calls return immediately instead of blocking. The default is enabled. You can also set `"waitTool": false`; set `PI_SUBAGENT_WAIT_TOOL_ENABLED=false` (or `0`, `off`, `disabled`) to override config for one process. The effective enabled and default-timeout values are passed explicitly to child runtimes. Headless `agent_end` auto-drain retains its own strict deadline and fails if required work remains unresolved. Invalid config or environment values fail instead of being coerced.
+`defaultTimeoutMs` sets the blocking window used when a `bg_wait` call omits `timeoutMs`; explicit call values win, followed by this setting, then the 30-minute fallback. `bg_wait` is the only registered wait tool. When the window elapses, the tool returns a non-error `window_elapsed` result with the still-active work identities, and that work keeps running. Set `enabled` to `false` to make direct calls return immediately instead of blocking. The default is enabled. You can also set `"waitTool": false`; set `EVOHARNESS_SUBAGENT_WAIT_TOOL_ENABLED=false` (or `0`, `off`, `disabled`) to override config for one process. The effective enabled and default-timeout values are passed explicitly to child runtimes. Headless `agent_end` auto-drain retains its own strict deadline and fails if required work remains unresolved. Invalid config or environment values fail instead of being coerced.
 
 
-Blocking `bg_wait({ id: "..." })` keeps the current tool call open until that run changes. By default it returns when a run needs attention, even when the run is still working normally, for example a `bash` command open longer than `activeNoticeAfterMs`; the result then says the run is still running. Use `bg_wait({ stopOnAttention: false })` for run-to-completion flows: it waits through idle time, a tool held open, or repeated tool failures, and still ends for a supervisor/contact request, a finished run, the timeout, user input, or abort. A steer or follow-up the operator sends while a blocking wait is open also ends it, with a non-error `user_input` result listing the still-active work, so the message reaches the model without waiting out the window. In a long-lived interactive parent session, `bg_wait({ id: "...", nonBlocking: true })` instead resolves the prefix once, persists the exact run identity, returns a subscription token immediately, and wakes that session on completion, failure, attention, reconciliation failure, or timeout. Use it for provider, detached, or other background work without a native completion notification; ordinary async subagent runs notify the parent natively and do not need a wait subscription. Armed subscriptions appear in ordinary `subagent({ action: "status" })` output and are not counted as active child work. A native completion notification goes to the Pi process that launched the run while that process is running; once it has exited, the session gets the result the next time it is open in any Pi. `nonBlocking` subscriptions need a host with a UI context, such as interactive or RPC mode; plain SDK embedding without a UI context rejects them.
+Blocking `bg_wait({ id: "..." })` keeps the current tool call open until that run changes. By default it returns when a run needs attention, even when the run is still working normally, for example a `bash` command open longer than `activeNoticeAfterMs`; the result then says the run is still running. Use `bg_wait({ stopOnAttention: false })` for run-to-completion flows: it waits through idle time, a tool held open, or repeated tool failures, and still ends for a supervisor/contact request, a finished run, the timeout, user input, or abort. A steer or follow-up the operator sends while a blocking wait is open also ends it, with a non-error `user_input` result listing the still-active work, so the message reaches the model without waiting out the window. In a long-lived interactive parent session, `bg_wait({ id: "...", nonBlocking: true })` instead resolves the prefix once, persists the exact run identity, returns a subscription token immediately, and wakes that session on completion, failure, attention, reconciliation failure, or timeout. Use it for provider, detached, or other background work without a native completion notification; ordinary async subagent runs notify the parent natively and do not need a wait subscription. Armed subscriptions appear in ordinary `subagent({ action: "status" })` output and are not counted as active child work. A native completion notification goes to the evoharness process that launched the run while that process is running; once it has exited, the session gets the result the next time it is open in any evoharness. `nonBlocking` subscriptions need a host with a UI context, such as interactive or RPC mode; plain SDK embedding without a UI context rejects them.
 This is different from `waitTool.enabled=false`, which returns immediately without registering any future wake. Provider items remain available only to blocking fleet-wide waits; non-blocking subscriptions require one async or remembered detached foreground run id.
 
 ## `resultScanLogging`
@@ -436,7 +436,7 @@ Forces depth-0 internal single, parallel, and chain runs into background mode an
 
 Global default runtime deadline, in milliseconds, for subagent runs. It replaces the built-in 30-minute backstop for foreground launches (single, parallel, chain, and workflow scripts) and plain single-agent async runs whenever no call-level `timeoutMs`/`maxRuntimeMs` applies. For single-agent launches, selected agent frontmatter `timeoutMs` still wins. This only moves the *default*. Expiring this run-level deadline is terminal.
 
-This deadline bounds the whole run. The wait for a single model response is bounded separately by Pi's `httpIdleTimeoutMs` setting (default 300000; `0` disables it), which Pi applies both as the SDK request timeout and as the undici header/body idle timeout. Detached async runners read the same setting from `~/.pi/agent/settings.json` and the project `.pi/settings.json` for their own HTTP dispatcher, so a local model that queues or prefills for longer than five minutes needs `httpIdleTimeoutMs` raised or disabled in Pi settings, plus a `timeoutMs` long enough for the run.
+This deadline bounds the whole run. The wait for a single model response is bounded separately by evoharness's `httpIdleTimeoutMs` setting (default 300000; `0` disables it), which evoharness applies both as the SDK request timeout and as the undici header/body idle timeout. Detached async runners read the same setting from `~/.evoharness/agent/settings.json` and the project `.evoharness/settings.json` for their own HTTP dispatcher, so a local model that queues or prefills for longer than five minutes needs `httpIdleTimeoutMs` raised or disabled in evoharness settings, plus a `timeoutMs` long enough for the run.
 
 Use it when foreground orchestration or plain async single-agent runs need a longer default than 30 minutes. It does not set async composite top-level deadlines, and it does not replace async fan-out child deadlines.
 
@@ -448,9 +448,9 @@ Composite async runs (async chains, parallel tasks, and scripted workflows) stay
 { "toolTimeoutMs": 600000 }
 ```
 
-Optional hard per-tool-call deadline in milliseconds. When configured, a child that emits `tool_execution_start` but not `tool_execution_end` is terminated with `timedOut: true` and a tool-specific error. The effective value is resolved per child: explicit `subagent` call value, then agent frontmatter, then this config value, then `PI_SUBAGENT_TOOL_TIMEOUT_MS`.
+Optional hard per-tool-call deadline in milliseconds. When configured, a child that emits `tool_execution_start` but not `tool_execution_end` is terminated with `timedOut: true` and a tool-specific error. The effective value is resolved per child: explicit `subagent` call value, then agent frontmatter, then this config value, then `EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS`.
 
-Without a configured value, Pi still applies a five-minute hard timeout to known-fast built-in tools: `read`, `grep`, `find`, `ls`, `edit`, `write`, and `structured_output`. Long-running tools such as `bash`, custom tools, and MCP tools do not get a hard default. They get the normal open-tool attention notice after `activeNoticeAfterMs` and remain bounded by the run-level deadline.
+Without a configured value, evoharness still applies a five-minute hard timeout to known-fast built-in tools: `read`, `grep`, `find`, `ls`, `edit`, `write`, and `structured_output`. Long-running tools such as `bash`, custom tools, and MCP tools do not get a hard default. They get the normal open-tool attention notice after `activeNoticeAfterMs` and remain bounded by the run-level deadline.
 
 The tool timer tracks each active `toolCallId` separately and never extends the run-level deadline: when the remaining run budget is shorter, the ordinary run-level timeout wins. `contact_supervisor`, `intercom`, and `bg_wait` are exempt because their legitimate purpose can be to wait for a human, supervisor, or background run. Use hard tool timeouts only for wedge protection; an elapsed timeout is not a mutation-safe boundary. Configured values must be positive integers no greater than `2147483647`; invalid or out-of-range values are rejected with a visible error rather than silently ignored.
 
@@ -480,7 +480,7 @@ Inline or file-backed top-level workflow calls may set a positive safe-integer `
 { "maxSubagentSpawnsPerSession": 100 }
 ```
 
-Optionally caps the total number of child subagent launches during one parent session, including completed and failed children, parallel task counts, static chain steps, and bounded dynamic fanout children. Sessions are unlimited by default. Set this value to `0` to disable a configured cap. `PI_SUBAGENT_MAX_SPAWNS_PER_SESSION` overrides the config for a process and follows the same positive-cap/zero-unlimited semantics.
+Optionally caps the total number of child subagent launches during one parent session, including completed and failed children, parallel task counts, static chain steps, and bounded dynamic fanout children. Sessions are unlimited by default. Set this value to `0` to disable a configured cap. `EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_SESSION` overrides the config for a process and follows the same positive-cap/zero-unlimited semantics.
 
 `subagent({ action: "status" })`, fleet status, and `subagent({ action: "doctor" })` expose used, effective limit, remaining capacity, grants, and the remaining grant allowance for this budget. A user may explicitly call `subagent({ action: "grant-spawn-budget", options: { additional: 10 } })` from the root interactive parent after all children settle and confirm the native prompt. Grants are additive: they never erase cumulative usage, are rejected for unlimited sessions and child/headless callers, and total granted capacity cannot exceed the original configured cap. Compaction remains part of the same logical parent session and does not reset usage or grants; starting a new parent session does.
 
@@ -490,7 +490,7 @@ Optionally caps the total number of child subagent launches during one parent se
 { "maxSubagentSpawnsPerRun": 64 }
 ```
 
-Caps cumulative logical child admissions in one top-level run tree. The default is `64`. `PI_SUBAGENT_MAX_SPAWNS_PER_RUN` overrides the config when it is a positive integer. Invalid, zero, or missing values fall back to the configured positive value or `64`.
+Caps cumulative logical child admissions in one top-level run tree. The default is `64`. `EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_RUN` overrides the config when it is a positive integer. Invalid, zero, or missing values fall back to the configured positive value or `64`.
 
 Inline or file-backed top-level workflow calls may set a positive safe-integer `maxSubagentSpawnsPerRun`; it overrides the environment and config for that workflow. Inherited nested budgets remain authoritative, and the override is not forwarded to child calls.
 
@@ -514,7 +514,7 @@ When the runner is gone but process cleanup proof remains unknown, configure a b
 
 The default is `1200000` milliseconds (20 minutes). For a top-level run, the policy releases only a failed terminal run whose runner PID is dead and whose last activity is older than the threshold (workflow children follow the rule below). A live or unknown PID, a top-level run in a non-failed terminal state, a recent run, or missing activity timestamp retains the slot. Set the value to `false` to keep strict retention. Valid configured durations range from 5 minutes through 24 hours. Policy release is reported as `abandoned-timeout` with `processProof: unknown`; it is not observed process-terminal proof and may reclaim capacity while an orphan child still exists.
 
-A terminal workflow whose controller is gone uses the same policy when async children lack proof: the workflow must have ended longer ago than the threshold, and every async child without proof must be a terminal run (failed, stopped, complete, partial or rejected, but not paused) with a dead runner PID in this PID namespace and old activity. A stopped or completed child counts too, because a child whose launching Pi process is gone never gets observed proof however it ended. Any other child without proof keeps the slot. The release event lists those children and their states under `abandonedChildren`.
+A terminal workflow whose controller is gone uses the same policy when async children lack proof: the workflow must have ended longer ago than the threshold, and every async child without proof must be a terminal run (failed, stopped, complete, partial or rejected, but not paused) with a dead runner PID in this PID namespace and old activity. A stopped or completed child counts too, because a child whose launching evoharness process is gone never gets observed proof however it ended. Any other child without proof keeps the slot. The release event lists those children and their states under `abandonedChildren`.
 
 This limit bounds current top-level async load. It is separate from cumulative `maxSubagentSpawnsPerSession`, `maxSubagentSpawnsPerRun`, and `globalConcurrencyLimit`.
 
@@ -526,15 +526,15 @@ This limit bounds current top-level async load. It is separate from cumulative `
 { "scheduledRuns": { "enabled": false, "maxPending": 20 } }
 ```
 
-Durable schedules are enabled by default and stored per project under `.pi/subagents/schedules/<id>/`. See [missions.md](missions.md#schedules) for usage. Setting `enabled` to `false` also removes the schedule parameters (`name`, `at`, `every`, `sessionOnly`, `quiet`, `on`, `timezone`, `overlap`, `catchUp`) from the `subagent` tool and rejects `schedule.*` actions from every entry point. Saved schedules are kept and become manageable again when you re-enable schedules.
+Durable schedules are enabled by default and stored per project under `.evoharness/subagents/schedules/<id>/`. See [missions.md](missions.md#schedules) for usage. Setting `enabled` to `false` also removes the schedule parameters (`name`, `at`, `every`, `sessionOnly`, `quiet`, `on`, `timezone`, `overlap`, `catchUp`) from the `subagent` tool and rejects `schedule.*` actions from every entry point. Saved schedules are kept and become manageable again when you re-enable schedules.
 
 Set `storeRoot` to keep durable schedules outside project repositories. It must be an absolute path or a `~/` path, which expands from the user home directory. Each project is stored under a hash of its resolved working directory, so projects do not share schedules.
 
 ```json
-{ "scheduledRuns": { "storeRoot": "~/.local/share/pi-subagents/schedules" } }
+{ "scheduledRuns": { "storeRoot": "~/.local/share/subagents/schedules" } }
 ```
 
-When `storeRoot` is omitted, schedules remain at `<cwd>/.pi/subagents/schedules`.
+When `storeRoot` is omitted, schedules remain at `<cwd>/.evoharness/subagents/schedules`.
 
 ## `parallel`
 
@@ -552,7 +552,7 @@ When `storeRoot` is omitted, schedules remain at `<cwd>/.pi/subagents/schedules`
 ## `defaultSessionDir`
 
 ```json
-{ "defaultSessionDir": "~/.pi/agent/sessions/subagent/" }
+{ "defaultSessionDir": "~/.evoharness/agent/sessions/subagent/" }
 ```
 
 Session directory precedence is: `params.sessionDir`, then `config.defaultSessionDir`, then a directory derived from the parent session. Sessions are always enabled.
@@ -560,7 +560,7 @@ Session directory precedence is: `params.sessionDir`, then `config.defaultSessio
 ## `singleRunOutputBaseDir`
 
 ```json
-{ "singleRunOutputBaseDir": "~/.pi/subagent-outputs" }
+{ "singleRunOutputBaseDir": "~/.evoharness/subagent-outputs" }
 ```
 
 Routes relative `output` paths for single-agent `/run` calls under this directory. Absolute per-call or agent output paths are still used as-is. When unset, relative single-run outputs go under the run's output artifact directory instead of the project root.
@@ -571,17 +571,17 @@ Routes relative `output` paths for single-agent `/run` calls under this director
 { "maxSubagentDepth": 1 }
 ```
 
-Controls nested delegation when no stricter limit is inherited from the launching child's runtime config. The default is 2 when neither the runtime limit, `PI_SUBAGENT_MAX_DEPTH`, nor this setting supplies a limit. Per-agent `maxSubagentDepth` can tighten the limit for that agent's child runs, but cannot relax an inherited stricter limit. This applies even to children that explicitly declare `tools: subagent` or `allowNestedSubagents: true`; at the cap, execution fanout is blocked instead of silently hiding nested work.
+Controls nested delegation when no stricter limit is inherited from the launching child's runtime config. The default is 2 when neither the runtime limit, `EVOHARNESS_SUBAGENT_MAX_DEPTH`, nor this setting supplies a limit. Per-agent `maxSubagentDepth` can tighten the limit for that agent's child runs, but cannot relax an inherited stricter limit. This applies even to children that explicitly declare `tools: subagent` or `allowNestedSubagents: true`; at the cap, execution fanout is blocked instead of silently hiding nested work.
 
-## `PI_SUBAGENT_PI_BINARY`
+## `EVOHARNESS_SUBAGENT_HOST_BINARY`
 
 ```bash
-export PI_SUBAGENT_PI_BINARY=/path/to/pi-or-wrapper
+export EVOHARNESS_SUBAGENT_HOST_BINARY=/path/to/pi-or-wrapper
 ```
 
-Overrides the `pi` command pi-subagents spawns for project panes and the profile model probe. On a supported Bun-compiled Pi host it also selects the detached background host executable. That executable must accept Pi's bootstrap arguments and supply its compatible embedded SDK and adjacent release resources; bare Bun is not a substitute. Empty or whitespace-only values are ignored. Failed launches are not retried with another runtime.
+Overrides the `evoharness` command subagents spawns for project panes and the profile model probe. On a supported Bun-compiled evoharness host it also selects the detached background host executable. That executable must accept evoharness's bootstrap arguments and supply its compatible embedded SDK and adjacent release resources; bare Bun is not a substitute. Empty or whitespace-only values are ignored. Failed launches are not retried with another runtime.
 
-Foreground children remain sessions inside the parent. Npm background children retain their Node runner and host-package peer aliases; this variable does not turn npm Pi into a binary-backed runner. See [Standalone background execution](standalone-background.md) for the official tested target.
+Foreground children remain sessions inside the parent. Npm background children retain their Node runner and host-package peer aliases; this variable does not turn npm evoharness into a binary-backed runner. 
 
 ## `EVOHARNESS_PACKAGE_DIR`
 
@@ -589,17 +589,17 @@ Foreground children remain sessions inside the parent. Npm background children r
 export EVOHARNESS_PACKAGE_DIR=/path/to/pi-coding-agent-package
 ```
 
-Pi's own package/assets root. Npm background children receive the detected npm host root as `EVOHARNESS_PACKAGE_DIR`, which overrides an inherited bundled layout; Bun-compiled hosts pass the parent's value through so children keep their release assets.
+evoharness's own package/assets root. Npm background children receive the detected npm host root as `EVOHARNESS_PACKAGE_DIR`, which overrides an inherited bundled layout; Bun-compiled hosts pass the parent's value through so children keep their release assets.
 
-## `PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT`
+## `EVOHARNESS_SUBAGENTS_CODING_AGENT_PACKAGE_ROOT`
 
 ```bash
-export PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT=/path/to/pi-coding-agent-package
+export EVOHARNESS_SUBAGENTS_CODING_AGENT_PACKAGE_ROOT=/path/to/pi-coding-agent-package
 ```
 
-Overrides host-package discovery for spawned children. Foreground CLI resolution uses this root to locate the `pi` CLI script, and the detached background runner uses it for jiti host resolution and peer-package aliases, so both child kinds agree on one host. The value must be the root of a canonical `@earendil-works/pi-coding-agent` installation (the directory containing its `package.json`, with that package name); both child kinds still validate the package name and its peer packages from that install tree, so a package whose manifest carries a different name is rejected even with the override set. Empty or whitespace-only values are ignored.
+Overrides host-package discovery for spawned children. Foreground CLI resolution uses this root to locate the `evoharness` CLI script, and the detached background runner uses it for jiti host resolution and peer-package aliases, so both child kinds agree on one host. The value must be the root of a canonical `@evoharness/coding-agent` installation (the directory containing its `package.json`, with that package name); both child kinds still validate the package name and its peer packages from that install tree, so a package whose manifest carries a different name is rejected even with the override set. Empty or whitespace-only values are ignored.
 
-The default in-process child session loader consults the same discovery. Before falling back to a bare `@earendil-works/pi-coding-agent` import, it resolves the host package root (a verified Pi-owned JavaScript entry, then this override, then any other Pi-owned entry such as an extensionless `.bin/pi` symlink, then the embedding host's dependency, then pi-subagents' own install tree as a last fallback) and imports the host's entry file directly, so children share the host's single SDK instance instead of a second copy. For an embedding host, discovery walks ancestor `node_modules` directories from the host entry's canonical location to find its Pi dependency before using the extension's install tree. Roots whose `package.json` name is not `@earendil-works/pi-coding-agent` are rejected. When this override is selected, an unimportable root is reported instead of falling back to a bare import from a different tree, and foreground CLI resolution fails instead of falling back to another install or `pi` on `PATH`.
+The default in-process child session loader consults the same discovery. Before falling back to a bare `@evoharness/coding-agent` import, it resolves the host package root (a verified host-owned JavaScript entry, then this override, then any other host-owned entry such as an extensionless `.bin/evoharness` symlink, then the embedding host's dependency, then subagents' own install tree as a last fallback) and imports the host's entry file directly, so children share the host's single SDK instance instead of a second copy. For an embedding host, discovery walks ancestor `node_modules` directories from the host entry's canonical location to find its evoharness dependency before using the extension's install tree. Roots whose `package.json` name is not `@evoharness/coding-agent` are rejected. When this override is selected, an unimportable root is reported instead of falling back to a bare import from a different tree, and foreground CLI resolution fails instead of falling back to another install or `evoharness` on `PATH`.
 
 ## `intercomBridge`
 
@@ -618,32 +618,32 @@ Controls whether subagents receive runtime coordination instructions and whether
 Fields:
 
 - `mode`: default `always`; use `fork-only` to inject only for forked runs, or `off` to disable the bridge.
-- `instructionFile`: optional Markdown template replacing the default bridge instructions. `{orchestratorTarget}` is interpolated with the parent session target. Relative paths resolve from `~/.pi/agent/extensions/subagent/`. The default template does not name the session, because `contact_supervisor` resolves it from the child runtime config; a template that does name it ties `launchContractDigest` to the parent session, and launch-contract preflight then needs `orchestratorTarget` to match.
+- `instructionFile`: optional Markdown template replacing the default bridge instructions. `{orchestratorTarget}` is interpolated with the parent session target. Relative paths resolve from `~/.evoharness/agent/extensions/subagent/`. The default template does not name the session, because `contact_supervisor` resolves it from the child runtime config; a template that does name it ties `launchContractDigest` to the parent session, and launch-contract preflight then needs `orchestratorTarget` to match.
 - `resultDelivery`: default `false`; set `true` only when an external listener consumes `subagent:result-intercom` and acknowledges the grouped completion payload. This is optional external result delivery, not native supervisor messaging. Enabled delivery waits for acknowledgement and reports acknowledgement failures. It does not change supervisor asks or progress updates.
 
-Bridge activation requires a targetable current parent session id, which `pi-subagents` passes to children automatically. Native supervisor messaging does not require an external `pi-intercom` installation or per-agent extension allowlists: children use `contact_supervisor`, and parents use `subagent_supervisor` to inspect or reply. Agents can still use an external `intercom` tool when they explicitly request a provider that supplies it.
+Bridge activation requires a targetable current parent session id, which `subagents` passes to children automatically. Native supervisor messaging does not require an external `pi-intercom` installation or per-agent extension allowlists: children use `contact_supervisor`, and parents use `subagent_supervisor` to inspect or reply. Agents can still use an external `intercom` tool when they explicitly request a provider that supplies it.
 
 The default injected guidance tells children to use `contact_supervisor` with `reason: "need_decision"` when blocked or needing a decision, `reason: "progress_update"` only for meaningful blocked/progress updates, and avoid routine completion handoffs.
 
 ## `worktreeBaseDir`
 
 ```json
-{ "worktreeBaseDir": "/Users/matt/code/.worktrees/pi-subagents" }
+{ "worktreeBaseDir": "/Users/matt/code/.worktrees/subagents" }
 ```
 
-Sets the native dedicated root directory for `worktree: true` runs. Relative paths resolve from the repository root, `~/...` expands to your home directory, and `PI_SUBAGENTS_WORKTREE_DIR` is used when config is unset. When native allocation is used and both are unset, the dedicated root defaults to `{dirname(repoRoot)}/worktrees`, a `worktrees` directory alongside the repository checkout.
+Sets the native dedicated root directory for `worktree: true` runs. Relative paths resolve from the repository root, `~/...` expands to your home directory, and `EVOHARNESS_SUBAGENTS_WORKTREE_DIR` is used when config is unset. When native allocation is used and both are unset, the dedicated root defaults to `{dirname(repoRoot)}/worktrees`, a `worktrees` directory alongside the repository checkout.
 
-Each native worktree leaf is `{dedicatedRoot}/{projectName}/pi-worktree-{runId}-{index}`, where `{projectName}` is the repository directory name (`basename(repoRoot)`), `{runId}` identifies the run, and `{index}` counts the children within the run. `worktreeBaseDir` and `PI_SUBAGENTS_WORKTREE_DIR` override only the dedicated root; the `{projectName}/pi-worktree-{runId}-{index}` nesting under it always applies for native allocation. Unsafe locations are rejected instead of created: setup fails when the dedicated root sits inside the repository checkout or the Pi extensions directory, or when a worktree would land directly inside the repository parent.
+Each native worktree leaf is `{dedicatedRoot}/{projectName}/subagents-worktree-{runId}-{index}`, where `{projectName}` is the repository directory name (`basename(repoRoot)`), `{runId}` identifies the run, and `{index}` counts the children within the run. `worktreeBaseDir` and `EVOHARNESS_SUBAGENTS_WORKTREE_DIR` override only the dedicated root; the `{projectName}/subagents-worktree-{runId}-{index}` nesting under it always applies for native allocation. Unsafe locations are rejected instead of created: setup fails when the dedicated root sits inside the repository checkout or the evoharness extensions directory, or when a worktree would land directly inside the repository parent.
 
 ## `worktreeProvider`
 
 ```json
-{ "worktreeProvider": "auto", "worktreeBranchPrefix": "pi-subagents/" }
+{ "worktreeProvider": "auto", "worktreeBranchPrefix": "subagents/" }
 ```
 
-Selects the managed worktree allocator: `auto` (the default) uses Worktrunk when its machine-readable interface is available and otherwise falls back to Pi's native Git worktrees; `native` always uses Pi's Git implementation; and `worktrunk` fails closed when Worktrunk is unavailable or incompatible. On Windows, pi-subagents invokes Worktrunk through `git wt` to avoid Windows Terminal's conflicting `wt.exe` alias. A configured `worktreeBaseDir` (or `PI_SUBAGENTS_WORKTREE_DIR`) selects native allocation and cannot be combined with explicit `worktrunk`.
+Selects the managed worktree allocator: `auto` (the default) uses Worktrunk when its machine-readable interface is available and otherwise falls back to evoharness's native Git worktrees; `native` always uses evoharness's Git implementation; and `worktrunk` fails closed when Worktrunk is unavailable or incompatible. On Windows, subagents invokes Worktrunk through `git wt` to avoid Windows Terminal's conflicting `wt.exe` alias. A configured `worktreeBaseDir` (or `EVOHARNESS_SUBAGENTS_WORKTREE_DIR`) selects native allocation and cannot be combined with explicit `worktrunk`.
 
-`worktreeBranchPrefix` is normalized as a Git ref namespace and defaults to `pi-subagents/`. Branch names include readable task/lane identity plus run and fan-out indexes. Pi continues to own setup hooks, launch, handoff/diff evidence, resume, and cleanup; Worktrunk is used only to allocate and report the worktree path.
+`worktreeBranchPrefix` is normalized as a Git ref namespace and defaults to `subagents/`. Branch names include readable task/lane identity plus run and fan-out indexes. evoharness continues to own setup hooks, launch, handoff/diff evidence, resume, and cleanup; Worktrunk is used only to allocate and report the worktree path.
 
 Set `worktree` to `true` to make managed worktree isolation the default for launches that omit the per-call `worktree` flag. A per-call value still takes precedence.
 
@@ -684,8 +684,8 @@ stdin is a JSON object with `repoRoot`, `worktreePath`, `agentCwd`, `branch`, `i
 
 Automatic missions are enabled by default for ordinary launches with a task. Use per-launch `mission: false` for intentionally ephemeral work, or set `enabled: false` to disable automatic creation globally; explicit mission actions and `missionId`/`mission` launch fields still work.
 
-- Mission records default to a project-keyed directory under pi's agent directory (`~/.pi/agent/missions/projects/<project-hash>/`). This keeps the project worktree clean.
-- `directory` may be absolute, `~/...`, or project-relative. Set it to `.pi/subagents/missions` to opt in to project-scoped records.
+- Mission records default to a project-keyed directory under evoharness's agent directory (`~/.evoharness/agent/missions/projects/<project-hash>/`). This keeps the project worktree clean.
+- `directory` may be absolute, `~/...`, or project-relative. Set it to `.evoharness/subagents/missions` to opt in to project-scoped records.
 - `retainTerminal` is a positive count (default `200`); pruning removes only the oldest completed, failed, or cancelled records and their pointers, never planned, active, waiting, needs-decision, or corrupt records.
 - The user-global index contains pointers only; missing-record pointers self-heal when globally listed. Set `globalIndex: false` to disable writes or `globalIndexDir` to redirect it.
 
@@ -708,7 +708,7 @@ Automatic missions are enabled by default for ordinary launches with a task. Use
 
 Each fixed action resolves to `"auto"`, `"confirm"`, or `"forbid"`. This is intentionally a small action map, not a generic policy language. Confirm-required control actions fail closed without an interactive UI.
 
-`inspectorOpen` and `projectOpen` cover the `inspector.open` and `project.open` tool actions, which launch an external inspector host or a Herdr project pane. `inspector.open` only reaches a plugin that reports itself available, so it defaults to `"auto"`; `project.open` runs `herdr` (or `HERDR_BIN`) with no such check and opens a pane that hosts its own Pi session, so it defaults to `"confirm"`. Set `"projectOpen": "auto"` to restore the previous unprompted behavior. The policy applies to the tool actions; opening an inspector from the fleet TUI is already an explicit operator keypress and is unaffected.
+`inspectorOpen` and `projectOpen` cover the `inspector.open` and `project.open` tool actions, which launch an external inspector host or a Herdr project pane. `inspector.open` only reaches a plugin that reports itself available, so it defaults to `"auto"`; `project.open` runs `herdr` (or `HERDR_BIN`) with no such check and opens a pane that hosts its own evoharness session, so it defaults to `"confirm"`. Set `"projectOpen": "auto"` to restore the previous unprompted behavior. The policy applies to the tool actions; opening an inspector from the fleet TUI is already an explicit operator keypress and is unaffected.
 
 ## `artifactDir`
 
@@ -718,15 +718,15 @@ Each fixed action resolves to `"auto"`, `"confirm"`, or `"forbid"`. This is inte
 
 Controls where subagent artifact files (inputs, outputs, transcripts, metadata) are stored:
 
-- `"project"`: writes to `<cwd>/.pi/subagents/artifacts/`.
-- `"session"` (default): stores artifacts under pi's session directory (`~/.pi/agent/sessions/<session>/subagent-artifacts/`), keeping the working directory clean. It falls back to the OS temp directory when no session file exists.
+- `"project"`: writes to `<cwd>/.evoharness/subagents/artifacts/`.
+- `"session"` (default): stores artifacts under evoharness's session directory (`~/.evoharness/agent/sessions/<session>/subagent-artifacts/`), keeping the working directory clean. It falls back to the OS temp directory when no session file exists.
 - `"temp"`: uses the OS temp directory.
 
-This preference also controls the default workflow artifact directory used by scripted chaining. `"project"` uses `<cwd>/.pi/subagents/chain-runs/`; the directory keeps its legacy name for compatibility. The default `"session"` and `"temp"` use the user-scoped temp workflow artifact directory.
+This preference also controls the default workflow artifact directory used by scripted chaining. `"project"` uses `<cwd>/.evoharness/subagents/chain-runs/`; the directory keeps its legacy name for compatibility. The default `"session"` and `"temp"` use the user-scoped temp workflow artifact directory.
 
 The `"session"` option uses the same directory that `cleanupAllArtifactDirs` already scans for age-based cleanup, so artifacts are still cleaned up automatically. Temporary workflow artifact directories are cleaned up separately after 24 hours.
 
-When a project-scoped launch runs from an npm package directory, pi-subagents warns if package settings can include `.pi/subagents/` in the published package. Add `.pi/subagents/` to `.npmignore` (or `.gitignore` when no `.npmignore` exists), use a `files` allowlist that does not include `.pi/subagents/`, or select `"session"` or `"temp"`.
+When a project-scoped launch runs from an npm package directory, subagents warns if package settings can include `.evoharness/subagents/` in the published package. Add `.evoharness/subagents/` to `.npmignore` (or `.gitignore` when no `.npmignore` exists), use a `files` allowlist that does not include `.evoharness/subagents/`, or select `"session"` or `"temp"`.
 
 ## `completionBatch`
 
@@ -754,32 +754,32 @@ Controls smart batching of async-completion notifications. When several backgrou
 
 Native child tool permission rules. See [watchdog.md](watchdog.md#native-child-tool-permissions).
 
-## `PI_SUBAGENT_CACHE_RETENTION`
+## `EVOHARNESS_SUBAGENT_CACHE_RETENTION`
 
-Sets the prompt-cache retention tier for child sessions, overriding `EVOHARNESS_CACHE_RETENTION` for children only. Environment-only; there is no config key. Accepts the same values Pi accepts, normally `short` or `long`.
+Sets the prompt-cache retention tier for child sessions, overriding `EVOHARNESS_CACHE_RETENTION` for children only. Environment-only; there is no config key. Accepts the same values evoharness accepts, normally `short` or `long`.
 
 Anthropic prices a cache write by the retention it is asked for: the 1h tier costs more per write than the 5m one. A parent that keeps a long-lived conversation earns that back by surviving idle gaps, but children are short-lived and rarely idle long enough to claim the longer window, so on a wide fanout the higher write price is paid without the benefit:
 
 ```text
-EVOHARNESS_CACHE_RETENTION=long PI_SUBAGENT_CACHE_RETENTION=short
+EVOHARNESS_CACHE_RETENTION=long EVOHARNESS_SUBAGENT_CACHE_RETENTION=short
 ```
 
 Unset by default, so children inherit the parent's retention and behaviour is unchanged unless you opt in. Both spawned children (through the launch environment) and in-process children (through the session's own stream function) honour it; the in-process path scopes the value per session rather than mutating `process.env`, so a child cannot change retention for a parent turn streaming at the same time.
 
 Provider-reported `cacheWrite1h` usage confirms which tier a request used: it matches `cacheWrite` on the 1h tier and is `0` on the short one.
 
-## `PI_SUBAGENT_FS_RETRY_MAX_TOTAL_MS`
+## `EVOHARNESS_SUBAGENT_FS_RETRY_MAX_TOTAL_MS`
 
 Caps the total time a single retried filesystem operation may sleep, in milliseconds. Environment-only; there is no config key.
 
 Atomic status and result writes retry on `EACCES`, `EBUSY`, and `EPERM`, which on Windows are usually a scanner or a sibling process holding the destination of a rename for a moment. The retry ladder sleeps up to about 7.9s in total, and it sleeps *synchronously* — `Atomics.wait` parks the calling thread rather than spinning.
 
-That is the right trade-off for a CLI. It is the wrong one for a long-lived process that loads `pi-subagents` in-process and runs those writers on its event loop: one contended rename stalls everything it serves for the length of the ladder, and because the thread is parked rather than busy, it presents as an unresponsive process sitting at 0% CPU. A wide fanout makes contention on a single `status.json` likely.
+That is the right trade-off for a CLI. It is the wrong one for a long-lived process that loads `subagents` in-process and runs those writers on its event loop: one contended rename stalls everything it serves for the length of the ladder, and because the thread is parked rather than busy, it presents as an unresponsive process sitting at 0% CPU. A wide fanout makes contention on a single `status.json` likely.
 
 Set this to bound that stall. The ladder keeps its number of attempts and only the sleeps shrink, because `run-fanout-budget` and mission state locking use the ladder's length as their attempt budget:
 
 ```text
-PI_SUBAGENT_FS_RETRY_MAX_TOTAL_MS=1000
+EVOHARNESS_SUBAGENT_FS_RETRY_MAX_TOTAL_MS=1000
 ```
 
 Unset by default, so behaviour is unchanged unless you opt in. Opting in trades lock-wait tolerance for responsiveness: entries clamped to `0` return immediately, so contention that would previously have been waited out surfaces as an error sooner. Values that are not a non-negative integer fail instead of being coerced.

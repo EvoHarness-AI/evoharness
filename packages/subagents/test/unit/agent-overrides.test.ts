@@ -16,7 +16,7 @@ let tempProject = "";
 const originalHome = process.env.HOME;
 const originalUserProfile = process.env.USERPROFILE;
 const originalPiCodingAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
-const originalExtraAgentDirs = process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
+const originalExtraAgentDirs = process.env.EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS;
 
 function writeJson(filePath: string, value: unknown): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -37,12 +37,12 @@ function writeUserAgent(home: string, name: string, body: string): void {
 
 describe("builtin agent overrides", () => {
 	beforeEach(() => {
-		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-home-"));
-		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-project-"));
+		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-home-"));
+		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-project-"));
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
 		delete process.env.EVOHARNESS_CODING_AGENT_DIR;
-		delete process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
+		delete process.env.EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS;
 	});
 
 	afterEach(() => {
@@ -52,8 +52,8 @@ describe("builtin agent overrides", () => {
 		else process.env.USERPROFILE = originalUserProfile;
 		if (originalPiCodingAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 		else process.env.EVOHARNESS_CODING_AGENT_DIR = originalPiCodingAgentDir;
-		if (originalExtraAgentDirs === undefined) delete process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
-		else process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS = originalExtraAgentDirs;
+		if (originalExtraAgentDirs === undefined) delete process.env.EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS;
+		else process.env.EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS = originalExtraAgentDirs;
 		fs.rmSync(tempHome, { recursive: true, force: true });
 		fs.rmSync(tempProject, { recursive: true, force: true });
 	});
@@ -217,7 +217,7 @@ describe("builtin agent overrides", () => {
 		);
 	});
 
-	it("lets a builtin agent inherit Pi's normal tools from an override", () => {
+	it("lets a builtin agent inherit evoharness's normal tools from an override", () => {
 		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
@@ -1333,7 +1333,7 @@ describe("builtin agent overrides", () => {
 	it("applies output and defaultReads overrides to bundled and package agents and supports false clears", () => {
 		const packageRoot = path.join(tempProject, "package-agents");
 		fs.mkdirSync(path.join(packageRoot, "agents"), { recursive: true });
-		writeJson(path.join(packageRoot, "package.json"), { "pi-subagents": { agents: ["agents"] } });
+		writeJson(path.join(packageRoot, "package.json"), { subagents: { agents: ["agents"] } });
 		fs.writeFileSync(
 			path.join(packageRoot, "agents", "package-scout.md"),
 			`---\nname: package-scout\ndescription: Package scout\noutput: package-frontmatter.md\ndefaultReads: PACKAGE-FRONTMATTER.md\n---\n\nScout the package.\n`,

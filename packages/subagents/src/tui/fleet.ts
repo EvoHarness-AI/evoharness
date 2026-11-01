@@ -1820,7 +1820,7 @@ export async function openSubagentFleet(
 			const module = await import("@evoharness/coding-agent");
 			const copyToClipboard = (module as { copyToClipboard?: (value: string) => Promise<void> | void })
 				.copyToClipboard;
-			if (!copyToClipboard) throw new Error("Clipboard is unavailable in this Pi version.");
+			if (!copyToClipboard) throw new Error("Clipboard is unavailable in this evoharness version.");
 			await copyToClipboard(text);
 		});
 	const actions =

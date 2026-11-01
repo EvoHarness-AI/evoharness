@@ -597,7 +597,7 @@ describe("async status projection", () => {
 					steps: [
 						{ agent: "worker", status: "running", model: "openai-codex/gpt-6.1-sol:medium", thinking: "medium" },
 						{ agent: "scout", status: "pending" },
-						{ agent: "planner", status: "running", model: "pi-claude-cli/claude-haiku-4-5:low" },
+						{ agent: "planner", status: "running", model: "subagents-claude-cli/claude-haiku-4-5:low" },
 					],
 				}),
 				materializedWorkflow,
@@ -615,7 +615,7 @@ describe("async status projection", () => {
 			[
 				{ model: "openai-codex/gpt-6.1-sol", thinking: "medium" },
 				{ model: undefined, thinking: undefined },
-				{ model: "pi-claude-cli/claude-haiku-4-5", thinking: "low" },
+				{ model: "subagents-claude-cli/claude-haiku-4-5", thinking: "low" },
 			],
 		);
 		const lane = snapshot.runs.find((run) => run.id === "wf-1")?.children?.find((child) => child.id === "rev-r");

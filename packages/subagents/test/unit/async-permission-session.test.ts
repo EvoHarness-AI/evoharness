@@ -24,7 +24,7 @@ describe("async permission forwarding session identity", () => {
 			chain: [{ agent: "worker", task: "Do work" }],
 			agents: [makeAgent("worker")],
 			ctx: {
-				pi: {} as never,
+				evoharness: {} as never,
 				cwd: "/tmp/project",
 				currentSessionId,
 				parentSessionId: "session-abc123",
@@ -58,7 +58,7 @@ describe("async permission forwarding session identity", () => {
 				{ ...makeAgent("worker"), model: "anthropic/claude-sonnet-4-5:high", thinking: "high" },
 			],
 			ctx: {
-				pi: {} as never,
+				evoharness: {} as never,
 				cwd: "/tmp/project",
 				currentSessionId: "/tmp/parent-session.jsonl",
 			},
@@ -90,7 +90,7 @@ describe("async permission forwarding session identity", () => {
 			chain: [{ agent: "worker", task: "Do work" }],
 			agents: [{ ...makeAgent("worker"), model: "openai/gpt-5-mini:high", thinking: "high" }],
 			ctx: {
-				pi: {} as never,
+				evoharness: {} as never,
 				cwd: "/tmp/project",
 				currentSessionId: "/tmp/parent-session.jsonl",
 			},

@@ -62,7 +62,7 @@ export interface SubagentDelegationUpdateUsage {
 	turns: number;
 }
 
-/** Observed assistant-request errors and Pi retries, not provider-internal HTTP attempts. */
+/** Observed assistant-request errors and evoharness retries, not provider-internal HTTP attempts. */
 export interface SubagentDelegationProviderDiagnostics {
 	errorCount: number;
 	lastError?: {
@@ -76,7 +76,7 @@ export interface SubagentDelegationProviderDiagnostics {
 		attempt: number;
 		maxAttempts: number;
 		delayMs: number;
-		/** Observation time of auto_retry_start; delayMs is Pi's planned delay. */
+		/** Observation time of auto_retry_start; delayMs is evoharness's planned delay. */
 		scheduledAt: number;
 	};
 }

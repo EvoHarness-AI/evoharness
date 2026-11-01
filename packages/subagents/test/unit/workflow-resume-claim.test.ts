@@ -18,7 +18,7 @@ import { claimedWorkflowRunRefusal } from "../../src/workflows/workflow-reuse.ts
 
 describe("workflow resume claim", () => {
 	const withRun = (body: (asyncDir: string, files: () => string[]) => void) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-resume-claim-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-resume-claim-"));
 		const asyncDir = path.join(root, "source");
 		fs.mkdirSync(asyncDir);
 		try {

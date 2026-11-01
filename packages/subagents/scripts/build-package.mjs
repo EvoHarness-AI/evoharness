@@ -7,7 +7,6 @@ import { build } from "esbuild";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const output = path.join(root, "dist-pkg");
 const expectedRootModules = [
-	"install.mjs",
 	"runner-peer-preload.mjs",
 	"runner-peer-loader.mjs",
 	"inspector-runner.mjs",
@@ -112,8 +111,8 @@ publishedPackage.exports = Object.fromEntries(bundleEntries.map(({ name, target,
 	if (!fs.existsSync(path.join(output, "bundle", `${out}.js`))) throw new Error(`Missing bundled package export: ./bundle/${out}.js`);
 	return [name, { types: `${base}.d.ts`, default: `./bundle/${out}.js` }];
 }));
-publishedPackage.pi = {
-	...sourcePackage.pi,
+publishedPackage.evoharness = {
+	...sourcePackage.evoharness,
 	extensions: ["./bundle/index.js"],
 };
 fs.writeFileSync(path.join(output, "package.json"), `${JSON.stringify(publishedPackage, null, 2)}\n`);

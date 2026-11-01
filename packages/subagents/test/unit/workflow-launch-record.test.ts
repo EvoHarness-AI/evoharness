@@ -7,7 +7,7 @@ import { readWorkflowLaunchRecord } from "../../src/workflows/workflow-launch-re
 
 describe("workflow launch record", () => {
 	it("reports a missing or invalid record", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-launch-record-invalid-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-launch-record-invalid-"));
 		try {
 			assert.deepEqual(readWorkflowLaunchRecord(root), {
 				ok: false,

@@ -6,7 +6,7 @@ import { CustomMessageComponent, initTheme } from "@evoharness/coding-agent";
 import { visibleWidth } from "@evoharness/tui";
 import { renderSubagentEntry, renderSubagentMessage } from "../../src/tui/subagent-messages.ts";
 
-// Markdown bodies read Pi's markdown theme, which Pi initializes at startup.
+// Markdown bodies read evoharness's markdown theme, which evoharness initializes at startup.
 initTheme("dark");
 
 const plainTheme = {
@@ -29,7 +29,7 @@ function renderMessage(
 	options: { content?: string; expanded?: boolean; width?: number; theme?: TestTheme } = {},
 ): string[] {
 	const message = { customType, content: options.content ?? "", details };
-	// SAFETY: the renderer reads only fg, bg, and bold from Pi's theme.
+	// SAFETY: the renderer reads only fg, bg, and bold from evoharness's theme.
 	const component = renderSubagentMessage(
 		message,
 		{ expanded: options.expanded ?? false },
@@ -44,7 +44,7 @@ function renderEntry(
 	data: unknown,
 	options: { expanded?: boolean; width?: number; theme?: TestTheme } = {},
 ): string[] {
-	// SAFETY: the renderer reads only fg, bg, and bold from Pi's theme.
+	// SAFETY: the renderer reads only fg, bg, and bold from evoharness's theme.
 	const component = renderSubagentEntry(
 		{ customType, data },
 		{ expanded: options.expanded ?? false },
@@ -75,7 +75,7 @@ function tonedHeadline(customType: string, details: unknown, content = ""): stri
 	return tokenLine(renderMessage(customType, details, { content, theme: tokenTheme, width: 400 })[1])?.headline;
 }
 
-// keyText resolves Pi's expand key through the tui copy that coding-agent loads.
+// keyText resolves evoharness's expand key through the tui copy that coding-agent loads.
 async function bindExpandKey(t: TestContext, keys: string): Promise<void> {
 	const agentEntry = fileURLToPath(import.meta.resolve("@evoharness/coding-agent"));
 	// SAFETY: this path is tui's package entry, resolved from where coding-agent loads it.
@@ -549,7 +549,7 @@ describe("subagent messages in the main chat", () => {
 		]);
 	});
 
-	it("names Pi's expand key in the hint, or a click when no key is bound", async (t) => {
+	it("names evoharness's expand key in the hint, or a click when no key is bound", async (t) => {
 		const collapsed = () =>
 			visibleLines(renderMessage("subagent_supervisor_request", { ...request, reason: "need_decision" }));
 		assert.deepEqual(collapsed(), [" [subagent] worker needs a decision (click to expand)"]);
@@ -605,7 +605,7 @@ describe("subagent messages in the main chat", () => {
 		assert.ok(visibleWidth(lines[0]!) <= 24);
 	});
 
-	it("draws Pi's custom-message block and tones only the status word", () => {
+	it("draws evoharness's custom-message block and tones only the status word", () => {
 		const lines = renderMessage(
 			"subagent_supervisor_request",
 			{ ...request, reason: "need_decision" },
@@ -644,7 +644,7 @@ describe("subagent messages in the main chat", () => {
 		assert.match(expandedText, /Run \[U\+001B\]\]0;pwned\[U\+0007\]this/);
 	});
 
-	it("toggles one block on a click, and Pi's expand key discards earlier clicks", () => {
+	it("toggles one block on a click, and evoharness's expand key discards earlier clicks", () => {
 		const message = {
 			customType: "subagent_supervisor_request",
 			content: "Should I continue?",
@@ -652,7 +652,7 @@ describe("subagent messages in the main chat", () => {
 		};
 		const otherMessage = { ...message };
 		const render = (target: typeof message, expandedByPi: boolean) => {
-			// SAFETY: the renderer reads only fg, bg, and bold from Pi's theme.
+			// SAFETY: the renderer reads only fg, bg, and bold from evoharness's theme.
 			const component = renderSubagentMessage(target, { expanded: expandedByPi }, plainTheme as never);
 			assert.ok(component);
 			return component;
@@ -687,7 +687,7 @@ describe("subagent messages in the main chat", () => {
 		assert.deepEqual(visibleLines(render(message, false).render(100)), collapsed);
 	});
 
-	it("opens and closes inside Pi's own message component, by Pi's expand toggle or a click", () => {
+	it("opens and closes inside evoharness's own message component, by evoharness's expand toggle or a click", () => {
 		const message = {
 			role: "custom" as const,
 			customType: "subagent_supervisor_request",

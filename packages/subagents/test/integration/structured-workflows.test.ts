@@ -1,4 +1,4 @@
-/** chain/tasks through executePublic with disabledFeatures "workflow-scripts", using the mock pi child launcher. */
+/** chain/tasks through executePublic with disabledFeatures "workflow-scripts", using the mock evoharness child launcher. */
 
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
@@ -24,7 +24,7 @@ function text(result: { content: Array<{ type: string; text?: string }> }): stri
 
 describe(
 	"structured chain/tasks workflows",
-	{ skip: !available || !createSubagentExecutor ? "pi packages not available" : undefined },
+	{ skip: !available || !createSubagentExecutor ? "evoharness packages not available" : undefined },
 	() => {
 		installSingleExecutionHooks();
 

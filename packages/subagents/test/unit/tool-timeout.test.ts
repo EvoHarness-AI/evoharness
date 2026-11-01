@@ -113,9 +113,9 @@ describe("tool timeout formatting and keys", () => {
 });
 
 describe("toolTimeoutFromEnv", () => {
-	it("reads PI_SUBAGENT_TOOL_TIMEOUT_MS from the process env", () => {
-		assert.equal(TOOL_TIMEOUT_ENV, "PI_SUBAGENT_TOOL_TIMEOUT_MS");
-		assert.equal(toolTimeoutFromEnv({ PI_SUBAGENT_TOOL_TIMEOUT_MS: "123" }), "123");
+	it("reads EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS from the process env", () => {
+		assert.equal(TOOL_TIMEOUT_ENV, "EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS");
+		assert.equal(toolTimeoutFromEnv({ EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS: "123" }), "123");
 		assert.equal(toolTimeoutFromEnv({}), undefined);
 	});
 });

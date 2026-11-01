@@ -22,7 +22,7 @@ export const SUBAGENT_SAFETY_GUIDANCE = `SAFETY-CRITICAL SUBAGENT GUIDANCE:
 - Delegate only when the operator asked, directly or through applicable user/project instructions; size, complexity or risk alone is not authorization.
 - Native async completion wakes this session: return control; do not sleep, poll or call bg_wait for it.
 - One writer per cwd/worktree; isolate concurrent writers.
-- After a launch or runtime failure, stop and report it; never silently switch to interactive_shell, pi -ne or another CLI.`;
+- After a launch or runtime failure, stop and report it; never silently switch to interactive_shell, evoharness -ne or another CLI.`;
 
 const scriptCalls =
 	'One child: {agent,task}. Independent parallel children: {workflow:"parallel",args:{tasks:[{agent,task,cwd?,model?},...]}}. Dependent multi-step work: exactly one top-level subagent workflow call with async:true; write one ```js workflow block in this reply, then call subagent({workflow:true}); children launch only inside it.';
@@ -69,8 +69,8 @@ ${on("workflow-scripts", scriptDetails)}• ${on("workflow-scripts", "Workflow c
 • External CLI agents need an installed, authenticated CLI; preflight at launch decides, and passive PATH/PATHEXT/X_OK is not authentication/version/launch proof. They support native options only when their runner declares them: model, structured output, acceptance/agentContract, ${on("tool-budgets", "tool budget, ")}fast, fork context or skills/tools.
 • Model override: copy exact provider/id, not agent names. Thinking uses model suffix${on("watchdog", ", not watchdog-only thinking")}.
 • Missions auto-attach${on("missions", " unless options.mission:false")}; ${on("workflow-scripts", "await state.get(key)/state.set(key,JSONValue) requires a mission. ")}See guide topic missions. Omit acceptance for reviewer/read-only calls; acceptance.review.required requests independent writer review.
-• Inspect asyncId/asyncDir (status.json, events.jsonl, logs) with status/debug.run; control with interrupt/stop/resume/steer. For local Pi children explicitly granted subagent_command, command.status/yield/cancel targets one exact toolCallId without interrupting the child.
-• After a failure, report the exact failure, run/status and repo/cwd/worktree/branch/ref, and verify a clean worktree or capture the partial diff before a same-protocol retry. Governed-workflow fallback to foreground/CLI needs explicit owner approval, not Pi core's generic pi -ne hint.
+• Inspect asyncId/asyncDir (status.json, events.jsonl, logs) with status/debug.run; control with interrupt/stop/resume/steer. For local evoharness children explicitly granted subagent_command, command.status/yield/cancel targets one exact toolCallId without interrupting the child.
+• After a failure, report the exact failure, run/status and repo/cwd/worktree/branch/ref, and verify a clean worktree or capture the partial diff before a same-protocol retry. Governed-workflow fallback to foreground/CLI needs explicit owner approval, not evoharness core's generic evoharness -ne hint.
 • Management discovery: ${managementDiscovery(on)}. Use guide topics agents, ${on("missions", "missions, ")}observability, tool-reference, configuration, models${on("watchdog", ", watchdog")} or extension-api for exact action fields.${on("schedules", on("workflow-scripts", " Schedules take script inputs, not direct children; recipes live in the missions guide."))}`;
 
 const fullDescription = (on: FeatureText) => `${essentials(on)}\n\n${fullDetails(on)}`;
@@ -93,7 +93,7 @@ function isToolDescriptionMode(value: unknown): value is ToolDescriptionMode {
 }
 
 function warn(options: ToolDescriptionOptions | undefined, message: string): void {
-	(options?.warn ?? console.warn)(`[pi-subagents] ${message}`);
+	(options?.warn ?? console.warn)(`[subagents] ${message}`);
 }
 
 export interface ToolDescriptionOptions {

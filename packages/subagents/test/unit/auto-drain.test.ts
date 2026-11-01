@@ -36,7 +36,7 @@ function waitResult(text: string, isError = false, windowElapsed = false) {
 
 describe("headless background-work auto-drain", () => {
 	it("discovers both owned storage scopes, forwards them to wait, and leaves sibling work alone", async (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-drain-scopes-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-drain-scopes-"));
 		const nestedRootRunId = randomUUID();
 		const nested = nestedRunScope(nestedRootRunId);
 		const ordinary = { asyncDirRoot: path.join(root, "runs"), resultsDir: path.join(root, "results") };
@@ -207,7 +207,7 @@ describe("headless background-work auto-drain", () => {
 		assert.equal(waits, 1);
 	});
 
-	it("yields to Pi for a pending supervisor turn and resumes draining the same work after resolution", async () => {
+	it("yields to evoharness for a pending supervisor turn and resumes draining the same work after resolution", async () => {
 		let pending = true;
 		let active = true;
 		let waits = 0;

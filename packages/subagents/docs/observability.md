@@ -6,17 +6,17 @@ Where running subagents show up, how to inspect them, and the files and events t
 
 Foreground runs stream progress in the conversation while they run. They default to a generous 30-minute wall-clock timeout when neither the call nor the selected agent provides a timeout; a global [`timeoutMs`](configuration.md#timeoutms) config replaces that default, and explicit `timeoutMs`/`maxRuntimeMs` and agent defaults win.
 
-A foreground child is a pi session created inside the parent Pi process, not a second `pi` process. A run timeout, tool timeout, interrupt, or stop aborts the child session and disposes it. Detach keeps the session running inside the parent and publishes the same receipt and completion notification as before.
+A foreground child is a evoharness session created inside the parent evoharness process, not a second `evoharness` process. A run timeout, tool timeout, interrupt, or stop aborts the child session and disposes it. Detach keeps the session running inside the parent and publishes the same receipt and completion notification as before.
 
-A background child is a pi session created inside the detached runner process. The runner mirrors session events into `events.jsonl`, `output-<index>.log`, and the transcript. Interrupt and stop abort the child session; steer requests are delivered with the session's `steer` or `followUp`.
+A background child is a evoharness session created inside the detached runner process. The runner mirrors session events into `events.jsonl`, `output-<index>.log`, and the transcript. Interrupt and stop abort the child session; steer requests are delivered with the session's `steer` or `followUp`.
 
 Pressing `Esc` in the parent stops the parent turn and its foreground children. Background children keep running. Until the next parent turn starts, usually your next prompt, their results and requests are added to the session but do not start a new parent turn, and the TUI shows how many background runs are still active. Use `/subagents-stop` to stop them.
 
-Long-open `bash` attention notices identify the exact tool call and include status and child-specific transcript commands. Each distinct long-open call notifies once. Inspect the running command and recent output before intervening: development servers and watch commands may intentionally never return, while builds and tests may legitimately take time. A queued steer does not cancel the shell command. For local native Pi children explicitly granted `subagent_command`, `command.yield` returns control while the selected command remains managed; `command.cancel` stops that command without interrupting the child. Query `command.status` to confirm its terminal state. Unsupported children require the existing run-scoped interrupt/resume path, which may affect siblings. See [command controls](tool-reference.md#command-controls).
+Long-open `bash` attention notices identify the exact tool call and include status and child-specific transcript commands. Each distinct long-open call notifies once. Inspect the running command and recent output before intervening: development servers and watch commands may intentionally never return, while builds and tests may legitimately take time. A queued steer does not cancel the shell command. For local native evoharness children explicitly granted `subagent_command`, `command.yield` returns control while the selected command remains managed; `command.cancel` stops that command without interrupting the child. Query `command.status` to confirm its terminal state. Unsupported children require the existing run-scoped interrupt/resume path, which may affect siblings. See [command controls](tool-reference.md#command-controls).
 
 Live progress shows compact detail for single, chain, and parallel modes: a bounded one-line task, current tool, recent output, token counts, aggregate cost, duration, activity freshness, current-tool duration, and chain graph metadata when available. Workflow `label` metadata wins over raw task text in compact multi-child cards.
 
-Press Pi's configured expand key (`Ctrl+O` by default) to expand the full streaming view with complete output per step.
+Press evoharness's configured expand key (`Ctrl+O` by default) to expand the full streaming view with complete output per step.
 
 Sequential chains show a flow line like `done scout → running worker`. Chains with parallel steps show per-step cards instead. Chain status uses `label` and `phase` metadata when present, while falling back to agent names for older chains.
 
@@ -37,9 +37,9 @@ In a terminal that supports [OSC 7501](https://www.superlogical.com/rex/docs/bui
 
 Run `/subagent-cost` for the parent session's combined parent and child token usage and cost. It includes completed async workflow children when their persisted receipts and metadata remain available. Missing child metadata is reported as unavailable when the receipt identifies that child. If the workflow receipt itself is missing, unreadable, invalid, or non-terminal, affected children can be omitted from the total without an unavailable count, so treat the result as a lower bound when run artifacts are unavailable.
 
-Pi's built-in session totals do not automatically include child usage delivered only by an async completion notification. Those notifications are custom messages, and Pi's public custom-message API does not carry accounted usage. `/subagent-cost` is therefore the supported accounting view for async child usage; do not infer child totals from Pi's footer or `/session` alone. Other extensions can read the same report as data through the in-process RPC `cost` method (see [extension-api.md](extension-api.md#in-process-event-bus-rpc)) instead of scraping the slash output.
+evoharness's built-in session totals do not automatically include child usage delivered only by an async completion notification. Those notifications are custom messages, and evoharness's public custom-message API does not carry accounted usage. `/subagent-cost` is therefore the supported accounting view for async child usage; do not infer child totals from evoharness's footer or `/session` alone. Other extensions can read the same report as data through the in-process RPC `cost` method (see [extension-api.md](extension-api.md#in-process-event-bus-rpc)) instead of scraping the slash output.
 
-The under-editor async widget gives a short view while work runs. Its expand key follows your Pi keybinding:
+The under-editor async widget gives a short view while work runs. Its expand key follows your evoharness keybinding:
 
 ```text
 async subagent worker · background
@@ -52,24 +52,24 @@ async subagent worker · background
 
 To inspect one background child in text, use `subagent({ action: "status", id: "...", options: { view: "transcript" } })`; add `index` for a specific child in a parallel or chain run.
 
-In Pi fullscreen mode with mouse dispatch, left-click
+In evoharness fullscreen mode with mouse dispatch, left-click
 anywhere on the async widget's header row to fold it into a live one-line status
 summary. Click again to restore the usual layout. No knowledge of extension commands
 or keyboard shortcuts is needed. The summary counts the widget's tracked runs,
 including workflow parents and children, rather than unique agents.
 
-Folding stays in effect across progress updates and does not change Pi's global
+Folding stays in effect across progress updates and does not change evoharness's global
 expand setting, run execution, or completion notifications. Set
 `asyncWidgetCollapsed: true` in the extension configuration to start each newly
 mounted widget folded. Task rows, drag and wheel events, and modifier clicks are left
-unhandled. The state resets when the widget is removed or Pi reloads. Regular mode
+unhandled. The state resets when the widget is removed or evoharness reloads. Regular mode
 keeps the existing keyboard controls.
 
 ### Reducing status display noise
 
 Chat records tool-call history; FleetView and the async widget show live run/child updates. Separate `subagent({ action: "status", id: "..." })` calls leave separate historical entries even when their `Status target: run …` labels match. A matching run ID identifies the queried run, not the tool call, and is not evidence of duplicate execution. Live Fleet/widget refreshes do not merge those entries.
 
-For compact chat results with FleetView as the only live editor surface, merge these top-level keys into `~/.pi/agent/extensions/subagent/config.json` (not Pi's `settings.json` or a `subagents` object), then restart Pi:
+For compact chat results with FleetView as the only live editor surface, merge these top-level keys into `~/.evoharness/agent/extensions/subagent/config.json` (not evoharness's `settings.json` or a `subagents` object), then restart evoharness:
 
 ```json
 {
@@ -80,12 +80,11 @@ For compact chat results with FleetView as the only live editor surface, merge t
 ```
 
 - `inlineToolDisplay: "summary"` keeps one static result row per call, alongside its call heading. A completed status query is not proof that the queried child has finished.
-- `fleetView: true` retains live progress. Open `/subagents-fleet` for details instead of repeatedly requesting status just to watch progress. Pi's expand key does not expand summary results; keep `"rich"` if you want expandable inline output.
+- `fleetView: true` retains live progress. Open `/subagents-fleet` for details instead of repeatedly requesting status just to watch progress. evoharness's expand key does not expand summary results; keep `"rich"` if you want expandable inline output.
 - `asyncWidget: false` hides only the additional under-editor async widget, leaving FleetView available. This configuration reduces visible surfaces; it does not guarantee ordering relative to other extensions.
 - `asyncWidgetCollapsed: true` starts each newly mounted async widget as a one-line live status summary; click its header to expand it.
-- `asyncWidgetLayout: "rows"` shows each run in the async widget as one line under a header instead of a block of detail rows; Pi's expand key still shows the details.
+- `asyncWidgetLayout: "rows"` shows each run in the async widget as one line under a header instead of a block of detail rows; evoharness's expand key still shows the details.
 
-Thanks to [DraconDev](https://github.com/DraconDev) for reporting the display noise and suggesting summary mode in [#1931](https://github.com/nicobailon/pi-subagents/issues/1931).
 
 ## FleetView
 
@@ -107,7 +106,7 @@ After you expand it:
 
 When the focused editor is empty, press `↓` or `←` to expand the summary into `main` plus active children with agent name, state, elapsed time, and token usage. When providers report usage, `window` is the latest assistant turn's input plus cache-read tokens, while `spent` keeps the cumulative input-plus-output total. Old run artifacts without window data keep the existing token-total label. The compact line counts active current-session work and Herdr project panes. Then use `↑`/`↓` or `j`/`k` to select a child and `Enter` to open the Fleet lobby; press `Enter` or `H` there to open its child-specific inspector through an available Inspect plugin. Printable navigation keys are never intercepted before activation.
 
-FleetView and the under-editor async widget are both enabled by default; set `asyncWidget: false` to keep only FleetView. Successful background completions stay quiet so inactive Pi tabs are not marked unread, while failed or paused completions still notify the originating session. Parallel runs show every active child independently. Chains with parallel groups keep their grouped shape in progress and results, so failed or paused agents stay visible next to completed ones. When a child is explicitly allowed to fan out with `tools: subagent` or `allowNestedSubagents: true`, its nested runs appear under that parent child in the main status tree instead of being hidden inside the child session.
+FleetView and the under-editor async widget are both enabled by default; set `asyncWidget: false` to keep only FleetView. Successful background completions stay quiet so inactive evoharness tabs are not marked unread, while failed or paused completions still notify the originating session. Parallel runs show every active child independently. Chains with parallel groups keep their grouped shape in progress and results, so failed or paused agents stay visible next to completed ones. When a child is explicitly allowed to fan out with `tools: subagent` or `allowNestedSubagents: true`, its nested runs appear under that parent child in the main status tree instead of being hidden inside the child session.
 
 ## The fleet inspector
 
@@ -126,7 +125,7 @@ Default keys:
 - `D` — stop a selected child's top-level async run after confirmation
 - `H` — open the selected active async child through the available Inspect plugin
 
-In fullscreen mode with Pi mouse reporting enabled, primary-click a visible roster row to select that child. Wheel or trackpad input over the output pane (including its pinned header) scrolls the same viewport as the keyboard. Owned wheel events stay inside the inspector, even at the top and bottom. New output follows the bottom until you scroll away; reaching the bottom resumes following. Steering/redo drafts and stop confirmation retain input ownership, and Prompt Audit blocks roster clicks. Footer shortcuts remain text hints, not buttons.
+In fullscreen mode with evoharness mouse reporting enabled, primary-click a visible roster row to select that child. Wheel or trackpad input over the output pane (including its pinned header) scrolls the same viewport as the keyboard. Owned wheel events stay inside the inspector, even at the top and bottom. New output follows the bottom until you scroll away; reaching the bottom resumes following. Steering/redo drafts and stop confirmation retain input ownership, and Prompt Audit blocks roster clicks. Footer shortcuts remain text hints, not buttons.
 
 In regular (non-fullscreen) mode, the terminal retains mouse scrolling and scrollback ownership; internal-pane wheel scrolling and roster clicking are not promised. Use the keyboard controls above to navigate clipped inspector output in either mode. The extension does not enable terminal mouse tracking.
 
@@ -136,9 +135,9 @@ Enter and `H` use the available Inspect plugin. Inside tmux, this includes the b
 
 Without a TUI, `/subagents-fleet` retains the textual `subagent({ action: "status", options: { view: "fleet" } })` fallback, and mutations use explicit commands: run `/subagents-stop` and pick from the selector, or use `/subagents-stop <run-id>` / `subagent({ action: "stop", id: "..." })` when you already know the id.
 
-Use `/subagents-detach [run-id]` only for an active foreground single-subagent run you want to leave running without terminating; the eventual result remains available through status/wait. A detached foreground child runs inside the current pi-subagents runtime. When `/reload`, a session resume, or a session switch replaces that runtime, the child is stopped, and `status` then shows it as stopped with the reason. `resume` continues it from its session.
+Use `/subagents-detach [run-id]` only for an active foreground single-subagent run you want to leave running without terminating; the eventual result remains available through status/wait. A detached foreground child runs inside the current subagents runtime. When `/reload`, a session resume, or a session switch replaces that runtime, the child is stopped, and `status` then shows it as stopped with the reason. `resume` continues it from its session.
 
-Set `foregroundDetachShortcut` in `~/.pi/agent/extensions/subagent/config.json` to bind the same action to a shortcut. The running foreground card shows the configured shortcut beside its live-detail hint:
+Set `foregroundDetachShortcut` in `~/.evoharness/agent/extensions/subagent/config.json` to bind the same action to a shortcut. The running foreground card shows the configured shortcut beside its live-detail hint:
 
 ```json
 {
@@ -146,7 +145,7 @@ Set `foregroundDetachShortcut` in `~/.pi/agent/extensions/subagent/config.json` 
 }
 ```
 
-Pi binds `Ctrl+B` to editor cursor-left by default. The extension shortcut takes precedence, but Pi reports the conflict at startup. To reserve the key without that warning, override the editor action in `~/.pi/agent/keybindings.json`:
+evoharness binds `Ctrl+B` to editor cursor-left by default. The extension shortcut takes precedence, but evoharness reports the conflict at startup. To reserve the key without that warning, override the editor action in `~/.evoharness/agent/keybindings.json`:
 
 ```json
 {
@@ -159,7 +158,7 @@ If something feels misconfigured, run `/subagents-doctor` or ask: "Check whether
 ## Host inspection protocol (RPC)
 
 RPC hosts receive live async status through the bounded `subagent-async` widget
-(`PI_SUBAGENT_ASYNC_JSON:` payload). Step nodes report the `agent` the child
+(`EVOHARNESS_SUBAGENT_ASYNC_JSON:` payload). Step nodes report the `agent` the child
 runs as, and the `model` and `thinking` level it runs on once its status reports
 them. For on-demand
 detail — a child's delegated task, transcript window, or final output — hosts
@@ -169,10 +168,10 @@ can invoke the extension command:
 /subagents-inspect-rpc <requestId> <asyncId> [childId] [--lines N]
 ```
 
-Extension commands execute inline over Pi RPC without a model turn. The reply
+Extension commands execute inline over evoharness RPC without a model turn. The reply
 arrives as a single emit-then-retract update on the dedicated `subagent-inspect`
-widget key: the first (and only) line is `PI_SUBAGENT_INSPECT_JSON:<JSON>` with a
-versioned `pi-subagents.inspect-reply` payload correlated by `requestId`. Hosts
+widget key: the first (and only) line is `EVOHARNESS_SUBAGENT_INSPECT_JSON:<JSON>` with a
+versioned `subagents.inspect-reply` payload correlated by `requestId`. Hosts
 must not render this widget; they should buffer the payload by `requestId` and
 drop unmatched replies.
 
@@ -189,10 +188,10 @@ Inspection properties:
 - `task` is the child session's first user message and is only populated when
   it is genuinely attributable (fresh-context child whose session file fits the
   read window); forked children omit it.
-- `resolvedModel` (`{ provider, model }`) is the pair Pi recorded on the
+- `resolvedModel` (`{ provider, model }`) is the pair evoharness recorded on the
   inspected child's latest own assistant reply, never the requested model. It is
   absent before the first reply, for run-level inspection of a multi-step or
-  workflow run, and for runs recorded before pi-subagents reported it.
+  workflow run, and for runs recorded before subagents reported it.
 - `childId` is exactly the node id the host received in the status snapshot
   (step `workflowKey`/`runId`/`step:<index>`, or a nested run id).
 
@@ -203,7 +202,7 @@ In TUI mode the command only points at the interactive `/subagents` inspector.
 Async runs write machine-readable lifecycle artifacts for observability and workflow gates:
 
 ```text
-<tmpdir>/pi-subagents-<scope>/async-subagent-runs/<id>/
+<tmpdir>/subagents-<scope>/async-subagent-runs/<id>/
   status.json
   events.jsonl
   output-<n>.log
@@ -211,10 +210,10 @@ Async runs write machine-readable lifecycle artifacts for observability and work
 ```
 
 - `status.json` powers the widget and `subagent({ action: "status" })` output.
-- `events.jsonl` contains wrapper events plus child Pi JSON events annotated with run and step metadata, including correlated `subagent.steer.requested`, `scheduled`, `routed`, `queued`, `delivered`, `failed`, and `recovered` events plus failure/partial/recovery notices.
+- `events.jsonl` contains wrapper events plus child evoharness JSON events annotated with run and step metadata, including correlated `subagent.steer.requested`, `scheduled`, `routed`, `queued`, `delivered`, `failed`, and `recovered` events plus failure/partial/recovery notices.
 - `output-<n>.log` is a live human-readable tail.
 
-For a top-level async run, `details.asyncDir` points at that directory; the final summary is written to Pi's subagent results directory as `<runId>.json`. Nested async runs use the same shape under the nested async root and are discoverable through status projections that read the nested-run registry. These files are append/update artifacts only; interactive foreground behavior is unchanged.
+For a top-level async run, `details.asyncDir` points at that directory; the final summary is written to evoharness's subagent results directory as `<runId>.json`. Nested async runs use the same shape under the nested async root and are discoverable through status projections that read the nested-run registry. These files are append/update artifacts only; interactive foreground behavior is unchanged.
 
 The result file is consumed and deleted once its completion notice is delivered. Before deletion, the watcher writes a versioned replay record under `<resultsDir>/completion-replay/<runId>.json` and a bounded output archive under `<resultsDir>/output-archives/<runId>.json`. Replay records expire with the completion deduplication window and are best-effort temporary state, not a permanent run ledger.
 
@@ -253,7 +252,7 @@ A workflow child's own status adds `parentWorkflowRunId` and `workflowKey`. Use 
 
 ### Runtime extension acknowledgement
 
-Cooperating child extensions can acknowledge child-runtime registration by emitting `subagent:acknowledge-extension` on the child session's `pi.events` bus with payload `{ id: string }`. The process that hosts the child session (the parent for foreground children, the runner for background children) captures the acknowledgement in memory.
+Cooperating child extensions can acknowledge child-runtime registration by emitting `subagent:acknowledge-extension` on the child session's `evoharness.events` bus with payload `{ id: string }`. The process that hosts the child session (the parent for foreground children, the runner for background children) captures the acknowledgement in memory.
 
 Acknowledgement ids are self-declared opaque strings. They must be non-empty, at most 128 characters, contain only `A-Z`, `a-z`, `0-9`, `.`, `_`, `:`, `@`, `+`, or `-`, and must not contain `/`, `\`, or `..`.
 
@@ -273,17 +272,17 @@ The `subagent:process-terminal` event and RPC `ping.capabilities.processTerminal
 
 ### Child session events
 
-Both launch paths subscribe to the child session's event stream directly; there is no stdout protocol. The `events.jsonl` artifact mirrors those events with `message_update` dropped, and the transcript records them with `message_update` projected the same way pi's JSON mode prints it. `agent_end.willRetry` defers completion until the child settles, and `agent_settled` is the terminal watermark; a child whose run does not settle shortly after its terminal event is aborted and finished without it.
+Both launch paths subscribe to the child session's event stream directly; there is no stdout protocol. The `events.jsonl` artifact mirrors those events with `message_update` dropped, and the transcript records them with `message_update` projected the same way evoharness's JSON mode prints it. `agent_end.willRetry` defers completion until the child settles, and `agent_settled` is the terminal watermark; a child whose run does not settle shortly after its terminal event is aborted and finished without it.
 
 ### Completion notification diagnostics
 
-For an instrumented parent session, enable Node's opt-in debug sink **before starting Pi**:
+For an instrumented parent session, enable Node's opt-in debug sink **before starting evoharness**:
 
 ```sh
-NODE_DEBUG=pi-subagents-notify pi 2>notification-debug.log
+NODE_DEBUG=subagents-notify evoharness 2>notification-debug.log
 ```
 
-This writes bounded JSON records prefixed `PI-SUBAGENTS-NOTIFY <pid>:` to stderr, not run artifacts or chat. The capture also contains other stderr output; review it before sharing. Records contain only `reason`, sanitized `id`/`runId` (up to 128 characters each), and `source`; task/output text, paths, credentials, and exception bodies are not included.
+This writes bounded JSON records prefixed `SUBAGENTS-NOTIFY <pid>:` to stderr, not run artifacts or chat. The capture also contains other stderr output; review it before sharing. Records contain only `reason`, sanitized `id`/`runId` (up to 128 characters each), and `source`; task/output text, paths, credentials, and exception bodies are not included.
 
 - `disposed`, `missing_session`, `foreground_session_mismatch`, `not_owned`: delivery rejected by an existing guard.
 - `emit_foreground_session_mismatch`, `emit_not_owned`: ownership/session recheck rejected emission.
@@ -297,15 +296,15 @@ Without `NODE_DEBUG`, tracing only checks the debug-enabled flag: no identity sa
 
 ## Workflow and debug artifacts
 
-Each scripted workflow stores runtime artifacts under a workflow artifact directory. The on-disk directory is still named `chain-runs` for compatibility. With the default `artifactDir: "session"` or with `"temp"`, it is user-scoped temp storage. With `artifactDir: "project"`, the root is `<cwd>/.pi/subagents/chain-runs/`:
+Each scripted workflow stores runtime artifacts under a workflow artifact directory. The on-disk directory is still named `chain-runs` for compatibility. With the default `artifactDir: "session"` or with `"temp"`, it is user-scoped temp storage. With `artifactDir: "project"`, the root is `<cwd>/.evoharness/subagents/chain-runs/`:
 
 ```text
-<tmpdir>/pi-subagents-<scope>/chain-runs/{runId}/
+<tmpdir>/subagents-<scope>/chain-runs/{runId}/
 ```
 
 A run directory may contain files such as `context.md`, `plan.md`, `progress.md`, and `parallel-{stepIndex}/.../output.md`. User-scoped temp workflow artifact directories older than 24 hours are cleaned up on extension startup; project-local and explicit persistent roots are not age-scanned.
 
-Debug artifacts live under `{sessionDir}/subagent-artifacts/`, `.pi/subagents/artifacts/` for project-scoped runs, or a user-scoped temp artifact directory. Single-run relative `output` files are saved under `{artifactsDir}/outputs/{runId}/` unless `singleRunOutputBaseDir` is configured. For lane, review, council, and gate reports, prefer these managed artifacts or the aggregate workflow result instead of repo-root `reports/` files. Copy only final durable evidence to session memory, a mission artifact, a PR/comment, or an approved docs path. Per task you may see:
+Debug artifacts live under `{sessionDir}/subagent-artifacts/`, `.evoharness/subagents/artifacts/` for project-scoped runs, or a user-scoped temp artifact directory. Single-run relative `output` files are saved under `{artifactsDir}/outputs/{runId}/` unless `singleRunOutputBaseDir` is configured. For lane, review, council, and gate reports, prefer these managed artifacts or the aggregate workflow result instead of repo-root `reports/` files. Copy only final durable evidence to session memory, a mission artifact, a PR/comment, or an approved docs path. Per task you may see:
 
 - `{runId}_{agent}_input.md`
 - `{runId}_{agent}_output.md`
@@ -314,13 +313,13 @@ Debug artifacts live under `{sessionDir}/subagent-artifacts/`, `.pi/subagents/ar
 
 Metadata records the parent session id, timing, usage, exit code, the resolved model, and the resolved acceptance ledger with its parsed child report. A strictly guarded retained-session recovery after a verified compaction abort may continue once on that same model; it never selects another model.
 
-For npm package projects, project-scoped artifacts need a `.npmignore` rule (or `.gitignore` when no `.npmignore` exists) or a `files` allowlist that does not include `.pi/subagents/`. pi-subagents warns at launch when these package settings can include the artifacts. Use `artifactDir: "session"` or `"temp"` to keep them outside the package worktree.
+For npm package projects, project-scoped artifacts need a `.npmignore` rule (or `.gitignore` when no `.npmignore` exists) or a `files` allowlist that does not include `.evoharness/subagents/`. subagents warns at launch when these package settings can include the artifacts. Use `artifactDir: "session"` or `"temp"` to keep them outside the package worktree.
 
 ## Sessions
 
 Session files are stored under a per-run session directory. With `context: "fork"`, each child starts from a branched session file produced from the parent's current leaf (foreground children open it in-process; background children receive it as `--session`). That is a real session fork, not an injected summary. An omitted launch `context` that resolves through `defaultContext: fork` uses the same branch when the parent session file and current leaf exist, and otherwise starts fresh.
 
-A child session's header records the launching session's file as `parentSession`, the field Pi uses for its own forks, so a reader can find the parent session without parsing the directory layout. A nested child points at the session of the child that launched it. Run metadata (`{runId}_{agent}_meta.json`) also records `parentSessionId`, the launching session's id.
+A child session's header records the launching session's file as `parentSession`, the field evoharness uses for its own forks, so a reader can find the parent session without parsing the directory layout. A nested child points at the session of the child that launched it. Run metadata (`{runId}_{agent}_meta.json`) also records `parentSessionId`, the launching session's id.
 
 ## Completion notifications
 
@@ -345,4 +344,4 @@ Intercom delivery events:
 
 `src/extension/index.ts` registers the notification handler that consumes `subagent:async-complete`. Control/attention events are surfaced as visible parent notices and persisted for async runs. Native supervisor requests are delivered only to the exact parent session that spawned the child.
 
-`pi.events` is in-process only. It does not reach separate Pi processes or child subagents; use the file lifecycle artifacts or `pi-intercom` for cross-process coordination.
+`evoharness.events` is in-process only. It does not reach separate evoharness processes or child subagents; use the file lifecycle artifacts or `pi-intercom` for cross-process coordination.

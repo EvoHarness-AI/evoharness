@@ -10,10 +10,10 @@ import { projectRuntimeAcknowledgedExtensions } from "./runtime-acknowledged-ext
 import registerSubagentPromptRuntime, { registerSubagentPromptBoundary } from "./subagent-prompt-runtime.ts";
 import type { ChildToolDiagnostic } from "./tool-availability.ts";
 
-/** Inline extension shape accepted by pi's resource loader (`extensionFactories`). */
+/** Inline extension shape accepted by evoharness's resource loader (`extensionFactories`). */
 export interface ChildHookExtension {
 	name: string;
-	factory: (pi: ExtensionAPI) => void;
+	factory: (evoharness: ExtensionAPI) => void;
 }
 
 type OwnedCapture = Required<Pick<ChildRuntimeConfig, "toolDiagnostic" | "runtimeAcknowledgements">>;
@@ -167,7 +167,7 @@ export function captureReadonlyChildDrain(hooks: ChildHookExtension[]): () => bo
 }
 
 /**
- * The child-side hooks pi-subagents installs in every child, keyed off the
+ * The child-side hooks subagents installs in every child, keyed off the
  * launch config. The registrations live in `subagent-prompt-runtime.ts`,
  * `fast-mode-extension.ts`, and `fanout-child.ts`.
  */
@@ -228,23 +228,29 @@ function childHooks(
 	}
 	const hooks: ChildHookExtension[] = [
 		{
-			name: "pi-subagents:prompt-runtime",
-			factory: function promptRuntime(pi) {
-				if (!proof?.observeNext) return registerSubagentPromptRuntime(pi, runtime);
+			name: "subagents:prompt-runtime",
+			factory: function promptRuntime(evoharness) {
+				if (!proof?.observeNext) return registerSubagentPromptRuntime(evoharness, runtime);
 				proof.observation = proof.observeNext;
 				proof.observeNext = undefined;
-				registerSubagentPromptRuntime(pi, runtime, proof.observation);
+				registerSubagentPromptRuntime(evoharness, runtime, proof.observation);
 			},
 		},
 	];
 	if (config.fast)
-		hooks.push({ name: "pi-subagents:fast-mode", factory: (pi) => registerSubagentFastModeExtension(pi) });
+		hooks.push({
+			name: "subagents:fast-mode",
+			factory: (evoharness) => registerSubagentFastModeExtension(evoharness),
+		});
 	if (config.fanoutChild)
 		hooks.push({
-			name: "pi-subagents:fanout-child",
-			factory: (pi) => registerFanoutChildSubagentExtension(pi, runtime),
+			name: "subagents:fanout-child",
+			factory: (evoharness) => registerFanoutChildSubagentExtension(evoharness, runtime),
 		});
-	hooks.push({ name: "pi-subagents:prompt-boundary", factory: (pi) => registerSubagentPromptBoundary(pi, runtime) });
+	hooks.push({
+		name: "subagents:prompt-boundary",
+		factory: (evoharness) => registerSubagentPromptBoundary(evoharness, runtime),
+	});
 	if (proof) {
 		proof.factories = hooks.map((hook) => hook.factory);
 		promptProofs.set(hooks[0]!.factory, proof);

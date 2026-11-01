@@ -17,7 +17,7 @@ setChildSessionFactoryModule(path.join(path.dirname(fileURLToPath(import.meta.ur
 const agents = [makeAgent("echo"), makeAgent("bg", { defaultAsync: true })];
 const state = { baseCwd: cwd, currentSessionId: null, asyncJobs: new Map(), foregroundControls: new Map(), lastForegroundControlId: null };
 const executor = createSubagentExecutor({
-	pi: { events: createEventBus(), getSessionName: () => undefined, sendMessage: () => {} },
+	evoharness: { events: createEventBus(), getSessionName: () => undefined, sendMessage: () => {} },
 	state,
 	config: {},
 	asyncByDefault: false,
@@ -28,7 +28,7 @@ const executor = createSubagentExecutor({
 });
 const ctx = makeMinimalCtx(cwd);
 ctx.sessionManager.getSessionId = () => sessionId;
-// Through the public tool entry, as Pi launches it, so the run saves its launch and can be resumed.
+// Through the public tool entry, as evoharness launches it, so the run saves its launch and can be resumed.
 const launched = await executor.executePublic("killable-workflow", JSON.parse(paramsJson), new AbortController().signal, undefined, ctx);
 fs.writeFileSync(output, JSON.stringify({ isError: launched.isError === true, text: launched.content[0]?.text, runId: launched.details?.asyncId }));
 // Stay alive as the workflow's owner until the test kills this process.

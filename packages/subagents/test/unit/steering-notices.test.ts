@@ -26,7 +26,7 @@ describe("steering notices", () => {
 	it("delivers a failure notice to the matching parent session", () => {
 		const messages: unknown[] = [];
 		handleSubagentSteeringNotice({
-			pi: { sendMessage: (message: unknown) => messages.push(message) } as any,
+			evoharness: { sendMessage: (message: unknown) => messages.push(message) } as any,
 			state: state("session-1"),
 			details: {
 				runId: "run",
@@ -44,7 +44,7 @@ describe("steering notices", () => {
 		const messages: unknown[] = [];
 		for (const currentSessionId of ["session-2", undefined]) {
 			handleSubagentSteeringNotice({
-				pi: { sendMessage: (message: unknown) => messages.push(message) } as any,
+				evoharness: { sendMessage: (message: unknown) => messages.push(message) } as any,
 				state: state("session-1"),
 				details: { runId: "run", requestId: "request", state: "partial", message: "partial", currentSessionId },
 			});
@@ -55,7 +55,7 @@ describe("steering notices", () => {
 	it("delivers recovered outcomes without changing their state", () => {
 		const messages: Array<{ details?: { state?: string } }> = [];
 		handleSubagentSteeringNotice({
-			pi: { sendMessage: (message: { details?: { state?: string } }) => messages.push(message) } as any,
+			evoharness: { sendMessage: (message: { details?: { state?: string } }) => messages.push(message) } as any,
 			state: state("session-1"),
 			details: {
 				runId: "run",

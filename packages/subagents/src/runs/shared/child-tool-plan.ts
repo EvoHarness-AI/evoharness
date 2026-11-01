@@ -44,7 +44,7 @@ const SUBAGENT_RUNTIME_EXTENSION_PATHS = new Set(
 	].flatMap((base) => RUNTIME_MODULE_EXTENSIONS.map((extension) => path.normalize(`${base}${extension}`))),
 );
 
-/** True for the extension files pi-subagents itself installs in child sessions. */
+/** True for the extension files subagents itself installs in child sessions. */
 export function isSubagentRuntimeExtensionPath(extensionPath: string): boolean {
 	return SUBAGENT_RUNTIME_EXTENSION_PATHS.has(path.normalize(extensionPath));
 }
@@ -57,8 +57,8 @@ export function deriveForkPromptCacheKey(parentSessionId: string | undefined): s
 	const digest = createHash("sha256")
 		.update(parent)
 		.digest("hex")
-		.slice(0, OPENAI_PROMPT_CACHE_KEY_MAX_LENGTH - "pi-fork:".length);
-	return `pi-fork:${digest}`;
+		.slice(0, OPENAI_PROMPT_CACHE_KEY_MAX_LENGTH - "subagents-fork:".length);
+	return `subagents-fork:${digest}`;
 }
 
 function sanitizeSupervisorChannelSegment(value: string): string {
@@ -97,7 +97,9 @@ function stripThinkingSuffix(model: string): string {
 	return THINKING_LEVELS.some((level) => level === model.substring(colonIdx + 1)) ? model.slice(0, colonIdx) : model;
 }
 
-function resolveFastModeExtension(input: Pick<ResolvePiLaunchToolPlanInput, "fast" | "model" | "agentName">): string[] {
+function resolveFastModeExtension(
+	input: Pick<ResolveHostLaunchToolPlanInput, "fast" | "model" | "agentName">,
+): string[] {
 	if (!input.fast) return [];
 	const candidates = (input.model ? [input.model] : []).map(stripThinkingSuffix);
 	if (candidates.length === 0) {
@@ -114,7 +116,7 @@ function resolveFastModeExtension(input: Pick<ResolvePiLaunchToolPlanInput, "fas
 	return [resolveRuntimeModulePath(RUNTIME_EXTENSION_DIR, "fast-mode-extension")];
 }
 
-export interface ResolvePiLaunchToolPlanInput {
+export interface ResolveHostLaunchToolPlanInput {
 	tools?: string[];
 	excludeTools?: string[];
 	allowNestedSubagents?: boolean;
@@ -142,7 +144,7 @@ export interface ResolvePiLaunchToolPlanInput {
 	builtinMcpTools?: ResolvedMcpDirectToolSelection[];
 }
 
-export interface PiLaunchToolPlan {
+export interface HostLaunchToolPlan {
 	capabilityCeiling?: ResolvedSubagentCapabilityCeiling;
 	requestedBuiltinTools: string[];
 	declaredBuiltinTools: string[];
@@ -151,7 +153,7 @@ export interface PiLaunchToolPlan {
 	resolvedMcpSelections: ResolvedMcpDirectToolSelection[];
 	effectiveMcpSelections: ResolvedMcpDirectToolSelection[];
 	effectiveMcpTools: string[];
-	/** Effective selections granted from Pi's built-in MCP; undefined when the selectors did not resolve against it. */
+	/** Effective selections granted from evoharness's built-in MCP; undefined when the selectors did not resolve against it. */
 	builtinMcpTools?: ResolvedMcpDirectToolSelection[];
 	explicitToolAllowlist: boolean;
 	internalTools: string[];
@@ -188,8 +190,8 @@ function hasPermissionRules(rules: PermissionRules | undefined): boolean {
 }
 
 /**
- * Children are pi sessions inside the parent or the runner process; a spawned
- * `pi` received extra MCP server definitions as a CLI argument, but a session
+ * Children are evoharness sessions inside the parent or the runner process; a spawned
+ * `evoharness` received extra MCP server definitions as a CLI argument, but a session
  * has no such input. Selecting a server that exists only in pi-mcp-adapter's
  * runtime snapshot therefore cannot work and fails the launch.
  */
@@ -201,29 +203,29 @@ export function formatRuntimeSnapshotMcpServersError(
 	return `${subject} selects MCP tools from servers that exist only in pi-mcp-adapter's runtime snapshot (${serverNames.join(", ")}). MCP servers from the runtime snapshot cannot be provided to in-process children; MCP tools must come from an ambient adapter extension in a background child (\`async: true\`), so add the server to the adapter's configuration file instead.`;
 }
 
-/** Path-like entries load extensions instead of naming tools, so Pi never reads them as modifiers. */
+/** Path-like entries load extensions instead of naming tools, so evoharness never reads them as modifiers. */
 function isToolExtensionPath(entry: string): boolean {
 	return entry.includes("/") || entry.endsWith(".ts") || entry.endsWith(".js");
 }
 
 /**
- * A child's `tools` list is a complete allowlist. Read as names, Pi's modifier
+ * A child's `tools` list is a complete allowlist. Read as names, evoharness's modifier
  * entries would become required tools no child has, or mix with the names the
- * plan adds into a list Pi rejects. The modifier rule is Pi's `isToolModifier`:
- * a `+name` or `-name` entry edits Pi's default tool selection.
+ * plan adds into a list evoharness rejects. The modifier rule is evoharness's `isToolModifier`:
+ * a `+name` or `-name` entry edits evoharness's default tool selection.
  */
 export function assertNoToolModifierEntries(agentName: string | undefined, tools: readonly string[]): void {
 	const entries = tools.filter((entry) => /^[+-]/u.test(entry) && !isToolExtensionPath(entry));
 	if (entries.length === 0) return;
 	const subject = agentName ? `Agent '${agentName}'` : "Subagent";
 	throw new Error(
-		`${subject} lists Pi tool modifier ${entries.length === 1 ? "entry" : "entries"} in \`tools\`: ${entries.join(", ")}. A child's \`tools\` list is the complete set of tools it gets, so +name and -name entries are not supported; name every tool the child needs, or omit \`tools\` and use \`excludeTools\` to drop one.`,
+		`${subject} lists evoharness tool modifier ${entries.length === 1 ? "entry" : "entries"} in \`tools\`: ${entries.join(", ")}. A child's \`tools\` list is the complete set of tools it gets, so +name and -name entries are not supported; name every tool the child needs, or omit \`tools\` and use \`excludeTools\` to drop one.`,
 	);
 }
 
 export function projectLaunchResolvedChildExtensions(
 	toolPlan: Pick<
-		PiLaunchToolPlan,
+		HostLaunchToolPlan,
 		"runtimeExtensions" | "configuredExtensions" | "requiredExtensions" | "extensionArgs" | "disableAmbientExtensions"
 	>,
 ): LaunchResolvedChildExtensions {
@@ -270,17 +272,17 @@ export function resolvePermissionSystemExtension(): string | undefined {
 			continue;
 		}
 		try {
-			let pkg: { pi?: { extensions?: string[] } };
+			let pkg: { evoharness?: { extensions?: string[] } };
 			const parsed: unknown = JSON.parse(fs.readFileSync(pkgPath, "utf-8"));
 			if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
 				throw new Error("manifest root must be an object");
 			}
 			pkg = parsed as typeof pkg;
-			const extensions = pkg.pi?.extensions;
+			const extensions = pkg.evoharness?.extensions;
 			const entry = Array.isArray(extensions) ? extensions[0] : undefined;
 			if (typeof entry !== "string" || !entry.trim()) {
 				throw new Error(
-					`Permission-system package manifest at ${pkgPath} must declare pi.extensions[0] as a non-empty string.`,
+					`Permission-system package manifest at ${pkgPath} must declare evoharness.extensions[0] as a non-empty string.`,
 				);
 			}
 			const resolved = path.resolve(extDir, entry);
@@ -301,7 +303,7 @@ export function resolvePermissionSystemExtension(): string | undefined {
 	return undefined;
 }
 
-export function resolvePiLaunchToolPlan(input: ResolvePiLaunchToolPlanInput): PiLaunchToolPlan {
+export function resolveHostLaunchToolPlan(input: ResolveHostLaunchToolPlanInput): HostLaunchToolPlan {
 	const capabilityCeiling = intersectSubagentCapabilityCeilings(
 		input.capabilityCeiling,
 		input.inheritedCapabilityCeiling,

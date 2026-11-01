@@ -16,7 +16,7 @@ import { createEventBus, makeAgent, makeMinimalCtx } from "../support/helpers.ts
 
 function makeAdmissionExecutor(config: Record<string, unknown> = {}) {
 	return createSubagentExecutor!({
-		pi: { events: createEventBus(), getSessionName: () => undefined, sendMessage() {} },
+		evoharness: { events: createEventBus(), getSessionName: () => undefined, sendMessage() {} },
 		state: {
 			baseCwd: tempDir,
 			currentSessionId: null,
@@ -40,7 +40,7 @@ function callCount(): number {
 describe("public workflow worktree admission", { skip: !available }, () => {
 	installAsyncExecutionHooks();
 	it("rejects a direct async worktree launch before returning a receipt", async () => {
-		const repo = createRepo("pi-direct-admission-dirty-");
+		const repo = createRepo("subagents-direct-admission-dirty-");
 		fs.writeFileSync(path.join(repo, "untracked.txt"), "dirty");
 		const asyncDirExistedBefore = fs.existsSync(ASYNC_DIR);
 		const asyncEntriesBefore = new Set(asyncDirExistedBefore ? fs.readdirSync(ASYNC_DIR) : []);
@@ -77,8 +77,8 @@ describe("public workflow worktree admission", { skip: !available }, () => {
 	for (const async of [false, true]) {
 		for (const source of ["nonrepo", "dirty"] as const) {
 			it(`rejects a mixed ${source} group before child dispatch or budget claims (async=${async})`, async () => {
-				const repo = createRepo("pi-admission-valid-");
-				const invalid = source === "dirty" ? createRepo("pi-admission-dirty-") : tempDir;
+				const repo = createRepo("subagents-admission-valid-");
+				const invalid = source === "dirty" ? createRepo("subagents-admission-dirty-") : tempDir;
 				if (source === "dirty") fs.writeFileSync(path.join(invalid, "untracked.txt"), "dirty");
 				try {
 					const executor = makeAdmissionExecutor(source === "dirty" ? { worktree: true } : {});
@@ -127,7 +127,7 @@ describe("public workflow worktree admission", { skip: !available }, () => {
 		}
 	}
 	it("launches a valid isolated child and preserves explicit false on a non-repository sibling", async () => {
-		const repo = createRepo("pi-admission-clean-");
+		const repo = createRepo("subagents-admission-clean-");
 		mockPi.onCall({ output: "Inspected" });
 		mockPi.onCall({ output: "Shared cwd inspected" });
 		try {

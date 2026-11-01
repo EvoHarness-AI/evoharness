@@ -7,7 +7,7 @@ import type { McpServerDefinition } from "../../src/runs/shared/mcp-config-sourc
 
 // The resolver captures the generic `~/.config/mcp/mcp.json` and import paths
 // from the home directory when its module loads, and it resolves servers and the
-// metadata cache through the Pi agent directory. Isolate the home environment
+// metadata cache through the evoharness agent directory. Isolate the home environment
 // before importing it, so a direct `node --test` run without the repository test
 // preload neither reads a developer's real MCP config nor touches a real agent
 // directory.
@@ -71,7 +71,7 @@ after(() => {
 
 describe("MCP direct-tool resolution config sources", () => {
 	beforeEach(() => {
-		assert.equal(getAgentDir(), agentDir, "test isolation must redirect the Pi agent directory");
+		assert.equal(getAgentDir(), agentDir, "test isolation must redirect the evoharness agent directory");
 		fs.rmSync(projectDir, { recursive: true, force: true });
 		fs.mkdirSync(projectDir, { recursive: true });
 		for (const name of ["mcp.json", "mcp-adapter.json", "mcp-cache.json"]) {
@@ -104,7 +104,7 @@ describe("MCP direct-tool resolution config sources", () => {
 		);
 	});
 
-	it("ignores Pi's own mcp.json files, which the adapter no longer reads", () => {
+	it("ignores evoharness's own mcp.json files, which the adapter no longer reads", () => {
 		writeServerConfig(path.join(agentDir, "mcp.json"), CURRENT_DEFINITION);
 		writeServerConfig(path.join(getProjectConfigDir(projectDir), "mcp.json"), CURRENT_DEFINITION);
 		writeMetadataCache(CURRENT_DEFINITION);

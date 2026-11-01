@@ -46,7 +46,7 @@ describe("supervisor asks in blocking workflows", { skip: !available }, () => {
 				const notices: Array<{ details?: { requestId?: string } }> = [];
 				const dirs = new Set<string>();
 				const childIds: string[] = [];
-				const pi = {
+				const evoharness = {
 					events: bus,
 					getSessionName: () => undefined,
 					getAllTools: () => [...tools.keys()].map((name) => ({ name })),
@@ -57,7 +57,7 @@ describe("supervisor asks in blocking workflows", { skip: !available }, () => {
 						return false;
 					},
 				};
-				const channel = createNativeSupervisorChannel(pi as never, state, {
+				const channel = createNativeSupervisorChannel(evoharness as never, state, {
 					getChannelDirs: () => ({ dirs: [...dirs] }),
 				});
 				bus.on(SUBAGENT_ASYNC_STARTED_EVENT, (data) => {
@@ -68,7 +68,7 @@ describe("supervisor asks in blocking workflows", { skip: !available }, () => {
 					channel.activateTransport();
 				});
 				const executor = createSubagentExecutor!({
-					pi: pi as never,
+					evoharness: evoharness as never,
 					state,
 					config: {},
 					asyncByDefault: true,

@@ -413,9 +413,9 @@ describe("scripted workflow runtime", () => {
 		assert.deepEqual(explicit.value, { answer: 42 });
 	});
 
-	it("resolves the workflow parser from pi-subagents outside the project cwd", async () => {
+	it("resolves the workflow parser from subagents outside the project cwd", async () => {
 		const originalCwd = process.cwd();
-		const emptyCwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-no-acorn-"));
+		const emptyCwd = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-no-acorn-"));
 		try {
 			process.chdir(emptyCwd);
 			const result = await runWorkflowScript({
@@ -1155,7 +1155,7 @@ describe("scripted workflow runtime", () => {
 	});
 
 	it("resolves a keyed workflow receipt despite an invalid current worktree source", async (t) => {
-		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-receipt-resume-"));
+		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-receipt-resume-"));
 		t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
 		let launchParams: Record<string, unknown> | undefined;
 		let resolvedReference: unknown;
@@ -5203,7 +5203,7 @@ describe("scripted workflow runtime", () => {
 			skip: process.platform === "win32" ? "Windows forbids deleting a live process cwd" : undefined,
 		},
 		async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-stale-cwd-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-stale-cwd-"));
 			const stale = path.join(root, "stale");
 			const valid = path.join(root, "valid");
 			fs.mkdirSync(stale);
@@ -5265,7 +5265,7 @@ describe("scripted workflow runtime", () => {
 			skip: process.platform === "win32" ? "requires deleting a live process cwd, which Windows forbids" : undefined,
 		},
 		async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-stale-cwd-failure-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-stale-cwd-failure-"));
 			const stale = path.join(root, "stale");
 			const missing = path.join(root, "missing");
 			fs.mkdirSync(stale);
@@ -5296,7 +5296,7 @@ describe("scripted workflow runtime", () => {
 	);
 
 	it("does not chdir or expose the workflow target while launching from a healthy cwd", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-healthy-cwd-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-healthy-cwd-"));
 		const callerCwd = path.join(root, "caller");
 		const workflowCwd = path.join(root, "workflow");
 		fs.mkdirSync(callerCwd);
@@ -5356,7 +5356,7 @@ describe("scripted workflow runtime", () => {
 	});
 
 	it("rejects healthy cwd targets that cannot be entered", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-invalid-cwd-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-invalid-cwd-"));
 		const file = path.join(root, "file");
 		const inaccessible = path.join(root, "inaccessible");
 		fs.writeFileSync(file, "not a directory");

@@ -36,7 +36,7 @@ type Headline = ReadonlyArray<string | { status: string }>;
 type MessageKind = "ask" | "reply" | "result" | "attention" | "watchdog";
 
 /**
- * Theme colors for the label. Pi's themes offer few non-status colors that read
+ * Theme colors for the label. evoharness's themes offer few non-status colors that read
  * apart, so asks and attention notices, both a child needing the parent, share one,
  * and replies, the parent's own words, take the quiet text color.
  */
@@ -84,7 +84,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-/** The text Pi sends to the model for a custom message. */
+/** The text evoharness sends to the model for a custom message. */
 function contentText(content: unknown): string {
 	if (typeof content === "string") return content;
 	if (!Array.isArray(content)) return "";
@@ -261,10 +261,10 @@ const ENTRY_VIEWS = new Map<string, (entry: SubagentEntry) => BlockView>([
 	[SUBAGENT_WATCHDOG_WARNING_TYPE, (entry) => watchdogWarningView(entry.data, "")],
 ]);
 
-/** Every message type pi-subagents shows in the main chat. */
+/** Every message type subagents shows in the main chat. */
 export const SUBAGENT_MESSAGE_TYPES: readonly string[] = [...MESSAGE_VIEWS.keys()];
 
-/** Every session entry type pi-subagents shows in the main chat. */
+/** Every session entry type subagents shows in the main chat. */
 export const SUBAGENT_ENTRY_TYPES: readonly string[] = [...ENTRY_VIEWS.keys()];
 
 function headlineText(headline: Headline, theme: Theme): string {
@@ -285,12 +285,12 @@ function headlineText(headline: Headline, theme: Theme): string {
 }
 
 /**
- * A click toggles one block until Pi's expand key changes the state of every
- * block. Keyed by the message or entry object, which Pi keeps across rebuilds.
+ * A click toggles one block until evoharness's expand key changes the state of every
+ * block. Keyed by the message or entry object, which evoharness keeps across rebuilds.
  */
 const clickedBlocks = new WeakMap<SubagentMessage | SubagentEntry, { expandedByPi: boolean; expanded: boolean }>();
 
-/** The block Pi draws for its own [skill] and [compaction] messages. */
+/** The block evoharness draws for its own [skill] and [compaction] messages. */
 class SubagentMessageBlock extends Box {
 	private readonly source: SubagentMessage | SubagentEntry;
 	private readonly view: BlockView;

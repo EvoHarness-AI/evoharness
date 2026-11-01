@@ -33,7 +33,7 @@ describe("workflow reuse across a relaunch chain", () => {
 			) => void,
 		) => void,
 	) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-reuse-chain-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-reuse-chain-"));
 		try {
 			body(root, (runId, options = {}) => {
 				const asyncDir = path.join(root, runId);

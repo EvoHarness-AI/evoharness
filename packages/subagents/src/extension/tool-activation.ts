@@ -38,14 +38,14 @@ function hasNativeToolSelection(messages: readonly ToolSelectionMessage[]): bool
 }
 
 function setSelection(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	includeSubagent: boolean,
 	includeLoader: boolean,
 	includeWait: boolean,
 	restore: readonly string[] = [],
 	keepParentSupervisor = false,
 ): void {
-	const next = [...pi.getActiveTools(), ...restore].filter(
+	const next = [...evoharness.getActiveTools(), ...restore].filter(
 		(name) =>
 			(includeSubagent ||
 				(name !== SUBAGENT_NAME &&
@@ -57,11 +57,11 @@ function setSelection(
 	if (includeSubagent) next.push(SUBAGENT_NAME, SUPERVISOR_NAME, PARENT_SUPERVISOR_NAME);
 	if (includeLoader) next.push(LOADER_NAME);
 	if (includeWait) next.push(WAIT_NAME);
-	pi.setActiveTools([...new Set(next)]);
+	evoharness.setActiveTools([...new Set(next)]);
 }
 
-// Mirrors pi-ai's per-API transcript handling: without these flags, a mid-conversation tool change
-// makes Pi resend the conversation under a new leading system message, missing the prompt cache.
+// Mirrors the host AI package's per-API transcript handling: without these flags, a mid-conversation tool change
+// makes evoharness resend the conversation under a new leading system message, missing the prompt cache.
 function addsToolsWithoutCheckpoint(model: ExtensionContext["model"]): boolean {
 	const compat = model?.compat as
 		| {
@@ -89,15 +89,15 @@ function addsToolsWithoutCheckpoint(model: ExtensionContext["model"]): boolean {
 
 // Returns whether the loader is selected for this session. `replyOwed`: a child request already woke this session.
 function applyRecordedSelection(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	ctx: ExtensionContext,
 	mode: "auto" | "dynamic",
 	replyOwed: boolean,
 ): boolean {
-	const available = pi.getAllTools();
-	if (!Array.isArray(available) || !Array.isArray(pi.getActiveTools())) return true;
+	const available = evoharness.getAllTools();
+	if (!Array.isArray(available) || !Array.isArray(evoharness.getActiveTools())) return true;
 	if (!available.some((tool) => tool.name === LOADER_NAME)) return true;
-	// SAFETY: The running Pi session manager exposes buildSessionContext, but its read-only extension type omits it.
+	// SAFETY: The running evoharness session manager exposes buildSessionContext, but its read-only extension type omits it.
 	const messages = (
 		ctx.sessionManager as typeof ctx.sessionManager & { buildSessionContext(): { messages: ToolSelectionMessage[] } }
 	).buildSessionContext().messages;
@@ -107,7 +107,7 @@ function applyRecordedSelection(
 		messages.find((message) => message.role === "system" || message.role === "compactionSummary")?.role ===
 		"compactionSummary";
 	if (lost || hasNativeToolSelection(messages)) {
-		// Replayed here because a package-local pi-ai may be older than the running Pi.
+		// Replayed here because a package-local /ai may be older than the running evoharness.
 		const recorded = new Set<string>();
 		const unloadedNames = new Set<string>();
 		const declaredSentinels = new Set<string>();
@@ -115,10 +115,10 @@ function applyRecordedSelection(
 		const evidenced = new Set<string>();
 		for (const message of messages) {
 			if (message.role !== "system") continue;
-			// Pi records an extension unload (update, reload) as a removal of each of its active tools, with no cause.
+			// evoharness records an extension unload (update, reload) as a removal of each of its active tools, with no cause.
 			// While this extension is loaded, the loader, subagent or bg_wait stays declared, so a removal of declared
 			// sentinels that leaves none of them is that unload, not a choice, and the selection from before it stands.
-			// Pi removes only declared tools, so a removal naming an undeclared sentinel is a choice.
+			// evoharness removes only declared tools, so a removal naming an undeclared sentinel is a choice.
 			const removedSentinels = (message.toolsRemoved ?? []).filter((tool) => UNLOAD_SENTINELS.has(tool.name));
 			const allDeclared = removedSentinels.every((tool) => declaredSentinels.has(tool.name));
 			for (const tool of message.toolsRemoved ?? []) declaredSentinels.delete(tool.name);
@@ -139,7 +139,7 @@ function applyRecordedSelection(
 		}
 		// The loader and subagent record one activation state (cold, warm, eager); bg_wait and subagent_supervisor
 		// are declared on their own. Only when the activation state itself is lost is it decided as for a new
-		// session. The live tools are no evidence: Pi restores them from this transcript, or activates every
+		// session. The live tools are no evidence: evoharness restores them from this transcript, or activates every
 		// extension tool on /reload.
 		const fresh = lost && !evidenced.has(LOADER_NAME) && !evidenced.has(SUBAGENT_NAME);
 		const startsEager = fresh && mode === "auto" && !addsToolsWithoutCheckpoint(ctx.model);
@@ -162,7 +162,7 @@ function applyRecordedSelection(
 						)
 						.map((tool) => tool.name);
 		setSelection(
-			pi,
+			evoharness,
 			recorded.has(SUBAGENT_NAME) || startsEager,
 			loaderSelected,
 			recorded.has(WAIT_NAME) || (!evidenced.has(WAIT_NAME) && startsEager),
@@ -173,9 +173,9 @@ function applyRecordedSelection(
 	}
 	// "auto" goes eager only for an empty session; any history keeps the tools it already sent.
 	const eager = mode === "auto" && messages.length === 0 && !addsToolsWithoutCheckpoint(ctx.model);
-	const kept = (name: string) => eager || (messages.length > 0 && pi.getActiveTools().includes(name));
+	const kept = (name: string) => eager || (messages.length > 0 && evoharness.getActiveTools().includes(name));
 	setSelection(
-		pi,
+		evoharness,
 		kept(SUBAGENT_NAME),
 		!eager,
 		kept(WAIT_NAME),
@@ -186,7 +186,7 @@ function applyRecordedSelection(
 }
 
 export function registerSubagentToolActivation(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	options: {
 		advertisedPrompt: () => string | undefined | Promise<string | undefined>;
 		mode?: ToolActivationMode;
@@ -204,19 +204,19 @@ export function registerSubagentToolActivation(
 		...MODEL_ONLY_TOOL,
 		label: "Enable Subagents",
 		description:
-			"Enable pi-subagents delegation and management tools without launching work. Call when delegation is authorized by the current request or applicable user/project instructions, or when managing existing runs. Direct execution is the default; complexity alone never authorizes delegation. Full tools are available on the next model request.",
+			"Enable subagents delegation and management tools without launching work. Call when delegation is authorized by the current request or applicable user/project instructions, or when managing existing runs. Direct execution is the default; complexity alone never authorizes delegation. Full tools are available on the next model request.",
 		promptSnippet:
-			"pi-subagents is installed. For authorized specialist, independent-review, or parallel work, call subagents_enable, then subagent. Authorization must come from the current request or applicable instructions; complexity alone is not authorization.",
+			"subagents is installed. For authorized specialist, independent-review, or parallel work, call subagents_enable, then subagent. Authorization must come from the current request or applicable instructions; complexity alone is not authorization.",
 		parameters,
 		async execute() {
-			if (!pi.getAllTools().some((tool) => tool.name === SUBAGENT_NAME))
+			if (!evoharness.getAllTools().some((tool) => tool.name === SUBAGENT_NAME))
 				return {
 					isError: true,
 					content: [{ type: "text", text: "Cannot enable unavailable tools: subagent." }],
 					details: { unavailable: [SUBAGENT_NAME] },
 				};
 			try {
-				setSelection(pi, true, true, true);
+				setSelection(evoharness, true, true, true);
 			} catch (error) {
 				return {
 					isError: true,
@@ -229,7 +229,7 @@ export function registerSubagentToolActivation(
 					details: { missing: [SUBAGENT_NAME] },
 				};
 			}
-			if (!pi.getActiveTools().includes(SUBAGENT_NAME))
+			if (!evoharness.getActiveTools().includes(SUBAGENT_NAME))
 				return {
 					isError: true,
 					content: [{ type: "text", text: "Activation failed: subagent." }],
@@ -240,26 +240,26 @@ export function registerSubagentToolActivation(
 				content: [
 					{
 						type: "text",
-						text: `Enabled: subagent. If your tool list includes subagent (possibly prefixed), call it now. Otherwise, wait for the next user prompt; do not retry now. Start Pi with --exclude-tools subagents_enable to keep subagent always available.${advertised ? `\n\n${advertised}` : ""}`,
+						text: `Enabled: subagent. If your tool list includes subagent (possibly prefixed), call it now. Otherwise, wait for the next user prompt; do not retry now. Start evoharness with --exclude-tools subagents_enable to keep subagent always available.${advertised ? `\n\n${advertised}` : ""}`,
 					},
 				],
 				details: { enabled: [SUBAGENT_NAME] },
 			};
 		},
 	};
-	registerPinnedTool(pi, loader);
+	registerPinnedTool(evoharness, loader);
 
 	// Decided at session start and tree navigation only; switching models keeps the session's tools.
 	let loaderSelected = true;
 	const replyOwed = () => options.hasPendingSupervisorRequest?.() === true;
-	pi.on("session_start", (_event, ctx) => {
-		loaderSelected = applyRecordedSelection(pi, ctx, mode, replyOwed());
+	evoharness.on("session_start", (_event, ctx) => {
+		loaderSelected = applyRecordedSelection(evoharness, ctx, mode, replyOwed());
 	});
-	pi.on("session_tree", (_event, ctx) => {
-		loaderSelected = applyRecordedSelection(pi, ctx, mode, replyOwed());
+	evoharness.on("session_tree", (_event, ctx) => {
+		loaderSelected = applyRecordedSelection(evoharness, ctx, mode, replyOwed());
 	});
-	pi.on("before_agent_start", (event) => {
-		const available = pi.getAllTools();
+	evoharness.on("before_agent_start", (event) => {
+		const available = evoharness.getAllTools();
 		if (!Array.isArray(available) || !available.some((tool) => tool.name === LOADER_NAME)) return;
 		// Another extension's background-work provider reports work only bg_wait can wait for, so a session with one
 		// declares bg_wait without enabling subagent, including when the provider registered after session start.
@@ -267,9 +267,9 @@ export function registerSubagentToolActivation(
 			available.some((tool) => tool.name === WAIT_NAME) && listBackgroundWorkProviders().length > 0;
 		const names = [...(loaderSelected ? [LOADER_NAME] : []), ...(providedWait ? [WAIT_NAME] : [])];
 		if (names.length === 0) return;
-		const selectedTools = (event.systemPromptOptions.selectedTools ??= [...pi.getActiveTools()]);
+		const selectedTools = (event.systemPromptOptions.selectedTools ??= [...evoharness.getActiveTools()]);
 		for (const name of names) if (!selectedTools.includes(name)) selectedTools.push(name);
-		const inactive = names.filter((name) => !pi.getActiveTools().includes(name));
-		if (inactive.length > 0) pi.setActiveTools([...pi.getActiveTools(), ...inactive]);
+		const inactive = names.filter((name) => !evoharness.getActiveTools().includes(name));
+		if (inactive.length > 0) evoharness.setActiveTools([...evoharness.getActiveTools(), ...inactive]);
 	});
 }

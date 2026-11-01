@@ -12,7 +12,7 @@ import type { StreamFn } from "@evoharness/agent-core";
  * before this setting existed.
  */
 export function childCacheRetention(env: NodeJS.ProcessEnv = process.env): string | undefined {
-	return env.PI_SUBAGENT_CACHE_RETENTION || undefined;
+	return env.EVOHARNESS_SUBAGENT_CACHE_RETENTION || undefined;
 }
 
 /**
@@ -25,7 +25,7 @@ export function childCacheRetentionEnv(env?: NodeJS.ProcessEnv): { EVOHARNESS_CA
 }
 
 /**
- * Pi resolves retention per request as `options.env?.[name] || process.env[name]`,
+ * evoharness resolves retention per request as `options.env?.[name] || process.env[name]`,
  * so a per-call env beats the process-wide one. Wrapping the session's own
  * stream function keeps this scoped to one child, with no shared-state race
  * against a parent turn streaming concurrently.

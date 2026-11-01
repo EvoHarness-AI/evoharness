@@ -33,7 +33,7 @@ const MUTATING_BASH_PATTERNS = [
 	/(^|[;&|()\s])git\s+apply\b/,
 	/(^|[;&|()\s])patch\s+/,
 	/(^|[;&|()\s])sed\s+[^\n;&|]*\s-i\b/,
-	/(^|[;&|()\s])perl\s+[^\n;&|]*\s-pi\b/,
+	/(^|[;&|()\s])perl\s+[^\n;&|]*\s-evoharness\b/,
 	/(^|[;&|()]|\n)\s*tee\s+[^|&;]+/,
 	/\b(writeFile|writeFileSync|appendFile|appendFileSync)\b/,
 	/\bwrite_text\s*\(/,

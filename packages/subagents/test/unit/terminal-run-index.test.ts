@@ -13,7 +13,7 @@ import type { AsyncStatus } from "../../src/shared/types.ts";
 
 describe("terminal run index", () => {
 	it("skips markers that ended before endedAfter without reading them", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-terminal-index-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-terminal-index-"));
 		try {
 			const sessionId = "session-ended-after";
 			const writeRun = (runId: string, endedAt: number) => {

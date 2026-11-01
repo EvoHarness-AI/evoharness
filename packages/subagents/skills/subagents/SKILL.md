@@ -1,12 +1,12 @@
 ---
-name: pi-subagents
+name: subagents
 description: |
-  Delegate work to Pi subagents after the operator asks for it: one child,
+  Delegate work to evoharness subagents after the operator asks for it: one child,
   parallel or scripted workflows, async runs, resume/steer/stop, review fanout,
   and multi-lane or worktree orchestration.
 ---
 
-# Pi Subagents
+# evoharness Subagents
 
 The parent works directly by default. Invoke subagents only when the operator
 requested delegation in the current request or through applicable user/project
@@ -99,7 +99,7 @@ number.
 
 - One writer per cwd or worktree. Parallelize reading, review, and
   validation. `worktree: true` needs a clean checkout (untracked files count;
-  `.pi/subagents/` does not). For Pi extension repos, put lane worktrees
+  `.pi/subagents/` does not). For evoharness extension repos, put lane worktrees
   outside `~/.pi/agent/extensions`, for example `~/.pi/agent/worktrees`.
 - Reviewers use fresh context. Use `context: "fork"` only when the child needs
   the parent's history; it requires a persisted parent session.
@@ -108,7 +108,7 @@ number.
 - A failed workflow, launch, prompt runtime, extension load, or child tool
   setup blocks the lane. Stop, report the exact failure and run/worktree state,
   verify a clean worktree or capture the partial diff, then retry the same way
-  once. Switching to `interactive_shell`, `pi -ne`, or another CLI needs owner
+  once. Switching to `interactive_shell`, `evoharness -ne`, or another CLI needs owner
   approval.
 - As a conservative orchestration policy, do not pass a hard `toolBudget` or tight `usageBudget` to mutation-capable workers. The default tool budget blocks read/search tools rather than mutation tools. If interrupted after a tool call starts, checkpoint after the current tool returns with changed files, build/test state, and commit or PR state.
 - Route workers and scouts to a fast capable tier, serious reviews to a strong

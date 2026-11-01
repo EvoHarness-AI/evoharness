@@ -99,7 +99,7 @@ describe("a forked child's requests", () => {
 		assert.match(task, /CHILD BOUNDARY\n<\/subagent_instructions>\n\nchild task$/);
 		assert.match(task, /Tools you can call: a, d\./);
 		assert.doesNotMatch(task, /<tools>/, "loadout sections are not repeated");
-		assert.deepEqual(declared(messages), ["a", "d"], "Pi's own record restricts the child");
+		assert.deepEqual(declared(messages), ["a", "d"], "evoharness's own record restricts the child");
 	});
 
 	it("declare the parent's tools in its order, then the tools only the child has at the fork point", () => {
@@ -173,12 +173,12 @@ describe("a forked child's requests", () => {
 		assert.deepEqual(
 			addition?.toolsRemoved,
 			[{ name: "structured_output" }],
-			"a changed definition is a removal and an addition, as Pi records it",
+			"a changed definition is a removal and an addition, as evoharness records it",
 		);
 		assert.equal(sent.indexOf(addition!), 2, "at the fork point");
 	});
 
-	it("send the same leading message as the parent when Pi collapsed the request", () => {
+	it("send the same leading message as the parent when evoharness collapsed the request", () => {
 		const session = forkSession();
 		const collapsed = collapseSystemMessages({ messages: session }).messages;
 		const parentCollapsed = collapseSystemMessages({ messages: session.slice(0, 2) }).messages;
@@ -240,7 +240,7 @@ describe("a forked child's session-affinity header", () => {
 		FORKED_AT,
 	);
 
-	it("names the parent session where Pi sends one", () => {
+	it("names the parent session where evoharness sends one", () => {
 		const headers: Record<string, string> = {};
 		applyForkSessionAffinity(
 			headers,
@@ -252,7 +252,7 @@ describe("a forked child's session-affinity header", () => {
 		assert.deepEqual(headers, { "x-session-id": "parent-session", "x-session-affinity": "parent-session" });
 	});
 
-	it("adds nothing where Pi sends no session-affinity header", () => {
+	it("adds nothing where evoharness sends no session-affinity header", () => {
 		const headers: Record<string, string> = {};
 		applyForkSessionAffinity(headers, anthropic(), "parent-session", parentModel);
 		applyForkSessionAffinity(
@@ -283,7 +283,7 @@ describe("a forked child session", () => {
 	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 
 	before(() => {
-		root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fork-tool-declarations-"));
+		root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fork-tool-declarations-"));
 		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(root, "agent");
 	});
 
@@ -303,7 +303,7 @@ describe("a forked child session", () => {
 		replies: Array<ReturnType<typeof fauxAssistantMessage>>;
 		forkCacheKey?: string;
 		launch?: Launch;
-		hooks?: Array<(pi: ExtensionAPI) => void>;
+		hooks?: Array<(evoharness: ExtensionAPI) => void>;
 	}): Promise<Request[]> {
 		const faux = fauxProvider({ provider: "probe", models: [{ id: "local" }], tokensPerSecond: 100_000 });
 		const requests: Request[] = [];
@@ -344,8 +344,11 @@ describe("a forked child session", () => {
 			...(options.forkCacheKey ? { forkCacheKey: options.forkCacheKey } : {}),
 			...options.launch,
 		});
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: () => import("@evoharness/coding-agent") });
-		const hooks = [(pi: ExtensionAPI) => pi.registerProvider(faux.provider as never), ...(options.hooks ?? [])];
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: () => import("@evoharness/coding-agent") });
+		const hooks = [
+			(evoharness: ExtensionAPI) => evoharness.registerProvider(faux.provider as never),
+			...(options.hooks ?? []),
+		];
 		const child = await factory.create({
 			...session,
 			hooks: [...session.hooks, ...hooks.map((hook, index) => ({ name: `probe-${index}`, factory: hook }))],
@@ -361,7 +364,7 @@ describe("a forked child session", () => {
 
 	async function forkOfParent(
 		name: string,
-		parent: { tools?: string[]; hooks?: Array<(pi: ExtensionAPI) => void> } = {},
+		parent: { tools?: string[]; hooks?: Array<(evoharness: ExtensionAPI) => void> } = {},
 	): Promise<{ forkFile: string; parentTools: string[]; parentDeclarations: string; parentSystem: Message[] }> {
 		const parentFile = path.join(root, `${name}-parent.jsonl`);
 		const [parentRequest] = await run({
@@ -429,7 +432,7 @@ describe("a forked child session", () => {
 			sessionFile: forkFile,
 			tools: ["read"],
 			replies: callBash(marker),
-			forkCacheKey: "pi-fork:test",
+			forkCacheKey: "subagents-fork:test",
 		});
 
 		assert.ok(parentTools.includes("bash") && parentTools.includes("ls"));
@@ -457,7 +460,7 @@ describe("a forked child session", () => {
 			.map((entry) => entry.message as SystemMessage);
 		assert.ok(
 			recorded.at(-1)!.toolsRemoved?.some((entry) => entry.name === "bash"),
-			"the session keeps Pi's own record of the child's tools",
+			"the session keeps evoharness's own record of the child's tools",
 		);
 	});
 
@@ -468,7 +471,7 @@ describe("a forked child session", () => {
 			sessionFile: forkFile,
 			tools: ["read"],
 			replies: callBash(path.join(root, "history-ran")),
-			forkCacheKey: "pi-fork:test",
+			forkCacheKey: "subagents-fork:test",
 		});
 
 		for (const { messages } of requests) {
@@ -497,7 +500,7 @@ describe("a forked child session", () => {
 			sessionFile: forkFile,
 			tools: ["read"],
 			replies: [fauxAssistantMessage("done")],
-			forkCacheKey: "pi-fork:test",
+			forkCacheKey: "subagents-fork:test",
 			launch: { systemPrompt: "FORK-ROLE instructions.", inheritProjectContext: false },
 		});
 
@@ -540,14 +543,14 @@ describe("a forked child session", () => {
 	it("declares exactly its parent's tools when the parent declares contact_supervisor, and its own contact_supervisor works", async () => {
 		const { forkFile, parentTools, parentDeclarations } = await forkOfParent("supervised", {
 			tools: ["read", "bash", "ls", "contact_supervisor"],
-			hooks: [(pi) => pi.registerTool(topLevelSupervisorTool())],
+			hooks: [(evoharness) => evoharness.registerTool(topLevelSupervisorTool())],
 		});
 
 		const requests = await run({
 			sessionFile: forkFile,
 			tools: ["read", "contact_supervisor"],
 			replies: callSupervisor,
-			forkCacheKey: "pi-fork:test",
+			forkCacheKey: "subagents-fork:test",
 			launch: supervised,
 		});
 
@@ -564,17 +567,17 @@ describe("a forked child session", () => {
 		fs.mkdirSync(extensions, { recursive: true });
 		// This package's own entry point, loaded the way a runner child discovers an installed copy.
 		const loaded = path.join(root, "ambient-loaded");
-		fs.mkdirSync(path.join(extensions, "pi-subagents"));
+		fs.mkdirSync(path.join(extensions, "subagents"));
 		fs.writeFileSync(
-			path.join(extensions, "pi-subagents", "index.ts"),
+			path.join(extensions, "subagents", "index.ts"),
 			[
 				`import * as fs from "node:fs";`,
 				`import registerSubagentExtension from ${JSON.stringify(path.resolve(import.meta.dirname, "..", "..", "index.ts"))};`,
-				`export default function (pi) { fs.writeFileSync(${JSON.stringify(loaded)}, "1"); return registerSubagentExtension(pi); }`,
+				`export default function (evoharness) { fs.writeFileSync(${JSON.stringify(loaded)}, "1"); return registerSubagentExtension(evoharness); }`,
 			].join("\n"),
 		);
-		const previous = process.env.PI_SUBAGENT_CHILD;
-		process.env.PI_SUBAGENT_CHILD = "1";
+		const previous = process.env.EVOHARNESS_SUBAGENT_CHILD;
+		process.env.EVOHARNESS_SUBAGENT_CHILD = "1";
 		try {
 			const requests = await run({
 				sessionFile: path.join(root, "runner-child.jsonl"),
@@ -586,8 +589,8 @@ describe("a forked child session", () => {
 			assert.ok(fs.existsSync(loaded), "the runner child loads this package's entry point");
 			assert.equal(supervisorResult(requests[1]!)!.content[0]!.text, "Supervisor progress update queued.");
 		} finally {
-			if (previous === undefined) delete process.env.PI_SUBAGENT_CHILD;
-			else process.env.PI_SUBAGENT_CHILD = previous;
+			if (previous === undefined) delete process.env.EVOHARNESS_SUBAGENT_CHILD;
+			else process.env.EVOHARNESS_SUBAGENT_CHILD = previous;
 			fs.rmSync(extensions, { recursive: true, force: true });
 		}
 	});
@@ -660,7 +663,7 @@ describe("a child's context handler", () => {
 		const inherited = [user(10), notice(20), call(30), result(40), call(50)];
 		const own = [user(FORKED_AT + 1), notice(FORKED_AT + 2), call(FORKED_AT + 3), result(FORKED_AT + 4)];
 
-		assert.deepEqual(contextHandler({ forkCacheKey: "pi-fork:test" })([...inherited, ...own]), [
+		assert.deepEqual(contextHandler({ forkCacheKey: "subagents-fork:test" })([...inherited, ...own]), [
 			...inherited,
 			own[0],
 		]);

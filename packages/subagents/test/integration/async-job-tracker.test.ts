@@ -25,7 +25,7 @@ import { createTempDir, removeTempDir, tryImport } from "../support/helpers.ts";
 
 interface AsyncJobTrackerModule {
 	createAsyncJobTracker(
-		pi: { events: { emit(channel: string, data: unknown): void } },
+		evoharness: { events: { emit(channel: string, data: unknown): void } },
 		state: Record<string, unknown>,
 		asyncDirRoot: string,
 		options?: {
@@ -92,7 +92,7 @@ function createState() {
 function createEventRecorder() {
 	const events: Array<{ channel: string; data: unknown }> = [];
 	return {
-		pi: {
+		evoharness: {
 			events: {
 				emit: (channel: string, data: unknown) => {
 					events.push({ channel, data });
@@ -184,7 +184,7 @@ function createNativeSupervisorHarness(sessionId: string) {
 	};
 	const tools = new Map<string, { execute: (id: string, params: Record<string, unknown>) => Promise<unknown> }>();
 	const sent: Array<{ customType?: string; options?: { triggerTurn?: boolean } }> = [];
-	const pi = {
+	const evoharness = {
 		getAllTools: () => [...tools.keys()].map((name) => ({ name })),
 		registerTool: (tool: { name: string; execute: (...args: unknown[]) => Promise<unknown> }) => {
 			tools.set(tool.name, { execute: (id, params) => tool.execute(id, params) });
@@ -193,7 +193,7 @@ function createNativeSupervisorHarness(sessionId: string) {
 			sent.push({ customType: message.customType, options });
 		},
 	};
-	const channel = createNativeSupervisorChannel(pi as never, nativeState as never, { platform: "win32" });
+	const channel = createNativeSupervisorChannel(evoharness as never, nativeState as never, { platform: "win32" });
 	return { channel, tools, sent };
 }
 
@@ -213,7 +213,7 @@ function startSupervisorAttentionRun(asyncRoot: string, runId: string, timers: {
 	);
 	let answered = false;
 	const recorder = createEventRecorder();
-	const tracker = createTracker(recorder.pi, createState() as never, asyncRoot, {
+	const tracker = createTracker(recorder.evoharness, createState() as never, asyncRoot, {
 		supervisorRequestState: () => (answered ? "resolved" : "pending"),
 	});
 	tracker.handleStarted({ id: runId, asyncDir: runDir, agent: "worker", sessionId: "session-grace" });
@@ -276,13 +276,13 @@ function createUiContext() {
 	};
 }
 
-describe("async job tracker", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("async job tracker", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	it("drops stale captured extension contexts instead of crashing background timers", () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-stale-context-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-stale-context-");
 		try {
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot);
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot);
 			(state as { lastUiContext: unknown }).lastUiContext = {
 				get hasUI() {
 					throw new Error("This extension ctx is stale after session replacement or reload.");
@@ -303,7 +303,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("clears stale cached contexts before a status refresh can leak the error", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-stale-refresh-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-stale-refresh-");
 		try {
 			const runDir = path.join(asyncRoot, "run-stale-refresh");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -322,7 +322,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 				watch: (() => {
 					throw new Error("watch disabled");
@@ -346,11 +346,11 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("stores only parent-registered session roots from async start events", () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-session-root-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-session-root-");
 		try {
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot);
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot);
 			const sessionRoot = path.join(asyncRoot, "custom-sessions");
 			state.liveAsyncSessionRoots = new Map([["run-custom-session", sessionRoot]]);
 
@@ -369,11 +369,11 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("preserves a workflow job's established session root when attaching its start event", () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-workflow-session-root-");
-		const sessionRoot = createTempDir("pi-explicit-workflow-sessions-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-workflow-session-root-");
+		const sessionRoot = createTempDir("subagents-explicit-workflow-sessions-");
 		try {
 			const state = createState();
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot);
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot);
 			const runId = "workflow-established-session-root";
 			const asyncDir = path.join(asyncRoot, runId);
 			state.asyncJobs.set(runId, {
@@ -396,11 +396,11 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("ignores unregistered session roots from async start events", () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-forged-session-root-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-forged-session-root-");
 		try {
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot);
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot);
 
 			tracker.handleStarted({
 				id: "run-forged-session",
@@ -416,11 +416,11 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("clears pending live session roots on reset", () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-reset-session-root-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-reset-session-root-");
 		try {
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot);
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot);
 			state.liveAsyncSessionRoots = new Map([["run-pending", path.join(asyncRoot, "sessions")]]);
 
 			tracker.resetJobs();
@@ -432,12 +432,12 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("removes completed jobs after retention and requests a rerender", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		try {
 			const state = createState();
 			const ui = createUiContext();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				completionRetentionMs: 5,
 			});
 			tracker.resetJobs(ui.ctx as never);
@@ -458,7 +458,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("reports a tracked run to the terminal as working, then done, and keeps the done record after widget cleanup", async () => {
-		const asyncRoot = createTempDir("pi-async-job-program-status-");
+		const asyncRoot = createTempDir("subagents-async-job-program-status-");
 		try {
 			const state = createState();
 			const ui = createUiContext();
@@ -472,7 +472,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				env: { TERM: "xterm-256color" },
 			});
 			programStatus.sessionStarted({ hasUI: true, mode: "tui" });
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
 				completionRetentionMs: 5,
 				onJobsChanged: programStatus.sync,
 			});
@@ -489,7 +489,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("emits subagent:jobs-changed when a background chain moves to its next step", async () => {
-		const asyncRoot = createTempDir("pi-async-jobs-changed-");
+		const asyncRoot = createTempDir("subagents-async-jobs-changed-");
 		try {
 			const runDir = path.join(asyncRoot, "run-chain");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -518,7 +518,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			state.currentSessionId = "session-chain";
 			const recorder = createEventRecorder();
 			const changed = () => recorder.events.filter((event) => event.channel === "subagent:jobs-changed");
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, { pollIntervalMs: 10 });
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, { pollIntervalMs: 10 });
 			tracker.restoreActiveJobs(createUiContext().ctx as never);
 			assert.ok(changed().length > 0, "restoring a running job is a change");
 
@@ -534,7 +534,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("retains nested lookup authority after async coordinator widget cleanup without crossing sessions", async () => {
-		const asyncRoot = createTempDir("pi-async-retained-lookup-");
+		const asyncRoot = createTempDir("subagents-async-retained-lookup-");
 		const route = createNestedRoute("async-coordinator");
 		try {
 			const state = createState();
@@ -552,7 +552,9 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 					agent: "worker",
 				},
 			});
-			const tracker = createTracker(createEventRecorder().pi, state, asyncRoot, { completionRetentionMs: 5 });
+			const tracker = createTracker(createEventRecorder().evoharness, state, asyncRoot, {
+				completionRetentionMs: 5,
+			});
 			tracker.handleStarted({
 				id: route.rootRunId,
 				asyncDir: path.join(asyncRoot, route.rootRunId),
@@ -572,12 +574,12 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("keeps the async widget cleared when it is disabled", () => {
-		const asyncRoot = createTempDir("pi-async-job-widget-disabled-");
+		const asyncRoot = createTempDir("subagents-async-job-widget-disabled-");
 		try {
 			const state = createState();
 			const ui = createUiContext();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				widgetEnabled: false,
 			});
 			tracker.resetJobs(ui.ctx as never);
@@ -597,12 +599,12 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("rebuilds the async widget on quiet animation ticks without a UI requestRender bridge", async () => {
-		const asyncRoot = createTempDir("pi-async-job-widget-animation-");
+		const asyncRoot = createTempDir("subagents-async-job-widget-animation-");
 		try {
 			const state = createState();
 			const ui = createUiContext();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, { pollIntervalMs: 10 });
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, { pollIntervalMs: 10 });
 			const ctx = {
 				...ui.ctx,
 				ui: {
@@ -632,7 +634,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("restores active async runs into the widget after reset", async () => {
-		const asyncRoot = createTempDir("pi-async-job-restore-");
+		const asyncRoot = createTempDir("subagents-async-job-restore-");
 		try {
 			const runDir = path.join(asyncRoot, "run-restored");
 			const customCwd = path.join(asyncRoot, "custom-cwd");
@@ -699,7 +701,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			state.currentSessionId = "session-restored";
 			const ui = createUiContext();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.resetJobs(ui.ctx as never);
@@ -750,7 +752,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("refreshes restored nested async children from event files before the liveness sweep", async () => {
-		const asyncRoot = createTempDir("pi-async-job-restore-nested-events-");
+		const asyncRoot = createTempDir("subagents-async-job-restore-nested-events-");
 		const nestedRoute = createNestedRoute("run-restored-nested");
 		const routeRoot = path.dirname(nestedRoute.eventSink);
 		try {
@@ -770,7 +772,9 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			updateActiveRunIndex(runDir, "running");
 			const state = createState();
 			state.currentSessionId = "session-restored-nested";
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, { pollIntervalMs: 60_000 });
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
+				pollIntervalMs: 60_000,
+			});
 			tracker.restoreActiveJobs();
 			assert.equal(state.asyncJobs.get("run-restored-nested")?.nestedRoute?.eventSink, nestedRoute.eventSink);
 
@@ -812,7 +816,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("refreshes restored workflow status from filesystem events before the liveness sweep", async () => {
-		const asyncRoot = createTempDir("pi-async-job-restore-workflow-");
+		const asyncRoot = createTempDir("subagents-async-job-restore-workflow-");
 		try {
 			const runDir = path.join(asyncRoot, "workflow-run");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -839,7 +843,9 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			updateActiveRunIndex(runDir, "running");
 			const state = createState();
 			state.currentSessionId = "session-workflow";
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, { pollIntervalMs: 60_000 });
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
+				pollIntervalMs: 60_000,
+			});
 			tracker.restoreActiveJobs();
 			assert.deepEqual(state.asyncJobs.get("workflow-run")?.workflow?.emits, [{ stage: "scan" }]);
 			assert.equal(state.asyncJobs.get("workflow-run")?.sessionRoot, "/trusted/workflow-sessions");
@@ -880,7 +886,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("keeps a workflow lane's recorded model and fills its missing thinking level from the child run", async () => {
-		const asyncRoot = createTempDir("pi-async-job-workflow-child-model-");
+		const asyncRoot = createTempDir("subagents-async-job-workflow-child-model-");
 		try {
 			const runDir = path.join(asyncRoot, "workflow-run");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -914,7 +920,9 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			updateActiveRunIndex(runDir, "running");
 			const state = createState();
 			state.currentSessionId = "session-workflow";
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, { pollIntervalMs: 60_000 });
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
+				pollIntervalMs: 60_000,
+			});
 			tracker.restoreActiveJobs();
 			// The tracker's own status refresh, not the restore projection, feeds the widget lane.
 			writeWorkflow(3000, {
@@ -937,13 +945,15 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("refreshes newly started runs when status appears after the run directory", async () => {
-		const asyncRoot = createTempDir("pi-async-job-late-status-");
+		const asyncRoot = createTempDir("subagents-async-job-late-status-");
 		try {
 			const runDir = path.join(asyncRoot, "late-status-run");
 			fs.mkdirSync(runDir, { recursive: true });
 			const state = createState();
 			state.currentSessionId = "session-late-status";
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, { pollIntervalMs: 60_000 });
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
+				pollIntervalMs: 60_000,
+			});
 			tracker.handleStarted({
 				id: "late-status-run",
 				asyncDir: runDir,
@@ -978,7 +988,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("does not sweep bridge requests for native jobs after an absent request directory", async () => {
-		const asyncRoot = createTempDir("pi-async-job-native-bridge-");
+		const asyncRoot = createTempDir("subagents-async-job-native-bridge-");
 		try {
 			const runDir = path.join(asyncRoot, "native-run");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -995,7 +1005,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				"utf-8",
 			);
 			const state = createState();
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 				watch: (() => {
 					throw new Error("native watcher disabled for test");
@@ -1022,7 +1032,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("services an existing request once an external-job runner is identified", async () => {
-		const asyncRoot = createTempDir("pi-async-job-external-bridge-");
+		const asyncRoot = createTempDir("subagents-async-job-external-bridge-");
 		let unregister: (() => void) | undefined;
 		try {
 			const runDir = path.join(asyncRoot, "external-run");
@@ -1078,7 +1088,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				reattach: () => ({ providerJobId: "provider-job", state: "completed" }),
 			});
 			const state = createState();
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 				watch: (() => {
 					throw new Error("native watcher disabled for test");
@@ -1102,7 +1112,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("services requests created after the initial missing-directory sweep", async () => {
-		const asyncRoot = createTempDir("pi-async-job-late-bridge-");
+		const asyncRoot = createTempDir("subagents-async-job-late-bridge-");
 		let unregister: (() => void) | undefined;
 		try {
 			const runDir = path.join(asyncRoot, "late-external-run");
@@ -1126,7 +1136,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				"utf-8",
 			);
 			const state = createState();
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 				watch: (() => {
 					throw new Error("native watcher disabled for test");
@@ -1184,13 +1194,13 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("keeps bridge servicing when status is missing", async () => {
-		const asyncRoot = createTempDir("pi-async-job-malformed-bridge-");
+		const asyncRoot = createTempDir("subagents-async-job-malformed-bridge-");
 		try {
 			const runDir = path.join(asyncRoot, "malformed-external-run");
 			fs.mkdirSync(path.join(runDir, EXTERNAL_JOB_BRIDGE_REQUEST_DIR), { recursive: true });
 			fs.writeFileSync(path.join(runDir, EXTERNAL_JOB_BRIDGE_REQUEST_DIR, "malformed.json"), "{malformed", "utf-8");
 			const state = createState();
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 				watch: (() => {
 					throw new Error("native watcher disabled for test");
@@ -1210,7 +1220,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("does not request quiet running widget renders on every liveness tick", async () => {
-		const asyncRoot = createTempDir("pi-async-job-quiet-widget-");
+		const asyncRoot = createTempDir("subagents-async-job-quiet-widget-");
 		try {
 			const runDir = path.join(asyncRoot, "quiet-run");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -1228,7 +1238,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			);
 			const state = createState();
 			const ui = createUiContext();
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 				watch: (() => {
 					throw new Error("native watcher disabled for test");
@@ -1254,7 +1264,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("uses polling without native watchers on Darwin and fires terminal delivery hooks once", async () => {
-		const asyncRoot = createTempDir("pi-async-job-darwin-poll-");
+		const asyncRoot = createTempDir("subagents-async-job-darwin-poll-");
 		try {
 			const runDir = path.join(asyncRoot, "darwin-run");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -1273,7 +1283,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const state = createState();
 			let nativeWatchCalls = 0;
 			let terminalHooks = 0;
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
 				platform: "darwin",
 				pollIntervalMs: 10,
 				onJobTerminal: () => terminalHooks++,
@@ -1315,7 +1325,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("refreshes nested async children from event files before the liveness sweep", async () => {
-		const asyncRoot = createTempDir("pi-async-job-nested-events-");
+		const asyncRoot = createTempDir("subagents-async-job-nested-events-");
 		const nestedRoute = createNestedRoute("run-nested-events");
 		const routeRoot = path.dirname(nestedRoute.eventSink);
 		try {
@@ -1332,7 +1342,9 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			};
 			fs.writeFileSync(statusPath, JSON.stringify(statusPayload), "utf-8");
 			const state = createState();
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, { pollIntervalMs: 60_000 });
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
+				pollIntervalMs: 60_000,
+			});
 			tracker.handleStarted({ id: "run-nested-events", asyncDir: runDir, agent: "worker", nestedRoute });
 
 			await new Promise((resolve) => setTimeout(resolve, 150));
@@ -1373,7 +1385,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("restores async workflow child ownership after reload", () => {
-		const asyncRoot = createTempDir("pi-async-job-restore-workflow-child-");
+		const asyncRoot = createTempDir("subagents-async-job-restore-workflow-child-");
 		try {
 			const runDir = path.join(asyncRoot, "workflow-child");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -1394,7 +1406,9 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			updateActiveRunIndex(runDir, "running");
 			const state = createState();
 			state.currentSessionId = "session-workflow";
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, { pollIntervalMs: 10 });
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
+				pollIntervalMs: 10,
+			});
 			tracker.restoreActiveJobs();
 			assert.equal(state.asyncJobs.get("workflow-child")?.parentWorkflowRunId, "workflow-parent");
 			assert.equal(state.asyncJobs.get("workflow-child")?.workflowKey, "review");
@@ -1405,7 +1419,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("restores only active async runs for the current session", () => {
-		const asyncRoot = createTempDir("pi-async-job-restore-scope-");
+		const asyncRoot = createTempDir("subagents-async-job-restore-scope-");
 		try {
 			const ownerDir = path.join(asyncRoot, "run-owner");
 			const otherDir = path.join(asyncRoot, "run-other");
@@ -1440,7 +1454,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			const state = createState();
 			state.currentSessionId = "session-owner";
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.restoreActiveJobs();
@@ -1453,11 +1467,11 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("ignores started and complete events without the current session id", async () => {
-		const asyncRoot = createTempDir("pi-async-job-event-scope-");
+		const asyncRoot = createTempDir("subagents-async-job-event-scope-");
 		try {
 			const state = createState();
 			state.currentSessionId = "session-owner";
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
 				completionRetentionMs: 5,
 				pollIntervalMs: 10,
 			});
@@ -1498,7 +1512,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("does not throw during restore when a persisted async status is malformed", () => {
-		const asyncRoot = createTempDir("pi-async-job-restore-bad-status-");
+		const asyncRoot = createTempDir("subagents-async-job-restore-bad-status-");
 		const originalError = console.error;
 		try {
 			const runDir = path.join(asyncRoot, "run-bad-status");
@@ -1515,7 +1529,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				errors.push(args);
 			};
 
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.resetJobs(ui.ctx as never);
@@ -1534,11 +1548,11 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("uses flattened async-start agents for initial parallel group widget state", () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		try {
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot);
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot);
 
 			tracker.handleStarted({
 				id: "run-parallel-start",
@@ -1564,7 +1578,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("adds flat step indexes to polled active parallel group steps", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		try {
 			const runDir = path.join(asyncRoot, "run-chain");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -1599,7 +1613,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const state = createState();
 			const ui = createUiContext();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.resetJobs(ui.ctx as never);
@@ -1634,7 +1648,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("requests quiet animation repaints without rebuilding widgets and stops at terminal status", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		let tracker: ReturnType<AsyncJobTrackerModule["createAsyncJobTracker"]> | undefined;
 		try {
 			const runDir = path.join(asyncRoot, "run-unchanged");
@@ -1658,7 +1672,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const state = createState();
 			const ui = createUiContext();
 			const recorder = createEventRecorder();
-			tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.resetJobs(ui.ctx as never);
@@ -1723,7 +1737,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("coalesces close per-job status refreshes into one widget replacement", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-coalesce-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-coalesce-");
 		let tracker: ReturnType<AsyncJobTrackerModule["createAsyncJobTracker"]> | undefined;
 		try {
 			const runA = path.join(asyncRoot, "run-a");
@@ -1761,7 +1775,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const state = createState();
 			const ui = createUiContext();
 			const recorder = createEventRecorder();
-			tracker = createTracker(recorder.pi, state as never, asyncRoot, { pollIntervalMs: 10000, watch });
+			tracker = createTracker(recorder.evoharness, state as never, asyncRoot, { pollIntervalMs: 10000, watch });
 			tracker.resetJobs(ui.ctx as never);
 			tracker.handleStarted({ id: "run-a", asyncDir: runA, agent: "worker" });
 			tracker.handleStarted({ id: "run-b", asyncDir: runB, agent: "reviewer" });
@@ -1795,11 +1809,11 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("schedules cleanup when polling observes terminal statuses without completion events", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		try {
 			const state = createState();
 			const ui = createUiContext();
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
 				completionRetentionMs: 5,
 				pollIntervalMs: 10,
 			});
@@ -1838,11 +1852,11 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("watches run directories created after the start event", async () => {
-		const asyncRoot = createTempDir("pi-async-job-late-dir-");
+		const asyncRoot = createTempDir("subagents-async-job-late-dir-");
 		try {
 			const runDir = path.join(asyncRoot, "run-late-dir");
 			const state = createState();
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
+			const tracker = createTracker(createEventRecorder().evoharness, state as never, asyncRoot, {
 				completionRetentionMs: 5,
 				pollIntervalMs: 60_000,
 			});
@@ -1874,7 +1888,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("repairs stale running jobs during polling", async () => {
-		const asyncRoot = createTempDir("pi-async-job-stale-");
+		const asyncRoot = createTempDir("subagents-async-job-stale-");
 		try {
 			const resultsDir = path.join(asyncRoot, "results");
 			const runDir = path.join(asyncRoot, "run-stale");
@@ -1897,7 +1911,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const state = createState();
 			const ui = createUiContext();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				completionRetentionMs: 5,
 				pollIntervalMs: 10,
 				resultsDir,
@@ -1919,14 +1933,14 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("repairs started jobs whose runner dies before writing status", async () => {
-		const asyncRoot = createTempDir("pi-async-job-no-status-");
+		const asyncRoot = createTempDir("subagents-async-job-no-status-");
 		try {
 			const resultsDir = path.join(asyncRoot, "results");
 			const runDir = path.join(asyncRoot, "run-no-status");
 			const state = createState();
 			const ui = createUiContext();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				completionRetentionMs: 5,
 				pollIntervalMs: 10,
 				resultsDir,
@@ -1976,7 +1990,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("cleans up jobs when status polling hits a terminal read error", async () => {
-		const asyncRoot = createTempDir("pi-async-job-bad-status-");
+		const asyncRoot = createTempDir("subagents-async-job-bad-status-");
 		try {
 			const runDir = path.join(asyncRoot, "run-bad-status");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -1984,7 +1998,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const state = createState();
 			const ui = createUiContext();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				completionRetentionMs: 5,
 				pollIntervalMs: 10,
 			});
@@ -2001,7 +2015,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("does not clean up a status-read failure while nested descendants are live", async () => {
-		const asyncRoot = createTempDir("pi-async-job-bad-status-nested-");
+		const asyncRoot = createTempDir("subagents-async-job-bad-status-nested-");
 		let tracker: ReturnType<AsyncJobTrackerModule["createAsyncJobTracker"]> | undefined;
 		const originalError = console.error;
 		console.error = () => {};
@@ -2011,7 +2025,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			fs.writeFileSync(path.join(runDir, "status.json"), "{", "utf-8");
 			const state = createState();
 			const recorder = createEventRecorder();
-			tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				completionRetentionMs: 5,
 				pollIntervalMs: 10,
 			});
@@ -2042,7 +2056,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("keeps root jobs running when nested refresh fails during polling", async () => {
-		const asyncRoot = createTempDir("pi-async-job-nested-refresh-um");
+		const asyncRoot = createTempDir("subagents-async-job-nested-refresh-um");
 		let tracker: ReturnType<AsyncJobTrackerModule["createAsyncJobTracker"]> | undefined;
 		const originalError = console.error;
 		console.error = () => {};
@@ -2064,7 +2078,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			const state = createState();
 			const recorder = createEventRecorder();
-			tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				completionRetentionMs: 5,
 				pollIntervalMs: 10,
 			});
@@ -2092,14 +2106,14 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("cancels cleanup timers when polling observes a non-terminal status", async () => {
-		const asyncRoot = createTempDir("pi-async-job-cleanup-cancel-");
+		const asyncRoot = createTempDir("subagents-async-job-cleanup-cancel-");
 		let tracker: ReturnType<AsyncJobTrackerModule["createAsyncJobTracker"]> | undefined;
 		try {
 			const runDir = path.join(asyncRoot, "run-recovered");
 			fs.mkdirSync(runDir, { recursive: true });
 			const state = createState();
 			const recorder = createEventRecorder();
-			tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				completionRetentionMs: 1_000,
 				pollIntervalMs: 10,
 			});
@@ -2134,7 +2148,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("suppresses a resolved native supervisor notice before async replay", async () => {
-		const asyncRoot = createTempDir("pi-async-job-supervisor-replay-resolved-");
+		const asyncRoot = createTempDir("subagents-async-job-supervisor-replay-resolved-");
 		const sessionId = `session-${Date.now()}`;
 		const runId = `run-${Date.now()}`;
 		const toolCallId = `call-${Date.now()}`;
@@ -2150,7 +2164,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			assert.equal(channel.getSupervisorRequestState(event), "pending");
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 				supervisorRequestState: channel.getSupervisorRequestState,
 			});
@@ -2177,7 +2191,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("delivers a native supervisor notice while its request is pending through replay", async () => {
-		const asyncRoot = createTempDir("pi-async-job-supervisor-replay-pending-");
+		const asyncRoot = createTempDir("subagents-async-job-supervisor-replay-pending-");
 		const sessionId = `session-${Date.now()}`;
 		const runId = `run-${Date.now()}`;
 		const toolCallId = `call-${Date.now()}`;
@@ -2193,7 +2207,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			assert.equal(channel.getSupervisorRequestState(event), "pending");
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 				supervisorRequestState: channel.getSupervisorRequestState,
 			});
@@ -2219,7 +2233,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("keeps the first native supervisor notice after resolution and suppresses later replay", async () => {
-		const asyncRoot = createTempDir("pi-async-job-supervisor-replay-late-");
+		const asyncRoot = createTempDir("subagents-async-job-supervisor-replay-late-");
 		const sessionId = `session-${Date.now()}`;
 		const runId = `run-${Date.now()}`;
 		const toolCallId = `call-${Date.now()}`;
@@ -2234,7 +2248,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			channel.start();
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 				supervisorRequestState: channel.getSupervisorRequestState,
 			});
@@ -2262,7 +2276,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("sends no parent notice for a supervisor request answered within the grace period", (t) => {
-		const asyncRoot = createTempDir("pi-async-job-supervisor-grace-answered-");
+		const asyncRoot = createTempDir("subagents-async-job-supervisor-grace-answered-");
 		t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
 		try {
 			const run = startSupervisorAttentionRun(asyncRoot, "run-grace-answered", t.mock.timers);
@@ -2275,7 +2289,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("escalates a supervisor request still unanswered after the grace period once", (t) => {
-		const asyncRoot = createTempDir("pi-async-job-supervisor-grace-pending-");
+		const asyncRoot = createTempDir("subagents-async-job-supervisor-grace-pending-");
 		t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
 		try {
 			const run = startSupervisorAttentionRun(asyncRoot, "run-grace-pending", t.mock.timers);
@@ -2298,7 +2312,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("drops a pending supervisor notice when the run finishes during the grace period", (t) => {
-		const asyncRoot = createTempDir("pi-async-job-supervisor-grace-finished-");
+		const asyncRoot = createTempDir("subagents-async-job-supervisor-grace-finished-");
 		t.mock.timers.enable({ apis: ["setTimeout", "setInterval"] });
 		try {
 			const run = startSupervisorAttentionRun(asyncRoot, "run-grace-finished", t.mock.timers);
@@ -2316,7 +2330,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("delivers an external intercom ask with the native lifecycle lookup enabled", async () => {
-		const asyncRoot = createTempDir("pi-async-job-supervisor-replay-external-");
+		const asyncRoot = createTempDir("subagents-async-job-supervisor-replay-external-");
 		const sessionId = `session-${Date.now()}`;
 		const runId = `run-${Date.now()}`;
 		const { channel } = createNativeSupervisorHarness(sessionId);
@@ -2328,7 +2342,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			assert.equal(channel.getSupervisorRequestState(event), "unknown");
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 				supervisorRequestState: channel.getSupervisorRequestState,
 			});
@@ -2344,7 +2358,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("keeps incomplete async control event lines for the next poll", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		try {
 			const runDir = path.join(asyncRoot, "run-partial");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -2377,7 +2391,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.handleStarted({ id: "run-partial", asyncDir: runDir, agent: "worker" });
@@ -2397,7 +2411,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("scans async control events in bounded chunks", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		const originalAlloc = Buffer.alloc;
 		const allocationSizes: number[] = [];
 		try {
@@ -2440,7 +2454,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.handleStarted({ id: "run-chunked-control", asyncDir: runDir, agent: "worker" });
@@ -2458,7 +2472,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("resynchronizes when a saved cursor resumes inside an oversized JSONL record", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		const originalError = console.error;
 		const errors: unknown[][] = [];
 		console.error = (...args: unknown[]) => {
@@ -2508,7 +2522,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				controlEventCursor: 0,
 			});
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.ensurePoller();
@@ -2528,7 +2542,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("does not tail-skip control events for newly tracked large logs", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		try {
 			const runDir = path.join(asyncRoot, "run-new-large-control");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -2567,7 +2581,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.handleStarted({ id: "run-new-large-control", asyncDir: runDir, agent: "worker" });
@@ -2582,7 +2596,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("starts large legacy control-event scans from a bounded tail window", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		const originalAlloc = Buffer.alloc;
 		const originalError = console.error;
 		const allocationSizes: number[] = [];
@@ -2639,7 +2653,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				updatedAt: Date.now(),
 			});
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.ensurePoller();
@@ -2661,7 +2675,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("clears transient current tool fields when status clears them", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		try {
 			const runDir = path.join(asyncRoot, "run-clear-tool");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -2683,7 +2697,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.handleStarted({ id: "run-clear-tool", asyncDir: runDir, agent: "worker" });
@@ -2717,7 +2731,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("honors async control notification channels", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		try {
 			const runDir = path.join(asyncRoot, "run-channels");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -2753,7 +2767,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.handleStarted({ id: "run-channels", asyncDir: runDir, agent: "worker" });
@@ -2773,7 +2787,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("does not bridge active-long-running records to intercom", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		try {
 			const runDir = path.join(asyncRoot, "run-active-intercom");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -2809,7 +2823,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.handleStarted({ id: "run-active-intercom", asyncDir: runDir, agent: "worker" });
@@ -2829,7 +2843,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("bridges async control events from events.jsonl to the parent event bus", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		try {
 			const runDir = path.join(asyncRoot, "run-3");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -2868,7 +2882,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.handleStarted({ id: "run-3", asyncDir: runDir, agent: "worker" });
@@ -2888,7 +2902,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("bridges async child started events from events.jsonl to the parent event bus", async () => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		try {
 			const runDir = path.join(asyncRoot, "run-child-status");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -2922,7 +2936,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			const state = createState();
 			const recorder = createEventRecorder();
-			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
+			const tracker = createTracker(recorder.evoharness, state as never, asyncRoot, {
 				pollIntervalMs: 10,
 			});
 			tracker.handleStarted({ id: "run-child-status", asyncDir: runDir, agent: "workflow" });
@@ -2952,7 +2966,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 	});
 
 	it("continues replay after a child-status subscriber throws", async (t) => {
-		const asyncRoot = createTempDir("pi-async-job-tracker-");
+		const asyncRoot = createTempDir("subagents-async-job-tracker-");
 		try {
 			const runDir = path.join(asyncRoot, "run-throwing-child-status");
 			fs.mkdirSync(runDir, { recursive: true });
@@ -2986,7 +3000,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			let emitAttempts = 0;
 			const delivered: unknown[] = [];
-			const pi = {
+			const evoharness = {
 				events: {
 					emit(channel: string, data: unknown) {
 						if (channel !== SUBAGENT_CHILD_STATUS_EVENT) return;
@@ -3004,7 +3018,7 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			t.after(() => {
 				console.error = originalError;
 			});
-			const tracker = createTracker(pi, createState() as never, asyncRoot, { pollIntervalMs: 10 });
+			const tracker = createTracker(evoharness, createState() as never, asyncRoot, { pollIntervalMs: 10 });
 			tracker.handleStarted({ id: "run-throwing-child-status", asyncDir: runDir, agent: "workflow" });
 
 			await waitForCondition(() => delivered.length === 1, "later child status event");

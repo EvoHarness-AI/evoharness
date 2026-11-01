@@ -277,7 +277,7 @@ function resolveSharedGitConfigRoot(projectCwd: string): string | undefined {
 	return undefined;
 }
 
-// In the home directory the project config dir is the user's own Pi config dir,
+// In the home directory the project config dir is the user's own evoharness config dir,
 // which may be a symlink to another disk.
 function resolveHomeConfigRoot(projectPath: string): string | undefined {
 	const home = process.env.HOME || process.env.USERPROFILE || os.homedir();
@@ -700,10 +700,10 @@ function normalizedSessionFile(value: string | undefined): string | undefined {
 }
 
 /**
- * 判断 Schedule 是否属于当前 Pi 会话.
+ * 判断 Schedule 是否属于当前 evoharness 会话.
  *
  * @param schedule Schedule 记录
- * @param ctx 当前 Pi 会话上下文
+ * @param ctx 当前 evoharness 会话上下文
  * @returns 是否允许当前会话执行该 Schedule
  */
 function scheduleBelongsToSession(schedule: ScheduleRecord, ctx: ExtensionContext): boolean {
@@ -1196,10 +1196,10 @@ export class ScheduledRunManager {
 			() => {
 				// A timer callback is outside every caller's try/catch, so an escaping
 				// rejection here reaches the process as an uncaught exception and exits
-				// Pi. Contain every failure to this one schedule.
+				// evoharness. Contain every failure to this one schedule.
 				void this.fire(store, schedule.id).catch((error) => {
 					console.warn(
-						`[pi-subagents] Scheduled run '${schedule.id}' failed to fire: ${error instanceof Error ? error.message : String(error)}`,
+						`[subagents] Scheduled run '${schedule.id}' failed to fire: ${error instanceof Error ? error.message : String(error)}`,
 					);
 					this.restoreAfterFireError(store, schedule.id);
 				});
@@ -1223,7 +1223,7 @@ export class ScheduledRunManager {
 			this.restoreOne(store, schedule, notBefore, schedule.trigger.kind !== "once");
 		} catch (error) {
 			console.warn(
-				`[pi-subagents] Scheduled run '${id}' could not be restored after fire failure: ${error instanceof Error ? error.message : String(error)}`,
+				`[subagents] Scheduled run '${id}' could not be restored after fire failure: ${error instanceof Error ? error.message : String(error)}`,
 			);
 		}
 	}
@@ -1272,7 +1272,7 @@ export class ScheduledRunManager {
 				outcome = this.terminalAsyncOutcome(active);
 			} catch (error) {
 				console.warn(
-					`[pi-subagents] Could not reconcile active run '${schedule.activeRunId}' of schedule '${schedule.id}': ${error instanceof Error ? error.message : String(error)}`,
+					`[subagents] Could not reconcile active run '${schedule.activeRunId}' of schedule '${schedule.id}': ${error instanceof Error ? error.message : String(error)}`,
 				);
 			}
 			// A dead runner's completion never reaches this schedule, so its claim would skip every later fire.
@@ -1344,7 +1344,7 @@ export class ScheduledRunManager {
 				if (fs.readFileSync(lockPath, "utf-8") === run.id) fs.rmSync(lockPath);
 			} catch (cleanupError) {
 				console.warn(
-					`[pi-subagents] Could not release schedule claim '${run.id}': ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
+					`[subagents] Could not release schedule claim '${run.id}': ${cleanupError instanceof Error ? cleanupError.message : String(cleanupError)}`,
 				);
 			}
 			throw error;

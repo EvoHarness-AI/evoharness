@@ -5,6 +5,6 @@ export function rewriteFastModeProviderRequest(event: BeforeProviderRequestEvent
 	return { ...event.payload, service_tier: "priority" };
 }
 
-export default function registerSubagentFastModeExtension(pi: ExtensionAPI): void {
-	pi.on("before_provider_request", rewriteFastModeProviderRequest);
+export default function registerSubagentFastModeExtension(evoharness: ExtensionAPI): void {
+	evoharness.on("before_provider_request", rewriteFastModeProviderRequest);
 }

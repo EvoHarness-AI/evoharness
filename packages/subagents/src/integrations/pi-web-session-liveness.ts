@@ -67,7 +67,7 @@ export function registerPiWebSessionLiveness(registration: SessionLivenessRegist
 	if (!registry) return { registered: false, release: () => {} };
 	try {
 		const release = registry.register({
-			name: "pi-subagents",
+			name: "subagents",
 			sessionId: registration.sessionId,
 			...(registration.sessionFile ? { sessionFile: registration.sessionFile } : {}),
 			isActive: registration.isActive,

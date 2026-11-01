@@ -45,7 +45,7 @@ describe("host workflow result publication", { skip: !available }, () => {
 	it("launches a workflow when the parent tool-call id is multi-kilobyte", async () => {
 		const parentToolCallId = `call_abc__thought__${"A".repeat(10_000)}`;
 		const executor = createSubagentExecutor!({
-			pi: { events: createEventBus(), getSessionName: () => undefined },
+			evoharness: { events: createEventBus(), getSessionName: () => undefined },
 			state: {
 				baseCwd: tempDir,
 				currentSessionId: null,
@@ -96,7 +96,7 @@ describe("host workflow result publication", { skip: !available }, () => {
 				watcherRestartTimer: null,
 				resultFileCoalescer: { schedule: () => false, clear() {} },
 			};
-			const pi = {
+			const evoharness = {
 				events: createEventBus(),
 				getSessionName: () => undefined,
 				isHeld: () => false,
@@ -105,7 +105,7 @@ describe("host workflow result publication", { skip: !available }, () => {
 				},
 			};
 			const executor = createSubagentExecutor!({
-				pi,
+				evoharness,
 				state,
 				config: {},
 				asyncByDefault: false,
@@ -114,7 +114,7 @@ describe("host workflow result publication", { skip: !available }, () => {
 				expandTilde: (p: string) => p,
 				discoverAgents: () => ({ agents: [makeAgent("worker")] }),
 			});
-			const notifier = registerSubagentNotify(pi, state, { batchConfig: { enabled: false } });
+			const notifier = registerSubagentNotify(evoharness, state, { batchConfig: { enabled: false } });
 			let childId: string | undefined;
 			try {
 				const result = await executor.execute(
@@ -222,7 +222,7 @@ describe("host workflow result publication", { skip: !available }, () => {
 				watcherRestartTimer: null,
 				resultFileCoalescer: { schedule: () => false, clear() {} },
 			};
-			const pi = {
+			const evoharness = {
 				getSessionName: () => undefined,
 				events: {
 					on: () => () => {},
@@ -240,8 +240,8 @@ describe("host workflow result publication", { skip: !available }, () => {
 					if (message.customType) notificationTypes.push(message.customType);
 				},
 			};
-			const notifier = registerSubagentNotify(pi, state, { batchConfig: { enabled: false } });
-			const watcher = createResultWatcher(pi, state, RESULTS_DIR, 60000, {
+			const notifier = registerSubagentNotify(evoharness, state, { batchConfig: { enabled: false } });
+			const watcher = createResultWatcher(evoharness, state, RESULTS_DIR, 60000, {
 				platform: "darwin",
 				coalesceDelayMs: 0,
 				notifier,
@@ -305,7 +305,7 @@ describe("host workflow result publication", { skip: !available }, () => {
 			syncBuiltinESMExports();
 			try {
 				const executor = createSubagentExecutor!({
-					pi,
+					evoharness,
 					state,
 					config: {},
 					asyncByDefault: false,

@@ -110,12 +110,12 @@ describe("internal Herdr pane-native M2b adapters", () => {
 	it("splits exact restricted Claude reader and writer ceilings", () => {
 		const reader = createHerdrExternalAdapterLaunch({
 				adapter: "claude-code",
-				remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+				remoteRuntimeDir: "/tmp/subagents-herdr-run",
 				nativeSessionId: session,
 			}),
 			writer = createHerdrExternalAdapterLaunch({
 				adapter: "claude-code-writer",
-				remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+				remoteRuntimeDir: "/tmp/subagents-herdr-run",
 				nativeSessionId: session,
 			});
 		assert.deepEqual(reader.args, [
@@ -158,7 +158,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 		assert.deepEqual(
 			createHerdrExternalAdapterLaunch({
 				adapter: "cursor-agent",
-				remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+				remoteRuntimeDir: "/tmp/subagents-herdr-run",
 				cwd,
 				nativeSessionId: session,
 			}).args,
@@ -167,7 +167,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 		assert.deepEqual(
 			createHerdrExternalAdapterLaunch({
 				adapter: "cursor-agent-writer",
-				remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+				remoteRuntimeDir: "/tmp/subagents-herdr-run",
 				cwd,
 				nativeSessionId: session,
 			}).args,
@@ -176,7 +176,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 		assert.deepEqual(
 			createHerdrExternalAdapterLaunch({
 				adapter: "codex-exec",
-				remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+				remoteRuntimeDir: "/tmp/subagents-herdr-run",
 				nativeSessionId: session,
 			}).args,
 			["--sandbox", "read-only", "--ask-for-approval", "never", "--no-alt-screen"],
@@ -184,7 +184,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 		assert.deepEqual(
 			createHerdrExternalAdapterLaunch({
 				adapter: "codex-exec-writer",
-				remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+				remoteRuntimeDir: "/tmp/subagents-herdr-run",
 				nativeSessionId: session,
 			}).args,
 			["--sandbox", "workspace-write", "--ask-for-approval", "never", "--no-alt-screen"],
@@ -227,7 +227,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 	});
 	it("preserves preparation and cleanup failures together", async () => {
 		const owner = {
-			runtimeDir: "/tmp/pi-subagents-herdr-owned",
+			runtimeDir: "/tmp/subagents-herdr-owned",
 			connection: { endpoint: { session: null } },
 			async subscribe() {},
 			async provision() {
@@ -256,7 +256,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 		let starts = 0,
 			cleanups = 0;
 		const owner = {
-			runtimeDir: "/tmp/pi-subagents-herdr-owned",
+			runtimeDir: "/tmp/subagents-herdr-owned",
 			connection: { endpoint: { session: null } },
 			async subscribe() {},
 			async provision() {
@@ -367,7 +367,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 		} as never;
 		const launch = createHerdrExternalAdapterLaunch({
 				adapter: "cursor-agent",
-				remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+				remoteRuntimeDir: "/tmp/subagents-herdr-run",
 				cwd,
 				nativeSessionId: session,
 			}),
@@ -378,7 +378,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 	it("retains and normalizes Codex startup trust UI without prompting", async () => {
 		const launch = createHerdrExternalAdapterLaunch({
 			adapter: "codex-exec",
-			remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+			remoteRuntimeDir: "/tmp/subagents-herdr-run",
 			nativeSessionId: session,
 		});
 		let prompts = 0,
@@ -428,7 +428,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 	it("treats Herdr unknown as retained ambiguous Cursor settlement", async () => {
 		const launch = createHerdrExternalAdapterLaunch({
 				adapter: "cursor-agent",
-				remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+				remoteRuntimeDir: "/tmp/subagents-herdr-run",
 				cwd,
 				nativeSessionId: session,
 			}),
@@ -528,7 +528,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 	it("fails Cursor settlement on workspace object replacement before terminal read", async () => {
 		const launch = createHerdrExternalAdapterLaunch({
 			adapter: "cursor-agent",
-			remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+			remoteRuntimeDir: "/tmp/subagents-herdr-run",
 			cwd,
 			nativeSessionId: session,
 		});
@@ -577,7 +577,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 			let cleanups = 0;
 			const launch = createHerdrExternalAdapterLaunch({
 				adapter: "claude-code",
-				remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+				remoteRuntimeDir: "/tmp/subagents-herdr-run",
 				nativeSessionId: session,
 			});
 			const owner = {
@@ -1307,7 +1307,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 	it("default Codex observer uses visible while working and recent_unwrapped only after done", async () => {
 		const launch = createHerdrExternalAdapterLaunch({
 				adapter: "codex-exec-writer",
-				remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+				remoteRuntimeDir: "/tmp/subagents-herdr-run",
 				nativeSessionId: session,
 			}),
 			calls: string[] = [];
@@ -1395,7 +1395,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 	it("default Codex snapshot protocol errors retain and fail unchanged at the runner boundary", async () => {
 		const launch = createHerdrExternalAdapterLaunch({
 			adapter: "codex-exec",
-			remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+			remoteRuntimeDir: "/tmp/subagents-herdr-run",
 			nativeSessionId: session,
 		});
 		let retained = 0;
@@ -2154,7 +2154,7 @@ describe("internal Herdr pane-native M2b adapters", () => {
 			} as never,
 			launch = createHerdrExternalAdapterLaunch({
 				adapter: "claude-code",
-				remoteRuntimeDir: "/tmp/pi-subagents-herdr-run",
+				remoteRuntimeDir: "/tmp/subagents-herdr-run",
 				nativeSessionId: session,
 			}),
 			placed = new HerdrExternalSession(owner, launch, preflight("claude", "2.1.269 (Claude Code)", claudeHelp));

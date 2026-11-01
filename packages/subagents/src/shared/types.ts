@@ -168,7 +168,7 @@ export interface WorkflowRecoveryAction {
 }
 
 /**
- * Bounded, host-generated identity for a resolved pi-subagents workflow resource.
+ * Bounded, host-generated identity for a resolved subagents workflow resource.
  * Permission/policy extensions can use it to distinguish resolved content from
  * raw workflow scripts. This audit projection never grants execution authority.
  */
@@ -701,9 +701,9 @@ export type ProcessTreeTerminal =
 			diagnostic?: string;
 	  };
 
-export interface PiWriterProcessInstanceExit {
+export interface HostWriterProcessInstanceExit {
 	processInstanceId: string;
-	kind: "pi-writer";
+	kind: "host-writer";
 	attempt: number;
 	closeObservedAt: number;
 	exitCode: number | null;
@@ -711,7 +711,7 @@ export interface PiWriterProcessInstanceExit {
 	processTree: ProcessTreeTerminal;
 }
 
-export type ProcessInstanceExit = RunnerProcessInstanceExit | PiWriterProcessInstanceExit;
+export type ProcessInstanceExit = RunnerProcessInstanceExit | HostWriterProcessInstanceExit;
 
 export interface CanonicalSessionTerminal {
 	canonicalSessionId: string;
@@ -1496,7 +1496,7 @@ export interface WaitCompletionChild {
 	runId?: string;
 	/** Bounded accounting projection used by /subagent-cost after async completion. */
 	usage?: Usage;
-	/** Persisted Pi child session when available. */
+	/** Persisted evoharness child session when available. */
 	sessionFile?: string;
 	success?: boolean;
 	outputState?: SubagentOutputState;
@@ -1542,7 +1542,7 @@ export interface AgentCapabilityRow {
 	restrictionSources?: string[];
 	aliases?: string[];
 	runner:
-		| { type: "pi" }
+		| { type: "evoharness" }
 		| {
 				type: "external-cli";
 				adapter?: string;
@@ -1670,13 +1670,13 @@ export interface Details {
 		argsDigest?: string;
 		/** SHA-256 of the workflow script source (async workflows). */
 		scriptDigest?: string;
-		/** Structured stop cause: `runtime-replaced` when the owning extension runtime was replaced; `owner-exited` when stale-run reconciliation found the owning Pi process dead. */
+		/** Structured stop cause: `runtime-replaced` when the owning extension runtime was replaced; `owner-exited` when stale-run reconciliation found the owning evoharness process dead. */
 		stopCause?: WorkflowStopCause;
 		/** Interrupted workflow run whose finished children this run reused. */
 		reusedFrom?: string;
-		/** Owner-exited runs: the last time the dead Pi process updated the run (epoch ms), not the repair time. */
+		/** Owner-exited runs: the last time the dead evoharness process updated the run (epoch ms), not the repair time. */
 		ownerExitedAt?: number;
-		/** Set on a run that resumes an interrupted one; `attempt` counts resumes that followed Pi exits. */
+		/** Set on a run that resumes an interrupted one; `attempt` counts resumes that followed evoharness exits. */
 		resumeOrigin?: { sourceRunId: string; attempt: number };
 		resource?: WorkflowResourceProvenance;
 		preflightWarnings?: string[];
@@ -1917,7 +1917,7 @@ export interface AsyncStartedEvent {
 }
 
 export type AgentRunnerConfig =
-	| { type: "pi" }
+	| { type: "evoharness" }
 	| {
 			type: "external-cli";
 			adapter?:
@@ -1980,7 +1980,7 @@ export interface RexSshMachineReference {
 
 export type RexMachineReference = RexLocalMachineReference | RexSshMachineReference;
 
-/** Where a placed native Pi child runs. */
+/** Where a placed native evoharness child runs. */
 export type PlacementMachineReference = HerdrMachineReference | RexMachineReference;
 
 export interface ExternalCliMachineStatus extends HerdrMachineReference {
@@ -2136,9 +2136,9 @@ export interface AsyncStatus {
 	workflowReceiptPath?: string;
 	lifecycleArtifactVersion?: SubagentLifecycleArtifactVersion;
 	runId: string;
-	/** Parent Pi process/window that owns local completion delivery. */
+	/** Parent evoharness process/window that owns local completion delivery. */
 	completionOwnerId?: string;
-	/** The Pi process behind `completionOwnerId`; once it is dead, the session that owns the run delivers it. */
+	/** The evoharness process behind `completionOwnerId`; once it is dead, the session that owns the run delivers it. */
 	completionOwnerProcess?: RecordedPid;
 	/** Host tool-call id retained when it differs from the internal run id. */
 	toolCallId?: string;
@@ -2459,7 +2459,7 @@ export interface ForegroundResumeRun {
 	sessionId?: string;
 	updatedAt: number;
 	children: ForegroundResumeChild[];
-	/** Pi process running this run; only on records whose child is `running`. */
+	/** evoharness process running this run; only on records whose child is `running`. */
 	owner?: RecordedPid;
 	/** Workflow that launched this foreground child. */
 	parentWorkflowRunId?: string;
@@ -2579,7 +2579,7 @@ export interface SubagentState {
 	supervisorOwnerSessionId?: string | null;
 	/** Session for which active status projections were restored successfully. */
 	statusProjectionSessionId?: string | null;
-	/** Reload-stable identity for this parent Pi process/window. */
+	/** Reload-stable identity for this parent evoharness process/window. */
 	completionOwnerId?: string;
 	/** Runtime-owned artifact resolution inputs used by Fleet transcript targeting. */
 	artifactDirPreference?: ArtifactDirPreference;
@@ -2590,7 +2590,7 @@ export interface SubagentState {
 	parentSessionFile?: string | null;
 	/** Extension-owned roots trusted for child session transcript reads. */
 	trustedSessionRoots?: string[];
-	/** Pi sessions base that caps exact runtime-recorded session file trust. */
+	/** evoharness sessions base that caps exact runtime-recorded session file trust. */
 	trustedSessionFileRoot?: string;
 	/** Live async session roots created by this parent executor, keyed by run id. */
 	liveAsyncSessionRoots?: Map<string, string>;
@@ -2610,14 +2610,14 @@ export interface SubagentState {
 	};
 	/** Current-session top-level async capacity projection. */
 	activeAsyncCapacity?: ActiveAsyncCapacitySnapshot;
-	/** Herdr project panes opened by this Pi session, keyed by project root. */
+	/** Herdr project panes opened by this evoharness session, keyed by project root. */
 	herdrProjectPanes?: Map<string, HerdrProjectPaneSnapshot>;
 	asyncJobs: Map<string, AsyncJobState>;
 	/** Current-session active and recent async runs for the native fleet inspector. */
 	fleetJobs?: Map<string, AsyncJobState>;
 	/** Suppress dynamic status widgets while the fleet overlay owns the viewport. */
 	fleetInspectorOpen?: boolean;
-	/** Temporarily suppress dynamic widgets while Pi compacts the session. */
+	/** Temporarily suppress dynamic widgets while evoharness compacts the session. */
 	widgetsSuspended?: boolean;
 	foregroundRuns?: Map<string, ForegroundResumeRun>;
 	foregroundControls: Map<string, ForegroundRunControl>;
@@ -2836,7 +2836,7 @@ export interface RunSyncOptions {
 	modelResponseAliases?: Record<string, string[]>;
 	/** Current parent-session provider to prefer for ambiguous bare model ids */
 	preferredModelProvider?: string;
-	/** Parent Pi event host used to snapshot runtime-registered MCP servers before child launch. */
+	/** Parent evoharness event host used to snapshot runtime-registered MCP servers before child launch. */
 	runtimeSnapshotHost?: import("../runs/shared/mcp-direct-tool-allowlist.ts").McpRuntimeSnapshotHost;
 	/** Optional subagent model-scope enforcement. */
 	modelScope?: ModelScopeRule | ModelScopeRule[];
@@ -2982,9 +2982,9 @@ export interface ExtensionConfig {
 	toolDescriptionMode?: ToolDescriptionMode;
 	/** How a new parent session offers the subagent tool. Defaults to auto. */
 	toolActivation?: ToolActivationMode;
-	/** Keep a resumed session on the pi-subagents tool definitions and prompt text it already declared. Defaults to true. */
+	/** Keep a resumed session on the subagents tool definitions and prompt text it already declared. Defaults to true. */
 	pinToolDeclarations?: boolean;
-	/** Register the pi-subagents slash commands and the foreground-detach shortcut. Defaults to true. */
+	/** Register the subagents slash commands and the foreground-detach shortcut. Defaults to true. */
 	enableSlashCommands?: boolean;
 	/** Opt-in feature groups removed from the subagent tool schema and rejected at every execution boundary. */
 	disabledFeatures?: SubagentFeature[];
@@ -3024,7 +3024,7 @@ export interface ExtensionConfig {
 	 * subagent tool call inside the child; the run-level timeout remains
 	 * authoritative. Known-fast built-in tools have a five-minute default when
 	 * this is undefined. Precedence: call param > agent frontmatter > this config >
-	 * PI_SUBAGENT_TOOL_TIMEOUT_MS. Must be a positive integer; invalid values
+	 * EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS. Must be a positive integer; invalid values
 	 * are rejected with an error.
 	 */
 	toolTimeoutMs?: number;
@@ -3049,9 +3049,9 @@ export interface ExtensionConfig {
 	worktree?: boolean;
 	/** Worktree allocator selection. Defaults to auto. */
 	worktreeProvider?: WorktreeProvider;
-	/** Namespace used by managed worktree branches. Defaults to pi-subagents/. */
+	/** Namespace used by managed worktree branches. Defaults to subagents/. */
 	worktreeBranchPrefix?: string;
-	/** Where to store subagent artifact files. Defaults to "session" (the pi session directory, or OS temp when unavailable). Set to "project" for cwd/.evoharness/subagents. */
+	/** Where to store subagent artifact files. Defaults to "session" (the evoharness session directory, or OS temp when unavailable). Set to "project" for cwd/.evoharness/subagents. */
 	artifactDir?: ArtifactDirPreference;
 	/** Artifact cleanup retention. Set cleanupDays to 0 to disable cleanup. */
 	artifactConfig?: Pick<ArtifactConfig, "cleanupDays">;
@@ -3140,10 +3140,10 @@ export function resolveTempScopeId(options?: {
 
 const MAX_PARALLEL = 8;
 const MAX_CONCURRENCY = 4;
-const configuredTempRoot = process.env.PI_SUBAGENTS_TEMP_ROOT?.trim();
+const configuredTempRoot = process.env.EVOHARNESS_SUBAGENTS_TEMP_ROOT?.trim();
 export const TEMP_ROOT_DIR = configuredTempRoot
 	? path.resolve(configuredTempRoot)
-	: path.join(os.tmpdir(), `pi-subagents-${resolveTempScopeId()}`);
+	: path.join(os.tmpdir(), `subagents-${resolveTempScopeId()}`);
 export const RESULTS_DIR = path.join(TEMP_ROOT_DIR, "async-subagent-results");
 export const ASYNC_DIR = path.join(TEMP_ROOT_DIR, "async-subagent-runs");
 export const CHAIN_RUNS_DIR = path.join(TEMP_ROOT_DIR, "chain-runs");
@@ -3286,7 +3286,7 @@ export interface SubagentDepthContext {
 }
 
 /** Operator override for the top-level parent; children inherit their limit through their runtime config. */
-const SUBAGENT_MAX_DEPTH_ENV = "PI_SUBAGENT_MAX_DEPTH";
+const SUBAGENT_MAX_DEPTH_ENV = "EVOHARNESS_SUBAGENT_MAX_DEPTH";
 
 export function resolveCurrentMaxSubagentDepth(configMaxDepth?: number, runtime?: SubagentDepthContext): number {
 	return (
@@ -3331,7 +3331,7 @@ export function normalizeMaxSubagentSpawnsPerSession(value: unknown): number | u
 }
 
 export function resolveMaxSubagentSpawnsPerSession(configMaxSpawns?: number): number | undefined {
-	const envMaxSpawns = normalizeMaxSubagentSpawnsPerSession(process.env.PI_SUBAGENT_MAX_SPAWNS_PER_SESSION);
+	const envMaxSpawns = normalizeMaxSubagentSpawnsPerSession(process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_SESSION);
 	if (envMaxSpawns !== undefined) return envMaxSpawns === 0 ? undefined : envMaxSpawns;
 	const configuredMaxSpawns = normalizeMaxSubagentSpawnsPerSession(configMaxSpawns);
 	return configuredMaxSpawns === 0 ? undefined : configuredMaxSpawns;
@@ -3346,7 +3346,7 @@ export function normalizeMaxSubagentSpawnsPerRun(value: unknown): number | undef
 
 export function resolveMaxSubagentSpawnsPerRun(configMaxSpawns?: number): number {
 	return (
-		normalizeMaxSubagentSpawnsPerRun(process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN) ??
+		normalizeMaxSubagentSpawnsPerRun(process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_RUN) ??
 		normalizeMaxSubagentSpawnsPerRun(configMaxSpawns) ??
 		DEFAULT_MAX_SUBAGENT_SPAWNS_PER_RUN
 	);

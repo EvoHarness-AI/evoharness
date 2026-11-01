@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 const sourceImportPattern = /from\s+["'](@evoharness\/[^"']+)["']|import\s+["'](@evoharness\/[^"']+)["']/g;
-const oldPiScopePattern = /@mariozechner\/pi-/;
+const oldPiScopePattern = /@mariozechner\/pi-|eare[nd]il-works|nico[b]ailon|\bpi-[s]ubagents\b/;
 const piPackageJsonSubpathPattern = /@evoharness\/pi-[^"']+\/package\.json/;
 const cjsPiPackageResolutionPattern = /require(?:\.resolve)?\(\s*["']@evoharness\/pi-/;
 const exactVersionPattern = /^\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)?$/;
@@ -36,7 +36,7 @@ const expectedHostDevVersions = {
 } satisfies Record<(typeof hostPeerPackages)[number], string>;
 
 test("the root entrypoint exposes the runtime error flag to TypeScript consumers", () => {
-	const consumerRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-types-"));
+	const consumerRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-types-"));
 	try {
 		fs.writeFileSync(
 			path.join(consumerRoot, "consumer.ts"),
@@ -136,9 +136,9 @@ test("published extension APIs use supported package entrypoints", async () => {
 	assert.deepEqual(packageJson.evoharness?.extensions, ["./index.ts"]);
 	assert.equal(fs.existsSync(path.join(projectRoot, "async-retention-discovery-worker.mjs")), true);
 	const entrySource = fs.readFileSync(path.join(projectRoot, "index.ts"), "utf-8");
-	assert.match(entrySource, /import type \{\} from "\.\/src\/types\/pi-runtime-compat\.d\.ts";/);
+	assert.match(entrySource, /import type \{\} from "\.\/src\/types\/evoharness-runtime-compat\.d\.ts";/);
 	assert.equal(entrySource.includes('export { default } from "./src/extension/index.ts";'), false);
-	assert.match(entrySource, /process\.env\.PI_SUBAGENT_CHILD === "1"/);
+	assert.match(entrySource, /process\.env\.EVOHARNESS_SUBAGENT_CHILD === "1"/);
 	assert.match(entrySource, /await import\("\.\/src\/extension\/index\.ts"\)/);
 	assert.equal(fs.existsSync(path.join(projectRoot, "src", "api", "delegation.ts")), true);
 	assert.deepEqual(packageJson.exports, {
@@ -160,18 +160,18 @@ test("published extension APIs use supported package entrypoints", async () => {
 		"./project-panes": "./src/api/project-panes.ts",
 	});
 	const agents = await import("@evoharness/subagents/agents");
-	assert.equal(agents.RUNTIME_AGENT_REGISTER_EVENT, "pi-subagents:runtime-agent-register:v1");
+	assert.equal(agents.RUNTIME_AGENT_REGISTER_EVENT, "subagents:runtime-agent-register:v1");
 	assert.equal(agents.RUNTIME_AGENT_REGISTER_VERSION, 1);
 	assert.equal(typeof agents.registerAgentViaEvents, "function");
 	const inspectors = await import("@evoharness/subagents/inspectors");
-	assert.equal(inspectors.INSPECTOR_REGISTER_EVENT, "pi-subagents:inspector-register:v1");
+	assert.equal(inspectors.INSPECTOR_REGISTER_EVENT, "subagents:inspector-register:v1");
 	assert.deepEqual(Object.keys(inspectors).sort(), ["INSPECTOR_REGISTER_EVENT", "registerInspector"]);
 	const backgroundWork = await import("@evoharness/subagents/background-work");
 	assert.equal(backgroundWork.BACKGROUND_WORK_PROTOCOL_VERSION, 1);
-	assert.equal(backgroundWork.BACKGROUND_WORK_REGISTRY_KEY, "pi-subagents.background-work.v1");
+	assert.equal(backgroundWork.BACKGROUND_WORK_REGISTRY_KEY, "subagents.background-work.v1");
 	const externalJobProvider = await import("@evoharness/subagents/external-job-provider");
 	assert.equal(externalJobProvider.EXTERNAL_JOB_PROVIDER_PROTOCOL_VERSION, 1);
-	assert.equal(externalJobProvider.EXTERNAL_JOB_PROVIDER_REGISTRY_KEY, "pi-subagents.external-job-providers.v1");
+	assert.equal(externalJobProvider.EXTERNAL_JOB_PROVIDER_REGISTRY_KEY, "subagents.external-job-providers.v1");
 	assert.equal(typeof externalJobProvider.registerExternalJobProvider, "function");
 	const externalRuns = await import("@evoharness/subagents/external-runs");
 	assert.equal(externalRuns.EXTERNAL_RUN_REGISTRY_VERSION, 2);
@@ -184,7 +184,7 @@ test("published extension APIs use supported package entrypoints", async () => {
 	assert.deepEqual(Object.keys(workflowResources), ["registerWorkflowResource"]);
 	assert.equal(typeof workflowResources.registerWorkflowResource, "function");
 	assert.equal(capability.SUBAGENT_CAPABILITY_CEILING_VERSION, 1);
-	assert.equal(capability.SUBAGENT_CAPABILITY_CEILING_REGISTRY_KEY, "pi-subagents.capability-ceiling.v1");
+	assert.equal(capability.SUBAGENT_CAPABILITY_CEILING_REGISTRY_KEY, "subagents.capability-ceiling.v1");
 	const delegation = await import("@evoharness/subagents/delegation");
 	assert.equal(delegation.SUBAGENT_DELEGATION_REQUEST_EVENT, "prompt-template:subagent:request");
 	const preflight = await import("@evoharness/subagents/preflight");
@@ -195,8 +195,8 @@ test("published extension APIs use supported package entrypoints", async () => {
 	const intercomBridge = await import("@evoharness/subagents/intercom-bridge");
 	assert.equal(typeof intercomBridge.resolveIntercomSessionTarget, "function");
 	const childToolPlan = await import("@evoharness/subagents/child-tool-plan");
-	assert.equal(typeof childToolPlan.resolvePiLaunchToolPlan, "function");
-	assert.deepEqual(Object.keys(childToolPlan).sort(), ["resolvePiLaunchToolPlan"]);
+	assert.equal(typeof childToolPlan.resolveHostLaunchToolPlan, "function");
+	assert.deepEqual(Object.keys(childToolPlan).sort(), ["resolveHostLaunchToolPlan"]);
 	const sharedTypes = await import("@evoharness/subagents/shared-types");
 	assert.equal(typeof sharedTypes.wrapForkTask, "function");
 	assert.equal(typeof sharedTypes.DEFAULT_FORK_PREAMBLE, "string");
@@ -269,7 +269,7 @@ test("host-owned development packages use the supported SDK baseline", () => {
 	}
 });
 
-test("old pi package scope is not used by source or tests", () => {
+test("old evoharness package scope is not used by source or tests", () => {
 	for (const file of [
 		...collectSourceFiles(path.join(projectRoot, "src")),
 		...collectSourceFiles(path.join(projectRoot, "test")),
@@ -279,7 +279,7 @@ test("old pi package scope is not used by source or tests", () => {
 	}
 });
 
-test("Pi package resolution stays export-map safe", () => {
+test("evoharness package resolution stays export-map safe", () => {
 	for (const file of [
 		...collectSourceFiles(path.join(projectRoot, "src")),
 		...collectSourceFiles(path.join(projectRoot, "test")),
@@ -293,7 +293,7 @@ test("Pi package resolution stays export-map safe", () => {
 		assert.equal(
 			cjsPiPackageResolutionPattern.test(source),
 			false,
-			`${file} should not use CommonJS resolution for ESM-only Pi packages`,
+			`${file} should not use CommonJS resolution for ESM-only evoharness packages`,
 		);
 	}
 });

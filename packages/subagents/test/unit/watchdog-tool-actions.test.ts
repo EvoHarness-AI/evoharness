@@ -38,8 +38,8 @@ function text(result: { content: Array<{ text?: string }> }): string {
 
 describe("watchdog tool actions", () => {
 	beforeEach(() => {
-		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-watchdog-tool-home-"));
-		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "pi-watchdog-tool-project-"));
+		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-watchdog-tool-home-"));
+		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-watchdog-tool-project-"));
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
 		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(tempHome, ".evoharness", "agent");

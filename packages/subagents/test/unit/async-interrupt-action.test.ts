@@ -219,7 +219,7 @@ function executorWithKill(
 	options: { allowMutatingManagementActions?: boolean } = {},
 ) {
 	return createSubagentExecutor({
-		pi: {
+		evoharness: {
 			events: {
 				emit() {},
 				on() {
@@ -352,7 +352,7 @@ describe("async interrupt action", () => {
 		const state = createState();
 		state.currentSessionId = "session";
 		const runId = `debug-run-${Date.now().toString(36)}`;
-		const activeCapacityRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-debug-capacity-"));
+		const activeCapacityRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-debug-capacity-"));
 		const asyncDir = path.join(ASYNC_DIR, runId);
 		try {
 			const capacity = acquireActiveAsyncCapacity(
@@ -1229,7 +1229,7 @@ describe("async interrupt action", () => {
 		const runId = `stop-paused-delivered-${Date.now().toString(36)}`;
 		const asyncDir = createPausedAsync(state, runId);
 		const workflowDir = path.join(ASYNC_DIR, `${runId}-workflow`);
-		const capacityRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-paused-delivered-capacity-"));
+		const capacityRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-paused-delivered-capacity-"));
 		try {
 			writeJson(path.join(asyncDir, "process-terminal.json"), observedProof(runId, "runner-a"));
 			writeJson(path.join(asyncDir, "control", "stop-inbox-closed.json"), { version: 1, closedAt: Date.now() });

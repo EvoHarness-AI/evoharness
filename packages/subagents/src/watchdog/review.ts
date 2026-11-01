@@ -196,7 +196,7 @@ export async function resolveWatchdogReviewModel(
 	const currentModel = ctx.model;
 	if (!currentModel) {
 		throw new Error(
-			"Main watchdog review cannot run because the current Pi session model is unavailable and subagents.watchdog.main.model is not configured.",
+			"Main watchdog review cannot run because the current evoharness session model is unavailable and subagents.watchdog.main.model is not configured.",
 		);
 	}
 	return {
@@ -274,7 +274,7 @@ export function buildWatchdogSystemPrompt(
 ): string {
 	const guidance = options.guidance?.trim();
 	return [
-		"You are the main-session subagent watchdog for Pi.",
+		"You are the main-session subagent watchdog for evoharness.",
 		"Review only the supplied parent turn delta. Inspect repository files only when needed to verify a concrete concern.",
 		options.hasScope
 			? "Use the Current scope record alongside supplied activity evidence; an unrelated user question does not cancel older authorized work."
@@ -313,7 +313,7 @@ export function createMainWatchdogReview(
 ): WatchdogReviewFunction {
 	return async (request) => {
 		const ctx = resolveContext(provider);
-		if (!ctx) throw new Error("Main watchdog review cannot run without an active Pi extension context.");
+		if (!ctx) throw new Error("Main watchdog review cannot run without an active evoharness extension context.");
 		const aborted = () => ctx.signal?.aborted || request.signal?.aborted;
 		if (aborted()) return { stopReason: "aborted" };
 		try {

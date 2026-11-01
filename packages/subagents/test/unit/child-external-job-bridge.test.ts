@@ -81,7 +81,7 @@ function registerProvider(onStart: () => void): void {
 
 describe("child external-job bridge sweeper", () => {
 	it("services a tracked run before its status exists, starts the provider job once, and releases the run when final", async () => {
-		const dir = tempDir("pi-child-bridge-");
+		const dir = tempDir("subagents-child-bridge-");
 		let starts = 0;
 		registerProvider(() => {
 			starts += 1;
@@ -101,7 +101,7 @@ describe("child external-job bridge sweeper", () => {
 	});
 
 	it("keeps a run tracked while its launch status has no runner metadata, then services the bridge", async () => {
-		const dir = tempDir("pi-child-bridge-startup-");
+		const dir = tempDir("subagents-child-bridge-startup-");
 		fs.writeFileSync(
 			path.join(dir, "status.json"),
 			JSON.stringify({ state: "running", steps: [{ agent: "gpt-pro", status: "pending" }] }),
@@ -124,7 +124,7 @@ describe("child external-job bridge sweeper", () => {
 	});
 
 	it("fails the run closed when the child has no provider registered", async () => {
-		const dir = tempDir("pi-child-bridge-missing-");
+		const dir = tempDir("subagents-child-bridge-missing-");
 		writeStatus(dir, "running", "external-job");
 		const sweeper = createChildExternalJobBridgeSweeper();
 		try {
@@ -138,20 +138,20 @@ describe("child external-job bridge sweeper", () => {
 	});
 
 	it("never services a run without external-job steps and releases it when final", () => {
-		const dir = tempDir("pi-child-bridge-native-");
-		writeStatus(dir, "running", "pi");
+		const dir = tempDir("subagents-child-bridge-native-");
+		writeStatus(dir, "running", "evoharness");
 		fs.mkdirSync(path.join(dir, EXTERNAL_JOB_BRIDGE_REQUEST_DIR));
 		const sweeper = createChildExternalJobBridgeSweeper();
 		sweeper.track("run-2", dir);
 		assert.equal(sweeper.sweep(), 1);
 		assert.equal(fs.existsSync(path.join(dir, "external-job-responses")), false);
-		writeStatus(dir, "complete", "pi");
+		writeStatus(dir, "complete", "evoharness");
 		assert.equal(sweeper.sweep(), 0);
 		sweeper.dispose();
 	});
 
 	it("stops tracking every run on dispose", () => {
-		const dir = tempDir("pi-child-bridge-dispose-");
+		const dir = tempDir("subagents-child-bridge-dispose-");
 		writeStatus(dir, "running", "external-job");
 		const sweeper = createChildExternalJobBridgeSweeper();
 		sweeper.track("run-3", dir);

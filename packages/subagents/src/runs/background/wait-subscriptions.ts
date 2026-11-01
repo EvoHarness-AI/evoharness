@@ -116,7 +116,7 @@ export function formatWaitSubscriptions(
 }
 
 export function createWaitSubscriptionManager(
-	pi: Pick<ExtensionAPI, "events" | "sendMessage">,
+	evoharness: Pick<ExtensionAPI, "events" | "sendMessage">,
 	state: SubagentState,
 	options: WaitSubscriptionManagerOptions = {},
 ): WaitSubscriptionManager {
@@ -206,7 +206,7 @@ export function createWaitSubscriptionManager(
 			return;
 		}
 		try {
-			pi.sendMessage(
+			evoharness.sendMessage(
 				{
 					customType: "subagent-wait-subscription",
 					content: `Wait subscription ${record.token} fired for run ${record.runId}: ${outcome}. ${detail}\n\nParent action: ${STATUS_OUTCOMES.has(outcome) ? STATUS_ACTION : COMPLETION_ACTION}`,
@@ -328,7 +328,7 @@ export function createWaitSubscriptionManager(
 		SUBAGENT_CONTROL_INTERCOM_EVENT,
 		SUBAGENT_RESULT_INTERCOM_EVENT,
 	];
-	const unsubscribes = wakeChannels.map((channel) => pi.events.on(channel, reconcile));
+	const unsubscribes = wakeChannels.map((channel) => evoharness.events.on(channel, reconcile));
 
 	return {
 		start() {

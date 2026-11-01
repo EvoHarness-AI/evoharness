@@ -33,8 +33,8 @@ describe("registered subagent tool description", () => {
 	it("keeps the operator authority gate visible in every description mode", () => {
 		const authorityGate =
 			"Delegate only when the operator asked, directly or through applicable user/project instructions; size, complexity or risk alone is not authorization.";
-		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-authority-"));
-		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-agent-"));
+		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-authority-"));
+		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-agent-"));
 		fs.mkdirSync(path.join(cwd, ".evoharness"), { recursive: true });
 		fs.writeFileSync(
 			path.join(cwd, ".evoharness", "subagent-tool-description.md"),
@@ -51,7 +51,7 @@ describe("registered subagent tool description", () => {
 			assert.ok(description.includes(authorityGate));
 		}
 
-		const fallbackCwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-authority-fallback-"));
+		const fallbackCwd = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-authority-fallback-"));
 		assert.ok(
 			buildSubagentToolDescription(
 				{ toolDescriptionMode: "custom" },
@@ -91,7 +91,7 @@ describe("registered subagent tool description", () => {
 				/Launch agents by name and pass models as exact provider\/id; an unknown agent or model returns the valid choices/,
 				/Native async completion wakes this session: return control; do not sleep, poll or call bg_wait for it/,
 				/One writer per cwd\/worktree/,
-				/After a launch or runtime failure, stop and report it; never silently switch to interactive_shell, pi -ne or another CLI/,
+				/After a launch or runtime failure, stop and report it; never silently switch to interactive_shell, evoharness -ne or another CLI/,
 				/guide workflows\/recommended-orchestration-pattern.*guide workflows\/scripted-workflows.*guide tool-reference\/retained-children.*guide tool-reference\/external-cli-agent-profiles/,
 			])
 				assert.match(description, contract);
@@ -121,7 +121,7 @@ describe("registered subagent tool description", () => {
 			/distinct resume pass needs a new stable key; same-key reuse requires identical launch parameters/,
 			/preflight at launch decides, and passive PATH\/PATHEXT\/X_OK is not authentication\/version\/launch proof/,
 			/Oracle\/advisor unknowns use supervisor dialogue/,
-			/Governed-workflow fallback to foreground\/CLI needs explicit owner approval, not Pi core's generic pi -ne hint/,
+			/Governed-workflow fallback to foreground\/CLI needs explicit owner approval, not evoharness core's generic evoharness -ne hint/,
 		])
 			assert.match(FULL_SUBAGENT_TOOL_DESCRIPTION, detail);
 		const workflows = fs.readFileSync(path.join(projectRoot, "docs/workflows.md"), "utf8");
@@ -139,8 +139,8 @@ describe("registered subagent tool description", () => {
 	});
 
 	it("renders a custom project description with placeholders and mandatory safety guidance", () => {
-		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-project-"));
-		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-agent-"));
+		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-project-"));
+		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-agent-"));
 		const projectConfigDir = path.join(cwd, ".evoharness");
 		fs.mkdirSync(projectConfigDir, { recursive: true });
 		fs.writeFileSync(
@@ -163,8 +163,8 @@ describe("registered subagent tool description", () => {
 	});
 
 	it("appends full safety guidance when custom prose only includes the safety heading", () => {
-		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-heading-"));
-		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-agent-"));
+		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-heading-"));
+		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-agent-"));
 		fs.mkdirSync(path.join(cwd, ".evoharness"), { recursive: true });
 		fs.writeFileSync(
 			path.join(cwd, ".evoharness", "subagent-tool-description.md"),
@@ -181,8 +181,8 @@ describe("registered subagent tool description", () => {
 	});
 
 	it("deduplicates compact placeholder safety guidance in custom descriptions", () => {
-		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-compact-custom-"));
-		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-agent-"));
+		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-compact-custom-"));
+		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-agent-"));
 		fs.mkdirSync(path.join(cwd, ".evoharness"), { recursive: true });
 		fs.writeFileSync(
 			path.join(cwd, ".evoharness", "subagent-tool-description.md"),
@@ -197,8 +197,8 @@ describe("registered subagent tool description", () => {
 	});
 
 	it("keeps mandatory safety guidance last when custom prose embeds it before an override", () => {
-		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-injection-"));
-		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-agent-"));
+		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-injection-"));
+		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-agent-"));
 		fs.mkdirSync(path.join(cwd, ".evoharness"), { recursive: true });
 		fs.writeFileSync(
 			path.join(cwd, ".evoharness", "subagent-tool-description.md"),
@@ -215,8 +215,8 @@ describe("registered subagent tool description", () => {
 	});
 
 	it("preserves custom guidance while trimming built-in legacy chain guidance", () => {
-		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-legacy-note-"));
-		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-agent-"));
+		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-legacy-note-"));
+		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-agent-"));
 		fs.mkdirSync(path.join(cwd, ".evoharness"), { recursive: true });
 		fs.writeFileSync(
 			path.join(cwd, ".evoharness", "subagent-tool-description.md"),
@@ -235,8 +235,8 @@ describe("registered subagent tool description", () => {
 	});
 
 	it("falls back to full mode when custom mode has no valid file", () => {
-		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-missing-"));
-		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-agent-"));
+		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-missing-"));
+		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-agent-"));
 		const warnings: string[] = [];
 
 		const description = buildSubagentToolDescription(
@@ -269,7 +269,7 @@ describe("registered subagent tool description", () => {
 			import registerSubagentExtension from "./src/extension/index.ts";
 			const events = { on() { return () => {}; }, emit() {} };
 			let registeredTool;
-			const fakePi = new Proxy({
+			const fakeHostExe = new Proxy({
 				events,
 				registerTool(tool) { if (tool.name === "subagent") registeredTool = tool; },
 				registerCommand() {},
@@ -283,7 +283,7 @@ describe("registered subagent tool description", () => {
 					return () => undefined;
 				},
 			});
-			registerSubagentExtension(fakePi);
+			registerSubagentExtension(fakeHostExe);
 			if (!registeredTool) throw new Error("tool not registered");
 			process.stdout.write(JSON.stringify({ description: registeredTool.description, promptSnippet: registeredTool.promptSnippet, promptGuidelines: registeredTool.promptGuidelines, properties: Object.keys(registeredTool.parameters.properties) }));
 		`;
@@ -314,7 +314,7 @@ describe("registered subagent tool description", () => {
 	}
 
 	it("registers split, full, compact, custom, and fallback descriptions from extension config", () => {
-		const defaultAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-default-"));
+		const defaultAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-default-"));
 		writeExtensionConfig(defaultAgentDir, {});
 		const defaultTool = readRegisteredTool(defaultAgentDir);
 		assert.equal(defaultTool.description, DEFAULT_SUBAGENT_TOOL_DESCRIPTION);
@@ -323,21 +323,21 @@ describe("registered subagent tool description", () => {
 		assert.equal(defaultTool.promptSnippet, SUBAGENT_TOOL_PROMPT_SNIPPET);
 		assert.equal(defaultTool.promptGuidelines, undefined);
 
-		const fullAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-full-"));
+		const fullAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-full-"));
 		writeExtensionConfig(fullAgentDir, { toolDescriptionMode: "full" });
 		const fullTool = readRegisteredTool(fullAgentDir);
 		assert.equal(fullTool.description, FULL_SUBAGENT_TOOL_DESCRIPTION);
 		assert.equal(fullTool.promptSnippet, undefined);
 		assert.equal(fullTool.promptGuidelines, undefined);
 
-		const compactAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-compact-"));
+		const compactAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-compact-"));
 		writeExtensionConfig(compactAgentDir, { toolDescriptionMode: "compact" });
 		const compactTool = readRegisteredTool(compactAgentDir);
 		assert.equal(compactTool.description, COMPACT_SUBAGENT_TOOL_DESCRIPTION);
 		assert.equal(compactTool.promptSnippet, undefined);
 		assert.equal(compactTool.promptGuidelines, undefined);
 
-		const customAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-custom-"));
+		const customAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-custom-"));
 		writeExtensionConfig(customAgentDir, { toolDescriptionMode: "custom" });
 		fs.writeFileSync(
 			path.join(customAgentDir, "subagent-tool-description.md"),
@@ -348,11 +348,11 @@ describe("registered subagent tool description", () => {
 		assert.match(customDescription, /Registered custom description/);
 		assert.match(customDescription, /SAFETY-CRITICAL SUBAGENT GUIDANCE/);
 
-		const missingCustomAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-missing-"));
+		const missingCustomAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-missing-"));
 		writeExtensionConfig(missingCustomAgentDir, { toolDescriptionMode: "custom" });
 		assert.equal(readRegisteredTool(missingCustomAgentDir).description, FULL_SUBAGENT_TOOL_DESCRIPTION);
 
-		const invalidAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-invalid-"));
+		const invalidAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-desc-invalid-"));
 		writeExtensionConfig(invalidAgentDir, { toolDescriptionMode: "tiny" });
 		assert.equal(readRegisteredTool(invalidAgentDir).description, FULL_SUBAGENT_TOOL_DESCRIPTION);
 	});

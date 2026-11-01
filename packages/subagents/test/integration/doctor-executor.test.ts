@@ -8,7 +8,7 @@ import { createEventBus, createTempDir, makeMinimalCtx, removeTempDir, tryImport
 
 const originalHome = process.env.HOME;
 const originalUserProfile = process.env.USERPROFILE;
-const importHome = createTempDir("pi-doctor-executor-import-home-");
+const importHome = createTempDir("subagents-doctor-executor-import-home-");
 process.env.HOME = importHome;
 process.env.USERPROFILE = importHome;
 let executorMod: any;
@@ -48,8 +48,8 @@ describe(
 		let tempHome = "";
 
 		beforeEach(() => {
-			tempDir = createTempDir("pi-doctor-executor-project-");
-			tempHome = createTempDir("pi-doctor-executor-home-");
+			tempDir = createTempDir("subagents-doctor-executor-project-");
+			tempHome = createTempDir("subagents-doctor-executor-home-");
 			process.env.HOME = tempHome;
 			process.env.USERPROFILE = tempHome;
 		});
@@ -68,7 +68,7 @@ describe(
 			fs.mkdirSync(path.dirname(sessionFile), { recursive: true });
 			fs.writeFileSync(sessionFile, "");
 			const executor = createSubagentExecutor({
-				pi: { events: createEventBus(), getSessionName: () => undefined },
+				evoharness: { events: createEventBus(), getSessionName: () => undefined },
 				state: makeState(tempDir),
 				config: { defaultSessionDir: path.join(tempDir, "configured-sessions") },
 				asyncByDefault: false,
@@ -93,7 +93,7 @@ describe(
 			const text = result.content[0]?.text ?? "";
 			assert.match(text, /^Subagents doctor report/);
 			assert.match(text, /- configured session dir: .*configured-sessions/);
-			assert.match(text, /- supervisor channel: available \(native:pi-subagents-supervisor-channel\)/);
+			assert.match(text, /- supervisor channel: available \(native:subagents-supervisor-channel\)/);
 		});
 
 		it("counts async capacity in the pool launch admission uses", async () => {
@@ -107,7 +107,7 @@ describe(
 			});
 			try {
 				const executor = createSubagentExecutor({
-					pi: { events: createEventBus(), getSessionName: () => undefined },
+					evoharness: { events: createEventBus(), getSessionName: () => undefined },
 					state: makeState(tempDir),
 					config: { maxActiveAsyncRunsPerSession: 3 },
 					asyncByDefault: false,
@@ -137,7 +137,7 @@ describe(
 
 		it("reports session manager failures without failing the doctor action", async () => {
 			const executor = createSubagentExecutor({
-				pi: { events: createEventBus(), getSessionName: () => undefined },
+				evoharness: { events: createEventBus(), getSessionName: () => undefined },
 				state: makeState(tempDir),
 				config: {},
 				asyncByDefault: false,

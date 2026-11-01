@@ -62,7 +62,7 @@ describe("EVOHARNESS_CODING_AGENT_DIR runtime paths", () => {
 	});
 
 	it("resolves the agent dir dynamically and loads extension config from it", () => {
-		assert.equal(resolveConfigDirName({ CONFIG_DIR_NAME: ".custom-pi" }), ".custom-pi");
+		assert.equal(resolveConfigDirName({ CONFIG_DIR_NAME: ".custom-evoharness" }), ".custom-evoharness");
 		assert.equal(resolveConfigDirName({ CONFIG_DIR_NAME: "" }), ".evoharness");
 		assert.equal(getConfigDirName(), ".evoharness");
 		assert.equal(getProjectConfigDir(cwd), path.join(cwd, ".evoharness"));
@@ -179,7 +179,7 @@ Inspect env.
 		assert.equal(fs.existsSync(path.join(agentDir, "agents", `${createdName}.md`)), true);
 	});
 
-	it("ignores nested .pi and sync-backups agent definitions", () => {
+	it("ignores nested .evoharness and sync-backups agent definitions", () => {
 		const userAgentsDir = path.join(agentDir, "agents");
 		const rootAgentPath = path.join(userAgentsDir, "root-agent.md");
 		writeFile(
@@ -268,7 +268,7 @@ Settings skill content.
 		const packageRoot = path.join(agentDir, "packages", "env-package");
 		writeFile(
 			path.join(packageRoot, "package.json"),
-			JSON.stringify({ name: "env-package", pi: { skills: ["./skills/package-skill.md"] } }, null, 2),
+			JSON.stringify({ name: "env-package", evoharness: { skills: ["./skills/package-skill.md"] } }, null, 2),
 		);
 		writeFile(
 			path.join(packageRoot, "skills", "package-skill.md"),
@@ -590,7 +590,7 @@ Package skill content.
 			orchestratorTarget: "main",
 		});
 		assert.equal(diagnostic.active, true);
-		assert.equal(diagnostic.extensionDir, "native:pi-subagents-supervisor-channel");
+		assert.equal(diagnostic.extensionDir, "native:subagents-supervisor-channel");
 
 		const bridge = resolveIntercomBridge({
 			config: { mode: "always", instructionFile: "bridge.md" },
@@ -598,7 +598,7 @@ Package skill content.
 			orchestratorTarget: "main",
 		});
 		assert.equal(bridge.active, true);
-		assert.equal(bridge.extensionDir, "native:pi-subagents-supervisor-channel");
+		assert.equal(bridge.extensionDir, "native:subagents-supervisor-channel");
 		assert.match(bridge.instruction, /Native bridge for main/);
 	});
 });

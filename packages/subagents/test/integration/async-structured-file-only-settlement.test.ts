@@ -39,7 +39,7 @@ interface FixtureLaunchParams {
 	output: string;
 	outputMode: "file-only" | "inline";
 	acceptance: unknown;
-	ctx: { pi: { events: { emit(): void } }; cwd: string; currentSessionId: string };
+	ctx: { evoharness: { events: { emit(): void } }; cwd: string; currentSessionId: string };
 	artifactConfig: {
 		enabled: boolean;
 		includeInput: boolean;
@@ -70,7 +70,7 @@ function launchReviewerSingle(
 		output: outputPath,
 		outputMode: options.outputMode ?? "file-only",
 		acceptance: options.acceptance ?? false,
-		ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: `session-${id}` },
+		ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: `session-${id}` },
 		artifactConfig: {
 			enabled: false,
 			includeInput: false,
@@ -90,7 +90,7 @@ function launchReviewerSingle(
 
 describe(
 	"async file-only structured-output settlement",
-	{ skip: !available || !isAsyncAvailable?.() ? "pi packages not available" : undefined },
+	{ skip: !available || !isAsyncAvailable?.() ? "evoharness packages not available" : undefined },
 	() => {
 		installAsyncExecutionHooks();
 

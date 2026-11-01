@@ -21,7 +21,7 @@ import {
 } from "../../src/missions/workflow-state.ts";
 
 function fixture() {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-missions-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-missions-"));
 	const projectRoot = path.join(root, "project");
 	const agentDir = path.join(root, "agent");
 	fs.mkdirSync(projectRoot, { recursive: true });
@@ -33,7 +33,7 @@ function fixture() {
 // directories when resolved from each path.
 function symlinkedFixture() {
 	// .native also expands Windows 8.3 short names (RUNNER~1), matching the store's canonical root.
-	const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-missions-")));
+	const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "subagents-missions-")));
 	const realRoot = path.join(root, "physical", "project");
 	const linkRoot = path.join(root, "link");
 	const agentDir = path.join(root, "agent");
@@ -154,7 +154,7 @@ describe("mission store", () => {
 	});
 
 	it("finds a mission through a differently cased project root on a case-insensitive filesystem", (t) => {
-		const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-missions-")));
+		const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "subagents-missions-")));
 		try {
 			const upper = path.join(root, "Project");
 			const lower = path.join(root, "project");

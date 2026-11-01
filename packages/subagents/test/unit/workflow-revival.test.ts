@@ -23,7 +23,7 @@ afterEach(() => {
 });
 
 function setup(childState: string) {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflow-revival-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-workflow-revival-"));
 	roots.push(root);
 	writeStatus(root, "child", { state: childState, parentWorkflowRunId: "wf", workflowKey: "memory" });
 	const child: WorkflowScriptChildResult = {

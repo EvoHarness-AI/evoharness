@@ -97,7 +97,7 @@ function stateWithNestedRoute(route: ReturnType<typeof createNestedRoute>): Suba
 
 describe("subagent run id resolver", () => {
 	it("prefers exact foreground, then exact async, then exact nested before prefix matches", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-id-resolver-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-id-resolver-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -125,7 +125,7 @@ describe("subagent run id resolver", () => {
 	});
 
 	it("does not let a mission-only directory shadow owned nested status by exact id or prefix", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-id-mission-shadow-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-id-mission-shadow-"));
 		try {
 			const route = nested("mission-root", "mission-child");
 			const state = stateWithNestedRoute(route);
@@ -202,7 +202,7 @@ describe("subagent run id resolver", () => {
 	});
 
 	it("reports one combined ambiguity for prefixes across namespaces", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-id-ambiguous-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-id-ambiguous-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -251,7 +251,7 @@ describe("subagent run id resolver", () => {
 	});
 
 	it("reports async prefix ambiguity without parsing resolver error text", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-id-async-ambiguous-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-id-async-ambiguous-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -270,7 +270,7 @@ describe("subagent run id resolver", () => {
 	});
 
 	it("does not resolve unindexed result files by prefix", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-id-result-prefix-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-id-result-prefix-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -291,7 +291,7 @@ describe("subagent run id resolver", () => {
 	});
 
 	it("resolves workflow tool-call ids through active and result indexes", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-resolver-tool-call-index-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-resolver-tool-call-index-"));
 		try {
 			const asyncRoot = path.join(root, "async");
 			const resultsDir = path.join(root, "results");
@@ -335,7 +335,7 @@ describe("subagent run id resolver", () => {
 	});
 
 	it("resolves retained terminal aliases without scanning unrelated runs or mixing session indexes", (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-terminal-alias-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-terminal-alias-"));
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		const toolCallId = `call_${"界".repeat(100)}`;
 		for (const [runId, sessionId, endedAt, alias] of [
@@ -379,7 +379,7 @@ describe("subagent run id resolver", () => {
 	});
 
 	it("reports an alias shared by a live run and a delivered run as ambiguous", (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-live-terminal-alias-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-live-terminal-alias-"));
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		const toolCallId = "rpc-spawn-original-request";
 		const retainedDir = path.join(root, "retained-run");
@@ -411,7 +411,7 @@ describe("subagent run id resolver", () => {
 	});
 
 	it("cleans stale and mismatched terminal alias pointers without resolving them", (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-terminal-alias-stale-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-terminal-alias-stale-"));
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		const toolCallId = "call-retained";
 		for (const mismatch of ["missing", "runId", "sessionId", "toolCallId", "state", "malformed", "unsafe"] as const) {
@@ -456,7 +456,7 @@ describe("subagent run id resolver", () => {
 	});
 
 	it("reports optional terminal alias write failures without blocking active marker release", (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-terminal-alias-write-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-terminal-alias-write-"));
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		const dir = path.join(root, "retained");
 		const status: AsyncStatus = {
@@ -489,7 +489,7 @@ describe("subagent run id resolver", () => {
 	});
 
 	it("preserves terminal alias read errors instead of treating them as missing evidence", (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-terminal-alias-error-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-terminal-alias-error-"));
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		const dir = path.join(root, "retained");
 		const toolCallId = "call-retained";
@@ -525,7 +525,7 @@ describe("subagent run id resolver", () => {
 	});
 
 	it("prefers a newer pending payload when resolving run and tool-call ids", (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-resolver-pending-payload-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-resolver-pending-payload-"));
 		try {
 			const asyncRoot = path.join(root, "async");
 			const resultsDir = path.join(root, "results");
@@ -571,7 +571,7 @@ describe("subagent run id resolver", () => {
 	});
 
 	it("resolves oversized workflow tool-call ids through bounded indexes", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-resolver-long-tool-call-index-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-resolver-long-tool-call-index-"));
 		try {
 			const asyncRoot = path.join(root, "async");
 			const resultsDir = path.join(root, "results");

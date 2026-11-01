@@ -13,7 +13,7 @@ it("bounds reminders for unresolved supervisor decisions", async () => {
 		tools = new Map(),
 		wakes = [],
 		messages = [];
-	const pi = {
+	const evoharness = {
 		on(name, fn) {
 			handlers.set(name, fn);
 			return () => handlers.delete(name);
@@ -27,7 +27,7 @@ it("bounds reminders for unresolved supervisor decisions", async () => {
 		appendEntry() {},
 	};
 	const state = { supervisorOwnerSessionId: "owner", foregroundControls: new Map(), asyncJobs: new Map() };
-	const channel = createNativeSupervisorChannel(pi, state, { getChannelDirs: () => ({ dirs: [dir] }) });
+	const channel = createNativeSupervisorChannel(evoharness, state, { getChannelDirs: () => ({ dirs: [dir] }) });
 	const settle = (overrides = {}) =>
 		handlers.get("agent_before_settle")?.({
 			outcome: "completed",
@@ -149,7 +149,7 @@ it("bounds retries for empty completion wakes without widening authority", async
 		messages = [];
 	let failSend = false;
 	let held = false;
-	const pi = {
+	const evoharness = {
 		events: { on: () => () => {} },
 		on(name, fn) {
 			handlers.set(name, fn);
@@ -164,7 +164,7 @@ it("bounds retries for empty completion wakes without widening authority", async
 		},
 	};
 	const state = { currentSessionId: "session", completionOwnerId: "owner" };
-	const notifier = registerNotify(pi, state, { batchConfig: { enabled: false } });
+	const notifier = registerNotify(evoharness, state, { batchConfig: { enabled: false } });
 	const sessionManager = { getSessionId: () => "session" };
 	notifier.bindSession(sessionManager);
 	const settle = (overrides = {}) =>

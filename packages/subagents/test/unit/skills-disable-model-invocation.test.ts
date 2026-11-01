@@ -39,7 +39,7 @@ function makeProjectSkill(
 
 describe("disable-model-invocation filtering", () => {
 	beforeEach(() => {
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-skills-disable-invocation-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-skills-disable-invocation-"));
 		clearSkillCache();
 	});
 

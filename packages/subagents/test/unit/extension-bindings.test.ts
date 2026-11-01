@@ -3,12 +3,12 @@ import * as os from "node:os";
 import { describe, it } from "node:test";
 import { buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
 import {
+	EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV,
 	type ExtensionBindings,
 	MAX_EXTENSION_BINDING_NAMESPACES,
 	MAX_EXTENSION_BINDINGS_BYTES,
 	normalizeExtensionBindings,
 	omitExtensionBindingsEnv,
-	PI_SUBAGENT_EXTENSION_BINDINGS_ENV,
 } from "../../src/runs/shared/extension-bindings.ts";
 import { launchBindingDigest } from "../../src/shared/launch-contract.ts";
 
@@ -67,10 +67,10 @@ describe("extension bindings", () => {
 
 	it("sets canonical child env for the runner host and clears it when omitted", () => {
 		const omitted = childEnv();
-		assert.equal(Object.hasOwn(omitted, PI_SUBAGENT_EXTENSION_BINDINGS_ENV), true);
-		assert.equal(omitted[PI_SUBAGENT_EXTENSION_BINDINGS_ENV], undefined);
+		assert.equal(Object.hasOwn(omitted, EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV), true);
+		assert.equal(omitted[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV], undefined);
 		assert.equal(
-			childEnv({ "child/1": { z: 1, a: 2 } })[PI_SUBAGENT_EXTENSION_BINDINGS_ENV],
+			childEnv({ "child/1": { z: 1, a: 2 } })[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV],
 			'{"child/1":{"a":2,"z":1}}',
 		);
 		assert.equal(
@@ -82,21 +82,26 @@ describe("extension bindings", () => {
 
 	it("gives an in-process foreground child only its bindings, restored after start", () => {
 		const launch = childLaunch({ "child/1": { z: 1, a: 2 } }, "parent");
-		assert.deepEqual(launch.processEnv, { [PI_SUBAGENT_EXTENSION_BINDINGS_ENV]: '{"child/1":{"a":2,"z":1}}' });
+		assert.deepEqual(launch.processEnv, {
+			[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV]: '{"child/1":{"a":2,"z":1}}',
+		});
 		assert.equal(launch.restoreProcessEnv, true);
 		const omitted = childLaunch(undefined, "parent");
 		assert.equal(
-			Object.hasOwn(omitted.processEnv ?? {}, PI_SUBAGENT_EXTENSION_BINDINGS_ENV),
+			Object.hasOwn(omitted.processEnv ?? {}, EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV),
 			true,
 			"an unbound child clears bindings it would otherwise inherit from its host",
 		);
-		assert.equal(omitted.processEnv?.[PI_SUBAGENT_EXTENSION_BINDINGS_ENV], undefined);
+		assert.equal(omitted.processEnv?.[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV], undefined);
 	});
 
 	it("removes ambient bindings from external runner environments", () => {
-		assert.deepEqual(omitExtensionBindingsEnv({ KEEP_ME: "yes", [PI_SUBAGENT_EXTENSION_BINDINGS_ENV]: "secret" }), {
-			KEEP_ME: "yes",
-		});
+		assert.deepEqual(
+			omitExtensionBindingsEnv({ KEEP_ME: "yes", [EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV]: "secret" }),
+			{
+				KEEP_ME: "yes",
+			},
+		);
 	});
 
 	it("changes launch provenance only when the binding changes", () => {

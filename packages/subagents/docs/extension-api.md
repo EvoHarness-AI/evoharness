@@ -1,10 +1,10 @@
 # Extension and integration APIs
 
-Public seams for other Pi extensions and host integrations: the in-process RPC, the structured delegation API, launch preflight, capability ceilings, the background-work provider contract, and the Herdr integration.
+Public seams for other evoharness extensions and host integrations: the in-process RPC, the structured delegation API, launch preflight, capability ceilings, the background-work provider contract, and the Herdr integration.
 
 ## Trusted workflow resources
 
-Loaded trusted TypeScript extensions can import `registerWorkflowResource` from `pi-subagents/workflow-resources`. This subpath does not load the main extension and exposes no resolver or permit constructor. Its exported types are `RegisterWorkflowResourceInput`, `WorkflowResourceDefinition`, and `WorkflowResourceRegistration`:
+Loaded trusted TypeScript extensions can import `registerWorkflowResource` from `subagents/workflow-resources`. This subpath does not load the main extension and exposes no resolver or permit constructor. Its exported types are `RegisterWorkflowResourceInput`, `WorkflowResourceDefinition`, and `WorkflowResourceRegistration`:
 
 ```typescript
 registerWorkflowResource({
@@ -21,7 +21,7 @@ registerWorkflowResource({
 
 Names are case-sensitive, at most 128 characters, and match `[A-Za-z0-9][A-Za-z0-9._-]*`; use an extension prefix. Versions are positive safe integers. Registration throws for invalid input, protected builtins (`review`, `run-ci`, `parallel`, and `chain` and `tasks`, which back the tool's structured inputs), or duplicate names within the same session. Different sessions may register the same name. Dispose before replacement; there is no silent overwrite.
 
-Register in `session_start` using **`ctx.sessionManager.getSessionId()`**, not the session file path or a tool argument. Dispose in `session_shutdown`. New/resumed/forked sessions and reloads need registration from the replacement runtime's `session_start`; do not retain old `pi`/`ctx` references. The extension owns cleanup, not an automatic registration lifecycle manager. Disposal is idempotent and cannot remove a newer replacement. Missing cleanup can cause a duplicate-registration failure on reload.
+Register in `session_start` using **`ctx.sessionManager.getSessionId()`**, not the session file path or a tool argument. Dispose in `session_shutdown`. New/resumed/forked sessions and reloads need registration from the replacement runtime's `session_start`; do not retain old `evoharness`/`ctx` references. The extension owns cleanup, not an automatic registration lifecycle manager. Disposal is idempotent and cannot remove a newer replacement. Missing cleanup can cause a duplicate-registration failure on reload.
 
 `resolve` must do synchronous, bounded validation and string construction, without I/O, SDK calls, timers or process work. Core deep-copies plain JSON args: at most 16 KiB encoded, nesting depth 8, 16 fields per object, 64 items per array, finite numbers, and nonempty strings of at most 16 KiB. The extension must additionally reject unsupported fields and validate resource-specific semantics. Throws, promises/thenables and malformed expansions fail before authority is issued; errors are bounded to 4096 characters.
 
@@ -32,12 +32,12 @@ Host grants bind **exact key/trimmed-command pairs**, not independent sets of ke
 This extension owns two fixed commands; `scripts/finite-check.mjs` must be an existing trusted finite helper in the workflow cwd. It runs a reviewer first, then a check. No command or flags come from free-form public args.
 
 ```typescript
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { registerWorkflowResource } from "pi-subagents/workflow-resources";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
+import { registerWorkflowResource } from "subagents/workflow-resources";
 
-export default function (pi: ExtensionAPI) {
+export default function (evoharness: ExtensionAPI) {
   let registration: { dispose(): void } | undefined;
-  pi.on("session_start", (_event, ctx) => {
+  evoharness.on("session_start", (_event, ctx) => {
     registration?.dispose();
     registration = registerWorkflowResource({
       sessionId: ctx.sessionManager.getSessionId(),
@@ -70,7 +70,7 @@ export default function (pi: ExtensionAPI) {
       },
     });
   });
-  pi.on("session_shutdown", () => {
+  evoharness.on("session_shutdown", () => {
     registration?.dispose();
     registration = undefined;
   });
@@ -95,15 +95,15 @@ The existing shell runner uses workflow cwd and inherited environment. Exact mat
 
 ## In-process event-bus RPC
 
-Other Pi extensions can use the in-process event-bus RPC instead of scraping slash output or calling internal modules. Listen for `subagents:rpc:v1:ready`, send requests on `subagents:rpc:v1:request`, and read replies from `subagents:rpc:v1:reply:<requestId>`.
+Other evoharness extensions can use the in-process event-bus RPC instead of scraping slash output or calling internal modules. Listen for `subagents:rpc:v1:ready`, send requests on `subagents:rpc:v1:request`, and read replies from `subagents:rpc:v1:reply:<requestId>`.
 
 ```typescript
 const requestId = crypto.randomUUID();
-pi.events.on(`subagents:rpc:v1:reply:${requestId}`, (reply) => {
+evoharness.events.on(`subagents:rpc:v1:reply:${requestId}`, (reply) => {
   // { version: 1, requestId, success: true, data } or
   // { version: 1, requestId, success: false, error: { code, message } }
 });
-pi.events.emit("subagents:rpc:v1:request", {
+evoharness.events.emit("subagents:rpc:v1:request", {
   version: 1,
   requestId,
   method: "spawn",
@@ -150,9 +150,9 @@ A host that shows background subagent activity (an editor panel, a footer, a sta
 2. Read `status` once, when the host starts or reconnects. Events are not replayed after a host restart, and subscribing first means a change during that read still triggers another one.
 3. When any of the events fires, read `status` again. Events can arrive in bursts and can repeat, so coalesce them in the host, for example one `status` read per 250 ms, and keep a refresh that arrives while a read is in flight for after it ends.
 
-`subagent:jobs-changed` carries only `{ version: 1 }`. It fires whenever the parent's background job view changes: a run starts, moves to another step (no other event reports a chain or parallel run's step changes), reports new activity (a tool, a turn, tokens, or output), finishes, or is cleared from the widget. While a child streams output this can be about once per second per run. Starts and finishes fire right away; step and activity changes fire when the parent next reads the run's status file, which on macOS is a check every 5 seconds. It fires only in sessions with a UI, which covers interactive and RPC mode; print mode (`pi -p`) and SDK embeddings without a UI do not get it. It fires even when the async widget is turned off.
+`subagent:jobs-changed` carries only `{ version: 1 }`. It fires whenever the parent's background job view changes: a run starts, moves to another step (no other event reports a chain or parallel run's step changes), reports new activity (a tool, a turn, tokens, or output), finishes, or is cleared from the widget. While a child streams output this can be about once per second per run. Starts and finishes fire right away; step and activity changes fire when the parent next reads the run's status file, which on macOS is a check every 5 seconds. It fires only in sessions with a UI, which covers interactive and RPC mode; print mode (`evoharness -p`) and SDK embeddings without a UI do not get it. It fires even when the async widget is turned off.
 
-Foreground children are not background jobs. Their progress arrives as updates to the parent's `subagent` tool call (Pi's `tool_execution_update` events), with the `details.results[]` rows described above.
+Foreground children are not background jobs. Their progress arrives as updates to the parent's `subagent` tool call (evoharness's `tool_execution_update` events), with the `details.results[]` rows described above.
 
 To rebuild what ran in a session after a reload, read the records the session file already holds: the `subagent` tool result's `details.results[]` for foreground runs and the `subagent-notify` message's `details.runs[]` for background runs (see [Host session lifetime and completion wakes](#host-session-lifetime-and-completion-wakes)). The `cost` method returns per-child rows built from the same records.
 
@@ -182,11 +182,11 @@ The DTO intentionally never exposes run, async, or tool IDs. Clients must ignore
 
 ### Scope
 
-`pi.events` is in-process only. It does not reach separate Pi processes or child subagents; use the file lifecycle artifacts or `pi-intercom` for cross-process coordination.
+`evoharness.events` is in-process only. It does not reach separate evoharness processes or child subagents; use the file lifecycle artifacts or `pi-intercom` for cross-process coordination.
 
 ## Runtime agent registration from independent extensions
 
-An independently installed Pi extension can register an agent with the installed `pi-subagents` owner through the process-local `pi-subagents:runtime-agent-register:v1` event. Emit after extension setup, such as during `session_start`. Event delivery is synchronous, so the owner writes the result onto the request before `emit()` returns.
+An independently installed evoharness extension can register an agent with the installed `subagents` owner through the process-local `subagents:runtime-agent-register:v1` event. Emit after extension setup, such as during `session_start`. Event delivery is synchronous, so the owner writes the result onto the request before `emit()` returns.
 
 ```typescript
 const request: {
@@ -210,31 +210,31 @@ const request: {
   },
 };
 
-pi.events.emit("pi-subagents:runtime-agent-register:v1", request);
-if (!request.result) throw new Error("pi-subagents is not installed or not ready");
+evoharness.events.emit("subagents:runtime-agent-register:v1", request);
+if (!request.result) throw new Error("subagents is not installed or not ready");
 if (!request.result.ok) throw request.result.error;
 const registration = request.result.registration;
 // Call registration.dispose() during your extension cleanup.
 ```
 
-If `pi-subagents` is a resolvable dependency of the consumer package, `pi-subagents/agents` exports `RUNTIME_AGENT_REGISTER_EVENT`, the request/result types, and `registerAgentViaEvents()` for the same contract. A separately installed Pi package is not automatically a Node dependency of another package. In that case, use the event contract directly instead of a runtime import. A type-only development dependency is optional.
+If `subagents` is a resolvable dependency of the consumer package, `subagents/agents` exports `RUNTIME_AGENT_REGISTER_EVENT`, the request/result types, and `registerAgentViaEvents()` for the same contract. A separately installed evoharness package is not automatically a Node dependency of another package. In that case, use the event contract directly instead of a runtime import. A type-only development dependency is optional.
 
 A registered agent follows the operator's subagent model settings like any other agent: `subagents.defaultModel`, `defaultProvider`, and `defaultThinking` fill a definition that omits `model` or `thinking`, and the `model`, `defaultProvider`, `fast`, and `thinking` fields of `agentOverrides.<name>` win over the definition. Every other definition field stays extension-owned, and other override fields are ignored for runtime agents. Set `model` in the definition only when the agent must not follow operator model settings; `model: "inherit"` selects the parent session model explicitly.
 
 The installed owner applies the existing runtime-agent validation, collision checks, limits, runtime source metadata, and cleanup. If more than one owner listens, the first handler that writes `request.result` wins. Unsupported versions, malformed requests, and registration failures return `{ ok: false, error }`. No result means no compatible owner handled the event.
 
-This contract is process-local. It does not register agents in child sessions or other Pi processes, and it does not change package discovery or package resolution.
+This contract is process-local. It does not register agents in child sessions or other evoharness processes, and it does not change package discovery or package resolution.
 
 ## External jobs in FleetView
 
-Use `pi-subagents/external-runs` to publish display-only current-session jobs owned by another extension:
+Use `subagents/external-runs` to publish display-only current-session jobs owned by another extension:
 
 ```ts
 import {
   registerExternalRun,
   updateExternalRun,
   unregisterExternalRun,
-} from "pi-subagents/external-runs";
+} from "subagents/external-runs";
 
 registerExternalRun({
   id: "dependency-review",
@@ -263,10 +263,10 @@ External jobs are observational. The caller owns execution, persistence, cancell
 
 ## Launch contract preflight
 
-Use `pi-subagents/preflight` when an extension needs to inspect the resolved child launch contract before deciding whether to run anything:
+Use `subagents/preflight` when an extension needs to inspect the resolved child launch contract before deciding whether to run anything:
 
 ```ts
-import { resolveSubagentLaunchContract } from "pi-subagents/preflight";
+import { resolveSubagentLaunchContract } from "subagents/preflight";
 
 const result = await resolveSubagentLaunchContract({
   agent: "reviewer",
@@ -291,7 +291,7 @@ Preflight covers ordinary single-agent launch resolution:
 
 - Selected agent identity and shadowed candidates.
 - A parsed-definition digest, including system prompt and launch-affecting model, tool, skill, extension, output, and memory fields. Runtime overlays such as the Intercom bridge never change it.
-- Fresh/fork context, effective model and thinking, skill and tool resolution, direct MCP selections, runtime/configured extensions. Pass your extension's `pi` as `runtimeSnapshotHost` so `mcp:` selections resolve against Pi's built-in MCP the way a launch does. Without it, preflight cannot see built-in MCP and resolves `mcp:` selections through pi-mcp-adapter's configuration, as before.
+- Fresh/fork context, effective model and thinking, skill and tool resolution, direct MCP selections, runtime/configured extensions. Pass your extension's `evoharness` as `runtimeSnapshotHost` so `mcp:` selections resolve against evoharness's built-in MCP the way a launch does. Without it, preflight cannot see built-in MCP and resolves `mcp:` selections through pi-mcp-adapter's configuration, as before.
 - Model scope allow lists accept the reserved tokens `inherit` and `scoped`; `scoped` expands to the caller-supplied `scopedModelIds` snapshot, degrading to `inherit` when it is omitted. Callers whose `modelScope.allow` uses `scoped` must pass `scopedModelIds` (the session's `/scoped-models` snapshot) alongside `parentModel`, otherwise preflight resolves it as `inherit` and may reject models the actual launch allows.
 - Pass `projectTrusted: ctx.isProjectTrusted()` to match a session that declined project trust. With `false`, project agents and project subagent settings are ignored and an explicit `agentScope: "project"` returns `restricted_agent`. It defaults to `true`.
 - The resolved Intercom bridge state (`intercomBridge.mode` and `intercomBridge.active`). An active bridge appends the bridge instruction to the child prompt and adds `contact_supervisor` to a declared tool list, exactly as execution does.
@@ -302,19 +302,19 @@ Preflight covers ordinary single-agent launch resolution:
 Bridge inputs:
 
 - `intercomBridge` replaces the global `intercomBridge` config for this launch, with the same semantics as the `subagent` tool and delegation overrides. Pass the same value to the launch you compare against. Preflight reads the global config from disk on each call while the running extension keeps the config it loaded at startup, so pass the override when the digest must not depend on that file.
-- The default bridge instruction never names the parent session, so most hosts need no further input. When the configured `instructionFile` interpolates `{orchestratorTarget}`, preflight reports a `host_required` diagnostic unless the host supplies a non-empty `orchestratorTarget`; the executor derives that target with `resolveIntercomSessionTarget` from `pi-subagents/intercom-bridge`, given the parent session name and id.
+- The default bridge instruction never names the parent session, so most hosts need no further input. When the configured `instructionFile` interpolates `{orchestratorTarget}`, preflight reports a `host_required` diagnostic unless the host supplies a non-empty `orchestratorTarget`; the executor derives that target with `resolveIntercomSessionTarget` from `subagents/intercom-bridge`, given the parent session name and id.
 
 Boundaries:
 
 - Runtime acceptance prose and output-task annotations are intentionally excluded because side-effect-free preflight does not resolve those host/runtime augmentations; the launch and task digests make that boundary explicit.
 - Raw prompts are not exposed in public contract output.
 - It is side-effect-free for launch state: it does not create child sessions, temp prompt files, structured-output runtimes, tool-diagnostic files, or run artifacts.
-- Some host-owned facts, such as exact fork snapshots, nested async roots, and live model registries, can only be proven by the Pi host; those appear as `host_required` diagnostics instead of silently pretending to be exact.
+- Some host-owned facts, such as exact fork snapshots, nested async roots, and live model registries, can only be proven by the evoharness host; those appear as `host_required` diagnostics instead of silently pretending to be exact.
 - Preflight reads the extension config, so `defaultSubagentContext: "fresh"` or `"fork"` affects omitted context in the same way as execution. Explicit `context` still wins.
 
 ## Structured delegation API
 
-Other Pi extensions can ask `pi-subagents` to run one configured foreground leaf agent through the structured delegation API. It uses the established `prompt-template:subagent:*` event family and the same executor as the `subagent` tool; it does not add another launcher.
+Other evoharness extensions can ask `subagents` to run one configured foreground leaf agent through the structured delegation API. It uses the established `prompt-template:subagent:*` event family and the same executor as the `subagent` tool; it does not add another launcher.
 
 ```ts
 import {
@@ -322,7 +322,7 @@ import {
   SUBAGENT_DELEGATION_RESPONSE_EVENT,
   type SubagentDelegationRequest,
   type SubagentDelegationResponse,
-} from "pi-subagents/delegation";
+} from "subagents/delegation";
 
 const request: SubagentDelegationRequest = {
   requestId: crypto.randomUUID(),
@@ -344,14 +344,14 @@ const request: SubagentDelegationRequest = {
   },
 };
 
-const unsubscribe = pi.events.on(SUBAGENT_DELEGATION_RESPONSE_EVENT, (payload) => {
+const unsubscribe = evoharness.events.on(SUBAGENT_DELEGATION_RESPONSE_EVENT, (payload) => {
   const response = payload as SubagentDelegationResponse;
   if (response.requestId !== request.requestId) return;
   if (response.ownerRunId !== request.ownerRunId || response.nodeId !== request.nodeId) return;
   unsubscribe();
   // Inspect response.status, response.result, response.usage, model, and thinking.
 });
-pi.events.emit(SUBAGENT_DELEGATION_REQUEST_EVENT, request);
+evoharness.events.emit(SUBAGENT_DELEGATION_REQUEST_EVENT, request);
 ```
 
 Identity:
@@ -388,11 +388,11 @@ Both `:update` and terminal `:response` optionally include one bounded `provider
 }
 ```
 
-- Coverage is **observed assistant-request errors and Pi retries**, not every provider-internal HTTP attempt. Healthy long reasoning does not invent diagnostics; absence means no observation, not proof that no internal retry happened.
-- `errorCount` increments once per failed assistant `message_end` (`stopReason: "error"`), including repeated identical errors and errors without an `errorMessage`. It does not count retry scheduling, tool failures, aborts, or compaction. The first error is reported immediately, even with no output or tokens and before Pi schedules any retry.
-- Only the failed message's `errorMessage` is classified, never assistant content or tool text. `rate_limited` requires explicit throttling evidence. Text that mentions quota or billing, or says credits, balance, or an account or usage limit is exhausted, is reported as `unknown`, even when it also carries throttling or transient wording, so account exhaustion never looks like transient throttling. Other Pi-recognized transient errors use `transient_other`; anything else uses `unknown`. This classification is observational and does not change Pi's retry policy or the delegation's status/error behavior.
+- Coverage is **observed assistant-request errors and evoharness retries**, not every provider-internal HTTP attempt. Healthy long reasoning does not invent diagnostics; absence means no observation, not proof that no internal retry happened.
+- `errorCount` increments once per failed assistant `message_end` (`stopReason: "error"`), including repeated identical errors and errors without an `errorMessage`. It does not count retry scheduling, tool failures, aborts, or compaction. The first error is reported immediately, even with no output or tokens and before evoharness schedules any retry.
+- Only the failed message's `errorMessage` is classified, never assistant content or tool text. `rate_limited` requires explicit throttling evidence. Text that mentions quota or billing, or says credits, balance, or an account or usage limit is exhausted, is reported as `unknown`, even when it also carries throttling or transient wording, so account exhaustion never looks like transient throttling. Other host-recognized transient errors use `transient_other`; anything else uses `unknown`. This classification is observational and does not change evoharness's retry policy or the delegation's status/error behavior.
 - `lastError.message` is a short fixed safe description, **not** the raw provider error/body. Raw diagnostics remain in existing child artifacts. No HTTP status or provider code is inferred or exposed here. `at` and `scheduledAt` are observation-time Unix timestamps in milliseconds.
-- `auto_retry_start` schedules `backoff`; `attempt` is the 1-based retry attempt, `maxAttempts` is Pi's retry budget, and `delayMs` is Pi's planned delay, **not** a claimed server `Retry-After`. The next `agent_start`/`turn_start` changes the phase to `in_flight`. `auto_retry_end` ends the sequence after success, exhaustion, or cancellation; it is not a backoff-finished event.
+- `auto_retry_start` schedules `backoff`; `attempt` is the 1-based retry attempt, `maxAttempts` is evoharness's retry budget, and `delayMs` is evoharness's planned delay, **not** a claimed server `Retry-After`. The next `agent_start`/`turn_start` changes the phase to `in_flight`. `auto_retry_end` ends the sequence after success, exhaustion, or cancellation; it is not a backoff-finished event.
 - Cumulative error history survives recovery and unrelated replacement updates. `retry` is active-only and is absent from every terminal response, including cancellation and timeout. Historical errors alone do not turn a recovered completed result into a failure.
 
 Bounds:
@@ -408,14 +408,14 @@ Constraints:
 - The caller selects a configured agent, but agent discovery and effective tools remain package-owned. A request cannot grant arbitrary tools, and tool restrictions are not an operating-system sandbox.
 - The detached RPC remains async-only; this API is foreground-only.
 
-Unversioned prompt-template payloads with `requestId`, `agent`, `task`, `context`, `model`, and `cwd` are rejected as legacy direct delegation. New integrations must use the structured owned-leaf request above. `pi-subagents/delegation` is the canonical contract for extension integrations.
+Unversioned prompt-template payloads with `requestId`, `agent`, `task`, `context`, `model`, and `cwd` are rejected as legacy direct delegation. New integrations must use the structured owned-leaf request above. `subagents/delegation` is the canonical contract for extension integrations.
 
 ## Capability ceilings
 
 Parent extensions can enforce an out-of-band, session-scoped capability ceiling without adding a model-visible field to `subagent`:
 
 ```ts
-import { registerSubagentCapabilityCeiling } from "pi-subagents/capability-ceiling";
+import { registerSubagentCapabilityCeiling } from "subagents/capability-ceiling";
 
 const restriction = registerSubagentCapabilityCeiling({
   sessionId: ctx.sessionManager.getSessionId(),
@@ -448,10 +448,10 @@ Schedules created while a ceiling is active are rejected until durable schedule 
 
 ## Background-work provider API
 
-Other Pi extensions can make their current-session jobs visible to `bg_wait` through the process-local provider contract:
+Other evoharness extensions can make their current-session jobs visible to `bg_wait` through the process-local provider contract:
 
 ```ts
-import { registerBackgroundWorkProvider } from "pi-subagents/background-work";
+import { registerBackgroundWorkProvider } from "subagents/background-work";
 
 const dispose = registerBackgroundWorkProvider({
   name: "my-background-extension",
@@ -469,23 +469,23 @@ Semantics:
 - `listActiveWork` receives an optional `{ sessionId, sessionIds, nowMs }` context during snapshots, and `reconcile` receives the same fields. `sessionIds` holds every form of the current session (its file path when it has one, and its session id); `sessionId` is the first of them. Providers can use them to avoid scanning unrelated work; existing zero-argument `() => items` providers continue to work, and returned items are still validated and filtered to the current session. Each provider is called once per snapshot.
 - It filters snapshots to the active session, fails closed if a provider disappears while its work is tracked, and surfaces malformed snapshots or provider errors with provider context.
 - Wake channels only shorten polling; validated snapshots remain authoritative.
-- Providers share a registry through `Symbol.for("pi-subagents.background-work.v1")`, allowing independently loaded extension modules to meet in one Pi process.
+- Providers share a registry through `Symbol.for("subagents.background-work.v1")`, allowing independently loaded extension modules to meet in one evoharness process.
 - Registration is reload-safe: a new provider with the same name replaces the old callback, and the old disposer cannot remove the replacement. Call the disposer during extension shutdown when possible.
 
-Children do not gain provider tools or extensions automatically. Add `bg_wait` to the child agent's `tools` allowlist and load each provider through `extensions` or `subagentOnlyExtensions`. The parent's effective `waitTool` setting reaches every child through its typed runtime config; `PI_SUBAGENT_WAIT_TOOL_ENABLED` keeps precedence in the parent.
+Children do not gain provider tools or extensions automatically. Add `bg_wait` to the child agent's `tools` allowlist and load each provider through `extensions` or `subagentOnlyExtensions`. The parent's effective `waitTool` setting reaches every child through its typed runtime config; `EVOHARNESS_SUBAGENT_WAIT_TOOL_ENABLED` keeps precedence in the parent.
 
 Local foreground children never load the parent's ambient extensions: they share the parent's process, and loading them would start a second copy of every ambient extension, including this one, inside it. They do inherit the providers the parent's extensions registered, so a provider extension's models resolve in a local foreground child. Pane-native remote foreground children instead use the remote machine's provider discovery and configuration. Agents that need MCP tools (`mcpDirectTools`, or MCP tools from an ambient adapter such as pi-mcp-adapter) must run as background children (`async: true`), which load the ambient extensions inside the detached runner process unless the agent sets `extensions` or the capability ceiling denies extensions.
 
-The runner hosts many child sessions in one process and keeps working after each one ends: a background child's extensions see `session_shutdown` with reason `"quit"` in print mode, but the process does not exit with it. An extension that acts on process exit at that point (for example by force-exiting a headless run) should first check `process.env.PI_SUBAGENT_RUNNER_PID === String(process.pid)`, which is true only inside the runner. `PI_SUBAGENT_CHILD=1` cannot make that distinction: processes spawned from a child, such as a headless `pi` started by its bash tool, inherit both variables but have their own pid.
+The runner hosts many child sessions in one process and keeps working after each one ends: a background child's extensions see `session_shutdown` with reason `"quit"` in print mode, but the process does not exit with it. An extension that acts on process exit at that point (for example by force-exiting a headless run) should first check `process.env.EVOHARNESS_SUBAGENT_RUNNER_PID === String(process.pid)`, which is true only inside the runner. `EVOHARNESS_SUBAGENT_CHILD=1` cannot make that distinction: processes spawned from a child, such as a headless `evoharness` started by its bash tool, inherit both variables but have their own pid.
 
-A local foreground child ends the same way, but it runs inside the parent Pi process, which is not a runner and sets no marker. An extension configured into a foreground child (through the agent's `extensions` or `subagentOnlyExtensions`) must not act on process exit at `session_shutdown`.
+A local foreground child ends the same way, but it runs inside the parent evoharness process, which is not a runner and sets no marker. An extension configured into a foreground child (through the agent's `extensions` or `subagentOnlyExtensions`) must not act on process exit at `session_shutdown`.
 
 ## External job provider bridge
 
 Extensions that own long-running advisor jobs can register a process-local provider for `runner.type: external-job` agents:
 
 ```ts
-import { registerExternalJobProvider } from "pi-subagents/external-job-provider";
+import { registerExternalJobProvider } from "subagents/external-job-provider";
 
 const dispose = registerExternalJobProvider({
   name: "surf-oracle",
@@ -499,9 +499,9 @@ const dispose = registerExternalJobProvider({
 
 The provider returns handles with `providerJobId`, `state`, optional `handleUrl`/`conversationUrl`, optional `failureCode`/`failureMessage`, and optional `blockingJobId` for capacity conflicts. `result` can also return `output` and/or `artifactPath`.
 
-`followUp(input)` is optional. When it is present, a completed external-job run can be continued with `subagent({ action: "resume", id: "<run>", message: "..." })`. Pi sends the completed parent provider job id plus a stable `requestId` and `requestDigest`. The provider must continue that parent conversation or fail closed. It must not open a fresh thread when the parent conversation is missing.
+`followUp(input)` is optional. When it is present, a completed external-job run can be continued with `subagent({ action: "resume", id: "<run>", message: "..." })`. evoharness sends the completed parent provider job id plus a stable `requestId` and `requestDigest`. The provider must continue that parent conversation or fail closed. It must not open a fresh thread when the parent conversation is missing.
 
-The async runner process does not import provider internals. It writes operation requests into its async run directory. The Pi process of the session that launched the run services those requests against the registered provider and writes operation responses. A child session services the external-job runs it launches. Register the provider in that child too, for example through the child agent's `extensions`. If the provider is not registered, the bridge fails closed with an actionable error. If a run is recovered after provider job metadata exists, the runner calls `reattach` and `result`; it does not call `start` or `follow-up` again.
+The async runner process does not import provider internals. It writes operation requests into its async run directory. The evoharness process of the session that launched the run services those requests against the registered provider and writes operation responses. A child session services the external-job runs it launches. Register the provider in that child too, for example through the child agent's `extensions`. If the provider is not registered, the bridge fails closed with an actionable error. If a run is recovered after provider job metadata exists, the runner calls `reattach` and `result`; it does not call `start` or `follow-up` again.
 
 ## Inspect integration
 
@@ -518,34 +518,34 @@ subagent({ action: "inspector.close", id: "<run-id>", options: { index: 0 } })
 
 ### Register an external inspector
 
-A loaded Pi extension can add an inspector through the synchronous
-`pi-subagents:inspector-register:v1` event. This lets terminal integrations use
-Fleet's existing Enter/H actions without modifying pi-subagents. Registration
+A loaded evoharness extension can add an inspector through the synchronous
+`subagents:inspector-register:v1` event. This lets terminal integrations use
+Fleet's existing Enter/H actions without modifying subagents. Registration
 adds no runner, tool, or configuration option.
 
 ```ts
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import type { InspectorRegistration, InspectorRegistrationRequest } from "pi-subagents/inspectors";
+import type { ExtensionAPI } from "@evoharness/coding-agent";
+import type { InspectorRegistration, InspectorRegistrationRequest } from "subagents/inspectors";
 import { myInspector } from "./my-inspector.ts"; // Your InspectorPlugin implementation.
 
-export default function (pi: ExtensionAPI) {
+export default function (evoharness: ExtensionAPI) {
   let registration: InspectorRegistration | undefined;
-  pi.on("session_start", () => {
+  evoharness.on("session_start", () => {
     registration?.dispose();
     const request: InspectorRegistrationRequest = { version: 1, plugin: myInspector };
-    pi.events.emit("pi-subagents:inspector-register:v1", request);
-    if (!request.result) throw new Error("pi-subagents inspector registration is unavailable.");
+    evoharness.events.emit("subagents:inspector-register:v1", request);
+    if (!request.result) throw new Error("subagents inspector registration is unavailable.");
     if (!request.result.ok) throw request.result.error;
     registration = request.result.registration;
   });
-  pi.on("session_shutdown", () => registration?.dispose());
+  evoharness.on("session_shutdown", () => registration?.dispose());
 }
 ```
 
-`pi-subagents/inspectors` exports the event name as `INSPECTOR_REGISTER_EVENT`,
+`subagents/inspectors` exports the event name as `INSPECTOR_REGISTER_EVENT`,
 the request and registration types, and the existing `InspectorPlugin`,
 `InspectorContext`, `InspectorLaunch`, `InspectorParams`, and `InspectorTarget`
-types. When pi-subagents is a resolvable dependency, `registerInspector(pi, plugin)`
+types. When subagents is a resolvable dependency, `registerInspector(evoharness, plugin)`
 emits the same request and returns the registration or throws. Independently
 installed extensions can use the event directly; type-only imports need only a
 development dependency and create no runtime module dependency.
@@ -565,9 +565,9 @@ retried through another provider. Status/close use the first provider whose
 `owns` returns true; unavailable lifecycle methods remain explicit errors.
 Providers own their pane bindings and must verify ownership before closing one.
 
-Registrations belong to the pi-subagents runtimes listening on the Pi event bus,
+Registrations belong to the subagents runtimes listening on the evoharness event bus,
 not the consumer module; they survive runtime replacement, are isolated from
-child runtimes and other Pi instances, and are cleared when the last owner shuts
+child runtimes and other evoharness instances, and are cleared when the last owner shuts
 down or reloads. Disposal is idempotent, removes callbacks without closing panes,
 and takes effect even while Fleet is open because it resolves providers per
 action. Providers receive the current action context, so do not capture a stale
@@ -580,7 +580,7 @@ run resolution, child-safe restrictions, authority policy, or supervisor routing
 
 ### Herdr inspector plugin
 
-The bundled Herdr inspector plugin supports Herdr 0.7.5+. It opens a raw dashboard pane, not the child session and not a literal attach. It reads lifecycle, status, output, and mission artifacts; steer and stop continue through pi-subagents' existing control inbox. Use `focus` only with `inspector.open`; Herdr 0.7.5 cannot focus an arbitrary existing raw pane id.
+The bundled Herdr inspector plugin supports Herdr 0.7.5+. It opens a raw dashboard pane, not the child session and not a literal attach. It reads lifecycle, status, output, and mission artifacts; steer and stop continue through subagents' existing control inbox. Use `focus` only with `inspector.open`; Herdr 0.7.5 cannot focus an arbitrary existing raw pane id.
 
 ### Ghostty inspector plugin
 
@@ -588,12 +588,12 @@ Ghostty 1.3+ on macOS is the second bundled open-only plugin, using Ghostty's pr
 
 ## Herdr integration
 
-When Pi runs inside [Herdr](https://herdr.dev), pi-subagents automatically reports active async-run counts through Herdr pane metadata.
+When evoharness runs inside [Herdr](https://herdr.dev), subagents automatically reports active async-run counts through Herdr pane metadata.
 
 - The bridge is enabled only when Herdr supplies `HERDR_ENV=1` and `HERDR_PANE_ID`; outside Herdr it registers no listeners or timers.
 - It restores current-session active runs after `/reload` or `/resume`, refreshes metadata while work is active, and clears it on completion or shutdown.
-- The bridge emits `herdr:busy` while async work remains and never raises `herdr:blocked`, because a child's attention request goes to the parent agent, not the user. Herdr's Pi integration does not consume `herdr:busy` yet, so the pane's dot follows the parent's own turn and the metadata label shows the active work.
-- The owning Pi session is the only publisher for its own pane metadata. When an active workflow has an explicit bounded `label`, the newest active label appears in the summary and compact `title-suffix`; overlapping completion restores the previous active label. Raw task and goal prompts never enter Herdr metadata. Without a label, one active run uses its agent name and two or more use the active-run count. Attention adds `⚠`, and the suffix is cleared when active work reaches zero.
+- The bridge emits `herdr:busy` while async work remains and never raises `herdr:blocked`, because a child's attention request goes to the parent agent, not the user. Herdr's evoharness integration does not consume `herdr:busy` yet, so the pane's dot follows the parent's own turn and the metadata label shows the active work.
+- The owning evoharness session is the only publisher for its own pane metadata. When an active workflow has an explicit bounded `label`, the newest active label appears in the summary and compact `title-suffix`; overlapping completion restores the previous active label. Raw task and goal prompts never enter Herdr metadata. Without a label, one active run uses its agent name and two or more use the active-run count. Attention adds `⚠`, and the suffix is cleared when active work reaches zero.
 
 To show the reported label in the expanded Agent sidebar, include `state_text` or `$summary` in its row layout:
 
@@ -607,7 +607,7 @@ rows = [
 
 ### Project panes
 
-For substantial work in another codebase, Herdr 0.7.5+ can open a project-owned Pi pane rooted in that repository:
+For substantial work in another codebase, Herdr 0.7.5+ can open a project-owned evoharness pane rooted in that repository:
 
 ```ts
 subagent({ action: "project.open", cwd: "/path/to/repo", message: "Own the auth refresh mission for this project." })
@@ -615,9 +615,9 @@ subagent({ action: "project.status", cwd: "/path/to/repo" })
 subagent({ action: "project.close", cwd: "/path/to/repo" })
 ```
 
-A project pane runs its own Pi session in the target directory, so subagents launched from that pane use that project's config, agents, skills, files, git state, and missions. The parent session keeps coordination authority, but it does not own or control the subagents inside the peer pane. Existing headless runs are not moved into the pane. Pane bindings live under `<projectRoot>/.pi/subagents/project-panes/herdr.json` and are only a local pointer to the Herdr pane.
+A project pane runs its own evoharness session in the target directory, so subagents launched from that pane use that project's config, agents, skills, files, git state, and missions. The parent session keeps coordination authority, but it does not own or control the subagents inside the peer pane. Existing headless runs are not moved into the pane. Pane bindings live under `<projectRoot>/.evoharness/subagents/project-panes/herdr.json` and are only a local pointer to the Herdr pane.
 
-Other Pi extensions should use the versioned public TypeScript surface instead of invoking the model-facing tool or importing inspector internals:
+Other evoharness extensions should use the versioned public TypeScript surface instead of invoking the model-facing tool or importing inspector internals:
 
 ```ts
 import {
@@ -626,7 +626,7 @@ import {
   getProjectPaneStatus,
   focusProjectPane,
   closeProjectPane,
-} from "pi-subagents/project-panes";
+} from "subagents/project-panes";
 
 const opened = await openProjectPane({ cwd: "/path/to/repo", focus: false });
 const status = await getProjectPaneStatus({ cwd: "/path/to/repo" });
@@ -638,15 +638,15 @@ The API returns discriminated structured results with canonical project root, bi
 
 - Close fails closed unless the saved pane id is still verified for that project and Herdr explicitly reports `agent_status: "idle"`. `requireIdle` is retained for callers that already pass it, but it cannot weaken that rule.
 - Focus uses the saved pane id, asks Herdr for its `tab_id` or `workspace_id`, and then calls the matching Herdr focus command.
-- The API reports `trust: "human-verification-required"`. It never bypasses or claims to attest Pi's project-trust prompt.
+- The API reports `trust: "human-verification-required"`. It never bypasses or claims to attest evoharness's project-trust prompt.
 
 ## Host session lifetime and completion wakes
 
 A host that embeds this extension owns whether completion wakes can be delivered at all.
 
-Ordinary async and foreground completion wakes use `registerSubagentNotify` and `sendCompletion`. They listen for completion events and deliver through `pi.sendMessage(..., { triggerTurn })`. When the parent is idle, every pi-subagents notice that should start a turn (completions, supervisor asks, control and steering notices, wait subscriptions) starts the run itself with `triggerTurn: true`; Pi runs `before_agent_start` for that run, so extension-set system prompt sections stay in it. Each such notice ends with what the parent should do (for completions, `Parent action: ...`), and no separate user message is sent. If another extension's wake (pi-intercom's, through the shared `Symbol.for("pi.idle-wake.v1")` reservation) is already starting the run, the notice is appended without a turn and that run picks it up. A busy parent still gets the notice as a steering message. After the user aborts a parent run in a host with a UI, these notices are only appended, with no turn, until the next parent run starts. Session shutdown stops the result watcher and disposes this completion notifier. `createWaitSubscriptionManager` is separate: it is the explicit non-blocking `bg_wait` subscription path for work without native notification, not the ordinary completion wake path.
+Ordinary async and foreground completion wakes use `registerSubagentNotify` and `sendCompletion`. They listen for completion events and deliver through `evoharness.sendMessage(..., { triggerTurn })`. When the parent is idle, every subagents notice that should start a turn (completions, supervisor asks, control and steering notices, wait subscriptions) starts the run itself with `triggerTurn: true`; evoharness runs `before_agent_start` for that run, so extension-set system prompt sections stay in it. Each such notice ends with what the parent should do (for completions, `Parent action: ...`), and no separate user message is sent. If another extension's wake (pi-intercom's, through the shared `Symbol.for("subagents.idle-wake.v1")` reservation) is already starting the run, the notice is appended without a turn and that run picks it up. A busy parent still gets the notice as a steering message. After the user aborts a parent run in a host with a UI, these notices are only appended, with no turn, until the next parent run starts. Session shutdown stops the result watcher and disposes this completion notifier. `createWaitSubscriptionManager` is separate: it is the explicit non-blocking `bg_wait` subscription path for work without native notification, not the ordinary completion wake path.
 
-Each completion notice is a custom message with `customType: "subagent-notify"`. Its `content` is the text the model reads. Pi does not send `details` to the model, so hosts can use it to match a notice to its runs by id without parsing the text. `details.runs` has one entry per finished run, in the order of the notice. A grouped notice has several entries. Each entry has `agent` and `status` (`completed`, `failed`, `paused` or `stopped`). When known, an entry also has these fields:
+Each completion notice is a custom message with `customType: "subagent-notify"`. Its `content` is the text the model reads. evoharness does not send `details` to the model, so hosts can use it to match a notice to its runs by id without parsing the text. `details.runs` has one entry per finished run, in the order of the notice. A grouped notice has several entries. Each entry has `agent` and `status` (`completed`, `failed`, `paused` or `stopped`). When known, an entry also has these fields:
 
 - `runId`: the finished run's id. For a workflow it equals `workflowRunId`.
 - `workflowRunId`: set only for workflows.
@@ -660,7 +660,7 @@ Detached children do not stop when the session does. They are the host process's
 
 This matters because "is the parent busy?" is the wrong idle signal. A parent that launches a detached run and hands control back — which is what the async launch output tells it to do — is not prompting, streaming, compacting, or running a shell command. A host that reaps sessions on those signals alone will dispose exactly the session that was waiting to be woken.
 
-When pi-subagents runs inside a compatible pi-web host, it discovers the versioned `Symbol.for("@agegr/pi-web/session-liveness/v1")` registry and registers one provider for the current session. The provider reports live `queued`/`running` async jobs, active nested descendants (including foreground routes retained after their direct parent settles), foreground controls that still have a scheduling owner or active child, async runs that ended but whose result has not reached the parent (including a rejected send waiting for retry), completion notifications until Pi starts the wake message (`message_start`), even when Pi queued it behind the current turn or past `agent_settled`, and a turn-triggering notice sent to an idle parent until its run starts (`agent_start`). Accepted wakes remain owned by the same Pi session manager and session UUID across extension reloads, until they start. Independent session managers never share this ownership, and changing the UUID on an existing manager discards the old session's wakes. A wake message Pi discards without starting keeps the session live until the session shuts down for a reason other than reload. An idle wake whose run has not started 10 seconds later, while the parent is idle, stops holding the session live on its own; a completion notice whose run never started is still held by the undelivered-notice tracking above until the session shuts down, which records it for replay at the next start. Retained terminal history, future schedules, and wait subscriptions do not make a session live by themselves. The registration is replaced on session changes and released during runtime shutdown or reload; other hosts remain unaffected.
+When subagents runs inside a compatible pi-web host, it discovers the versioned `Symbol.for("@agegr/pi-web/session-liveness/v1")` registry and registers one provider for the current session. The provider reports live `queued`/`running` async jobs, active nested descendants (including foreground routes retained after their direct parent settles), foreground controls that still have a scheduling owner or active child, async runs that ended but whose result has not reached the parent (including a rejected send waiting for retry), completion notifications until evoharness starts the wake message (`message_start`), even when evoharness queued it behind the current turn or past `agent_settled`, and a turn-triggering notice sent to an idle parent until its run starts (`agent_start`). Accepted wakes remain owned by the same evoharness session manager and session UUID across extension reloads, until they start. Independent session managers never share this ownership, and changing the UUID on an existing manager discards the old session's wakes. A wake message evoharness discards without starting keeps the session live until the session shuts down for a reason other than reload. An idle wake whose run has not started 10 seconds later, while the parent is idle, stops holding the session live on its own; a completion notice whose run never started is still held by the undelivered-notice tracking above until the session shuts down, which records it for replay at the next start. Retained terminal history, future schedules, and wait subscriptions do not make a session live by themselves. The registration is replaced on session changes and released during runtime shutdown or reload; other hosts remain unaffected.
 
 If your host reclaims idle sessions, keep a session alive while it still has live detached work:
 
@@ -674,7 +674,7 @@ The symptom when this is missed is quiet and easy to misattribute: subagents app
 
 ## Component screens over RPC
 
-`/subagents-fleet`, `/subagents-stop` and the `/subagents` model and thinking pickers draw a `ctx.ui.custom()` component in the TUI. In every other mode they fall back to text or `ctx.ui.select`, because stock Pi RPC defines `custom()` as a no-op. A host that runs Pi in RPC mode and renders `custom()` components itself, such as pi-web, can set `PI_SUBAGENTS_COMPONENT_UI=1` in Pi's environment to get the component screens.
+`/subagents-fleet`, `/subagents-stop` and the `/subagents` model and thinking pickers draw a `ctx.ui.custom()` component in the TUI. In every other mode they fall back to text or `ctx.ui.select`, because stock evoharness RPC defines `custom()` as a no-op. A host that runs evoharness in RPC mode and renders `custom()` components itself, such as pi-web, can set `EVOHARNESS_SUBAGENTS_COMPONENT_UI=1` in evoharness's environment to get the component screens.
 
 ## Runtime files
 
@@ -694,7 +694,7 @@ The main runtime files in this repository:
 | `src/runs/shared/child-hooks.ts` | The inline hook extensions every child gets (prompt runtime, fast mode, fanout). |
 | `src/runs/background/subagent-runner.ts` | Detached async runner; hosts background child sessions in its own process. |
 | `src/runs/background/run-child-session.ts` | Drives one background child session and mirrors its events into the run artifacts. |
-| `src/runs/background/runner-aliases.ts` | Aliases the host peer packages to the installed pi package for the runner (`JITI_ALIAS`). |
+| `src/runs/background/runner-aliases.ts` | Aliases the host peer packages to the installed evoharness package for the runner (`JITI_ALIAS`). |
 | `src/runs/background/async-execution.ts` | Background launch support. |
 | `src/runs/background/async-status.ts` | Status discovery and formatting for async runs. |
 | `src/workflows/scripted-workflow.ts` / `src/runs/foreground/subagent-executor.ts` | Scripted workflow orchestration and child launch routing. |

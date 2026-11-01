@@ -8,7 +8,7 @@ import { resolve } from "../support/ts-loader.mjs";
 
 describe("ts-loader", () => {
 	it("rewrites .js imports when the parent path contains spaces", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-ts-loader space "));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-ts-loader space "));
 		const parentDir = path.join(root, "folder with spaces");
 		fs.mkdirSync(parentDir, { recursive: true });
 		fs.writeFileSync(path.join(parentDir, "target.ts"), "export const value = 1;\n", "utf-8");

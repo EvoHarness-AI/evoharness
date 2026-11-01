@@ -6,14 +6,14 @@ import {
 } from "../shared/display-text.ts";
 
 export const EXTERNAL_RUN_REGISTRY_VERSION = 2;
-export const EXTERNAL_RUN_REGISTRY_KEY = "pi-subagents.external-runs.v2";
+export const EXTERNAL_RUN_REGISTRY_KEY = "subagents.external-runs.v2";
 
 export const EXTERNAL_RUN_LIMITS = {
 	maxCachedRuns: 100,
 	maxSnapshotRuns: 20,
 	maxIdentityLength: 160,
 	/**
-	 * A Pi session id is the session file path, which routinely exceeds a short
+	 * A evoharness session id is the session file path, which routinely exceeds a short
 	 * identity budget in nested worktrees, so it is bounded like the other paths.
 	 */
 	maxSessionIdLength: 4_096,
@@ -229,7 +229,7 @@ function normalizeCachedRecord(current: ExternalRunRegistry, cacheKey: string, v
 	return run;
 }
 
-/** Register one current-session external job. pi-subagents never controls the job. */
+/** Register one current-session external job. subagents never controls the job. */
 export function registerExternalRun(input: ExternalRun): ExternalRun {
 	const run = validateRun(input);
 	const current = registry();
@@ -278,7 +278,7 @@ function getErrorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
 }
 
-/** Read a bounded cached snapshot for one Pi session. This never invokes third-party code. */
+/** Read a bounded cached snapshot for one evoharness session. This never invokes third-party code. */
 export function snapshotExternalRuns(
 	sessionId: string,
 	options: ExternalRunSnapshotOptions = {},

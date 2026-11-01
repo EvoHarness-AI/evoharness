@@ -13,7 +13,7 @@ function writer(root: string, project: string, target: string, role: string, ope
 	const tempRoot = fs.mkdtempSync(path.join(root, `temp-${role}-`));
 	const child = fork(fixture, [project, target, root, role, operation], {
 		execArgv: ["--experimental-strip-types"],
-		env: { ...process.env, EVOHARNESS_CODING_AGENT_DIR: agentDir, PI_SUBAGENTS_TEMP_ROOT: tempRoot },
+		env: { ...process.env, EVOHARNESS_CODING_AGENT_DIR: agentDir, EVOHARNESS_SUBAGENTS_TEMP_ROOT: tempRoot },
 		stdio: ["ignore", "ignore", "pipe", "ipc"],
 	});
 	let stderr = "";
@@ -47,9 +47,9 @@ async function race(options: { first: string; second: string; fileAlias?: boolea
 	const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "settings-race-")));
 	const project = path.join(root, "project");
 	const config = path.join(project, ".evoharness");
-	fs.mkdirSync(path.join(config, "profiles", "pi-subagents"), { recursive: true });
+	fs.mkdirSync(path.join(config, "profiles", "subagents"), { recursive: true });
 	fs.writeFileSync(
-		path.join(config, "profiles", "pi-subagents", "race.json"),
+		path.join(config, "profiles", "subagents", "race.json"),
 		JSON.stringify({ subagents: { agentOverrides: { reviewer: { model: "example/profile" } } } }),
 	);
 	const target = path.join(config, "settings.json");

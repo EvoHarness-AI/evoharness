@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { resolvePackageSubpath } from "../../src/runs/background/runner-aliases.ts";
 import { createDefaultChildSessionFactory, loadHostPiCodingAgent } from "../../src/runs/shared/child-session.ts";
-import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
+import { CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
 
 declare global {
 	// eslint-disable-next-line no-var
@@ -46,14 +46,14 @@ describe("loadHostPiCodingAgent", () => {
 	beforeEach(() => {
 		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "fake-host-sdk-"));
 		root = fakeHostRoot(tmp);
-		previous = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
+		previous = process.env[CODING_AGENT_PACKAGE_ROOT_ENV];
 		previousArgv1 = process.argv[1];
-		process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = root;
+		process.env[CODING_AGENT_PACKAGE_ROOT_ENV] = root;
 	});
 
 	afterEach(() => {
-		if (previous === undefined) delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
-		else process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = previous;
+		if (previous === undefined) delete process.env[CODING_AGENT_PACKAGE_ROOT_ENV];
+		else process.env[CODING_AGENT_PACKAGE_ROOT_ENV] = previous;
 		process.argv[1] = previousArgv1;
 		delete globalThis.__fakeHostSdkLoads;
 		fs.rmSync(tmp, { recursive: true, force: true });
@@ -130,7 +130,7 @@ describe("loadHostPiCodingAgent", () => {
 	});
 
 	it("auto-discovers the host package when no override is set", async () => {
-		delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
+		delete process.env[CODING_AGENT_PACKAGE_ROOT_ENV];
 		const mod = (await loadHostPiCodingAgent()) as { createAgentSession?: unknown };
 		assert.equal(typeof mod.createAgentSession, "function");
 	});
@@ -139,7 +139,7 @@ describe("loadHostPiCodingAgent", () => {
 		const runningRoot = fakeHostRoot(tmp, "running-coding-agent", "export const owner = 'running';\n");
 		const overrideRoot = fakeHostRoot(tmp, "override-coding-agent", "export const owner = 'override';\n");
 		process.argv[1] = path.join(runningRoot, "dist", "index.js");
-		process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = overrideRoot;
+		process.env[CODING_AGENT_PACKAGE_ROOT_ENV] = overrideRoot;
 
 		const mod = (await loadHostPiCodingAgent()) as { owner?: unknown };
 		assert.equal(mod.owner, "running");
@@ -152,7 +152,7 @@ describe("loadHostPiCodingAgent", () => {
 			"import 'definitely-missing-pr2348-dependency';\n",
 		);
 		process.argv[1] = path.join(runningRoot, "dist", "index.js");
-		delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
+		delete process.env[CODING_AGENT_PACKAGE_ROOT_ENV];
 
 		await assert.rejects(loadHostPiCodingAgent(), /definitely-missing-pr2348-dependency/);
 	});
@@ -166,7 +166,7 @@ describe("loadHostPiCodingAgent", () => {
 			exports: { ".": { import: "./dist/missing.js" } },
 		});
 		process.argv[1] = path.join(runningRoot, "dist", "index.js");
-		delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
+		delete process.env[CODING_AGENT_PACKAGE_ROOT_ENV];
 
 		await assert.rejects(loadHostPiCodingAgent(), /ENOENT/);
 	});
@@ -219,7 +219,7 @@ describe("loadHostPiCodingAgent", () => {
 			exports: { ".": { import: "./dist/index.js" } },
 		});
 		fs.writeFileSync(path.join(broken, "dist", "index.js"), "throw new Error('broken entry');");
-		process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = broken;
+		process.env[CODING_AGENT_PACKAGE_ROOT_ENV] = broken;
 		await assert.rejects(loadHostPiCodingAgent(), /broken entry/);
 	});
 
@@ -233,7 +233,7 @@ describe("loadHostPiCodingAgent", () => {
 			exports: { ".": { import: "./dist/index.js" } },
 		});
 		fs.writeFileSync(path.join(wrong, "dist", "index.js"), "throw new Error('must not be imported');");
-		process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = wrong;
+		process.env[CODING_AGENT_PACKAGE_ROOT_ENV] = wrong;
 		await assert.rejects(loadHostPiCodingAgent(), /expected "@evoharness\/coding-agent"/);
 	});
 });

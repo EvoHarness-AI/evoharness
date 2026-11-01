@@ -5,7 +5,7 @@ const MAX_LISTED_AGENTS = 3;
 
 /**
  * The `active_subagents` prompt section: one line per queued or running background run of this session.
- * Pi diffs prompt sections every turn, so it holds only fields that stay the same while a run is unchanged.
+ * evoharness diffs prompt sections every turn, so it holds only fields that stay the same while a run is unchanged.
  * Task text is not available here: launch events carry it redacted.
  */
 export function buildActiveRunsSection(

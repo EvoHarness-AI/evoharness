@@ -87,13 +87,16 @@ const PARENT_ONLY_CUSTOM_MESSAGE_TYPES = new Set([
 	"subagent-control",
 	"subagent-control-notice",
 ]);
-const SUBAGENT_ORCHESTRATION_SKILL_NAME_PATTERN = /<name>\s*pi-subagents\s*<\/name>/;
+const SUBAGENT_ORCHESTRATION_SKILL_NAME_PATTERN = /<name>\s*subagents\s*<\/name>/;
 const PROJECT_CONTEXT_XML_HEADER = "\n\n<project_context>\n\n";
 const PROJECT_CONTEXT_LEGACY_HEADER = "\n\n# Project Context\n\nProject-specific instructions and guidelines:\n\n";
 const SKILLS_HEADER = "\n\nThe following skills provide specialized instructions for specific tasks.";
 const DATE_HEADER = "\nCurrent date:";
 
-function registerRuntimeExtensionAcknowledgements(pi: ExtensionAPI, sink: ((ids: string[]) => void) | undefined): void {
+function registerRuntimeExtensionAcknowledgements(
+	evoharness: ExtensionAPI,
+	sink: ((ids: string[]) => void) | undefined,
+): void {
 	if (!sink) return;
 	const ids: string[] = [];
 	let finalized = false;
@@ -110,10 +113,11 @@ function registerRuntimeExtensionAcknowledgements(pi: ExtensionAPI, sink: ((ids:
 		return undefined;
 	};
 	try {
-		const events = (pi as { events?: { on?: (event: string, handler: (payload: unknown) => unknown) => unknown } })
-			.events;
+		const events = (
+			evoharness as { events?: { on?: (event: string, handler: (payload: unknown) => unknown) => unknown } }
+		).events;
 		events?.on?.(RUNTIME_EXTENSION_ACK_EVENT, acknowledge);
-		const onRuntimeEvent = pi.on as unknown as (
+		const onRuntimeEvent = evoharness.on as unknown as (
 			event: string,
 			handler: (event?: unknown, ctx?: unknown) => unknown,
 		) => void;
@@ -230,7 +234,7 @@ export function stripInheritedSkills(prompt: string): string {
 
 export function stripSubagentOrchestrationSkill(prompt: string): string {
 	return prompt
-		.replace(/\n{0,2}<skill\s+name=["']pi-subagents["'][^>]*>[\s\S]*?<\/skill>\n{0,2}/g, "\n\n")
+		.replace(/\n{0,2}<skill\s+name=["']subagents["'][^>]*>[\s\S]*?<\/skill>\n{0,2}/g, "\n\n")
 		.replace(/[ \t]*<skill>\s*[\s\S]*?<\/skill>\s*/g, (block) =>
 			SUBAGENT_ORCHESTRATION_SKILL_NAME_PATTERN.test(block) ? "" : block,
 		);
@@ -271,7 +275,7 @@ function childBoundary(options: ChildBoundaryOptions): string {
 }
 
 function appendChildBoundary(prompt: string, options: ChildBoundaryOptions): string {
-	// Pi's base prompt stays first so providers that recognize it by its opening still do.
+	// evoharness's base prompt stays first so providers that recognize it by its opening still do.
 	return `${stripChildBoundaryInstructions(prompt)}\n\n${childBoundary(options)}`;
 }
 
@@ -287,7 +291,7 @@ function filterChildPromptOptions(
 	if (!inherited.inheritProjectContext) options.contextFiles = [];
 	else if (!inherited.inheritGlobalContext)
 		options.contextFiles = options.contextFiles.filter((file) => !isGlobalContextFile(file.path));
-	options.skills = inherited.inheritSkills ? options.skills.filter((skill) => skill.name !== "pi-subagents") : [];
+	options.skills = inherited.inheritSkills ? options.skills.filter((skill) => skill.name !== "subagents") : [];
 	// Role prompts can embed context, skill catalogs, or an earlier child's boundary as text.
 	if (options.customPrompt) options.customPrompt = stripInheritedPromptText(options.customPrompt, inherited);
 	if (options.appendSystemPrompt)
@@ -304,13 +308,13 @@ function rewritesChildPrompt(config: ChildRuntimeConfig): boolean {
 }
 
 /** Installed after every other extension: a returned prompt freezes out sections added after it. */
-export function registerSubagentPromptBoundary(pi: ExtensionAPI, config: ChildRuntimeConfig): void {
+export function registerSubagentPromptBoundary(evoharness: ExtensionAPI, config: ChildRuntimeConfig): void {
 	if (!rewritesChildPrompt(config)) return;
 	// A returned prompt replaces the whole system prompt of every request. A fork must send its
 	// parent's prompt unchanged to reuse its prompt cache, so its boundary goes in its task
 	// message instead (see projectForkRequest).
 	if (config.forkCacheKey) return;
-	pi.on("before_agent_start", (event) => {
+	evoharness.on("before_agent_start", (event) => {
 		const finalized = appendChildBoundary(event.systemPrompt, {
 			fanoutChild: config.fanoutChild,
 			structuredOutput: Boolean(config.structuredOutput),
@@ -447,7 +451,7 @@ function prependText<T>(message: T, text: string): T {
  *
  * A fork's request now starts exactly as its parent's last one did:
  * - The system messages it inherited (`inherited`, older than `forkedAt`) are sent as they are,
- *   and the child's own ones are dropped. When a `context` handler made Pi collapse the request
+ *   and the child's own ones are dropped. When a `context` handler made evoharness collapse the request
  *   into one leading system message, that message is rebuilt from `inherited`.
  * - Every tool the parent declared stays declared, with the parent's definition. A tool only the
  *   child has, or one the child defines differently under the parent's name (a `structured_output`
@@ -456,7 +460,7 @@ function prependText<T>(message: T, text: string): T {
  * - The child's instructions (its role sections, the boundary, the tools it can call) go first in
  *   its first own user message, after the inherited history.
  *
- * Only what a request sends changes; the session keeps Pi's own record. Once a compaction in the
+ * Only what a request sends changes; the session keeps evoharness's own record. Once a compaction in the
  * child left no inherited message, there is no parent prefix to match: the child's own prompt is
  * sent, with the boundary added as a section.
  */
@@ -523,11 +527,11 @@ export function projectForkRequest<T extends { role: string }>(
 }
 
 /**
- * Pi sends the session id in a session-affinity header to Anthropic-style endpoints that ask for
+ * evoharness sends the session id in a session-affinity header to Anthropic-style endpoints that ask for
  * one (`compat.sendSessionAffinityHeaders`), and routers use it to keep a session on the upstream
  * that holds its prompt cache. A fork's request starts with its parent's whole cached prefix, so it
  * names its parent's session to be routed to that cache; otherwise a router with several upstreams
- * may send it to one that never saw the parent. Only the header Pi itself sends is changed, and only
+ * may send it to one that never saw the parent. Only the header evoharness itself sends is changed, and only
  * when the child runs on the model that wrote its inherited history (`parentModel`, the last
  * inherited assistant message): any other model holds no cache of that prefix.
  */
@@ -626,7 +630,7 @@ export function stripParentOnlySubagentMessages(
 	const preserveCurrentFanoutToolHistory = options.preserveFanoutToolHistory === true;
 	const sanitizeToolIds = options.sanitizeToolIds ?? true;
 	const inheritedBefore = options.inheritedBefore;
-	// Every message Pi projects from a session has a timestamp, so one without it was added at
+	// Every message evoharness projects from a session has a timestamp, so one without it was added at
 	// request time and is treated as the child's own.
 	const inherited = (message: unknown) =>
 		inheritedBefore !== undefined &&
@@ -672,7 +676,7 @@ export function formatSteerMessage(request: SteerRequest): string {
 }
 
 export function registerPermissionGate(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	permissions: ChildPermissions | undefined,
 	childWatchdog: ChildWatchdogConfig | undefined,
 	requestPermission: (
@@ -683,7 +687,7 @@ export function registerPermissionGate(
 	if (!rules || Object.keys(rules).length === 0) return;
 	const rawWatchdogConfig = childWatchdog ? JSON.stringify(childWatchdog) : undefined;
 	const timeoutMs = childWatchdog?.agentEndTimeoutMs ?? 30_000;
-	const onRuntimeEvent = pi.on as unknown as (
+	const onRuntimeEvent = evoharness.on as unknown as (
 		event: string,
 		handler: (event: { toolName?: string; input?: unknown }, ctx: ExtensionContext) => unknown,
 	) => void;
@@ -692,11 +696,11 @@ export function registerPermissionGate(
 		const decision = permissionDecision(rules, toolName);
 		if (decision === "allow") return undefined;
 		if (decision === "deny")
-			return { block: true, reason: `Blocked by pi-subagents permission rule: '${toolName}' is denied.` };
+			return { block: true, reason: `Blocked by subagents permission rule: '${toolName}' is denied.` };
 		if (ctx.signal?.aborted)
 			return {
 				block: true,
-				reason: "Blocked by pi-subagents permission rule: Watchdog permission decision was cancelled.",
+				reason: "Blocked by subagents permission rule: Watchdog permission decision was cancelled.",
 			};
 		let timeout: ReturnType<typeof setTimeout> | undefined;
 		let abort: (() => void) | undefined;
@@ -732,24 +736,25 @@ export function registerPermissionGate(
 			const reason = error instanceof Error ? error.message : String(error);
 			return {
 				block: true,
-				reason: `Blocked by pi-subagents permission rule: Watchdog permission arbiter failed closed: ${reason}`,
+				reason: `Blocked by subagents permission rule: Watchdog permission arbiter failed closed: ${reason}`,
 			};
 		} finally {
 			if (timeout) clearTimeout(timeout);
 			if (abort) ctx.signal?.removeEventListener("abort", abort);
 		}
 		if (result.approved) return undefined;
-		return { block: true, reason: `Blocked by pi-subagents permission rule: ${result.reason}` };
+		return { block: true, reason: `Blocked by subagents permission rule: ${result.reason}` };
 	});
 }
 
-function registerToolBudget(pi: ExtensionAPI, budget: ResolvedToolBudget | undefined): void {
+function registerToolBudget(evoharness: ExtensionAPI, budget: ResolvedToolBudget | undefined): void {
 	if (!budget) return;
 	let toolCount = 0;
 	let softNudged = false;
-	const sendUserMessage = (pi as { sendUserMessage?: (content: string, options: { deliverAs: "steer" }) => unknown })
-		.sendUserMessage;
-	const onRuntimeEvent = pi.on as unknown as (
+	const sendUserMessage = (
+		evoharness as { sendUserMessage?: (content: string, options: { deliverAs: "steer" }) => unknown }
+	).sendUserMessage;
+	const onRuntimeEvent = evoharness.on as unknown as (
 		event: string,
 		handler: (event: { toolName?: string }) => unknown,
 	) => void;
@@ -770,7 +775,7 @@ function registerToolBudget(pi: ExtensionAPI, budget: ResolvedToolBudget | undef
 }
 
 function registerStructuredOutputTool(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	structured: NonNullable<ChildRuntimeConfig["structuredOutput"]>,
 ): void {
 	const terminalState = (structured.terminalState ??= { captured: false });
@@ -778,7 +783,7 @@ function registerStructuredOutputTool(
 	const parameters = createStructuredOutputToolParameters(structured.schema, {
 		acceptanceReport: structured.acceptanceReport,
 	});
-	const registerTool = pi.registerTool as unknown as (tool: {
+	const registerTool = evoharness.registerTool as unknown as (tool: {
 		name: string;
 		label: string;
 		description: string;
@@ -820,7 +825,7 @@ function registerStructuredOutputTool(
 
 /** Register every child-side hook the prompt runtime owns for one child session. */
 export default function registerSubagentPromptRuntime(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	config?: ChildRuntimeConfig,
 	drainObservation?: import("./readonly-drain-observation.ts").ReadonlyDrainObservation,
 ): void {
@@ -829,17 +834,22 @@ export default function registerSubagentPromptRuntime(
 	// the configured inline factory. It must be inert rather than crashing the
 	// child before startup; the inline factory remains the real registration path.
 	if (!config) return;
-	registerRuntimeExtensionAcknowledgements(pi, config.runtimeAcknowledgements);
-	registerPermissionGate(pi, config.permissions, config.childWatchdog);
-	registerToolBudget(pi, config.toolBudget);
+	registerRuntimeExtensionAcknowledgements(evoharness, config.runtimeAcknowledgements);
+	registerPermissionGate(evoharness, config.permissions, config.childWatchdog);
+	registerToolBudget(evoharness, config.toolBudget);
 	if (config.structuredOutput && !config.structuredOutput.terminalState)
 		config.structuredOutput.terminalState = { captured: false };
-	registerChildWatchdog(pi, config.childWatchdog, config.watchdogStatus, config.structuredOutput?.terminalState);
+	registerChildWatchdog(
+		evoharness,
+		config.childWatchdog,
+		config.watchdogStatus,
+		config.structuredOutput?.terminalState,
+	);
 	const requestedWatchdogDiff = config.requiredTools?.includes(WATCHDOG_DIFF_TOOL_NAME);
 	const reviewerLaunchBaseline =
 		requestedWatchdogDiff && config.cwd ? captureWatchdogDiffBaseline(config.cwd) : undefined;
-	if (requestedWatchdogDiff && typeof pi.registerTool === "function") {
-		pi.registerTool(createWatchdogDiffTool(reviewerLaunchBaseline, { workingTreeAtLaunch: true }));
+	if (requestedWatchdogDiff && typeof evoharness.registerTool === "function") {
+		evoharness.registerTool(createWatchdogDiffTool(reviewerLaunchBaseline, { workingTreeAtLaunch: true }));
 	}
 	const waitState =
 		config.runtimeState ??
@@ -860,9 +870,9 @@ export default function registerSubagentPromptRuntime(
 		} as unknown as SubagentState);
 	const nestedRootRunId = inheritedNestedRouteOf(config)?.rootRunId;
 	// fanout-child assigns config.hasPendingSupervisorRequest after this hook registers, so read it per wait.
-	if (typeof pi.registerTool === "function")
+	if (typeof evoharness.registerTool === "function")
 		registerWaitTool(
-			pi,
+			evoharness,
 			waitState,
 			config.waitTool.enabled,
 			undefined,
@@ -875,9 +885,9 @@ export default function registerSubagentPromptRuntime(
 	const registerNativeSupervisorClientOnce = (): void => {
 		if (nativeSupervisorClientRegistered) return;
 		nativeSupervisorClientRegistered = true;
-		registerNativeSupervisorClient(pi, supervisorMetadata);
+		registerNativeSupervisorClient(evoharness, supervisorMetadata);
 	};
-	const onRuntimeEvent = pi.on as unknown as (
+	const onRuntimeEvent = evoharness.on as unknown as (
 		event: string,
 		handler: (event: unknown, ctx?: ExtensionContext) => unknown,
 	) => void;
@@ -892,7 +902,7 @@ export default function registerSubagentPromptRuntime(
 		if (!config.requiredTools) return;
 		const diagnostic = evaluateChildToolDiagnostic(
 			config,
-			pi.getAllTools().map((tool) => tool.name),
+			evoharness.getAllTools().map((tool) => tool.name),
 		);
 		config.toolDiagnostic?.(diagnostic);
 		if (diagnostic) throw new Error(formatChildToolDiagnostic(diagnostic));
@@ -912,7 +922,7 @@ export default function registerSubagentPromptRuntime(
 			await drainOutstandingWork(
 				{
 					state: waitState,
-					events: pi.events,
+					events: evoharness.events,
 					nestedRootRunId,
 					hasPendingSupervisorRequest: config.hasPendingSupervisorRequest,
 				},
@@ -922,17 +932,17 @@ export default function registerSubagentPromptRuntime(
 			config.holdFinalDrain?.(false);
 		}
 	});
-	if (config.structuredOutput) registerStructuredOutputTool(pi, config.structuredOutput);
+	if (config.structuredOutput) registerStructuredOutputTool(evoharness, config.structuredOutput);
 
 	onRuntimeEvent("before_provider_request", (event: unknown, ctx?: ExtensionContext) =>
 		rewriteForkCacheProviderRequest(event as BeforeProviderRequestEvent, ctx, config.forkCacheKey),
 	);
 
-	// A fork launch sets forkCacheKey. Pi writes the fork's session header when it copies the
+	// A fork launch sets forkCacheKey. evoharness writes the fork's session header when it copies the
 	// parent's branch, so every inherited message is older and every message this child writes,
 	// also after a resume, is not.
 	// The inherited system messages and model are read from the session once: a request may hold
-	// only Pi's collapsed leading message, and what came before the fork never changes.
+	// only evoharness's collapsed leading message, and what came before the fork never changes.
 	let inherited:
 		| { session: string; forkedAt: number; system: Array<{ role: string }>; model?: InheritedModel }
 		| undefined;
@@ -963,7 +973,7 @@ export default function registerSubagentPromptRuntime(
 				readInherited(ctx)?.model,
 			);
 		});
-	// The strip runs on context_with_system, not context: Pi treats any change a context handler
+	// The strip runs on context_with_system, not context: evoharness treats any change a context handler
 	// makes to the message list as a rewritten conversation and folds every mid-conversation system
 	// message into the leading one, so every later request would miss the prompt cache. The strip
 	// passes system messages through unchanged.
@@ -990,7 +1000,7 @@ export default function registerSubagentPromptRuntime(
 	const routingName = config.intercomSessionName;
 	let intercomIdClaimed = false;
 	if (routingName) {
-		pi.events.on(INTERCOM_SESSION_IDENTITY_EVENT, (request: unknown) => {
+		evoharness.events.on(INTERCOM_SESSION_IDENTITY_EVENT, (request: unknown) => {
 			if (
 				!request ||
 				typeof request !== "object" ||
@@ -1012,8 +1022,8 @@ export default function registerSubagentPromptRuntime(
 		const childSessionName = intercomIdClaimed
 			? config.sessionName || routingName
 			: routingName || config.sessionName;
-		if (childSessionName && typeof pi.setSessionName === "function") {
-			pi.setSessionName(childSessionName);
+		if (childSessionName && typeof evoharness.setSessionName === "function") {
+			evoharness.setSessionName(childSessionName);
 		}
 
 		// Filter the inputs instead of returning a prompt; the boundary hook appends the boundary last.

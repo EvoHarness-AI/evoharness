@@ -6,7 +6,7 @@ import { agentDefinitionDigest } from "../shared/launch-contract.ts";
 import type { ExtensionConfig, IntercomBridgeConfig, IntercomBridgeMode } from "../shared/types.ts";
 import { getAgentDir } from "../shared/utils.ts";
 
-export const NATIVE_INTERCOM_EXTENSION_DIR = "native:pi-subagents-supervisor-channel";
+export const NATIVE_INTERCOM_EXTENSION_DIR = "native:subagents-supervisor-channel";
 
 function defaultAgentDir(): string {
 	return getAgentDir();

@@ -8,18 +8,18 @@ function model(provider: string, baseUrl: string): Model<any> {
 }
 
 describe("opencodeSessionHeaders", () => {
-	it("emits pi's OpenCode session-routing headers for OpenCode models", () => {
+	it("emits evoharness's OpenCode session-routing headers for OpenCode models", () => {
 		assert.deepEqual(opencodeSessionHeaders(model("opencode", "https://opencode.ai/zen/v1"), "session-1"), {
 			"x-opencode-session": "session-1",
-			"x-opencode-client": "pi",
+			"x-opencode-client": "evoharness",
 		});
 		assert.deepEqual(opencodeSessionHeaders(model("opencode-go", "https://opencode.ai/go/v1"), "session-1"), {
 			"x-opencode-session": "session-1",
-			"x-opencode-client": "pi",
+			"x-opencode-client": "evoharness",
 		});
 		assert.deepEqual(opencodeSessionHeaders(model("custom-gateway", "https://opencode.ai/zen/v1"), "session-1"), {
 			"x-opencode-session": "session-1",
-			"x-opencode-client": "pi",
+			"x-opencode-client": "evoharness",
 		});
 	});
 

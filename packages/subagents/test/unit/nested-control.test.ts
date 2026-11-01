@@ -41,7 +41,7 @@ import { readStatus } from "../../src/shared/utils.ts";
 import { makeAgent } from "../support/helpers.ts";
 
 const routeRoots: string[] = [];
-const fanoutListenerCleanupKey = "__piSubagentFanoutChildNestedControlInboxCleanups";
+const fanoutListenerCleanupKey = "__subagentFanoutChildNestedControlInboxCleanups";
 
 afterEach(() => {
 	const globalStore = globalThis as Record<string, unknown>;
@@ -89,7 +89,7 @@ function createExecutor(
 	childRuntime?: ChildRuntimeConfig,
 ) {
 	return createSubagentExecutor({
-		pi: {
+		evoharness: {
 			events,
 			getSessionName() {
 				return "parent";
@@ -231,7 +231,7 @@ describe("nested control routing", () => {
 	});
 
 	it("routes interrupt to an explicit nested id through the control inbox", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-control-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-control-"));
 		try {
 			const route = createNestedRun();
 			const executor = createExecutor(stateWithNestedRoute(route));
@@ -267,7 +267,7 @@ describe("nested control routing", () => {
 				? "interrupts an authorized nested async child when its owner has no foreground route"
 				: "preserves an owner refusal instead of interrupting its nested async child",
 			async () => {
-				const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-async-interrupt-"));
+				const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-async-interrupt-"));
 				const runId = `nested-background-${randomUUID()}`;
 				const asyncDir = path.join(TEMP_ROOT_DIR, "nested-subagent-runs", "root-control", runId);
 				try {
@@ -316,7 +316,7 @@ describe("nested control routing", () => {
 		);
 
 	it("reports the owner's missing-route answer for a nested foreground run that has no async inbox", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-foreground-interrupt-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-foreground-interrupt-"));
 		const runId = `nested-foreground-${randomUUID()}`;
 		try {
 			const route = createNestedRun(runId);
@@ -346,7 +346,7 @@ describe("nested control routing", () => {
 	});
 
 	it("renders nested children in foreground status output", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-foreground-status-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-foreground-status-"));
 		try {
 			const route = createNestedRun("nested-foreground");
 			const state = createState();
@@ -411,7 +411,7 @@ describe("nested control routing", () => {
 	});
 
 	it("labels dir-target status output", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-status-dir-label-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-status-dir-label-"));
 		const runId = `status-dir-${Date.now().toString(36)}`;
 		const asyncDir = path.join(ASYNC_DIR, runId);
 		try {
@@ -470,7 +470,7 @@ describe("nested control routing", () => {
 	});
 
 	it("scopes child-safe nested status lookup to the inherited route and child address", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-child-scope-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-child-scope-"));
 		try {
 			const allowedRoute = createNestedRun("shared-nested");
 			const outsideRoute = createNestedRoute("root-outside");
@@ -515,7 +515,7 @@ describe("nested control routing", () => {
 	});
 
 	it("requires an id for child-safe status instead of listing unrelated top-level async runs", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-child-safe-status-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-child-safe-status-"));
 		const runId = `child-safe-unrelated-${Date.now().toString(36)}`;
 		const asyncDir = path.join(ASYNC_DIR, runId);
 		try {
@@ -556,7 +556,7 @@ describe("nested control routing", () => {
 	});
 
 	it("times out owner-gone nested control and ignores late results", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-timeout-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-timeout-"));
 		try {
 			const route = createNestedRun("nested-timeout");
 			const executor = createExecutor(stateWithNestedRoute(route));
@@ -595,7 +595,7 @@ describe("nested control routing", () => {
 
 	for (const workflow of [false, true])
 		it(`routes ${workflow ? "workflow string" : "action"} resume for live nested runs through the control inbox`, async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-live-resume-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-live-resume-"));
 			try {
 				const emitted: Array<{ name: string; payload: unknown }> = [];
 				const events = {
@@ -664,7 +664,7 @@ describe("nested control routing", () => {
 		});
 
 	it("validates terminal nested resume session files before revive", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-terminal-resume-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-terminal-resume-"));
 		try {
 			const route = createNestedRun("nested-terminal-resume", "complete", {
 				sessionFile: path.join(root, "missing-session.jsonl"),
@@ -688,7 +688,7 @@ describe("nested control routing", () => {
 	});
 
 	it("fails closed for terminal nested revival without original-authority metadata", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-terminal-no-recovery-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-terminal-no-recovery-"));
 		try {
 			const runId = "nested-no-recovery";
 			const parentSessionFile = path.join(root, "parent.jsonl");
@@ -716,7 +716,7 @@ describe("nested control routing", () => {
 	});
 
 	it("restores the original extension bindings for terminal nested revival", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-binding-recovery-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-binding-recovery-"));
 		try {
 			const descriptor = {
 				version: 1,
@@ -747,7 +747,7 @@ describe("nested control routing", () => {
 
 	for (const workflow of [false, true])
 		it(`rejects stopped nested runs before ${workflow ? "workflow string resume" : "action revival"}`, async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-stopped-resume-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-stopped-resume-"));
 			try {
 				const route = createNestedRun("nested-stopped-resume", "stopped", {
 					sessionFile: path.join(root, "missing-session.jsonl"),
@@ -777,7 +777,7 @@ describe("nested control routing", () => {
 		});
 
 	it("rejects terminal nested resume session files outside trusted roots", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-terminal-untrusted-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-terminal-untrusted-"));
 		try {
 			const parentSessionFile = path.join(root, "parent.jsonl");
 			const attackerSessionFile = path.join(root, "outside", "session.jsonl");
@@ -804,7 +804,7 @@ describe("nested control routing", () => {
 	});
 
 	it("shows the transcript of an async run inherited from a session this process replaced", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inherited-transcript-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inherited-transcript-"));
 		const runId = `inherited-transcript-${randomUUID()}`;
 		try {
 			const successorSessionFile = path.join(root, "successor.jsonl");
@@ -848,7 +848,7 @@ describe("nested control routing", () => {
 	});
 
 	it("trusts nested session files under the root of a session this process replaced, and no other session's", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-terminal-inherited-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-terminal-inherited-"));
 		try {
 			const successorSessionFile = path.join(root, "successor.jsonl");
 			recordSessionReplacement(successorSessionFile, path.join(root, "replaced.jsonl"));
@@ -878,7 +878,7 @@ describe("nested control routing", () => {
 	});
 
 	it("rejects terminal nested resume session files from sibling run directories", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-terminal-sibling-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-terminal-sibling-"));
 		try {
 			const parentSessionFile = path.join(root, "parent.jsonl");
 			const siblingSessionFile = path.join(root, "parent", "other-run", "run-0", "session.jsonl");
@@ -961,7 +961,7 @@ describe("nested control routing", () => {
 			return text(result);
 		};
 		const withRoot = async (body: (root: string) => Promise<void>) => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-revived-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-revived-"));
 			try {
 				await body(root);
 			} finally {
@@ -1061,7 +1061,7 @@ describe("nested control routing", () => {
 	});
 
 	it("emits a failed completed nested event when foreground execution throws after start", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-foreground-throw-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-foreground-throw-"));
 		try {
 			const route = createNestedRoute("root-parent");
 			routeRoots.push(path.dirname(route.eventSink));
@@ -1096,9 +1096,9 @@ describe("nested control routing", () => {
 	it("services only the current session's external-job bridge in a fanout child", async () => {
 		const route = createNestedRoute("root-external-job");
 		routeRoots.push(path.dirname(route.eventSink));
-		const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-external-job-"));
+		const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-external-job-"));
 		routeRoots.push(asyncDir);
-		const foreignDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-foreign-job-"));
+		const foreignDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-foreign-job-"));
 		routeRoots.push(foreignDir);
 		const writeStatus = (dir: string, state: string) =>
 			fs.writeFileSync(
@@ -1120,7 +1120,7 @@ describe("nested control routing", () => {
 		});
 		const listeners = new Map<string, (payload: unknown) => void>();
 		const lifecycle = new Map<string, () => void>();
-		const pi = {
+		const evoharness = {
 			on(event: string, handler: () => void) {
 				lifecycle.set(event, handler);
 			},
@@ -1143,7 +1143,7 @@ describe("nested control routing", () => {
 			const runtime = fanoutChildRuntime(route, "root-external-job");
 			runtime.runtimeState = createState();
 			runtime.runtimeState.currentSessionId = "session";
-			registerFanoutChildSubagentExtension(pi, runtime);
+			registerFanoutChildSubagentExtension(evoharness, runtime);
 			foreignRequest = requestExternalJobOperation(
 				foreignDir,
 				{ operation: "status", provider: "surf-oracle", providerJobId: "foreign-job" },
@@ -1201,7 +1201,7 @@ describe("nested control routing", () => {
 		const route = createNestedRoute("root-poll-error");
 		routeRoots.push(path.dirname(route.eventSink));
 		const childRuntime = fanoutChildRuntime(route, "root-poll-error");
-		const pi = {
+		const evoharness = {
 			on() {},
 			events: {
 				emit() {},
@@ -1222,7 +1222,7 @@ describe("nested control routing", () => {
 			logged.push(args);
 		};
 		try {
-			registerFanoutChildSubagentExtension(pi, childRuntime);
+			registerFanoutChildSubagentExtension(evoharness, childRuntime);
 			await waitFor(() =>
 				logged.some(
 					(entry) =>
@@ -1255,7 +1255,7 @@ describe("nested control routing", () => {
 		const route = createNestedRoute("root-result-write-fails");
 		routeRoots.push(path.dirname(route.eventSink));
 		const childRuntime = fanoutChildRuntime(route, "root-result-write-fails");
-		const pi = {
+		const evoharness = {
 			on() {},
 			events: {
 				emit() {},
@@ -1282,7 +1282,7 @@ describe("nested control routing", () => {
 			logged.push(args);
 		};
 		try {
-			registerFanoutChildSubagentExtension(pi, childRuntime);
+			registerFanoutChildSubagentExtension(evoharness, childRuntime);
 			await waitFor(() =>
 				logged.some(
 					(entry) =>
@@ -1375,7 +1375,7 @@ describe("nested control routing", () => {
 		const route = createNestedRoute("root-ownerless");
 		routeRoots.push(path.dirname(route.eventSink));
 		const childRuntime = fanoutChildRuntime(route, "root-ownerless");
-		const pi = {
+		const evoharness = {
 			on() {},
 			events: {
 				emit() {},
@@ -1395,7 +1395,7 @@ describe("nested control routing", () => {
 			action: "interrupt",
 		});
 
-		registerFanoutChildSubagentExtension(pi, childRuntime);
+		registerFanoutChildSubagentExtension(evoharness, childRuntime);
 		await waitFor(() =>
 			readNestedControlResults(route).some(
 				(result) => result.requestId === "ownerless-request" && result.ok === false,
@@ -1574,7 +1574,7 @@ describe("nested external-job follow-up", () => {
 	}
 
 	beforeEach(() => {
-		root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-external-job-follow-up-"));
+		root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-nested-external-job-follow-up-"));
 		route = createNestedRoute("root-control");
 		routeRoots.push(path.dirname(route.eventSink));
 		runId = `nested-external-job-${randomUUID()}`;
@@ -1650,7 +1650,7 @@ describe("nested external-job follow-up", () => {
 		absent?: RegExp;
 	}> = [
 		{
-			name: "a nested Pi run keeps needing its session file",
+			name: "a nested evoharness run keeps needing its session file",
 			run: { steps: [{ agent: "worker", status: "complete" }], summary: { agent: "worker" } },
 			expected: /does not have a persisted session file to resume from/,
 		},
@@ -1679,12 +1679,12 @@ describe("nested external-job follow-up", () => {
 			expected: /does not have a persisted session file to resume from/,
 		},
 		{
-			name: "a malformed status file without a Pi session",
+			name: "a malformed status file without a evoharness session",
 			run: { statusText: "{not json" },
 			expected: /Failed to parse async status file/,
 		},
 		{
-			name: "a malformed status file of a Pi run with a session file",
+			name: "a malformed status file of a evoharness run with a session file",
 			run: { statusText: "{not json", summary: { agent: "worker", sessionFile: "/missing/session.jsonl" } },
 			expected: /session file/,
 			absent: /Failed to parse/,

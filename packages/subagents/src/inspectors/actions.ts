@@ -200,7 +200,7 @@ export async function handleInspectorAction(
 			? owner.status(context)
 			: result(`Inspector plugin '${owner.name}' does not support status for async run ${target.runId}.`, true);
 	}
-	// Open and close read, create and delete the target's binding. Two callers at once, including another Pi
+	// Open and close read, create and delete the target's binding. Two callers at once, including another evoharness
 	// process sharing the run directory, would each open a pane and one binding would overwrite the other.
 	const label = target.index === undefined ? "" : ` child ${target.index}`;
 	const lockPath = path.join(fs.realpathSync.native(target.asyncDir), `inspector-${target.index ?? "root"}.lock`);

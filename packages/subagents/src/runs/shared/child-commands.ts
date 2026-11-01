@@ -62,7 +62,7 @@ function text(result: AgentToolResult<unknown>): string {
 		.toString("utf8");
 }
 
-/** Owns command lifetimes, not shell execution. The supplied Pi tool still executes the command. */
+/** Owns command lifetimes, not shell execution. The supplied evoharness tool still executes the command. */
 export function createChildCommandRuntime(channelDir: string) {
 	const ownerId = randomUUID();
 	const jobs = new Map<string, CommandJob>();
@@ -201,7 +201,7 @@ export function createChildCommandRuntime(channelDir: string) {
 						.then(
 							(result) => {
 								job.snapshot.output = text(result);
-								// Pi 1.2 reports a non-zero exit as an isError result instead of throwing.
+								// evoharness 1.2 reports a non-zero exit as an isError result instead of throwing.
 								job.snapshot.state = result.isError ? "failed" : "completed";
 								const fullOutputPath = (result.details as { fullOutputPath?: string } | undefined)
 									?.fullOutputPath;
@@ -296,7 +296,7 @@ export async function controlChildCommand(
 	const current = readChildCommandState(channelDir);
 	if (!current)
 		throw new Error(
-			"No command controller is available for this child. Command controls require a local native Pi child with bash.",
+			"No command controller is available for this child. Command controls require a local native evoharness child with bash.",
 		);
 	if (current.closed) {
 		if (operation === "status") {

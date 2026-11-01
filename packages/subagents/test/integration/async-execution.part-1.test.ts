@@ -4,7 +4,7 @@
  * Tests the async support utilities: jiti availability check,
  * status file reading/caching.
  *
- * Requires pi packages to be importable. Skips gracefully if unavailable.
+ * Requires evoharness packages to be importable. Skips gracefully if unavailable.
  */
 
 import assert from "node:assert/strict";
@@ -62,11 +62,11 @@ import {
 } from "../support/async-execution-fixture.ts";
 import { createEventBus, events, makeAgent, makeMinimalCtx, resolveMockPiCallArgs } from "../support/helpers.ts";
 
-describe("async execution utilities", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("async execution utilities", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	installAsyncExecutionHooks();
 	const makeLifecycleExecutor = (eventBus: ReturnType<typeof createEventBus>) =>
 		createSubagentExecutor!({
-			pi: { events: eventBus, getSessionName: () => undefined, sendMessage() {} },
+			evoharness: { events: eventBus, getSessionName: () => undefined, sendMessage() {} },
 			state: {
 				baseCwd: tempDir,
 				currentSessionId: null,
@@ -578,7 +578,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 					lastForegroundControlId: null,
 				};
 				const executor = createSubagentExecutor!({
-					pi: {
+					evoharness: {
 						events: { on: () => () => {}, emit() {} },
 						getSessionName: () => undefined,
 						sendMessage: () => {
@@ -704,18 +704,18 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 			mockPi.onCall({ output: "completed output" });
 			const id = `async-terminal-status-${Date.now().toString(36)}`;
 			// A value no OS reader returns: the runner's status can only carry it if it came through the runner config.
-			primeBootId("boot-id-from-parent-pi");
+			primeBootId("boot-id-from-parent-evoharness");
 			try {
 				launchProtocolTest(id);
 				assert.equal(
 					JSON.parse(fs.readFileSync(path.join(ASYNC_DIR, id, "status.json"), "utf-8")).bootId,
-					"boot-id-from-parent-pi",
+					"boot-id-from-parent-evoharness",
 				);
 				await waitForAsyncResultFile(id);
 				const status = await waitForAsyncState(id, (candidate) => candidate.state === "complete");
 				assert.equal(status.state, "complete");
 				assert.equal(status.endedAt !== undefined, true);
-				assert.equal((status as AsyncStatusPayload & { bootId?: string }).bootId, "boot-id-from-parent-pi");
+				assert.equal((status as AsyncStatusPayload & { bootId?: string }).bootId, "boot-id-from-parent-evoharness");
 			} finally {
 				resetBootIdForTesting();
 			}
@@ -733,7 +733,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				task: "Report the configured reasoning level.",
 				agentConfig: makeAgent("worker", { model: "mock/test-model", thinking: "high" }),
 				availableModels: [{ provider: "mock", id: "test-model", fullId: "mock/test-model" }],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-result-thinking" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-result-thinking" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -769,7 +769,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Persist usage",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-usage-artifact" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-usage-artifact" },
 				artifactConfig: {
 					enabled: true,
 					includeInput: false,
@@ -805,7 +805,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				task: "Record the parent",
 				agentConfig: makeAgent("worker"),
 				ctx: {
-					pi: { events: { emit() {} } },
+					evoharness: { events: { emit() {} } },
 					cwd: tempDir,
 					currentSessionId: path.join(tempDir, "parent.jsonl"),
 					parentSessionId: "parent-session-id",
@@ -845,7 +845,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Remain visible while starting",
 				agentConfig: makeAgent("worker", { model: "mock/test-model" }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-initial-status" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-initial-status" },
 				availableModels: [
 					{ provider: "mock", id: "test-model", fullId: "mock/test-model", contextWindow: 128_000 },
 				],
@@ -910,12 +910,12 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 			const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 			const agentDir = path.join(tempDir, "agent-home");
 			process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-			const permissionExtDir = path.join(agentDir, "extensions", "pi-permission-system");
+			const permissionExtDir = path.join(agentDir, "extensions", "subagents-permission-system");
 			fs.mkdirSync(path.join(permissionExtDir, "src"), { recursive: true });
 			fs.writeFileSync(path.join(permissionExtDir, "src", "index.ts"), "export default () => {};", "utf-8");
 			fs.writeFileSync(
 				path.join(permissionExtDir, "package.json"),
-				JSON.stringify({ name: "test", pi: { extensions: ["./src/index.ts"] } }),
+				JSON.stringify({ name: "test", evoharness: { extensions: ["./src/index.ts"] } }),
 				"utf-8",
 			);
 			const agentPath = path.join(tempDir, ".evoharness", "agents", `${agentName}.md`);
@@ -939,7 +939,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				assert.equal(preflight.ok, true);
 				assert.ok(
 					preflight.contract.tools.extensionArgs.some((entry) =>
-						entry.endsWith(path.join("pi-permission-system", "src", "index.ts")),
+						entry.endsWith(path.join("subagents-permission-system", "src", "index.ts")),
 					),
 				);
 
@@ -957,7 +957,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 					agent: agentName,
 					task,
 					agentConfig: discovered,
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -982,7 +982,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 		},
 	);
 
-	describe("with Pi's built-in MCP", () => {
+	describe("with evoharness's built-in MCP", () => {
 		const host = {
 			events: { emit() {} },
 			getCommands: () => [{ name: "mcp", sourceInfo: { path: "builtin:mcp" } }],
@@ -1010,7 +1010,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: agent.name,
 				task: "Use MCP",
 				agentConfig: agent,
-				ctx: { pi: host, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: host, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1157,7 +1157,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 					systemPrompt: "Base prompt\n\nIntercom orchestration channel:",
 				},
 				recoveryAgentConfig,
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1219,7 +1219,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				"projection should not expose raw extension paths",
 			);
 			// Stale supervisor-bridge pair: the --tools allowlist passes both names
-			// through, but PI_SUBAGENT_REQUIRED_TOOLS excludes them so the 0.50 child
+			// through, but EVOHARNESS_SUBAGENT_REQUIRED_TOOLS excludes them so the 0.50 child
 			// runtime cannot fail the run over the removed native intercom (#1207).
 			const recoveryCallArgs = readMockPiArgs(mockPi, 0);
 			assert.equal(recoveryCallArgs[recoveryCallArgs.indexOf("--tools") + 1], "read,intercom,contact_supervisor");
@@ -1237,7 +1237,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agentConfig: makeAgent("worker", { model: "mock/test-model", maxThinking: "xhigh" }),
 				thinkingOverride: "max",
 				availableModels: [{ provider: "mock", id: "test-model", fullId: "mock/test-model" }],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1264,7 +1264,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Implement the requested source fix",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1302,7 +1302,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "external",
 				task: "Run external",
 				agentConfig,
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1322,7 +1322,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				task: "Run external",
 				agentConfig,
 				fast: false,
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1358,7 +1358,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 						args: ["-e", "setTimeout(() => process.stdout.write('external lifecycle'), 500)"],
 					},
 				} as never),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1426,7 +1426,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 						args: ["-e", "process.stdout.write('external proceed cleanup')"],
 					},
 				} as never),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1497,7 +1497,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agentConfig: makeAgent("external", {
 					runner: { type: "external-cli", command: process.execPath, args: ["-e", "setTimeout(() => {}, 30000)"] },
 				} as never),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: parentSessionId },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: parentSessionId },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1538,7 +1538,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				chain: [{ agent: "external", task: "Run external" }],
 				resultMode: "chain",
 				agents: [agent],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1559,7 +1559,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				resultMode: "chain",
 				agents: [agent],
 				fast: false,
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1599,7 +1599,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				resultMode: "parallel",
 				usageBudget: { tokens: { hard: 10 } },
 				agents: [makeAgent("first"), makeAgent("second")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1719,7 +1719,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Continue",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-revived-from" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-revived-from" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1865,7 +1865,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 			process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			try {
 				const executor = createSubagentExecutor!({
-					pi: { events: createEventBus(), getSessionName: () => undefined },
+					evoharness: { events: createEventBus(), getSessionName: () => undefined },
 					state: {
 						baseCwd: project,
 						currentSessionId: null,
@@ -2122,7 +2122,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: `Handle ${sentinel} without persisting it`,
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: true,
 					includeInput: true,
@@ -2171,7 +2171,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Fail before output",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: true,
 					includeInput: true,
@@ -2209,7 +2209,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Complete after generated artifacts are cleaned",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: true,
 					includeInput: true,
@@ -2251,7 +2251,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Report artifact persistence failure",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: true,
 					includeInput: true,

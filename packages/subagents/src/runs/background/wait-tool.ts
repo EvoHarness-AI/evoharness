@@ -7,7 +7,7 @@ import { resolveWaitToolConfig, waitForSubagents } from "./subagent-wait.ts";
 import type { WaitSubscriptionManager } from "./wait-subscriptions.ts";
 
 export function registerWaitTool(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	state: SubagentState,
 	enabled = resolveWaitToolConfig().enabled,
 	subscriptions?: Pick<WaitSubscriptionManager, "arm">,
@@ -20,10 +20,10 @@ export function registerWaitTool(
 {all:true} — all work active at call time.
 {id} — one run; a finished async run returns its result references.
 {id,nonBlocking:true} — subscribe to that run's wake and return now.
-Timeout or a user message ends the wait without error; work keeps running.${enabled ? "" : "\nDisabled by config.waitTool or PI_SUBAGENT_WAIT_TOOL_ENABLED: returns immediately."}`;
+Timeout or a user message ends the wait without error; work keeps running.${enabled ? "" : "\nDisabled by config.waitTool or EVOHARNESS_SUBAGENT_WAIT_TOOL_ENABLED: returns immediately."}`;
 	// Messages typed while the agent is busy (steer or follow-up) end open waits so they reach the model.
 	const userInputWaits = new Set<AbortController>();
-	pi.on("input", (event) => {
+	evoharness.on("input", (event) => {
 		if (event.source === "extension" || !event.streamingBehavior) return;
 		for (const controller of userInputWaits) controller.abort();
 	});
@@ -41,7 +41,7 @@ Timeout or a user message ends the wait without error; work keeps running.${enab
 				await waitForSubagents(params, signal, {
 					state,
 					nestedRootRunId: child?.nestedRootRunId,
-					events: pi.events,
+					events: evoharness.events,
 					enabled,
 					hasPendingSupervisorRequest,
 					userInputSignal: userInput.signal,
@@ -61,5 +61,5 @@ Timeout or a user message ends the wait without error; work keeps running.${enab
 		parameters: SubagentWaitParams,
 		execute,
 	};
-	registerPinnedTool(pi, primaryTool);
+	registerPinnedTool(evoharness, primaryTool);
 }

@@ -72,7 +72,7 @@ describe("result intercom formatter", () => {
 	});
 
 	it("advertises async revive only for single-child results with an existing session", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-intercom-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-intercom-"));
 		try {
 			const sessionPath = path.join(root, "session.jsonl");
 			fs.writeFileSync(sessionPath, "", "utf-8");
@@ -96,7 +96,7 @@ describe("result intercom formatter", () => {
 	});
 
 	it("advertises indexed revive for multi-child async results with existing child sessions", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-intercom-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-intercom-"));
 		try {
 			const firstSession = path.join(root, "a.jsonl");
 			const secondSession = path.join(root, "b.jsonl");

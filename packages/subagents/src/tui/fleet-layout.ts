@@ -15,7 +15,7 @@ export interface FleetLayout {
 	rosterKeys: string[];
 }
 
-/** Coordinates are overlay-local, matching Pi's normalized input contract. */
+/** Coordinates are overlay-local, matching evoharness's normalized input contract. */
 export function fleetLayout(
 	width: number,
 	rows: number,

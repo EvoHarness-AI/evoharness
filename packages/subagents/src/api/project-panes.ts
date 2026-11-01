@@ -1,5 +1,5 @@
 /**
- * Public project-owned Herdr pane lifecycle API for other Pi extensions.
+ * Public project-owned Herdr pane lifecycle API for other evoharness extensions.
  *
  * This is the supported extension-to-extension surface. Callers must not
  * import `src/inspectors/herdr/*` directly.

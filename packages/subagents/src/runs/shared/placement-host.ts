@@ -6,7 +6,7 @@ import { getAgentDir } from "../../shared/utils.ts";
 import type { HerdrRunIdentity } from "./herdr-placed-run.ts";
 
 export type PlacementRunState = "ready" | "working" | "blocked" | "settled" | "unknown";
-export type PlacementAgentKind = "pi" | "claude" | "cursor" | "codex";
+export type PlacementAgentKind = "evoharness" | "claude" | "cursor" | "codex";
 export interface PlacementOwnedPane {
 	workspaceId: string;
 	tabId: string;
@@ -132,7 +132,7 @@ function allocationLockRoot(): string {
 	const agentDir = getAgentDir();
 	fs.mkdirSync(agentDir, { recursive: true, mode: 0o700 });
 	assertPrivateDir(agentDir);
-	const packageDir = ensurePrivateChild(agentDir, "pi-subagents");
+	const packageDir = ensurePrivateChild(agentDir, "subagents");
 	return ensurePrivateChild(packageDir, "herdr-allocation-locks");
 }
 function livePid(pid: number): boolean {

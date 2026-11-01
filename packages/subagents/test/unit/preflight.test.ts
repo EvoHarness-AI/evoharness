@@ -54,7 +54,7 @@ function writeMcpFixture(): void {
 
 describe("public launch contract preflight", () => {
 	beforeEach(() => {
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-preflight-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-preflight-"));
 		previousHome = process.env.HOME;
 		previousUserProfile = process.env.USERPROFILE;
 		previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -988,10 +988,7 @@ description: Package ambiguous
 Package prompt.
 `,
 		);
-		fs.writeFileSync(
-			path.join(packageRoot, "package.json"),
-			JSON.stringify({ "pi-subagents": { agents: ["agents"] } }),
-		);
+		fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ subagents: { agents: ["agents"] } }));
 		fs.writeFileSync(path.join(cwd, ".evoharness", "settings.json"), JSON.stringify({ packages: [packageRoot] }));
 		writeAgent(
 			path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "agents", "ambiguous.md"),

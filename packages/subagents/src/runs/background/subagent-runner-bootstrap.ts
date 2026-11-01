@@ -128,7 +128,7 @@ async function waitForStartupControl(
 export async function runConfiguredSubagent(rawConfig: unknown, options: RunnerBootstrapOptions = {}): Promise<void> {
 	validateSubagentRunConfig(rawConfig);
 	const config = rawConfig;
-	// The runner never reads the boot id from the OS (sysctl on macOS); Pi passes it to direct runners only.
+	// The runner never reads the boot id from the OS (sysctl on macOS); evoharness passes it to direct runners only.
 	primeBootId(typeof config.bootId === "string" && config.bootId ? config.bootId : undefined);
 	let lease: ReturnType<typeof acquireSessionLease> | undefined;
 	let startupCommitted = config.revivalLease === undefined && config.launchBarrierToken === undefined;
@@ -199,7 +199,7 @@ export async function runConfiguredSubagent(rawConfig: unknown, options: RunnerB
 			}
 		}
 		const { loadExecutionModule, ...executionOptions } = options;
-		const testExecutionModule = process.env.PI_SUBAGENTS_TEST_RUNNER_EXECUTION_MODULE;
+		const testExecutionModule = process.env.EVOHARNESS_SUBAGENTS_TEST_RUNNER_EXECUTION_MODULE;
 		const execution = await (loadExecutionModule?.() ??
 			(testExecutionModule ? import(testExecutionModule) : import("./subagent-runner.ts")));
 		executionLoaded = true;
@@ -263,7 +263,7 @@ function startConfiguredSubagent(config: unknown): void {
 }
 
 function monitorTestParent(): void {
-	const parentPid = Number(process.env.PI_SUBAGENTS_TEST_PARENT_PID);
+	const parentPid = Number(process.env.EVOHARNESS_SUBAGENTS_TEST_PARENT_PID);
 	if (!Number.isSafeInteger(parentPid) || parentPid <= 0 || parentPid === process.pid) {
 		return;
 	}

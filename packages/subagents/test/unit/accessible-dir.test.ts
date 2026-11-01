@@ -35,7 +35,7 @@ describe("ensureAccessibleDir", () => {
 		fakeFs.failMkdirCodes = ["EPERM", "EBUSY"];
 		const waits: number[] = [];
 
-		ensureAccessibleDir("/tmp/pi-subagents-user/async-subagent-results", {
+		ensureAccessibleDir("/tmp/subagents-user/async-subagent-results", {
 			fs: fakeFs as any,
 			retryDirectoryErrors: true,
 			retryDelaysMs: [1, 2, 3],
@@ -52,7 +52,7 @@ describe("ensureAccessibleDir", () => {
 		fakeFs.failAccessCodes = ["EPERM", "EACCES"];
 		const waits: number[] = [];
 
-		ensureAccessibleDir("/tmp/pi-subagents-user/async-subagent-results", {
+		ensureAccessibleDir("/tmp/subagents-user/async-subagent-results", {
 			fs: fakeFs as any,
 			retryDirectoryErrors: true,
 			retryDelaysMs: [1, 2, 3],
@@ -65,7 +65,7 @@ describe("ensureAccessibleDir", () => {
 	});
 
 	it("falls back to the pid directory after a short wait when the primary directory stays inaccessible", () => {
-		const dirPath = "/tmp/pi-subagents-user/async-subagent-results";
+		const dirPath = "/tmp/subagents-user/async-subagent-results";
 		const denied = (target: string): void => {
 			if (target !== dirPath) return;
 			const error = new Error(`EPERM: ${target}`) as NodeJS.ErrnoException;
@@ -98,14 +98,14 @@ describe("ensureAccessibleDir", () => {
 		fakeFs.failAccessCodes = ["EACCES", "EACCES"];
 		const waits: number[] = [];
 
-		const result = ensureAccessibleDir("/tmp/pi-subagents-user/async-subagent-results", {
+		const result = ensureAccessibleDir("/tmp/subagents-user/async-subagent-results", {
 			fs: fakeFs as any,
 			pid: 4242,
 			retryDirectoryErrors: true,
 			wait: (delayMs) => waits.push(delayMs),
 		});
 
-		assert.equal(result, "/tmp/pi-subagents-user/async-subagent-results");
+		assert.equal(result, "/tmp/subagents-user/async-subagent-results");
 		assert.equal(waits.length, 4);
 	});
 
@@ -116,7 +116,7 @@ describe("ensureAccessibleDir", () => {
 
 		assert.throws(
 			() =>
-				ensureAccessibleDir("/tmp/pi-subagents-user/async-subagent-results", {
+				ensureAccessibleDir("/tmp/subagents-user/async-subagent-results", {
 					fs: fakeFs as any,
 					retryDirectoryErrors: true,
 					retryDelaysMs: [1, 2, 3],

@@ -5,8 +5,8 @@ import {
 	SUBAGENT_CONTROL_EVENT,
 } from "../shared/types.ts";
 
-export const HERDR_FOREGROUND_CONTROL_CHANGED_EVENT = "pi-subagents:herdr:foreground-control-changed";
-const DEFAULT_SOURCE = "pi-subagents:herdr";
+export const HERDR_FOREGROUND_CONTROL_CHANGED_EVENT = "subagents:herdr:foreground-control-changed";
+const DEFAULT_SOURCE = "subagents:herdr";
 const DEFAULT_TTL_MS = 120_000;
 const DEFAULT_REFRESH_MS = 45_000;
 const MAX_TASK_LABEL_CHARS = 80;
@@ -42,7 +42,7 @@ export interface HerdrStatusBridgeOptions {
 	env?: Record<string, string | undefined>;
 	/** Current authoritative active-run projection, used before TTL refresh. */
 	getRuns?: () => Iterable<HerdrStatusRun>;
-	/** Current project panes opened by this Pi session. Views are excluded. */
+	/** Current project panes opened by this evoharness session. Views are excluded. */
 	getProjectPaneCount?: () => number;
 	runHerdr: (args: readonly string[]) => void | Promise<void>;
 	ttlMs?: number;
@@ -227,9 +227,9 @@ export function registerHerdrStatusBridge(options: HerdrStatusBridgeOptions): He
 				"--source",
 				DEFAULT_SOURCE,
 				"--agent",
-				"pi",
+				"evoharness",
 				"--applies-to-source",
-				"herdr:pi",
+				"herdr:evoharness",
 				"--clear-state-labels",
 				"--clear-token",
 				"summary",
@@ -250,9 +250,9 @@ export function registerHerdrStatusBridge(options: HerdrStatusBridgeOptions): He
 			"--source",
 			DEFAULT_SOURCE,
 			"--agent",
-			"pi",
+			"evoharness",
 			"--applies-to-source",
-			"herdr:pi",
+			"herdr:evoharness",
 			"--state-label",
 			`idle=${text}`,
 			"--state-label",

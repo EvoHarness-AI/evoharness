@@ -526,7 +526,7 @@ function runFinalReply(
 	});
 }
 
-// A child that stops after its terminal assistant message emits `agent_end` but Pi may
+// A child that stops after its terminal assistant message emits `agent_end` but evoharness may
 // never follow it with `agent_settled`; the run still has to settle and publish its reply.
 it(
 	"settles and keeps the reply when the child ends on agent_end without agent_settled",
@@ -557,7 +557,7 @@ it(
 	},
 );
 
-// Pi's order after a final reply: agent_end, then a threshold auto-compaction (a model call that
+// evoharness's order after a final reply: agent_end, then a threshold auto-compaction (a model call that
 // can take seconds), then agent_settled. Ending the run early would cancel the compaction.
 it("lets a compaction that runs after the final agent_end finish", { timeout: 10_000 }, async () => {
 	let aborted = false;

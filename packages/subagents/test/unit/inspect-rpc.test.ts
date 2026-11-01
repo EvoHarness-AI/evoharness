@@ -123,7 +123,7 @@ describe("inspect-rpc request parsing", () => {
 
 describe("inspect-rpc resolution and ownership", () => {
 	it("does not expose async artifact paths when status is malformed", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-malformed-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-malformed-"));
 		const { asyncDir, resultsDir } = makeRun(root, { runId: "run-malformed" });
 		fs.writeFileSync(path.join(asyncDir, "status.json"), "{ not json", "utf-8");
 		const reply = buildInspectReply(
@@ -134,13 +134,13 @@ describe("inspect-rpc resolution and ownership", () => {
 		assert.equal(JSON.stringify(reply).includes(root), false);
 	});
 	it("returns not_found for an unknown run", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-missing-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-missing-"));
 		const reply = buildInspectReply({ requestId: "r1", asyncId: "nope" }, makeDeps(root, path.join(root, "results")));
 		assert.equal(reply.error?.code, "not_found");
 		assert.equal(reply.requestId, "r1");
 	});
 	it("returns foreign_session and no data for runs owned by another session", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-foreign-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-foreign-"));
 		const { resultsDir } = makeRun(root, { runId: "run-foreign", sessionId: "session-other" });
 		const reply = buildInspectReply({ requestId: "r2", asyncId: "run-foreign" }, makeDeps(root, resultsDir));
 		assert.equal(reply.error?.code, "foreign_session");
@@ -149,7 +149,7 @@ describe("inspect-rpc resolution and ownership", () => {
 		assert.equal(reply.finalOutput, undefined);
 	});
 	it("inspects a run inherited from a session this process replaced", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-inherited-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-inherited-"));
 		recordSessionReplacement(SESSION_ID, "session-replaced");
 		const { resultsDir } = makeRun(root, {
 			runId: "run-inherited",
@@ -169,7 +169,7 @@ describe("inspect-rpc resolution and ownership", () => {
 		assert.equal(reply.finalOutput, "Inherited summary");
 	});
 	it("returns no_active_session when the request cannot be attributed", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-nosession-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-nosession-"));
 		const { resultsDir } = makeRun(root, { runId: "run-x" });
 		const reply = buildInspectReply(
 			{ requestId: "r3", asyncId: "run-x" },
@@ -178,7 +178,7 @@ describe("inspect-rpc resolution and ownership", () => {
 		assert.equal(reply.error?.code, "no_active_session");
 	});
 	it("does not infer a run from a directory without status or result evidence", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-stale-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-stale-"));
 		const asyncRoot = path.join(root, "runs");
 		fs.mkdirSync(path.join(asyncRoot, "run-stale"), { recursive: true });
 		const reply = buildInspectReply(
@@ -190,8 +190,8 @@ describe("inspect-rpc resolution and ownership", () => {
 });
 
 describe("inspect-rpc reply content", () => {
-	it("reads an exact runtime-recorded session under the Pi sessions base", () => {
-		const sessionsBase = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-recorded-session-"));
+	it("reads an exact runtime-recorded session under the evoharness sessions base", () => {
+		const sessionsBase = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-recorded-session-"));
 		const root = path.join(sessionsBase, "project");
 		try {
 			fs.mkdirSync(root);
@@ -218,7 +218,7 @@ describe("inspect-rpc reply content", () => {
 	});
 
 	it("returns task, messages, and final output without leaking paths", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-full-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-full-"));
 		const sessionFile = path.join(root, "run-1-session.jsonl");
 		const { resultsDir } = makeRun(root, {
 			runId: "run-1",
@@ -248,7 +248,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(serialized.includes(root), false);
 	});
 	it("reports the provider and model the child's own reply recorded, and nothing a run-level workflow or historical status cannot attribute", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-model-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-model-"));
 		const resolvedModel = { provider: "openai-codex", model: "gpt-6-sol" };
 		const single = makeRun(root, {
 			runId: "run-model",
@@ -330,7 +330,7 @@ describe("inspect-rpc reply content", () => {
 		assert.ok(capped && capped.provider.length <= 64 && capped.model.length <= 160);
 	});
 	it("resolves a direct step child by snapshot node id", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-child-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-child-"));
 		const childSession = path.join(root, "child.jsonl");
 		fs.writeFileSync(childSession, `${JSON.stringify({ message: userMessage("child task") })}\n`, "utf-8");
 		const { resultsDir } = makeRun(root, {
@@ -360,7 +360,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(reply.finalOutput, "child output");
 	});
 	it("returns not_found for an unknown childId", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-nochild-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-nochild-"));
 		const { resultsDir } = makeRun(root, { runId: "run-p2" });
 		const reply = buildInspectReply(
 			{ requestId: "r7", asyncId: "run-p2", childId: "step:9" },
@@ -369,7 +369,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(reply.error?.code, "not_found");
 	});
 	it("omits task for fork-context children", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-fork-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-fork-"));
 		const { resultsDir } = makeRun(root, {
 			runId: "run-fork",
 			context: "fork",
@@ -381,7 +381,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(reply.messages?.length, 2);
 	});
 	it("reports running state with messages so far and no final output", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-running-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-running-"));
 		const { resultsDir } = makeRun(root, {
 			runId: "run-live",
 			state: "running",
@@ -394,7 +394,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(reply.finalOutput, undefined);
 	});
 	it("returns completed output from durable replay after the result payload is consumed", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-replay-"));
 		const { resultsDir } = makeRun(root, { runId: "run-replay" });
 		recordWaitCompletion(
 			makeState(root),
@@ -414,7 +414,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(JSON.stringify(reply).includes(root), false);
 	});
 	it("returns legacy single-child replay output at run level when resultIndex is absent", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-legacy-single-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-replay-legacy-single-"));
 		const { resultsDir } = makeRun(root, { runId: "run-replay-legacy-single" });
 		recordWaitCompletion(
 			makeState(root),
@@ -440,7 +440,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(reply.finalOutput, "finished output");
 	});
 	it("returns output from a durable replay artifact without exposing its path", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-artifact-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-replay-artifact-"));
 		const outputPath = path.join(root, "output.txt");
 		fs.writeFileSync(outputPath, "artifact output", "utf-8");
 		const { resultsDir } = makeRun(root, { runId: "run-replay-artifact" });
@@ -465,7 +465,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(JSON.stringify(reply).includes(outputPath), false);
 	});
 	it("returns a failed replay artifact error without private metadata", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-failed-artifact-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-replay-failed-artifact-"));
 		const outputPath = path.join(root, "output.txt");
 		const transcriptPath = path.join(root, "transcript.jsonl");
 		const metadataPath = path.join(root, "metadata.json");
@@ -503,7 +503,7 @@ describe("inspect-rpc reply content", () => {
 			assert.equal(serialized.includes(privateText), false);
 	});
 	it("returns the selected child output from a multi-step replay artifact archive", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-children-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-replay-children-"));
 		const firstOutputPath = path.join(root, "first-output.txt");
 		const secondOutputPath = path.join(root, "second-output.txt");
 		fs.writeFileSync(firstOutputPath, "first output", "utf-8");
@@ -540,7 +540,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(JSON.stringify(reply).includes(root), false);
 	});
 	it("uses the child result index when a replay mixes inline and artifact output", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-mixed-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-replay-mixed-"));
 		const secondOutputPath = path.join(root, "second-output.txt");
 		fs.writeFileSync(secondOutputPath, "second artifact output", "utf-8");
 		const { resultsDir } = makeRun(root, {
@@ -587,7 +587,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(JSON.stringify(first).includes(root), false);
 	});
 	it("returns session-backed replay output from the child's archived session transcript", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-session-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-replay-session-"));
 		const childSession = path.join(root, "child-session.jsonl");
 		fs.writeFileSync(
 			childSession,
@@ -632,7 +632,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(JSON.stringify(reply).includes(childSession), false);
 	});
 	it("omits finalOutput for run-level inspection of a multi-child replay instead of attributing a child output", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-toplevel-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-replay-toplevel-"));
 		const firstOutputPath = path.join(root, "first-output.txt");
 		const secondOutputPath = path.join(root, "second-output.txt");
 		fs.writeFileSync(firstOutputPath, "first output", "utf-8");
@@ -668,7 +668,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(reply.finalOutput, undefined);
 	});
 	it("routes legacy replay archives (no resultIndex) by agent and keeps child output out of run-level replies", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-legacy-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-replay-legacy-"));
 		const firstOutputPath = path.join(root, "first-output.txt");
 		const secondOutputPath = path.join(root, "second-output.txt");
 		fs.writeFileSync(firstOutputPath, "first output", "utf-8");
@@ -717,7 +717,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(topLevel.finalOutput, undefined);
 	});
 	it("does not attribute a legacy same-agent sibling's output to a later child", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-legacy-dup-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-replay-legacy-dup-"));
 		const firstOutputPath = path.join(root, "first-output.txt");
 		const secondOutputPath = path.join(root, "second-output.txt");
 		fs.writeFileSync(firstOutputPath, "first output", "utf-8");
@@ -758,7 +758,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(second.finalOutput, undefined);
 	});
 	it("joins all text parts of the terminal assistant message for session-backed output", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-multipart-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-multipart-"));
 		const childSession = path.join(root, "multipart-session.jsonl");
 		fs.writeFileSync(
 			childSession,
@@ -810,7 +810,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(reply.finalOutput, "part one\npart two");
 	});
 	it("reports an internal error when a current-version replay record fails validation", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-invalid-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-replay-invalid-"));
 		const runId = "run-replay-invalid";
 		const { resultsDir } = makeRun(root, { runId });
 		recordWaitCompletion(
@@ -836,7 +836,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(reply.finalOutput, undefined);
 	});
 	it("reports an internal error when a durable replay archive is malformed", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-malformed-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-replay-malformed-"));
 		const runId = "run-replay-malformed";
 		const { resultsDir } = makeRun(root, { runId });
 		recordWaitCompletion(
@@ -862,7 +862,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(JSON.stringify(reply).includes(root), false);
 	});
 	it("reports an internal error when an indexed result payload is malformed", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-result-malformed-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-result-malformed-"));
 		const { resultsDir } = makeRun(root, { runId: "run-result-malformed", resultPayload: { summary: "valid" } });
 		fs.writeFileSync(path.join(resultsDir, "run-result-malformed.json"), "{ invalid", "utf-8");
 		const reply = buildInspectReply(
@@ -874,7 +874,7 @@ describe("inspect-rpc reply content", () => {
 		assert.equal(JSON.stringify(reply).includes(root), false);
 	});
 	it("fails closed instead of returning a private status error", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-status-error-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-status-error-"));
 		const { resultsDir } = makeRun(root, {
 			runId: "run-status-error",
 			state: "failed",
@@ -892,7 +892,7 @@ describe("inspect-rpc reply content", () => {
 
 describe("inspect-rpc bounds", () => {
 	it("keeps the serialized reply under the global byte budget", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-budget-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-budget-"));
 		const big = "x".repeat(1_000);
 		const { resultsDir } = makeRun(root, {
 			runId: "run-big",
@@ -914,7 +914,7 @@ describe("inspect-rpc bounds", () => {
 		);
 	});
 	it("caps per-field lengths", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-caps-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-caps-"));
 		const { resultsDir } = makeRun(root, {
 			runId: "run-caps",
 			sessionMessages: [userMessage(`task ${"t".repeat(10_000)}`)],
@@ -925,7 +925,7 @@ describe("inspect-rpc bounds", () => {
 		assert.ok(reply.finalOutput && reply.finalOutput.length <= 8_000 && reply.truncated?.finalOutput);
 	});
 	it("preserves newlines in long-form content", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-lines-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-lines-"));
 		const { resultsDir } = makeRun(root, {
 			runId: "run-lines",
 			sessionMessages: [userMessage("line one\nline two")],
@@ -942,13 +942,13 @@ describe("inspect-rpc bounds", () => {
 describe("inspect-rpc command surface", () => {
 	it("answers unparseable args with an invalid_request reply", () => {
 		const reply = handleInspectRpcArgs("not valid at all", {
-			state: makeState(fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-args-"))),
+			state: makeState(fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-args-"))),
 		});
 		assert.equal(reply.error?.code, "invalid_request");
 		assert.equal(reply.requestId, "not");
 	});
 	it("encodes replies with the widget prefix", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-encode-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-encode-"));
 		const { resultsDir } = makeRun(root, { runId: "run-e" });
 		const lines = encodeInspectReply(
 			buildInspectReply({ requestId: "r13", asyncId: "run-e" }, makeDeps(root, resultsDir)),

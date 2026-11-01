@@ -23,7 +23,7 @@ function readBootIdFromOs(): string | undefined {
 }
 
 // Process-wide, so the bundled extension and the compiled runner modules share one value.
-const BOOT_ID_KEY = Symbol.for("pi-subagents.boot-id.v1");
+const BOOT_ID_KEY = Symbol.for("subagents.boot-id.v1");
 const runtime = globalThis as typeof globalThis & { [BOOT_ID_KEY]?: { value: string | undefined } };
 
 let reader: () => string | undefined = readBootIdFromOs;
@@ -47,7 +47,7 @@ export function currentRecordedPid(): RecordedPid {
 	return { pid: process.pid, ...(pidNamespaceScope ? { pidNamespaceScope } : {}), ...(bootId ? { bootId } : {}) };
 }
 
-/** Fixes the boot id without reading the OS; runners take Pi's value from their config. */
+/** Fixes the boot id without reading the OS; runners take evoharness's value from their config. */
 export function primeBootId(value: string | undefined): void {
 	runtime[BOOT_ID_KEY] = { value };
 }

@@ -130,8 +130,8 @@ describe("async stale-run reconciliation", () => {
 		}
 	});
 
-	it("marks a workflow whose Pi process is dead owner-exited, and no other repair", () => {
-		const root = tempRoot("pi-stale-run-owner-exited-");
+	it("marks a workflow whose evoharness process is dead owner-exited, and no other repair", () => {
+		const root = tempRoot("subagents-stale-run-owner-exited-");
 		try {
 			const resultsDir = path.join(root, "results");
 			const workflowStatus = (runId: string, extra: Record<string, unknown> = {}) => ({
@@ -165,7 +165,7 @@ describe("async stale-run reconciliation", () => {
 				return { result, status: JSON.parse(fs.readFileSync(path.join(asyncDir, "status.json"), "utf-8")) };
 			};
 			const ownerExitedMessage = (runId: string) =>
-				`The Pi process (PID 4242) that ran workflow ${runId} exited before the workflow finished. Marked run failed by stale-run reconciliation. Its finished children are kept.`;
+				`The evoharness process (PID 4242) that ran workflow ${runId} exited before the workflow finished. Marked run failed by stale-run reconciliation. Its finished children are kept.`;
 
 			const dead = reconcile("wf-dead", workflowStatus("wf-dead"), {
 				kill: () => {
@@ -278,7 +278,7 @@ describe("async stale-run reconciliation", () => {
 		"repairs a recent Linux zombie only with a verified PID namespace",
 		{ skip: process.platform !== "linux", timeout: 10_000 },
 		async () => {
-			const root = tempRoot("pi-stale-run-zombie-");
+			const root = tempRoot("subagents-stale-run-zombie-");
 			const script = String.raw`
 			const { spawn } = require("node:child_process");
 			const fs = require("node:fs");
@@ -358,7 +358,7 @@ describe("async stale-run reconciliation", () => {
 	);
 
 	it("repairs a run whose PID belongs to another namespace only after status goes stale", () => {
-		const root = tempRoot("pi-stale-run-pid-namespace-");
+		const root = tempRoot("subagents-stale-run-pid-namespace-");
 		try {
 			const asyncDir = path.join(root, "run-live");
 			writeStatus(asyncDir, {
@@ -405,7 +405,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("does not repair a recent namespaced run from an observer without a PID namespace", () => {
-		const root = tempRoot("pi-stale-run-pid-namespace-unknown-");
+		const root = tempRoot("subagents-stale-run-pid-namespace-unknown-");
 		try {
 			const asyncDir = path.join(root, "run-dead");
 			writeStatus(asyncDir, {
@@ -435,7 +435,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("marks a dead runner failed and writes exactly one completion result", () => {
-		const root = tempRoot("pi-stale-run-");
+		const root = tempRoot("subagents-stale-run-");
 		try {
 			const asyncDir = path.join(root, "run-dead");
 			const resultsDir = path.join(root, "results");
@@ -506,7 +506,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("keeps a dead workflow child's workflow identity in its repaired result", () => {
-		const root = tempRoot("pi-stale-run-");
+		const root = tempRoot("subagents-stale-run-");
 		try {
 			const asyncDir = path.join(root, "run-child");
 			const resultsDir = path.join(root, "results");
@@ -541,7 +541,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("reports the observed runner exit code and signal when a killed runner left no result", () => {
-		const root = tempRoot("pi-stale-run-killed-");
+		const root = tempRoot("subagents-stale-run-killed-");
 		try {
 			const asyncDir = path.join(root, "run-killed");
 			const resultsDir = path.join(root, "results");
@@ -586,7 +586,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("repairs sessionless stale status without writing an unindexed result", () => {
-		const root = tempRoot("pi-stale-run-sessionless-");
+		const root = tempRoot("subagents-stale-run-sessionless-");
 		try {
 			const asyncDir = path.join(root, "run-sessionless");
 			const resultsDir = path.join(root, "results");
@@ -619,7 +619,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("includes runner stderr diagnostics when repairing a stale startup crash", () => {
-		const root = tempRoot("pi-stale-run-stderr-");
+		const root = tempRoot("subagents-stale-run-stderr-");
 		try {
 			const asyncDir = path.join(root, "run-dead-stderr");
 			const resultsDir = path.join(root, "results");
@@ -657,7 +657,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("keeps stale repair successful when the event log cannot be appended", () => {
-		const root = tempRoot("pi-stale-event-log-collision-");
+		const root = tempRoot("subagents-stale-event-log-collision-");
 		try {
 			const asyncDir = path.join(root, "run-dead-events-dir");
 			const resultsDir = path.join(root, "results");
@@ -696,7 +696,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("repairs stale status with per-child result outcomes", () => {
-		const root = tempRoot("pi-stale-mixed-result-");
+		const root = tempRoot("subagents-stale-mixed-result-");
 		try {
 			const asyncDir = path.join(root, "run-mixed");
 			const resultsDir = path.join(root, "results");
@@ -767,7 +767,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("keeps the outcome of workflow children that settled before their owner died", () => {
-		const root = tempRoot("pi-stale-workflow-children-");
+		const root = tempRoot("subagents-stale-workflow-children-");
 		try {
 			const asyncDir = path.join(root, "wf");
 			const step = (key: string, runId: string) => ({
@@ -875,7 +875,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("retains a root failure when stale result repair writes after runner finalization", () => {
-		const root = tempRoot("pi-stale-result-race-");
+		const root = tempRoot("subagents-stale-result-race-");
 		try {
 			const runId = "run-result-race";
 			const staleRunnerProcessInstanceId = "runner-stale-result-race";
@@ -1058,7 +1058,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("preserves explicit root failure precedence during result repair", () => {
-		const root = tempRoot("pi-stale-result-error-precedence-");
+		const root = tempRoot("subagents-stale-result-error-precedence-");
 		try {
 			const resultsDir = path.join(root, "results");
 			fs.mkdirSync(resultsDir, { recursive: true });
@@ -1099,7 +1099,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("repairs stale running status from an indexed pending result", () => {
-		const root = tempRoot("pi-stale-indexed-pending-result-");
+		const root = tempRoot("subagents-stale-indexed-pending-result-");
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -1151,7 +1151,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("repairs stale rejected status from an indexed pending status snapshot", () => {
-		const root = tempRoot("pi-stale-rejected-pending-result-");
+		const root = tempRoot("subagents-stale-rejected-pending-result-");
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -1199,7 +1199,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("fails a stale run when a live pid has not updated beyond the stale threshold", () => {
-		const root = tempRoot("pi-stale-live-pid-");
+		const root = tempRoot("subagents-stale-live-pid-");
 		try {
 			const asyncDir = path.join(root, "run-reused-pid");
 			const resultsDir = path.join(root, "results");
@@ -1229,7 +1229,7 @@ describe("async stale-run reconciliation", () => {
 	});
 
 	it("preserves an existing result instead of overwriting it with stale-run failure", () => {
-		const root = tempRoot("pi-stale-existing-result-");
+		const root = tempRoot("subagents-stale-existing-result-");
 		try {
 			const asyncDir = path.join(root, "run-result");
 			const resultsDir = path.join(root, "results");

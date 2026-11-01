@@ -11,12 +11,9 @@ import { runSetupCommand, type SetupCommandOptions, type SetupCommandResult } fr
 
 export const DEFAULT_WORKTREE_PROVIDER: WorktreeProvider = "auto";
 export const DEFAULT_WORKTREE_BASE_REF = "HEAD";
-export const DEFAULT_WORKTREE_BRANCH_PREFIX = "pi-subagents/";
+export const DEFAULT_WORKTREE_BRANCH_PREFIX = "subagents/";
 /** Internal marker used to defer Worktrunk-dependent instruction paths to launch time. */
-export const WORKTREE_AGENT_CWD_PLACEHOLDER = path.join(
-	path.parse(process.cwd()).root,
-	"__pi_subagents_worktree_cwd__",
-);
+export const WORKTREE_AGENT_CWD_PLACEHOLDER = path.join(path.parse(process.cwd()).root, "__subagents_worktree_cwd__");
 const WORKTREE_NAMING_COMPONENT_MAX_BYTES = 96;
 const WORKTREE_NAMING_LABEL_MAX_BYTES = 256;
 const WORKTREE_NAMING_BRANCH_MAX_BYTES = 256;
@@ -155,7 +152,7 @@ export interface CreateWorktreesOptions {
 	provider?: WorktreeProvider;
 	/** Git ref used as the worktree base; defaults to `HEAD`. */
 	baseRef?: string;
-	/** Branch namespace; defaults to `pi-subagents/`. */
+	/** Branch namespace; defaults to `subagents/`. */
 	branchPrefix?: string;
 	setupHook?: WorktreeSetupHookConfig;
 	baseDir?: string;
@@ -359,7 +356,7 @@ function currentWorktreePatch(worktreePath: string, baseCommit: string): { patch
 	assertWorktreeMutationAllowed();
 	let tempDir: string;
 	try {
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-index-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-worktree-index-"));
 	} catch (error) {
 		return { error: error instanceof Error ? error.message : String(error) };
 	}
@@ -407,7 +404,7 @@ async function probeWorktreeSource(tx: Pick<SetupTransaction, "git" | "gitChecke
 		throw new Error("worktree isolation requires a git repository");
 	const toplevel = (await tx.gitChecked(cwd, ["rev-parse", "--show-toplevel"])).trim();
 
-	// pi-subagents writes durable runtime state under .evoharness/subagents/ by default;
+	// subagents writes durable runtime state under .evoharness/subagents/ by default;
 	// that state must not make managed isolation unusable for later runs.
 	const status = await tx.gitChecked(toplevel, ["status", "--porcelain", "--", `:!${PROJECT_SUBAGENTS_RELATIVE_DIR}`]);
 	if (status.trim().length > 0) {
@@ -681,7 +678,7 @@ export function buildWorktreeNaming(input: WorktreeNamingInput): WorktreeNaming 
 }
 
 function hasConfiguredWorktreeBaseDir(baseDir: string | undefined): boolean {
-	return baseDir !== undefined ? true : (process.env.PI_SUBAGENTS_WORKTREE_DIR?.trim().length ?? 0) > 0;
+	return baseDir !== undefined ? true : (process.env.EVOHARNESS_SUBAGENTS_WORKTREE_DIR?.trim().length ?? 0) > 0;
 }
 
 function isInsidePiExtensionsDirectory(targetPath: string): boolean {
@@ -745,7 +742,7 @@ export function resolveWorktreeProvider(
 	if (hasConfiguredWorktreeBaseDir(baseDir)) {
 		if (selection === "worktrunk")
 			throw new Error(
-				"worktreeProvider='worktrunk' cannot be combined with worktreeBaseDir or PI_SUBAGENTS_WORKTREE_DIR",
+				"worktreeProvider='worktrunk' cannot be combined with worktreeBaseDir or EVOHARNESS_SUBAGENTS_WORKTREE_DIR",
 			);
 		return "native";
 	}
@@ -769,7 +766,7 @@ async function resolveSetupProvider(
 	if (hasConfiguredWorktreeBaseDir(baseDir)) {
 		if (selection === "worktrunk")
 			throw new Error(
-				"worktreeProvider='worktrunk' cannot be combined with worktreeBaseDir or PI_SUBAGENTS_WORKTREE_DIR",
+				"worktreeProvider='worktrunk' cannot be combined with worktreeBaseDir or EVOHARNESS_SUBAGENTS_WORKTREE_DIR",
 			);
 		return "native";
 	}
@@ -810,7 +807,7 @@ export function shouldDeferWorktreeCwd(requested: WorktreeProvider | undefined, 
 
 /**
  * Resolves the dedicated worktree root: the configured base directory or
- * PI_SUBAGENTS_WORKTREE_DIR when set, otherwise a `worktrees` folder sibling
+ * EVOHARNESS_SUBAGENTS_WORKTREE_DIR when set, otherwise a `worktrees` folder sibling
  * to the repository. Managed leaves always nest one level deeper under the
  * project folder (`basename(repoRoot)`).
  */
@@ -819,7 +816,7 @@ function resolveWorktreeDedicatedRoot(
 	repoRoot: string,
 	relocateExtensionRepo = true,
 ): string {
-	const rawBaseDir = configuredBaseDir ?? process.env.PI_SUBAGENTS_WORKTREE_DIR;
+	const rawBaseDir = configuredBaseDir ?? process.env.EVOHARNESS_SUBAGENTS_WORKTREE_DIR;
 	let expanded: string;
 	if (rawBaseDir === undefined || (configuredBaseDir === undefined && !rawBaseDir.trim())) {
 		expanded =
@@ -836,7 +833,7 @@ function resolveWorktreeDedicatedRoot(
 	const extensionsDir = normalizeComparableCwd(path.join(getAgentDir(), "extensions"));
 	if (isPathInside(extensionsDir, normalizeComparableCwd(expanded))) {
 		throw new Error(
-			`worktree base directory cannot be inside Pi extensions directory: ${extensionsDir}. Choose a directory outside it.`,
+			`worktree base directory cannot be inside evoharness extensions directory: ${extensionsDir}. Choose a directory outside it.`,
 		);
 	}
 	return expanded;
@@ -863,7 +860,7 @@ function ensureProjectWorktreeDir(dedicatedRoot: string, repoRoot: string): void
 function buildNativeWorktreePath(dedicatedRoot: string, repoRoot: string, runId: string, index: number): string {
 	return path.join(
 		buildNativeProjectPath(dedicatedRoot, repoRoot),
-		`pi-worktree-${sanitizeWorktreePathComponent(runId, 120)}-${index}`,
+		`subagents-worktree-${sanitizeWorktreePathComponent(runId, 120)}-${index}`,
 	);
 }
 
@@ -895,7 +892,7 @@ function assertSafeWorktreeLocation(worktreePath: string, repoRoot: string, dedi
 
 	if (isPathInside(extensionsDir, projectDir) || isPathInside(extensionsDir, resolvedLeaf)) {
 		throw new Error(
-			`worktree path cannot be inside Pi extensions directory: ${extensionsDir}. Choose a directory outside it.`,
+			`worktree path cannot be inside evoharness extensions directory: ${extensionsDir}. Choose a directory outside it.`,
 		);
 	}
 	if (isPathInside(resolvedRepoRoot, resolvedLeaf)) {

@@ -663,14 +663,14 @@ function extractSubagentPathsFromPackageRoot(packageRoot: string, scope: Set<Pac
 	const metadata = packageMetadata(pkgRecord, packageRoot);
 
 	const roots: Record<string, unknown>[] = [];
-	const piSubagents = pkgRecord["pi-subagents"];
-	if (piSubagents && typeof piSubagents === "object" && !Array.isArray(piSubagents)) {
-		roots.push(piSubagents as Record<string, unknown>);
+	const subagentsManifest = pkgRecord["subagents"];
+	if (subagentsManifest && typeof subagentsManifest === "object" && !Array.isArray(subagentsManifest)) {
+		roots.push(subagentsManifest as Record<string, unknown>);
 	}
 
-	const pi = pkgRecord.pi;
-	if (pi && typeof pi === "object" && !Array.isArray(pi)) {
-		const subagents = (pi as { subagents?: unknown }).subagents;
+	const evoharness = pkgRecord.evoharness;
+	if (evoharness && typeof evoharness === "object" && !Array.isArray(evoharness)) {
+		const subagents = (evoharness as { subagents?: unknown }).subagents;
 		if (subagents && typeof subagents === "object" && !Array.isArray(subagents)) {
 			roots.push(subagents as Record<string, unknown>);
 		}
@@ -1056,7 +1056,7 @@ function findProjectRootCandidates(cwd: string): string[] {
 	);
 	let currentDir = cwd;
 	while (true) {
-		// ~/.pi and ~/.agents are user configuration, never an implicit project.
+		// ~/.evoharness and ~/.agents are user configuration, never an implicit project.
 		if (isDirectory(currentDir) && homeDirs.has(fs.realpathSync.native(currentDir))) return roots;
 		if (isProjectRootCandidate(currentDir)) roots.push(currentDir);
 
@@ -2511,10 +2511,10 @@ function parseAgentRunnerFrontmatter(raw: string | undefined, agentName: string)
 		throw new Error(`Agent '${agentName}' has invalid runner frontmatter; expected an object.`);
 	}
 	const runner = parsed as Record<string, unknown>;
-	if (runner.type === "pi") {
+	if (runner.type === "evoharness") {
 		if (Object.keys(runner).some((key) => key !== "type"))
-			throw new Error(`Agent '${agentName}' has invalid Pi runner frontmatter; only 'type' is supported.`);
-		return { type: "pi" };
+			throw new Error(`Agent '${agentName}' has invalid evoharness runner frontmatter; only 'type' is supported.`);
+		return { type: "evoharness" };
 	}
 	if (runner.type === "external-job") {
 		if (
@@ -2545,7 +2545,7 @@ function parseAgentRunnerFrontmatter(raw: string | undefined, agentName: string)
 	}
 	if (runner.type !== "external-cli") {
 		throw new Error(
-			`Agent '${agentName}' has invalid runner.type; expected 'pi', 'external-cli', or 'external-job'.`,
+			`Agent '${agentName}' has invalid runner.type; expected 'evoharness', 'external-cli', or 'external-job'.`,
 		);
 	}
 	if (typeof runner.command !== "string" || !runner.command.trim()) {
@@ -2594,7 +2594,7 @@ function validateExternalRunnerProfile(
 ): void {
 	if (runner?.type !== "external-cli" && runner?.type !== "external-job") return;
 	// The code-owned Claude Code adapters accept an explicit model and thinking level:
-	// both are translated into their own argv rather than into a Pi child model.
+	// both are translated into their own argv rather than into a evoharness child model.
 	const adapterAcceptsOverrides = runner.type === "external-cli" && isClaudeCodeAdapterId(runner.adapter);
 	const unsupported = [
 		"tools",
@@ -2619,7 +2619,7 @@ function validateExternalRunnerProfile(
 	);
 	if (unsupported.length > 0) {
 		throw new Error(
-			`Agent '${agentName}' uses runner.type='${runner.type}' and declares unsupported Pi-only fields: ${unsupported.join(", ")}.`,
+			`Agent '${agentName}' uses runner.type='${runner.type}' and declares unsupported host-only fields: ${unsupported.join(", ")}.`,
 		);
 	}
 }
@@ -2870,7 +2870,7 @@ function loadAgentsFromDefinitionFiles(
 				(runner?.type === "external-cli" || runner?.type === "external-job" || machine !== undefined)
 			) {
 				throw new Error(
-					`Agent '${runtimeName}' sets 'launcher', which wraps the local Pi background runner, so it cannot be combined with ${machine !== undefined ? "'machine'" : `runner.type='${runner!.type}'`}.`,
+					`Agent '${runtimeName}' sets 'launcher', which wraps the local evoharness background runner, so it cannot be combined with ${machine !== undefined ? "'machine'" : `runner.type='${runner!.type}'`}.`,
 				);
 			}
 			const agent: AgentConfig = {
@@ -3055,10 +3055,10 @@ const BUILTIN_AGENT_DEFINITION_FILES = readAgentDefinitionFiles(
 	BUILTIN_AGENT_DEFINITION_INSPECTION,
 );
 
-export const EXTRA_AGENT_DIRS_ENV = "PI_SUBAGENT_EXTRA_AGENT_DIRS";
+export const EXTRA_AGENT_DIRS_ENV = "EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS";
 
 // Additional read-only directories to scan for agent definitions, supplied by the
-// launcher via PI_SUBAGENT_EXTRA_AGENT_DIRS (PATH-style, split on os/path delimiter).
+// launcher via EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS (PATH-style, split on os/path delimiter).
 // Lets a hermetic wrapper (e.g. a Nix-store install) expose bundled agents without
 // copying or symlinking them into the writable agent dir. Loaded as "user" source,
 // at lower precedence than agents the user placed in their own agent dir.
@@ -3866,7 +3866,7 @@ export function discoverAgentSnapshot(
 	};
 }
 
-// Pi loads nothing from an untrusted project's `.pi` directory, so declined trust leaves user scope.
+// evoharness loads nothing from an untrusted project's `.evoharness` directory, so declined trust leaves user scope.
 // A trusted lookup keeps its scope as given, including an omitted one from untyped callers.
 function trustedDiscoveryScope(cwd: string, scope: AgentScope, projectTrusted: boolean): AgentScope {
 	if (projectTrusted) return scope;

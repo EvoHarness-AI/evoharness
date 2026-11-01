@@ -25,7 +25,7 @@ import {
 import { formatInspectorDashboard, submitInspectorControl } from "../../src/inspectors/inspector-runner.ts";
 import { decodeSessionRoots } from "../../src/inspectors/session-roots-codec.ts";
 import { consumeSteerRequests, consumeStopRequest } from "../../src/runs/background/control-channel.ts";
-import { PI_SUBAGENT_PI_BINARY_ENV } from "../../src/runs/shared/pi-spawn.ts";
+import { EVOHARNESS_SUBAGENT_HOST_BINARY_ENV } from "../../src/runs/shared/host-spawn.ts";
 import type { AsyncStatus, SubagentState } from "../../src/shared/types.ts";
 
 // `pane run` commands quote the whole --session-roots value (base64, so it has
@@ -68,7 +68,7 @@ function text(result: Awaited<ReturnType<typeof handleInspectorAction>>): string
 
 describe("Herdr inspector", () => {
 	it("preserves Herdr detection errors in an active Herdr environment", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-detection-error-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-detection-error-"));
 		try {
 			writeRun(root);
 			const client: HerdrClient = {
@@ -130,7 +130,7 @@ describe("Herdr inspector", () => {
 	});
 
 	it("opens one raw inspector pane, persists its binding, and closes only that pane", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-inspector-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-inspector-"));
 		try {
 			const { asyncDir } = writeRun(root);
 			const sessionRoot = path.join(root, "sessions");
@@ -318,7 +318,7 @@ describe("Herdr inspector", () => {
 	});
 
 	it("passes live parent-owned custom session roots to standalone inspectors", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-custom-session-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-custom-session-"));
 		try {
 			const { asyncDir, status } = writeRun(root);
 			const sessionRoot = path.join(root, "custom-sessions");
@@ -382,8 +382,8 @@ describe("Herdr inspector", () => {
 	});
 
 	it("refuses direct run directories outside trusted roots", async () => {
-		const trustedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-trusted-"));
-		const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-outside-"));
+		const trustedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-trusted-"));
+		const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-outside-"));
 		try {
 			const { asyncDir } = writeRun(outsideRoot);
 			const inspected = await handleInspectorAction(
@@ -404,7 +404,7 @@ describe("Herdr inspector", () => {
 	});
 
 	it("renders mission context and reuses existing steer/stop control records", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-controls-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-controls-"));
 		try {
 			const { asyncDir, status } = writeRun(root);
 			const dashboard = formatInspectorDashboard({
@@ -498,7 +498,7 @@ describe("Herdr inspector", () => {
 			assert.equal(consumeStopRequest(asyncDir), true);
 			assert.throws(
 				() => submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500 }, "reply decision-1 yes"),
-				/parent Pi session/,
+				/parent evoharness session/,
 			);
 			assert.throws(
 				() =>
@@ -518,7 +518,7 @@ describe("Herdr inspector", () => {
 	});
 
 	it("renders trusted child session fallback and refuses untrusted roots", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-session-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-session-"));
 		try {
 			const { asyncDir, status } = writeRun(root);
 			const sessionRoot = path.join(root, "sessions");
@@ -543,9 +543,9 @@ describe("Herdr inspector", () => {
 	});
 
 	it("opens, reports, and closes a project-owned Herdr pane", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi=herdr project pane-"));
-		const previousPiBinary = process.env[PI_SUBAGENT_PI_BINARY_ENV];
-		process.env[PI_SUBAGENT_PI_BINARY_ENV] = path.join(root, "pi-bin");
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "evoharness=herdr project pane-"));
+		const previousPiBinary = process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV];
+		process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV] = path.join(root, "subagents-bin");
 		try {
 			const projectRoot = fs.realpathSync(root);
 			const ownerRoot = path.join(root, "owner");
@@ -563,12 +563,12 @@ describe("Herdr inspector", () => {
 							data: {
 								pane: {
 									pane_id: "w1:p10",
-									agent: "pi",
+									agent: "evoharness",
 									agent_status: "idle",
 									cwd: projectRoot,
 									foreground_cwd: projectRoot,
 									focused: false,
-									terminal_title_stripped: "Pi · project",
+									terminal_title_stripped: "evoharness · project",
 								},
 							} as T,
 						};
@@ -618,7 +618,7 @@ describe("Herdr inspector", () => {
 			const runCall = calls.find((args) => args[0] === "pane" && args[1] === "run" && args[2] === "w1:p10");
 			assert.equal(runCall?.[3]?.startsWith("& "), process.platform === "win32");
 			if (process.platform !== "win32") assert.match(runCall?.[3] ?? "", /^sh -c 'exec "\$0" "\$@"' '/);
-			assert.match(runCall?.[3] ?? "", /pi-bin/);
+			assert.match(runCall?.[3] ?? "", /subagents-bin/);
 			assert.match(runCall?.[3] ?? "", /Own this project mission\./);
 
 			const status = await handleHerdrProjectPaneAction("project.status", { cwd: root }, { cwd: ownerRoot, client });
@@ -661,16 +661,16 @@ describe("Herdr inspector", () => {
 			);
 			assert.throws(() => listHerdrProjectPaneRoots(ownerRoot), /Invalid Herdr project pane root index/);
 		} finally {
-			if (previousPiBinary === undefined) delete process.env[PI_SUBAGENT_PI_BINARY_ENV];
-			else process.env[PI_SUBAGENT_PI_BINARY_ENV] = previousPiBinary;
+			if (previousPiBinary === undefined) delete process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV];
+			else process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV] = previousPiBinary;
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});
 
 	it("fails closed when an idle-only project pane close sees active work", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-project-pane-busy-"));
-		const previousPiBinary = process.env[PI_SUBAGENT_PI_BINARY_ENV];
-		process.env[PI_SUBAGENT_PI_BINARY_ENV] = path.join(root, "pi-bin");
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-project-pane-busy-"));
+		const previousPiBinary = process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV];
+		process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV] = path.join(root, "subagents-bin");
 		try {
 			const projectRoot = fs.realpathSync(root);
 			const calls: string[][] = [];
@@ -691,7 +691,7 @@ describe("Herdr inspector", () => {
 							data: {
 								pane: {
 									pane_id: "w1:p11",
-									agent: "pi",
+									agent: "evoharness",
 									agent_status: "working",
 									cwd: projectRoot,
 								},
@@ -712,16 +712,16 @@ describe("Herdr inspector", () => {
 			);
 			assert.equal(readHerdrProjectPaneBinding(root)?.paneId, "w1:p11");
 		} finally {
-			if (previousPiBinary === undefined) delete process.env[PI_SUBAGENT_PI_BINARY_ENV];
-			else process.env[PI_SUBAGENT_PI_BINARY_ENV] = previousPiBinary;
+			if (previousPiBinary === undefined) delete process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV];
+			else process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV] = previousPiBinary;
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});
 
 	it("preserves legacy model-facing recovery for transient and opaque pane inspection results", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-project-pane-legacy-"));
-		const previousPiBinary = process.env[PI_SUBAGENT_PI_BINARY_ENV];
-		process.env[PI_SUBAGENT_PI_BINARY_ENV] = path.join(root, "pi-bin");
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-project-pane-legacy-"));
+		const previousPiBinary = process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV];
+		process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV] = path.join(root, "subagents-bin");
 		try {
 			let splitCount = 0;
 			let getMode: "valid" | "timeout" | "opaque" = "valid";
@@ -764,14 +764,14 @@ describe("Herdr inspector", () => {
 			assert.match(text(closed), /INVALID_PANE_RESPONSE/);
 			assert.equal(readHerdrProjectPaneBinding(root)?.paneId, "w1:p32");
 		} finally {
-			if (previousPiBinary === undefined) delete process.env[PI_SUBAGENT_PI_BINARY_ENV];
-			else process.env[PI_SUBAGENT_PI_BINARY_ENV] = previousPiBinary;
+			if (previousPiBinary === undefined) delete process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV];
+			else process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV] = previousPiBinary;
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});
 
 	it("rejects project pane targets that are not directories", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-project-pane-missing-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-project-pane-missing-"));
 		try {
 			const missing = path.join(root, "missing");
 			const opened = await handleHerdrProjectPaneAction(

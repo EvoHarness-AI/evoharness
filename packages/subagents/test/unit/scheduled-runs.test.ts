@@ -87,7 +87,7 @@ function harness(
 		kill?: (pid: number) => boolean;
 	} = {},
 ): Harness {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-schedule-test-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-schedule-test-"));
 	roots.push(root);
 	const project = options.cwd ?? path.join(root, "project");
 	fs.mkdirSync(project, { recursive: true });
@@ -570,7 +570,7 @@ describe("project schedule management", () => {
 	});
 
 	it("treats a deleted project cwd as having no schedules during restore and listing", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-schedule-deleted-project-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-schedule-deleted-project-"));
 		roots.push(root);
 		const project = path.join(root, "project");
 		fs.mkdirSync(project);
@@ -1204,7 +1204,7 @@ describe("project schedule management", () => {
 	});
 
 	it("rejects a default project schedule root that escapes through .evoharness/subagents", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-schedule-root-link-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-schedule-root-link-"));
 		roots.push(root);
 		const project = path.join(root, "project");
 		const outside = path.join(root, "outside");
@@ -1240,11 +1240,11 @@ describe("project schedule management", () => {
 		assert.equal(fs.existsSync(path.join(outside, "schedules")), false);
 	});
 
-	it("allows the home directory's own .pi symlinked outside home, but not a project's .pi linked to it", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-schedule-home-link-"));
+	it("allows the home directory's own .evoharness symlinked outside home, but not a project's .evoharness linked to it", async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-schedule-home-link-"));
 		roots.push(root);
 		const home = path.join(root, "home");
-		const config = path.join(root, "pi-config");
+		const config = path.join(root, "subagents-config");
 		const project = path.join(root, "project");
 		fs.mkdirSync(home);
 		fs.mkdirSync(config);
@@ -1282,8 +1282,8 @@ describe("project schedule management", () => {
 		}
 	});
 
-	it("allows a default project schedule root through a shared Git worktree .pi symlink", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-schedule-worktree-link-"));
+	it("allows a default project schedule root through a shared Git worktree .evoharness symlink", async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-schedule-worktree-link-"));
 		roots.push(root);
 		const repository = path.join(root, "repository");
 		const worktree = path.join(repository, ".worktrees", "feature");
@@ -1323,8 +1323,8 @@ describe("project schedule management", () => {
 		);
 	});
 
-	it("rejects a Git worktree .pi symlink outside the shared config root", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-schedule-worktree-escape-"));
+	it("rejects a Git worktree .evoharness symlink outside the shared config root", () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-schedule-worktree-escape-"));
 		roots.push(root);
 		const repository = path.join(root, "repository");
 		const worktree = path.join(repository, ".worktrees", "feature");
@@ -1354,7 +1354,7 @@ describe("project schedule management", () => {
 	});
 
 	it("rejects separate-git-dir primary checkout sharing without a registered root", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-schedule-separate-git-dir-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-schedule-separate-git-dir-"));
 		roots.push(root);
 		const repository = path.join(root, "repository");
 		const gitDir = path.join(root, "git-data", "metadata");
@@ -1388,7 +1388,7 @@ describe("project schedule management", () => {
 	});
 
 	it("rejects an unregistered checkout ancestor with the same Git directory", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-schedule-unregistered-git-dir-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-schedule-unregistered-git-dir-"));
 		roots.push(root);
 		const repository = path.join(root, "repository");
 		const worktree = path.join(repository, ".worktrees", "feature");

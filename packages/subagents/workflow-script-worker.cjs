@@ -1288,7 +1288,7 @@ function startWorkflow(message) {
   // whatever context the error came from. Lock it in both realms before any code runs there.
   for (const realm of [context, runtimeContext]) vm.runInContext(LOCK_PREPARE_STACK_TRACE_SOURCE, realm);
   const scriptRealm = vm.runInContext("({ __proto__: null, objectPrototype: Object.prototype, promisePrototype: (async () => {})().constructor.prototype })", context);
-  const createRuntime = new vm.Script(WORKFLOW_RUNTIME_SOURCE, { filename: "pi-workflow-runtime.js" }).runInContext(runtimeContext);
+  const createRuntime = new vm.Script(WORKFLOW_RUNTIME_SOURCE, { filename: "subagents-workflow-runtime.js" }).runInContext(runtimeContext);
   runtime = createRuntime(bridge, scriptRealm, Boolean(message.stateEnabled));
   Object.assign(context, runtime.scriptGlobals);
   // Rebuild args inside the VM realm: a worker-realm object would expose the worker's unrestricted

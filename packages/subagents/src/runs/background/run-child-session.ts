@@ -383,7 +383,7 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 			if (promptSettled || finalDrainTimer || settled) return;
 			finalDrainTimer = setTimeout(() => {
 				if (settled || promptSettled) return;
-				// Pi runs auto-compaction after the final agent_end and only then emits agent_settled.
+				// evoharness runs auto-compaction after the final agent_end and only then emits agent_settled.
 				if (input.launch.capture.finalDrainHeld() || observeQueuedDrainHold() || compactionAfterFinalOpen) {
 					finalDrainTimer = undefined;
 					armFinalDrainTimer();
@@ -406,7 +406,7 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 		): void => {
 			if (action === "cancel-drain") {
 				// After a clean final stop, a non-retrying agent_end may be the child's last event
-				// (Pi may not emit agent_settled), so it re-arms the drain instead of cancelling it.
+				// (evoharness may not emit agent_settled), so it re-arms the drain instead of cancelling it.
 				terminalAgentEndReceived =
 					event?.type === "agent_end" && event.willRetry !== true && cleanTerminalAssistantStopReceived;
 				agentSettledReceived = false;
@@ -834,7 +834,9 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 					const queued: SteerDelivery = {
 						state: "queued",
 						deliveryStatus: "queued",
-						message: followUp ? "Pi queued the follow-up input." : "Pi accepted the steering input.",
+						message: followUp
+							? "evoharness queued the follow-up input."
+							: "evoharness accepted the steering input.",
 					};
 					try {
 						if (followUp) await created.followUp(text);

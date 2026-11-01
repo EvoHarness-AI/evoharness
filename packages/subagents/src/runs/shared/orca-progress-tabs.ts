@@ -86,7 +86,7 @@ function executableNames(command: string, env: NodeJS.ProcessEnv): string[] {
 }
 
 export function resolveOrcaCommand(env: NodeJS.ProcessEnv = process.env): string | undefined {
-	const override = env.PI_SUBAGENT_ORCA_BINARY?.trim();
+	const override = env.EVOHARNESS_SUBAGENT_ORCA_BINARY?.trim();
 	if (override) return executableFile(override) ? override : undefined;
 	for (const directory of (env.PATH ?? "").split(path.delimiter).filter(Boolean)) {
 		for (const name of executableNames("orca", env)) {
@@ -399,7 +399,7 @@ export function createOrcaProgressTab(input: {
 	try {
 		fs.writeFileSync(
 			logPath,
-			`pi-subagents / ${agent}\nrun ${runId} · ${stepCount === 1 ? "1 child" : `${stepCount} children`}\n${"─".repeat(48)}\n`,
+			`subagents / ${agent}\nrun ${runId} · ${stepCount === 1 ? "1 child" : `${stepCount} children`}\n${"─".repeat(48)}\n`,
 			{ encoding: "utf-8", mode: 0o600 },
 		);
 		fs.rmSync(donePath, { force: true });
@@ -546,7 +546,7 @@ export function createOrcaProgressTab(input: {
 				}
 			}
 			const terminalMessage = verifiedSessionFile
-				? `completed. To remove the Pi session for this run, run rm -- ${shellQuote(verifiedSessionFile)}`
+				? `completed. To remove the evoharness session for this run, run rm -- ${shellQuote(verifiedSessionFile)}`
 				: status;
 			const truncation = truncated ? `\n[progress mirror truncated at ${MAX_MIRROR_BYTES} bytes]\n` : "";
 			let footer = `${truncation}\n${"─".repeat(48)}\n${terminalMessage}\n`;

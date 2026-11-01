@@ -31,7 +31,7 @@ function createState(sessionId: string | null): SubagentState {
 
 function createExecutor(state: SubagentState, cwd: string) {
 	return createSubagentExecutor({
-		pi: {
+		evoharness: {
 			events: {
 				emit() {},
 				on() {
@@ -235,7 +235,7 @@ afterEach(() => {
 
 describe("workflow keyed resume recovery hint", () => {
 	it("names a directly resumable child when the parent receipt is missing", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflow-resume-hint-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-workflow-resume-hint-"));
 		cleanupRoots.push(root);
 		const { parentRunId, childRunId } = makeIds("positive");
 		writeRetainedChild({ root, childRunId, sessionId: "session-1644" });
@@ -270,7 +270,7 @@ describe("workflow keyed resume recovery hint", () => {
 	});
 
 	it("rejects explicit baseRef when resuming a retained managed-worktree child", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-managed-worktree-resume-base-ref-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-managed-worktree-resume-base-ref-"));
 		cleanupRoots.push(root);
 		const { childRunId } = makeIds("managed-base-ref");
 		writeRetainedChild({ root, childRunId, sessionId: "session-1644", mode: "workflow" });

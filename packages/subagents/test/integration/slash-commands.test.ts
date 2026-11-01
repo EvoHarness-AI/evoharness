@@ -38,7 +38,7 @@ type RegisteredSlashCommand = {
 
 interface RegisterSlashCommandsModule {
 	registerSlashCommands?: (
-		pi: {
+		evoharness: {
 			events: EventBus;
 			registerCommand(name: string, spec: RegisteredSlashCommand): void;
 			registerShortcut(key: string, spec: { handler(ctx: unknown): Promise<void> }): void;
@@ -132,7 +132,7 @@ function createState(cwd: string) {
 }
 
 async function withIsolatedHome<T>(fn: () => Promise<T>): Promise<T> {
-	const home = fs.mkdtempSync(path.join(os.tmpdir(), "pi-slash-home-"));
+	const home = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-slash-home-"));
 	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	const previousHome = process.env.HOME;
 	const previousUserProfile = process.env.USERPROFILE;
@@ -227,7 +227,7 @@ function createWatchdogHarness(review?: WatchdogReviewFunction) {
 	const commands = new Map<string, RegisteredSlashCommand>();
 	const sent: unknown[] = [];
 	const entries: Array<{ customType: string; data: unknown }> = [];
-	const pi = {
+	const evoharness = {
 		events: createEventBus(),
 		on() {},
 		registerCommand(name: string, spec: RegisteredSlashCommand) {
@@ -246,7 +246,7 @@ function createWatchdogHarness(review?: WatchdogReviewFunction) {
 			sent.push(message);
 		},
 	};
-	const runtime = registerMainWatchdog!(pi as never, review ? { review } : undefined);
+	const runtime = registerMainWatchdog!(evoharness as never, review ? { review } : undefined);
 	return { commands, runtime, sent, entries };
 }
 
@@ -254,7 +254,7 @@ async function captureSlashCommandParams(
 	commandName: string,
 	args: string,
 	cwd: string,
-	setup?: (pi: RuntimeSlashPi) => void,
+	setup?: (evoharness: RuntimeSlashPi) => void,
 	ctxOverrides: Parameters<typeof createCommandContext>[0] = {},
 ): Promise<{ params: unknown; notifications: string[] }> {
 	return withIsolatedHome(async () => {
@@ -276,7 +276,7 @@ async function captureSlashCommandParams(
 			});
 		});
 
-		const pi = {
+		const evoharness = {
 			events,
 			on() {
 				return () => {};
@@ -290,8 +290,8 @@ async function captureSlashCommandParams(
 		};
 
 		try {
-			setup?.(pi);
-			registerSlashCommands!(pi, createState(cwd));
+			setup?.(evoharness);
+			registerSlashCommands!(evoharness, createState(cwd));
 			await commands.get(commandName)!.handler(
 				args,
 				createCommandContext({
@@ -304,7 +304,7 @@ async function captureSlashCommandParams(
 			);
 			return { params: requestedParams, notifications };
 		} finally {
-			clearRuntimeAgentsForPi(pi as never);
+			clearRuntimeAgentsForPi(evoharness as never);
 		}
 	});
 }
@@ -315,7 +315,7 @@ describe(
 	() => {
 		it("shows default-off status with runtime state, sources, and review seam", async () => {
 			await withIsolatedHome(async () => {
-				await withTempProject("pi-watchdog-status-", async (root) => {
+				await withTempProject("subagents-watchdog-status-", async (root) => {
 					const { commands, sent } = createWatchdogHarness();
 					await commands.get("subagents-watchdog")!.handler("", createCommandContext({ cwd: root }));
 
@@ -332,7 +332,7 @@ describe(
 
 		it("recommends and saves a strong complementary watchdog model", async () => {
 			await withIsolatedHome(async () => {
-				await withTempProject("pi-watchdog-model-", async (root) => {
+				await withTempProject("subagents-watchdog-model-", async (root) => {
 					const gpt = { provider: "openai-codex", id: "gpt-5.5", reasoning: true };
 					const opus = { provider: "anthropic", id: "claude-opus-4-8", reasoning: true };
 					const models = [gpt, opus];
@@ -365,7 +365,7 @@ describe(
 
 		it("keeps a configured project watchdog in recommendations and explicit user-scope saves", async () => {
 			await withIsolatedHome(async () => {
-				await withTempProject("pi-watchdog-configured-", async (root) => {
+				await withTempProject("subagents-watchdog-configured-", async (root) => {
 					const configured = { provider: "github-copilot", id: "gpt-6-astra", reasoning: true };
 					const gpt = { provider: "openai-codex", id: "gpt-5.5", reasoning: true };
 					const models = [configured, gpt];
@@ -407,7 +407,7 @@ describe(
 
 		it("supports session-scoped recommended watchdog models without writing settings", async () => {
 			await withIsolatedHome(async () => {
-				await withTempProject("pi-watchdog-session-model-", async (root) => {
+				await withTempProject("subagents-watchdog-session-model-", async (root) => {
 					const opus = { provider: "anthropic", id: "claude-opus-4-8", reasoning: true };
 					const gpt = { provider: "openai-codex", id: "gpt-5.5", reasoning: true };
 					const models = [opus, gpt];
@@ -440,7 +440,7 @@ describe(
 
 		it("shows explicit watchdog model thinking accurately when no thinking is configured", async () => {
 			await withIsolatedHome(async () => {
-				await withTempProject("pi-watchdog-status-model-", async (root) => {
+				await withTempProject("subagents-watchdog-status-model-", async (root) => {
 					const settingsPath = path.join(process.env.HOME!, ".evoharness", "agent", "settings.json");
 					fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 					fs.writeFileSync(
@@ -476,7 +476,7 @@ describe(
 
 		it("writes only user watchdog enabled settings and preserves existing settings", async () => {
 			await withIsolatedHome(async () => {
-				await withTempProject("pi-watchdog-toggle-", async (root) => {
+				await withTempProject("subagents-watchdog-toggle-", async (root) => {
 					const settingsPath = path.join(process.env.HOME!, ".evoharness", "agent", "settings.json");
 					const projectSettingsPath = path.join(root, ".evoharness", "settings.json");
 					fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
@@ -524,7 +524,7 @@ describe(
 
 		it("uses session on/off overrides without writing settings files", async () => {
 			await withIsolatedHome(async () => {
-				await withTempProject("pi-watchdog-session-", async (root) => {
+				await withTempProject("subagents-watchdog-session-", async (root) => {
 					const settingsPath = path.join(process.env.HOME!, ".evoharness", "agent", "settings.json");
 					const projectSettingsPath = path.join(root, ".evoharness", "settings.json");
 					const { commands, sent } = createWatchdogHarness();
@@ -575,7 +575,7 @@ describe(
 
 		it("sends accepted review warnings as visible custom watchdog messages", async () => {
 			await withIsolatedHome(async () => {
-				await withTempProject("pi-watchdog-review-warning-", async (root) => {
+				await withTempProject("subagents-watchdog-review-warning-", async (root) => {
 					const review: WatchdogReviewFunction = (request) => {
 						assert.equal(
 							request.emitWarning({
@@ -639,7 +639,7 @@ describe(
 		});
 
 		it("/subagent-cost recovers async workflow usage from receipts and metadata", async () => {
-			await withTempProject("pi-subagent-cost-async-", async (root) => {
+			await withTempProject("subagents-subagent-cost-async-", async (root) => {
 				const workflowRunId = `workflow-cost-${process.pid}-${Date.now()}`;
 				const earlierChildRunId = `child-cost-earlier-${process.pid}-${Date.now()}`;
 				const childRunId = `child-cost-${process.pid}-${Date.now()}`;
@@ -712,7 +712,7 @@ describe(
 
 				const sent: unknown[] = [];
 				const commands = new Map<string, RegisteredSlashCommand>();
-				const pi = {
+				const evoharness = {
 					events: createEventBus(),
 					registerCommand(name: string, spec: RegisteredSlashCommand) {
 						commands.set(name, spec);
@@ -744,7 +744,7 @@ describe(
 					},
 				];
 				try {
-					registerSlashCommands!(pi as never, createState(root));
+					registerSlashCommands!(evoharness as never, createState(root));
 					await commands.get("subagent-cost")!.handler(
 						"",
 						createCommandContext({
@@ -771,7 +771,7 @@ describe(
 		});
 
 		it("/subagent-cost recovers async single and chain usage from status steps and metadata", async () => {
-			await withTempProject("pi-subagent-cost-async-single-", async (root) => {
+			await withTempProject("subagents-subagent-cost-async-single-", async (root) => {
 				const singleRunId = `single-cost-${process.pid}-${Date.now()}`;
 				const chainRunId = `chain-cost-${process.pid}-${Date.now()}`;
 				const sessionFile = path.join(root, "sessions", "parent.jsonl");
@@ -838,7 +838,7 @@ describe(
 
 				const sent: unknown[] = [];
 				const commands = new Map<string, RegisteredSlashCommand>();
-				const pi = {
+				const evoharness = {
 					events: createEventBus(),
 					registerCommand(name: string, spec: RegisteredSlashCommand) {
 						commands.set(name, spec);
@@ -903,7 +903,7 @@ describe(
 					},
 				];
 				try {
-					registerSlashCommands!(pi as never, createState(root));
+					registerSlashCommands!(evoharness as never, createState(root));
 					await commands.get("subagent-cost")!.handler(
 						"",
 						createCommandContext({
@@ -1029,7 +1029,7 @@ describe(
 		});
 
 		it("/subagents-stop keeps the selector within its allocated width", async () => {
-			await withTempProject("pi-stop-selector-width-", async (root) => {
+			await withTempProject("subagents-stop-selector-width-", async (root) => {
 				const id = "scheduled-width-check";
 				const nextRunAt = "2099-01-01T00:00:00.000Z";
 				const scheduleDir = path.join(scheduledRunStorePath(root), id);
@@ -1053,7 +1053,7 @@ describe(
 				);
 
 				const commands = new Map<string, RegisteredSlashCommand>();
-				const pi = {
+				const evoharness = {
 					events: createEventBus(),
 					registerCommand(name: string, spec: RegisteredSlashCommand) {
 						commands.set(name, spec);
@@ -1062,7 +1062,7 @@ describe(
 					sendMessage() {},
 				};
 				const rendered = new Map<number, string[]>();
-				registerSlashCommands!(pi as never, createState(root));
+				registerSlashCommands!(evoharness as never, createState(root));
 				await commands.get("subagents-stop")!.handler(
 					"",
 					createCommandContext({
@@ -1114,7 +1114,7 @@ describe(
 					isError: false,
 				});
 			});
-			const pi = {
+			const evoharness = {
 				events,
 				registerCommand(name: string, spec: { handler(args: string, ctx: unknown): Promise<void> }) {
 					commands.set(name, spec);
@@ -1123,7 +1123,7 @@ describe(
 				sendMessage() {},
 			};
 
-			registerSlashCommands!(pi, createState(process.cwd()));
+			registerSlashCommands!(evoharness, createState(process.cwd()));
 			await commands.get("subagents-stop")!.handler("run-123 step-0-agent-0", createCommandContext());
 			await new Promise<void>((resolve) => setImmediate(resolve));
 
@@ -1238,7 +1238,7 @@ describe(
 		it("/subagents-stop rejects extra arguments with usage text", async () => {
 			const sent: unknown[] = [];
 			const commands = new Map<string, { handler(args: string, ctx: unknown): Promise<void> }>();
-			const pi = {
+			const evoharness = {
 				events: createEventBus(),
 				registerCommand(name: string, spec: { handler(args: string, ctx: unknown): Promise<void> }) {
 					commands.set(name, spec);
@@ -1249,7 +1249,7 @@ describe(
 				},
 			};
 
-			registerSlashCommands!(pi, createState(process.cwd()));
+			registerSlashCommands!(evoharness, createState(process.cwd()));
 			await commands.get("subagents-stop")!.handler("run-123 child-0 unexpected", createCommandContext());
 
 			assert.equal(sent.length, 1);
@@ -1276,7 +1276,7 @@ describe(
 					isError: false,
 				});
 			});
-			const pi = {
+			const evoharness = {
 				events,
 				registerCommand(name: string, spec: { handler(args: string, ctx: unknown): Promise<void> }) {
 					commands.set(name, spec);
@@ -1285,7 +1285,7 @@ describe(
 				sendMessage() {},
 			};
 
-			registerSlashCommands!(pi, createState(process.cwd()));
+			registerSlashCommands!(evoharness, createState(process.cwd()));
 			await commands.get("subagents-steer")!.handler("run-123 wrap up and report", createCommandContext());
 			await new Promise<void>((resolve) => setImmediate(resolve));
 
@@ -1364,7 +1364,7 @@ describe(
 					isError: false,
 				});
 			});
-			const pi = {
+			const evoharness = {
 				events,
 				registerCommand(name: string, spec: { handler(args: string, ctx: unknown): Promise<void> }) {
 					commands.set(name, spec);
@@ -1373,7 +1373,7 @@ describe(
 				sendMessage() {},
 			};
 
-			registerSlashCommands!(pi, createState(process.cwd()));
+			registerSlashCommands!(evoharness, createState(process.cwd()));
 			await commands.get("subagents-steer")!.handler(`${runId} --child detaches --verbose`, createCommandContext());
 			await new Promise<void>((resolve) => setImmediate(resolve));
 
@@ -1405,7 +1405,7 @@ describe(
 			events.on(SLASH_SUBAGENT_REQUEST_EVENT, () => {
 				requested = true;
 			});
-			const pi = {
+			const evoharness = {
 				events,
 				registerCommand(name: string, spec: { handler(args: string, ctx: unknown): Promise<void> }) {
 					commands.set(name, spec);
@@ -1416,7 +1416,7 @@ describe(
 				},
 			};
 
-			registerSlashCommands!(pi, createState(process.cwd()));
+			registerSlashCommands!(evoharness, createState(process.cwd()));
 			await commands.get("subagents-steer")!.handler(`${runId} --child nope hurry up`, createCommandContext());
 
 			assert.equal(requested, false);
@@ -1432,7 +1432,7 @@ describe(
 			events.on(SLASH_SUBAGENT_REQUEST_EVENT, () => {
 				requested = true;
 			});
-			const pi = {
+			const evoharness = {
 				events,
 				registerCommand(name: string, spec: { handler(args: string, ctx: unknown): Promise<void> }) {
 					commands.set(name, spec);
@@ -1443,7 +1443,7 @@ describe(
 				},
 			};
 
-			registerSlashCommands!(pi, createState(process.cwd()));
+			registerSlashCommands!(evoharness, createState(process.cwd()));
 			await commands.get("subagents-steer")!.handler("run-123", createCommandContext());
 
 			assert.equal(requested, false);
@@ -1468,7 +1468,7 @@ describe(
 					isError: false,
 				});
 			});
-			const pi = {
+			const evoharness = {
 				events,
 				registerCommand(name: string, spec: { handler(args: string, ctx: unknown): Promise<void> }) {
 					commands.set(name, spec);
@@ -1477,7 +1477,7 @@ describe(
 				sendMessage() {},
 			};
 
-			registerSlashCommands!(pi, createState(process.cwd()));
+			registerSlashCommands!(evoharness, createState(process.cwd()));
 			await commands.get("subagents-steer")!.handler("run-123 --verbose", createCommandContext());
 			await new Promise<void>((resolve) => setImmediate(resolve));
 
@@ -1528,7 +1528,7 @@ describe(
 				});
 			});
 
-			const pi = {
+			const evoharness = {
 				events,
 				registerCommand(name: string, spec: { handler(args: string, ctx: unknown): Promise<void> }) {
 					commands.set(name, spec);
@@ -1540,7 +1540,7 @@ describe(
 			};
 
 			const ctx = createCommandContext({ sessionManager });
-			registerSlashCommands!(pi, createState(process.cwd()));
+			registerSlashCommands!(evoharness, createState(process.cwd()));
 			await commands.get("run")!.handler("scout", ctx);
 			await new Promise<void>((resolve) => setImmediate(resolve));
 
@@ -1577,7 +1577,7 @@ describe(
 					});
 			});
 
-			const pi = {
+			const evoharness = {
 				events,
 				registerCommand(name: string, spec: { handler(args: string, ctx: unknown): Promise<void> }) {
 					commands.set(name, spec);
@@ -1587,7 +1587,7 @@ describe(
 					sent.push(message);
 				},
 			};
-			const disposer = registerSlashCommands!(pi, createState(process.cwd()));
+			const disposer = registerSlashCommands!(evoharness, createState(process.cwd()));
 			let stale = false;
 			const ctx = createCommandContext({ hasUI: true });
 			Object.defineProperty(ctx, "hasUI", {
@@ -1610,7 +1610,7 @@ describe(
 		it("/run handles a start timeout without an uninitialized finish callback", async () => {
 			const sent: unknown[] = [];
 			const commands = new Map<string, RegisteredSlashCommand>();
-			const pi = {
+			const evoharness = {
 				events: createEventBus(),
 				registerCommand(name: string, spec: RegisteredSlashCommand) {
 					commands.set(name, spec);
@@ -1620,7 +1620,7 @@ describe(
 					sent.push(message);
 				},
 			};
-			const disposer = registerSlashCommands!(pi, createState(process.cwd()));
+			const disposer = registerSlashCommands!(evoharness, createState(process.cwd()));
 			const realSetTimeout = globalThis.setTimeout;
 			let timeoutCalls = 0;
 			const immediateTimeout = (...args: Parameters<typeof setTimeout>): ReturnType<typeof setTimeout> => {
@@ -1647,7 +1647,7 @@ describe(
 		});
 
 		it("/run reports discovery evidence for a missing agent", async () => {
-			await withTempProject("pi-slash-missing-agent-", async (root) => {
+			await withTempProject("subagents-slash-missing-agent-", async (root) => {
 				fs.writeFileSync(
 					path.join(root, ".evoharness", "agents", "worker.md"),
 					"---\nname: worker\ndescription: Worker\n---\n",
@@ -1664,7 +1664,7 @@ describe(
 		});
 
 		it("/run reports malformed agent configuration", async () => {
-			await withTempProject("pi-slash-invalid-agent-", async (root) => {
+			await withTempProject("subagents-slash-invalid-agent-", async (root) => {
 				fs.writeFileSync(
 					path.join(root, ".evoharness", "agents", "broken.md"),
 					"---\nname: broken\ndescription: Broken\nrunner:\n  type: unknown\n---\nBroken agent.\n",
@@ -1680,7 +1680,7 @@ describe(
 		});
 
 		it("/run blocks a malformed project agent from falling back to builtin", async () => {
-			await withTempProject("pi-slash-invalid-agent-shadow-", async (root) => {
+			await withTempProject("subagents-slash-invalid-agent-shadow-", async (root) => {
 				fs.writeFileSync(
 					path.join(root, ".evoharness", "agents", "reviewer.md"),
 					"---\nname: reviewer\ndescription: Broken reviewer\nrunner:\n  type: unknown\n---\nBroken agent.\n",
@@ -1696,7 +1696,7 @@ describe(
 		});
 
 		it("/run reports malformed packaged agent configuration by runtime name", async () => {
-			await withTempProject("pi-slash-invalid-packaged-agent-", async (root) => {
+			await withTempProject("subagents-slash-invalid-packaged-agent-", async (root) => {
 				fs.writeFileSync(
 					path.join(root, ".evoharness", "agents", "code-analysis.zeta-worker.md"),
 					"---\nname: zeta-worker\npackage: code-analysis\ndescription: Broken packaged worker\nrunner:\n  type: unknown\n---\nBroken agent.\n",
@@ -1712,10 +1712,10 @@ describe(
 		});
 
 		it("/run accepts runtime-registered agents", async () => {
-			await withTempProject("pi-slash-runtime-agent-", async (root) => {
-				const run = await captureSlashCommandParams("run", "runtime-helper Inspect", root, (pi) => {
+			await withTempProject("subagents-slash-runtime-agent-", async (root) => {
+				const run = await captureSlashCommandParams("run", "runtime-helper Inspect", root, (evoharness) => {
 					registerAgent({
-						pi: pi as never,
+						evoharness: evoharness as never,
 						name: "runtime-helper",
 						definition: { description: "Runtime helper", systemPrompt: "Help at runtime." },
 					});
@@ -1730,19 +1730,24 @@ describe(
 		});
 
 		it("/subagents-models accepts discovered and runtime agent names", async () => {
-			await withTempProject("pi-slash-models-agent-", async (root) => {
+			await withTempProject("subagents-slash-models-agent-", async (root) => {
 				fs.writeFileSync(
 					path.join(root, ".evoharness", "agents", "project-helper.md"),
 					"---\nname: project-helper\ndescription: Project helper\n---\nProject helper.\n",
 					"utf-8",
 				);
-				const runtimeRun = await captureSlashCommandParams("subagents-models", "runtime-helper", root, (pi) => {
-					registerAgent({
-						pi: pi as never,
-						name: "runtime-helper",
-						definition: { description: "Runtime helper", systemPrompt: "Help at runtime." },
-					});
-				});
+				const runtimeRun = await captureSlashCommandParams(
+					"subagents-models",
+					"runtime-helper",
+					root,
+					(evoharness) => {
+						registerAgent({
+							evoharness: evoharness as never,
+							name: "runtime-helper",
+							definition: { description: "Runtime helper", systemPrompt: "Help at runtime." },
+						});
+					},
+				);
 				assert.deepEqual(runtimeRun.params, { action: "models", agent: "runtime-helper" });
 
 				const projectRun = await captureSlashCommandParams("subagents-models", "project-helper", root);
@@ -1750,7 +1755,7 @@ describe(
 
 				await withIsolatedHome(async () => {
 					const commands = new Map<string, RegisteredSlashCommand>();
-					const pi = {
+					const evoharness = {
 						events: createEventBus(),
 						on() {
 							return () => {};
@@ -1763,12 +1768,12 @@ describe(
 						sendMessage() {},
 					};
 					const registration = registerAgent({
-						pi: pi as never,
+						evoharness: evoharness as never,
 						name: "runtime-helper",
 						definition: { description: "Runtime helper", systemPrompt: "Help at runtime." },
 					});
 					try {
-						const disposer = registerSlashCommands!(pi, createState(root));
+						const disposer = registerSlashCommands!(evoharness, createState(root));
 						try {
 							const completions = commands.get("subagents-models")!.getArgumentCompletions!(
 								"runtime-",
@@ -1788,7 +1793,7 @@ describe(
 		});
 
 		it("/run preserves existing relative reads and omits missing reads", async () => {
-			await withTempProject("pi-slash-reads-", async (root) => {
+			await withTempProject("subagents-slash-reads-", async (root) => {
 				fs.writeFileSync(
 					path.join(root, ".evoharness", "agents", "scout.md"),
 					`---
@@ -1829,7 +1834,7 @@ Inspect
 				});
 			});
 
-			const pi = {
+			const evoharness = {
 				events,
 				registerCommand(name: string, spec: { handler(args: string, ctx: unknown): Promise<void> }) {
 					commands.set(name, spec);
@@ -1841,7 +1846,7 @@ Inspect
 				},
 			};
 
-			registerSlashCommands!(pi, createState(process.cwd()));
+			registerSlashCommands!(evoharness, createState(process.cwd()));
 			await commands.get("run")!.handler(
 				"scout inspect this",
 				createCommandContext({
@@ -1886,7 +1891,7 @@ Inspect
 					isError: false,
 				});
 			});
-			const pi = {
+			const evoharness = {
 				events,
 				registerCommand(name: string, spec: { handler(args: string, ctx: unknown): Promise<void> }) {
 					commands.set(name, spec);
@@ -1895,8 +1900,8 @@ Inspect
 				sendMessage() {},
 			};
 
-			registerSlashCommands!(pi, createState(process.cwd()));
-			// The test process never loads Pi's app keybindings, like RPC mode.
+			registerSlashCommands!(evoharness, createState(process.cwd()));
+			// The test process never loads evoharness's app keybindings, like RPC mode.
 			await commands.get("run")!.handler(
 				"scout inspect this",
 				createCommandContext({
@@ -1924,7 +1929,7 @@ Inspect
 				});
 			});
 
-			const pi = {
+			const evoharness = {
 				events,
 				registerCommand(name: string, spec: { handler(args: string, ctx: unknown): Promise<void> }) {
 					commands.set(name, spec);
@@ -1935,7 +1940,7 @@ Inspect
 				},
 			};
 
-			registerSlashCommands!(pi, createState(process.cwd()));
+			registerSlashCommands!(evoharness, createState(process.cwd()));
 			await commands.get("run")!.handler(
 				"scout inspect this",
 				createCommandContext({
@@ -1966,7 +1971,7 @@ Inspect
 				});
 			});
 
-			const pi = {
+			const evoharness = {
 				events,
 				registerCommand(name: string, spec: { handler(args: string, ctx: unknown): Promise<void> }) {
 					commands.set(name, spec);
@@ -1978,7 +1983,7 @@ Inspect
 				},
 			};
 
-			registerSlashCommands!(pi, createState(process.cwd()));
+			registerSlashCommands!(evoharness, createState(process.cwd()));
 			await commands.get("run")!.handler(
 				"scout inspect this",
 				createCommandContext({
@@ -2006,7 +2011,7 @@ Inspect
 		});
 
 		it("/run accepts dotted packaged runtime agent names", async () => {
-			await withTempProject("pi-packaged-agent-slash-", async (root) => {
+			await withTempProject("subagents-packaged-agent-slash-", async (root) => {
 				fs.writeFileSync(
 					path.join(root, ".evoharness", "agents", "code-analysis.scout.md"),
 					`---
@@ -2050,14 +2055,14 @@ Inspect
 		});
 
 		it("/run reports malformed packaged local-name fallback configuration", async () => {
-			await withTempProject("pi-packaged-agent-local-slash-", async (root) => {
+			await withTempProject("subagents-packaged-agent-local-slash-", async (root) => {
 				const highPackage = path.join(root, "high-package");
 				const lowPackage = path.join(root, "low-package");
 				for (const packageRoot of [highPackage, lowPackage]) {
 					fs.mkdirSync(path.join(packageRoot, "agents"), { recursive: true });
 					fs.writeFileSync(
 						path.join(packageRoot, "package.json"),
-						JSON.stringify({ "pi-subagents": { agents: ["agents"] } }),
+						JSON.stringify({ subagents: { agents: ["agents"] } }),
 					);
 				}
 				fs.writeFileSync(
@@ -2123,7 +2128,7 @@ describe("subagents-inspect-rpc command", { skip: !available ? "slash-commands.t
 		const asyncDir = path.join(ASYNC_DIR, runId);
 		fs.mkdirSync(asyncDir, { recursive: true });
 		fs.mkdirSync(DIRS.results, { recursive: true });
-		const sessionRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-itest-session-"));
+		const sessionRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspect-itest-session-"));
 		const sessionFile = path.join(sessionRoot, "session.jsonl");
 		fs.writeFileSync(
 			sessionFile,
@@ -2180,7 +2185,7 @@ describe("subagents-inspect-rpc command", { skip: !available ? "slash-commands.t
 
 	function registerWithState(sessionId: string | null, trustedSessionRoots: string[] = []) {
 		const commands = new Map<string, RegisteredSlashCommand>();
-		const pi = {
+		const evoharness = {
 			events: createEventBus(),
 			registerCommand(name: string, spec: RegisteredSlashCommand) {
 				commands.set(name, spec);
@@ -2189,7 +2194,7 @@ describe("subagents-inspect-rpc command", { skip: !available ? "slash-commands.t
 			sendMessage() {},
 		};
 		const state = { ...createState(process.cwd()), currentSessionId: sessionId, trustedSessionRoots };
-		registerSlashCommands!(pi as never, state as never);
+		registerSlashCommands!(evoharness as never, state as never);
 		return commands;
 	}
 
@@ -2207,9 +2212,9 @@ describe("subagents-inspect-rpc command", { skip: !available ? "slash-commands.t
 		assert.equal(clear!.value, undefined);
 		const lines = set!.value as string[];
 		assert.equal(lines.length, 1);
-		assert.ok(lines[0]!.startsWith("PI_SUBAGENT_INSPECT_JSON:"));
-		const reply = JSON.parse(lines[0]!.slice("PI_SUBAGENT_INSPECT_JSON:".length));
-		assert.equal(reply.kind, "pi-subagents.inspect-reply");
+		assert.ok(lines[0]!.startsWith("EVOHARNESS_SUBAGENT_INSPECT_JSON:"));
+		const reply = JSON.parse(lines[0]!.slice("EVOHARNESS_SUBAGENT_INSPECT_JSON:".length));
+		assert.equal(reply.kind, "subagents.inspect-reply");
 		assert.equal(reply.version, 1);
 		assert.equal(reply.requestId, "req-itest");
 		assert.equal(reply.status, "complete");
@@ -2225,7 +2230,7 @@ describe("subagents-inspect-rpc command", { skip: !available ? "slash-commands.t
 		const { ctx, widgetCalls } = makeInspectCtx("rpc");
 		await commands.get("subagents-inspect-rpc")!.handler("req-foreign run-itest-foreign", ctx);
 		const lines = widgetCalls[0]!.value as string[];
-		const reply = JSON.parse(lines[0]!.slice("PI_SUBAGENT_INSPECT_JSON:".length));
+		const reply = JSON.parse(lines[0]!.slice("EVOHARNESS_SUBAGENT_INSPECT_JSON:".length));
 		assert.equal(reply.error?.code, "foreign_session");
 		assert.equal(reply.messages, undefined);
 	});
@@ -2235,7 +2240,7 @@ describe("subagents-inspect-rpc command", { skip: !available ? "slash-commands.t
 		const { ctx, widgetCalls } = makeInspectCtx("rpc");
 		await commands.get("subagents-inspect-rpc")!.handler("req-bad", ctx);
 		const lines = widgetCalls[0]!.value as string[];
-		const reply = JSON.parse(lines[0]!.slice("PI_SUBAGENT_INSPECT_JSON:".length));
+		const reply = JSON.parse(lines[0]!.slice("EVOHARNESS_SUBAGENT_INSPECT_JSON:".length));
 		assert.equal(reply.error?.code, "invalid_request");
 		assert.equal(reply.requestId, "req-bad");
 	});

@@ -1332,7 +1332,7 @@ describe("reconcileDetachedWorkflowChildCompletion", () => {
 		assert.doesNotMatch(fs.readFileSync(path.join(asyncDir, "events.jsonl"), "utf-8"), /receipt_write_failed/);
 	});
 
-	it("keeps mixed Pi and external workflow receipt entries on their computed resumability", () => {
+	it("keeps mixed evoharness and external workflow receipt entries on their computed resumability", () => {
 		const workflowRunId = "workflow-mixed-receipt";
 		const childRunId = "child-mixed";
 		const asyncDir = path.join(DIRS.async, workflowRunId);
@@ -1344,7 +1344,7 @@ describe("reconcileDetachedWorkflowChildCompletion", () => {
 		fs.mkdirSync(DIRS.results, { recursive: true });
 		const status = { ...pausedWorkflow(childRunId), runId: workflowRunId, sessionId: "session-1" };
 		fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify(status), "utf-8");
-		const sessionFile = path.join(childDir, "pi-session.jsonl");
+		const sessionFile = path.join(childDir, "subagents-session.jsonl");
 		fs.writeFileSync(sessionFile, "", "utf-8");
 		fs.writeFileSync(
 			path.join(childDir, "status.json"),

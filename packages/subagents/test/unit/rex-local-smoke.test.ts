@@ -8,14 +8,14 @@ import { fileURLToPath } from "node:url";
 import type { AssistantMessage } from "@evoharness/ai";
 import type { ChildSessionLaunch } from "../../src/runs/shared/child-session.ts";
 import { resolveMachinePlacement } from "../../src/runs/shared/herdr-machine.ts";
-import { createPlacementAwareChildSessionFactory, HerdrPiSession } from "../../src/runs/shared/herdr-placed-run.ts";
+import { createPlacementAwareChildSessionFactory, HerdrHostSession } from "../../src/runs/shared/herdr-placed-run.ts";
 import { REX_BUNDLE_BIN, resolveRexBinary, rexCommandEnv } from "../../src/runs/shared/rex-machine.ts";
 import { closeOwnedRexPane, connectRex } from "../../src/runs/shared/rex-pane-host.ts";
 import type { RexMachineReference } from "../../src/shared/types.ts";
 
-// Live check against a private Rex server and a real Pi: PI_SUBAGENTS_REX_SMOKE=1 npm run test:unit -- (or run this file alone).
+// Live check against a private Rex server and a real evoharness: EVOHARNESS_SUBAGENTS_REX_SMOKE=1 npm run test:unit -- (or run this file alone).
 // It never talks to the operator's Rex server: REX_SESSION/REX_BLOCK/REX_SERVER are dropped and every call names the private socket.
-const enabled = process.env.PI_SUBAGENTS_REX_SMOKE === "1";
+const enabled = process.env.EVOHARNESS_SUBAGENTS_REX_SMOKE === "1";
 const realHome = os.userInfo().homedir;
 // The test loader isolates HOME, so the Rex server bundle is looked up under the real home directory here.
 const bundleRex = path.join(realHome, REX_BUNDLE_BIN);
@@ -27,26 +27,26 @@ function findRex(): string | undefined {
 	}
 }
 function findPi(): string | undefined {
-	const found = spawnSync("/bin/sh", ["-c", "command -v pi"], { encoding: "utf8" });
+	const found = spawnSync("/bin/sh", ["-c", "command -v evoharness"], { encoding: "utf8" });
 	return found.status === 0 && found.stdout.trim() ? found.stdout.trim() : undefined;
 }
 const rexBin = enabled ? findRex() : undefined,
 	piBin = enabled ? findPi() : undefined;
 const skip = !enabled
-	? "set PI_SUBAGENTS_REX_SMOKE=1"
+	? "set EVOHARNESS_SUBAGENTS_REX_SMOKE=1"
 	: process.platform === "win32"
 		? "Rex placement is POSIX-only"
 		: !rexBin
 			? "Rex is not installed"
 			: !piBin
-				? "pi is not on PATH"
+				? "evoharness is not on PATH"
 				: false;
 const worktree = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 const log = (line: string) => process.stdout.write(`[rex-smoke] ${line}\n`);
 
-describe("Rex local placement against a private Rex server and a real Pi", { skip }, () => {
+describe("Rex local placement against a private Rex server and a real evoharness", { skip }, () => {
 	it(
-		"launches a background Pi tab, completes one bridge prompt round trip, and proves the block gone on dispose",
+		"launches a background evoharness tab, completes one bridge prompt round trip, and proves the block gone on dispose",
 		{ timeout: 180_000 },
 		async () => {
 			const scratch = fs.mkdtempSync("/tmp/rxs."),
@@ -76,7 +76,7 @@ describe("Rex local placement against a private Rex server and a real Pi", { ski
 				],
 				{ env: serverEnv, stdio: "ignore", detached: true },
 			);
-			const previousPiBinary = process.env.PI_SUBAGENT_PI_BINARY;
+			const previousPiBinary = process.env.EVOHARNESS_SUBAGENT_HOST_BINARY;
 			let serverStopped = false;
 			const stopServer = async () => {
 				if (serverStopped) return;
@@ -111,14 +111,14 @@ describe("Rex local placement against a private Rex server and a real Pi", { ski
 					path.join(project, ".evoharness", "agents", "rex-smoke.md"),
 					"---\nname: rex-smoke\ndescription: Rex placement smoke agent\ntools: read\n---\nYou answer in one short line.\n",
 				);
-				const wrapper = path.join(scratch, "pi"),
+				const wrapper = path.join(scratch, "evoharness"),
 					sessions = path.join(scratch, "sessions");
 				fs.writeFileSync(
 					wrapper,
 					`#!/bin/sh\nexec ${JSON.stringify(piBin)} -ne -e ${JSON.stringify(path.join(worktree, "index.ts"))} --session-dir ${JSON.stringify(sessions)} "$@"\n`,
 					{ mode: 0o755 },
 				);
-				process.env.PI_SUBAGENT_PI_BINARY = wrapper;
+				process.env.EVOHARNESS_SUBAGENT_HOST_BINARY = wrapper;
 
 				// The parent's view: REX_SESSION/REX_SERVER name the private session, and resolution asks that server to confirm it.
 				const resolved = resolveMachinePlacement({
@@ -128,8 +128,8 @@ describe("Rex local placement against a private Rex server and a real Pi", { ski
 				}).machine;
 				const machine: RexMachineReference = { provider: "rex", id: "local", session, server, cwd: project };
 				assert.deepEqual(resolved, machine);
-				// Any model the operator's Pi is logged in to; override with PI_SUBAGENTS_REX_SMOKE_MODEL.
-				const model = process.env.PI_SUBAGENTS_REX_SMOKE_MODEL ?? "opencode-go/glm-5.3-flash";
+				// Any model the operator's evoharness is logged in to; override with EVOHARNESS_SUBAGENTS_REX_SMOKE_MODEL.
+				const model = process.env.EVOHARNESS_SUBAGENTS_REX_SMOKE_MODEL ?? "opencode-go/glm-5.3-flash";
 				const launch: ChildSessionLaunch = {
 					cwd: project,
 					machine,
@@ -164,7 +164,7 @@ describe("Rex local placement against a private Rex server and a real Pi", { ski
 				});
 				const started = Date.now();
 				const child = await factory.create(launch);
-				assert.ok(child instanceof HerdrPiSession);
+				assert.ok(child instanceof HerdrHostSession);
 				const identity = child.identity;
 				log(
 					`bridge ready+configured in ${Date.now() - started}ms: window ${identity.tabId}, block ${identity.paneId}, native session ${identity.nativeSessionId}, tools ${JSON.stringify(child.requestedTools)}, model ${child.model}`,
@@ -210,7 +210,7 @@ describe("Rex local placement against a private Rex server and a real Pi", { ski
 
 				// A finished (not aborted) child keeps its tab, like a Herdr pane; only the bridge runtime directory goes.
 				const finished = await factory.create({ ...launch, runtime: { ...launch.runtime, runId: "rexsmoke2" } });
-				assert.ok(finished instanceof HerdrPiSession);
+				assert.ok(finished instanceof HerdrHostSession);
 				const kept = finished.identity;
 				await finished.dispose();
 				const keptInspect = rex(["block", "inspect", "-s", session, kept.paneId]);
@@ -231,8 +231,8 @@ describe("Rex local placement against a private Rex server and a real Pi", { ski
 				);
 				log("after server stop: cleanup reports the server unreachable instead of gone");
 			} finally {
-				if (previousPiBinary === undefined) delete process.env.PI_SUBAGENT_PI_BINARY;
-				else process.env.PI_SUBAGENT_PI_BINARY = previousPiBinary;
+				if (previousPiBinary === undefined) delete process.env.EVOHARNESS_SUBAGENT_HOST_BINARY;
+				else process.env.EVOHARNESS_SUBAGENT_HOST_BINARY = previousPiBinary;
 				await stopServer();
 				fs.rmSync(scratch, { recursive: true, force: true });
 			}

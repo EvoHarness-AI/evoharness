@@ -126,9 +126,7 @@ describe("tmux inspector open", () => {
 		assert.equal(binding?.missionId, "m-1");
 		assert.equal(binding?.missionPath, "/tmp/m-1.json");
 		assert.ok(
-			commands.some((command) =>
-				command.includes("set-option -p -t %6 @pi-subagents-inspector pi-subagents:run-1:-"),
-			),
+			commands.some((command) => command.includes("set-option -p -t %6 @subagents-inspector subagents:run-1:-")),
 		);
 	});
 
@@ -156,7 +154,7 @@ describe("tmux inspector open", () => {
 		const client = fakeClient(
 			{
 				"-V": ["tmux 3.7c"],
-				"list-panes": ["%6|pi-subagents:run-1:-|69556"],
+				"list-panes": ["%6|subagents:run-1:-|69556"],
 			},
 			commands,
 		);
@@ -173,7 +171,7 @@ describe("tmux inspector open", () => {
 		const client = fakeClient(
 			{
 				"-V": ["tmux 3.7c"],
-				"list-panes": ["%6|pi-subagents:run-1:-|69556"],
+				"list-panes": ["%6|subagents:run-1:-|69556"],
 				"select-pane": [""],
 			},
 			commands,
@@ -281,9 +279,7 @@ describe("tmux inspector open", () => {
 		const response = await plugin.open(ctx(root, { TMUX: "1" }, 0), launch(), { focus: true });
 		assert.ok(!response.isError, String(response.content[0].text));
 		assert.ok(
-			commands.some((command) =>
-				command.includes("set-option -p -t %6 @pi-subagents-inspector pi-subagents:run-1:0"),
-			),
+			commands.some((command) => command.includes("set-option -p -t %6 @subagents-inspector subagents:run-1:0")),
 		);
 		assert.equal(readTmuxInspectorBinding(root, 0)?.childIndex, 0);
 	});
@@ -317,7 +313,7 @@ describe("tmux inspector status and close", () => {
 		const root = boundRoot();
 		const plugin = createTmuxInspectorPlugin({
 			platform: "darwin",
-			client: fakeClient({ "list-panes": ["%6|pi-subagents:run-1:-|69556"] }),
+			client: fakeClient({ "list-panes": ["%6|subagents:run-1:-|69556"] }),
 		});
 		const response = await plugin.status?.(ctx(root, { TMUX: "1" }));
 		const text = String(response?.content[0].text);
@@ -362,7 +358,7 @@ describe("tmux inspector status and close", () => {
 		const root = boundRoot();
 		const plugin = createTmuxInspectorPlugin({
 			platform: "darwin",
-			client: fakeClient({ "list-panes": ["%5||69556\n%6|pi-subagents:run-1:-|69556"] }),
+			client: fakeClient({ "list-panes": ["%5||69556\n%6|subagents:run-1:-|69556"] }),
 		});
 		const response = await plugin.status?.(ctx(root, { TMUX: "1" }));
 		assert.match(String(response?.content[0].text), /%6 is open/);
@@ -372,7 +368,7 @@ describe("tmux inspector status and close", () => {
 		const root = boundRoot({ serverPid: "111" });
 		const plugin = createTmuxInspectorPlugin({
 			platform: "darwin",
-			client: fakeClient({ "list-panes": ["%6|pi-subagents:run-1:-|69556"] }),
+			client: fakeClient({ "list-panes": ["%6|subagents:run-1:-|69556"] }),
 		});
 		const response = await plugin.status?.(ctx(root, { TMUX: "1" }));
 		assert.match(String(response?.content[0].text), /marker/);
@@ -385,7 +381,7 @@ describe("tmux inspector status and close", () => {
 			platform: "darwin",
 			client: fakeClient(
 				{
-					"list-panes": ["%6|pi-subagents:run-1:-|69556"],
+					"list-panes": ["%6|subagents:run-1:-|69556"],
 					"kill-pane": [""],
 				},
 				commands,
@@ -420,7 +416,7 @@ describe("tmux inspector status and close", () => {
 		const plugin = createTmuxInspectorPlugin({
 			platform: "darwin",
 			client: fakeClient({
-				"list-panes": ["%6|pi-subagents:run-1:-|69556"],
+				"list-panes": ["%6|subagents:run-1:-|69556"],
 				"kill-pane": ["!TMUX_ERROR|kill failed"],
 			}),
 		});

@@ -12,10 +12,10 @@ import { reconcileAsyncRun, reconcileNestedAsyncDescendants } from "./stale-run-
 
 /** On-demand inspection of current-session async children. Re-reads canonical artifacts after the same reconciliation as status; nothing is persisted or broadcast. */
 
-export const INSPECT_REPLY_KIND = "pi-subagents.inspect-reply";
+export const INSPECT_REPLY_KIND = "subagents.inspect-reply";
 export const INSPECT_REPLY_VERSION = 1;
 export const INSPECT_WIDGET_KEY = "subagent-inspect";
-export const INSPECT_WIDGET_PREFIX = "PI_SUBAGENT_INSPECT_JSON:";
+export const INSPECT_WIDGET_PREFIX = "EVOHARNESS_SUBAGENT_INSPECT_JSON:";
 
 export type InspectErrorCode =
 	| "invalid_request"
@@ -53,7 +53,7 @@ export interface InspectReply {
 	task?: string;
 	messages?: InspectReplyMessage[];
 	finalOutput?: string;
-	/** Provider and model of the inspected child's latest own assistant reply, as Pi recorded them. */
+	/** Provider and model of the inspected child's latest own assistant reply, as evoharness recorded them. */
 	resolvedModel?: { provider: string; model: string };
 	truncated?: { task: boolean; messages: number; finalOutput: boolean };
 	error?: { code: InspectErrorCode; message: string };

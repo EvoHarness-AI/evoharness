@@ -534,7 +534,7 @@ async function runSingleAttempt(
 		launch.session.parentProviderRegistry = options.parentProviderRegistry;
 	const { toolPlan, capabilityAudit, warnings, launchResolvedExtensions, capture } = launch;
 	if (!shared.launchWarnings.emitted && warnings.length > 0) {
-		for (const warning of warnings) console.warn(`[pi-subagents] ${warning}`);
+		for (const warning of warnings) console.warn(`[subagents] ${warning}`);
 		shared.launchWarnings.emitted = true;
 	}
 
@@ -668,7 +668,7 @@ async function runSingleAttempt(
 			agent: agent.name,
 			launchContractDigest,
 			context: options.context ?? "fresh",
-			runner: "pi",
+			runner: "evoharness",
 		});
 		if (permitError) {
 			result.exitCode = 1;
@@ -814,7 +814,7 @@ async function runSingleAttempt(
 			if (sessionSettled || finalDrainTimer || lifecycleFinished) return;
 			finalDrainTimer = setTimeout(() => {
 				if (lifecycleFinished || sessionSettled) return;
-				// Pi runs auto-compaction after the final agent_end and only then emits agent_settled.
+				// evoharness runs auto-compaction after the final agent_end and only then emits agent_settled.
 				if (capture.finalDrainHeld() || observeQueuedDrainHold() || compactionAfterFinalOpen) {
 					finalDrainTimer = undefined;
 					armFinalDrainTimer();
@@ -861,7 +861,7 @@ async function runSingleAttempt(
 		): void => {
 			if (action === "cancel-drain") {
 				// After a clean final stop, a non-retrying agent_end may be the child's last event
-				// (Pi may not emit agent_settled), so it re-arms the drain instead of cancelling it.
+				// (evoharness may not emit agent_settled), so it re-arms the drain instead of cancelling it.
 				terminalAgentEndReceived =
 					event?.type === "agent_end" && event.willRetry !== true && cleanTerminalAssistantStopReceived;
 				agentSettledReceived = false;
@@ -948,7 +948,7 @@ async function runSingleAttempt(
 
 		let activeLongRunningNotified = false;
 		type PendingToolResult = { tool: string; path?: string; mutates: boolean; startedAt?: number };
-		// Pi's parallel tool execution emits every tool_execution_start before the first result message,
+		// evoharness's parallel tool execution emits every tool_execution_start before the first result message,
 		// so results are matched to their call by toolCallId; the last-started slot covers events without one.
 		const pendingToolResultsByCallId = new Map<string, PendingToolResult>();
 		let pendingToolResult: PendingToolResult | undefined;
@@ -1392,7 +1392,7 @@ async function runSingleAttempt(
 						applyChildLifecycle(projectChildLifecycle(evt, true, childLifecycleState));
 					}
 				}
-				// Pi delivers every tool result, including a call blocked by a tool_call handler, as a
+				// evoharness delivers every tool result, including a call blocked by a tool_call handler, as a
 				// toolResult message after tool_execution_end; it emits no separate result event.
 				if (evt.message.role === "toolResult") {
 					const resultText = extractTextFromContent(evt.message.content);
@@ -2197,7 +2197,7 @@ async function runSyncCompletionInner(
 		agent.skillPath,
 		agent.filePath ? path.dirname(agent.filePath) : skillCwd,
 	);
-	if (skillNames.some((skill) => skill.trim() === "pi-subagents") && missingSkills.includes("pi-subagents")) {
+	if (skillNames.some((skill) => skill.trim() === "subagents") && missingSkills.includes("subagents")) {
 		return redactResultPrompt(
 			withRunContext(
 				{
@@ -2207,7 +2207,7 @@ async function runSyncCompletionInner(
 					exitCode: 1,
 					messages: [],
 					usage: emptyUsage(),
-					error: "Skills not found: pi-subagents",
+					error: "Skills not found: subagents",
 				},
 				options.context,
 			),

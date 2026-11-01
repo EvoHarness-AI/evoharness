@@ -34,7 +34,7 @@ describe("prepareWorkflowResume", () => {
 			) => void,
 		) => void,
 	) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflow-resume-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-workflow-resume-"));
 		try {
 			body(root, (runId, options = {}) => {
 				const asyncDir = path.join(root, runId);
@@ -99,7 +99,7 @@ describe("prepareWorkflowResume", () => {
 		});
 	});
 
-	it("counts only resumes that followed Pi exits, and caps them for auto-resume only", () => {
+	it("counts only resumes that followed evoharness exits, and caps them for auto-resume only", () => {
 		withRoot((root, writeRun) => {
 			const attemptOf = (runId: string, trigger: "auto" | "manual" = "manual") => {
 				const prepared = prepare(root, runId, trigger);
@@ -115,7 +115,7 @@ describe("prepareWorkflowResume", () => {
 			assert.deepEqual(attemptOf("exited-at-cap", "auto"), {
 				ok: false,
 				code: "attempts",
-				reason: "3 resumes already followed Pi exits",
+				reason: "3 resumes already followed evoharness exits",
 				byHand: 'Resume by hand: subagent({ action: "resume", id: "exited-at-cap" })',
 			});
 			assert.equal(

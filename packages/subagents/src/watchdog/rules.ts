@@ -79,11 +79,11 @@ export function applyWatchdogLaunchRules(input: {
 
 /** For launch paths without a main watchdog runtime (background chain steps). */
 export function sendRuleViolationWarning(
-	pi: Pick<ExtensionAPI, "sendMessage">,
+	evoharness: Pick<ExtensionAPI, "sendMessage">,
 	violation: WatchdogRuleViolation,
 ): void {
 	const warning = ruleViolationWarning(violation);
-	pi.sendMessage(
+	evoharness.sendMessage(
 		createWatchdogWarningMessage(warning, {
 			display: true,
 			details: { state: "displayed", displayedAt: new Date().toISOString() },

@@ -74,7 +74,7 @@ export interface SubagentNotifyDetails {
 	/** The finished run's id; for a workflow it equals workflowRunId. */
 	runId?: string;
 	workflowRunId?: string;
-	/** What happens next to a workflow that Pi's exit or a runtime replacement stopped; decided once at delivery. */
+	/** What happens next to a workflow that evoharness's exit or a runtime replacement stopped; decided once at delivery. */
 	resumeNotice?: string;
 	childRuns?: Array<{ runId: string; workflowKey?: string; agent?: string; status?: string }>;
 	childOutputs?: SubagentNotifyChildOutput[];
@@ -176,16 +176,16 @@ export interface RegisterSubagentNotifyOptions {
 
 export interface CompletionNotifier {
 	deliver(result: CompletionNotification): Promise<boolean>;
-	/** True while a completion is batched, being sent, or accepted as a wake that Pi has not started yet. */
+	/** True while a completion is batched, being sent, or accepted as a wake that evoharness has not started yet. */
 	hasPendingDelivery(): boolean;
-	/** Releases a completion wake once Pi starts it (native message_start). */
+	/** Releases a completion wake once evoharness starts it (native message_start). */
 	messageStarted(message: AgentMessage): void;
 	/** Adopts wakes a reloaded notifier left queued for the same session manager and session UUID. */
 	bindSession(
 		sessionManager: Pick<ExtensionContext["sessionManager"], "getSessionId"> &
 			Partial<Pick<ExtensionContext["sessionManager"], "getBranch">>,
 	): void;
-	/** Unless the session is only reloading extensions, records the notices of wakes Pi never started in the session (resent on its next start) and drops the wakes. */
+	/** Unless the session is only reloading extensions, records the notices of wakes evoharness never started in the session (resent on its next start) and drops the wakes. */
 	sessionShutdown(reason: string | undefined): void;
 	/** Send every batched completion now instead of waiting for its batch timer. */
 	flush(): void;
@@ -633,7 +633,7 @@ export function formatGroupedCompletion(details: SubagentNotifyDetails[]): strin
 	return blocks.join("\n").trimEnd();
 }
 
-const notificationDebug = debuglog("pi-subagents-notify");
+const notificationDebug = debuglog("subagents-notify");
 type TraceIdentity = Pick<CompletionNotification, "id" | "runId" | "source">;
 type NotificationReason =
 	| "disposed"
@@ -748,13 +748,13 @@ export function createCompletionSendRegistry(
 	};
 }
 
-const completionSendRegistrySymbol = Symbol.for("pi-subagents.completion-send-registry.v1");
+const completionSendRegistrySymbol = Symbol.for("subagents.completion-send-registry.v1");
 const processGlobal = globalThis as typeof globalThis & { [completionSendRegistrySymbol]?: CompletionSendRegistry };
 const processCompletionSendRegistry =
 	processGlobal[completionSendRegistrySymbol] ??
 	(processGlobal[completionSendRegistrySymbol] = createCompletionSendRegistry());
 
-// Reload replaces extension instances, not Pi's session manager or queued wakes.
+// Reload replaces extension instances, not evoharness's session manager or queued wakes.
 // A manager can change sessions; retain wakes only while its UUID is unchanged.
 type QueuedWakes = {
 	sessionId: string;
@@ -768,7 +768,7 @@ type SubagentNotifyMessage = {
 	display: boolean;
 	details: { runs: NotifyRunDetails[] };
 };
-const queuedWakesSymbol = Symbol.for("pi-subagents.queued-completion-wakes.v2");
+const queuedWakesSymbol = Symbol.for("subagents.queued-completion-wakes.v2");
 const wakeGlobal = globalThis as typeof globalThis & { [queuedWakesSymbol]?: WeakMap<object, QueuedWakes> };
 const queuedWakes =
 	wakeGlobal[queuedWakesSymbol] ?? (wakeGlobal[queuedWakesSymbol] = new WeakMap<object, QueuedWakes>());
@@ -795,7 +795,7 @@ function notifyRunDetails({ resultPreview: _preview, childOutputs, ...run }: Sub
 	};
 }
 
-/** Session entry holding a notice whose wake Pi never started before the session ended. */
+/** Session entry holding a notice whose wake evoharness never started before the session ended. */
 export const PENDING_NOTICE_ENTRY = "subagent-notify-pending";
 type PendingNoticeEntry = { message: SubagentNotifyMessage };
 type NotifyEntry = { type: string; customType?: string; content?: unknown; data?: unknown };
@@ -822,7 +822,7 @@ export function unreplayedPendingNotices(entries: readonly NotifyEntry[]): Subag
 const HELD_COMPLETION_ACTION =
 	"The user stopped the parent turn. Report these results at the user's next prompt and do not resume the stopped task unless asked.";
 function sendCompletion(
-	pi: Pick<ParentWake, "sendMessage" | "isHeld">,
+	evoharness: Pick<ParentWake, "sendMessage" | "isHeld">,
 	items: PendingCompletion[],
 	unstartedWakes: string[],
 	unansweredCompletions: Map<string, { reminded: boolean }>,
@@ -833,7 +833,7 @@ function sendCompletion(
 	const details = items.map((item) => item.details);
 	const triggerTurn = items.some((item) => item.triggerTurn);
 	const formatted = details.length === 1 ? formatSingleCompletion(details[0]!) : formatGroupedCompletion(details);
-	const held = pi.isHeld();
+	const held = evoharness.isHeld();
 	const content = triggerTurn
 		? `${formatted}\n\nParent action: ${held ? HELD_COMPLETION_ACTION : COMPLETION_ACTION}`
 		: formatted;
@@ -847,11 +847,11 @@ function sendCompletion(
 		customType: "subagent-notify",
 		content,
 		display,
-		// Pi does not send details to the model. Hosts match runs by id; the text previews stay in content only.
+		// evoharness does not send details to the model. Hosts match runs by id; the text previews stay in content only.
 		details: { runs: details.map(notifyRunDetails) },
 	};
-	// Pi can queue an accepted wake behind the current turn or past agent_settled.
-	// Recorded before sending in case Pi starts the message synchronously.
+	// evoharness can queue an accepted wake behind the current turn or past agent_settled.
+	// Recorded before sending in case evoharness starts the message synchronously.
 	if (tracked) {
 		unstartedWakes.push(content);
 		queuedNotices.set(content, message);
@@ -859,7 +859,7 @@ function sendCompletion(
 		updateSettleSubscription();
 	}
 	try {
-		const appended = pi.sendMessage(message, { triggerTurn });
+		const appended = evoharness.sendMessage(message, { triggerTurn });
 		// A notice only appended (held, or joining another extension's starting wake) gets no message_start.
 		if (appended && tracked) unstartedWakes.splice(unstartedWakes.lastIndexOf(content), 1);
 		if (tracked && !unstartedWakes.includes(content)) queuedNotices.delete(content);
@@ -1091,7 +1091,7 @@ export function buildCompletionDetails(result: CompletionNotification): Subagent
 }
 
 export default function registerSubagentNotify(
-	pi: Pick<ExtensionAPI, "events"> &
+	evoharness: Pick<ExtensionAPI, "events"> &
 		Partial<Pick<ExtensionAPI, "on" | "appendEntry">> &
 		Pick<ParentWake, "sendMessage" | "isHeld">,
 	state: Pick<SubagentState, "currentSessionId" | "completionOwnerId">,
@@ -1155,7 +1155,7 @@ export default function registerSubagentNotify(
 		}
 		const claimedItems = claimed.map(({ item }) => item);
 		const sent = sendCompletion(
-			pi,
+			evoharness,
 			claimedItems,
 			unstartedWakes,
 			unansweredCompletions,
@@ -1246,7 +1246,7 @@ export default function registerSubagentNotify(
 		if (disposed || boundSessionId !== sessionId) return;
 		for (const message of messages) {
 			if (unstartedWakes.includes(message.content)) continue;
-			const tracked = !pi.isHeld();
+			const tracked = !evoharness.isHeld();
 			if (tracked) {
 				unstartedWakes.push(message.content);
 				unansweredCompletions.set(message.content, { reminded: false });
@@ -1259,7 +1259,7 @@ export default function registerSubagentNotify(
 				if (!unstartedWakes.includes(message.content)) queuedNotices.delete(message.content);
 			};
 			try {
-				if (pi.sendMessage(message, { triggerTurn: true }) && tracked) release();
+				if (evoharness.sendMessage(message, { triggerTurn: true }) && tracked) release();
 			} catch (error) {
 				console.error(
 					"Failed to resend a subagent completion notice recorded at the last shutdown; the next start retries it:",
@@ -1338,17 +1338,17 @@ export default function registerSubagentNotify(
 	};
 	const updateSettleSubscription = (): void => {
 		if (!disposed && unansweredCompletions.size && !unsubscribeSettle)
-			unsubscribeSettle = pi.on?.("agent_before_settle", handleBeforeSettle);
+			unsubscribeSettle = evoharness.on?.("agent_before_settle", handleBeforeSettle);
 		if (disposed || !unansweredCompletions.size) {
 			unsubscribeSettle?.();
 			unsubscribeSettle = undefined;
 		}
 	};
-	const unsubscribeAsync = pi.events.on(SUBAGENT_ASYNC_COMPLETE_EVENT, (data) => {
+	const unsubscribeAsync = evoharness.events.on(SUBAGENT_ASYNC_COMPLETE_EVENT, (data) => {
 		if ((data as CompletionNotification).awaitedByWorkflow === true) return;
 		void deliver(data as CompletionNotification);
 	});
-	const unsubscribeForeground = pi.events.on(SUBAGENT_FOREGROUND_COMPLETE_EVENT, (data) => {
+	const unsubscribeForeground = evoharness.events.on(SUBAGENT_FOREGROUND_COMPLETE_EVENT, (data) => {
 		void deliver(data as CompletionNotification);
 	});
 
@@ -1389,7 +1389,7 @@ export default function registerSubagentNotify(
 			queuedWakes.set(sessionManager, { sessionId, wakes, unansweredCompletions, notices });
 			updateSettleSubscription();
 			// A new process on this session: resend notices the previous one recorded at shutdown.
-			// Deferred past session_start so the resend starts its run after Pi has finished binding the session.
+			// Deferred past session_start so the resend starts its run after evoharness has finished binding the session.
 			// Only the active branch: a resend recorded on an abandoned branch never reached this one.
 			if (firstBind && typeof sessionManager.getBranch === "function") {
 				const pendingNotices = unreplayedPendingNotices(sessionManager.getBranch() as NotifyEntry[]);
@@ -1399,7 +1399,7 @@ export default function registerSubagentNotify(
 		},
 		sessionShutdown(reason) {
 			if (reason !== "reload") {
-				// The result file is already gone and Pi drops its queued steers with the session, so a wake
+				// The result file is already gone and evoharness drops its queued steers with the session, so a wake
 				// that never started would lose its notice. Record it in the session; the next start resends it.
 				for (const content of new Set(unstartedWakes)) {
 					const message = queuedNotices.get(content) ?? {
@@ -1409,8 +1409,8 @@ export default function registerSubagentNotify(
 						details: { runs: [] },
 					};
 					try {
-						pi.appendEntry?.(PENDING_NOTICE_ENTRY, { message } satisfies PendingNoticeEntry);
-						traceNotification(pi.appendEntry ? "shutdown_persisted" : "shutdown_persist_failed");
+						evoharness.appendEntry?.(PENDING_NOTICE_ENTRY, { message } satisfies PendingNoticeEntry);
+						traceNotification(evoharness.appendEntry ? "shutdown_persisted" : "shutdown_persist_failed");
 					} catch (error) {
 						traceNotification("shutdown_persist_failed");
 						console.error(

@@ -25,7 +25,7 @@ afterEach(() => {
 });
 
 function tempRoot(): string {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflow-receipt-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-workflow-receipt-"));
 	roots.push(root);
 	return root;
 }

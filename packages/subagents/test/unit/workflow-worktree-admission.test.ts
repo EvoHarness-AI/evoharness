@@ -7,7 +7,7 @@ import { it } from "node:test";
 import { preflightWorkflowWorktrees } from "../../src/runs/foreground/subagent-executor.ts";
 
 it("rechecks effective relative sources after changes without applying fresh defaults to retained resumes", async () => {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-admission-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-admission-"));
 	const repo = path.join(root, "repo");
 	fs.mkdirSync(repo);
 	assert.equal(spawnSync("git", ["init", repo]).status, 0);

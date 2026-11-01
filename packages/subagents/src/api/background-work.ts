@@ -1,5 +1,5 @@
 export const BACKGROUND_WORK_PROTOCOL_VERSION = 1;
-export const BACKGROUND_WORK_REGISTRY_KEY = "pi-subagents.background-work.v1";
+export const BACKGROUND_WORK_REGISTRY_KEY = "subagents.background-work.v1";
 
 const MAX_PROVIDER_NAME_LENGTH = 128;
 const MAX_PROVIDERS = 100;
@@ -171,7 +171,7 @@ export function listBackgroundWorkWakeChannels(): readonly string[] {
 }
 
 /**
- * Reconcile and snapshot active provider work owned by one exact Pi session.
+ * Reconcile and snapshot active provider work owned by one exact evoharness session.
  * `sessionIds` lists that session's identity forms; the first is passed to
  * providers as `sessionId`, and items keyed by any of them are kept.
  */

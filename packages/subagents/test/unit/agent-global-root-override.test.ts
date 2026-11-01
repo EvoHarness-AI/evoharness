@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { after, before, it } from "node:test";
 import { clearAgentDiscoveryCache, discoverAgentSnapshot, discoverAgents } from "../../src/agents/agents.ts";
 
-const temp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-agent-global-root-"));
+const temp = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-agent-global-root-"));
 const fixtureRoot = path.join(temp, "quote's & space");
 const previous = Object.fromEntries(
 	["HOME", "USERPROFILE", "APPDATA", "EVOHARNESS_CODING_AGENT_DIR", "EVOHARNESS_OFFLINE", "PATH"].map((key) => [
@@ -26,7 +26,7 @@ function writeAgent(file: string, name: string): void {
 function writePackage(root: string, name: string): void {
 	const pkg = path.join(root, name);
 	fs.mkdirSync(pkg, { recursive: true });
-	fs.writeFileSync(path.join(pkg, "package.json"), JSON.stringify({ name, "pi-subagents": { agents: ["agents"] } }));
+	fs.writeFileSync(path.join(pkg, "package.json"), JSON.stringify({ name, subagents: { agents: ["agents"] } }));
 	writeAgent(path.join(pkg, "agents", `${name}.md`), name);
 }
 

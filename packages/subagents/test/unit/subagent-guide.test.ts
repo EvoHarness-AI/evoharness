@@ -18,7 +18,7 @@ describe("subagent guide", () => {
 	it("reads the packaged overview by default", () => {
 		const guide = readSubagentGuide();
 
-		assert.match(guide, /# pi-subagents/);
+		assert.match(guide, /# subagents/);
 	});
 
 	it("lists valid topics for an unknown topic without changing files", () => {
@@ -38,17 +38,17 @@ describe("subagent guide", () => {
 
 		assert.match(guide, /# Council Mode/);
 		assert.match(guide, /skills\/council-mode\/references\/pass-contracts\.md -->/);
-		assert.doesNotMatch(guide, /skills\/pi-subagents\//);
+		assert.doesNotMatch(guide, /skills\/subagents\//);
 	});
 
 	it("documents external CLI runner limits in packaged guide topics", () => {
 		assert.match(
 			readSubagentGuide("tool-reference/external-cli-agent-profiles"),
-			/External CLI agent profiles[\s\S]*native Pi child options[\s\S]*model override[\s\S]*native Pi tools/,
+			/External CLI agent profiles[\s\S]*native evoharness child options[\s\S]*model override[\s\S]*native evoharness tools/,
 		);
 		assert.match(
 			readSubagentGuide("agents/advisory-runner-data-boundary"),
-			/External CLI agents use their own runner contract[\s\S]*native Pi child options/,
+			/External CLI agents use their own runner contract[\s\S]*native evoharness child options/,
 		);
 	});
 
@@ -64,10 +64,13 @@ describe("subagent guide", () => {
 		assert.match(workflows, /same-protocol retry/);
 		assert.match(workflows, /asking the owner/);
 		assert.match(workflows, /external\/foreground\/CLI fallback requires explicit owner approval/);
-		assert.match(workflows, /Pi core[\s\S]*pi -ne[\s\S]*out-of-repo hint[\s\S]*not protocol-approved fallback/);
+		assert.match(
+			workflows,
+			/evoharness core[\s\S]*evoharness -ne[\s\S]*out-of-repo hint[\s\S]*not protocol-approved fallback/,
+		);
 		assert.match(
 			toolReference,
-			/lane infrastructure blocker[\s\S]*external\/foreground\/CLI fallback requires explicit owner approval[\s\S]*interactive_shell[\s\S]*pi -ne/,
+			/lane infrastructure blocker[\s\S]*external\/foreground\/CLI fallback requires explicit owner approval[\s\S]*interactive_shell[\s\S]*evoharness -ne/,
 		);
 	});
 
@@ -122,7 +125,7 @@ describe("subagent guide", () => {
 	});
 
 	it("reads sections the same way from a CRLF checkout", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-guide-crlf-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-guide-crlf-"));
 		try {
 			fs.mkdirSync(path.join(root, "docs"));
 			fs.writeFileSync(

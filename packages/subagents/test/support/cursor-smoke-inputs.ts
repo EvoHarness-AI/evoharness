@@ -26,22 +26,25 @@ function pathWithin(parent: string, child: string): boolean {
 }
 
 export function cursorSmokeInputs(env: NodeJS.ProcessEnv): CursorSmokeInputs {
-	if (env.PI_SUBAGENTS_CURSOR_SMOKE_DISPOSABLE !== "1") {
+	if (env.EVOHARNESS_SUBAGENTS_CURSOR_SMOKE_DISPOSABLE !== "1") {
 		throw new Error(
-			"PI_SUBAGENTS_CURSOR_SMOKE_DISPOSABLE=1 is required to attest that the operator-managed workspace is disposable.",
+			"EVOHARNESS_SUBAGENTS_CURSOR_SMOKE_DISPOSABLE=1 is required to attest that the operator-managed workspace is disposable.",
 		);
 	}
-	const workspace = existingDirectory(env.PI_SUBAGENTS_CURSOR_SMOKE_WORKSPACE, "PI_SUBAGENTS_CURSOR_SMOKE_WORKSPACE");
+	const workspace = existingDirectory(
+		env.EVOHARNESS_SUBAGENTS_CURSOR_SMOKE_WORKSPACE,
+		"EVOHARNESS_SUBAGENTS_CURSOR_SMOKE_WORKSPACE",
+	);
 	const stateRoot = existingDirectory(
-		env.PI_SUBAGENTS_CURSOR_SMOKE_STATE_ROOT,
-		"PI_SUBAGENTS_CURSOR_SMOKE_STATE_ROOT",
+		env.EVOHARNESS_SUBAGENTS_CURSOR_SMOKE_STATE_ROOT,
+		"EVOHARNESS_SUBAGENTS_CURSOR_SMOKE_STATE_ROOT",
 	);
 	if (pathWithin(workspace, stateRoot) || pathWithin(stateRoot, workspace)) {
 		throw new Error(
 			"Cursor smoke workspace and state root must be separate directories so the production --add-dir launch shape is exercised.",
 		);
 	}
-	const canaryPath = path.join(workspace, "pi-subagents-cursor-write-canary.txt");
+	const canaryPath = path.join(workspace, "subagents-cursor-write-canary.txt");
 	const promptDirectory = path.join(stateRoot, "external-0.cursor-prompt");
 	if (fs.existsSync(canaryPath))
 		throw new Error(`Cursor smoke canary path must not exist before launch: ${canaryPath}`);

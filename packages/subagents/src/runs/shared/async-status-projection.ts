@@ -32,7 +32,7 @@ import {
 } from "./host-step-status.ts";
 import { workflowGraphStageNodes } from "./workflow-graph.ts";
 
-export const ASYNC_STATUS_SNAPSHOT_KIND = "pi-subagents.async-status-snapshot";
+export const ASYNC_STATUS_SNAPSHOT_KIND = "subagents.async-status-snapshot";
 export const ASYNC_STATUS_SNAPSHOT_VERSION = 1;
 
 const DEFAULT_MAX_RUNS = 20;

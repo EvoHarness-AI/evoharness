@@ -16,12 +16,12 @@ import {
 let savedMaxSpawns: string | undefined;
 
 beforeEach(() => {
-	savedMaxSpawns = process.env.PI_SUBAGENT_MAX_SPAWNS_PER_SESSION;
+	savedMaxSpawns = process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_SESSION;
 });
 
 afterEach(() => {
-	if (savedMaxSpawns === undefined) delete process.env.PI_SUBAGENT_MAX_SPAWNS_PER_SESSION;
-	else process.env.PI_SUBAGENT_MAX_SPAWNS_PER_SESSION = savedMaxSpawns;
+	if (savedMaxSpawns === undefined) delete process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_SESSION;
+	else process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_SESSION = savedMaxSpawns;
 });
 
 describe("DEFAULT_SUBAGENT_MAX_DEPTH", () => {
@@ -60,33 +60,33 @@ describe("normalizeMaxSubagentSpawnsPerSession", () => {
 
 describe("resolveMaxSubagentSpawnsPerSession", () => {
 	it("uses positive env values as opt-in caps", () => {
-		process.env.PI_SUBAGENT_MAX_SPAWNS_PER_SESSION = "5";
+		process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_SESSION = "5";
 		assert.equal(resolveMaxSubagentSpawnsPerSession(1), 5);
 	});
 
 	it("falls back to a positive config cap when env is absent", () => {
-		delete process.env.PI_SUBAGENT_MAX_SPAWNS_PER_SESSION;
+		delete process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_SESSION;
 		assert.equal(resolveMaxSubagentSpawnsPerSession(7), 7);
 	});
 
 	it("ignores invalid env values and falls back to config", () => {
 		for (const value of ["garbage", "-1", "1.5"]) {
-			process.env.PI_SUBAGENT_MAX_SPAWNS_PER_SESSION = value;
+			process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_SESSION = value;
 			assert.equal(resolveMaxSubagentSpawnsPerSession(7), 7);
 			assert.equal(resolveMaxSubagentSpawnsPerSession(undefined), undefined);
 		}
 	});
 
 	it("is unlimited by default", () => {
-		delete process.env.PI_SUBAGENT_MAX_SPAWNS_PER_SESSION;
+		delete process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_SESSION;
 		assert.equal(resolveMaxSubagentSpawnsPerSession(undefined), undefined);
 		assert.equal(resolveMaxSubagentSpawnsPerSession(-1), undefined);
 	});
 
 	it("treats zero as an explicit unlimited override", () => {
-		process.env.PI_SUBAGENT_MAX_SPAWNS_PER_SESSION = "0";
+		process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_SESSION = "0";
 		assert.equal(resolveMaxSubagentSpawnsPerSession(7), undefined);
-		delete process.env.PI_SUBAGENT_MAX_SPAWNS_PER_SESSION;
+		delete process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_SESSION;
 		assert.equal(resolveMaxSubagentSpawnsPerSession(0), undefined);
 	});
 });

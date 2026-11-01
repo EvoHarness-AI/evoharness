@@ -8,12 +8,20 @@ import netModule, * as net from "node:net";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import registerHerdrPiBridge, { resolveRemoteHerdrResources } from "../../src/extension/herdr-pi-bridge.ts";
+import registerHerdrHostBridge, { resolveRemoteHerdrResources } from "../../src/extension/herdr-host-bridge.ts";
 import { executeAsyncSingle } from "../../src/runs/background/async-execution.ts";
 import { runChildSession } from "../../src/runs/background/run-child-session.ts";
 import { buildRunnerChildLaunch } from "../../src/runs/background/runner-child-launch.ts";
 import type { ChildSession, ChildSessionFactory, ChildSessionLaunch } from "../../src/runs/shared/child-session.ts";
 import { parseHerdrEndpoint } from "../../src/runs/shared/herdr-connection.ts";
+import {
+	encodeHerdrHostFrame,
+	HERDR_HOST_MAX_FRAME_BYTES,
+	HERDR_HOST_MODE_ENV,
+	HERDR_HOST_RUN_ENV,
+	HERDR_HOST_RUNTIME_DIR_ENV,
+	HerdrHostFrameDecoder,
+} from "../../src/runs/shared/herdr-host-protocol.ts";
 import {
 	formatHerdrMachineRunnerUnsupported,
 	resolveHerdrMachinePlacement,
@@ -29,21 +37,13 @@ import {
 	provisionHerdrPane,
 } from "../../src/runs/shared/herdr-pane-host.ts";
 import {
-	encodeHerdrPiFrame,
-	HERDR_PI_MAX_FRAME_BYTES,
-	HERDR_PI_MODE_ENV,
-	HERDR_PI_RUN_ENV,
-	HERDR_PI_RUNTIME_DIR_ENV,
-	HerdrPiFrameDecoder,
-} from "../../src/runs/shared/herdr-pi-protocol.ts";
-import {
 	BridgeChannel,
 	boundedHerdrReconnect,
 	createPlacementAwareChildSessionFactory,
-	HerdrPiSession,
+	HerdrHostSession,
 	type HerdrRunIdentity,
-	reconnectHerdrPiSession,
-	serializeHerdrPiLaunch,
+	reconnectHerdrHostSession,
+	serializeHerdrHostLaunch,
 } from "../../src/runs/shared/herdr-placed-run.ts";
 import { herdrPaneAllocationKey, withHerdrPaneAllocationLock } from "../../src/runs/shared/placement-host.ts";
 import { DIRS } from "../../src/shared/types.ts";
@@ -117,7 +117,7 @@ function mockBridgeSockets(): { sockets: EventEmitter[]; restore(): void } {
 	};
 }
 const eventFrame = (cursor: number) =>
-	encodeHerdrPiFrame({
+	encodeHerdrHostFrame({
 		protocol: 1,
 		runId: "run_12345678",
 		type: "event",
@@ -213,7 +213,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 		);
 	});
 
-	it("allows native Pi placement while retaining unsupported-runner and managed-worktree gates", () => {
+	it("allows native evoharness placement while retaining unsupported-runner and managed-worktree gates", () => {
 		assert.equal(
 			formatHerdrMachineRunnerUnsupported({ machine: "workmac", agentName: "worker" }),
 			process.platform === "win32"
@@ -372,26 +372,28 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 
 	it("keeps native launch data-only and rejects local resources, callbacks, fork files, and nested delegation", () => {
 		const clean = { ...launch(true), systemPrompt: "LOCAL_SECRET_PROMPT /Users/local/private" };
-		const wire = serializeHerdrPiLaunch(clean);
+		const wire = serializeHerdrHostLaunch(clean);
 		assert.equal("tools" in wire, false);
 		assert.doesNotMatch(JSON.stringify(wire), /remote\.example|\/local\/repo|callback|token/iu);
 		assert.deepEqual(
-			serializeHerdrPiLaunch({ ...clean, remoteResources: { ...clean.remoteResources!, reads: ["remote-only.md"] } })
-				.resources.reads,
+			serializeHerdrHostLaunch({
+				...clean,
+				remoteResources: { ...clean.remoteResources!, reads: ["remote-only.md"] },
+			}).resources.reads,
 			["remote-only.md"],
 		);
 		assert.doesNotMatch(JSON.stringify(wire), /LOCAL_SECRET_PROMPT|Users\/local/u);
 		assert.throws(
-			() => serializeHerdrPiLaunch({ ...clean, extensionPaths: ["/local/private.ts"] }),
+			() => serializeHerdrHostLaunch({ ...clean, extensionPaths: ["/local/private.ts"] }),
 			/cannot transfer local extension paths/u,
 		);
 		assert.doesNotMatch(
-			JSON.stringify(serializeHerdrPiLaunch({ ...clean, hooks: [{ name: "local", factory() {} }] })),
+			JSON.stringify(serializeHerdrHostLaunch({ ...clean, hooks: [{ name: "local", factory() {} }] })),
 			/callback|factory|local/u,
 		);
 		assert.throws(
 			() =>
-				serializeHerdrPiLaunch({
+				serializeHerdrHostLaunch({
 					...clean,
 					runtime: {
 						...runtime,
@@ -406,12 +408,12 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			/Nested delegation/u,
 		);
 		assert.throws(
-			() => serializeHerdrPiLaunch({ ...clean, processEnv: { MCP_DIRECT_TOOLS: "local-server" } }),
+			() => serializeHerdrHostLaunch({ ...clean, processEnv: { MCP_DIRECT_TOOLS: "local-server" } }),
 			/bindings, MCP selections, or process environment/u,
 		);
 		assert.throws(
 			() =>
-				serializeHerdrPiLaunch({
+				serializeHerdrHostLaunch({
 					...clean,
 					runtime: { ...runtime, permissions: { rules: { bash: "deny" } } as never },
 				}),
@@ -438,9 +440,9 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 					{ cwd: "/local/repo", id: "run-fresh", flatIndex: 0 },
 					{ sessionEnabled: true, watchdogStatus() {} },
 				).session;
-			assert.equal(serializeHerdrPiLaunch(build()).resources.agent, "worker");
+			assert.equal(serializeHerdrHostLaunch(build()).resources.agent, "worker");
 			fs.writeFileSync(sessionFile, `${JSON.stringify({ type: "session", id: "forked" })}\n`);
-			assert.throws(() => serializeHerdrPiLaunch(build()), /fork, resume, or revival/u);
+			assert.throws(() => serializeHerdrHostLaunch(build()), /fork, resume, or revival/u);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -455,7 +457,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				agent: "worker",
 				task: "Continue",
 				agentConfig: makeAgent("worker", { machine: "workmac" }),
-				ctx: { pi: { events: { emit() {} } }, cwd: root, currentSessionId: "placed-revival" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: root, currentSessionId: "placed-revival" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -638,7 +640,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			await waitFor(holder, "stdout", /locked/u);
 			const publishedPath = path.join(
 					getAgentDir(),
-					"pi-subagents",
+					"subagents",
 					"herdr-allocation-locks",
 					`${createHash("sha256").update(keyA).digest("hex")}.lock`,
 				),
@@ -671,7 +673,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 		"publishes only validated owner files, refuses unsafe owners, and preserves action plus release failures",
 		{ skip: process.platform === "win32" },
 		async () => {
-			const root = path.join(getAgentDir(), "pi-subagents", "herdr-allocation-locks"),
+			const root = path.join(getAgentDir(), "subagents", "herdr-allocation-locks"),
 				lockPath = (key: string) => path.join(root, `${createHash("sha256").update(key).digest("hex")}.lock`);
 			await withHerdrPaneAllocationLock("initialize-safety-root", async () => {});
 			for (const kind of ["mode", "symlink"] as const) {
@@ -725,7 +727,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			assert.equal(error, undefined);
 		}
 		assert.equal(rejected, true);
-		const root = path.join(getAgentDir(), "pi-subagents", "herdr-allocation-locks"),
+		const root = path.join(getAgentDir(), "subagents", "herdr-allocation-locks"),
 			key = `falsy-release-${Date.now()}`,
 			canonical = path.join(root, `${createHash("sha256").update(key).digest("hex")}.lock`);
 		try {
@@ -794,7 +796,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 		},
 	);
 	it("rejects duplicate deterministic workspaces and reuses one despite cwd projection drift", async () => {
-		const label = `pi-subagents-${createHash("sha256").update("/remote/repo").digest("hex").slice(0, 10)}`;
+		const label = `subagents-${createHash("sha256").update("/remote/repo").digest("hex").slice(0, 10)}`;
 		let creates = 0;
 		const duplicate = {
 			async call(method: string) {
@@ -840,7 +842,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 	});
 	it("creates one deterministic fallback when multiple unowned cwd workspaces exist", async () => {
 		let workspaceCreates = 0;
-		const label = `pi-subagents-${createHash("sha256").update("/remote/repo").digest("hex").slice(0, 10)}`;
+		const label = `subagents-${createHash("sha256").update("/remote/repo").digest("hex").slice(0, 10)}`;
 		const workspaces: Record<string, unknown>[] = [
 			{ workspace_id: "a", label: "a" },
 			{ workspace_id: "b", label: "b" },
@@ -895,7 +897,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			owner = new (HerdrPlacedRunOwner as unknown as new (...args: unknown[]) => HerdrPlacedRunOwner)(
 				{ id: "m", target: "host", cwd: "/repo" },
 				"run",
-				"/tmp/pi-subagents-herdr-owned",
+				"/tmp/subagents-herdr-owned",
 				connection,
 				() => {},
 			);
@@ -928,7 +930,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			owner = new (HerdrPlacedRunOwner as unknown as new (...args: unknown[]) => HerdrPlacedRunOwner)(
 				machine,
 				"stale-disconnect",
-				"/tmp/pi-subagents-herdr-stale",
+				"/tmp/subagents-herdr-stale",
 				original,
 				() => {},
 			);
@@ -964,7 +966,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			owner = new (HerdrPlacedRunOwner as unknown as new (...args: unknown[]) => HerdrPlacedRunOwner)(
 				machine,
 				"initial-race",
-				"/tmp/pi-subagents-herdr-race",
+				"/tmp/subagents-herdr-race",
 				connection,
 				() => {},
 			);
@@ -982,7 +984,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 		assert.equal(stops, 1);
 		assert.equal(owner.snapshot.connection, "connected");
 	});
-	it("never adopts a Pi reconnect candidate lost before subscribe returns", async () => {
+	it("never adopts a evoharness reconnect candidate lost before subscribe returns", async () => {
 		const identity: HerdrRunIdentity = {
 			runId: "run_12345678",
 			machineId: "m1",
@@ -992,7 +994,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			tabId: "t",
 			paneId: "p",
 			terminalId: "term",
-			agentName: "pi-r",
+			agentName: "subagents-r",
 			nativeSessionId: "native",
 			cwd: "/remote",
 			runtimeDir: "/tmp/run",
@@ -1043,7 +1045,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 						};
 					},
 					async subscribe(_filters: unknown, _listener: unknown, lost: (error: Error) => void) {
-						lost(new Error("post-ack Pi loss"));
+						lost(new Error("post-ack evoharness loss"));
 						return () => {};
 					},
 				},
@@ -1056,7 +1058,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			};
 		};
 		await assert.rejects(
-			reconnectHerdrPiSession(
+			reconnectHerdrHostSession(
 				fakeSession,
 				{ ...launch(true), machine: { ...machine, cwd: "/remote" } },
 				{
@@ -1070,7 +1072,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 					createBridge: fakeBridge,
 				},
 			),
-			/post-ack Pi loss/u,
+			/post-ack evoharness loss/u,
 		);
 		assert.equal(replacements, 0);
 		assert.equal(connects, 3);
@@ -1086,7 +1088,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			tabId: "t",
 			paneId: "p",
 			terminalId: "term",
-			agentName: "pi-r",
+			agentName: "subagents-r",
 			nativeSessionId: "native",
 			cwd: "/remote",
 			runtimeDir: "/tmp/run",
@@ -1135,7 +1137,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				})());
 			},
 		} as unknown as HerdrPlacedRunOwner;
-		const session = new HerdrPiSession(
+		const session = new HerdrHostSession(
 			owner,
 			{
 				close: async () => {
@@ -1200,7 +1202,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			owner = new (HerdrPlacedRunOwner as unknown as new (...args: unknown[]) => HerdrPlacedRunOwner)(
 				{ id: "m", target: "host", cwd: "/repo" },
 				"run",
-				"/tmp/pi-subagents-herdr-owned",
+				"/tmp/subagents-herdr-owned",
 				connection,
 				() => {},
 			);
@@ -1232,7 +1234,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			owner = new (HerdrPlacedRunOwner as unknown as new (...args: unknown[]) => HerdrPlacedRunOwner)(
 				{ id: "m", target: "host", cwd: "/repo" },
 				"run",
-				"/tmp/pi-subagents-herdr-owned",
+				"/tmp/subagents-herdr-owned",
 				connection,
 				() => {},
 			);
@@ -1258,7 +1260,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				owner = new (HerdrPlacedRunOwner as unknown as new (...args: unknown[]) => HerdrPlacedRunOwner)(
 					{ id: "m", target: "host", cwd: "/repo" },
 					"run",
-					"/tmp/pi-subagents-herdr-owned",
+					"/tmp/subagents-herdr-owned",
 					connection,
 					() => {},
 				);
@@ -1297,7 +1299,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			owner = new (HerdrPlacedRunOwner as unknown as new (...args: unknown[]) => HerdrPlacedRunOwner)(
 				{ id: "m", target: "host", cwd: "/repo" },
 				"run",
-				"/tmp/pi-subagents-herdr-owned",
+				"/tmp/subagents-herdr-owned",
 				connection,
 				() => {
 					removals++;
@@ -1325,7 +1327,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 	});
 
 	it("resolves agent instructions, skills, memory, and refinements from a distinct remote fixture", () => {
-		const remote = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-remote-resources-"));
+		const remote = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-remote-resources-"));
 		fs.mkdirSync(path.join(remote, ".git"));
 		fs.mkdirSync(path.join(remote, ".evoharness", "agents"), { recursive: true });
 		fs.writeFileSync(
@@ -1346,7 +1348,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 		fs.mkdirSync(path.dirname(refinement), { recursive: true });
 		fs.writeFileSync(
 			refinement,
-			`<!-- pi-subagents-refinement:v1\n${JSON.stringify({ agent: "remote-worker", revision: 1, updatedAt: new Date().toISOString(), base: { source: "project", filePath: ".evoharness/agents/remote-worker.md", systemPromptSha256: "abc" }, evidence: {} })}\n-->\n\n\`\`\`pi-subagents-refinement-current\nREMOTE_REFINEMENT_CONTENT\n\`\`\`\n\n\`\`\`pi-subagents-refinement-snapshots-json\n[]\n\`\`\`\n`,
+			`<!-- subagents-refinement:v1\n${JSON.stringify({ agent: "remote-worker", revision: 1, updatedAt: new Date().toISOString(), base: { source: "project", filePath: ".evoharness/agents/remote-worker.md", systemPromptSha256: "abc" }, evidence: {} })}\n-->\n\n\`\`\`subagents-refinement-current\nREMOTE_REFINEMENT_CONTENT\n\`\`\`\n\n\`\`\`subagents-refinement-snapshots-json\n[]\n\`\`\`\n`,
 		);
 		try {
 			const resolved = resolveRemoteHerdrResources(remote, { agent: "remote-worker" });
@@ -1357,7 +1359,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			assert.doesNotMatch(resolved.systemPrompt, /LOCAL_/u);
 			assert.throws(
 				() => resolveRemoteHerdrResources(remote, { agent: "remote-worker", skills: ["missing"] }),
-				/Remote Pi skills not found/u,
+				/Remote evoharness skills not found/u,
 			);
 		} finally {
 			fs.rmSync(remote, { recursive: true, force: true });
@@ -1365,7 +1367,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 	});
 
 	it("uses remote defaults for omitted tools and intersects wider remote tools with the caller ceiling", () => {
-		const remote = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-tools-"));
+		const remote = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-tools-"));
 		fs.mkdirSync(path.join(remote, ".git"));
 		fs.mkdirSync(path.join(remote, ".evoharness", "agents"), { recursive: true });
 		fs.writeFileSync(
@@ -1397,8 +1399,8 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 		}
 	});
 
-	it("rejects Pi tool modifier entries in the remote agent's tools instead of filtering or activating them", () => {
-		const remote = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-modifiers-"));
+	it("rejects evoharness tool modifier entries in the remote agent's tools instead of filtering or activating them", () => {
+		const remote = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-modifiers-"));
 		fs.mkdirSync(path.join(remote, ".git"));
 		fs.mkdirSync(path.join(remote, ".evoharness", "agents"), { recursive: true });
 		fs.writeFileSync(
@@ -1407,7 +1409,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 		);
 		const rejected = {
 			message:
-				/^Agent 'modifier' lists Pi tool modifier entry in `tools`: \+codemode\. .*use `excludeTools` to drop one\.$/u,
+				/^Agent 'modifier' lists evoharness tool modifier entry in `tools`: \+codemode\. .*use `excludeTools` to drop one\.$/u,
 		};
 		try {
 			assert.throws(
@@ -1424,22 +1426,22 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 		"preserves canonical contact_supervisor progress and structured-interview semantics",
 		{ skip: process.platform === "win32" },
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-supervisor-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-supervisor-"));
 			const old = {
-				mode: process.env[HERDR_PI_MODE_ENV],
-				run: process.env[HERDR_PI_RUN_ENV],
-				dir: process.env[HERDR_PI_RUNTIME_DIR_ENV],
+				mode: process.env[HERDR_HOST_MODE_ENV],
+				run: process.env[HERDR_HOST_RUN_ENV],
+				dir: process.env[HERDR_HOST_RUNTIME_DIR_ENV],
 			};
-			process.env[HERDR_PI_MODE_ENV] = "1";
-			process.env[HERDR_PI_RUN_ENV] = "run_supervisor1";
-			process.env[HERDR_PI_RUNTIME_DIR_ENV] = dir;
+			process.env[HERDR_HOST_MODE_ENV] = "1";
+			process.env[HERDR_HOST_RUN_ENV] = "run_supervisor1";
+			process.env[HERDR_HOST_RUNTIME_DIR_ENV] = dir;
 			const handlers = new Map<string, Function>();
 			let tool: any;
 			let command: any;
 			let socket: net.Socket | undefined;
-			// The active tool set lives on the Pi API; the event context does not carry it.
+			// The active tool set lives on the evoharness API; the event context does not carry it.
 			let activeTools = ["read", "bash"];
-			const pi = {
+			const evoharness = {
 				registerTool(value: unknown) {
 					tool = value;
 				},
@@ -1455,7 +1457,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				},
 			};
 			try {
-				registerHerdrPiBridge(pi as never);
+				registerHerdrHostBridge(evoharness as never);
 				const ctx = {
 					sessionManager: { getSessionId: () => "native", getSessionFile: () => "/remote/session" },
 					model: { provider: "p", id: "m" },
@@ -1464,12 +1466,12 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				};
 				handlers.get("session_start")?.({}, ctx);
 				socket = net.createConnection(path.join(dir, "bridge.sock"));
-				const decoder = new HerdrPiFrameDecoder();
+				const decoder = new HerdrHostFrameDecoder();
 				const frames: any[] = [];
 				socket.on("data", (chunk) => frames.push(...decoder.push(chunk)));
 				await new Promise<void>((resolve) => socket!.once("connect", resolve));
 				socket.write(
-					encodeHerdrPiFrame({
+					encodeHerdrHostFrame({
 						protocol: 1,
 						runId: "run_supervisor1",
 						type: "configure",
@@ -1487,7 +1489,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				);
 				assert.equal(progressRequest?.expectsReply, false);
 				socket.write(
-					encodeHerdrPiFrame({
+					encodeHerdrHostFrame({
 						protocol: 1,
 						runId: "run_supervisor1",
 						type: "supervisor-delivered",
@@ -1506,7 +1508,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				);
 				assert.deepEqual(request.interview, { title: "Choose", questions: [{ id: "x" }] });
 				socket.write(
-					encodeHerdrPiFrame({
+					encodeHerdrHostFrame({
 						protocol: 1,
 						runId: "run_supervisor1",
 						type: "prepare",
@@ -1526,12 +1528,14 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				socket?.destroy();
 				handlers.get("session_shutdown")?.();
 				old.mode === undefined
-					? delete process.env[HERDR_PI_MODE_ENV]
-					: (process.env[HERDR_PI_MODE_ENV] = old.mode);
-				old.run === undefined ? delete process.env[HERDR_PI_RUN_ENV] : (process.env[HERDR_PI_RUN_ENV] = old.run);
+					? delete process.env[HERDR_HOST_MODE_ENV]
+					: (process.env[HERDR_HOST_MODE_ENV] = old.mode);
+				old.run === undefined
+					? delete process.env[HERDR_HOST_RUN_ENV]
+					: (process.env[HERDR_HOST_RUN_ENV] = old.run);
 				old.dir === undefined
-					? delete process.env[HERDR_PI_RUNTIME_DIR_ENV]
-					: (process.env[HERDR_PI_RUNTIME_DIR_ENV] = old.dir);
+					? delete process.env[HERDR_HOST_RUNTIME_DIR_ENV]
+					: (process.env[HERDR_HOST_RUNTIME_DIR_ENV] = old.dir);
 				fs.rmSync(dir, { recursive: true, force: true });
 			}
 		},
@@ -1550,17 +1554,17 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				fs.mkdirSync(path.join(supervisorDir, "requests"), { recursive: true });
 				fs.mkdirSync(path.join(supervisorDir, "replies"));
 				const saved = {
-					mode: process.env[HERDR_PI_MODE_ENV],
-					run: process.env[HERDR_PI_RUN_ENV],
-					dir: process.env[HERDR_PI_RUNTIME_DIR_ENV],
+					mode: process.env[HERDR_HOST_MODE_ENV],
+					run: process.env[HERDR_HOST_RUN_ENV],
+					dir: process.env[HERDR_HOST_RUNTIME_DIR_ENV],
 				};
 				const runId = "run_relay123";
-				process.env[HERDR_PI_MODE_ENV] = "1";
-				process.env[HERDR_PI_RUN_ENV] = runId;
-				process.env[HERDR_PI_RUNTIME_DIR_ENV] = bridgeDir;
+				process.env[HERDR_HOST_MODE_ENV] = "1";
+				process.env[HERDR_HOST_RUN_ENV] = runId;
+				process.env[HERDR_HOST_RUNTIME_DIR_ENV] = bridgeDir;
 				const handlers = new Map<string, Function>();
-				let tool: any, command: any, session: HerdrPiSession | undefined, bridge: BridgeChannel | undefined;
-				const pi = {
+				let tool: any, command: any, session: HerdrHostSession | undefined, bridge: BridgeChannel | undefined;
+				const evoharness = {
 					registerTool(value: unknown) {
 						tool = value;
 					},
@@ -1574,7 +1578,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 					setActiveTools() {},
 				};
 				try {
-					registerHerdrPiBridge(pi as never);
+					registerHerdrHostBridge(evoharness as never);
 					const ctx = {
 						sessionManager: { getSessionId: () => "native", getSessionFile: () => "/remote/session" },
 						model: { provider: "p", id: "m" },
@@ -1593,14 +1597,14 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 						tabId: "t",
 						paneId: "p",
 						terminalId: "term",
-						agentName: "pi-relay",
+						agentName: "subagents-relay",
 						nativeSessionId: "native",
 						cwd: process.cwd(),
 						runtimeDir: bridgeDir,
 					};
 					const host = {
 						async prompt(_connection: unknown, _identity: unknown, text: string) {
-							await command.handler(text.slice("/pi-subagents-bridge ".length), ctx);
+							await command.handler(text.slice("/subagents-bridge ".length), ctx);
 						},
 					};
 					const owner = {
@@ -1610,7 +1614,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 						host,
 						async cleanup() {},
 					} as unknown as HerdrPlacedRunOwner;
-					session = new HerdrPiSession(owner, { async close() {} }, bridge, ["read"], "p/m", {
+					session = new HerdrHostSession(owner, { async close() {} }, bridge, ["read"], "p/m", {
 						...runtime,
 						runId,
 						supervisorChannelDir: supervisorDir,
@@ -1660,12 +1664,12 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 					await session?.dispose();
 					bridge?.close();
 					handlers.get("session_shutdown")?.();
-					if (saved.mode === undefined) delete process.env[HERDR_PI_MODE_ENV];
-					else process.env[HERDR_PI_MODE_ENV] = saved.mode;
-					if (saved.run === undefined) delete process.env[HERDR_PI_RUN_ENV];
-					else process.env[HERDR_PI_RUN_ENV] = saved.run;
-					if (saved.dir === undefined) delete process.env[HERDR_PI_RUNTIME_DIR_ENV];
-					else process.env[HERDR_PI_RUNTIME_DIR_ENV] = saved.dir;
+					if (saved.mode === undefined) delete process.env[HERDR_HOST_MODE_ENV];
+					else process.env[HERDR_HOST_MODE_ENV] = saved.mode;
+					if (saved.run === undefined) delete process.env[HERDR_HOST_RUN_ENV];
+					else process.env[HERDR_HOST_RUN_ENV] = saved.run;
+					if (saved.dir === undefined) delete process.env[HERDR_HOST_RUNTIME_DIR_ENV];
+					else process.env[HERDR_HOST_RUNTIME_DIR_ENV] = saved.dir;
 					fs.rmSync(dir, { recursive: true, force: true });
 				}
 			},
@@ -1676,18 +1680,18 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 		"leaves the remote operator's APPEND_SYSTEM.md out of the child's prompt",
 		{ skip: process.platform === "win32" },
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-append-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-append-"));
 			const old = {
-				mode: process.env[HERDR_PI_MODE_ENV],
-				run: process.env[HERDR_PI_RUN_ENV],
-				dir: process.env[HERDR_PI_RUNTIME_DIR_ENV],
+				mode: process.env[HERDR_HOST_MODE_ENV],
+				run: process.env[HERDR_HOST_RUN_ENV],
+				dir: process.env[HERDR_HOST_RUNTIME_DIR_ENV],
 			};
-			process.env[HERDR_PI_MODE_ENV] = "1";
-			process.env[HERDR_PI_RUN_ENV] = "run_append01";
-			process.env[HERDR_PI_RUNTIME_DIR_ENV] = dir;
+			process.env[HERDR_HOST_MODE_ENV] = "1";
+			process.env[HERDR_HOST_RUN_ENV] = "run_append01";
+			process.env[HERDR_HOST_RUNTIME_DIR_ENV] = dir;
 			const handlers = new Map<string, Function>();
 			let socket: net.Socket | undefined;
-			const pi = {
+			const evoharness = {
 				registerTool() {},
 				registerCommand() {},
 				on(name: string, handler: Function) {
@@ -1697,7 +1701,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				setActiveTools() {},
 			};
 			try {
-				registerHerdrPiBridge(pi as never);
+				registerHerdrHostBridge(evoharness as never);
 				handlers.get("session_start")?.(
 					{},
 					{
@@ -1708,12 +1712,12 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 					},
 				);
 				socket = net.createConnection(path.join(dir, "bridge.sock"));
-				const decoder = new HerdrPiFrameDecoder();
+				const decoder = new HerdrHostFrameDecoder();
 				const frames: any[] = [];
 				socket.on("data", (chunk) => frames.push(...decoder.push(chunk)));
 				await new Promise<void>((resolve) => socket!.once("connect", resolve));
 				socket.write(
-					encodeHerdrPiFrame({
+					encodeHerdrHostFrame({
 						protocol: 1,
 						runId: "run_append01",
 						type: "configure",
@@ -1723,7 +1727,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				);
 				await new Promise((resolve) => setTimeout(resolve, 30));
 				assert.ok(frames.some((frame) => frame.type === "configured"));
-				// As Pi's runner builds it: systemPrompt renders from the mutable systemPromptOptions.
+				// As evoharness's runner builds it: systemPrompt renders from the mutable systemPromptOptions.
 				const systemPromptOptions = { appendSystemPrompt: "REMOTE_OPERATOR_APPEND" };
 				const event = {
 					systemPromptOptions,
@@ -1739,20 +1743,22 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				socket?.destroy();
 				handlers.get("session_shutdown")?.();
 				old.mode === undefined
-					? delete process.env[HERDR_PI_MODE_ENV]
-					: (process.env[HERDR_PI_MODE_ENV] = old.mode);
-				old.run === undefined ? delete process.env[HERDR_PI_RUN_ENV] : (process.env[HERDR_PI_RUN_ENV] = old.run);
+					? delete process.env[HERDR_HOST_MODE_ENV]
+					: (process.env[HERDR_HOST_MODE_ENV] = old.mode);
+				old.run === undefined
+					? delete process.env[HERDR_HOST_RUN_ENV]
+					: (process.env[HERDR_HOST_RUN_ENV] = old.run);
 				old.dir === undefined
-					? delete process.env[HERDR_PI_RUNTIME_DIR_ENV]
-					: (process.env[HERDR_PI_RUNTIME_DIR_ENV] = old.dir);
+					? delete process.env[HERDR_HOST_RUNTIME_DIR_ENV]
+					: (process.env[HERDR_HOST_RUNTIME_DIR_ENV] = old.dir);
 				fs.rmSync(dir, { recursive: true, force: true });
 			}
 		},
 	);
 
 	it("frames correlated bridge data and fails closed on malformed, partial, or oversized evidence", () => {
-		const decoder = new HerdrPiFrameDecoder();
-		const encoded = encodeHerdrPiFrame({
+		const decoder = new HerdrHostFrameDecoder();
+		const encoded = encodeHerdrHostFrame({
 			protocol: 1,
 			runId: "run_12345678",
 			type: "settled",
@@ -1768,14 +1774,14 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			idle: true,
 			pending: false,
 		});
-		assert.throws(() => new HerdrPiFrameDecoder().push(Buffer.from("not-json\n")), /malformed JSON/u);
-		const partial = new HerdrPiFrameDecoder();
+		assert.throws(() => new HerdrHostFrameDecoder().push(Buffer.from("not-json\n")), /malformed JSON/u);
+		const partial = new HerdrHostFrameDecoder();
 		partial.push(Buffer.from('{"protocol":1'));
 		assert.throws(() => partial.end(), /partial frame/u);
-		assert.throws(() => new HerdrPiFrameDecoder().push(Buffer.alloc(HERDR_PI_MAX_FRAME_BYTES + 1)), /exceeds/u);
+		assert.throws(() => new HerdrHostFrameDecoder().push(Buffer.alloc(HERDR_HOST_MAX_FRAME_BYTES + 1)), /exceeds/u);
 		assert.throws(
 			() =>
-				new HerdrPiFrameDecoder().push(
+				new HerdrHostFrameDecoder().push(
 					Buffer.concat([
 						Buffer.from('{"protocol":1,"runId":"run_12345678","type":"x","v":"'),
 						Buffer.from([0xc3, 0x28]),
@@ -1860,7 +1866,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 		"keeps an accepted public prompt pending across transport replacement and replay without redispatch",
 		{ skip: process.platform === "win32" },
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-replay-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-replay-"));
 			const one = path.join(dir, "one.sock");
 			const two = path.join(dir, "two.sock");
 			let firstSocket: net.Socket | undefined;
@@ -1876,7 +1882,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 					const frame = JSON.parse(line);
 					requestId = frame.requestId;
 					socket.write(
-						encodeHerdrPiFrame({
+						encodeHerdrHostFrame({
 							protocol: 1,
 							runId: "run_12345678",
 							type: "prepared",
@@ -1889,7 +1895,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			});
 			await new Promise<void>((resolve) => server1.listen(one, resolve));
 			const frame = (value: Record<string, unknown>) =>
-					encodeHerdrPiFrame({ protocol: 1, runId: "run_12345678", nativeSessionId: "native1", ...value }),
+					encodeHerdrHostFrame({ protocol: 1, runId: "run_12345678", nativeSessionId: "native1", ...value }),
 				event = (cursor: number) =>
 					frame({
 						type: "event",
@@ -1930,7 +1936,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 					async call() {
 						dispatches++;
 						firstSocket?.write(
-							encodeHerdrPiFrame({
+							encodeHerdrHostFrame({
 								protocol: 1,
 								runId: "run_12345678",
 								type: "accepted",
@@ -1993,7 +1999,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				observeEvent() {},
 				markConnectionUnknown: () => true,
 			} as unknown as HerdrPlacedRunOwner;
-			const session = new HerdrPiSession(owner, { async close() {} }, bridge, ["read"], "p/m", runtime);
+			const session = new HerdrHostSession(owner, { async close() {} }, bridge, ["read"], "p/m", runtime);
 			const reconnectConnection = {
 				endpoint: { session: null, protocol: 22, version: "0.9.0" },
 				client: {
@@ -2017,7 +2023,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			};
 			let next: BridgeChannel | undefined;
 			session.armReconnect(() =>
-				reconnectHerdrPiSession(
+				reconnectHerdrHostSession(
 					session,
 					{ ...launch(true), machine: { ...machine, cwd: "/remote" } },
 					{
@@ -2071,7 +2077,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				tabId: "t",
 				paneId: "p",
 				terminalId: "term",
-				agentName: "pi-r",
+				agentName: "subagents-r",
 				nativeSessionId: "native",
 				cwd: "/remote",
 				runtimeDir: "/tmp/run",
@@ -2083,7 +2089,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 				async cleanup() {},
 			} as unknown as HerdrPlacedRunOwner;
 			const bridge = new BridgeChannel("mock", identity.runId),
-				session = new HerdrPiSession(owner, { async close() {} }, bridge, undefined, undefined, runtime),
+				session = new HerdrHostSession(owner, { async close() {} }, bridge, undefined, undefined, runtime),
 				seen: string[] = [];
 			session.subscribe((event) => {
 				if (event.type === "tool_execution_start") seen.push((event as { args: { path: string } }).args.path);
@@ -2228,7 +2234,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 			const owner = new (HerdrPlacedRunOwner as unknown as new (...args: unknown[]) => HerdrPlacedRunOwner)(
 				{ id: "m", target: "host", cwd: "/repo" },
 				"run",
-				"/tmp/pi-subagents-herdr-owned",
+				"/tmp/subagents-herdr-owned",
 				connection,
 				() => {
 					calls.push("remove");

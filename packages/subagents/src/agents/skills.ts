@@ -55,7 +55,7 @@ const MAX_CACHE_SIZE = 50;
 let loadSkillsCache: { cwd: string; agentDir: string; skills: CachedSkillEntry[]; timestamp: number } | null = null;
 const LOAD_SKILLS_CACHE_TTL_MS = 5000;
 
-const SUBAGENT_ORCHESTRATION_SKILL = "pi-subagents";
+const SUBAGENT_ORCHESTRATION_SKILL = "subagents";
 
 const SOURCE_PRIORITY: Record<SkillSource, number> = {
 	project: 700,
@@ -120,9 +120,9 @@ function extractSkillPathsFromPackageRoot(
 		? readJsonFileBestEffort(packageJsonPath)
 		: readOptionalJsonFile(packageJsonPath, "package manifest");
 	if (!pkg || typeof pkg !== "object" || Array.isArray(pkg)) return [];
-	const pi = (pkg as { pi?: unknown }).pi;
-	if (!pi || typeof pi !== "object" || Array.isArray(pi)) return [];
-	const skills = (pi as { skills?: unknown }).skills;
+	const evoharness = (pkg as { evoharness?: unknown }).evoharness;
+	if (!evoharness || typeof evoharness !== "object" || Array.isArray(evoharness)) return [];
+	const skills = (evoharness as { skills?: unknown }).skills;
 	if (!Array.isArray(skills)) return [];
 	return skills
 		.filter((entry): entry is string => typeof entry === "string")
@@ -459,7 +459,7 @@ function maybeReadSkillDisableModelInvocation(content: string): boolean | undefi
 		if (endIndex === -1) return undefined;
 		const parsed: unknown = parseYaml(normalized.slice(4, endIndex));
 		if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return undefined;
-		// Match the pi host's skill loader semantics: only YAML boolean true
+		// Match the evoharness host's skill loader semantics: only YAML boolean true
 		// disables model invocation; strings and other values stay invocable.
 		// Hidden skills remain user-invocable via explicit `/skill:name` commands
 		// but must stay out of the model-facing default skill set.

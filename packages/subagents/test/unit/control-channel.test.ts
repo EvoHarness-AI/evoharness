@@ -39,7 +39,7 @@ function cleanup(asyncDir: string): void {
 
 describe("control channel: request file", () => {
 	it("writes a parseable interrupt request, creating the inbox dir", () => {
-		const asyncDir = tmpAsyncDir("pi-control-write-");
+		const asyncDir = tmpAsyncDir("subagents-control-write-");
 		try {
 			const requestPath = requestAsyncInterrupt(asyncDir, { source: "test" }, { now: () => 999 });
 			assert.equal(requestPath, interruptRequestPath(asyncDir));
@@ -53,7 +53,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("writes and consumes a stop request", () => {
-		const asyncDir = tmpAsyncDir("pi-control-stop-");
+		const asyncDir = tmpAsyncDir("subagents-control-stop-");
 		try {
 			const requestPath = requestAsyncStop(asyncDir, { source: "test" }, { now: () => 1234 });
 			assert.equal(path.dirname(requestPath), stopRequestsDir(asyncDir));
@@ -70,7 +70,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("removes a stop request if the inbox closes while it is being written", () => {
-		const asyncDir = tmpAsyncDir("pi-control-stop-closing-");
+		const asyncDir = tmpAsyncDir("subagents-control-stop-closing-");
 		try {
 			assert.throws(
 				() =>
@@ -95,7 +95,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("keeps concurrent stop requests instead of replacing the first one", () => {
-		const asyncDir = tmpAsyncDir("pi-control-stop-queue-");
+		const asyncDir = tmpAsyncDir("subagents-control-stop-queue-");
 		try {
 			requestAsyncStop(asyncDir, { source: "test", targetIndex: 1, childId: "slow" }, { now: () => 1234 });
 			requestAsyncStop(asyncDir, { source: "test", targetIndex: 2, childId: "review" }, { now: () => 1235 });
@@ -111,7 +111,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("writes and consumes a child-scoped stop request", () => {
-		const asyncDir = tmpAsyncDir("pi-control-child-stop-");
+		const asyncDir = tmpAsyncDir("subagents-control-child-stop-");
 		try {
 			requestAsyncStop(asyncDir, { source: "test", targetIndex: 2, childId: "review" }, { now: () => 1234 });
 
@@ -129,7 +129,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("drops malformed stop files instead of widening them to run-level stops", () => {
-		const asyncDir = tmpAsyncDir("pi-control-stop-malformed-");
+		const asyncDir = tmpAsyncDir("subagents-control-stop-malformed-");
 		try {
 			fs.mkdirSync(stopRequestsDir(asyncDir), { recursive: true });
 			const requestPath = path.join(stopRequestsDir(asyncDir), "0000000001234-bad.json");
@@ -143,7 +143,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("drops invalid child-scoped stop fields instead of widening to a run stop", () => {
-		const asyncDir = tmpAsyncDir("pi-control-stop-invalid-child-");
+		const asyncDir = tmpAsyncDir("subagents-control-stop-invalid-child-");
 		try {
 			fs.mkdirSync(stopRequestsDir(asyncDir), { recursive: true });
 			const requestPath = path.join(stopRequestsDir(asyncDir), "0000000001234-bad-child.json");
@@ -161,7 +161,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("keeps the request type authoritative even for untyped callers", () => {
-		const asyncDir = tmpAsyncDir("pi-control-write-type-");
+		const asyncDir = tmpAsyncDir("subagents-control-write-type-");
 		try {
 			const requestPath = requestAsyncInterrupt(asyncDir, { type: "not-interrupt", source: "test" } as any, {
 				now: () => 999,
@@ -175,7 +175,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("consumes a pending request exactly once and removes the file", () => {
-		const asyncDir = tmpAsyncDir("pi-control-consume-");
+		const asyncDir = tmpAsyncDir("subagents-control-consume-");
 		try {
 			requestAsyncInterrupt(asyncDir);
 			assert.equal(consumeInterruptRequest(asyncDir), true);
@@ -187,7 +187,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("removes a malformed request directory instead of firing forever", () => {
-		const asyncDir = tmpAsyncDir("pi-control-consume-dir-");
+		const asyncDir = tmpAsyncDir("subagents-control-consume-dir-");
 		try {
 			fs.mkdirSync(interruptRequestPath(asyncDir), { recursive: true });
 			assert.equal(consumeInterruptRequest(asyncDir), true);
@@ -199,7 +199,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("writes and consumes ordered steer requests", () => {
-		const asyncDir = tmpAsyncDir("pi-control-steer-");
+		const asyncDir = tmpAsyncDir("subagents-control-steer-");
 		try {
 			requestAsyncSteer(asyncDir, {
 				message: "  later guidance  ",
@@ -231,7 +231,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("rejects requests after the runner closes the steering inbox", () => {
-		const asyncDir = tmpAsyncDir("pi-control-steer-closed-");
+		const asyncDir = tmpAsyncDir("subagents-control-steer-closed-");
 		try {
 			closeSteerInbox(asyncDir, "complete");
 			assert.equal(fs.existsSync(steerInboxClosedPath(asyncDir)), true);
@@ -246,7 +246,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("keeps steer request ids out of filesystem paths", () => {
-		const asyncDir = tmpAsyncDir("pi-control-steer-safe-name-");
+		const asyncDir = tmpAsyncDir("subagents-control-steer-safe-name-");
 		try {
 			const requestPath = requestAsyncSteer(asyncDir, { message: "safe", id: "../outside\\bad:thing", ts: 1 });
 			assert.equal(path.dirname(requestPath), steerRequestsDir(asyncDir));
@@ -263,7 +263,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("keeps steer requests for retry when the inbox cannot be scanned", () => {
-		const asyncDir = tmpAsyncDir("pi-control-steer-scan-retry-");
+		const asyncDir = tmpAsyncDir("subagents-control-steer-scan-retry-");
 		try {
 			requestAsyncSteer(asyncDir, { message: "retry me", id: "retry", ts: 1 });
 			let failScan = true;
@@ -290,7 +290,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("does not deliver a steer request if another consumer removed it first", () => {
-		const asyncDir = tmpAsyncDir("pi-control-steer-concurrent-");
+		const asyncDir = tmpAsyncDir("subagents-control-steer-concurrent-");
 		try {
 			requestAsyncSteer(asyncDir, { message: "already taken", id: "s", ts: 1 });
 			const fsImpl = {
@@ -312,7 +312,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("bounds retained revival briefs and keeps them FIFO", () => {
-		const asyncDir = tmpAsyncDir("pi-control-revival-brief-");
+		const asyncDir = tmpAsyncDir("subagents-control-revival-brief-");
 		try {
 			for (let index = 0; index < MAX_STEER_QUEUE_SIZE; index++) {
 				queueRevivalBrief(asyncDir, {
@@ -344,7 +344,7 @@ describe("control channel: request file", () => {
 	});
 
 	it("rejects empty steer messages and invalid target indexes", () => {
-		const asyncDir = tmpAsyncDir("pi-control-steer-invalid-");
+		const asyncDir = tmpAsyncDir("subagents-control-steer-invalid-");
 		try {
 			assert.throws(() => requestAsyncSteer(asyncDir, { message: "   " }), /steer message must not be empty/);
 			assert.throws(() => requestAsyncSteer(asyncDir, { message: "ok", targetIndex: -1 }), /targetIndex/);
@@ -369,7 +369,7 @@ describe("control channel: request file", () => {
 
 describe("control channel: deliverInterruptRequest", () => {
 	it("writes the portable request without signaling an unverified pid", () => {
-		const asyncDir = tmpAsyncDir("pi-control-deliver-file-only-");
+		const asyncDir = tmpAsyncDir("subagents-control-deliver-file-only-");
 		try {
 			const kills: Array<{ pid: number; signal?: NodeJS.Signals | 0 }> = [];
 			const unverifiedInput = {
@@ -458,7 +458,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	}
 
 	it("registers the native canonical control inbox path", () => {
-		const asyncDir = tmpAsyncDir("pi-control-watch-native-");
+		const asyncDir = tmpAsyncDir("subagents-control-watch-native-");
 		try {
 			const nativeDir = path.join(path.dirname(asyncDir), "native-control-path");
 			const h = harness(nativeDir);
@@ -476,7 +476,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	});
 
 	it("does not start fast polling when native watch is available", () => {
-		const asyncDir = tmpAsyncDir("pi-control-watch-no-poll-");
+		const asyncDir = tmpAsyncDir("subagents-control-watch-no-poll-");
 		try {
 			const h = harness();
 			const dispose = watchAsyncControlInbox(asyncDir, {
@@ -493,7 +493,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	});
 
 	it("starts portable polling once when the native watcher fails", () => {
-		const asyncDir = tmpAsyncDir("pi-control-watch-fallback-");
+		const asyncDir = tmpAsyncDir("subagents-control-watch-fallback-");
 		try {
 			const h = harness();
 			const dispose = watchAsyncControlInbox(asyncDir, {
@@ -512,7 +512,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	});
 
 	it("uses portable polling without native watchers on Darwin", () => {
-		const asyncDir = tmpAsyncDir("pi-control-watch-darwin-");
+		const asyncDir = tmpAsyncDir("subagents-control-watch-darwin-");
 		try {
 			const h = harness();
 			const dispose = watchAsyncControlInbox(asyncDir, {
@@ -530,7 +530,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	});
 
 	it("fires on a request that arrived before the watcher started", () => {
-		const asyncDir = tmpAsyncDir("pi-control-watch-early-");
+		const asyncDir = tmpAsyncDir("subagents-control-watch-early-");
 		try {
 			requestAsyncInterrupt(asyncDir);
 			let fired = 0;
@@ -550,7 +550,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	});
 
 	it("fires once per request via the watch event and stops after dispose", () => {
-		const asyncDir = tmpAsyncDir("pi-control-watch-event-");
+		const asyncDir = tmpAsyncDir("subagents-control-watch-event-");
 		try {
 			let fired = 0;
 			const h = harness();
@@ -584,7 +584,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	});
 
 	it("delivers stop requests before interrupt requests", () => {
-		const asyncDir = tmpAsyncDir("pi-control-watch-stop-early-");
+		const asyncDir = tmpAsyncDir("subagents-control-watch-stop-early-");
 		try {
 			requestAsyncStop(asyncDir);
 			requestAsyncInterrupt(asyncDir);
@@ -616,7 +616,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	});
 
 	it("delivers stop payloads to the watcher", () => {
-		const asyncDir = tmpAsyncDir("pi-control-watch-child-stop-");
+		const asyncDir = tmpAsyncDir("subagents-control-watch-child-stop-");
 		try {
 			requestAsyncStop(asyncDir, { targetIndex: 1, childId: "slow" });
 			const stops: Array<{ targetIndex?: number; childId?: string }> = [];
@@ -637,7 +637,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	});
 
 	it("delivers steer requests without firing interrupt", () => {
-		const asyncDir = tmpAsyncDir("pi-control-watch-steer-");
+		const asyncDir = tmpAsyncDir("subagents-control-watch-steer-");
 		try {
 			let interrupted = 0;
 			const steers: Array<{ message: string; targetIndex?: number }> = [];
@@ -662,7 +662,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	});
 
 	it("delivers later steer files from the watched request directory without polling", () => {
-		const asyncDir = tmpAsyncDir("pi-control-watch-steer-nested-");
+		const asyncDir = tmpAsyncDir("subagents-control-watch-steer-nested-");
 		try {
 			const steers: string[] = [];
 			const h = harness();
@@ -689,7 +689,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	});
 
 	it("consumes a steer request that arrived before the watcher started", () => {
-		const asyncDir = tmpAsyncDir("pi-steer-watch-early-");
+		const asyncDir = tmpAsyncDir("subagents-steer-watch-early-");
 		try {
 			requestAsyncSteer(asyncDir, { message: "queued before install", id: "s1", ts: 1 });
 			const steers: string[] = [];
@@ -709,7 +709,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	});
 
 	it("consumes later requests via the watch event and stops after dispose", () => {
-		const asyncDir = tmpAsyncDir("pi-steer-watch-event-");
+		const asyncDir = tmpAsyncDir("subagents-steer-watch-event-");
 		try {
 			const steers: string[] = [];
 			const h = harness();
@@ -741,7 +741,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	});
 
 	it("watches only the steer directory, so a stop request stays for its own consumer", () => {
-		const asyncDir = tmpAsyncDir("pi-steer-watch-scope-");
+		const asyncDir = tmpAsyncDir("subagents-steer-watch-scope-");
 		try {
 			requestAsyncStop(asyncDir, { source: "test" });
 			requestAsyncInterrupt(asyncDir);
@@ -771,7 +771,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 	});
 
 	it("keeps watching when a consumer throws", () => {
-		const asyncDir = tmpAsyncDir("pi-steer-watch-throws-");
+		const asyncDir = tmpAsyncDir("subagents-steer-watch-throws-");
 		try {
 			const seen: string[] = [];
 			const failures: string[] = [];
@@ -803,7 +803,7 @@ describe("control channel: watchAsyncControlInbox", () => {
 describe("control inbox diagnostics and active-owner cost", () => {
 	for (const operation of ["read", "remove"] as const)
 		it(`retries stop request ${operation} failures without losing readable siblings`, () => {
-			const asyncDir = tmpAsyncDir("pi-stop-retry-");
+			const asyncDir = tmpAsyncDir("subagents-stop-retry-");
 			const denied = Object.assign(new Error("denied"), { code: "EACCES" });
 			const pending = requestAsyncStop(asyncDir, { childId: "retry" });
 			requestAsyncStop(asyncDir, { childId: "ready" });
@@ -854,7 +854,7 @@ describe("control inbox diagnostics and active-owner cost", () => {
 		});
 
 	it("reports scan/read/install failures, retains retryable files, and distinguishes healthy watch fallback", () => {
-		const asyncDir = tmpAsyncDir("pi-steer-diagnostics-");
+		const asyncDir = tmpAsyncDir("subagents-steer-diagnostics-");
 		const failures: string[] = [];
 		const seen: string[] = [];
 		let tick: () => void = () => {};
@@ -911,7 +911,7 @@ describe("control inbox diagnostics and active-owner cost", () => {
 	});
 
 	it("reports a repeating scan failure once, then one count per minute, and again after a clean scan", () => {
-		const asyncDir = tmpAsyncDir("pi-steer-repeated-eperm-");
+		const asyncDir = tmpAsyncDir("subagents-steer-repeated-eperm-");
 		const reports: unknown[] = [];
 		let failing = true,
 			clock = 0,
@@ -972,7 +972,7 @@ describe("control inbox diagnostics and active-owner cost", () => {
 	for (const mode of ["native", "fallback", "portable"])
 		for (const owners of [1, 8])
 			it(`measures bounded empty-inbox ${mode} and cleanup for ${owners} active owners`, async (t) => {
-				const asyncDir = tmpAsyncDir("pi-steer-cost-");
+				const asyncDir = tmpAsyncDir("subagents-steer-cost-");
 				const handles = new Set<ReturnType<typeof setInterval>>();
 				const watchers = new Set<fs.FSWatcher>();
 				const watchedDirs: string[] = [];

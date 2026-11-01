@@ -4,7 +4,7 @@
  * Tests the async support utilities: jiti availability check,
  * status file reading/caching.
  *
- * Requires pi packages to be importable. Skips gracefully if unavailable.
+ * Requires evoharness packages to be importable. Skips gracefully if unavailable.
  */
 
 import assert from "node:assert/strict";
@@ -58,7 +58,7 @@ import {
 	resolveMockPiCallArgs,
 } from "../support/helpers.ts";
 
-describe("async execution utilities", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("async execution utilities", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	installAsyncExecutionHooks();
 
 	it(
@@ -72,7 +72,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task,
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -100,7 +100,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 		{ skip: !isAsyncAvailable() ? "jiti not available" : undefined },
 		async () => {
 			const originalExecPath = process.execPath;
-			process.execPath = path.join(tempDir, process.platform === "win32" ? "pi.exe" : "pi");
+			process.execPath = path.join(tempDir, process.platform === "win32" ? "evoharness.exe" : "evoharness");
 			try {
 				mockPi.onCall({ output: "non-node exec async done" });
 				const id = `async-non-node-exec-${Date.now().toString(36)}`;
@@ -108,7 +108,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 					agent: "worker",
 					task: "Say non-node exec async done. Do not edit files.",
 					agentConfig: makeAgent("worker"),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -151,7 +151,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 					agent: "worker",
 					task: "Say stale node exec async done. Do not edit files.",
 					agentConfig: makeAgent("worker"),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -231,7 +231,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				],
 				resultMode: "parallel",
 				agents: [makeAgent("one"), makeAgent("two"), makeAgent("three")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -320,7 +320,7 @@ syncBuiltinESMExports();
 					],
 					resultMode: "parallel",
 					agents: [makeAgent("first"), makeAgent("second")],
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -425,7 +425,7 @@ syncBuiltinESMExports();
 						],
 						agents: [makeAgent("worker", { tools: ["read", "write"] })],
 						ctx: {
-							pi: { events: { emit() {} } },
+							evoharness: { events: { emit() {} } },
 							cwd: tempDir,
 							currentSessionId: "session-completion-diagnostics",
 						},
@@ -498,7 +498,7 @@ syncBuiltinESMExports();
 				agent: "worker",
 				task: "Wait for guidance",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-inbox-steer" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-inbox-steer" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -605,7 +605,11 @@ syncBuiltinESMExports();
 				agent: "worker",
 				task: "Wait for guidance",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-steer-unconsumed-queued" },
+				ctx: {
+					evoharness: { events: { emit() {} } },
+					cwd: tempDir,
+					currentSessionId: "session-steer-unconsumed-queued",
+				},
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -724,7 +728,7 @@ syncBuiltinESMExports();
 				agent: "worker",
 				task: "Wait for guidance",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-steer-consumed" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-steer-consumed" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -849,7 +853,7 @@ syncBuiltinESMExports();
 				],
 				resultMode: "parallel",
 				agents: [makeAgent("one"), makeAgent("two")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -907,7 +911,7 @@ syncBuiltinESMExports();
 			mockPi.onCall({ delay: 5_000, output: "two done" });
 			// This fixture owns real parallel deadline enforcement; dirty recovery is
 			// covered below with mutation ordered before an explicit timeout request.
-			const repo = createRepo("pi-subagents-parallel-timeout-");
+			const repo = createRepo("subagents-parallel-timeout-");
 			try {
 				const id = `async-timeout-parallel-${Date.now().toString(36)}`;
 				executeAsyncChain(id, {
@@ -922,7 +926,7 @@ syncBuiltinESMExports();
 					],
 					resultMode: "parallel",
 					agents: [makeAgent("one"), makeAgent("two")],
-					ctx: { pi: { events: { emit() {} } }, cwd: repo, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: repo, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -996,7 +1000,7 @@ syncBuiltinESMExports();
 			executeAsyncChain(id, {
 				chain: [{ agent: "slow", task: "Wait" }],
 				agents: [makeAgent("slow", { defaultTimeoutMs: 150 })],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1027,7 +1031,7 @@ syncBuiltinESMExports();
 					: undefined,
 		},
 		async () => {
-			const repo = createRepo("pi-subagents-timeout-recovery-");
+			const repo = createRepo("subagents-timeout-recovery-");
 			const changedPath = path.join(repo, "input.md");
 			const partialChange = "partial child change\n";
 			mockPi.onCall({
@@ -1040,7 +1044,7 @@ syncBuiltinESMExports();
 				executeAsyncChain(id, {
 					chain: [{ agent: "slow", task: "Write the requested report" }],
 					agents: [makeAgent("slow", { output: outputPath, outputMode: "file-only" })],
-					ctx: { pi: { events: { emit() {} } }, cwd: repo, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: repo, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: true,
 						includeInput: false,
@@ -1115,12 +1119,12 @@ syncBuiltinESMExports();
 				],
 			});
 			const id = `async-tool-timeout-${Date.now().toString(36)}`;
-			process.env.PI_SUBAGENT_TOOL_TIMEOUT_MS = "1000";
+			process.env.EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS = "1000";
 			try {
 				executeAsyncChain(id, {
 					chain: [{ agent: "one", task: "Wait" }],
 					agents: [makeAgent("one")],
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -1139,7 +1143,7 @@ syncBuiltinESMExports();
 				assert.equal(payload.results[0]?.timedOut, true);
 				assert.match(payload.results[0]?.error ?? "", /Tool 'bash' exceeded its timeout of 1000ms\./);
 			} finally {
-				delete process.env.PI_SUBAGENT_TOOL_TIMEOUT_MS;
+				delete process.env.EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS;
 			}
 		},
 	);
@@ -1153,12 +1157,12 @@ syncBuiltinESMExports();
 				keepAliveAfterFinalMessageMs: 1_500,
 			});
 			const id = `async-terminal-tool-timeout-${Date.now().toString(36)}`;
-			process.env.PI_SUBAGENT_TOOL_TIMEOUT_MS = "600";
+			process.env.EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS = "600";
 			try {
 				executeAsyncChain(id, {
 					chain: [{ agent: "one", task: "Do work" }],
 					agents: [makeAgent("one")],
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -1177,7 +1181,7 @@ syncBuiltinESMExports();
 				assert.equal(payload.results[0]?.timedOut, undefined);
 				assert.equal(payload.results[0]?.output, "Done");
 			} finally {
-				delete process.env.PI_SUBAGENT_TOOL_TIMEOUT_MS;
+				delete process.env.EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS;
 			}
 		},
 	);
@@ -1211,12 +1215,12 @@ syncBuiltinESMExports();
 				],
 			});
 			const id = `async-tool-timeout-overlap-${Date.now().toString(36)}`;
-			process.env.PI_SUBAGENT_TOOL_TIMEOUT_MS = "1000";
+			process.env.EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS = "1000";
 			try {
 				executeAsyncChain(id, {
 					chain: [{ agent: "one", task: "Wait" }],
 					agents: [makeAgent("one")],
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -1235,7 +1239,7 @@ syncBuiltinESMExports();
 				assert.equal(payload.results[0]?.timedOut, true);
 				assert.match(payload.results[0]?.error ?? "", /Tool 'bash' exceeded its timeout of 1000ms\./);
 			} finally {
-				delete process.env.PI_SUBAGENT_TOOL_TIMEOUT_MS;
+				delete process.env.EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS;
 			}
 		},
 	);
@@ -1254,12 +1258,12 @@ syncBuiltinESMExports();
 				steps: [{ jsonl: [events.toolStart("bash")] }, { delay: 30_000 }],
 			});
 			const id = `async-tool-timeout-run-budget-${Date.now().toString(36)}`;
-			process.env.PI_SUBAGENT_TOOL_TIMEOUT_MS = "1000";
+			process.env.EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS = "1000";
 			try {
 				executeAsyncChain(id, {
 					chain: [{ agent: "one", task: "Wait" }],
 					agents: [makeAgent("one")],
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -1277,7 +1281,7 @@ syncBuiltinESMExports();
 				assert.equal(payload.results[0]?.timedOut, true);
 				assert.equal(payload.results[0]?.error, "Subagent timed out after 300ms.");
 			} finally {
-				delete process.env.PI_SUBAGENT_TOOL_TIMEOUT_MS;
+				delete process.env.EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS;
 			}
 		},
 	);
@@ -1302,12 +1306,12 @@ syncBuiltinESMExports();
 				],
 			});
 			const id = `async-tool-complete-${Date.now().toString(36)}`;
-			process.env.PI_SUBAGENT_TOOL_TIMEOUT_MS = "1000";
+			process.env.EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS = "1000";
 			try {
 				executeAsyncChain(id, {
 					chain: [{ agent: "one", task: "Done" }],
 					agents: [makeAgent("one")],
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -1325,7 +1329,7 @@ syncBuiltinESMExports();
 				assert.equal(payload.state, "complete");
 				assert.notEqual(payload.results[0]?.timedOut, true);
 			} finally {
-				delete process.env.PI_SUBAGENT_TOOL_TIMEOUT_MS;
+				delete process.env.EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS;
 			}
 		},
 	);
@@ -1357,12 +1361,12 @@ syncBuiltinESMExports();
 				],
 			});
 			const id = `async-tool-allowlist-${Date.now().toString(36)}`;
-			process.env.PI_SUBAGENT_TOOL_TIMEOUT_MS = "1000";
+			process.env.EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS = "1000";
 			try {
 				executeAsyncChain(id, {
 					chain: [{ agent: "one", task: "Ask" }],
 					agents: [makeAgent("one")],
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -1380,7 +1384,7 @@ syncBuiltinESMExports();
 				assert.equal(payload.state, "complete");
 				assert.notEqual(payload.results[0]?.timedOut, true);
 			} finally {
-				delete process.env.PI_SUBAGENT_TOOL_TIMEOUT_MS;
+				delete process.env.EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS;
 			}
 		},
 	);
@@ -1413,7 +1417,7 @@ syncBuiltinESMExports();
 					makeAgent("slow-one", { defaultTimeoutMs: 150 }),
 					makeAgent("slow-two", { defaultTimeoutMs: 200 }),
 				],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1452,7 +1456,7 @@ syncBuiltinESMExports();
 				agent: "stubborn",
 				task: "Ignore soft termination",
 				agentConfig: makeAgent("stubborn", { model: "primary-model" }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1503,7 +1507,7 @@ syncBuiltinESMExports();
 				agent: "worker",
 				task: "Implement with verified acceptance",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: true,
 					includeInput: false,
@@ -1562,7 +1566,7 @@ syncBuiltinESMExports();
 				agent: "reviewer",
 				task: "Review the report without edits",
 				agentConfig: makeAgent("reviewer"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: true,
 					includeInput: false,
@@ -1613,7 +1617,7 @@ syncBuiltinESMExports();
 			const emitted: Array<{ channel: string; data: unknown }> = [];
 			const commonParams = {
 				ctx: {
-					pi: {
+					evoharness: {
 						events: {
 							emit(channel: string, data: unknown) {
 								emitted.push({ channel, data });
@@ -1650,7 +1654,7 @@ syncBuiltinESMExports();
 			assert.match(singleResult.content[0]?.text ?? "", /Use bg_wait only/i);
 			assert.match(
 				singleResult.content[0]?.text ?? "",
-				/non-interactive run: Pi auto-drains current-session subagent work at agent_end/,
+				/non-interactive run: evoharness auto-drains current-session subagent work at agent_end/,
 			);
 			assert.equal(startedEvent(singleId).task, "[prompt redacted]");
 			assert.equal(startedEvent(singleId).goal, "[prompt redacted]");
@@ -1748,7 +1752,7 @@ syncBuiltinESMExports();
 				agent: agent.name,
 				task: "Inspect using fixture search",
 				agentConfig: agent,
-				ctx: { pi: host, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: host, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1781,7 +1785,7 @@ syncBuiltinESMExports();
 				chain: [{ agent: "extension-worker", task: "Use fixture search" }],
 				agents: [makeAgent("extension-worker", { tools: ["read", "fixture_search"] })],
 				ctx: {
-					pi: {
+					evoharness: {
 						events: { emit() {} },
 						getAllTools: () => [
 							{ name: "read", sourceInfo: { source: "extension" } },
@@ -1824,7 +1828,10 @@ syncBuiltinESMExports();
 				task: "Implement the requested source fix",
 				agentConfig: makeAgent("worker", { tools: ["read", "fixture_search"] }),
 				ctx: {
-					pi: { events: { emit() {} }, getAllTools: () => [{ name: "read", sourceInfo: { source: "builtin" } }] },
+					evoharness: {
+						events: { emit() {} },
+						getAllTools: () => [{ name: "read", sourceInfo: { source: "builtin" } }],
+					},
 					cwd: tempDir,
 					currentSessionId: "session-1",
 				},
@@ -1888,7 +1895,7 @@ syncBuiltinESMExports();
 				task: "Patch src/auth.ts",
 				chain: [{ agent: "explorer", task: "{task}" }],
 				agents: [makeAgent("explorer", { acceptanceRole: "read-only" })],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-role-task-patch" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-role-task-patch" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1908,7 +1915,7 @@ syncBuiltinESMExports();
 				task: "Review only; do not edit files",
 				chain: [{ agent: "implementer", task: "{task}" }],
 				agents: [makeAgent("implementer", { acceptanceRole: "writer" })],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-role-task-review" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-role-task-review" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1942,7 +1949,7 @@ syncBuiltinESMExports();
 					},
 				],
 				agents: [makeAgent("worker", { output: "context.md" })],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-chain-output" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-chain-output" },
 				artifactConfig: {
 					enabled: true,
 					includeInput: false,
@@ -2012,7 +2019,11 @@ syncBuiltinESMExports();
 				],
 				resultMode: "parallel",
 				agents: [makeAgent("worker", { output: "report.md" })],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-parallel-saved-cap" },
+				ctx: {
+					evoharness: { events: { emit() {} } },
+					cwd: tempDir,
+					currentSessionId: "session-parallel-saved-cap",
+				},
 				artifactConfig: {
 					enabled: true,
 					includeInput: false,
@@ -2083,7 +2094,7 @@ syncBuiltinESMExports();
 				agent: "worker",
 				task: "Implement acceptance-covered fix",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-acceptance" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-acceptance" },
 				artifactConfig,
 				shareEnabled: false,
 				maxSubagentDepth: 2,
@@ -2113,7 +2124,7 @@ syncBuiltinESMExports();
 				agent: "worker",
 				task: "Preserve the staged index",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-preserved-index" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-preserved-index" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2148,7 +2159,7 @@ syncBuiltinESMExports();
 			const result = executeAsyncChain(id, {
 				chain: [{ agent: "consumer", task: "Use {outputs.bad-name}" }],
 				agents: [makeAgent("consumer")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-malformed" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-malformed" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2192,7 +2203,7 @@ syncBuiltinESMExports();
 					{ agent: "consumer", task: "Use {outputs.data}", phase: "Use", label: "Consume data" },
 				],
 				agents: [makeAgent("producer"), makeAgent("consumer")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-structured" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-structured" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2258,7 +2269,11 @@ syncBuiltinESMExports();
 					makeAgent("review-a"),
 					makeAgent("review-b"),
 				],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-parallel-funnel-fanout" },
+				ctx: {
+					evoharness: { events: { emit() {} } },
+					cwd: tempDir,
+					currentSessionId: "session-parallel-funnel-fanout",
+				},
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2346,7 +2361,11 @@ syncBuiltinESMExports();
 					{ agent: "consumer", task: "Use {outputs.reviews}" },
 				],
 				agents: [makeAgent("producer"), makeAgent("reviewer"), makeAgent("consumer")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-placeholder" },
+				ctx: {
+					evoharness: { events: { emit() {} } },
+					cwd: tempDir,
+					currentSessionId: "session-dynamic-placeholder",
+				},
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2417,7 +2436,7 @@ syncBuiltinESMExports();
 					{ agent: "consumer", task: "Use {outputs.reviews}" },
 				],
 				agents: [makeAgent("producer"), makeAgent("reviewer", { output: "context.md" }), makeAgent("consumer")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic" },
 				artifactConfig: {
 					enabled: true,
 					includeInput: false,
@@ -2529,7 +2548,7 @@ syncBuiltinESMExports();
 					},
 				],
 				agents: [makeAgent("producer"), makeAgent("reader")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-tools" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-tools" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2576,7 +2595,7 @@ syncBuiltinESMExports();
 				],
 				usageBudget: { tokens: { hard: 200 } },
 				agents: [makeAgent("producer"), makeAgent("reviewer")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-budget" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-budget" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2624,7 +2643,11 @@ syncBuiltinESMExports();
 					},
 				],
 				agents: [makeAgent("producer"), makeAgent("reviewer")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-explicit-output" },
+				ctx: {
+					evoharness: { events: { emit() {} } },
+					cwd: tempDir,
+					currentSessionId: "session-dynamic-explicit-output",
+				},
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2678,7 +2701,11 @@ syncBuiltinESMExports();
 					},
 				],
 				agents: [makeAgent("producer"), reviewer],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-external-runner" },
+				ctx: {
+					evoharness: { events: { emit() {} } },
+					cwd: tempDir,
+					currentSessionId: "session-dynamic-external-runner",
+				},
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2759,7 +2786,7 @@ syncBuiltinESMExports();
 					makeAgent("producer"),
 					makeAgent("reviewer", { model: "anthropic/claude-sonnet-4-5:high", thinking: "high" }),
 				],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2835,7 +2862,7 @@ syncBuiltinESMExports();
 					},
 				],
 				agents: [makeAgent("producer"), makeAgent("explorer", { acceptanceRole: "read-only" })],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-role" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-role" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2900,7 +2927,7 @@ syncBuiltinESMExports();
 					},
 				],
 				agents: [makeAgent("producer"), makeAgent("explorer", { acceptanceRole: "read-only" })],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-role-item" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-role-item" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2969,7 +2996,7 @@ syncBuiltinESMExports();
 				],
 				agents: [makeAgent("producer"), makeAgent("reviewer")],
 				ctx: {
-					pi: { events: { emit() {} } },
+					evoharness: { events: { emit() {} } },
 					cwd: tempDir,
 					currentSessionId: "session-dynamic-acceptance-timeout",
 				},
@@ -3032,7 +3059,7 @@ syncBuiltinESMExports();
 					{ agent: "consumer", task: "Use {outputs.reviews}" },
 				],
 				agents: [makeAgent("producer"), makeAgent("reviewer"), makeAgent("consumer")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-targets" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-targets" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -3076,7 +3103,7 @@ syncBuiltinESMExports();
 					},
 				],
 				agents: [makeAgent("producer"), makeAgent("reviewer")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-fail" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-fail" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -3123,7 +3150,11 @@ syncBuiltinESMExports();
 					},
 				],
 				agents: [makeAgent("producer"), makeAgent("reviewer")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-dynamic-collect-fail" },
+				ctx: {
+					evoharness: { events: { emit() {} } },
+					cwd: tempDir,
+					currentSessionId: "session-dynamic-collect-fail",
+				},
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -3226,7 +3257,7 @@ syncBuiltinESMExports();
 				task: "Do work",
 				agentConfig: makeAgent("worker", { model: "opencode-go/ox-alpha-free:max" }),
 				ctx: {
-					pi: { events: { emit() {} } },
+					evoharness: { events: { emit() {} } },
 					cwd: tempDir,
 					currentSessionId: "session-1",
 					modelResponseAliases: { "opencode-go/ox-alpha-free": ["declared-echo"] },
@@ -3282,7 +3313,7 @@ syncBuiltinESMExports();
 				agentConfig: makeAgent("worker", {
 					model: "openai/gpt-5-mini:high",
 				}),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				availableModels: [
 					{ provider: "openai", id: "gpt-5-mini", fullId: "openai/gpt-5-mini" },
 					{ provider: "anthropic", id: "claude-sonnet-4", fullId: "anthropic/claude-sonnet-4" },
@@ -3336,7 +3367,7 @@ syncBuiltinESMExports();
 				agentConfig: makeAgent("worker", {
 					model: "openai/gpt-5-mini:high",
 				}),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				availableModels: [
 					{ provider: "openai", id: "gpt-5-mini", fullId: "openai/gpt-5-mini" },
 					{ provider: "anthropic", id: "claude-sonnet-4", fullId: "anthropic/claude-sonnet-4" },
@@ -3399,7 +3430,7 @@ syncBuiltinESMExports();
 				task: "Do work",
 				sessionFile,
 				agentConfig: makeAgent("worker", { model: "openai/gpt-5-mini:high" }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				availableModels: [{ provider: "openai", id: "gpt-5-mini", fullId: "openai/gpt-5-mini" }],
 				artifactConfig: {
 					enabled: false,
@@ -3453,7 +3484,7 @@ syncBuiltinESMExports();
 				agent: "worker",
 				task: "Do work",
 				agentConfig: makeAgent("worker", { model: "openai/gpt-5-mini:high" }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				availableModels: [{ provider: "openai", id: "gpt-5-mini", fullId: "openai/gpt-5-mini" }],
 				artifactConfig: {
 					enabled: false,

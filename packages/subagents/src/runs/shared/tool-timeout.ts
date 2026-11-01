@@ -1,4 +1,4 @@
-export const TOOL_TIMEOUT_ENV = "PI_SUBAGENT_TOOL_TIMEOUT_MS";
+export const TOOL_TIMEOUT_ENV = "EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS";
 
 /** Maximum delay a Node.js timer accepts without overflow. */
 const MAX_TIMER_DELAY_MS = 2_147_483_647;
@@ -56,7 +56,7 @@ export interface ToolTimeoutResolutionInput {
 	agentValue?: number;
 	/** Global extension config.toolTimeoutMs (third precedence). */
 	configValue?: unknown;
-	/** PI_SUBAGENT_TOOL_TIMEOUT_MS environment override (lowest precedence). */
+	/** EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS environment override (lowest precedence). */
 	envValue?: string | undefined;
 }
 

@@ -26,8 +26,8 @@ interface RegisterMainWatchdogOptions {
 	slashCommand?: boolean;
 }
 
-function sendSlashText(pi: ExtensionAPI, text: string): void {
-	pi.sendMessage({
+function sendSlashText(evoharness: ExtensionAPI, text: string): void {
+	evoharness.sendMessage({
 		customType: SLASH_TEXT_RESULT_TYPE,
 		content: text,
 		display: true,
@@ -295,29 +295,29 @@ function createTestWarning(
 }
 
 async function handleWatchdogCommand(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	runtime: MainWatchdogRuntime,
 	args: string,
 	ctx: ExtensionCommandContext,
 ): Promise<void> {
 	const input = args.trim();
 	if (!input || input === "status") {
-		sendSlashText(pi, buildWatchdogStatus(runtime.getSnapshot(ctx.cwd), ctx));
+		sendSlashText(evoharness, buildWatchdogStatus(runtime.getSnapshot(ctx.cwd), ctx));
 		return;
 	}
 	if (input === "recommend-model") {
 		try {
-			sendSlashText(pi, buildRecommendationText(runtime, ctx));
+			sendSlashText(evoharness, buildRecommendationText(runtime, ctx));
 		} catch (error) {
-			sendSlashText(pi, `Subagent watchdog recommended model\n\n${messageFromError(error)}`);
+			sendSlashText(evoharness, `Subagent watchdog recommended model\n\n${messageFromError(error)}`);
 		}
 		return;
 	}
 	if (input === "check") {
 		try {
-			sendSlashText(pi, buildCheckText(runtime, ctx));
+			sendSlashText(evoharness, buildCheckText(runtime, ctx));
 		} catch (error) {
-			sendSlashText(pi, `Subagent watchdog config check\n\n${messageFromError(error)}`);
+			sendSlashText(evoharness, `Subagent watchdog config check\n\n${messageFromError(error)}`);
 		}
 		return;
 	}
@@ -327,7 +327,7 @@ async function handleWatchdogCommand(
 			const settingsPath = writeUserWatchdogEnabled(enabled);
 			const snapshot = runtime.getSnapshot(ctx.cwd);
 			sendSlashText(
-				pi,
+				evoharness,
 				[
 					`Subagent watchdog ${boolLabel(enabled)} saved to user settings.`,
 					`Updated: ${settingsPath}`,
@@ -336,7 +336,7 @@ async function handleWatchdogCommand(
 			);
 		} catch (error) {
 			sendSlashText(
-				pi,
+				evoharness,
 				`Subagent watchdog\n\nCould not update ${getWatchdogUserSettingsPath()}: ${messageFromError(error)}`,
 			);
 		}
@@ -346,7 +346,7 @@ async function handleWatchdogCommand(
 		const enabled = input.endsWith("on");
 		const snapshot = runtime.setSessionEnabled(enabled, ctx.cwd);
 		sendSlashText(
-			pi,
+			evoharness,
 			[
 				`Subagent watchdog session override: ${boolLabel(enabled)}.`,
 				"No settings files were changed.",
@@ -365,7 +365,7 @@ async function handleWatchdogCommand(
 					? runtime.clearSessionModel(ctx.cwd)
 					: runtime.setSessionModel({ model: value.model, thinking: value.thinking ?? null }, ctx.cwd);
 			sendSlashText(
-				pi,
+				evoharness,
 				[
 					`Subagent watchdog session model: ${value.description}.`,
 					"No settings files were changed.",
@@ -374,7 +374,7 @@ async function handleWatchdogCommand(
 				].join("\n"),
 			);
 		} catch (error) {
-			sendSlashText(pi, `Subagent watchdog session model\n\n${messageFromError(error)}`);
+			sendSlashText(evoharness, `Subagent watchdog session model\n\n${messageFromError(error)}`);
 		}
 		return;
 	}
@@ -391,7 +391,7 @@ async function handleWatchdogCommand(
 			runtime.refreshConfig(ctx.cwd);
 			const snapshot = runtime.getSnapshot(ctx.cwd);
 			sendSlashText(
-				pi,
+				evoharness,
 				[
 					`Subagent watchdog model saved to user settings: ${value.description}. Project and session overrides still take precedence.`,
 					`Updated: ${settingsPath}`,
@@ -404,7 +404,10 @@ async function handleWatchdogCommand(
 				].join("\n"),
 			);
 		} catch (error) {
-			sendSlashText(pi, `Subagent watchdog model\n\n${messageFromError(error)}\nNo settings files were changed.`);
+			sendSlashText(
+				evoharness,
+				`Subagent watchdog model\n\n${messageFromError(error)}\nNo settings files were changed.`,
+			);
 		}
 		return;
 	}
@@ -419,7 +422,7 @@ async function handleWatchdogCommand(
 			});
 			runtime.refreshConfig(ctx.cwd);
 			sendSlashText(
-				pi,
+				evoharness,
 				[
 					`Subagent watchdog thinking saved: ${formatThinking(thinking ?? undefined)}.`,
 					`Updated: ${settingsPath}`,
@@ -428,7 +431,10 @@ async function handleWatchdogCommand(
 				].join("\n"),
 			);
 		} catch (error) {
-			sendSlashText(pi, `Subagent watchdog thinking\n\n${messageFromError(error)}\nNo settings files were changed.`);
+			sendSlashText(
+				evoharness,
+				`Subagent watchdog thinking\n\n${messageFromError(error)}\nNo settings files were changed.`,
+			);
 		}
 		return;
 	}
@@ -448,7 +454,10 @@ async function handleWatchdogCommand(
 	);
 }
 
-export function registerMainWatchdog(pi: ExtensionAPI, options: RegisterMainWatchdogOptions = {}): MainWatchdogRuntime {
+export function registerMainWatchdog(
+	evoharness: ExtensionAPI,
+	options: RegisterMainWatchdogOptions = {},
+): MainWatchdogRuntime {
 	let currentContext: ExtensionContext | undefined;
 	let diffBaseline: Promise<WatchdogDiffBaseline | undefined> | undefined;
 	const rememberContext = (ctx: ExtensionContext) => {
@@ -460,61 +469,61 @@ export function registerMainWatchdog(pi: ExtensionAPI, options: RegisterMainWatc
 			review:
 				options.review ??
 				createMainWatchdogReview(() => currentContext, {
-					getThinkingLevel: () => pi.getThinkingLevel(),
+					getThinkingLevel: () => evoharness.getThinkingLevel(),
 					diffBaseline: () => diffBaseline,
 				}),
 			reviewDescription: options.review ? "injected seam" : "real model review",
 			reviewChangesOnly: true,
 			displayWarning: (details, options) =>
-				pi.sendMessage(createWatchdogWarningMessage(details, { display: true, details }), options),
-			displayUserWarning: (details) => pi.appendEntry(SUBAGENT_WATCHDOG_WARNING_TYPE, details),
+				evoharness.sendMessage(createWatchdogWarningMessage(details, { display: true, details }), options),
+			displayUserWarning: (details) => evoharness.appendEntry(SUBAGENT_WATCHDOG_WARNING_TYPE, details),
 			displayClarification: (content) =>
-				pi.sendMessage(
+				evoharness.sendMessage(
 					{ customType: "subagent_watchdog_clarification", content, display: true },
 					{ deliverAs: "steer", triggerTurn: true },
 				),
 		});
 
 	if (options.slashCommand !== false)
-		pi.registerCommand("subagents-watchdog", {
+		evoharness.registerCommand("subagents-watchdog", {
 			description: "Show or toggle the default-off subagent watchdog",
 			handler: (args, ctx) => {
 				rememberContext(ctx);
-				return handleWatchdogCommand(pi, runtime, args, ctx);
+				return handleWatchdogCommand(evoharness, runtime, args, ctx);
 			},
 		});
 
-	pi.on("session_start", (_event, ctx) => {
+	evoharness.on("session_start", (_event, ctx) => {
 		rememberContext(ctx);
 		diffBaseline = startWatchdogDiffBaselineCapture(ctx.cwd);
 		runtime.bindSession(ctx);
 	});
-	pi.on("before_agent_start", (event, ctx) => {
+	evoharness.on("before_agent_start", (event, ctx) => {
 		rememberContext(ctx);
 		runtime.handleBeforeAgentStart(event, ctx);
 	});
-	pi.on("turn_end", (event, ctx) => {
+	evoharness.on("turn_end", (event, ctx) => {
 		rememberContext(ctx);
 		runtime.handleTurnEnd(event, ctx);
 	});
-	pi.on("input", (event) => runtime.handleUserInput(event));
-	pi.on("model_select", () => runtime.handleModelChange());
-	pi.on("tool_result", (_event, ctx) => {
+	evoharness.on("input", (event) => runtime.handleUserInput(event));
+	evoharness.on("model_select", () => runtime.handleModelChange());
+	evoharness.on("tool_result", (_event, ctx) => {
 		rememberContext(ctx);
 		runtime.handleToolResult(ctx);
 	});
-	pi.on("agent_end", (event, ctx) => {
+	evoharness.on("agent_end", (event, ctx) => {
 		rememberContext(ctx);
 		return runtime.handleAgentEnd(event, ctx);
 	});
-	pi.on("session_before_switch", () =>
+	evoharness.on("session_before_switch", () =>
 		runtime.reset("session switch", { clearReviewInputSignature: true, clearLspLedger: true, clearScope: true }),
 	);
-	pi.on("session_before_fork", () =>
+	evoharness.on("session_before_fork", () =>
 		runtime.reset("session fork", { clearReviewInputSignature: true, clearLspLedger: true, clearScope: true }),
 	);
-	pi.on("session_compact", () => runtime.reset("session compact", { clearActivity: true }));
-	pi.on("session_shutdown", () => {
+	evoharness.on("session_compact", () => runtime.reset("session compact", { clearActivity: true }));
+	evoharness.on("session_shutdown", () => {
 		currentContext = undefined;
 		runtime.dispose();
 	});

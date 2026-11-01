@@ -123,7 +123,7 @@ describe("Rex pane host exit codes and cleanup", { skip: process.platform === "w
 
 	it("closes the window a failed or unreadable window new may have opened, found by the run's tab label", async () => {
 		const connection = await connect(),
-			restore = withEnv({ PI_SUBAGENT_PI_BINARY: "/bin/echo" }),
+			restore = withEnv({ EVOHARNESS_SUBAGENT_HOST_BINARY: "/bin/echo" }),
 			label = "subagent-89abcdef";
 		const listing = (...windows: Array<{ id: string; label: string; block: string }>) =>
 			fs.writeFileSync(
@@ -143,7 +143,7 @@ describe("Rex pane host exit codes and cleanup", { skip: process.platform === "w
 				machine,
 				"run_0123456789abcdef",
 				"/tmp/unused",
-				{ kind: "pi", name: "pi", args: [] },
+				{ kind: "evoharness", name: "evoharness", args: [] },
 				async () => {
 					throw new Error("onPane must not run for an unparsed window");
 				},
@@ -195,7 +195,7 @@ describe("Rex pane host exit codes and cleanup", { skip: process.platform === "w
 			try {
 				const socketPath = path.join(runtimeDir, "bridge.sock");
 				assert.ok(Buffer.byteLength(socketPath) <= 103, socketPath);
-				assert.match(path.basename(runtimeDir), /^pi-subagents-herdr-[0-9a-f]{12}-/u);
+				assert.match(path.basename(runtimeDir), /^subagents-herdr-[0-9a-f]{12}-/u);
 				const server = net.createServer();
 				await new Promise<void>((resolve, reject) => {
 					server.once("error", reject);
@@ -298,7 +298,7 @@ describe("machine 'local' resolution", { skip: process.platform === "win32" }, (
 				runnerType: "external-cli",
 				adapter: "claude-code",
 			}) ?? "",
-			/native Pi children only/u,
+			/native evoharness children only/u,
 		);
 		assert.match(
 			formatHerdrMachineRunnerUnsupported({ machine: "local", agentName: "worker", worktree: true }) ?? "",

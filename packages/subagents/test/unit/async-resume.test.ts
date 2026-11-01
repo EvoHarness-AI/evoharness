@@ -27,7 +27,7 @@ function writeJson(filePath: string, value: object): void {
 
 describe("async resume lookup", () => {
 	it("resolves a completed single-child run from persisted status", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const sessionFile = path.join(root, "session.jsonl");
@@ -60,7 +60,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("requires a recovery descriptor for a legacy workflow child session", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-workflow-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-workflow-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -95,7 +95,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("uses a current workflow's persisted parent admission authority", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-current-workflow-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-current-workflow-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -155,7 +155,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("resolves a retained managed worktree cwd and fails closed when it is missing", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-missing-cwd-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-missing-cwd-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-missing-cwd");
@@ -245,7 +245,7 @@ describe("async resume lookup", () => {
 
 	it("refuses to revive a worktree child in the source checkout while its runner is finalizing", async () => {
 		// Git reports the long Windows path; a short 8.3 temp path would fail the cwd containment check first.
-		const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-finalizing-")));
+		const root = fs.realpathSync.native(fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-finalizing-")));
 		const repo = path.join(root, "repo");
 		const asyncDir = path.join(root, "runs", "run-finalizing");
 		const manifestPath = parallelHandoffPath(asyncDir);
@@ -312,7 +312,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("resolves a retained managed worktree cwd in the original repository subdirectory", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-nested-cwd-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-nested-cwd-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-nested-cwd");
@@ -395,7 +395,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("resumes a normal child when a sibling has a managed worktree handoff", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-mixed-cwd-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-mixed-cwd-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-mixed-cwd");
@@ -477,7 +477,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("rejects a retained managed worktree cwd that resolves outside the preserved worktree", (context) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-escaped-cwd-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-escaped-cwd-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-escaped-cwd");
@@ -573,7 +573,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("preserves and validates persisted capability ceilings for resume", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-ceiling-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-ceiling-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-ceiling");
@@ -683,7 +683,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("rejects unknown, cross-run, and wrong-agent recovery descriptors", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-descriptor-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-descriptor-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-descriptor");
@@ -826,7 +826,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("ignores removed turn budgets in persisted recovery descriptors", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-turn-budget-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-turn-budget-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-turn-budget");
@@ -888,7 +888,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("accepts current acceptance metadata in recovery descriptors", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-acceptance-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-acceptance-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-acceptance");
@@ -946,7 +946,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("rejects reviewed acceptance metadata in recovery descriptors", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-reviewed-acceptance-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-reviewed-acceptance-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-reviewed-acceptance");
@@ -995,7 +995,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("rejects legacy acceptance metadata in recovery descriptors", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-inferred-acceptance-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-inferred-acceptance-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-inferred-acceptance");
@@ -1046,7 +1046,7 @@ describe("async resume lookup", () => {
 
 	it("rejects a stopped child selected from a terminal aggregate", () => {
 		for (const stoppedStep of [{ status: "stopped" }, { status: "failed", stopped: true }]) {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-stopped-child-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-stopped-child-"));
 			try {
 				const asyncRoot = path.join(root, "runs");
 				const stoppedSession = path.join(root, "stopped.jsonl");
@@ -1089,7 +1089,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("rejects stopped runs instead of reviving them", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-stopped-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-stopped-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const sessionFile = path.join(root, "session.jsonl");
@@ -1121,7 +1121,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("rejects ambiguous run id prefixes", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-ambiguous-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-ambiguous-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			writeJson(path.join(asyncRoot, "run-aaaa-1", "status.json"), {
@@ -1161,7 +1161,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("rejects path-like ids and directories outside the async root", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-paths-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-paths-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			assert.throws(
@@ -1186,7 +1186,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("names the requested id when no async run matches it", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-unknown-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-unknown-"));
 		try {
 			const deps = { asyncDirRoot: path.join(root, "runs"), resultsDir: path.join(root, "results") };
 			assert.throws(
@@ -1200,7 +1200,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("rejects non-jsonl session files before reviving", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-session-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-session-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const sessionFile = path.join(root, "session.txt");
@@ -1229,7 +1229,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("rejects malformed result metadata before using session fields", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-malformed-result-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-malformed-result-"));
 		try {
 			const resultsDir = path.join(root, "results");
 			writeJson(path.join(resultsDir, "run-result.json"), {
@@ -1250,7 +1250,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("rejects malformed result model metadata", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-malformed-result-model-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-malformed-result-model-"));
 		try {
 			const resultsDir = path.join(root, "results");
 			writeJson(path.join(resultsDir, "run-result-model.json"), {
@@ -1294,7 +1294,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("rejects malformed status session ids", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-malformed-session-id-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-malformed-session-id-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			writeJson(path.join(asyncRoot, "run-session-id", "status.json"), {
@@ -1320,7 +1320,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("rejects malformed status model metadata", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-malformed-status-model-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-malformed-status-model-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			writeJson(path.join(asyncRoot, "run-status-model", "status.json"), {
@@ -1362,7 +1362,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("returns live child metadata for a running child", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-live-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-live-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			writeJson(path.join(asyncRoot, "run-live", "status.json"), {
@@ -1388,7 +1388,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("enforces current-session ownership for status and result-only runs", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-ownership-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-ownership-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -1510,7 +1510,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("revives a run of a session this process replaced, and still refuses other sessions' runs", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-inherited-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-inherited-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -1544,7 +1544,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("revives a completed child by index while a sibling async child is still running", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-partial-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-partial-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const sessionFile = path.join(root, "done.jsonl");
@@ -1574,7 +1574,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("rejects pending indexed children in still-running async runs", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-pending-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-pending-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const sessionFile = path.join(root, "pending.jsonl");
@@ -1605,7 +1605,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("resolves a completed multi-child run when an index and per-child session file are available", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-multi-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-multi-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const firstSession = path.join(root, "a.jsonl");
@@ -1654,7 +1654,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("resolves a completed result-only child with per-child model metadata", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-result-only-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-result-only-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -1701,7 +1701,7 @@ describe("async resume lookup", () => {
 	});
 
 	it("revives on the launch model when status reports a model a host extension switched to and no result exists yet", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-resume-routed-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-resume-routed-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");

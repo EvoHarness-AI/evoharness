@@ -36,7 +36,7 @@ afterEach(() => {
 
 /** A fake CLI that records every invocation and answers the adapter's preflight. */
 function fakeClaude(): { command: string; calls: () => string[][] } {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-cc-dispatch-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cc-dispatch-"));
 	dirs.push(dir);
 	const evidence = path.join(dir, "argv.jsonl");
 	const command = writeNodeCommand(
@@ -82,7 +82,7 @@ const artifactConfig = {
 };
 const asyncOnly = { skip: !isAsyncAvailable() ? "jiti not available" : undefined };
 
-describe("Claude Code override launch", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("Claude Code override launch", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	installAsyncExecutionHooks();
 
 	it("carries a model suffix into --model and --effort through a real launch", asyncOnly, async () => {
@@ -93,7 +93,7 @@ describe("Claude Code override launch", { skip: !available ? "pi packages not av
 			task: "Review the handoff",
 			modelOverride: "claude-opus-5.5:high",
 			agentConfig: makeAgent("claude-code", { runner: claudeCodeRunner(claude.command) } as never),
-			ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+			ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 			artifactConfig,
 			shareEnabled: false,
 		});
@@ -121,7 +121,7 @@ describe("Claude Code override launch", { skip: !available ? "pi packages not av
 			],
 			agents: [makeAgent("claude-code", { runner: claudeCodeRunner(claude.command) } as never)],
 			resultMode: "chain",
-			ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+			ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 			artifactConfig,
 			shareEnabled: false,
 			acceptance: false,
@@ -145,7 +145,7 @@ describe("Claude Code override launch", { skip: !available ? "pi packages not av
 				maxThinking: "low",
 				runner: claudeCodeRunner(claude.command),
 			} as never),
-			ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+			ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 			artifactConfig,
 			shareEnabled: false,
 		});

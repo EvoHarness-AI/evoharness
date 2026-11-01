@@ -202,7 +202,7 @@ describe("main watchdog review adapter", () => {
 		assert.deepEqual(calls[0]?.context.messages[0], {
 			role: "system",
 			content: [
-				"You are the main-session subagent watchdog for Pi.",
+				"You are the main-session subagent watchdog for evoharness.",
 				"Review only the supplied parent turn delta. Inspect repository files only when needed to verify a concrete concern.",
 				"You are read-only. You may use read, grep, find, and ls. Do not edit files, run shell commands, spawn agents, or mutate state.",
 				"Emit warnings only by calling watchdog_warn. Freeform assistant text is ignored and must not be used to report warnings.",

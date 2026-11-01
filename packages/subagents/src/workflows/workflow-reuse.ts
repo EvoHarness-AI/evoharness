@@ -145,7 +145,7 @@ function assertWorkflowRunNotClaimed(asyncDir: string, runId: string, named: boo
 
 /**
  * The newest terminal workflow of this session with the same script and args,
- * when that run stopped because its runtime was replaced or its Pi process exited.
+ * when that run stopped because its runtime was replaced or its evoharness process exited.
  * Throws when another relaunch already continues that run.
  */
 export function findWorkflowReuseSource(
@@ -184,7 +184,7 @@ export function findWorkflowReuseSource(
 /**
  * The interrupted workflow run named by `options.reuseFrom`, from any session. Only the script
  * must match: each child is still reused only when its key and launch params match. The run is
- * reconciled first, so a run whose Pi process died is marked `owner-exited` before it is read.
+ * reconciled first, so a run whose evoharness process died is marked `owner-exited` before it is read.
  */
 export function readNamedWorkflowReuseSource(
 	asyncDirRoot: string,
@@ -201,7 +201,7 @@ export function readNamedWorkflowReuseSource(
 	if (status.mode !== "workflow") throw new Error(`options.reuseFrom: run '${runId}' is not a workflow run.`);
 	if (!isReusableWorkflowStopCause(status.workflow?.stopCause))
 		throw new Error(
-			`options.reuseFrom: workflow run '${runId}' did not stop because its session was replaced or its Pi process exited, so its children cannot be reused.`,
+			`options.reuseFrom: workflow run '${runId}' did not stop because its session was replaced or its evoharness process exited, so its children cannot be reused.`,
 		);
 	if (status.workflow.scriptDigest !== scriptDigest)
 		throw new Error(`options.reuseFrom: workflow run '${runId}' ran a different workflow script.`);

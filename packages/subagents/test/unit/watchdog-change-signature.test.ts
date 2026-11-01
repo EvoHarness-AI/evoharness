@@ -147,29 +147,29 @@ describe("watchdog change signature", () => {
 	});
 
 	function setThreshold(bytes: number, t: { after: (fn: () => void) => void }): void {
-		const previous = process.env.PI_SUBAGENTS_MAX_HASH_FILE_BYTES;
-		process.env.PI_SUBAGENTS_MAX_HASH_FILE_BYTES = String(bytes);
+		const previous = process.env.EVOHARNESS_SUBAGENTS_MAX_HASH_FILE_BYTES;
+		process.env.EVOHARNESS_SUBAGENTS_MAX_HASH_FILE_BYTES = String(bytes);
 		t.after(() => {
-			if (previous === undefined) delete process.env.PI_SUBAGENTS_MAX_HASH_FILE_BYTES;
-			else process.env.PI_SUBAGENTS_MAX_HASH_FILE_BYTES = previous;
+			if (previous === undefined) delete process.env.EVOHARNESS_SUBAGENTS_MAX_HASH_FILE_BYTES;
+			else process.env.EVOHARNESS_SUBAGENTS_MAX_HASH_FILE_BYTES = previous;
 		});
 	}
 
 	function setTotalThreshold(bytes: number, t: { after: (fn: () => void) => void }): void {
-		const previous = process.env.PI_SUBAGENTS_MAX_HASH_TOTAL_BYTES;
-		process.env.PI_SUBAGENTS_MAX_HASH_TOTAL_BYTES = String(bytes);
+		const previous = process.env.EVOHARNESS_SUBAGENTS_MAX_HASH_TOTAL_BYTES;
+		process.env.EVOHARNESS_SUBAGENTS_MAX_HASH_TOTAL_BYTES = String(bytes);
 		t.after(() => {
-			if (previous === undefined) delete process.env.PI_SUBAGENTS_MAX_HASH_TOTAL_BYTES;
-			else process.env.PI_SUBAGENTS_MAX_HASH_TOTAL_BYTES = previous;
+			if (previous === undefined) delete process.env.EVOHARNESS_SUBAGENTS_MAX_HASH_TOTAL_BYTES;
+			else process.env.EVOHARNESS_SUBAGENTS_MAX_HASH_TOTAL_BYTES = previous;
 		});
 	}
 
 	function setEntryThreshold(entries: number, t: { after: (fn: () => void) => void }): void {
-		const previous = process.env.PI_SUBAGENTS_MAX_HASH_ENTRIES;
-		process.env.PI_SUBAGENTS_MAX_HASH_ENTRIES = String(entries);
+		const previous = process.env.EVOHARNESS_SUBAGENTS_MAX_HASH_ENTRIES;
+		process.env.EVOHARNESS_SUBAGENTS_MAX_HASH_ENTRIES = String(entries);
 		t.after(() => {
-			if (previous === undefined) delete process.env.PI_SUBAGENTS_MAX_HASH_ENTRIES;
-			else process.env.PI_SUBAGENTS_MAX_HASH_ENTRIES = previous;
+			if (previous === undefined) delete process.env.EVOHARNESS_SUBAGENTS_MAX_HASH_ENTRIES;
+			else process.env.EVOHARNESS_SUBAGENTS_MAX_HASH_ENTRIES = previous;
 		});
 	}
 

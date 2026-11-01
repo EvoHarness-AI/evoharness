@@ -62,7 +62,7 @@ it("starts an idle parent's run with the notice itself, once, and sends no user 
 	assert.equal(
 		wake.sendMessage(notice("first"), { triggerTurn: true }),
 		false,
-		"Pi emits message_start for the notice that starts the run",
+		"evoharness emits message_start for the notice that starts the run",
 	);
 	assert.equal(wake.sendMessage(notice("second"), { triggerTurn: true }), true);
 	assert.deepEqual(calls, [
@@ -166,7 +166,7 @@ it("drops a user-abort hold when the session changes or a resume releases it", (
 it("shares one idle wake per session with other extensions, such as pi-intercom", () => {
 	const manager = SessionManager.inMemory();
 	const reservations = (globalThis as Record<symbol, WeakMap<object, { sessionId: string; sentAt?: number }>>)[
-		Symbol.for("pi.idle-wake.v1")
+		Symbol.for("subagents.idle-wake.v1")
 	];
 	const { wake, wakes, advance } = createHarness(manager);
 	reservations.set(manager, { sessionId: manager.getSessionId(), sentAt: 0 });
@@ -183,7 +183,7 @@ it(
 	"wakes a real SDK parent with the notice itself and holds the wake until the run starts",
 	{ timeout: 30_000 },
 	async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parent-wake-notice-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parent-wake-notice-"));
 		const agentDir = path.join(root, "agent");
 		fs.mkdirSync(agentDir);
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -257,11 +257,11 @@ it(
 				),
 				false,
 			);
-			assert.equal(session.isIdle, false, "Pi counts the session busy before sendMessage returns");
+			assert.equal(session.isIdle, false, "evoharness counts the session busy before sendMessage returns");
 			assert.equal(wake!.isPending(), true);
 			await settledOnce;
 			assert.deepEqual(triggers, ["custom:subagent-test"], "the notice starts the run through before_agent_start");
-			assert.deepEqual(started, ["subagent-test"], "Pi emits message_start for the notice");
+			assert.deepEqual(started, ["subagent-test"], "evoharness emits message_start for the notice");
 			assert.equal(pendingAtStart, true, "the wake stays pending until agent_start");
 			assert.equal(wake!.isPending(), false);
 			assert.deepEqual(
@@ -283,7 +283,7 @@ for (const emptyResponse of [false, true])
 		`starts an idle parent's completion run (${emptyResponse ? "empty response" : "tool response"}) through before_agent_start, so it keeps hook-set prompt sections`,
 		{ timeout: 30_000 },
 		async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parent-wake-sdk-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parent-wake-sdk-"));
 			const agentDir = path.join(root, "agent");
 			fs.mkdirSync(agentDir);
 			const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -399,13 +399,13 @@ for (const emptyResponse of [false, true])
 		},
 	);
 
-// Pi's compact() aborts a live run first, so a manual /compact mid-tool also ends the run with an aborted signal.
+// evoharness's compact() aborts a live run first, so a manual /compact mid-tool also ends the run with an aborted signal.
 for (const stopWith of ["abort", "compact"] as const)
 	it(
 		`${stopWith === "abort" ? "does not restart" : "resumes"} a parent whose run was stopped mid-tool by ${stopWith}`,
 		{ timeout: 30_000 },
 		async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-parent-wake-abort-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-parent-wake-abort-"));
 			const agentDir = path.join(root, "agent");
 			fs.mkdirSync(agentDir);
 			const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -617,7 +617,7 @@ it(
 	"composes prior drafts, unresolved supervisor and empty completion safeguards through real SDK",
 	{ timeout: 30_000 },
 	async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settle-compose-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-settle-compose-"));
 		const agentDir = path.join(root, "agent");
 		const channelDir = path.join(root, "channel");
 		fs.mkdirSync(agentDir);
@@ -771,7 +771,7 @@ it(
 );
 
 it("does no idle settle work without delegated work", { timeout: 30_000 }, async () => {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-demand-settle-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-demand-settle-"));
 	const agentDir = path.join(root, "agent");
 	fs.mkdirSync(agentDir);
 	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;

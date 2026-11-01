@@ -5,9 +5,9 @@ import * as path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Message } from "@evoharness/ai";
 import type { JsonSchemaObject } from "../../shared/types.ts";
-import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../shared/utils.ts";
+import { CODING_AGENT_PACKAGE_ROOT_ENV } from "../../shared/utils.ts";
 import type { ResolvedAcceptanceReportMode } from "./acceptance.ts";
-import { resolveInstalledPiPackageRoot, resolvePiPackageRoot } from "./pi-spawn.ts";
+import { resolveInstalledHostPackageRoot, resolvePiPackageRoot } from "./host-spawn.ts";
 
 export const MISSING_STRUCTURED_OUTPUT_CALL_ERROR =
 	"Missing structured_output call; this step has outputSchema and must finish by calling structured_output.";
@@ -235,19 +235,19 @@ async function importCompile(): Promise<CompileJsonSchema> {
 	} catch (error) {
 		failures.push(`direct import failed: ${error instanceof Error ? error.message : String(error)}`);
 	}
-	// Pi's extension loader imports this compiled file natively, so the lazy import above misses
-	// Pi's host-package aliases when TypeBox is installed only in Pi's own tree.
-	const envRoot = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV]?.trim() || undefined;
-	if (!envRoot) failures.push(`${PI_CODING_AGENT_PACKAGE_ROOT_ENV} is not set`);
+	// evoharness's extension loader imports this compiled file natively, so the lazy import above misses
+	// evoharness's host-package aliases when TypeBox is installed only in evoharness's own tree.
+	const envRoot = process.env[CODING_AGENT_PACKAGE_ROOT_ENV]?.trim() || undefined;
+	if (!envRoot) failures.push(`${CODING_AGENT_PACKAGE_ROOT_ENV} is not set`);
 	const roots = new Map<string, string>();
 	for (const [label, root] of [
-		[PI_CODING_AGENT_PACKAGE_ROOT_ENV, envRoot],
-		["running Pi package root", resolvePiPackageRoot()],
-		["installed Pi package root", resolveInstalledPiPackageRoot()],
+		[CODING_AGENT_PACKAGE_ROOT_ENV, envRoot],
+		["running evoharness package root", resolvePiPackageRoot()],
+		["installed evoharness package root", resolveInstalledHostPackageRoot()],
 	] as const) {
 		if (root && !roots.has(root)) roots.set(root, label);
 	}
-	if (roots.size === 0) failures.push("no Pi package root found");
+	if (roots.size === 0) failures.push("no evoharness package root found");
 	for (const [root, label] of roots) {
 		try {
 			const compile = await resolveCompileFromPackageRoot(root);
@@ -460,7 +460,7 @@ export function createStructuredOutputRuntime(
 	assertJsonSchemaObject(schema);
 	const rootDir = baseDir ?? os.tmpdir();
 	fs.mkdirSync(rootDir, { recursive: true });
-	const dir = fs.mkdtempSync(path.join(rootDir, "pi-subagent-structured-"));
+	const dir = fs.mkdtempSync(path.join(rootDir, "subagent-structured-"));
 	const schemaPath = path.join(dir, "schema.json");
 	const outputPath = path.join(dir, "output.json");
 	fs.writeFileSync(schemaPath, JSON.stringify(schema), { mode: 0o600 });

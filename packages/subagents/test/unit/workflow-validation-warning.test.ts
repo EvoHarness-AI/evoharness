@@ -7,7 +7,7 @@ import { makeMinimalCtx } from "../support/helpers.ts";
 
 it("does not notify a dynamic launch count when a workflow launches", async () => {
 	const executor = createSubagentExecutor({
-		pi: {
+		evoharness: {
 			events: {
 				emit() {},
 				on() {

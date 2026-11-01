@@ -1,9 +1,8 @@
 {
   "name": "@evoharness/subagents",
-  "version": "0.84.0",
+  "version": "0.1.0",
   "private": true,
-  "description": "Evoharness extension for single-agent delegation and scripted multi-agent workflows (ported from pi-subagents v0.84.0)",
-  "author": "Nico Bailon",
+  "description": "Evoharness extension for single-agent delegation and scripted multi-agent workflows",
   "license": "MIT",
   "type": "module",
   "exports": {
@@ -24,16 +23,7 @@
     "./shared-types": "./src/api/shared-types.ts",
     "./project-panes": "./src/api/project-panes.ts"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/nicobailon/pi-subagents.git"
-  },
-  "homepage": "https://github.com/nicobailon/pi-subagents#readme",
-  "bugs": {
-    "url": "https://github.com/nicobailon/pi-subagents/issues"
-  },
   "keywords": [
-    "pi-package",
     "evoharness-package",
     "extension",
     "subagents",

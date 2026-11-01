@@ -7,7 +7,7 @@ export interface ChildModelResolutionDiagnostic {
 }
 
 /**
- * Pi core's model-resolution failure text. `resolveCliModel` reports an
+ * evoharness core's model-resolution failure text. `resolveCliModel` reports an
  * unknown provider or model and cannot know which extension would have
  * registered it, so these two shapes are the ones that mean "the child's
  * model registry was missing a provider", not "the provider is unhealthy".
@@ -66,7 +66,7 @@ export function formatChildModelResolutionDiagnostic(diagnostic: ChildModelResol
 	}
 	if (diagnostic.host === "parent") {
 		return [
-			`${subject} ran as a foreground child, which never loads the parent's ambient extensions. It inherits the providers they registered, but not virtual models registered with \`pi.registerVirtualModel()\`.`,
+			`${subject} ran as a foreground child, which never loads the parent's ambient extensions. It inherits the providers they registered, but not virtual models registered with \`evoharness.registerVirtualModel()\`.`,
 			`If ${model} is served by a provider extension, check the parent's \`/model\` list and the child extension diagnostics. If it is an extension-registered virtual model, the extension that registers it must load in this child.`,
 			`Load the extension for this child with \`subagentOnlyExtensions\` or \`extensions\` in the agent frontmatter, or register it from the host with \`registerRequiredChildExtensions\` so it loads for every launch.`,
 		].join("\n");

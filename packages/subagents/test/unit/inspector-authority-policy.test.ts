@@ -26,7 +26,7 @@ function createState(): SubagentState {
 
 function createExecutor(authorityPolicy?: AuthorityPolicyConfig, childSafe = false) {
 	return createSubagentExecutor({
-		pi: {
+		evoharness: {
 			events: {
 				emit() {},
 				on() {
@@ -97,7 +97,7 @@ async function run(
 // exist whenever the policy is expected to let the action through.
 async function withoutHerdr<T>(body: () => Promise<T>): Promise<T> {
 	const previous = process.env.HERDR_BIN;
-	process.env.HERDR_BIN = path.join(os.tmpdir(), "pi-subagents-absent-herdr-binary");
+	process.env.HERDR_BIN = path.join(os.tmpdir(), "subagents-absent-herdr-binary");
 	try {
 		return await body();
 	} finally {

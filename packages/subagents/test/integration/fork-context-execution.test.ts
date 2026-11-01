@@ -120,7 +120,7 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 	});
 
 	beforeEach(() => {
-		tempDir = createTempDir("pi-subagent-fork-test-");
+		tempDir = createTempDir("subagents-subagent-fork-test-");
 		mockPi.reset();
 		mockPi.onCall({ output: "ok" });
 	});
@@ -159,7 +159,7 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		const eventsApi = createEventBus();
 		return Object.assign(
 			createSubagentExecutor({
-				pi: {
+				evoharness: {
 					events: eventsApi,
 					getSessionName: () => sessionName,
 					setSessionName: (name: string) => {
@@ -186,7 +186,7 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 			.filter((name) => name.startsWith("call-") && name.endsWith(".json"))
 			.sort()
 			.at(-1);
-		assert.ok(callFile, "expected a recorded mock pi call");
+		assert.ok(callFile, "expected a recorded mock evoharness call");
 		return readRecordedArgs(callFile, true);
 	}
 
@@ -290,7 +290,7 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		fs.writeFileSync(
 			path.join(packageRoot, "package.json"),
 			JSON.stringify(
-				{ name: `${skillName}-pkg`, version: "1.0.0", pi: { skills: [`./skills/${skillName}`] } },
+				{ name: `${skillName}-pkg`, version: "1.0.0", evoharness: { skills: [`./skills/${skillName}`] } },
 				null,
 				2,
 			),
@@ -1699,7 +1699,7 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 	});
 
 	it("uses request cwd for project builtin overrides during management", async () => {
-		const tempHome = createTempDir("pi-subagent-home-");
+		const tempHome = createTempDir("subagents-subagent-home-");
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
 		const worktreeDir = path.join(tempDir, "worktree");

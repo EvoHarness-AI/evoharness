@@ -10,15 +10,15 @@ import { readChildCommandState } from "../../src/runs/shared/child-commands.ts";
 import { evaluateChildToolDiagnostic } from "../../src/runs/shared/child-runtime-config.ts";
 import {
 	type ChildSessionLaunch,
+	type CodingAgentModule,
 	createDefaultChildSessionFactory,
-	type PiCodingAgentModule,
 } from "../../src/runs/shared/child-session.ts";
 import { supervisorChannelDir } from "../../src/runs/shared/child-tool-plan.ts";
 
-function fakePi(override?: ToolDefinition, commandOverride?: ToolDefinition) {
+function fakeHostExe(override?: ToolDefinition, commandOverride?: ToolDefinition) {
 	const tools = new Map<string, ToolDefinition>();
 	let order: string[] = [];
-	const pi = {
+	const evoharness = {
 		createBashTool,
 		ModelRuntime: { create: async () => ({}) },
 		SettingsManager: {
@@ -95,8 +95,8 @@ function fakePi(override?: ToolDefinition, commandOverride?: ToolDefinition) {
 				},
 			};
 		},
-	} as unknown as PiCodingAgentModule;
-	return { pi, tools, order: () => order };
+	} as unknown as CodingAgentModule;
+	return { evoharness, tools, order: () => order };
 }
 function ctxForTest(): ExtensionContext {
 	return { sessionManager: { getSessionId: () => "child", getSessionFile: () => undefined } } as ExtensionContext;
@@ -108,7 +108,7 @@ function launch(dir: string, runId: string): ChildSessionLaunch {
 		tools: ["bash", "subagent_command"],
 		extensionPaths: [],
 		ambientExtensions: true,
-		hooks: [{ name: "pi-subagents:prompt-runtime", factory() {} }],
+		hooks: [{ name: "subagents:prompt-runtime", factory() {} }],
 		noSkills: true,
 		noContextFiles: true,
 		runtime: {
@@ -125,17 +125,17 @@ function launch(dir: string, runId: string): ChildSessionLaunch {
 
 describe("default child factory command integration", () => {
 	it("uses the host bash with shell settings and cancels unfinished commands before declaring completion", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-command-factory-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-command-factory-"));
 		const runId = `factory-${randomUUID()}`;
 		const channel = supervisorChannelDir(runId, "worker", 0);
-		const fake = fakePi();
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => fake.pi });
+		const fake = fakeHostExe();
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => fake.evoharness });
 		try {
 			const child = await factory.create(launch(dir, runId));
 			assert.equal(fake.tools.has("subagent_command"), true);
 			assert.deepEqual(fake.order().slice(0, 2), [
-				"<inline:pi-subagents:prompt-runtime>",
-				"<inline:pi-subagents:commands>",
+				"<inline:subagents:prompt-runtime>",
+				"<inline:subagents:commands>",
 			]);
 			const result = await fake.tools
 				.get("bash")!
@@ -162,15 +162,15 @@ describe("default child factory command integration", () => {
 	});
 
 	it("leaves an ambient custom bash backend in control", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-command-override-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-command-override-"));
 		const runId = `override-${randomUUID()}`;
 		const channel = supervisorChannelDir(runId, "worker", 0);
 		const original: ToolDefinition = {
 			...createBashTool(dir),
 			execute: async () => ({ content: [{ type: "text", text: "custom backend" }], details: undefined }),
 		};
-		const fake = fakePi(original);
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => fake.pi });
+		const fake = fakeHostExe(original);
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => fake.evoharness });
 		try {
 			const input = launch(dir, runId);
 			input.tools = ["bash"];
@@ -194,15 +194,15 @@ describe("default child factory command integration", () => {
 		}
 	});
 	it("keeps an explicitly required command tool available without claiming control of custom bash", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-command-explicit-override-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-command-explicit-override-"));
 		const runId = `explicit-override-${randomUUID()}`;
 		const channel = supervisorChannelDir(runId, "worker", 0);
 		const original: ToolDefinition = {
 			...createBashTool(dir),
 			execute: async () => ({ content: [{ type: "text", text: "custom backend" }], details: undefined }),
 		};
-		const fake = fakePi(original);
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => fake.pi });
+		const fake = fakeHostExe(original);
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => fake.evoharness });
 		const input = launch(dir, runId);
 		input.runtime.requiredTools = ["bash", "subagent_command"];
 		try {
@@ -226,17 +226,17 @@ describe("default child factory command integration", () => {
 
 	for (const tools of [undefined, ["bash"]]) {
 		it(`does not wrap bash or register command controls without opt-in (${tools ? "explicit bash" : "default tools"})`, async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-command-disabled-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-command-disabled-"));
 			const runId = `disabled-${randomUUID()}`;
 			const channel = supervisorChannelDir(runId, "worker", 0);
-			const fake = fakePi();
-			const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => fake.pi });
+			const fake = fakeHostExe();
+			const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => fake.evoharness });
 			const input = launch(dir, runId);
 			input.tools = tools;
 			try {
 				await factory.create(input);
 				assert.equal(fake.tools.has("subagent_command"), false);
-				assert.equal(fake.order().includes("<inline:pi-subagents:commands>"), false);
+				assert.equal(fake.order().includes("<inline:subagents:commands>"), false);
 				assert.equal(
 					"yieldTimeMs" in (fake.tools.get("bash")!.parameters as { properties: object }).properties,
 					false,
@@ -255,7 +255,7 @@ describe("default child factory command integration", () => {
 	}
 
 	it("preserves a custom backend's explicitly required command tool", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-command-collision-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-command-collision-"));
 		const runId = `collision-${randomUUID()}`;
 		const channel = supervisorChannelDir(runId, "worker", 0);
 		const original: ToolDefinition = {
@@ -269,8 +269,8 @@ describe("default child factory command integration", () => {
 			parameters: Type.Object({ action: Type.String() }),
 			execute: async () => ({ content: [{ type: "text", text: "custom controls" }], details: undefined }),
 		};
-		const fake = fakePi(original, custom);
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => fake.pi });
+		const fake = fakeHostExe(original, custom);
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => fake.evoharness });
 		const input = launch(dir, runId);
 		input.runtime.requiredTools = ["bash", "subagent_command"];
 		try {

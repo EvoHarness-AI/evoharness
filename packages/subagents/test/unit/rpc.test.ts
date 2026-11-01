@@ -149,7 +149,7 @@ describe("subagent extension RPC bridge", () => {
 		assert.deepEqual(
 			(reply as { data: { capabilities?: { asyncStatusSnapshot?: unknown } } }).data.capabilities
 				?.asyncStatusSnapshot,
-			{ kind: "pi-subagents.async-status-snapshot", version: 1 },
+			{ kind: "subagents.async-status-snapshot", version: 1 },
 		);
 		assert.deepEqual(
 			(reply as { data: { capabilities?: { statusProjection?: unknown } } }).data.capabilities?.statusProjection,
@@ -368,7 +368,7 @@ describe("subagent extension RPC bridge", () => {
 	});
 
 	it("forwards RPC schedule.run quiet:true to launch and keeps omitted quiet noisy", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-schedule-quiet-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-rpc-schedule-quiet-"));
 		const project = path.join(root, "project");
 		fs.mkdirSync(project);
 		const scheduleCtx = {
@@ -595,7 +595,7 @@ describe("subagent extension RPC bridge", () => {
 
 		const reply = await request(events, "async-snapshot", "status");
 		const snapshot = (reply as any).data.asyncSnapshot;
-		assert.equal(snapshot.kind, "pi-subagents.async-status-snapshot");
+		assert.equal(snapshot.kind, "subagents.async-status-snapshot");
 		assert.equal(snapshot.version, 1);
 		assert.deepEqual(snapshot.runs.map((run: { id: string }) => run.id).sort(), ["done", "run-1"]);
 		assert.equal(JSON.stringify(snapshot).includes("PRIVATE_RPC_LEAK"), false);
@@ -1167,7 +1167,7 @@ describe("subagent extension RPC bridge", () => {
 			"missing-identity",
 		] as const) {
 			it(`handles paused RPC stop with ${proof} proof and ${inboxClosed ? "closed" : "open"} inbox`, async (t) => {
-				const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-paused-"));
+				const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-rpc-stop-paused-"));
 				t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 				const runId = "paused-run";
 				const asyncDir = path.join(root, "runs", runId);
@@ -1294,7 +1294,7 @@ describe("subagent extension RPC bridge", () => {
 
 	for (const payloadCase of ["valid", "malformed", "foreign"] as const)
 		it(`handles paused RPC stop with an existing ${payloadCase} result`, async (t) => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-result-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-rpc-stop-result-"));
 			t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 			const runId = "paused-result";
 			const asyncDir = path.join(root, "runs", runId);
@@ -1382,7 +1382,7 @@ describe("subagent extension RPC bridge", () => {
 		"running-closed",
 	] as const) {
 		it(`enforces RPC stop target restrictions: ${scenario}`, async (t) => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-target-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-rpc-stop-target-"));
 			t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 			const runId = "target-run";
 			const asyncDir = path.join(root, "runs", runId);
@@ -1476,7 +1476,7 @@ describe("subagent extension RPC bridge", () => {
 	}
 
 	it("uses the async stop control path for stop", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-rpc-stop-"));
 		try {
 			const events = new FakeEvents();
 			const asyncRoot = path.join(root, "runs");
@@ -1527,7 +1527,7 @@ describe("subagent extension RPC bridge", () => {
 	});
 
 	it("stops an async run of the session this process replaced, as the session that replaced it", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-inherited-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-rpc-stop-inherited-"));
 		try {
 			const events = new FakeEvents();
 			const asyncRoot = path.join(root, "runs");
@@ -1574,7 +1574,7 @@ describe("subagent extension RPC bridge", () => {
 	});
 
 	it("acknowledges RPC child stop for exactly one async child", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-child-stop-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-rpc-child-stop-"));
 		try {
 			const events = new FakeEvents();
 			const asyncRoot = path.join(root, "runs");
@@ -1653,7 +1653,7 @@ describe("subagent extension RPC bridge", () => {
 	});
 
 	it("uses the live workflow child stopper for RPC child stop", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-workflow-child-stop-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-rpc-workflow-child-stop-"));
 		try {
 			const events = new FakeEvents();
 			const asyncRoot = path.join(root, "runs");
@@ -1728,7 +1728,7 @@ describe("subagent extension RPC bridge", () => {
 	});
 
 	it("uses the live workflow controller for RPC run-level workflow stop", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-workflow-run-stop-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-rpc-workflow-run-stop-"));
 		try {
 			const events = new FakeEvents();
 			const asyncRoot = path.join(root, "runs");
@@ -1804,7 +1804,7 @@ describe("subagent extension RPC bridge", () => {
 	});
 
 	it("rejects RPC child stop when the child is absent or terminal", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-child-stop-reject-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-rpc-child-stop-reject-"));
 		try {
 			const events = new FakeEvents();
 			const asyncRoot = path.join(root, "runs");
@@ -1869,7 +1869,7 @@ describe("subagent extension RPC bridge", () => {
 		"run-callback-only",
 	] as const)
 		it(`rejects workflow stop without the required live control: ${scenario}`, async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-workflow-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-rpc-stop-workflow-"));
 			try {
 				const events = new FakeEvents();
 				const asyncRoot = path.join(root, "runs");
@@ -1969,7 +1969,7 @@ describe("subagent extension RPC bridge", () => {
 
 	for (const runState of ["running", "queued", "paused"] as const)
 		it(`rejects stop requests for ${runState} async runs from a different session`, async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-session-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-rpc-stop-session-"));
 			try {
 				const events = new FakeEvents();
 				const asyncRoot = path.join(root, "runs");
@@ -2113,7 +2113,7 @@ describe("subagent extension RPC bridge", () => {
 	});
 
 	it("answers cost with receipt-recovered async usage and an unresolved lower bound", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-cost-async-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-rpc-cost-async-"));
 		const workflowRunId = `workflow-rpc-cost-${process.pid}-${Date.now()}`;
 		const recoveredRunId = `child-rpc-cost-${process.pid}-${Date.now()}`;
 		const unresolvedRunId = `child-rpc-cost-missing-${process.pid}-${Date.now()}`;

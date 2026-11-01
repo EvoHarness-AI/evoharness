@@ -324,7 +324,7 @@ describe("async runner execution", () => {
 		assert.deepEqual(result.steps[0]?.toolBudget, { hard: 4, block: ["read"] });
 	});
 
-	it("attaches external runner config and rejects unsupported Pi-only overrides", (t) => {
+	it("attaches external runner config and rejects unsupported host-only overrides", (t) => {
 		const external = agent("external");
 		external.runner = { type: "external-cli", command: process.execPath, args: ["fake.mjs"] };
 		const registration = registerRequiredChildExtensions({
@@ -419,7 +419,7 @@ describe("async runner process terminal events", () => {
 
 	const makeCtx = (emit: (name: string, payload?: unknown) => unknown) => ({
 		...ctx,
-		pi: { events: { emit } } as unknown as ExtensionAPI,
+		evoharness: { events: { emit } } as unknown as ExtensionAPI,
 	});
 
 	it("emits the process terminal proof on a live event bus", () => {

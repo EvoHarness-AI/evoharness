@@ -6,15 +6,15 @@ import test from "node:test";
 import { resolveCodexExecLaunch } from "../../src/runs/shared/codex-exec-adapter.ts";
 import { runExternalCli } from "../../src/runs/shared/external-cli-runner.ts";
 
-const enabled = process.env.PI_SUBAGENTS_CODEX_EXEC_WRITER_SMOKE === "1";
+const enabled = process.env.EVOHARNESS_SUBAGENTS_CODEX_EXEC_WRITER_SMOKE === "1";
 
 test(
 	"maintainer Codex exec workspace writer smoke",
-	{ skip: enabled ? undefined : "set PI_SUBAGENTS_CODEX_EXEC_WRITER_SMOKE=1" },
+	{ skip: enabled ? undefined : "set EVOHARNESS_SUBAGENTS_CODEX_EXEC_WRITER_SMOKE=1" },
 	async () => {
-		const reportPath = process.env.PI_SUBAGENTS_CODEX_EXEC_WRITER_SMOKE_REPORT;
-		assert.ok(reportPath, "PI_SUBAGENTS_CODEX_EXEC_WRITER_SMOKE_REPORT is required");
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-codex-writer-smoke-"));
+		const reportPath = process.env.EVOHARNESS_SUBAGENTS_CODEX_EXEC_WRITER_SMOKE_REPORT;
+		assert.ok(reportPath, "EVOHARNESS_SUBAGENTS_CODEX_EXEC_WRITER_SMOKE_REPORT is required");
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-codex-writer-smoke-"));
 		const canaryPath = path.join(dir, "write-canary.txt");
 		const promptMarker = "CODEX_WRITER_PRIVATE_PROMPT_MARKER";
 		try {

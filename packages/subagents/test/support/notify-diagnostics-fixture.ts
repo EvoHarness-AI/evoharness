@@ -7,7 +7,7 @@ let now = 0;
 let failSend = false;
 const state = { currentSessionId: "session-a", completionOwnerId: "owner-a" };
 const sent: Array<{ message: Record<string, unknown>; options: unknown }> = [];
-const pi = {
+const evoharness = {
 	events: { on: () => () => {} },
 	isHeld: () => false,
 	sendMessage(message: Record<string, unknown>, options: unknown) {
@@ -15,7 +15,7 @@ const pi = {
 		sent.push({ message, options });
 	},
 };
-const notifier = registerSubagentNotify(pi as never, state, {
+const notifier = registerSubagentNotify(evoharness as never, state, {
 	now: () => now,
 	timers: {
 		setTimeout(callback) {
@@ -84,7 +84,7 @@ notifier.dispose();
 assert.equal(await abandoned, false);
 assert.equal(notifier.hasPendingDelivery(), true); // Accepted wakes survive notifier disposal for reload.
 for (const { message } of sent) notifier.messageStarted({ role: "custom", ...message });
-assert.equal(notifier.hasPendingDelivery(), false); // Pi has now started every accepted wake.
+assert.equal(notifier.hasPendingDelivery(), false); // evoharness has now started every accepted wake.
 assert.equal(callbacks.size, 0);
 assert.equal(await notifier.deliver(result("after-dispose")), false);
 // Malformed/large identity cannot create multiline or unbounded trace records.
@@ -99,7 +99,7 @@ if (!process.env.NODE_DEBUG) {
 	});
 	assert.equal(await notifier.deliver(unread), false);
 }
-const immediate = registerSubagentNotify(pi as never, state, { batchConfig: { enabled: false } });
+const immediate = registerSubagentNotify(evoharness as never, state, { batchConfig: { enabled: false } });
 assert.equal(await immediate.deliver(result("unbatched", { triggerTurn: false })), true);
 immediate.dispose();
 console.log(JSON.stringify(sent));

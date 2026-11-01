@@ -2,10 +2,10 @@
  * Module aliases for the detached async runner.
  *
  * The runner is a plain Node process started through jiti. The child hooks it
- * loads import pi's host packages (`@evoharness/coding-agent`,
- * `pi-agent-core`, `pi-ai`, `pi-tui`, `typebox`), which are peer packages of
- * this extension and are not installed next to it. pi's own extension loader
- * aliases those specifiers to the copies shipped inside the installed pi
+ * loads import evoharness's host packages (`@evoharness/coding-agent`,
+ * `/agent-core`, `/ai`, `/tui`, `typebox`), which are peer packages of
+ * this extension and are not installed next to it. evoharness's own extension loader
+ * aliases those specifiers to the copies shipped inside the installed evoharness
  * package; the parent computes the same map and hands it to the runner
  * through `JITI_ALIAS`, so child sessions and hooks retain host API identity.
  */
@@ -19,7 +19,7 @@ export const HOST_PEER_ALIASES: ReadonlyArray<{ specifier: string; pkg: string; 
 	[
 		{ specifier: "@evoharness/coding-agent", pkg: "@evoharness/coding-agent", subpath: "." },
 		{ specifier: "@evoharness/agent-core", pkg: "@evoharness/agent-core", subpath: "." },
-		// Optional: hosts whose pi-agent-core declares no "./node" export cannot import it, so no alias is needed.
+		// Optional: hosts whose host agent-core declares no "./node" export cannot import it, so no alias is needed.
 		{ specifier: "@evoharness/agent-core/node", pkg: "@evoharness/agent-core", subpath: "./node", optional: true },
 		{ specifier: "@evoharness/tui", pkg: "@evoharness/tui", subpath: "." },
 		{ specifier: "@evoharness/ai", pkg: "@evoharness/ai", subpath: "./compat" },
@@ -31,7 +31,7 @@ export const HOST_PEER_ALIASES: ReadonlyArray<{ specifier: string; pkg: string; 
 		{ specifier: "typebox/value", pkg: "typebox", subpath: "./value" },
 	];
 
-/** Pi manifests declare chord from 0.85.0 through 1.1.x; earlier hosts and 1.2.0+ do not ship it. */
+/** evoharness manifests declare chord from 0.85.0 through 1.1.x; earlier hosts and 1.2.0+ do not ship it. */
 const CHORD_PACKAGE = "@evoharness/chord";
 const CHORD_PEER_ALIASES: typeof HOST_PEER_ALIASES = [
 	{ specifier: "@evoharness/chord", pkg: "@evoharness/chord", subpath: "." },
@@ -137,15 +137,15 @@ export function resolvePackageSubpath(packageDir: string, subpath: string): stri
 	);
 }
 
-/** Find `pkg` as the pi package itself, one of its dependencies, or a sibling in a hoisted install. */
-export function findHostPeerPackageDir(piPackageRoot: string, pkg: string): string | undefined {
-	return findPeerPackageDir(piPackageRoot, pkg, readManifest(piPackageRoot)?.name);
+/** Find `pkg` as the evoharness package itself, one of its dependencies, or a sibling in a hoisted install. */
+export function findHostPeerPackageDir(hostPackageRoot: string, pkg: string): string | undefined {
+	return findPeerPackageDir(hostPackageRoot, pkg, readManifest(hostPackageRoot)?.name);
 }
 
-function findPeerPackageDir(piPackageRoot: string, pkg: string, hostName: unknown): string | undefined {
-	if (hostName === pkg) return piPackageRoot;
-	const candidates = [path.join(piPackageRoot, "node_modules", pkg)];
-	let dir = piPackageRoot;
+function findPeerPackageDir(hostPackageRoot: string, pkg: string, hostName: unknown): string | undefined {
+	if (hostName === pkg) return hostPackageRoot;
+	const candidates = [path.join(hostPackageRoot, "node_modules", pkg)];
+	let dir = hostPackageRoot;
 	for (;;) {
 		const parent = path.dirname(dir);
 		if (parent === dir) break;
@@ -166,16 +166,19 @@ function declaresDependency(manifest: PackageManifest, pkg: string): boolean {
 }
 
 /** The alias map the runner needs, or the specifiers that could not be resolved. */
-export function resolveHostPeerAliases(piPackageRoot: string): { aliases: Record<string, string>; missing: string[] } {
+export function resolveHostPeerAliases(hostPackageRoot: string): {
+	aliases: Record<string, string>;
+	missing: string[];
+} {
 	const aliases: Record<string, string> = {};
 	const missing: string[] = [];
-	const hostManifest = readManifest(piPackageRoot);
+	const hostManifest = readManifest(hostPackageRoot);
 	// Chord is aliased whenever the host provides it, but required only when the host
-	// manifest declares it (Pi 0.85 through 1.1), so a declared-but-missing chord still
+	// manifest declares it (evoharness 0.85 through 1.1), so a declared-but-missing chord still
 	// fails closed. An unreadable host manifest keeps it required rather than hiding a broken install.
 	const chordRequired = !hostManifest || declaresDependency(hostManifest, CHORD_PACKAGE);
 	for (const { specifier, pkg, subpath, optional } of [...HOST_PEER_ALIASES, ...CHORD_PEER_ALIASES]) {
-		const packageDir = findPeerPackageDir(piPackageRoot, pkg, hostManifest?.name);
+		const packageDir = findPeerPackageDir(hostPackageRoot, pkg, hostManifest?.name);
 		const target = packageDir ? resolvePackageSubpath(packageDir, subpath) : undefined;
 		// An optional subpath the package does not declare is unreachable, so skip it; a declared but missing file still fails.
 		if (optional && packageDir && target === undefined) continue;

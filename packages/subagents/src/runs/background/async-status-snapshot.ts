@@ -22,7 +22,7 @@ export {
 	ASYNC_STATUS_SNAPSHOT_VERSION,
 } from "../shared/async-status-projection.ts";
 
-export const ASYNC_STATUS_SNAPSHOT_WIDGET_PREFIX = "PI_SUBAGENT_ASYNC_JSON:";
+export const ASYNC_STATUS_SNAPSHOT_WIDGET_PREFIX = "EVOHARNESS_SUBAGENT_ASYNC_JSON:";
 
 export { buildAsyncStatusSnapshot };
 

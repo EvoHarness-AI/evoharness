@@ -22,7 +22,7 @@ const NOW = Date.UTC(2026, 7, 16);
 const OLD = NOW - 31 * DAY_MS;
 
 function makeRoots(): { root: string; asyncDirRoot: string; resultsDir: string; waitsDir: string } {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-retention-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-retention-"));
 	const asyncDirRoot = path.join(root, "async-subagent-runs");
 	const resultsDir = path.join(root, "async-subagent-results");
 	const waitsDir = path.join(root, "wait-subscriptions");

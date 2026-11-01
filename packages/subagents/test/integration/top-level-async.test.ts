@@ -13,7 +13,7 @@ interface TopLevelAsyncModule {
 const mod = await tryImport<TopLevelAsyncModule>("./src/runs/background/top-level-async.ts");
 const available = !!mod;
 
-describe("force top-level async helper", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("force top-level async helper", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	it("forces top-level calls async and disables clarify", () => {
 		const params = { async: false, clarify: true, agent: "worker" };
 		const next = mod!.applyForceTopLevelAsyncOverride(params, 0, true);

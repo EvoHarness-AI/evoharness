@@ -5,7 +5,7 @@ import {
 	registerRuntimeAgent,
 } from "./runtime-agent-registry.ts";
 
-export const RUNTIME_AGENT_REGISTER_EVENT = "pi-subagents:runtime-agent-register:v1";
+export const RUNTIME_AGENT_REGISTER_EVENT = "subagents:runtime-agent-register:v1";
 export const RUNTIME_AGENT_REGISTER_VERSION = 1;
 
 export type RuntimeAgentRegistrationResult =
@@ -20,7 +20,7 @@ export interface RuntimeAgentRegistrationRequest {
 }
 
 export interface RegisterRuntimeAgentViaEventsInput {
-	pi: Pick<ExtensionAPI, "events">;
+	evoharness: Pick<ExtensionAPI, "events">;
 	name: string;
 	definition: RuntimeAgentDefinition;
 }
@@ -29,19 +29,17 @@ function errorFrom(value: unknown): Error {
 	return value instanceof Error ? value : new Error(String(value));
 }
 
-/** Register through the installed pi-subagents owner in this Pi process. */
+/** Register through the installed subagents owner in this evoharness process. */
 export function registerAgentViaEvents(input: RegisterRuntimeAgentViaEventsInput): RuntimeAgentRegistration {
 	const request: RuntimeAgentRegistrationRequest = {
 		version: RUNTIME_AGENT_REGISTER_VERSION,
 		name: input.name,
 		definition: input.definition,
 	};
-	input.pi.events.emit(RUNTIME_AGENT_REGISTER_EVENT, request);
+	input.evoharness.events.emit(RUNTIME_AGENT_REGISTER_EVENT, request);
 	const result = request.result as unknown;
 	if (result === undefined) {
-		throw new Error(
-			"pi-subagents is not installed, not ready, or does not support runtime agent event registration.",
-		);
+		throw new Error("subagents is not installed, not ready, or does not support runtime agent event registration.");
 	}
 	if (result && typeof result === "object" && !Array.isArray(result)) {
 		const candidate = result as Record<string, unknown>;
@@ -55,12 +53,12 @@ export function registerAgentViaEvents(input: RegisterRuntimeAgentViaEventsInput
 		}
 		if (candidate.ok === false && candidate.error instanceof Error) throw candidate.error;
 	}
-	throw new Error("pi-subagents returned a malformed runtime agent registration result.");
+	throw new Error("subagents returned a malformed runtime agent registration result.");
 }
 
-/** Install the process-local registration listener for the owning pi-subagents runtime. */
-export function registerRuntimeAgentEventListener(pi: ExtensionAPI): () => void {
-	return pi.events.on(RUNTIME_AGENT_REGISTER_EVENT, (rawRequest) => {
+/** Install the process-local registration listener for the owning subagents runtime. */
+export function registerRuntimeAgentEventListener(evoharness: ExtensionAPI): () => void {
+	return evoharness.events.on(RUNTIME_AGENT_REGISTER_EVENT, (rawRequest) => {
 		if (!rawRequest || typeof rawRequest !== "object" || Array.isArray(rawRequest)) return;
 		const request = rawRequest as Record<string, unknown>;
 		if (request.result !== undefined) return;
@@ -69,7 +67,7 @@ export function registerRuntimeAgentEventListener(pi: ExtensionAPI): () => void 
 				throw new Error(`Unsupported runtime agent registration event version '${String(request.version)}'.`);
 			}
 			const registration = registerRuntimeAgent({
-				pi,
+				evoharness,
 				name: request.name as string,
 				definition: request.definition as RuntimeAgentDefinition,
 			});

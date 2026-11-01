@@ -1,10 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../shared/utils.ts";
+import { CODING_AGENT_PACKAGE_ROOT_ENV } from "../../shared/utils.ts";
 
-export const PI_CODING_AGENT_PACKAGE = "@evoharness/coding-agent";
-export const PI_SUBAGENT_PI_BINARY_ENV = "PI_SUBAGENT_PI_BINARY";
+export const CODING_AGENT_PACKAGE = "@evoharness/coding-agent";
+export const EVOHARNESS_SUBAGENT_HOST_BINARY_ENV = "EVOHARNESS_SUBAGENT_HOST_BINARY";
 
 export function findPiPackageRootFromEntry(entryPoint: string): string | undefined {
 	let dir = path.dirname(entryPoint);
@@ -14,16 +14,16 @@ export function findPiPackageRootFromEntry(entryPoint: string): string | undefin
 			const pkg = JSON.parse(fs.readFileSync(packageJsonPath, "utf-8")) as {
 				name?: unknown;
 			};
-			if (pkg.name === PI_CODING_AGENT_PACKAGE) return dir;
+			if (pkg.name === CODING_AGENT_PACKAGE) return dir;
 		}
 		dir = path.dirname(dir);
 	}
 	return undefined;
 }
 
-export function resolveInstalledPiPackageRoot(): string | undefined {
+export function resolveInstalledHostPackageRoot(): string | undefined {
 	try {
-		return findPiPackageRootFromEntry(fileURLToPath(import.meta.resolve(PI_CODING_AGENT_PACKAGE)));
+		return findPiPackageRootFromEntry(fileURLToPath(import.meta.resolve(CODING_AGENT_PACKAGE)));
 	} catch {
 		return undefined;
 	}
@@ -49,7 +49,7 @@ export function resolveHostDependencyPiPackageRoot(entry = process.argv[1]): str
 	}
 	let dir = path.dirname(canonicalEntry);
 	for (;;) {
-		const root = path.join(dir, "node_modules", PI_CODING_AGENT_PACKAGE);
+		const root = path.join(dir, "node_modules", CODING_AGENT_PACKAGE);
 		try {
 			fs.lstatSync(root);
 		} catch (error) {
@@ -63,17 +63,17 @@ export function resolveHostDependencyPiPackageRoot(entry = process.argv[1]): str
 		}
 		// The nearest candidate is authoritative, even with a broken link or manifest.
 		const canonicalRoot = fs.realpathSync(root);
-		readPiPackageJson(path.join(canonicalRoot, "package.json"));
+		readHostPackageJson(path.join(canonicalRoot, "package.json"));
 		return canonicalRoot;
 	}
 }
 
 /** One SDK root for foreground imports and detached peer aliases; never retry a selected root. */
-export function resolveHostPiPackageRoot(deps: PiSpawnDeps = {}): string | undefined {
+export function resolveHostPackageRoot(deps: HostSpawnDeps = {}): string | undefined {
 	return selectPiPackage(deps)?.root;
 }
 
-export interface PiSpawnDeps {
+export interface HostSpawnDeps {
 	platform?: NodeJS.Platform;
 	execPath?: string;
 	argv1?: string;
@@ -83,25 +83,25 @@ export interface PiSpawnDeps {
 	readFileSync?: (filePath: string, encoding: "utf-8") => string;
 	resolvePackageJson?: () => string;
 	resolvePackageEntry?: () => string;
-	piPackageRoot?: string;
+	hostPackageRoot?: string;
 	env?: NodeJS.ProcessEnv;
 }
 
-/** Compiled Pi's entrypoint is virtual; execPath is the real (possibly renamed) image. */
-export function resolveBunPiExecutable(deps: PiSpawnDeps = {}): string | undefined {
+/** Compiled evoharness's entrypoint is virtual; execPath is the real (possibly renamed) image. */
+export function resolveBunHostExecutable(deps: HostSpawnDeps = {}): string | undefined {
 	const bunVersion = deps.bunVersion ?? process.versions.bun;
 	const entry = deps.argv1 ?? process.argv[1];
 	if (!bunVersion || !entry || !/^(?:\/\$bunfs\/|B:[\\/]~BUN[\\/])/.test(entry)) return undefined;
 	const env = deps.env ?? process.env;
-	return env[PI_SUBAGENT_PI_BINARY_ENV]?.trim() || (deps.execPath ?? process.execPath);
+	return env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV]?.trim() || (deps.execPath ?? process.execPath);
 }
 
-interface PiSpawnCommand {
+interface HostSpawnCommand {
 	command: string;
 	args: string[];
 }
 
-interface PiPackageJson {
+interface HostPackageJson {
 	name?: unknown;
 	bin?: string | Record<string, string>;
 }
@@ -121,14 +121,14 @@ function normalizePath(filePath: string): string {
 
 function isStandalonePiExecutable(execPath: string): boolean {
 	const executableName = execPath.split(/[\\/]/).pop();
-	return /^pi(?:\.exe)?$/i.test(executableName ?? "");
+	return /^evoharness(?:\.exe)?$/i.test(executableName ?? "");
 }
 
-function readPiPackageJson(
+function readHostPackageJson(
 	packageJsonPath: string,
 	readFileSync: (filePath: string, encoding: "utf-8") => string = (filePath, encoding) =>
 		fs.readFileSync(filePath, encoding),
-): PiPackageJson {
+): HostPackageJson {
 	const source = readFileSync(packageJsonPath, "utf-8");
 	let pkg: unknown;
 	try {
@@ -139,18 +139,18 @@ function readPiPackageJson(
 	if (!pkg || typeof pkg !== "object" || Array.isArray(pkg)) {
 		throw new Error(`invalid host SDK manifest at ${packageJsonPath}: expected a JSON object`);
 	}
-	if ((pkg as PiPackageJson).name !== PI_CODING_AGENT_PACKAGE) {
-		throw new Error(`invalid host SDK manifest at ${packageJsonPath}: expected "${PI_CODING_AGENT_PACKAGE}"`);
+	if ((pkg as HostPackageJson).name !== CODING_AGENT_PACKAGE) {
+		throw new Error(`invalid host SDK manifest at ${packageJsonPath}: expected "${CODING_AGENT_PACKAGE}"`);
 	}
-	return pkg as PiPackageJson;
+	return pkg as HostPackageJson;
 }
 
-type PiPackageSelection =
+type HostPackageSelection =
 	| { root: string; cliScript: string }
-	| { root: string; packageJson: PiPackageJson; authoritative: boolean };
+	| { root: string; packageJson: HostPackageJson; authoritative: boolean };
 
-/** Preserve direct JS launches; extensionless .bin/pi launchers must honor explicit roots first. */
-function selectPiPackage(deps: PiSpawnDeps): PiPackageSelection | undefined {
+/** Preserve direct JS launches; extensionless .bin/evoharness launchers must honor explicit roots first. */
+function selectPiPackage(deps: HostSpawnDeps): HostPackageSelection | undefined {
 	const existsSync = deps.existsSync ?? fs.existsSync;
 	const realpathSync = deps.realpathSync ?? fs.realpathSync;
 	const argv1 = deps.argv1 ?? process.argv[1];
@@ -166,20 +166,20 @@ function selectPiPackage(deps: PiSpawnDeps): PiPackageSelection | undefined {
 					: undefined;
 				if (root) return { root, cliScript: canonicalArgvPath };
 			} catch {
-				// Ownership probing is best-effort; an unverified host entry is not a Pi CLI.
+				// Ownership probing is best-effort; an unverified host entry is not a evoharness CLI.
 			}
 		}
 	}
 
 	const root =
-		(deps.piPackageRoot?.trim() || undefined) ??
-		(env[PI_CODING_AGENT_PACKAGE_ROOT_ENV]?.trim() || undefined) ??
+		(deps.hostPackageRoot?.trim() || undefined) ??
+		(env[CODING_AGENT_PACKAGE_ROOT_ENV]?.trim() || undefined) ??
 		resolvePiPackageRoot(argv1) ??
 		resolveHostDependencyPiPackageRoot(argv1);
 	if (root)
 		return {
 			root,
-			packageJson: readPiPackageJson(path.join(root, "package.json"), deps.readFileSync),
+			packageJson: readHostPackageJson(path.join(root, "package.json"), deps.readFileSync),
 			authoritative: true,
 		};
 
@@ -189,7 +189,7 @@ function selectPiPackage(deps: PiSpawnDeps): PiPackageSelection | undefined {
 	packageJsonCandidates.push(() => {
 		const packageRoot = deps.resolvePackageEntry
 			? findPiPackageRootFromEntry(deps.resolvePackageEntry())
-			: resolveInstalledPiPackageRoot();
+			: resolveInstalledHostPackageRoot();
 		return packageRoot ? path.join(packageRoot, "package.json") : undefined;
 	});
 	for (const candidatePackageJson of packageJsonCandidates) {
@@ -198,7 +198,7 @@ function selectPiPackage(deps: PiSpawnDeps): PiPackageSelection | undefined {
 			if (!packageJsonPath) continue;
 			return {
 				root: path.dirname(packageJsonPath),
-				packageJson: readPiPackageJson(packageJsonPath, deps.readFileSync),
+				packageJson: readHostPackageJson(packageJsonPath, deps.readFileSync),
 				authoritative: false,
 			};
 		} catch {
@@ -208,30 +208,31 @@ function selectPiPackage(deps: PiSpawnDeps): PiPackageSelection | undefined {
 	return undefined;
 }
 
-export function resolvePiCliScript(deps: PiSpawnDeps = {}): string | undefined {
+export function resolvePiCliScript(deps: HostSpawnDeps = {}): string | undefined {
 	const selection = selectPiPackage(deps);
 	if (!selection) return undefined;
 	if ("cliScript" in selection) return selection.cliScript;
 	const binField = selection.packageJson.bin;
-	const binPath = typeof binField === "string" ? binField : (binField?.pi ?? Object.values(binField ?? {})[0]);
+	const binPath = typeof binField === "string" ? binField : (binField?.evoharness ?? Object.values(binField ?? {})[0]);
 	const cli = binPath ? path.resolve(selection.root, binPath) : undefined;
 	if (cli && isRunnableNodeScript(cli, deps.existsSync ?? fs.existsSync)) return cli;
-	if (selection.authoritative) throw new Error(`Selected Pi package at ${selection.root} has no runnable CLI script`);
+	if (selection.authoritative)
+		throw new Error(`Selected evoharness package at ${selection.root} has no runnable CLI script`);
 	return undefined;
 }
 
-export function getPiSpawnCommand(args: string[], deps: PiSpawnDeps = {}): PiSpawnCommand {
+export function getHostSpawnCommand(args: string[], deps: HostSpawnDeps = {}): HostSpawnCommand {
 	const platform = deps.platform ?? process.platform;
 	const env = deps.env ?? process.env;
-	const piBinary = env[PI_SUBAGENT_PI_BINARY_ENV]?.trim();
-	if (piBinary) {
-		if (platform === "win32" && isNodeScriptPath(piBinary)) {
+	const hostBinary = env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV]?.trim();
+	if (hostBinary) {
+		if (platform === "win32" && isNodeScriptPath(hostBinary)) {
 			return {
 				command: deps.execPath ?? process.execPath,
-				args: [piBinary, ...args],
+				args: [hostBinary, ...args],
 			};
 		}
-		return { command: piBinary, args };
+		return { command: hostBinary, args };
 	}
 
 	const execPath = deps.execPath ?? process.execPath;
@@ -239,18 +240,18 @@ export function getPiSpawnCommand(args: string[], deps: PiSpawnDeps = {}): PiSpa
 		return { command: execPath, args };
 	}
 
-	const piCliPath = resolvePiCliScript(deps);
-	if (piCliPath) {
+	const hostCliPath = resolvePiCliScript(deps);
+	if (hostCliPath) {
 		return {
 			command: execPath,
-			args: [piCliPath, ...args],
+			args: [hostCliPath, ...args],
 		};
 	}
 	if (platform === "win32") {
 		throw new Error(
-			`Could not resolve the Pi CLI on Windows. Set ${PI_SUBAGENT_PI_BINARY_ENV} or ensure ${PI_CODING_AGENT_PACKAGE} is installed.`,
+			`Could not resolve the evoharness CLI on Windows. Set ${EVOHARNESS_SUBAGENT_HOST_BINARY_ENV} or ensure ${CODING_AGENT_PACKAGE} is installed.`,
 		);
 	}
 
-	return { command: "pi", args };
+	return { command: "evoharness", args };
 }

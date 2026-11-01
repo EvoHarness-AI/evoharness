@@ -11,7 +11,7 @@ export function resolveCurrentSessionId(sessionManager: SessionIdentityManager):
 	return sessionId;
 }
 
-/** The id in a Pi session file's header, which `pi --session <id>` resolves; only ids that need no shell quoting. */
+/** The id in a evoharness session file's header, which `evoharness --session <id>` resolves; only ids that need no shell quoting. */
 export function resolvePiSessionId(sessionFile: string | undefined): string | undefined {
 	if (!sessionFile) return undefined;
 	try {

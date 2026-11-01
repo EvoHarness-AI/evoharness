@@ -6,12 +6,12 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { DefaultResourceLoader, SettingsManager } from "@evoharness/coding-agent";
 import {
 	type ChildSessionLaunch,
+	type CodingAgentModule,
 	createDefaultChildSessionFactory,
-	type PiCodingAgentModule,
 } from "../../src/runs/shared/child-session.ts";
 
-// Real Pi resource loading, stopped right before a session is created.
-function piCapturingAppendPrompt(captured: string[][]): PiCodingAgentModule {
+// Real evoharness resource loading, stopped right before a session is created.
+function piCapturingAppendPrompt(captured: string[][]): CodingAgentModule {
 	// SAFETY: the factory touches only these members before createAgentSession, which throws to end the launch.
 	return {
 		ModelRuntime: { create: async () => ({}) },
@@ -22,7 +22,7 @@ function piCapturingAppendPrompt(captured: string[][]): PiCodingAgentModule {
 			captured.push(resourceLoader.getAppendSystemPrompt());
 			throw new Error("stop");
 		},
-	} as unknown as PiCodingAgentModule;
+	} as unknown as CodingAgentModule;
 }
 
 function launch(
@@ -53,7 +53,7 @@ describe("default child factory and the operator's APPEND_SYSTEM.md", () => {
 	let previousAgentDir: string | undefined;
 
 	beforeEach(() => {
-		root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-append-system-"));
+		root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-append-system-"));
 		const agentDir = path.join(root, "agent");
 		fs.mkdirSync(agentDir);
 		fs.mkdirSync(path.join(root, "project"));
@@ -71,7 +71,7 @@ describe("default child factory and the operator's APPEND_SYSTEM.md", () => {
 	it("keeps it out of replace-mode, append-mode, and prompt-less children", async () => {
 		const captured: string[][] = [];
 		const factory = createDefaultChildSessionFactory({
-			loadPiCodingAgent: async () => piCapturingAppendPrompt(captured),
+			loadCodingAgent: async () => piCapturingAppendPrompt(captured),
 		});
 		const cwd = path.join(root, "project");
 		try {

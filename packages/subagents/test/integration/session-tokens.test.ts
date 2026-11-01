@@ -13,9 +13,9 @@ interface SessionTokensModule {
 const tokensMod = await tryImport<SessionTokensModule>("./src/shared/session-tokens.ts");
 const available = !!tokensMod;
 
-describe("session tokens", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("session tokens", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	it("parses token usage from session message entries", () => {
-		const sessionDir = createTempDir("pi-subagent-session-tokens-");
+		const sessionDir = createTempDir("subagents-subagent-session-tokens-");
 		try {
 			const sessionFile = path.join(sessionDir, "2026-01-01T00-00-00-000Z_test.jsonl");
 			const lines = [
@@ -44,7 +44,7 @@ describe("session tokens", { skip: !available ? "pi packages not available" : un
 	});
 
 	it("uses the newest session file by mtime when multiple files exist", () => {
-		const sessionDir = createTempDir("pi-subagent-session-tokens-");
+		const sessionDir = createTempDir("subagents-subagent-session-tokens-");
 		try {
 			const olderFile = path.join(sessionDir, "z-last-lexicographically.jsonl");
 			const newerFile = path.join(sessionDir, "a-first-lexicographically.jsonl");

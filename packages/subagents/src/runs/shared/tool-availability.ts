@@ -37,6 +37,6 @@ export function formatChildToolDiagnostic(
 				]
 			: []),
 		"For extension tools, add the provider path to `subagentOnlyExtensions` (child-only), `extensions`, or as a path-like entry in `tools`, while keeping each registered tool name in `tools`.",
-		"For MCP tools, verify the MCP adapter configuration and selected tool names. For builtin tools, verify the name against the installed Pi version.",
+		"For MCP tools, verify the MCP adapter configuration and selected tool names. For builtin tools, verify the name against the installed evoharness version.",
 	].join("\n");
 }

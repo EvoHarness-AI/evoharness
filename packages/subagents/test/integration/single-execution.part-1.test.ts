@@ -1,11 +1,11 @@
 /**
  * Integration tests for single (sync) agent execution.
  *
- * Uses the local createMockPi() helper to simulate the pi CLI.
+ * Uses the local createMockPi() helper to simulate the evoharness CLI.
  * Tests the full spawn→parse→result pipeline in runSync without a real LLM.
  *
- * These tests require pi packages to be importable (they run inside a pi
- * environment or with pi packages installed). If unavailable, tests skip
+ * These tests require evoharness packages to be importable (they run inside a evoharness
+ * environment or with evoharness packages installed). If unavailable, tests skip
  * gracefully.
  */
 
@@ -142,7 +142,7 @@ function writeRetainedEchoRun(
 	};
 }
 
-describe("single sync execution", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("single sync execution", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	installSingleExecutionHooks();
 
 	it("streams bounded concurrent synchronous workflow activity with chatProgress off", async () => {
@@ -456,7 +456,7 @@ describe("single sync execution", { skip: !available ? "pi packages not availabl
 	);
 
 	it(
-		"rejects invalid foreground cwd before spawning Pi",
+		"rejects invalid foreground cwd before spawning evoharness",
 		{ skip: !createSubagentExecutor ? "executor not importable" : undefined },
 		async () => {
 			const executor = makeExecutor([makeAgent("echo")]);
@@ -637,7 +637,7 @@ describe("single sync execution", { skip: !available ? "pi packages not availabl
 	);
 
 	it(
-		"reports a blocked foreground delegated tool call from Pi's tool result message",
+		"reports a blocked foreground delegated tool call from evoharness's tool result message",
 		{ skip: !createSubagentExecutor ? "executor not importable" : undefined },
 		async () => {
 			const blockedMessage =
@@ -646,7 +646,7 @@ describe("single sync execution", { skip: !available ? "pi packages not availabl
 				steps: [
 					{
 						jsonl: [
-							// Pi's sequence for a call blocked by a tool_call handler: start, end with isError, then the toolResult message.
+							// evoharness's sequence for a call blocked by a tool_call handler: start, end with isError, then the toolResult message.
 							{
 								type: "tool_execution_start",
 								toolCallId: "bash-1",
@@ -983,12 +983,12 @@ describe("single sync execution", { skip: !available ? "pi packages not availabl
 				required: ["ok"],
 				properties: { ok: { type: "boolean" }, note: { type: "string" } },
 			};
-			const permissionExtDir = path.join(agentDir, "extensions", "pi-permission-system");
+			const permissionExtDir = path.join(agentDir, "extensions", "subagents-permission-system");
 			fs.mkdirSync(path.join(permissionExtDir, "src"), { recursive: true });
 			fs.writeFileSync(path.join(permissionExtDir, "src", "index.ts"), "export default () => {};", "utf-8");
 			fs.writeFileSync(
 				path.join(permissionExtDir, "package.json"),
-				JSON.stringify({ name: "test", pi: { extensions: ["./src/index.ts"] } }),
+				JSON.stringify({ name: "test", evoharness: { extensions: ["./src/index.ts"] } }),
 				"utf-8",
 			);
 			const agentPath = path.join(tempDir, ".evoharness", "agents", `${agentName}.md`);
@@ -1014,7 +1014,7 @@ Answer only from the supplied synthetic text and return the requested structured
 			fs.mkdirSync(path.dirname(refinementPath), { recursive: true });
 			fs.writeFileSync(
 				refinementPath,
-				`<!-- pi-subagents-refinement:v1
+				`<!-- subagents-refinement:v1
 {
   "agent": ${JSON.stringify(agentName)},
   "revision": 1,
@@ -1035,13 +1035,13 @@ Answer only from the supplied synthetic text and return the requested structured
 
 # Current refinement for \`${agentName}\`
 
-\`\`\`pi-subagents-refinement-current
+\`\`\`subagents-refinement-current
 When the task asks for a structured result, keep field names exactly as requested.
 \`\`\`
 
 # Snapshots
 
-\`\`\`pi-subagents-refinement-snapshots-json
+\`\`\`subagents-refinement-snapshots-json
 []
 \`\`\`
 `,
@@ -1483,7 +1483,7 @@ Answer only from the supplied synthetic text.
 			const denialText = denied.map((result) => result.content[0]?.text ?? "").join("\n");
 			assert.match(
 				denialText,
-				/child key mismatch.*agent mismatch.*final launch projection.*runs\.all.*retained resume.*native Pi children.*foreground workflow roots/s,
+				/child key mismatch.*agent mismatch.*final launch projection.*runs\.all.*retained resume.*native evoharness children.*foreground workflow roots/s,
 			);
 			const wrongThenRightPermit = permitFor("wrong-then-right");
 			const wrongThenRight = await run(
@@ -1537,7 +1537,7 @@ Answer only from the supplied synthetic text.
 				lastForegroundControlId: null,
 			};
 			const executor = createSubagentExecutor!({
-				pi: { events: createEventBus(), getSessionName: () => undefined },
+				evoharness: { events: createEventBus(), getSessionName: () => undefined },
 				state,
 				config: {},
 				asyncByDefault: false,
@@ -3600,7 +3600,7 @@ Answer only from the supplied synthetic text.
 			return { start, launch, waitFor, settled, stopWhenStage2Starts, stopAction };
 		};
 		const resultFileText = (runId: string) => fs.readFileSync(path.join(DIRS.results, `${runId}.json`), "utf-8");
-		// What a killed Pi leaves behind for a live run: status still `running` under a pid that is gone,
+		// What a killed evoharness leaves behind for a live run: status still `running` under a pid that is gone,
 		// the child journal as written so far, and the active-run marker. The copy belongs to `sessionId`.
 		const crashedCopy = (sourceRunId: string, sessionId: string) => {
 			const runId = `crashed-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`;
@@ -4088,7 +4088,7 @@ Answer only from the supplied synthetic text.
 					],
 					[
 						{ reuseFrom: plainId },
-						`options.reuseFrom: workflow run '${plainId}' did not stop because its session was replaced or its Pi process exited, so its children cannot be reused.`,
+						`options.reuseFrom: workflow run '${plainId}' did not stop because its session was replaced or its evoharness process exited, so its children cannot be reused.`,
 					],
 					[
 						{ workflowScript: `${script}\n// changed`, reuseFrom: firstId },
@@ -4657,7 +4657,7 @@ Answer only from the supplied synthetic text.
 			let resultPath: string | undefined;
 			try {
 				const executor = createSubagentExecutor!({
-					pi: { events: piEvents, getSessionName: () => undefined },
+					evoharness: { events: piEvents, getSessionName: () => undefined },
 					state,
 					config: {},
 					asyncByDefault: false,
@@ -5242,7 +5242,7 @@ Answer only from the supplied synthetic text.
 			assert.equal(attentionPayload.event?.reason, "idle");
 			const sent: Array<{ options?: { triggerTurn?: boolean } }> = [];
 			handleSubagentControlNotice({
-				pi: {
+				evoharness: {
 					sendMessage(_message, options) {
 						sent.push({ options: options as { triggerTurn?: boolean } });
 					},

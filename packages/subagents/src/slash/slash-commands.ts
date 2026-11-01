@@ -130,7 +130,7 @@ const extractExecutionFlags = (rawArgs: string): { args: string; bg: boolean; fo
 };
 
 function discoverSlashAgents(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	cwd: string,
 	scope: AgentScope,
 ): {
@@ -138,7 +138,7 @@ function discoverSlashAgents(
 	agentDiagnostics?: AgentDiscoveryDiagnostic[];
 	unknownAgentDiagnosticContext: UnknownAgentDiagnosticContext;
 } {
-	if (listRuntimeAgentConfigs(pi).length === 0) {
+	if (listRuntimeAgentConfigs(evoharness).length === 0) {
 		const discovered = discoverAgents(cwd, scope);
 		return { ...discovered, unknownAgentDiagnosticContext: unknownAgentDiagnosticContext(discovered) };
 	}
@@ -151,16 +151,16 @@ function discoverSlashAgents(
 		...(scope !== "project" ? all.user : []),
 		...(scope !== "user" ? all.project : []),
 	];
-	const merged = mergeRuntimeAgents(pi, discovered, configuredAgents, { cwd, scope });
+	const merged = mergeRuntimeAgents(evoharness, discovered, configuredAgents, { cwd, scope });
 	return {
 		...merged,
 		unknownAgentDiagnosticContext: { ...unknownAgentDiagnosticContext(discovered), agents: merged.agents },
 	};
 }
 
-const makeAgentCompletions = (pi: ExtensionAPI, state: SubagentState) => (prefix: string) => {
+const makeAgentCompletions = (evoharness: ExtensionAPI, state: SubagentState) => (prefix: string) => {
 	if (!state.baseCwd || prefix.includes(" ")) return null;
-	return discoverSlashAgents(pi, state.baseCwd, "both")
+	return discoverSlashAgents(evoharness, state.baseCwd, "both")
 		.agents.filter((agent) => agent.name.startsWith(prefix))
 		.map((agent) => ({ value: agent.name, label: agent.name }));
 };
@@ -177,8 +177,8 @@ const makeProviderCompletions = (state: SubagentState) => (prefix: string) => {
 		.map((provider) => ({ value: provider, label: provider }));
 };
 
-function sendSlashText(pi: ExtensionAPI, text: string): void {
-	pi.sendMessage({
+function sendSlashText(evoharness: ExtensionAPI, text: string): void {
+	evoharness.sendMessage({
 		customType: SLASH_TEXT_RESULT_TYPE,
 		content: text,
 		display: true,
@@ -430,7 +430,7 @@ function slashHasUI(ctx: ExtensionContext): boolean | undefined {
 }
 
 async function requestSlashRun(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	ctx: ExtensionContext,
 	requestId: string,
 	params: SubagentParamsLike,
@@ -491,15 +491,15 @@ async function requestSlashRun(
 		const onTerminalInput = ctx.hasUI
 			? ctx.ui.onTerminalInput((input) => {
 					if (!matchesKey(input, Key.escape)) return undefined;
-					pi.events.emit(SLASH_SUBAGENT_CANCEL_EVENT, { requestId });
+					evoharness.events.emit(SLASH_SUBAGENT_CANCEL_EVENT, { requestId });
 					finish(() => reject(new Error("Cancelled")));
 					return { consume: true };
 				})
 			: undefined;
 
-		const unsubStarted = pi.events.on(SLASH_SUBAGENT_STARTED_EVENT, onStarted);
-		const unsubResponse = pi.events.on(SLASH_SUBAGENT_RESPONSE_EVENT, onResponse);
-		const unsubUpdate = pi.events.on(SLASH_SUBAGENT_UPDATE_EVENT, onUpdate);
+		const unsubStarted = evoharness.events.on(SLASH_SUBAGENT_STARTED_EVENT, onStarted);
+		const unsubResponse = evoharness.events.on(SLASH_SUBAGENT_RESPONSE_EVENT, onResponse);
+		const unsubUpdate = evoharness.events.on(SLASH_SUBAGENT_UPDATE_EVENT, onUpdate);
 
 		let onAbort: () => void;
 		const finish = (next: () => void) => {
@@ -533,7 +533,7 @@ async function requestSlashRun(
 		}
 		signal?.addEventListener("abort", onAbort, { once: true });
 		try {
-			pi.events.emit(SLASH_SUBAGENT_REQUEST_EVENT, { requestId, params, ctx });
+			evoharness.events.emit(SLASH_SUBAGENT_REQUEST_EVENT, { requestId, params, ctx });
 		} catch (error) {
 			if (isStaleExtensionContextError(error)) {
 				finish(() => reject(error));
@@ -601,7 +601,7 @@ function persistSlashSessionSnapshot(ctx: ExtensionContext): void {
 }
 
 async function runSlashSubagent(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	ctx: ExtensionContext,
 	params: SubagentParamsLike,
 	signal?: AbortSignal,
@@ -619,7 +619,7 @@ async function runSlashSubagent(
 	const initialDetails = buildSlashInitialResult(requestId, params);
 	const initialText = extractSlashMessageText(initialDetails.result.content) || "Running subagent...";
 	try {
-		pi.sendMessage({
+		evoharness.sendMessage({
 			customType: SLASH_RESULT_TYPE,
 			content: initialText,
 			display: true,
@@ -632,12 +632,12 @@ async function runSlashSubagent(
 	persistSlashSessionSnapshot(ctx);
 
 	try {
-		const response = await requestSlashRun(pi, ctx, requestId, params, signal);
+		const response = await requestSlashRun(evoharness, ctx, requestId, params, signal);
 		if (signal?.aborted) return;
 		const hasUI = slashHasUI(ctx);
 		if (hasUI === undefined) return;
 		const finalDetails = finalizeSlashResult(response);
-		pi.sendMessage({
+		evoharness.sendMessage({
 			customType: SLASH_RESULT_TYPE,
 			content: buildSlashExportText(response),
 			display: !hasUI,
@@ -656,7 +656,7 @@ async function runSlashSubagent(
 		const hasUI = slashHasUI(ctx);
 		if (hasUI === undefined) return;
 		const failedDetails = failSlashResult(requestId, params, message);
-		pi.sendMessage({
+		evoharness.sendMessage({
 			customType: SLASH_RESULT_TYPE,
 			content: `## Subagent result\n\n${message}`,
 			display: !hasUI,
@@ -679,7 +679,7 @@ function slashRunWorkflowScript(key: string, child: SubagentParamsLike): string 
 }
 
 export function registerSlashCommands(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	state: SubagentState,
 	options: {
 		fleetKeybindings?: FleetKeybindingsConfig;
@@ -695,7 +695,9 @@ export function registerSlashCommands(
 		if (disposed) return Promise.resolve();
 		const controller = new AbortController();
 		pendingRequests.add(controller);
-		return runSlashSubagent(pi, ctx, params, controller.signal).finally(() => pendingRequests.delete(controller));
+		return runSlashSubagent(evoharness, ctx, params, controller.signal).finally(() =>
+			pendingRequests.delete(controller),
+		);
 	};
 	const launchCommand = (ctx: ExtensionContext, params: SubagentParamsLike): void => {
 		void runCommand(ctx, params);
@@ -715,7 +717,7 @@ export function registerSlashCommands(
 			const { openSubagentFleet } = await import("../tui/fleet.ts");
 			await openSubagentFleet(ctx, state, {
 				asyncDirRoot: DIRS.async,
-				inspectorPlugins: () => getInspectorPlugins(pi),
+				inspectorPlugins: () => getInspectorPlugins(evoharness),
 				resultsDir: DIRS.results,
 				fleetKeybindings: options.fleetKeybindings,
 			});
@@ -724,16 +726,16 @@ export function registerSlashCommands(
 		}
 	};
 
-	pi.registerCommand("subagents", {
+	evoharness.registerCommand("subagents", {
 		description: "Administer subagents: inspect metadata and update models, thinking, or prompts",
 		handler: async (args, ctx) => {
-			await openSubagentsAdmin(pi, ctx, args);
+			await openSubagentsAdmin(evoharness, ctx, args);
 		},
 	});
 
-	pi.registerCommand("run", {
+	evoharness.registerCommand("run", {
 		description: "Run one subagent through a workflow script: /run agent[output=file] [task] [--bg] [--fork]",
-		getArgumentCompletions: makeAgentCompletions(pi, state),
+		getArgumentCompletions: makeAgentCompletions(evoharness, state),
 		handler: async (args, ctx) => {
 			const { args: cleanedArgs, bg, fork } = extractExecutionFlags(args);
 			const input = cleanedArgs.trim();
@@ -751,7 +753,7 @@ export function registerSlashCommands(
 				ctx.ui.notify("Subagent session cwd is not initialized yet", "error");
 				return;
 			}
-			const discovered = discoverSlashAgents(pi, state.baseCwd, "both");
+			const discovered = discoverSlashAgents(evoharness, state.baseCwd, "both");
 			const resolvedAgent = resolveAgentName(agentName, discovered.agents);
 			const candidates = resolvedAgent.error
 				? discovered.agents.filter((agent) => resolveAgentName(agentName, [agent]).agent)
@@ -790,21 +792,21 @@ export function registerSlashCommands(
 		},
 	});
 
-	pi.registerCommand("subagent-cost", {
+	evoharness.registerCommand("subagent-cost", {
 		description: "Show parent and subagent child usage cost for this session",
 		handler: async (_args, ctx) => {
-			sendSlashText(pi, formatSubagentCostReport(collectSubagentCost(ctx, state)));
+			sendSlashText(evoharness, formatSubagentCostReport(collectSubagentCost(ctx, state)));
 		},
 	});
 
-	pi.registerCommand("subagents-doctor", {
+	evoharness.registerCommand("subagents-doctor", {
 		description: "Show subagent diagnostics",
 		handler: async (_args, ctx) => {
 			await runCommand(ctx, { action: "doctor" });
 		},
 	});
 
-	pi.registerCommand("subagents-inspect-rpc", {
+	evoharness.registerCommand("subagents-inspect-rpc", {
 		description:
 			"Host integration bridge: answer an async child inspection request with a correlated widget payload (no model turn)",
 		handler: async (args, ctx) => {
@@ -825,7 +827,7 @@ export function registerSlashCommands(
 		},
 	});
 
-	pi.registerCommand("subagents-guide", {
+	evoharness.registerCommand("subagents-guide", {
 		description: "Show a packaged subagents guide topic",
 		getArgumentCompletions: (prefix) =>
 			prefix.includes(" ")
@@ -844,9 +846,9 @@ export function registerSlashCommands(
 		},
 	});
 
-	pi.registerCommand("subagents-refine", {
+	evoharness.registerCommand("subagents-refine", {
 		description: "Generate a bounded project-local refinement overlay for one subagent",
-		getArgumentCompletions: makeAgentCompletions(pi, state),
+		getArgumentCompletions: makeAgentCompletions(evoharness, state),
 		handler: async (args, ctx) => {
 			const parts = args.trim().split(/\s+/).filter(Boolean);
 			if (parts.length !== 1) {
@@ -857,7 +859,7 @@ export function registerSlashCommands(
 		},
 	});
 
-	pi.registerCommand("subagents-fleet", {
+	evoharness.registerCommand("subagents-fleet", {
 		description: "Open the live subagent fleet inspector",
 		handler: async (_args, ctx) => showFleet(ctx),
 	});
@@ -887,30 +889,30 @@ export function registerSlashCommands(
 			return;
 		}
 		sendSlashText(
-			pi,
-			`Detached foreground run ${control.runId} without terminating its child. Use subagent({ action: "status", id: ${JSON.stringify(control.runId)} }) or bg_wait({ id: ${JSON.stringify(control.runId)} }) to recover the eventual result. This does not daemonize the process or guarantee survival across Pi reload/restart.`,
+			evoharness,
+			`Detached foreground run ${control.runId} without terminating its child. Use subagent({ action: "status", id: ${JSON.stringify(control.runId)} }) or bg_wait({ id: ${JSON.stringify(control.runId)} }) to recover the eventual result. This does not daemonize the process or guarantee survival across evoharness reload/restart.`,
 		);
 	};
 
-	pi.registerCommand("subagents-detach", {
+	evoharness.registerCommand("subagents-detach", {
 		description: "Detach the active foreground single-subagent run without terminating it",
 		handler: async (args, ctx) => detachForegroundRun(args, ctx),
 	});
 
 	if (options.foregroundDetachShortcut) {
-		pi.registerShortcut(options.foregroundDetachShortcut as KeyId, {
+		evoharness.registerShortcut(options.foregroundDetachShortcut as KeyId, {
 			description: "Detach the active foreground subagent and keep it running in the background",
 			handler: async (ctx) => detachForegroundRun("", ctx),
 		});
 	}
 
-	pi.registerCommand("subagents-stop", {
+	evoharness.registerCommand("subagents-stop", {
 		description:
 			"Stop a current-session async subagent run, or one child of it with /subagents-stop <run-id> <child-id>",
 		handler: async (args, ctx) => {
 			const [id, childId, ...extra] = args.trim().split(/\s+/).filter(Boolean);
 			if (extra.length > 0) {
-				sendSlashText(pi, "Usage: /subagents-stop [run-id] [child-id]");
+				sendSlashText(evoharness, "Usage: /subagents-stop [run-id] [child-id]");
 				return;
 			}
 			if (id) {
@@ -927,7 +929,7 @@ export function registerSlashCommands(
 				return;
 			}
 			if (!canRenderComponents(ctx)) {
-				sendSlashText(pi, stopFallbackText(targets));
+				sendSlashText(evoharness, stopFallbackText(targets));
 				return;
 			}
 			if (targets.length === 0) {
@@ -952,14 +954,14 @@ export function registerSlashCommands(
 		},
 	});
 
-	pi.registerCommand("subagents-steer", {
+	evoharness.registerCommand("subagents-steer", {
 		description: "Steer a live async subagent run with a message, or one child of it with --child <child-id>",
 		handler: async (args, ctx) => {
 			const tokens = args.trim().split(/\s+/).filter(Boolean);
 			const usage = "Usage: /subagents-steer <run-id> [--child <child-id>] <message>";
 			const [id, ...rest] = tokens;
 			if (!id || id.startsWith("--")) {
-				sendSlashText(pi, usage);
+				sendSlashText(evoharness, usage);
 				return;
 			}
 			// Only the optional child selector is parsed as a flag. Everything
@@ -973,7 +975,7 @@ export function registerSlashCommands(
 			}
 			const message = rest.slice(messageStart).join(" ").trim();
 			if (!message) {
-				sendSlashText(pi, usage);
+				sendSlashText(evoharness, usage);
 				return;
 			}
 			let targetId = id;
@@ -987,7 +989,7 @@ export function registerSlashCommands(
 				})[0];
 				const status = run ? readStatus(run.asyncDir) : null;
 				if (!run || !status) {
-					sendSlashText(pi, `No current-session async run found for '${id}'.`);
+					sendSlashText(evoharness, `No current-session async run found for '${id}'.`);
 					return;
 				}
 				const resolutionStatus = {
@@ -999,7 +1001,7 @@ export function registerSlashCommands(
 				};
 				const resolution = resolveAsyncStatusChild(resolutionStatus, childId, { includeNested: true });
 				if (!resolution.ok) {
-					sendSlashText(pi, resolution.message);
+					sendSlashText(evoharness, resolution.message);
 					return;
 				}
 				if (resolution.child.nested) targetId = resolution.child.nested.id;
@@ -1020,15 +1022,15 @@ export function registerSlashCommands(
 	});
 
 	registerPromptWorkflowCommands({
-		pi,
+		evoharness,
 		run: async (params, ctx) => {
 			launchCommand(ctx, params);
 		},
 	});
 
-	pi.registerCommand("subagents-models", {
+	evoharness.registerCommand("subagents-models", {
 		description: "Show model mappings for discovered subagents",
-		getArgumentCompletions: makeAgentCompletions(pi, state),
+		getArgumentCompletions: makeAgentCompletions(evoharness, state),
 		handler: async (args, ctx) => {
 			const trimmed = args.trim();
 			if (!trimmed) {
@@ -1044,22 +1046,22 @@ export function registerSlashCommands(
 		},
 	});
 
-	pi.registerCommand("subagents-profiles", {
+	evoharness.registerCommand("subagents-profiles", {
 		description: "List saved subagent profiles",
 		handler: async (_args, _ctx) => {
 			const profiles = listSubagentProfiles();
 			if (profiles.length === 0) {
 				sendSlashText(
-					pi,
-					"Subagent profiles\n\nNo subagent profiles found in ~/.evoharness/agent/profiles/pi-subagents/",
+					evoharness,
+					"Subagent profiles\n\nNo subagent profiles found in ~/.evoharness/agent/profiles/subagents/",
 				);
 				return;
 			}
-			sendSlashText(pi, `Subagent profiles\n\n${profiles.join("\n")}`);
+			sendSlashText(evoharness, `Subagent profiles\n\n${profiles.join("\n")}`);
 		},
 	});
 
-	pi.registerCommand("subagents-load-profile", {
+	evoharness.registerCommand("subagents-load-profile", {
 		description: "Load a subagent profile into ~/.evoharness/agent/settings.json",
 		getArgumentCompletions: (prefix) => {
 			if (prefix.includes(" ")) return null;
@@ -1086,7 +1088,7 @@ export function registerSlashCommands(
 
 					if (
 						workerModel &&
-						typeof pi.setModel === "function" &&
+						typeof evoharness.setModel === "function" &&
 						typeof ctx.modelRegistry?.find === "function" &&
 						typeof ctx.modelRegistry?.getAvailable === "function"
 					) {
@@ -1102,7 +1104,7 @@ export function registerSlashCommands(
 									`Could not switch current session model: '${workerModel}' is not available in the current model registry.`,
 								);
 							} else {
-								const success = await pi.setModel(model);
+								const success = await evoharness.setModel(model);
 								if (success) lines.push(`Current session model switched to: ${modelInfo.fullId}`);
 								else
 									lines.push(
@@ -1114,7 +1116,7 @@ export function registerSlashCommands(
 						lines.push(`Profile worker model: ${workerModel}`);
 					}
 
-					sendSlashText(pi, lines.join("\n"));
+					sendSlashText(evoharness, lines.join("\n"));
 				});
 			} catch (error) {
 				ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
@@ -1122,7 +1124,7 @@ export function registerSlashCommands(
 		},
 	});
 
-	pi.registerCommand("subagents-refresh-provider-models", {
+	evoharness.registerCommand("subagents-refresh-provider-models", {
 		description: "Refresh the cached model catalog for one provider",
 		getArgumentCompletions: makeProviderCompletions(state),
 		handler: async (args, ctx) => {
@@ -1139,7 +1141,7 @@ export function registerSlashCommands(
 			}
 			try {
 				await withSlashStatus(ctx, `Refreshing provider models for ${parsed.value}…`, async () => {
-					const result = await refreshProviderModelCatalog(pi, ctx, parsed.value, {
+					const result = await refreshProviderModelCatalog(evoharness, ctx, parsed.value, {
 						force,
 						maxAgeDays: DEFAULT_PROVIDER_MODELS_MAX_AGE_DAYS,
 					});
@@ -1156,7 +1158,7 @@ export function registerSlashCommands(
 							`Warning: ${result.heuristicFallbackCount} model${result.heuristicFallbackCount === 1 ? " was" : "s were"} classified with name heuristics fallback.`,
 						);
 					}
-					sendSlashText(pi, lines.join("\n"));
+					sendSlashText(evoharness, lines.join("\n"));
 				});
 			} catch (error) {
 				ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
@@ -1164,7 +1166,7 @@ export function registerSlashCommands(
 		},
 	});
 
-	pi.registerCommand("subagents-generate-profiles", {
+	evoharness.registerCommand("subagents-generate-profiles", {
 		description: "Generate <provider>.quota and <provider>.quality subagent profiles",
 		getArgumentCompletions: makeProviderCompletions(state),
 		handler: async (args, ctx) => {
@@ -1175,7 +1177,7 @@ export function registerSlashCommands(
 			}
 			try {
 				await withSlashStatus(ctx, `Generating profiles for ${parsed.value}…`, async () => {
-					const result = await generateProfilesForProvider(pi, ctx, parsed.value, {
+					const result = await generateProfilesForProvider(evoharness, ctx, parsed.value, {
 						maxAgeDays: DEFAULT_PROVIDER_MODELS_MAX_AGE_DAYS,
 					});
 					const lines = [
@@ -1200,7 +1202,7 @@ export function registerSlashCommands(
 							`Warning: provider catalog still contains ${result.heuristicFallbackCount} heuristic-classified model${result.heuristicFallbackCount === 1 ? "" : "s"}.`,
 						);
 					}
-					sendSlashText(pi, lines.join("\n"));
+					sendSlashText(evoharness, lines.join("\n"));
 				});
 			} catch (error) {
 				ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
@@ -1208,7 +1210,7 @@ export function registerSlashCommands(
 		},
 	});
 
-	pi.registerCommand("subagents-check-profile", {
+	evoharness.registerCommand("subagents-check-profile", {
 		description: "Check whether a saved profile still points to usable models",
 		getArgumentCompletions: (prefix) => {
 			if (prefix.includes(" ")) return null;
@@ -1224,7 +1226,7 @@ export function registerSlashCommands(
 			}
 			try {
 				await withSlashStatus(ctx, `Checking profile ${parsed.value}…`, async () => {
-					const result = await checkSubagentProfile(pi, ctx, parsed.value);
+					const result = await checkSubagentProfile(evoharness, ctx, parsed.value);
 					const lines = [
 						"Subagent profile check",
 						`Profile: ${result.profileName}`,
@@ -1235,7 +1237,7 @@ export function registerSlashCommands(
 								`${entry.agent} → ${entry.model} — registry ${entry.inRegistry ? "ok" : "missing"}; probe ${entry.probe.status}${entry.probe.message ? ` (${entry.probe.message.split(/\r?\n/, 1)[0]})` : ""}`,
 						),
 					];
-					sendSlashText(pi, lines.join("\n"));
+					sendSlashText(evoharness, lines.join("\n"));
 				});
 			} catch (error) {
 				ctx.ui.notify(error instanceof Error ? error.message : String(error), "error");
@@ -1248,7 +1250,7 @@ export function registerSlashCommands(
 			if (disposed) return;
 			disposed = true;
 			// A reload revokes the command context; do not let delayed responses
-			// resume a command against the old Pi context.
+			// resume a command against the old evoharness context.
 			for (const controller of pendingRequests) controller.abort();
 			pendingRequests.clear();
 		},

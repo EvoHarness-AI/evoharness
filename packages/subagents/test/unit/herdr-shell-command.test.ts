@@ -21,7 +21,7 @@ describe("formatShellCommand on POSIX shells", () => {
 	});
 
 	it("keeps bare command names bare", () => {
-		assert.equal(formatShellCommand("pi", ["review the diff"], platform), "pi 'review the diff'");
+		assert.equal(formatShellCommand("evoharness", ["review the diff"], platform), "evoharness 'review the diff'");
 	});
 
 	it("uses a bare sh invoker for an executable containing spaces and equals", () => {
@@ -39,7 +39,7 @@ describe("formatShellCommand on POSIX shells", () => {
 	});
 
 	it("executes an equals-sign path through the shell wrapper", { skip: process.platform === "win32" }, () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi herdr shell="));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "evoharness herdr shell="));
 		try {
 			const executable = path.join(root, "tool=' value");
 			fs.writeFileSync(executable, "#!/bin/sh\nprintf '%s' \"$1\"\n", "utf-8");

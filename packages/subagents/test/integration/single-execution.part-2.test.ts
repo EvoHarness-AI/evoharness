@@ -1,11 +1,11 @@
 /**
  * Integration tests for single (sync) agent execution.
  *
- * Uses the local createMockPi() helper to simulate the pi CLI.
+ * Uses the local createMockPi() helper to simulate the evoharness CLI.
  * Tests the full spawn→parse→result pipeline in runSync without a real LLM.
  *
- * These tests require pi packages to be importable (they run inside a pi
- * environment or with pi packages installed). If unavailable, tests skip
+ * These tests require evoharness packages to be importable (they run inside a evoharness
+ * environment or with evoharness packages installed). If unavailable, tests skip
  * gracefully.
  */
 
@@ -123,7 +123,7 @@ function savedForegroundRuns<T>(): T[] {
 	return names.map((name) => JSON.parse(fs.readFileSync(path.join(dir, name), "utf-8")) as T);
 }
 
-describe("single sync execution", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("single sync execution", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	installSingleExecutionHooks();
 
 	for (const mode of ["abort", "attached", "detached"] as const) {
@@ -670,7 +670,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 			};
 			const piEvents = createEventBus();
 			const executor = createSubagentExecutor!({
-				pi: { events: piEvents, getSessionName: () => undefined },
+				evoharness: { events: piEvents, getSessionName: () => undefined },
 				state,
 				config: {},
 				asyncByDefault: false,
@@ -994,7 +994,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 				mergeCommit: "9999999999999999999999999999999999999999",
 				treeEquivalent: true,
 				postMergeChecks: "recorded",
-				attestedBy: "nicobailon",
+				attestedBy: "evoharness",
 				attestedAt: "2026-08-27T16:23:00.000Z",
 			};
 
@@ -1041,7 +1041,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 			const models = [gpt, opus];
 			const watchdog = new MainWatchdogRuntime({ cwd: tempDir });
 			const executor = createSubagentExecutor!({
-				pi: { events: createEventBus(), getSessionName: () => undefined },
+				evoharness: { events: createEventBus(), getSessionName: () => undefined },
 				state: {
 					baseCwd: tempDir,
 					currentSessionId: null,
@@ -1190,7 +1190,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 					const bus = createEventBus();
 					const handlers = new Map<string, Handler[]>();
 					let tool: Tool | undefined;
-					const pi = new Proxy(
+					const evoharness = new Proxy(
 						{
 							events: bus,
 							on(event: string, handler: Handler) {
@@ -1209,7 +1209,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 					const previousChildEnv = process.env[SUBAGENT_CHILD_ENV];
 					delete process.env[SUBAGENT_CHILD_ENV];
 					try {
-						registerSubagentExtension(pi as never);
+						registerSubagentExtension(evoharness as never);
 					} finally {
 						if (previousChildEnv !== undefined) process.env[SUBAGENT_CHILD_ENV] = previousChildEnv;
 					}
@@ -1528,7 +1528,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 			string,
 			Array<(event: unknown, ctx: ReturnType<typeof makeMinimalCtx>) => void>
 		>();
-		const fakePi = new Proxy(
+		const fakeHostExe = new Proxy(
 			{
 				events: extensionEvents,
 				on(event: string, handler: (event: unknown, ctx: ReturnType<typeof makeMinimalCtx>) => void) {
@@ -1611,7 +1611,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 			const previousChildEnv = process.env[SUBAGENT_CHILD_ENV];
 			delete process.env[SUBAGENT_CHILD_ENV];
 			try {
-				registerSubagentExtension(fakePi as never);
+				registerSubagentExtension(fakeHostExe as never);
 			} finally {
 				if (previousChildEnv === undefined) delete process.env[SUBAGENT_CHILD_ENV];
 				else process.env[SUBAGENT_CHILD_ENV] = previousChildEnv;
@@ -2352,7 +2352,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 			};
 			const updates: ExecutorToolResult[] = [];
 			const executor = createSubagentExecutor!({
-				pi: { events: staleEvents, getSessionName: () => undefined },
+				evoharness: { events: staleEvents, getSessionName: () => undefined },
 				state,
 				config: {
 					control: {
@@ -3854,7 +3854,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 				assert.match(result.content[0]?.text ?? "", /outputMode: "file-only"/);
 				assert.equal(mockPi.callCount(), 0);
 				assert.equal(
-					fs.readdirSync(tempDir).some((name) => name.startsWith("pi-subagent-structured-")),
+					fs.readdirSync(tempDir).some((name) => name.startsWith("subagents-subagent-structured-")),
 					false,
 				);
 			} finally {
@@ -4197,7 +4197,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 	});
 
 	it("records a parallel batch's mutating failure against the failed call's path", async () => {
-		// Pi's parallel tool execution: every start and end comes before the result messages.
+		// evoharness's parallel tool execution: every start and end comes before the result messages.
 		const result = (toolCallId: string, isError: boolean, text: string) => ({
 			type: "message_end",
 			message: { role: "toolResult", toolCallId, toolName: "edit", isError, content: [{ type: "text", text }] },
@@ -4420,7 +4420,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 		assert.equal(result.model, "openai/gpt-4o");
 	});
 
-	it("rejects an unresolved agent model before spawning Pi", async () => {
+	it("rejects an unresolved agent model before spawning evoharness", async () => {
 		const agents = [makeAgent("echo", { model: "fast" })];
 
 		await assert.rejects(
@@ -5262,7 +5262,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 	});
 
 	it("resolves skills from the effective task cwd", async () => {
-		const taskCwd = createTempDir("pi-subagent-task-cwd-");
+		const taskCwd = createTempDir("subagents-subagent-task-cwd-");
 		try {
 			writePackageSkill(taskCwd, "task-cwd-skill");
 			mockPi.onCall({ output: "Done" });
@@ -5311,23 +5311,23 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 		assert.equal(result.skillsWarning, undefined);
 	});
 
-	it("fails foreground runs on explicit unavailable pi-subagents skill requests without spawning", async () => {
+	it("fails foreground runs on explicit unavailable subagents skill requests without spawning", async () => {
 		const agents = [makeAgent("worker")];
 
-		const result = await runSync(tempDir, agents, "worker", "Task", { skills: ["pi-subagents"] });
+		const result = await runSync(tempDir, agents, "worker", "Task", { skills: ["subagents"] });
 
 		assert.equal(result.exitCode, 1);
-		assert.equal(result.error, "Skills not found: pi-subagents");
+		assert.equal(result.error, "Skills not found: subagents");
 		assert.equal(mockPi.callCount(), 0);
 	});
 
-	it("fails foreground runs when an agent default requests pi-subagents skill", async () => {
-		const agents = [makeAgent("worker", { skills: ["pi-subagents"] })];
+	it("fails foreground runs when an agent default requests subagents skill", async () => {
+		const agents = [makeAgent("worker", { skills: ["subagents"] })];
 
 		const result = await runSync(tempDir, agents, "worker", "Task", {});
 
 		assert.equal(result.exitCode, 1);
-		assert.equal(result.error, "Skills not found: pi-subagents");
+		assert.equal(result.error, "Skills not found: subagents");
 		assert.equal(mockPi.callCount(), 0);
 	});
 
@@ -5397,20 +5397,20 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 	});
 
 	it(
-		"resolves foreground required extensions by Pi session ID rather than session file",
+		"resolves foreground required extensions by evoharness session ID rather than session file",
 		{ skip: !createSubagentExecutor ? "executor not importable" : undefined },
 		async (t) => {
 			mockPi.onCall({ output: "required extension loaded" });
 			const extensionPath = path.join(tempDir, "foreground-required.mjs");
 			fs.writeFileSync(extensionPath, "export default function () {}\n");
-			const parentPiSessionId = "foreground-pi-session";
+			const parentHostSessionId = "foreground-host-session";
 			const registration = registerRequiredChildExtensions({
-				sessionId: parentPiSessionId,
+				sessionId: parentHostSessionId,
 				extensions: [{ id: "foreground-required", path: extensionPath }],
 			});
 			t.after(registration.dispose);
 			const ctx = makeMinimalCtx(tempDir);
-			ctx.sessionManager.getSessionId = () => parentPiSessionId;
+			ctx.sessionManager.getSessionId = () => parentHostSessionId;
 			ctx.sessionManager.getSessionFile = () => path.join(tempDir, "sessions", "different-file-identity.jsonl");
 			const result = await makeExecutor([makeAgent("echo")]).execute(
 				"foreground-required",
@@ -6278,10 +6278,10 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 	it("passes maxSubagentDepth through to the child runtime config", async () => {
 		mockPi.onCall({ output: "ok" });
 		const agents = makeAgentConfigs(["echo"]);
-		const prevDepth = process.env.PI_SUBAGENT_DEPTH;
-		const prevMaxDepth = process.env.PI_SUBAGENT_MAX_DEPTH;
-		delete process.env.PI_SUBAGENT_DEPTH;
-		delete process.env.PI_SUBAGENT_MAX_DEPTH;
+		const prevDepth = process.env.EVOHARNESS_SUBAGENT_DEPTH;
+		const prevMaxDepth = process.env.EVOHARNESS_SUBAGENT_MAX_DEPTH;
+		delete process.env.EVOHARNESS_SUBAGENT_DEPTH;
+		delete process.env.EVOHARNESS_SUBAGENT_MAX_DEPTH;
 
 		try {
 			const result = await runSync(tempDir, agents, "echo", "Task", {
@@ -6293,10 +6293,10 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 			assert.equal(readCall().runtime?.depth, 1);
 			assert.equal(readCall().runtime?.maxDepth, 1);
 		} finally {
-			if (prevDepth === undefined) delete process.env.PI_SUBAGENT_DEPTH;
-			else process.env.PI_SUBAGENT_DEPTH = prevDepth;
-			if (prevMaxDepth === undefined) delete process.env.PI_SUBAGENT_MAX_DEPTH;
-			else process.env.PI_SUBAGENT_MAX_DEPTH = prevMaxDepth;
+			if (prevDepth === undefined) delete process.env.EVOHARNESS_SUBAGENT_DEPTH;
+			else process.env.EVOHARNESS_SUBAGENT_DEPTH = prevDepth;
+			if (prevMaxDepth === undefined) delete process.env.EVOHARNESS_SUBAGENT_MAX_DEPTH;
+			else process.env.EVOHARNESS_SUBAGENT_MAX_DEPTH = prevMaxDepth;
 		}
 	});
 
@@ -6439,7 +6439,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 
 			assert.equal(result.exitCode, 0);
 			const call = readCall();
-			assert.ok(call.launch?.hooks.includes("pi-subagents:prompt-runtime"));
+			assert.ok(call.launch?.hooks.includes("subagents:prompt-runtime"));
 			const extensionPaths = call.launch?.extensionPaths ?? [];
 			assert.ok(extensionPaths.some((entry) => entry.replace(/\\/g, "/").endsWith("custom-tool.ts")));
 			assert.ok(extensionPaths.some((entry) => entry.replace(/\\/g, "/").endsWith("allowed-ext.ts")));
@@ -6468,7 +6468,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 
 			assert.equal(result.exitCode, 0);
 			const call = readCall();
-			assert.ok(call.launch?.hooks.includes("pi-subagents:prompt-runtime"));
+			assert.ok(call.launch?.hooks.includes("subagents:prompt-runtime"));
 			assert.ok(
 				(call.launch?.extensionPaths ?? []).some((entry) =>
 					entry.replace(/\\/g, "/").endsWith("child-only-tool.ts"),
@@ -6602,7 +6602,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 				},
 			});
 			const executor = createSubagentExecutor!({
-				pi: { events: createEventBus(), getSessionName: () => undefined },
+				evoharness: { events: createEventBus(), getSessionName: () => undefined },
 				state: {
 					baseCwd: tempDir,
 					currentSessionId: null,

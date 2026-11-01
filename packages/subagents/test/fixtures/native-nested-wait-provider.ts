@@ -3,13 +3,13 @@ import { type AssistantMessage, createAssistantMessageEventStream, type ToolCall
 import type { ExtensionAPI } from "@evoharness/coding-agent";
 
 /** Only the model is scripted: delegation, wait, read, sessions, and runners are native. */
-export default function (pi: ExtensionAPI) {
-	pi.on("tool_execution_update", (event, ctx) => {
+export default function (evoharness: ExtensionAPI) {
+	evoharness.on("tool_execution_update", (event, ctx) => {
 		if (event.toolName === "bg_wait" && ctx.model?.id.startsWith("arm-")) {
-			fs.writeFileSync(`${process.env.PI_SUBAGENTS_NATIVE_WAIT_AUDIT}.${ctx.model.id}.release`, "ready");
+			fs.writeFileSync(`${process.env.EVOHARNESS_SUBAGENTS_NATIVE_WAIT_AUDIT}.${ctx.model.id}.release`, "ready");
 		}
 	});
-	pi.registerProvider("nested-wait-fixture", {
+	evoharness.registerProvider("nested-wait-fixture", {
 		baseUrl: "http://unused.invalid",
 		apiKey: "fixture",
 		api: "openai-completions",
@@ -65,7 +65,7 @@ export default function (pi: ExtensionAPI) {
 							.join("\n")
 							.match(/arm-[ab]/)?.[0];
 						if (!arm) throw new Error("Persona task omitted its owning arm");
-						const release = `${process.env.PI_SUBAGENTS_NATIVE_WAIT_AUDIT}.${arm}.release`;
+						const release = `${process.env.EVOHARNESS_SUBAGENTS_NATIVE_WAIT_AUDIT}.${arm}.release`;
 						const deadline = Date.now() + 10000;
 						while (!fs.existsSync(release)) {
 							options?.signal?.throwIfAborted();
@@ -124,7 +124,7 @@ export default function (pi: ExtensionAPI) {
 					}
 					output.stopReason = output.content.some((part) => part.type === "toolCall") ? "toolUse" : "stop";
 					fs.appendFileSync(
-						process.env.PI_SUBAGENTS_NATIVE_WAIT_AUDIT!,
+						process.env.EVOHARNESS_SUBAGENTS_NATIVE_WAIT_AUDIT!,
 						JSON.stringify({ model: model.id, content: output.content }) + "\n",
 					);
 					stream.push({ type: "start", partial: output });

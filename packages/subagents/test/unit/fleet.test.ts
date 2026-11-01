@@ -51,7 +51,7 @@ function foregroundHistoryFile(resultsDir: string, runId: string): string {
 	return path.join(resultsDir, "foreground-history", `${encodeIndexSegment(runId)}.json`);
 }
 
-/** Writes a raw record as another Pi process, or an older version, would have left it. */
+/** Writes a raw record as another evoharness process, or an older version, would have left it. */
 function writeForegroundHistoryFile(resultsDir: string, run: { runId: string }): void {
 	fs.mkdirSync(path.join(resultsDir, "foreground-history"), { recursive: true });
 	fs.writeFileSync(foregroundHistoryFile(resultsDir, run.runId), JSON.stringify(run), "utf-8");
@@ -230,7 +230,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("collects current-session foreground and flattened async children", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-collect-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-collect-"));
 		try {
 			writeAsyncRun(root, { id: "async-current", agents: ["worker", "reviewer"], output: "CURRENT OUTPUT" });
 			writeAsyncRun(root, { id: "async-other", sessionId: "session-other", output: "OTHER OUTPUT" });
@@ -638,7 +638,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("keeps tracked active workflows ahead of older failed terminal history", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-history-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-history-"));
 		try {
 			writeAsyncRun(root, { id: "older-failed", state: "failed", lastUpdate: 100 });
 			writeAsyncRun(root, { id: "newer-complete", state: "complete", lastUpdate: 300 });
@@ -670,7 +670,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("bounds Fleet history status-file reads", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-bounded-history-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-bounded-history-"));
 		try {
 			for (let index = 0; index < 100; index++) {
 				const asyncDir = writeAsyncRun(root, { id: `recent-${index}`, state: "complete", lastUpdate: index });
@@ -693,7 +693,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("shows async model and thinking metadata in the structured header", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-model-thinking-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-model-thinking-"));
 		try {
 			writeAsyncRun(root, {
 				id: "model-thinking",
@@ -727,7 +727,7 @@ describe("native subagent fleet", () => {
 
 	it("names each async child's task on its roster row and keeps the run id in the detail header", (t) => {
 		t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-row-task-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-row-task-"));
 		try {
 			writeAsyncRun(root, {
 				id: "row-task-run",
@@ -768,7 +768,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("colors running Fleet rows by their child's recorded level, and whole runs by the main session's", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-levels-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-levels-"));
 		setMainThinkingLevelSource(() => "xhigh");
 		try {
 			writeAsyncRun(root, {
@@ -835,7 +835,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("shows a scripted workflow as one fleet parent instead of unrelated children", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-workflow-parent-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-workflow-parent-"));
 		try {
 			const state = stateForTest();
 			const asyncDir = path.join(root, "workflow-1");
@@ -1056,7 +1056,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("orders active runs by start time so the roster stays stable while they emit", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-active-order-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-active-order-"));
 		try {
 			writeAsyncRun(root, { id: "worker-b", startedAt: 200, lastUpdate: 900 });
 			writeAsyncRun(root, { id: "worker-a", startedAt: 100, lastUpdate: 500 });
@@ -1079,7 +1079,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("accepts default Fleet navigation from Kitty CSI-u input", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-kitty-default-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-kitty-default-"));
 		try {
 			writeAsyncRun(root, { id: "newer", lastUpdate: 300 });
 			writeAsyncRun(root, { id: "older", lastUpdate: 200 });
@@ -1104,7 +1104,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("uses custom Fleet keybindings without applying them inside modal text input", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-custom-keys-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-custom-keys-"));
 		try {
 			writeAsyncRun(root, { id: "newer", lastUpdate: 300 });
 			writeAsyncRun(root, { id: "older", lastUpdate: 200 });
@@ -1167,7 +1167,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("restores current-session completed foreground history from the compact index", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-foreground-history-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-foreground-history-"));
 		try {
 			const resultsDir = path.join(root, "results");
 			const cwd = path.join(root, "project");
@@ -1255,7 +1255,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("does not restore nonterminal foreground history rows", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-foreground-terminal-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-foreground-terminal-"));
 		try {
 			const resultsDir = path.join(root, "results");
 			// A running row without an owner pid cannot be judged, so it is never admitted.
@@ -1303,8 +1303,8 @@ describe("native subagent fleet", () => {
 		}
 	});
 
-	it("keeps a running foreground record in the file and loads it as stopped only once its Pi process is gone", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-foreground-running-"));
+	it("keeps a running foreground record in the file and loads it as stopped only once its evoharness process is gone", () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-foreground-running-"));
 		try {
 			const resultsDir = path.join(root, "results");
 			const sessionFile = path.join(root, "child-session.jsonl");
@@ -1378,7 +1378,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("prunes the oldest final records beyond the cap, and a running record only once its owner is dead", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-foreground-prune-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-foreground-prune-"));
 		try {
 			const resultsDir = path.join(root, "results");
 			const exited = spawnSync(process.execPath, ["-e", ""]).pid;
@@ -1393,7 +1393,7 @@ describe("native subagent fleet", () => {
 				children: [{ agent: "worker", index: 0, status: ownerPid ? "running" : "completed" }],
 			});
 			// The two oldest files are running records: one whose owner is alive (its final save will
-			// replace it later) and one left by a Pi process that died.
+			// replace it later) and one left by a evoharness process that died.
 			for (const [index, [runId, ownerPid]] of (
 				[
 					["running-live", process.pid],
@@ -1413,7 +1413,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("saves each foreground run to its own file without rewriting another process's record", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-foreground-own-file-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-foreground-own-file-"));
 		try {
 			const resultsDir = path.join(root, "results");
 			const run = (runId: string, extra: Partial<ForegroundResumeRun> = {}): ForegroundResumeRun => ({
@@ -1425,7 +1425,7 @@ describe("native subagent fleet", () => {
 				children: [{ agent: "worker", index: 0, status: "completed" }],
 				...extra,
 			});
-			// Run A belongs to another Pi process: this process's state never held it.
+			// Run A belongs to another evoharness process: this process's state never held it.
 			persistForegroundRun(
 				run("run-a", {
 					owner: { pid: process.pid + 1 },
@@ -1446,7 +1446,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("restores this session's saved runs, skips a corrupt file, and ignores and removes the old single history file", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-foreground-files-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-foreground-files-"));
 		try {
 			const resultsDir = path.join(root, "results");
 			const run = (runId: string, sessionId: string) => ({
@@ -1478,7 +1478,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("discards a running foreground record only while this process owns it", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-foreground-running-discard-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-foreground-running-discard-"));
 		try {
 			const resultsDir = path.join(root, "results");
 			const running = (runId: string, ownerPid: number) => ({
@@ -1500,8 +1500,8 @@ describe("native subagent fleet", () => {
 		}
 	});
 
-	it("shows a foreground child cut off by a Pi exit as interrupted, with its resume id only when a transcript exists", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-foreground-interrupted-"));
+	it("shows a foreground child cut off by a evoharness exit as interrupted, with its resume id only when a transcript exists", () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-foreground-interrupted-"));
 		try {
 			const sessionFile = path.join(root, "child-session.jsonl");
 			fs.writeFileSync(sessionFile, "{}\n", "utf-8");
@@ -1535,7 +1535,7 @@ describe("native subagent fleet", () => {
 			};
 			assert.match(
 				statusText("run-interrupted"),
-				/^1\. worker interrupted when Pi exited · resume run-interrupted, exit 1/m,
+				/^1\. worker interrupted when evoharness exited · resume run-interrupted, exit 1/m,
 			);
 			const component = new SubagentFleetComponent(
 				{ terminal: { rows: 28, columns: 140 }, requestRender() {} } as never,
@@ -1548,21 +1548,21 @@ describe("native subagent fleet", () => {
 				assert.ok(
 					component
 						.render(140)
-						.some((line) => line.includes("State: interrupted when Pi exited · resume run-interrupted")),
+						.some((line) => line.includes("State: interrupted when evoharness exited · resume run-interrupted")),
 				);
 			} finally {
 				component.dispose();
 			}
 
 			state.foregroundRuns!.set("run-no-transcript", interrupted("run-no-transcript"));
-			assert.match(statusText("run-no-transcript"), /^1\. worker interrupted when Pi exited, exit 1/m);
+			assert.match(statusText("run-no-transcript"), /^1\. worker interrupted when evoharness exited, exit 1/m);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});
 
 	it("does not restore or persist oversized foreground resume contracts", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-foreground-contract-bound-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-foreground-contract-bound-"));
 		try {
 			const resultsDir = path.join(root, "results");
 			const oversized = (runId: string) => ({
@@ -1594,7 +1594,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("keeps restored foreground rows when output artifacts are unavailable and bounds history", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-foreground-missing-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-foreground-missing-"));
 		try {
 			const resultsDir = path.join(root, "results");
 			const cwd = path.join(root, "project");
@@ -1661,7 +1661,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("renders selectable transcript detail and completed artifact paths within terminal width", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-render-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-render-"));
 		try {
 			const asyncDir = writeAsyncRun(root, {
 				id: "async-finished",
@@ -1717,7 +1717,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("passes current-session trusted roots to async session transcript fallback", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-session-fallback-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-session-fallback-"));
 		try {
 			const asyncDir = writeAsyncRun(root, { id: "async-session-fallback" });
 			const sessionFile = path.join(asyncDir, "worker.jsonl");
@@ -1747,8 +1747,8 @@ describe("native subagent fleet", () => {
 		}
 	});
 
-	it("previews an exact runtime-recorded workflow session under the Pi sessions base", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-recorded-session-"));
+	it("previews an exact runtime-recorded workflow session under the evoharness sessions base", () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-recorded-session-"));
 		try {
 			const asyncDir = writeAsyncRun(root, { id: "async-recorded-session" });
 			const sessionsBase = path.join(root, "sessions");
@@ -1794,7 +1794,7 @@ describe("native subagent fleet", () => {
 
 	it("selects rendered roster rows and consumes normalized output wheel input", (t) => {
 		t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-pointer-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-pointer-"));
 		try {
 			writeAsyncRun(root, {
 				id: "pointer",
@@ -1958,7 +1958,7 @@ describe("native subagent fleet", () => {
 
 	it("routes fullscreen terminal mouse input through the host overlay and preserves regular keyboard navigation", (t) => {
 		t.mock.timers.enable({ apis: ["Date"], now: Date.now() });
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-host-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-host-"));
 		try {
 			writeAsyncRun(root, {
 				id: "host",
@@ -2082,7 +2082,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("records long-transcript cache and render-request counters", (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-counters-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-counters-"));
 		const original = fsDefault.openSync;
 		let reads = 0;
 		let requests = 0;
@@ -2167,7 +2167,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("renders structured tool activity and assistant Markdown when a child transcript is available", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-structured-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-structured-"));
 		try {
 			const longResponse = `## Finding\n\n${Array.from({ length: 40 }, (_, index) => `detail ${index}`).join("\n")}\n\n\`\`\`ts\nconst fleet = true;\n\`\`\``;
 			writeAsyncRun(root, {
@@ -2244,7 +2244,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("uses parent-tracked async state and cwd without rescanning status", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-async-cwd-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-async-cwd-"));
 		try {
 			const asyncDir = path.join(root, "async-custom-cwd");
 			const customCwd = path.join(root, "custom-cwd");
@@ -2290,7 +2290,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("toggles bounded tool output expansion with x and Ctrl+O", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-tool-toggle-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-tool-toggle-"));
 		try {
 			writeAsyncRun(root, {
 				id: "async-tools",
@@ -2358,7 +2358,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("renders the selected foreground parallel child's structured transcript", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-foreground-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-foreground-"));
 		try {
 			const state = stateForTest();
 			state.baseCwd = path.join(root, "parent-cwd");
@@ -2438,7 +2438,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("renders configured session and temp transcripts for active foreground, completed foreground, and async children", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-artifact-roots-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-artifact-roots-"));
 		const createdTranscriptPaths: string[] = [];
 		try {
 			for (const preference of ["session", "temp"] as const) {
@@ -2545,7 +2545,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("shows disk-only current-session async runs when the overlay opens", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-overlay-reconcile-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-overlay-reconcile-"));
 		try {
 			writeAsyncRun(root, { id: "disk-only", agents: ["worker"] });
 			const state = stateForTest();
@@ -2582,7 +2582,7 @@ describe("native subagent fleet", () => {
 	it("focuses an external inspector registered after Fleet opens", async (t) => {
 		const owner = { events: createEventBus() };
 		t.after(registerInspectorEventListener(owner));
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-inspect-focus-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-inspect-focus-"));
 		try {
 			const asyncDir = writeAsyncRun(root, { id: "run-focus", agents: ["worker"] });
 			const state = stateForTest();
@@ -2750,7 +2750,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("steers the selected async child with an inline message", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-steer-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-steer-"));
 		try {
 			const asyncDir = writeAsyncRun(root, { id: "async-steer", agents: ["worker", "reviewer"] });
 			const state = stateForTest();
@@ -2797,7 +2797,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("opens the selected async child in an inspector", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-inspector-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-inspector-"));
 		try {
 			const asyncDir = writeAsyncRun(root, { id: "async-herdr" });
 			const calls: Array<{ runId: string; asyncDir: string; index?: number }> = [];
@@ -2844,7 +2844,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("confirms stop for the selected async child before calling the action", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-stop-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-stop-"));
 		try {
 			const asyncDir = writeAsyncRun(root, { id: "async-stop" });
 			const state = stateForTest();
@@ -2895,7 +2895,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("explains unavailable controls for completed async children", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-unavailable-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-unavailable-"));
 		try {
 			writeAsyncRun(root, { id: "async-complete", state: "complete" });
 			const state = stateForTest();
@@ -2965,7 +2965,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("reuses an unchanged transcript across refresh ticks and rereads it when it changes", (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-transcript-reuse-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-transcript-reuse-"));
 		let transcriptOpens = 0;
 		let failNextOpen = true;
 		const openSync = fsDefault.openSync;
@@ -3052,7 +3052,7 @@ describe("native subagent fleet", () => {
 
 	for (const malformedOnly of [false, true])
 		it(`reuses a readable transcript with no displayable events (${malformedOnly ? "only malformed records" : "user records only"})`, (t) => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-transcript-empty-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-transcript-empty-"));
 			let transcriptOpens = 0;
 			const openSync = fsDefault.openSync;
 			t.mock.method(fsDefault, "openSync", (...args: Parameters<typeof fs.openSync>) => {
@@ -3098,7 +3098,7 @@ describe("native subagent fleet", () => {
 		});
 
 	it("refreshes the roster while the overlay remains open", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-refresh-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-refresh-"));
 		try {
 			const state = stateForTest();
 			let renderRequests = 0;
@@ -3138,7 +3138,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("selecting a child shows the bottom and reselecting returns there without per-child memory", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-select-follow-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-select-follow-"));
 		try {
 			for (const id of ["alpha-run", "beta-run"]) {
 				writeAsyncRun(root, {
@@ -3196,7 +3196,7 @@ describe("native subagent fleet", () => {
 	});
 
 	it("Prompt Audit opens at top, child and view changes reset top, and exiting resumes bottom follow", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-audit-follow-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-audit-follow-"));
 		try {
 			const state = stateForTest();
 			state.baseCwd = root;

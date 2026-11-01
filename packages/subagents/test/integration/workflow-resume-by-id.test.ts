@@ -28,7 +28,7 @@ const text = (result: { content: Array<{ type: string; text?: string }> }) => re
 
 describe(
 	"resuming a stopped workflow by id",
-	{ skip: !available || !createSubagentExecutor ? "pi packages not available" : undefined },
+	{ skip: !available || !createSubagentExecutor ? "evoharness packages not available" : undefined },
 	() => {
 		installSingleExecutionHooks();
 
@@ -190,7 +190,7 @@ describe(
 				);
 				assert.deepEqual(snapshot(), before, "nothing was written into the other session's run");
 
-				// After /new in the same Pi process the new session owns the runs of the one it replaced.
+				// After /new in the same evoharness process the new session owns the runs of the one it replaced.
 				const successor = `session-${nonce}-successor`;
 				recordSessionReplacement(successor, ownerSession);
 				mockPi.onCall({ matchArgIncludes: `Stage two ${nonce}`, output: "stage two done" });

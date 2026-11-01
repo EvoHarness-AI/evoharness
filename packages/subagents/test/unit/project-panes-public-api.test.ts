@@ -29,9 +29,9 @@ describe("public project-panes package export", () => {
 	});
 
 	it("runs the structured lifecycle and verifies pane ownership before idle close", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-public-project-pane-"));
-		const previousPiBinary = process.env.PI_SUBAGENT_PI_BINARY;
-		process.env.PI_SUBAGENT_PI_BINARY = path.join(root, "pi-bin");
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-public-project-pane-"));
+		const previousPiBinary = process.env.EVOHARNESS_SUBAGENT_HOST_BINARY;
+		process.env.EVOHARNESS_SUBAGENT_HOST_BINARY = path.join(root, "subagents-bin");
 		try {
 			const projectRoot = fs.realpathSync(root);
 			const calls: string[][] = [];
@@ -52,12 +52,12 @@ describe("public project-panes package export", () => {
 							data: {
 								pane: {
 									pane_id: "w1:p20",
-									agent: "pi",
+									agent: "evoharness",
 									agent_status: "IDLE",
 									cwd: projectRoot,
 									foreground_cwd: projectRoot,
 									focused: false,
-									terminal_title_stripped: "Pi · project",
+									terminal_title_stripped: "evoharness · project",
 									tab_id: "tab-20",
 									workspace_id: "workspace-1",
 									state_text: "one active subagent",
@@ -96,14 +96,14 @@ describe("public project-panes package export", () => {
 			assert.ok(calls.some((args) => args.join(" ") === "tab focus tab-20"));
 			assert.ok(calls.some((args) => args.join(" ") === "pane close w1:p20"));
 		} finally {
-			if (previousPiBinary === undefined) delete process.env.PI_SUBAGENT_PI_BINARY;
-			else process.env.PI_SUBAGENT_PI_BINARY = previousPiBinary;
+			if (previousPiBinary === undefined) delete process.env.EVOHARNESS_SUBAGENT_HOST_BINARY;
+			else process.env.EVOHARNESS_SUBAGENT_HOST_BINARY = previousPiBinary;
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});
 
 	it("distinguishes a stale binding on the default close path", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-public-project-pane-stale-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-public-project-pane-stale-"));
 		try {
 			const projectRoot = fs.realpathSync(root);
 			fs.mkdirSync(path.dirname(projectPaneBindingPath(projectRoot)), { recursive: true });
@@ -115,7 +115,7 @@ describe("public project-panes package export", () => {
 					projectRoot,
 					paneId: "w1:p21",
 					openedAt: "2026-01-01T00:00:00.000Z",
-					command: "pi",
+					command: "evoharness",
 				}),
 			);
 			const client: ProjectPaneCommandClient = {
@@ -131,7 +131,7 @@ describe("public project-panes package export", () => {
 	});
 
 	it("returns a structured error when an existing binding cannot be read", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-public-project-pane-read-failure-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-public-project-pane-read-failure-"));
 		try {
 			const projectRoot = fs.realpathSync(root);
 			const bindingPath = projectPaneBindingPath(projectRoot);
@@ -166,9 +166,9 @@ describe("public project-panes package export", () => {
 	});
 
 	it("returns a structured error and closes the pane when binding persistence fails", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-public-project-pane-write-failure-"));
-		const previousPiBinary = process.env.PI_SUBAGENT_PI_BINARY;
-		process.env.PI_SUBAGENT_PI_BINARY = path.join(root, "pi-bin");
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-public-project-pane-write-failure-"));
+		const previousPiBinary = process.env.EVOHARNESS_SUBAGENT_HOST_BINARY;
+		process.env.EVOHARNESS_SUBAGENT_HOST_BINARY = path.join(root, "subagents-bin");
 		try {
 			fs.mkdirSync(path.join(root, ".evoharness"));
 			fs.writeFileSync(path.join(root, ".evoharness/subagents"), "directory collision");
@@ -190,14 +190,14 @@ describe("public project-panes package export", () => {
 			}
 			assert.ok(calls.some((args) => args.join(" ") === "pane close w1:p24"));
 		} finally {
-			if (previousPiBinary === undefined) delete process.env.PI_SUBAGENT_PI_BINARY;
-			else process.env.PI_SUBAGENT_PI_BINARY = previousPiBinary;
+			if (previousPiBinary === undefined) delete process.env.EVOHARNESS_SUBAGENT_HOST_BINARY;
+			else process.env.EVOHARNESS_SUBAGENT_HOST_BINARY = previousPiBinary;
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});
 
 	it("returns a structured error when binding removal fails after closing the pane", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-public-project-pane-remove-failure-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-public-project-pane-remove-failure-"));
 		try {
 			const projectRoot = fs.realpathSync(root);
 			const bindingPath = projectPaneBindingPath(projectRoot);
@@ -210,7 +210,7 @@ describe("public project-panes package export", () => {
 					projectRoot,
 					paneId: "w1:p25",
 					openedAt: "2026-01-01T00:00:00.000Z",
-					command: "pi",
+					command: "evoharness",
 				}),
 			);
 			const client: ProjectPaneCommandClient = {
@@ -246,7 +246,7 @@ describe("public project-panes package export", () => {
 	});
 
 	it("returns a structured error when focus cannot update the binding", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-public-project-pane-focus-write-failure-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-public-project-pane-focus-write-failure-"));
 		try {
 			const projectRoot = fs.realpathSync(root);
 			const bindingPath = projectPaneBindingPath(projectRoot);
@@ -260,7 +260,7 @@ describe("public project-panes package export", () => {
 					projectRoot,
 					paneId,
 					openedAt: "2026-01-01T00:00:00.000Z",
-					command: "pi",
+					command: "evoharness",
 				}),
 			);
 			const client: ProjectPaneCommandClient = {
@@ -290,8 +290,8 @@ describe("public project-panes package export", () => {
 	});
 
 	it("rejects idle close when Herdr pane ownership no longer matches the project", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-public-project-pane-owner-"));
-		const other = fs.mkdtempSync(path.join(os.tmpdir(), "pi-public-project-pane-other-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-public-project-pane-owner-"));
+		const other = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-public-project-pane-other-"));
 		try {
 			const projectRoot = fs.realpathSync(root);
 			fs.mkdirSync(path.dirname(projectPaneBindingPath(projectRoot)), { recursive: true });
@@ -303,7 +303,7 @@ describe("public project-panes package export", () => {
 					projectRoot,
 					paneId: "w1:p22",
 					openedAt: "2026-01-01T00:00:00.000Z",
-					command: "pi",
+					command: "evoharness",
 				}),
 			);
 			let closeCalled = false;
@@ -334,7 +334,7 @@ describe("public project-panes package export", () => {
 	});
 
 	it("does not expose or lifecycle-manage malformed public bindings as if they were absent", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-public-project-pane-binding-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-public-project-pane-binding-"));
 		try {
 			const projectRoot = fs.realpathSync(root);
 			fs.mkdirSync(path.dirname(projectPaneBindingPath(projectRoot)), { recursive: true });
@@ -346,7 +346,7 @@ describe("public project-panes package export", () => {
 					projectRoot,
 					paneId: "w1:p23",
 					openedAt: "2026-01-01T00:00:00.000Z",
-					command: "pi",
+					command: "evoharness",
 					startupMessage: 42,
 				}),
 			);

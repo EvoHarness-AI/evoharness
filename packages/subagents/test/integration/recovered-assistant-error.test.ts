@@ -15,7 +15,7 @@ import {
 	tempDir,
 } from "../support/async-execution-fixture.ts";
 import { makeAgent } from "../support/helpers.ts";
-import type { MockPiResponse } from "../support/mock-pi.ts";
+import type { MockPiResponse } from "../support/mock-host.ts";
 
 const providerError = "provider transport failed";
 const structuredValue = { verdict: "ready" };
@@ -84,7 +84,11 @@ async function runFixture(host: Host, response: MockPiResponse, withStructuredOu
 		agent: agent.name,
 		task: "Exercise the scripted child lifecycle",
 		agentConfig: agent,
-		ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "recovered-assistant-error-session" },
+		ctx: {
+			evoharness: { events: { emit() {} } },
+			cwd: tempDir,
+			currentSessionId: "recovered-assistant-error-session",
+		},
 		artifactConfig: {
 			enabled: false,
 			includeInput: false,
@@ -114,7 +118,7 @@ async function runFixture(host: Host, response: MockPiResponse, withStructuredOu
 
 // These cases use only the installed scripted ChildSessionFactory. They do not
 // load a provider, credential, ambient extension, or real child agent.
-describe("recovered assistant errors", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("recovered assistant errors", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	installAsyncExecutionHooks();
 
 	for (const host of ["background", "foreground"] as const) {

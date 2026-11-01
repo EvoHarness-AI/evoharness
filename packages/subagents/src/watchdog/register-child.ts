@@ -49,7 +49,7 @@ function childWarningDetails(details: WatchdogWarningDetails, config: ChildWatch
  * child's event stream.
  */
 export function registerChildWatchdog(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	childConfig: ChildWatchdogConfig | undefined,
 	writeStatus: ((event: ChildWatchdogStatusEvent) => void) | undefined,
 	structuredTerminal?: { captured: boolean },
@@ -80,7 +80,7 @@ export function registerChildWatchdog(
 	const runtime = new MainWatchdogRuntime({
 		resolveConfig: () => ({ ok: true, config: resolved, errors: [], sources: [{ scope: "session", exists: true }] }),
 		review: createMainWatchdogReview(() => currentContext, {
-			getThinkingLevel: () => pi.getThinkingLevel(),
+			getThinkingLevel: () => evoharness.getThinkingLevel(),
 			diffBaseline: () => diffBaseline,
 		}),
 		reviewDescription: "child model review",
@@ -99,8 +99,8 @@ export function registerChildWatchdog(
 				stalemate: childDetails.state === "stalemate",
 			});
 			const message = createWatchdogWarningMessage(childDetails, { display: true, details: childDetails });
-			if (agentSettled) pi.appendEntry(SUBAGENT_WATCHDOG_WARNING_TYPE, childDetails);
-			else pi.sendMessage(message, options);
+			if (agentSettled) evoharness.appendEntry(SUBAGENT_WATCHDOG_WARNING_TYPE, childDetails);
+			else evoharness.sendMessage(message, options);
 		},
 		displayUserWarning: (details) => {
 			const childDetails = childWarningDetails(details, childConfig);
@@ -115,13 +115,13 @@ export function registerChildWatchdog(
 				addressed: false,
 				stalemate: childDetails.state === "stalemate",
 			});
-			pi.appendEntry(SUBAGENT_WATCHDOG_WARNING_TYPE, childDetails);
+			evoharness.appendEntry(SUBAGENT_WATCHDOG_WARNING_TYPE, childDetails);
 		},
 	});
 	const rememberContext = (ctx: ExtensionContext) => {
 		currentContext = ctx;
 	};
-	const onRuntimeEvent = pi.on as unknown as (
+	const onRuntimeEvent = evoharness.on as unknown as (
 		event: string,
 		handler: (event: unknown, ctx: ExtensionContext) => unknown,
 	) => void;

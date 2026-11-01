@@ -299,7 +299,7 @@ function runProcess(
 
 describe("external CLI async lifecycle", () => {
 	it("drains test-owned process ownership after an early failure", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-external-early-failure-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-external-early-failure-"));
 		tempDirs.push(dir);
 		const helperPid = path.join(dir, "helper-pid");
 		const helperExited = path.join(dir, "helper-exited");
@@ -349,7 +349,7 @@ describe("external CLI async lifecycle", () => {
 					: undefined,
 		},
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-external-baseline-abort-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-external-baseline-abort-"));
 			tempDirs.push(dir);
 			const gitDir = await createGitRepo(dir);
 			const gitStarted = path.join(dir, "git-started");
@@ -428,7 +428,7 @@ describe("external CLI async lifecycle", () => {
 		"fails closed when stopped Git baseline tree ownership cannot be verified",
 		{ skip: process.platform === "win32" },
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-external-baseline-unknown-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-external-baseline-unknown-"));
 			tempDirs.push(dir);
 			const gitDir = await createGitRepo(dir);
 			const gitStarted = path.join(dir, "git-started");
@@ -482,7 +482,7 @@ describe("external CLI async lifecycle", () => {
 		"settles a stopped periodic Git probe ownership failure without an unhandled rejection",
 		{ skip: process.platform === "win32" },
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-external-periodic-unknown-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-external-periodic-unknown-"));
 			tempDirs.push(dir);
 			const gitDir = await createGitRepo(dir);
 			const hookCalls = path.join(dir, "hook-calls");
@@ -546,7 +546,7 @@ describe("external CLI async lifecycle", () => {
 	);
 
 	it("reports unexpected Git fingerprint failures once", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-external-git-error-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-external-git-error-"));
 		tempDirs.push(dir);
 		const invalidCwd = path.join(dir, "missing");
 		const { configPath } = writeExternalConfig(
@@ -563,7 +563,7 @@ describe("external CLI async lifecycle", () => {
 	});
 
 	it("skips Git activity baselines when control is disabled", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-external-disabled-control-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-external-disabled-control-"));
 		tempDirs.push(dir);
 		const gitCalled = path.join(dir, "git-called");
 		writeNodeCommand(dir, "git", `require('fs').writeFileSync(${JSON.stringify(gitCalled)},'')`);
@@ -579,7 +579,7 @@ describe("external CLI async lifecycle", () => {
 	});
 
 	it("applies external idle attention to runtime-appended chain steps", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-external-appended-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-external-appended-"));
 		tempDirs.push(dir);
 		const firstReady = path.join(dir, "first-ready");
 		const releaseFirst = path.join(dir, "release-first");
@@ -623,7 +623,7 @@ describe("external CLI async lifecycle", () => {
 	});
 
 	it("coalesces same-worktree cold Git probes across external fanout", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-external-probe-fanout-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-external-probe-fanout-"));
 		tempDirs.push(dir);
 		const gitDir = await createGitRepo(dir);
 		const calls = path.join(dir, "git-calls");
@@ -700,7 +700,7 @@ describe("external CLI async lifecycle", () => {
 
 	for (const stream of ["stdout", "stderr"] as const) {
 		it(`refreshes watchdog activity from external ${stream}`, async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), `pi-subagents-external-${stream}-activity-`));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), `subagents-external-${stream}-activity-`));
 			tempDirs.push(dir);
 			const go = path.join(dir, "emit");
 			const emitted = path.join(dir, "emitted");
@@ -724,7 +724,7 @@ describe("external CLI async lifecycle", () => {
 
 	for (const mutation of ["worktree", "commit"] as const) {
 		it(`credits a newly observed external Git ${mutation} change once`, async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), `pi-subagents-external-git-${mutation}-`));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), `subagents-external-git-${mutation}-`));
 			tempDirs.push(dir);
 			const gitDir = await createGitRepo(dir);
 			const go = path.join(dir, "mutate");
@@ -762,7 +762,7 @@ describe("external CLI async lifecycle", () => {
 	}
 
 	it("does not credit process liveness or unchanged pre-existing Git dirtiness", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-external-git-unchanged-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-external-git-unchanged-"));
 		tempDirs.push(dir);
 		const gitDir = await createGitRepo(dir, true);
 		const startedMarker = path.join(dir, "started");
@@ -789,7 +789,7 @@ describe("external CLI async lifecycle", () => {
 	});
 
 	it("writes status, events, result, output, and external process logs", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-external-lifecycle-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-external-lifecycle-"));
 		tempDirs.push(dir);
 		const asyncDir = path.join(dir, "async");
 		fs.mkdirSync(asyncDir);
@@ -851,7 +851,7 @@ describe("external CLI async lifecycle", () => {
 	});
 
 	it("keeps terminal status recoverable when public result publish fails", async () => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-external-pending-result-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-external-pending-result-"));
 		tempDirs.push(dir);
 		const asyncDir = path.join(dir, "async");
 		fs.mkdirSync(asyncDir);
@@ -906,7 +906,7 @@ describe("external CLI async lifecycle", () => {
 		"mirrors a child into Orca without replacing its configured runner",
 		{ skip: process.platform === "win32" ? "Orca progress tabs are not supported on Windows" : undefined },
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-orca-observer-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-orca-observer-"));
 			tempDirs.push(dir);
 			const asyncDir = path.join(dir, "async");
 			const agentDir = path.join(dir, "agent-dir");
@@ -961,7 +961,7 @@ describe("external CLI async lifecycle", () => {
 				{
 					...process.env,
 					EVOHARNESS_CODING_AGENT_DIR: agentDir,
-					PI_SUBAGENT_ORCA_BINARY: fakeOrca,
+					EVOHARNESS_SUBAGENT_ORCA_BINARY: fakeOrca,
 					ORCA_TEST_CAPTURE: capture,
 				},
 			);

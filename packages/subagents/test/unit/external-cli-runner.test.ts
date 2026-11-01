@@ -4,7 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
-import { PI_SUBAGENT_EXTENSION_BINDINGS_ENV } from "../../src/runs/shared/extension-bindings.ts";
+import { EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV } from "../../src/runs/shared/extension-bindings.ts";
 import { resolveExternalCliRunnerStatus } from "../../src/runs/shared/external-cli-contract.ts";
 import {
 	clearExternalCliPreflightCacheForTests,
@@ -15,7 +15,7 @@ import { writeNodeCommand, writeNpmNodeShim } from "../support/node-command.ts";
 
 const tempDirs: string[] = [];
 function tempDir(): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-external-cli-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-external-cli-"));
 	tempDirs.push(dir);
 	return dir;
 }
@@ -27,12 +27,12 @@ afterEach(() => {
 describe("external CLI runner", () => {
 	it("clears ambient extension bindings from the external process", async () => {
 		const dir = tempDir();
-		const previous = process.env[PI_SUBAGENT_EXTENSION_BINDINGS_ENV];
-		process.env[PI_SUBAGENT_EXTENSION_BINDINGS_ENV] = '{"shepherd.dispatch/1":{"role":"coder"}}';
+		const previous = process.env[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV];
+		process.env[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV] = '{"shepherd.dispatch/1":{"role":"coder"}}';
 		try {
 			const result = await runExternalCli({
 				command: process.execPath,
-				args: ["-e", `process.stdout.write(process.env.${PI_SUBAGENT_EXTENSION_BINDINGS_ENV} ?? "unset")`],
+				args: ["-e", `process.stdout.write(process.env.${EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV} ?? "unset")`],
 				cwd: dir,
 				prompt: "x",
 				asyncDir: dir,
@@ -41,8 +41,8 @@ describe("external CLI runner", () => {
 			assert.equal(result.exitCode, 0);
 			assert.equal(result.output, "unset");
 		} finally {
-			if (previous === undefined) delete process.env[PI_SUBAGENT_EXTENSION_BINDINGS_ENV];
-			else process.env[PI_SUBAGENT_EXTENSION_BINDINGS_ENV] = previous;
+			if (previous === undefined) delete process.env[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV];
+			else process.env[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV] = previous;
 		}
 	});
 
@@ -304,31 +304,31 @@ describe("external CLI runner", () => {
 	it("passes only adapter-allowed environment keys", async () => {
 		const dir = tempDir();
 		const previousSecret = process.env.UNRELATED_SECRET;
-		const previousBinding = process.env[PI_SUBAGENT_EXTENSION_BINDINGS_ENV];
+		const previousBinding = process.env[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV];
 		process.env.UNRELATED_SECRET = "hidden";
-		process.env[PI_SUBAGENT_EXTENSION_BINDINGS_ENV] = "hidden-binding";
+		process.env[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV] = "hidden-binding";
 		try {
 			const result = await runExternalCli({
 				command: process.execPath,
 				args: [
 					"-e",
-					`process.stdout.write(JSON.stringify({allowed:process.env.ALLOWED_VALUE,secret:process.env.UNRELATED_SECRET,binding:process.env.${PI_SUBAGENT_EXTENSION_BINDINGS_ENV}}))`,
+					`process.stdout.write(JSON.stringify({allowed:process.env.ALLOWED_VALUE,secret:process.env.UNRELATED_SECRET,binding:process.env.${EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV}}))`,
 				],
 				cwd: dir,
 				prompt: "x",
 				asyncDir: dir,
 				stepIndex: 13,
 				environment: {
-					allowlist: ["ALLOWED_VALUE", PI_SUBAGENT_EXTENSION_BINDINGS_ENV],
-					values: { ALLOWED_VALUE: "yes", [PI_SUBAGENT_EXTENSION_BINDINGS_ENV]: "still-hidden" },
+					allowlist: ["ALLOWED_VALUE", EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV],
+					values: { ALLOWED_VALUE: "yes", [EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV]: "still-hidden" },
 				},
 			});
 			assert.deepEqual(JSON.parse(result.output), { allowed: "yes" });
 		} finally {
 			if (previousSecret === undefined) delete process.env.UNRELATED_SECRET;
 			else process.env.UNRELATED_SECRET = previousSecret;
-			if (previousBinding === undefined) delete process.env[PI_SUBAGENT_EXTENSION_BINDINGS_ENV];
-			else process.env[PI_SUBAGENT_EXTENSION_BINDINGS_ENV] = previousBinding;
+			if (previousBinding === undefined) delete process.env[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV];
+			else process.env[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV] = previousBinding;
 		}
 	});
 

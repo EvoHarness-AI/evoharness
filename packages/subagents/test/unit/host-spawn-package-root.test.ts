@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { findPiPackageRootFromEntry, resolvePiPackageRoot } from "../../src/runs/shared/pi-spawn.ts";
+import { findPiPackageRootFromEntry, resolvePiPackageRoot } from "../../src/runs/shared/host-spawn.ts";
 
 const PACKAGE_DIR = path.join("@evoharness", "coding-agent");
 
@@ -16,7 +16,7 @@ describe("findPiPackageRootFromEntry", () => {
 	let tmp: string;
 
 	beforeEach(() => {
-		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-entry-root-"));
+		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-entry-root-"));
 	});
 
 	afterEach(() => {
@@ -48,7 +48,7 @@ describe("resolvePiPackageRoot host discovery", () => {
 	let previousArgv1: string | undefined;
 
 	beforeEach(() => {
-		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-root-"));
+		tmp = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-host-root-"));
 		previousArgv1 = process.argv[1];
 	});
 
@@ -67,7 +67,7 @@ describe("resolvePiPackageRoot host discovery", () => {
 			fs.writeFileSync(path.join(root, "dist", "bundle", "cli.js"), "");
 			const binDir = path.join(tmp, "prefix", "bin");
 			fs.mkdirSync(binDir, { recursive: true });
-			const bin = path.join(binDir, "pi");
+			const bin = path.join(binDir, "evoharness");
 			fs.symlinkSync(path.join(root, "dist", "bundle", "cli.js"), bin);
 			process.argv[1] = bin;
 			const resolved = resolvePiPackageRoot();

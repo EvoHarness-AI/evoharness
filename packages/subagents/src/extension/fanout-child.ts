@@ -43,7 +43,7 @@ function getSubagentSessionRoot(parentSessionFile: string | null): string {
 		const sessionsDir = path.dirname(parentSessionFile);
 		return path.join(sessionsDir, baseName);
 	}
-	return fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-session-"));
+	return fs.mkdtempSync(path.join(os.tmpdir(), "subagent-session-"));
 }
 
 function expandTilde(p: string): string {
@@ -97,7 +97,7 @@ function createNestedControlInboxState(): NestedControlInboxState {
 }
 
 function startNestedControlInboxListener(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	state: SubagentState,
 	route: NestedRoute,
 	inboxState: NestedControlInboxState,
@@ -134,7 +134,7 @@ function startNestedControlInboxListener(
 										index,
 									);
 									ok = await deliverSubagentIntercomMessageEvent(
-										pi.events,
+										evoharness.events,
 										target,
 										`Follow-up for nested run ${request.targetRunId} (${control.currentAgent}):\n\n${request.message.trim()}`,
 										500,
@@ -192,25 +192,28 @@ function startNestedControlInboxListener(
 }
 
 /** Register delegation and supervisor replies for fanout-authorized children. */
-export default function registerFanoutChildSubagentExtension(pi: ExtensionAPI, childConfig: ChildRuntimeConfig): void {
+export default function registerFanoutChildSubagentExtension(
+	evoharness: ExtensionAPI,
+	childConfig: ChildRuntimeConfig,
+): void {
 	if (!childConfig.fanoutChild) return;
 
 	const globalStore = globalThis as Record<string, unknown>;
-	const registeredKey = "__piSubagentFanoutChildRegisteredApis";
+	const registeredKey = "__subagentFanoutChildRegisteredApis";
 	const registeredApis =
 		globalStore[registeredKey] instanceof WeakSet
 			? (globalStore[registeredKey] as WeakSet<ExtensionAPI>)
 			: new WeakSet<ExtensionAPI>();
 	globalStore[registeredKey] = registeredApis;
-	if (registeredApis.has(pi)) return;
-	registeredApis.add(pi);
+	if (registeredApis.has(evoharness)) return;
+	registeredApis.add(evoharness);
 
 	const config = loadConfig();
 	const waitToolConfig = resolveWaitToolConfig(config.waitTool);
 	const state = childConfig.runtimeState ?? createChildSafeState();
 	const asyncChildren = new Map<string, { dir: string; agents: string[] }>();
 	const foregroundChannels = new Set<string>();
-	const supervisorChannel = createNativeSupervisorChannel(pi, state, {
+	const supervisorChannel = createNativeSupervisorChannel(evoharness, state, {
 		getChannelDirs: () => {
 			const dirs = new Set<string>();
 			for (const run of state.foregroundControls.values()) {
@@ -245,7 +248,7 @@ export default function registerFanoutChildSubagentExtension(pi: ExtensionAPI, c
 	const hasPendingSupervisorRequest = supervisorChannel.hasPendingRequests;
 	childConfig.hasPendingSupervisorRequest = hasPendingSupervisorRequest;
 	const executor = createSubagentExecutor({
-		pi,
+		evoharness,
 		state,
 		config,
 		asyncByDefault: resolveAsyncByDefault(config),
@@ -300,21 +303,21 @@ export default function registerFanoutChildSubagentExtension(pi: ExtensionAPI, c
 		},
 	};
 
-	registerPinnedTool(pi, tool);
+	registerPinnedTool(evoharness, tool);
 	const bridgeSweeper = createChildExternalJobBridgeSweeper();
-	const unsubscribeBridgeStarted = pi.events.on(SUBAGENT_ASYNC_STARTED_EVENT, (payload: unknown) => {
+	const unsubscribeBridgeStarted = evoharness.events.on(SUBAGENT_ASYNC_STARTED_EVENT, (payload: unknown) => {
 		const info = payload as AsyncStartedEvent;
 		if (info.id && info.asyncDir && info.sessionId === state.currentSessionId)
 			bridgeSweeper.track(info.id, info.asyncDir);
 	});
 	let unsubscribeAsyncStarted: (() => void) | undefined;
-	pi.on("session_start", (_event, ctx) => {
+	evoharness.on("session_start", (_event, ctx) => {
 		supervisorChannel.registerTools();
 		// The host applies the explicit allowlist to dynamic registration too.
-		if (!pi.getAllTools().some((tool) => tool.name === NATIVE_SUPERVISOR_TOOL_NAME)) return;
+		if (!evoharness.getAllTools().some((tool) => tool.name === NATIVE_SUPERVISOR_TOOL_NAME)) return;
 		// Downward asks belong to this coordinator, not its parent or persisted session file.
 		state.supervisorOwnerSessionId = ctx.sessionManager.getSessionId() || null;
-		unsubscribeAsyncStarted = pi.events.on(SUBAGENT_ASYNC_STARTED_EVENT, (payload: unknown) => {
+		unsubscribeAsyncStarted = evoharness.events.on(SUBAGENT_ASYNC_STARTED_EVENT, (payload: unknown) => {
 			const info = payload as AsyncStartedEvent;
 			if (!info.id || !info.asyncDir || info.sessionId !== state.currentSessionId) return;
 			const agents = info.agents ?? (info.agent ? [info.agent] : []);
@@ -324,7 +327,7 @@ export default function registerFanoutChildSubagentExtension(pi: ExtensionAPI, c
 		supervisorChannel.start();
 		supervisorChannel.activateTransport();
 	});
-	pi.on("session_shutdown", () => {
+	evoharness.on("session_shutdown", () => {
 		unsubscribeAsyncStarted?.();
 		unsubscribeBridgeStarted?.();
 		bridgeSweeper.dispose();
@@ -337,7 +340,7 @@ export default function registerFanoutChildSubagentExtension(pi: ExtensionAPI, c
 	});
 	const route = resolveNestedControlRoute(childConfig);
 	if (!route) return;
-	const listenerCleanupKey = "__piSubagentFanoutChildNestedControlInboxCleanups";
+	const listenerCleanupKey = "__subagentFanoutChildNestedControlInboxCleanups";
 	const listenerCleanups =
 		globalStore[listenerCleanupKey] instanceof Map
 			? (globalStore[listenerCleanupKey] as Map<string, NestedControlListenerEntry>)
@@ -349,6 +352,6 @@ export default function registerFanoutChildSubagentExtension(pi: ExtensionAPI, c
 	const inboxState = previous?.state ?? createNestedControlInboxState();
 	listenerCleanups.set(routeKey, {
 		state: inboxState,
-		cleanup: startNestedControlInboxListener(pi, state, route, inboxState),
+		cleanup: startNestedControlInboxListener(evoharness, state, route, inboxState),
 	});
 }

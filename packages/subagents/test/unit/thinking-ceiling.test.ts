@@ -24,8 +24,8 @@ function writeJson(filePath: string, value: unknown): void {
 
 describe("thinking ceilings", () => {
 	beforeEach(() => {
-		home = fs.mkdtempSync(path.join(os.tmpdir(), "pi-thinking-ceiling-home-"));
-		project = fs.mkdtempSync(path.join(os.tmpdir(), "pi-thinking-ceiling-project-"));
+		home = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-thinking-ceiling-home-"));
+		project = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-thinking-ceiling-project-"));
 		process.env.HOME = home;
 		process.env.USERPROFILE = home;
 		delete process.env.EVOHARNESS_CODING_AGENT_DIR;

@@ -254,7 +254,7 @@ async function executeBridgeRequest(
 			operation: request.operation,
 			provider: request.provider,
 			code: "provider-unavailable",
-			message: `External-job provider '${request.provider}' is not registered. Load the Surf Pi extension and its external-job provider bridge before starting this agent.`,
+			message: `External-job provider '${request.provider}' is not registered. Load the Surf evoharness extension and its external-job provider bridge before starting this agent.`,
 			completedAt: Date.now(),
 		};
 	}
@@ -382,7 +382,7 @@ export function externalJobBridgeEligibility(steps: unknown): "required" | "not-
 		const runnerType = (runner as { type?: unknown }).type;
 		if (typeof runnerType !== "string") return "unknown";
 		if (runnerType === "external-job") return "required";
-		if (runnerType !== "pi" && runnerType !== "external-cli") return "unknown";
+		if (runnerType !== "evoharness" && runnerType !== "external-cli") return "unknown";
 	}
 	return "not-required";
 }

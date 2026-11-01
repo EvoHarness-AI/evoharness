@@ -39,13 +39,13 @@ it("emits bounded file-only snapshots, refreshes through management, and perform
 			const handlers = new Map();
 			let tool;
 			const activeTools = ["subagent"];
-			const pi = new Proxy({
+			const evoharness = new Proxy({
 				events: { on() { return () => {}; }, emit() {} },
 				on(event, handler) { handlers.set(event, [...(handlers.get(event) ?? []), handler]); },
 				registerTool(value) { if (value.name === "subagent") tool = value; },
 				getActiveTools() { return activeTools; },
 			}, { get(target, key) { return key in target ? target[key] : () => undefined; } });
-			register(pi);
+			register(evoharness);
 			const ctx = {
 				cwd, isIdle() { return false; }, hasUI: false, model: { provider: "test", id: "test" },
 				modelRegistry: { getAvailable() { return []; }, getAll() { return []; } },
@@ -204,13 +204,13 @@ it("delivers the catalog as a structured prompt section instead of replacing the
 			fs.mkdirSync(dir);
 			fs.writeFileSync(path.join(dir, "specialist.md"), "---\nname: specialist\ndescription: Section specialist\nadvertise: true\n---\nAct narrowly.\n");
 			const handlers = new Map();
-			const pi = new Proxy({
+			const evoharness = new Proxy({
 				events: { on() { return () => {}; }, emit() {} },
 				on(event, handler) { handlers.set(event, [...(handlers.get(event) ?? []), handler]); },
 				registerTool() {},
 				getActiveTools() { return ["subagent"]; },
 			}, { get(target, key) { return key in target ? target[key] : () => undefined; } });
-			register(pi);
+			register(evoharness);
 			const ctx = {
 				cwd, isIdle() { return false; }, hasUI: false, model: { provider: "test", id: "test" },
 				modelRegistry: { getAvailable() { return []; }, getAll() { return []; } },
@@ -227,7 +227,7 @@ it("delivers the catalog as a structured prompt section instead of replacing the
 			assert.equal(turn.result, undefined, "the sections path must not return systemPrompt");
 			assert.match(turn.sections.advertised_subagents, /<name>specialist<\/name>/);
 			assert.match(turn.sections.advertised_subagents, /Section specialist/);
-			assert.doesNotMatch(turn.sections.advertised_subagents, /advertised_subagents/, "Pi adds the tag from the section key");
+			assert.doesNotMatch(turn.sections.advertised_subagents, /advertised_subagents/, "evoharness adds the tag from the section key");
 
 			turn = await emit(["read"]);
 			assert.equal(turn.result, undefined);

@@ -13,7 +13,7 @@ const SUMMARY_NOTE =
 export type ReplyWorkflowScript = { script: string } | { error: string };
 
 /**
- * Pi persists the whole assistant message before running its tool calls, so the
+ * evoharness persists the whole assistant message before running its tool calls, so the
  * message that issued this subagent call is on the branch and carries the script.
  */
 export function readReplyWorkflowScript(

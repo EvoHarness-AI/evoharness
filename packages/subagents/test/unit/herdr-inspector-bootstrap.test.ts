@@ -26,7 +26,7 @@ function writeCompletedRun(root: string): { asyncDir: string; status: AsyncStatu
 
 describe("Herdr inspector bootstrap", () => {
 	it("uses ordinary Node for the inspector pane command", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-bootstrap-command-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-bootstrap-command-"));
 		try {
 			writeCompletedRun(root);
 			const calls: string[][] = [];
@@ -61,12 +61,12 @@ describe("Herdr inspector bootstrap", () => {
 		}
 	});
 
-	it("uses PATH node when Pi is a standalone executable", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-bootstrap-standalone-"));
+	it("uses PATH node when evoharness is a standalone executable", async () => {
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-bootstrap-standalone-"));
 		const originalExecPath = process.execPath;
 		try {
 			writeCompletedRun(root);
-			process.execPath = path.join(root, process.platform === "win32" ? "pi.exe" : "pi");
+			process.execPath = path.join(root, process.platform === "win32" ? "evoharness.exe" : "evoharness");
 			const calls: string[][] = [];
 			const client: HerdrClient = {
 				run: async <T>(args: string[]) => {
@@ -92,7 +92,7 @@ describe("Herdr inspector bootstrap", () => {
 			const command = calls.find((args) => args[0] === "pane" && args[1] === "run")?.[3] ?? "";
 			assert.equal(command.startsWith("& "), process.platform === "win32");
 			assert.match(command, process.platform === "win32" ? /^& "node\.exe" / : /^node /);
-			assert.doesNotMatch(command, /(?:^|[\\/])pi(?:\.exe)?'/);
+			assert.doesNotMatch(command, /(?:^|[\\/])evoharness(?:\.exe)?'/);
 		} finally {
 			process.execPath = originalExecPath;
 			fs.rmSync(root, { recursive: true, force: true });

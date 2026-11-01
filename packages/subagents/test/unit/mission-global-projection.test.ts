@@ -14,7 +14,7 @@ import {
 } from "../../src/missions/store.ts";
 
 function fixture() {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-mission-projection-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-mission-projection-"));
 	const projectRoot = path.join(root, "project");
 	const agentDir = path.join(root, "agent");
 	fs.mkdirSync(projectRoot, { recursive: true });
@@ -49,7 +49,7 @@ import { syncBuiltinESMExports } from "node:module";
 
 const [storeUrl] = process.argv.slice(1);
 const store = await import(storeUrl);
-const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-mission-global-projection-repro-"));
+const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-mission-global-projection-repro-"));
 const projectRoot = path.join(root, "project");
 const location = store.resolveMissionStoreLocation({
 	projectRoot,

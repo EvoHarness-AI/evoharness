@@ -1,10 +1,10 @@
 // Forking a parent transcript into a child copies the parent's assistant messages verbatim, signed
 // Anthropic thinking included. A signature covers its block's content, not a session, so a
 // verbatim copy stays valid in the branch, and keeping it lets the child's first request start
-// with its parent's prompt-cached bytes. pi-ai replays a signed block only to the model that
-// signed it and turns it into text or drops it for any other model, and Pi >= 0.85.0 recovers
+// with its parent's prompt-cached bytes. the host AI package replays a signed block only to the model that
+// signed it and turns it into text or drops it for any other model, and evoharness >= 0.85.0 recovers
 // from signed-thinking mismatches on the transport. Two kinds of block are still dropped: raw
-// `redacted_thinking` blocks, which are not Pi's own transcript shape, and signed thinking in a
+// `redacted_thinking` blocks, which are not evoharness's own transcript shape, and signed thinking in a
 // `context_edit` replacement, whose content no longer has to match its signature. A pruned fork
 // rewrites inherited content, thinking included, so it still drops every signed or redacted
 // Anthropic thinking block. Dropping them never disables the child's thinking: it keeps the level
@@ -187,10 +187,10 @@ export function createForkContextResolver(
 		sessionManager.openSession ??
 		((file: string, dir?: string) => SessionManager.open(file, dir));
 	// Fork files must not land in the parent's top-level session directory.
-	// Pi's recent-session discovery (`pi -c` → findMostRecentSession) is
+	// evoharness's recent-session discovery (`evoharness -c` → findMostRecentSession) is
 	// non-recursive and picks the largest-mtime *.jsonl in that directory, so
 	// a still-running forked subagent — which keeps appending after the parent
-	// went idle — would hijack the next `pi -c` away from the conversation the
+	// went idle — would hijack the next `evoharness -c` away from the conversation the
 	// user actually left. Nesting fork sessions in a per-parent directory keeps
 	// them invisible to that discovery; the `parentSession` header still
 	// records the tree relationship. The directory mirrors
@@ -209,7 +209,7 @@ export function createForkContextResolver(
 		try {
 			if (!fs.existsSync(parentSessionFile)) {
 				throw new Error(
-					`Parent session file does not exist: ${parentSessionFile}. Pi has not persisted enough history to fork yet.`,
+					`Parent session file does not exist: ${parentSessionFile}. evoharness has not persisted enough history to fork yet.`,
 				);
 			}
 			// Nested resume accepts a session file only under a directory named by the run's id.

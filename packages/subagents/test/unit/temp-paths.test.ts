@@ -58,7 +58,7 @@ describe("resolveTempScopeId", () => {
 
 describe("shared temp paths", () => {
 	it("uses the explicit temp root before shared paths resolve", () => {
-		const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-temp-override-"));
+		const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-temp-override-"));
 		const override = path.join(fixture, "async state");
 		const isolatedHome = path.join(fixture, "home");
 		try {
@@ -69,7 +69,12 @@ describe("shared temp paths", () => {
 				["--experimental-strip-types", "--input-type=module", "--eval", script],
 				{
 					encoding: "utf-8",
-					env: { ...process.env, HOME: isolatedHome, USERPROFILE: isolatedHome, PI_SUBAGENTS_TEMP_ROOT: override },
+					env: {
+						...process.env,
+						HOME: isolatedHome,
+						USERPROFILE: isolatedHome,
+						EVOHARNESS_SUBAGENTS_TEMP_ROOT: override,
+					},
 				},
 			);
 			assert.equal(result.status, 0, result.stderr);
@@ -84,7 +89,7 @@ describe("shared temp paths", () => {
 	});
 
 	it("isolates agent-dir profile writes from an inherited EVOHARNESS_CODING_AGENT_DIR", () => {
-		const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-agent-isolation-"));
+		const fixture = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-agent-isolation-"));
 		const tempRoot = path.join(fixture, "temp-root");
 		const callerAgentDir = path.join(fixture, "caller-agent");
 		try {
@@ -102,14 +107,14 @@ const profilesDir = getSubagentProfilesDir();
 fs.mkdirSync(profilesDir, { recursive: true });
 fs.writeFileSync(path.join(profilesDir, "isolated.json"), JSON.stringify({ subagents: { agentOverrides: { worker: { thinking: "high" } } } }));
 const result = applySubagentProfile("isolated");
-console.log(JSON.stringify({ agentDir: getAgentDir(), profilePath: path.join(profilesDir, "isolated.json"), settingsPath: result.settingsPath, tempDir: os.tmpdir(), testParentPid: process.env.PI_SUBAGENTS_TEST_PARENT_PID }));
+console.log(JSON.stringify({ agentDir: getAgentDir(), profilePath: path.join(profilesDir, "isolated.json"), settingsPath: result.settingsPath, tempDir: os.tmpdir(), testParentPid: process.env.EVOHARNESS_SUBAGENTS_TEST_PARENT_PID }));
 `;
 			const env = {
 				...process.env,
 				EVOHARNESS_CODING_AGENT_DIR: callerAgentDir,
-				PI_SUBAGENTS_TEMP_ROOT: tempRoot,
+				EVOHARNESS_SUBAGENTS_TEMP_ROOT: tempRoot,
 			};
-			delete env.PI_SUBAGENTS_TEST_LOADER;
+			delete env.EVOHARNESS_SUBAGENTS_TEST_LOADER;
 			const result = spawnSync(
 				process.execPath,
 				["--experimental-strip-types", "--import", loaderUrl, "--input-type=module", "--eval", script],
@@ -129,7 +134,7 @@ console.log(JSON.stringify({ agentDir: getAgentDir(), profilePath: path.join(pro
 			};
 			const isolatedAgentDir = path.join(tempRoot, "home", ".evoharness", "agent");
 			assert.equal(output.agentDir, isolatedAgentDir);
-			assert.equal(output.profilePath, path.join(isolatedAgentDir, "profiles", "pi-subagents", "isolated.json"));
+			assert.equal(output.profilePath, path.join(isolatedAgentDir, "profiles", "subagents", "isolated.json"));
 			assert.equal(output.settingsPath, path.join(isolatedAgentDir, "settings.json"));
 			assert.equal(output.tempDir, tempRoot);
 			assert.equal(output.testParentPid, String(result.pid));
@@ -152,14 +157,14 @@ console.log(JSON.stringify({ agentDir: getAgentDir(), profilePath: path.join(pro
 				loaderUrl,
 				"--input-type=module",
 				"--eval",
-				"console.log(process.env.PI_SUBAGENTS_TEST_PARENT_PID)",
+				"console.log(process.env.EVOHARNESS_SUBAGENTS_TEST_PARENT_PID)",
 			],
 			{
 				encoding: "utf-8",
 				env: {
 					...process.env,
-					PI_SUBAGENTS_TEST_LOADER: "loaded",
-					PI_SUBAGENTS_TEST_PARENT_PID: String(process.pid),
+					EVOHARNESS_SUBAGENTS_TEST_LOADER: "loaded",
+					EVOHARNESS_SUBAGENTS_TEST_PARENT_PID: String(process.pid),
 				},
 			},
 		);
@@ -172,7 +177,7 @@ console.log(JSON.stringify({ agentDir: getAgentDir(), profilePath: path.join(pro
 		assert.equal(path.dirname(ASYNC_DIR), TEMP_ROOT_DIR);
 		assert.equal(path.dirname(CHAIN_RUNS_DIR), TEMP_ROOT_DIR);
 		assert.equal(path.dirname(TEMP_ARTIFACTS_DIR), TEMP_ROOT_DIR);
-		assert.equal(TEMP_ROOT_DIR, path.resolve(process.env.PI_SUBAGENTS_TEMP_ROOT!));
+		assert.equal(TEMP_ROOT_DIR, path.resolve(process.env.EVOHARNESS_SUBAGENTS_TEMP_ROOT!));
 		assert.equal(path.basename(RESULTS_DIR), "async-subagent-results");
 		assert.equal(path.basename(ASYNC_DIR), "async-subagent-runs");
 		assert.equal(path.basename(CHAIN_RUNS_DIR), "chain-runs");
@@ -193,7 +198,7 @@ console.log(JSON.stringify({ agentDir: getAgentDir(), profilePath: path.join(pro
 					configPath,
 				],
 				{
-					env: { ...process.env, PI_SUBAGENTS_TEST_PARENT_PID: "2147483647" },
+					env: { ...process.env, EVOHARNESS_SUBAGENTS_TEST_PARENT_PID: "2147483647" },
 					encoding: "utf-8",
 					timeout: 10_000,
 				},

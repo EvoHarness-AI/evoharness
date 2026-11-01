@@ -1,11 +1,11 @@
 /**
  * Integration tests for single (sync) agent execution.
  *
- * Uses the local createMockPi() helper to simulate the pi CLI.
+ * Uses the local createMockPi() helper to simulate the evoharness CLI.
  * Tests the full spawn→parse→result pipeline in runSync without a real LLM.
  *
- * These tests require pi packages to be importable (they run inside a pi
- * environment or with pi packages installed). If unavailable, tests skip
+ * These tests require evoharness packages to be importable (they run inside a evoharness
+ * environment or with evoharness packages installed). If unavailable, tests skip
  * gracefully.
  */
 
@@ -324,7 +324,7 @@ function writePackageSkill(packageRoot: string, skillName: string): void {
 	fs.writeFileSync(
 		path.join(packageRoot, "package.json"),
 		JSON.stringify(
-			{ name: `${skillName}-pkg`, version: "1.0.0", pi: { skills: [`./skills/${skillName}`] } },
+			{ name: `${skillName}-pkg`, version: "1.0.0", evoharness: { skills: [`./skills/${skillName}`] } },
 			null,
 			2,
 		),
@@ -354,7 +354,7 @@ export function installSingleExecutionHooks() {
 
 	beforeEach(() => {
 		tempDir = createTempDir();
-		agentDir = createTempDir("pi-subagent-agent-");
+		agentDir = createTempDir("subagents-subagent-agent-");
 		previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		mockPi.reset();
@@ -381,7 +381,7 @@ function readCall(): {
 		.filter((name) => name.startsWith("call-") && name.endsWith(".json"))
 		.sort()
 		.at(-1);
-	assert.ok(callFile, "expected a recorded mock pi call");
+	assert.ok(callFile, "expected a recorded mock evoharness call");
 	const payload = JSON.parse(fs.readFileSync(path.join(mockPi.dir, callFile), "utf-8")) as MockPiCallRecord;
 	assert.ok(Array.isArray(payload.args), "expected recorded args");
 	return {
@@ -425,7 +425,7 @@ function makeExecutor(
 	sendMessage?: (message: unknown, options: unknown) => void,
 ) {
 	return createSubagentExecutor!({
-		pi: { events: piEvents, getSessionName: () => undefined, ...(sendMessage ? { sendMessage } : {}) },
+		evoharness: { events: piEvents, getSessionName: () => undefined, ...(sendMessage ? { sendMessage } : {}) },
 		...(childRuntime ? { childRuntime } : {}),
 		state: {
 			baseCwd: tempDir,

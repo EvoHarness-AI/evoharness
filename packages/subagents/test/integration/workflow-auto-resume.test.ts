@@ -38,8 +38,8 @@ type SentMessage = {
 };
 
 const terminalStates = ["complete", "failed", "partial", "paused", "stopped", "rejected"];
-/** The completion owner a Pi process that has since exited wrote into its runs; never this process's. */
-const DEAD_PI_COMPLETION_OWNER = "completion-owner-of-an-exited-pi";
+/** The completion owner a evoharness process that has since exited wrote into its runs; never this process's. */
+const DEAD_PI_COMPLETION_OWNER = "completion-owner-of-an-exited-evoharness";
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
 const deadPid = () => {
 	const pid = spawnSync(process.execPath, ["-e", ""]).pid;
@@ -101,7 +101,7 @@ const oneNotice = async (sent: SentMessage[], runId: string) => {
 
 describe(
 	"auto-resuming interrupted workflows at session start",
-	{ skip: !available || !createSubagentExecutor ? "pi packages not available" : undefined },
+	{ skip: !available || !createSubagentExecutor ? "evoharness packages not available" : undefined },
 	() => {
 		installSingleExecutionHooks();
 
@@ -153,7 +153,7 @@ describe(
 			const staleSends: SentMessage[] = [];
 			let stale = false;
 			let tool: Tool | undefined;
-			const pi = new Proxy(
+			const evoharness = new Proxy(
 				{
 					events: createEventBus(),
 					on(event: string, handler: Handler) {
@@ -163,7 +163,7 @@ describe(
 						if (definition.name === "subagent") tool = definition;
 					},
 					sendMessage(message: SentMessage["message"], sendOptions?: SentMessage["options"]) {
-						// Pi makes a runtime's pi stale once its session shuts down.
+						// evoharness makes a runtime's evoharness stale once its session shuts down.
 						if (stale) {
 							staleSends.push({ message, options: sendOptions });
 							throw new Error("This extension ctx is stale after session replacement or reload.");
@@ -199,7 +199,7 @@ describe(
 			const previousChildEnv = process.env[SUBAGENT_CHILD_ENV];
 			delete process.env[SUBAGENT_CHILD_ENV];
 			try {
-				registerSubagentExtension(pi as never);
+				registerSubagentExtension(evoharness as never);
 			} finally {
 				if (previousChildEnv !== undefined) process.env[SUBAGENT_CHILD_ENV] = previousChildEnv;
 			}
@@ -209,7 +209,7 @@ describe(
 					ctx,
 				),
 			);
-			// Pi's reload runs session_shutdown, whose cleanup is synchronous; calling every handler at once
+			// evoharness's reload runs session_shutdown, whose cleanup is synchronous; calling every handler at once
 			// keeps that cleanup inside the caller's synchronous step.
 			const shutDownNow = (shutdownReason: string) => {
 				stale = true;
@@ -236,7 +236,7 @@ describe(
 			};
 		};
 
-		/** What a killed Pi leaves behind: a running status under a dead pid, its saved launch, and the active-run marker. */
+		/** What a killed evoharness leaves behind: a running status under a dead pid, its saved launch, and the active-run marker. */
 		const writeCrashedRun = (
 			sessionId: string,
 			launch: WorkflowLaunchRecord,
@@ -339,7 +339,7 @@ describe(
 		);
 
 		it(
-			"resumes a run whose Pi exited, once, without delaying session start; leaves one older than 24 hours",
+			"resumes a run whose evoharness exited, once, without delaying session start; leaves one older than 24 hours",
 			{ timeout: 30_000 },
 			async () => {
 				const nonce = `auto-exit-${Date.now()}`;
@@ -368,7 +368,7 @@ describe(
 				const done = await finished(resumedId);
 				assert.equal(done.state, "complete", done.error);
 
-				// Its Pi exited; the reopened session delivers its notice once: what happened, then that it continues.
+				// Its evoharness exited; the reopened session delivers its notice once: what happened, then that it continues.
 				const notice = await oneNotice(runtime.sent, recentId);
 				assert.match(
 					notice,
@@ -420,7 +420,7 @@ describe(
 				const off = await startRuntime("startup", offSession);
 				assert.equal(readStatusFile(offId)?.workflow?.stopCause, "owner-exited");
 				assert.deepEqual(claimFiles(offId), []);
-				// Its Pi exited; the session that owns it delivers its notice once, with the way to resume it by hand.
+				// Its evoharness exited; the session that owns it delivers its notice once, with the way to resume it by hand.
 				const offNotice = await oneNotice(off.sent, offId);
 				assert.match(offNotice, new RegExp(`that ran workflow ${offId} exited before the workflow finished`));
 				assert.deepEqual(nextSteps(offNotice), [`Resume by hand: subagent({ action: "resume", id: "${offId}" })`]);
@@ -447,7 +447,7 @@ describe(
 				mockPi.onCall({ matchArgIncludes: `Only ${nonce}`, output: "only done" });
 				const sourceId = writeCrashedRun(sessionId, scriptLaunch(script), Date.now() - 60_000);
 
-				// A one-shot print run (`pi -c -p`) has no UI; it would wait on the resumed workflow at turn settle.
+				// A one-shot print run (`evoharness -c -p`) has no UI; it would wait on the resumed workflow at turn settle.
 				const headless = await startRuntime("startup", sessionId, { ui: false });
 				assert.equal(readStatusFile(sourceId)?.workflow?.stopCause, "owner-exited");
 				assert.deepEqual(nextSteps(await oneNotice(headless.sent, sourceId)), [
@@ -736,7 +736,7 @@ describe(
 		);
 
 		it(
-			"points to runs another session left when its Pi died, without touching them",
+			"points to runs another session left when its evoharness died, without touching them",
 			{ timeout: 30_000 },
 			async () => {
 				const nonce = `elsewhere-${Date.now()}`;
@@ -835,15 +835,15 @@ describe(
 					elsewhere(withUi).sort(byText),
 					[
 						{
-							text: `2 subagent runs were interrupted in another session. Reopen it to resume them: \`pi --session ${headerIds.get(foreign)}\``,
+							text: `2 subagent runs were interrupted in another session. Reopen it to resume them: \`evoharness --session ${headerIds.get(foreign)}\``,
 							level: "info",
 						},
 						{
-							text: `1 subagent run was interrupted in another session. Reopen it to resume it: \`pi --session ${headerIds.get(spaced)}\``,
+							text: `1 subagent run was interrupted in another session. Reopen it to resume it: \`evoharness --session ${headerIds.get(spaced)}\``,
 							level: "info",
 						},
 						{
-							text: `1 subagent run was interrupted in another session. Reopen it to resume it: \`pi --session ${headerIds.get(dollar)}\``,
+							text: `1 subagent run was interrupted in another session. Reopen it to resume it: \`evoharness --session ${headerIds.get(dollar)}\``,
 							level: "info",
 						},
 					].sort(byText),

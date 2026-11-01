@@ -464,7 +464,7 @@ const reportedFleetWarnings = new Set<string>();
 export function reportFleetWarning(state: SubagentState, message: string): void {
 	if (reportedFleetWarnings.has(message)) return;
 	reportedFleetWarnings.add(message);
-	const text = `[pi-subagents] ${message}`;
+	const text = `[subagents] ${message}`;
 	const cached = state.lastUiContext;
 	const notified = withCachedUiContext(
 		cached,
@@ -1259,7 +1259,7 @@ export class SubagentFleetStatus {
 	}
 
 	private editorHasFocus(): boolean {
-		// pi-tui exposes focus mutation but no focus getter, so inspect the focused
+		// The host TUI exposes focus mutation but no focus getter, so inspect the focused
 		// component structurally. instanceof is unreliable across jiti module boundaries.
 		const focused = (this.tui as unknown as { focusedComponent?: unknown } | undefined)?.focusedComponent;
 		if (!focused || typeof focused !== "object") return false;

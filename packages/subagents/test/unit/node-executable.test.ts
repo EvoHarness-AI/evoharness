@@ -10,15 +10,15 @@ describe("Node executable resolution", () => {
 		assert.equal(resolveNodeExecutable(process.execPath), process.execPath);
 	});
 
-	it("falls back to PATH node for a standalone Pi executable", () => {
+	it("falls back to PATH node for a standalone evoharness executable", () => {
 		assert.equal(
-			resolveNodeExecutable(path.join(os.tmpdir(), process.platform === "win32" ? "pi.exe" : "pi")),
+			resolveNodeExecutable(path.join(os.tmpdir(), process.platform === "win32" ? "evoharness.exe" : "evoharness")),
 			process.platform === "win32" ? "node.exe" : "node",
 		);
 	});
 
 	it("falls back to PATH node for a stale Node path", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-node-executable-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-node-executable-"));
 		try {
 			const staleNode = path.join(root, process.platform === "win32" ? "node.exe" : "node");
 			assert.equal(resolveNodeExecutable(staleNode), process.platform === "win32" ? "node.exe" : "node");

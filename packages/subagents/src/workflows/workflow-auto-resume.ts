@@ -41,7 +41,7 @@ export interface PendingWorkflowAutoResume {
 }
 
 // Shared by every runtime in the process: a reload's new runtime must see the old runtime's pending claims.
-const registryKey = Symbol.for("pi-subagents.workflow-auto-resume.v1");
+const registryKey = Symbol.for("subagents.workflow-auto-resume.v1");
 const registryGlobal = globalThis as typeof globalThis & { [registryKey]?: Set<PendingWorkflowAutoResume> };
 const pendingAutoResumes =
 	registryGlobal[registryKey] ?? (registryGlobal[registryKey] = new Set<PendingWorkflowAutoResume>());

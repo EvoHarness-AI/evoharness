@@ -3,9 +3,9 @@
  * or a named remembered detached foreground run finishes.
  *
  * Background subagent runs are detached. In an interactive session the parent
- * can end its turn and Pi will wake it with a completion notification. That
+ * can end its turn and evoharness will wake it with a completion notification. That
  * does not work when the parent is a skill that must run to completion, and it
- * cannot work at all non-interactively (`pi -p ...`), where the run is a single
+ * cannot work at all non-interactively (`evoharness -p ...`), where the run is a single
  * turn: once the turn ends there is nothing left to receive the notification.
  *
  * `bg_wait` closes that gap. It keeps the turn alive until a tracked async
@@ -23,13 +23,13 @@
  *
  * `bg_wait` also returns when a run needs attention — not just on
  * completion. A child that goes idle or blocks for a decision surfaces
- * `needs_attention` (the same signal Pi shows as a control notice and,
+ * `needs_attention` (the same signal evoharness shows as a control notice and,
  * interactively, wakes the parent with). Since `bg_wait` is used exactly
  * where there is no next turn to receive that notice, it must break on it too,
  * or a stuck child would stall the loop until the timeout. Attention runs are
  * reported so the caller can inspect / nudge / resume / interrupt them.
  *
- * Wake mechanism: when given Pi's event bus (`deps.events`), `bg_wait`
+ * Wake mechanism: when given evoharness's event bus (`deps.events`), `bg_wait`
  * subscribes to the subagent completion/control channels and wakes the instant
  * any fires, rather than waiting out a fixed poll interval. A poll still runs
  * on the interval as a reconciliation fallback (crashed runners, missed
@@ -100,14 +100,14 @@ export interface SubagentWaitParams {
 	stopOnAttention?: boolean;
 }
 
-/** Minimal event-bus surface wait subscribes to (matches pi.events). */
+/** Minimal event-bus surface wait subscribes to (matches evoharness.events). */
 export interface WaitEventBus {
 	on(channel: string, handler: (data: unknown) => void): () => void;
 }
 
 export interface SubagentWaitDeps {
 	state: SubagentState;
-	/** Stream live wait status into Pi's pending tool row. */
+	/** Stream live wait status into evoharness's pending tool row. */
 	onUpdate?: (result: AgentToolResult<Details>) => void;
 	asyncDirRoot?: string;
 	resultsDir?: string;
@@ -145,7 +145,7 @@ export interface SubagentWaitDeps {
 		wakeChannels(): readonly string[];
 	};
 	/**
-	 * Optional event bus (pi.events). When provided, wait wakes immediately on a
+	 * Optional event bus (evoharness.events). When provided, wait wakes immediately on a
 	 * subagent completion/control event instead of waiting out the poll interval;
 	 * the poll then remains as a reconciliation fallback (crashed runners, missed
 	 * events). Omit in tests that want pure poll behavior.
@@ -312,8 +312,8 @@ export function backgroundWorkForSession(
 	const sessionId = deps.state.currentSessionId;
 	if (!sessionId) throw new Error("bg_wait requires an active session identity to scope background work safely.");
 	// Providers may key items by the session file path or by getSessionId(); accept both.
-	const piSessionId = deps.state.supervisorOwnerSessionId;
-	const sessionIds = piSessionId ? [sessionId, piSessionId] : [sessionId];
+	const hostSessionId = deps.state.supervisorOwnerSessionId;
+	const sessionIds = hostSessionId ? [sessionId, hostSessionId] : [sessionId];
 	return deps.backgroundWork?.snapshot(sessionIds, nowMs) ?? snapshotBackgroundWork(sessionIds, nowMs);
 }
 
@@ -797,7 +797,7 @@ export async function waitForSubagents(
 ): Promise<AgentToolResult<Details>> {
 	if (deps.enabled === false) {
 		return result(
-			'bg_wait is disabled by config.waitTool or PI_SUBAGENT_WAIT_TOOL_ENABLED; returning immediately without blocking background work. Active work keeps going, and you can inspect subagents with subagent({ action: "status" }) or rely on completion notifications.',
+			'bg_wait is disabled by config.waitTool or EVOHARNESS_SUBAGENT_WAIT_TOOL_ENABLED; returning immediately without blocking background work. Active work keeps going, and you can inspect subagents with subagent({ action: "status" }) or rely on completion notifications.',
 		);
 	}
 	if (!deps.state.currentSessionId) {

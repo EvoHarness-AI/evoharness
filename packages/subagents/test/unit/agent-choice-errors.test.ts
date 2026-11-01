@@ -15,7 +15,7 @@ const originalUserProfile = process.env.USERPROFILE;
 
 function launch(params: Record<string, unknown>): Promise<{ isError?: boolean; content: Array<{ text?: string }> }> {
 	const executor = createSubagentExecutor({
-		pi: {
+		evoharness: {
 			events: {
 				emit() {},
 				on() {
@@ -48,8 +48,8 @@ const text = (result: { content: Array<{ text?: string }> }) =>
 
 describe("agent choice errors at launch", () => {
 	beforeEach(() => {
-		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-agent-choice-home-"));
-		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "pi-agent-choice-project-"));
+		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-agent-choice-home-"));
+		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-agent-choice-project-"));
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
 	});

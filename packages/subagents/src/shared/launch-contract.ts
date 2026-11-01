@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import type { AgentConfig } from "../agents/agents.ts";
-import type { PiLaunchToolPlan } from "../runs/shared/child-tool-plan.ts";
+import type { HostLaunchToolPlan } from "../runs/shared/child-tool-plan.ts";
 import type { ExtensionBindings } from "../runs/shared/extension-bindings.ts";
 
 export const AGENT_DEFINITION_PROJECTION_VERSION = 2 as const;
@@ -162,7 +162,7 @@ export type LaunchBindingSource = LaunchBindingIdentity &
 		/** Effective child system prompt before runtime acceptance prose. */
 		systemPrompt: string;
 		toolPlan: Pick<
-			PiLaunchToolPlan,
+			HostLaunchToolPlan,
 			"effectiveToolAllowlist" | "excludeTools" | "extensionArgs" | "effectiveMcpTools"
 		>;
 	};

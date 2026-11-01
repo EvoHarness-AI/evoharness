@@ -137,7 +137,7 @@ function schemaKeys(config: ExtensionConfig): string[] {
 
 function createExecutor(config: ExtensionConfig) {
 	return createSubagentExecutor({
-		pi: {
+		evoharness: {
 			events: {
 				emit() {},
 				on() {
@@ -257,7 +257,7 @@ describe("disabled feature execution boundaries", () => {
 	});
 
 	it("rejects a disabled option on a runs.all workflow child before it launches", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-disabled-features-workflow-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-disabled-features-workflow-"));
 		try {
 			const result = await createExecutor({ disabledFeatures: ["external-machines"] }).executePublic(
 				"disabled-workflow-child",

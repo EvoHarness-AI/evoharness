@@ -2,8 +2,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import type { MockPi } from "./mock-pi.ts";
-import { createMockPi as _createMockPi } from "./mock-pi.ts";
+import type { MockPi } from "./mock-host.ts";
+import { createMockPi as _createMockPi } from "./mock-host.ts";
 
 export type { MockPi };
 
@@ -17,7 +17,7 @@ export function resolveMockPiCallArgs(call: { args?: readonly string[]; effectiv
 	return [...(call.effectiveArgs ?? call.args ?? [])];
 }
 
-export function createTempDir(prefix = "pi-subagent-test-"): string {
+export function createTempDir(prefix = "subagents-subagent-test-"): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
 }
 

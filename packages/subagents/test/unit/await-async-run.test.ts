@@ -62,7 +62,7 @@ function deadPid(): number {
 
 describe("awaitExistingAsyncRun", () => {
 	beforeEach(() => {
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-await-async-run-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-await-async-run-"));
 	});
 
 	afterEach(() => {
@@ -249,7 +249,7 @@ describe("awaitExistingAsyncRun", () => {
 
 describe("claimWorkflowAwaitedResult", () => {
 	beforeEach(() => {
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-claim-awaited-result-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-claim-awaited-result-"));
 	});
 
 	afterEach(() => {

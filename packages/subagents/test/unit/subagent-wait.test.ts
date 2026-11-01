@@ -123,7 +123,7 @@ describe("bg_wait tool", () => {
 	for (const alreadyTerminal of [false, true]) {
 		for (const prefix of [false, true]) {
 			it(`collects nested results by ${prefix ? "prefix" : "exact id"} ${alreadyTerminal ? "after early completion" : "across active-to-terminal transition"}`, async (t) => {
-				const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-nested-"));
+				const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-nested-"));
 				const nestedRootRunId = randomUUID();
 				const scope = nestedRunScope(nestedRootRunId);
 				t.after(() => {
@@ -168,7 +168,7 @@ describe("bg_wait tool", () => {
 	}
 
 	it("all:true collects ordinary workflow and nested results but excludes siblings and other roots", async (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-mixed-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-mixed-"));
 		const nestedRootRunId = randomUUID();
 		const nested = nestedRunScope(nestedRootRunId);
 		const otherRoot = nestedRunScope(randomUUID());
@@ -214,7 +214,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("does not reconcile a sibling coordinator's nested runs during aggregate discovery", async (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-sibling-reconcile-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-sibling-reconcile-"));
 		const nestedRootRunId = randomUUID();
 		const scope = nestedRunScope(nestedRootRunId);
 		t.after(() => {
@@ -246,7 +246,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("resolves prefix ambiguity across scopes and prefers an exact already-terminal id", async (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-prefix-scopes-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-prefix-scopes-"));
 		const nestedRootRunId = randomUUID();
 		const scope = nestedRunScope(nestedRootRunId);
 		t.after(() => {
@@ -264,7 +264,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("preserves nested timeout, supervisor attention, and session-change boundaries", async (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-nested-control-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-nested-control-"));
 		const nestedRootRunId = randomUUID();
 		const scope = nestedRunScope(nestedRootRunId);
 		t.after(() => {
@@ -330,16 +330,16 @@ describe("bg_wait tool", () => {
 		assert.throws(() => resolveWaitToolConfig({ defaultTimeoutMs: 1.5 }, {}), /config\.waitTool\.defaultTimeoutMs/);
 		assert.throws(
 			() => resolveWaitToolConfig(undefined, { [WAIT_TOOL_DEFAULT_TIMEOUT_MS_ENV]: "0" }),
-			/PI_SUBAGENT_WAIT_TOOL_DEFAULT_TIMEOUT_MS/,
+			/EVOHARNESS_SUBAGENT_WAIT_TOOL_DEFAULT_TIMEOUT_MS/,
 		);
 		assert.throws(
 			() => resolveWaitToolConfig(undefined, { [WAIT_TOOL_ENABLED_ENV]: "maybe" }),
-			/PI_SUBAGENT_WAIT_TOOL_ENABLED/,
+			/EVOHARNESS_SUBAGENT_WAIT_TOOL_ENABLED/,
 		);
 	});
 
 	it("returns immediately without polling when waitTool is disabled", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-disabled-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-disabled-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -367,7 +367,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("returns immediately when there is nothing to wait for", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-empty-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-empty-"));
 		try {
 			const state = makeState("sess-1");
 			const result = await waitForSubagents({}, undefined, baseDeps(root, state));
@@ -379,7 +379,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("with all:true, resolves once every active run reaches a terminal state", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-resolve-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-resolve-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -408,7 +408,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("streams active async run status while waiting", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-progress-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-progress-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -447,7 +447,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("surfaces failed terminal runs as errors only for internal auto-drain", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-drain-failure-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-drain-failure-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -468,7 +468,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("tells blocking callers to revive resumable failed runs before replacing them", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-revive-first-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-revive-first-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const sessionFile = path.join(root, "worker-session.jsonl");
@@ -501,7 +501,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("does not advertise resume-first when the recovery descriptor is missing", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-no-recovery-descriptor-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-no-recovery-descriptor-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const sessionFile = path.join(root, "worker-session.jsonl");
@@ -528,7 +528,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("uses the single-child run session fallback with a matching recovery descriptor", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-run-session-fallback-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-run-session-fallback-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const sessionFile = path.join(root, "worker-session.jsonl");
@@ -557,7 +557,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("tells blocking callers to reply and wait for intercom-detached failed runs", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-intercom-detach-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-intercom-detach-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const sessionFile = path.join(root, "worker-session.jsonl");
@@ -595,7 +595,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("surfaces terminal completion payloads from the result file in details.completions", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-completions-file-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-completions-file-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -666,7 +666,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("surfaces bounded recovery guidance for a failed completion", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-recovery-completion-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-recovery-completion-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -740,7 +740,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("surfaces terminal completion payloads from an indexed pending result file", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-completions-pending-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-completions-pending-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -786,7 +786,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("reports malformed unindexed public result payloads", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-completions-malformed-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-completions-malformed-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -813,7 +813,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("surfaces completions from the watcher record when the result file is already consumed", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-completions-record-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-completions-record-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -855,7 +855,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("wakes when a run needs attention, not only on completion", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-attn-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-attn-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -892,7 +892,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("yields without an error when the user sends a message", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-user-input-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-user-input-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -925,7 +925,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("can keep blocking through idle attention when stopOnAttention is false", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-tolerant-attn-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-tolerant-attn-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -958,7 +958,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("tells the caller how to wait through attention that is not a supervisor request", async (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-attn-hint-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-attn-hint-"));
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		const asyncRoot = path.join(root, "runs");
 		const state = makeState("sess-1");
@@ -987,7 +987,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("still stops tolerant waits for supervisor attention", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-tolerant-supervisor-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-tolerant-supervisor-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -1019,7 +1019,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("yields without an error for internal auto-drain on a durable supervisor barrier", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-drain-supervisor-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-drain-supervisor-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -1051,7 +1051,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("yields when a durable descendant request appears during the wait before status projection", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-drain-nested-supervisor-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-drain-nested-supervisor-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -1091,7 +1091,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("reports every still-active initial identity for a mixed supervisor yield", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-supervisor-mixed-scope-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-supervisor-mixed-scope-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -1128,7 +1128,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("foreground aggregate yield filters terminal, new, newly detached, and foreign work from its initial scope", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-supervisor-foreground-scope-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-supervisor-foreground-scope-"));
 		try {
 			const state = makeState("sess-1");
 			state.foregroundRuns = new Map([
@@ -1199,7 +1199,7 @@ describe("bg_wait tool", () => {
 
 	for (const currentTool of ["contact_supervisor", "intercom"]) {
 		it(`still errors for ${currentTool} attention without a durable owned request`, async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-drain-unowned-supervisor-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-drain-unowned-supervisor-"));
 			try {
 				const asyncRoot = path.join(root, "runs");
 				const state = makeState("sess-1");
@@ -1225,7 +1225,7 @@ describe("bg_wait tool", () => {
 	}
 
 	it("still errors for non-supervisor attention during internal auto-drain", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-drain-nonsupervisor-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-drain-nonsupervisor-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -1247,7 +1247,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("reports runs that already need attention before waiting starts", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-initial-attn-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-initial-attn-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -1280,7 +1280,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("reports step-level attention even when the aggregate flag has not caught up", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-step-attn-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-step-attn-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -1311,7 +1311,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("by default returns as soon as the FIRST run finishes, leaving the rest in flight", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-first-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-first-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -1340,7 +1340,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("only waits for runs belonging to the current session", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-session-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-session-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -1355,7 +1355,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("summarizes only runs that were active when waiting began", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-summary-scope-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-summary-scope-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -1377,7 +1377,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("waits for session-owned detached foreground runs when all is true", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-foreground-all-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-foreground-all-"));
 		try {
 			const state = makeState("sess-1");
 			state.foregroundRuns = new Map([
@@ -1413,7 +1413,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("preserves timeout metadata and every active foreground identity for aggregate waits", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-foreground-timeout-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-foreground-timeout-"));
 		try {
 			const state = makeState("sess-1");
 			state.foregroundRuns = new Map(
@@ -1454,7 +1454,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("returns async supervisor attention without waiting on foreground descendants", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-attention-before-foreground-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-attention-before-foreground-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -1496,7 +1496,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("all:true ignores foreground work detached after invocation", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-new-foreground-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-new-foreground-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -1535,7 +1535,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("waits for a remembered detached foreground run by id and ignores other sessions", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-foreground-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-foreground-"));
 		try {
 			const state = makeState("sess-1");
 			state.foregroundRuns = new Map([
@@ -1593,7 +1593,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("yields a foreground-only wait when a durable request appears before timeout", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-foreground-supervisor-yield-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-foreground-supervisor-yield-"));
 		try {
 			const state = makeState("sess-1");
 			state.foregroundRuns = new Map([
@@ -1635,7 +1635,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("wakes when a remembered detached foreground run needs attention", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-foreground-attn-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-foreground-attn-"));
 		try {
 			const state = makeState("sess-1");
 			state.foregroundRuns = new Map([
@@ -1682,7 +1682,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("keeps waiting after a resolved supervisor reply even if idle needs_attention remains", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-foreground-idle-attn-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-foreground-idle-attn-"));
 		try {
 			const state = makeState("sess-1");
 			state.foregroundRuns = new Map([
@@ -1732,7 +1732,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("wakes a remembered foreground wait on a repeated supervisor request event", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-foreground-supervisor-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-foreground-supervisor-"));
 		try {
 			const state = makeState("sess-1");
 			state.foregroundRuns = new Map([
@@ -1778,7 +1778,7 @@ describe("bg_wait tool", () => {
 				const child = state.foregroundRuns!.get("foreground-repeated")!.children[0]!;
 				child.activityState = "needs_attention";
 				child.currentTool = "contact_supervisor";
-				events.emit("pi-intercom:detach-request", { runId: "foreground-repeated", childIndex: 0 });
+				events.emit("subagents-intercom:detach-request", { runId: "foreground-repeated", childIndex: 0 });
 			}, 15);
 
 			const result = await waiting;
@@ -1790,7 +1790,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("streams detached foreground transcript activity while waiting", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-foreground-progress-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-foreground-progress-"));
 		try {
 			const transcriptPath = path.join(root, "foreground-transcript.jsonl");
 			const ts = Date.now();
@@ -1912,7 +1912,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("rejects ambiguous prefixes across async and remembered foreground runs", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-cross-kind-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-cross-kind-"));
 		try {
 			const state = makeState("sess-1");
 			writeStatus(path.join(root, "runs"), "shared-x-async", "running", { sessionId: "sess-1", pid: 999999 });
@@ -1941,7 +1941,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("preserves current-session prefix matches when a foreign exact id collides", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-session-prefix-collision-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-session-prefix-collision-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -1964,7 +1964,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("rejects symlinked prefix entries during foreign exact-id fallback", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-session-prefix-symlink-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-session-prefix-symlink-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const outsideRoot = path.join(root, "outside");
@@ -2001,7 +2001,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("rejects symlinked targeted run directories before reconciliation", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-symlink-id-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-symlink-id-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const outsideRun = path.join(root, "outside-run");
@@ -2034,7 +2034,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("can target a single run by id prefix", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-id-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-id-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -2057,7 +2057,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("rejects ambiguous id prefixes but lets exact ids win", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-ambiguous-id-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-ambiguous-id-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -2091,7 +2091,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("does not reconcile unrelated runs when waiting for an exact id", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-exact-id-scan-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-exact-id-scan-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -2122,7 +2122,7 @@ describe("bg_wait tool", () => {
 
 	it("rejects dot-segment ids before probing outside the async root", async () => {
 		for (const id of [".", ".."]) {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-dot-id-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-dot-id-"));
 			try {
 				const asyncRoot = path.join(root, "runs");
 				const state = makeState("sess-1");
@@ -2152,7 +2152,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("times out while runs are still active and reports them", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-timeout-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-timeout-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -2186,7 +2186,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("uses the configured wait window when timeoutMs is omitted", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-config-timeout-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-config-timeout-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -2213,7 +2213,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("reports still-active provider identities when the wait window elapses", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-provider-timeout-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-provider-timeout-"));
 		try {
 			const state = makeState("sess-1");
 			let clock = 0;
@@ -2243,7 +2243,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("resolves early when the turn is aborted", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-abort-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-abort-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -2264,7 +2264,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("wakes immediately on an event bus emission instead of waiting the poll interval", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-event-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-event-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");
@@ -2331,7 +2331,7 @@ describe("bg_wait tool", () => {
 	});
 
 	it("still resolves via poll when no event bus is provided (fallback)", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-wait-nobus-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-wait-nobus-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const state = makeState("sess-1");

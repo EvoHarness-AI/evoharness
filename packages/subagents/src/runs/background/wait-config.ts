@@ -1,7 +1,7 @@
 import type { WaitToolConfig } from "../../shared/types.ts";
 
-export const WAIT_TOOL_ENABLED_ENV = "PI_SUBAGENT_WAIT_TOOL_ENABLED";
-export const WAIT_TOOL_DEFAULT_TIMEOUT_MS_ENV = "PI_SUBAGENT_WAIT_TOOL_DEFAULT_TIMEOUT_MS";
+export const WAIT_TOOL_ENABLED_ENV = "EVOHARNESS_SUBAGENT_WAIT_TOOL_ENABLED";
+export const WAIT_TOOL_DEFAULT_TIMEOUT_MS_ENV = "EVOHARNESS_SUBAGENT_WAIT_TOOL_DEFAULT_TIMEOUT_MS";
 
 export interface ResolvedWaitToolConfig {
 	enabled: boolean;

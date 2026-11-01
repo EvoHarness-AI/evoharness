@@ -90,7 +90,7 @@ describe("Rex SSH machine resolution", () => {
 	});
 
 	it(
-		"rejects non-Pi runners on a Rex SSH name before launch, where Herdr would accept them",
+		"rejects non-evoharness runners on a Rex SSH name before launch, where Herdr would accept them",
 		{ skip: process.platform === "win32" ? "machine placement is rejected outright on Windows" : false },
 		() => {
 			const claude = { machine: "workmac", agentName: "claude", runnerType: "external-cli", adapter: "claude-code" };
@@ -98,7 +98,7 @@ describe("Rex SSH machine resolution", () => {
 			writeJson(userSettings, { subagents: { machines: { workmac: { rex: { ssh: "100.82.67.118" } } } } });
 			assert.match(
 				formatHerdrMachineRunnerUnsupported(claude) ?? "",
-				/machine 'workmac', but Rex supports native Pi children only/u,
+				/machine 'workmac', but Rex supports native evoharness children only/u,
 			);
 			assert.equal(formatHerdrMachineRunnerUnsupported({ machine: "workmac", agentName: "worker" }), undefined);
 		},

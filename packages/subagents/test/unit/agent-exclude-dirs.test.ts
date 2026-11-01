@@ -215,13 +215,13 @@ describe("settings subagents.agentExcludeDirs", () => {
 			writeAgent(hidden, "hidden-source");
 			writeAgent(allowed, "allowed-source");
 			fs.symlinkSync(hidden, alias, "dir");
-			const previousExtraDirs = process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
+			const previousExtraDirs = process.env.EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS;
 			try {
-				if (source === "environment") process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS = alias;
+				if (source === "environment") process.env.EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS = alias;
 				if (source === "package")
 					fs.writeFileSync(
 						path.join(container, "package.json"),
-						JSON.stringify({ name: "alias-fixture", "pi-subagents": { agents: ["./agents"] } }),
+						JSON.stringify({ name: "alias-fixture", subagents: { agents: ["./agents"] } }),
 					);
 				settings(
 					user,
@@ -242,8 +242,8 @@ describe("settings subagents.agentExcludeDirs", () => {
 					true,
 				);
 			} finally {
-				if (previousExtraDirs === undefined) delete process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
-				else process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS = previousExtraDirs;
+				if (previousExtraDirs === undefined) delete process.env.EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS;
+				else process.env.EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS = previousExtraDirs;
 			}
 		});
 
@@ -305,7 +305,7 @@ describe("settings subagents.agentExcludeDirs", () => {
 		writeAgent(path.join(pkg, "agents"), "package-hidden");
 		fs.writeFileSync(
 			path.join(pkg, "package.json"),
-			JSON.stringify({ name: "exclude-fixture", "pi-subagents": { agents: ["./agents"], chains: ["./agents"] } }),
+			JSON.stringify({ name: "exclude-fixture", subagents: { agents: ["./agents"], chains: ["./agents"] } }),
 		);
 		fs.writeFileSync(
 			path.join(pkg, "agents", "kept.chain.json"),
@@ -346,14 +346,14 @@ describe("settings subagents.agentExcludeDirs", () => {
 		writeAgent(excludedAgents, "package-hidden");
 		writeAgent(path.join(root, "allowed"), "outside");
 		const manifest = path.join(pkg, "package.json");
-		fs.writeFileSync(manifest, JSON.stringify({ name: "fixture", "pi-subagents": { agents: ["./agents"] } }));
+		fs.writeFileSync(manifest, JSON.stringify({ name: "fixture", subagents: { agents: ["./agents"] } }));
 		settings(user, { agentExcludeDirs: [pkg] }, { packages: [pkg] });
 		const reads = recordReads();
 		assert.equal(
 			discoverAgents(project, "both").agents.some((agent) => agent.name === "outside"),
 			false,
 		);
-		fs.writeFileSync(manifest, JSON.stringify({ name: "fixture", "pi-subagents": { agents: ["../allowed"] } }));
+		fs.writeFileSync(manifest, JSON.stringify({ name: "fixture", subagents: { agents: ["../allowed"] } }));
 		const cached = discoverAgents(project, "both");
 		assert.equal(
 			cached.agents.some((agent) => agent.name === "outside"),

@@ -193,7 +193,7 @@ function formatSpawnBudgetSection(input: DoctorReportInput): string[] {
 function formatRunFanoutSection(input: DoctorReportInput): string[] {
 	const configured = resolveMaxSubagentSpawnsPerRun(input.config.maxSubagentSpawnsPerRun);
 	const source =
-		normalizeMaxSubagentSpawnsPerRun(process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN) !== undefined
+		normalizeMaxSubagentSpawnsPerRun(process.env.EVOHARNESS_SUBAGENT_MAX_SPAWNS_PER_RUN) !== undefined
 			? "environment"
 			: normalizeMaxSubagentSpawnsPerRun(input.config.maxSubagentSpawnsPerRun) !== undefined
 				? "config"
@@ -216,9 +216,9 @@ function formatActiveAsyncCapacitySection(input: DoctorReportInput): string[] {
 
 function formatPermissionSystemSection(): string[] {
 	const lines: string[] = [];
-	const parentSession = process.env["PI_SUBAGENT_PARENT_SESSION"] ?? "";
+	const parentSession = process.env["EVOHARNESS_SUBAGENT_PARENT_SESSION"] ?? "";
 	const trimmed = parentSession.trim();
-	const isChild = process.env["PI_SUBAGENT_CHILD"] === "1";
+	const isChild = process.env["EVOHARNESS_SUBAGENT_CHILD"] === "1";
 	if (isChild && trimmed) {
 		lines.push(`- runner parent session: set (${trimmed}) — explicit target for this dedicated child process`);
 	} else if (isChild) {
@@ -234,10 +234,10 @@ function formatPermissionSystemSection(): string[] {
 		lines.push(
 			"- foreground external ask forwarding: unavailable until the permission extension supports a session-scoped target",
 		);
-	lines.push(`- subagent process: ${isChild ? "yes (PI_SUBAGENT_CHILD=1)" : "no"}`);
+	lines.push(`- subagent process: ${isChild ? "yes (EVOHARNESS_SUBAGENT_CHILD=1)" : "no"}`);
 	// Whether pi-permission-system is installed and where it stores config is
-	// outside pi-subagents' control, so we only report the forwarding signal we
-	// own. Run `pi list` to confirm the permission extension is installed.
+	// outside subagents' control, so we only report the forwarding signal we
+	// own. Run `evoharness list` to confirm the permission extension is installed.
 	return lines;
 }
 
@@ -245,7 +245,7 @@ function formatWorkflowScriptSection(): string[] {
 	return [
 		'- launch: write a ```js workflow block in the reply, then call subagent({ workflow: true }); or pass a file as workflow: "./path.js"',
 		"- helpers: runs.run, runs.all, runs.steer, runs.status, runs.ref/refs, emit, console",
-		"- recovery: if runs.all is missing, reload or update pi-subagents; await Promise.all([runs.run(...)]) is also supported",
+		"- recovery: if runs.all is missing, reload or update subagents; await Promise.all([runs.run(...)]) is also supported",
 	];
 }
 

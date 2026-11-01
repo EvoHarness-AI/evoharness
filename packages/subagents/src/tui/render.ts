@@ -131,7 +131,7 @@ function capCompactMainWindowResult(
 }
 
 function expandKeyHint(action: string): string {
-	// keyText is empty wherever Pi's app keybindings are not loaded (RPC, print mode), even when the key is bound.
+	// keyText is empty wherever evoharness's app keybindings are not loaded (RPC, print mode), even when the key is bound.
 	return `Press ${keyText("app.tools.expand") || "the expand key"} ${action}`;
 }
 
@@ -159,7 +159,7 @@ const ansiStylePattern = /\x1b\[[0-9;]*m/y;
 /**
  * Truncate a line to maxWidth, preserving ANSI styling through the ellipsis.
  *
- * pi-tui's truncateToWidth adds \x1b[0m before ellipsis which resets all styling,
+ * The host TUI's truncateToWidth adds \x1b[0m before ellipsis which resets all styling,
  * causing background color bleed in the TUI. This implementation tracks active
  * ANSI styles and re-applies them before the ellipsis.
  *
@@ -3869,7 +3869,7 @@ function buildWidgetComponent(
 		};
 		asyncWidgetUpdates.set(ui, update);
 		const component = Object.assign(container, {
-			// Only the mouse fields used here, without requiring newer Pi type exports.
+			// Only the mouse fields used here, without requiring newer evoharness type exports.
 			handleMouse(event: { type: string; button: string; y: number; shift: boolean; alt: boolean; ctrl: boolean }) {
 				if (event.type !== "click" || event.button !== "left" || event.y !== 0) return undefined;
 				if (event.shift || event.alt || event.ctrl) return undefined;
@@ -4095,7 +4095,7 @@ export function renderWidget(
 		ctx.ui.setWidget(WIDGET_KEY, encodeAsyncStatusSnapshotWidget(jobs));
 		return;
 	}
-	// Pi replaces a widget by deleting and reinserting its key. Update the mounted
+	// evoharness replaces a widget by deleting and reinserting its key. Update the mounted
 	// component instead so progress cannot move it past other extensions' widgets.
 	const update = asyncWidgetUpdates.get(ctx.ui);
 	if (update) update(jobs);

@@ -10,7 +10,7 @@ const requests = Array.isArray(input) ? input : [{ params: input, policy }];
 const results = [];
 for (const request of requests) {
 	const state = { baseCwd: cwd, currentSessionId: null, asyncJobs: new Map(), foregroundControls: new Map(), lastForegroundControlId: null };
-	const executor = createSubagentExecutor({ pi: { events: createEventBus(), getSessionName: () => undefined }, state, config: { authorityPolicy: { steerRun: request.policy ?? policy } }, asyncByDefault: false, tempArtifactsDir: cwd, getSubagentSessionRoot: () => cwd, expandTilde: p => p, discoverAgents: () => ({ agents: [] }), kill: () => { throw new Error("foreign steering must not probe/kill an owner"); } });
+	const executor = createSubagentExecutor({ evoharness: { events: createEventBus(), getSessionName: () => undefined }, state, config: { authorityPolicy: { steerRun: request.policy ?? policy } }, asyncByDefault: false, tempArtifactsDir: cwd, getSubagentSessionRoot: () => cwd, expandTilde: p => p, discoverAgents: () => ({ agents: [] }), kill: () => { throw new Error("foreign steering must not probe/kill an owner"); } });
 	const ctx = makeMinimalCtx(cwd);
 	ctx.sessionManager.getSessionFile = () => sessionFile;
 	ctx.sessionManager.getSessionId = () => "different-runtime-id-in-caller";

@@ -154,11 +154,11 @@ import { finalizeToolResult } from "./tool-result.ts";
 import { showUpgradeNotice } from "./upgrade-notice.ts";
 
 const SLOW_RELOAD_PHASE_MS = 250;
-// Long enough for Pi to finish starting; loading the executor blocks the event loop for tens of ms.
+// Long enough for evoharness to finish starting; loading the executor blocks the event loop for tens of ms.
 const MODULE_PRELOAD_DELAY_MS = 1_000;
 const COMPACTION_RESUME_POLL_MS = 50;
 const COMPACTION_RESUME_DEADLINE_MS = 10_000;
-const RUNTIME_REGISTRY_STORE_KEY = "__piSubagentRuntimeRegistry";
+const RUNTIME_REGISTRY_STORE_KEY = "__subagentRuntimeRegistry";
 
 type SubagentExecutorModule = typeof import("../runs/foreground/subagent-executor.ts");
 type SubagentExecutor = ReturnType<SubagentExecutorModule["createSubagentExecutor"]>;
@@ -221,7 +221,7 @@ function getSubagentSessionRoot(parentSessionFile: string | null): string {
 		const sessionsDir = path.dirname(parentSessionFile);
 		return path.join(sessionsDir, baseName);
 	}
-	return fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-session-"));
+	return fs.mkdtempSync(path.join(os.tmpdir(), "subagent-session-"));
 }
 
 function expandTilde(p: string): string {
@@ -342,19 +342,19 @@ export function projectActiveHerdrRuns(state: SubagentState): HerdrStatusRun[] {
 		});
 }
 
-export default function registerSubagentExtension(pi: ExtensionAPI): void {
+export default function registerSubagentExtension(evoharness: ExtensionAPI): void {
 	if (process.env[SUBAGENT_CHILD_ENV] === "1") {
 		return;
 	}
 	const runtimeRegistry = getRuntimeRegistry();
-	setMainThinkingLevelSource(() => readMainThinkingLevel(() => pi.getThinkingLevel()));
+	setMainThinkingLevelSource(() => readMainThinkingLevel(() => evoharness.getThinkingLevel()));
 
 	DIRS.results = ensureAccessibleDir(DIRS.results);
 	DIRS.async = ensureAccessibleDir(DIRS.async);
 	cleanupOldChainDirs();
 
 	const config = loadConfig();
-	setDeclarationPinning(pi, config.pinToolDeclarations !== false);
+	setDeclarationPinning(evoharness, config.pinToolDeclarations !== false);
 	const waitToolConfig = resolveWaitToolConfig(config.waitTool);
 	const asyncByDefault = resolveAsyncByDefault(config);
 	const fleetViewEnabled = config.fleetView !== false;
@@ -423,21 +423,21 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 	};
 
 	// Every notice that wakes the parent goes through parentWake; the watchdog wakes only inside a run.
-	const parentWake = createParentWake(pi);
+	const parentWake = createParentWake(evoharness);
 	const wakingPi = {
-		events: pi.events,
+		events: evoharness.events,
 		sendMessage: parentWake.sendMessage,
 		isHeld: parentWake.isHeld,
-		on: pi.on,
-		appendEntry: (customType: string, data?: unknown) => pi.appendEntry(customType, data),
+		on: evoharness.on,
+		appendEntry: (customType: string, data?: unknown) => evoharness.appendEntry(customType, data),
 	};
-	const supervisorChannel = createNativeSupervisorChannel(pi, state, {
+	const supervisorChannel = createNativeSupervisorChannel(evoharness, state, {
 		// Owner states are created only by scheduled execution, which loads the executor first.
 		getCurrentOwnerStates: () => executor?.getCurrentSupervisorOwnerStates() ?? [],
 		parentWake,
 	});
 	const waitSubscriptionManager = createWaitSubscriptionManager(wakingPi, state);
-	const mainWatchdog = registerMainWatchdog(pi, { slashCommand: slashCommandsEnabled });
+	const mainWatchdog = registerMainWatchdog(evoharness, { slashCommand: slashCommandsEnabled });
 	const resultDeliveryOwnership = createResultDeliveryOwnership(state);
 	const completionNotifier = registerSubagentNotify(wakingPi, state, {
 		batchConfig: config.completionBatch,
@@ -471,7 +471,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 							asyncDirRoot: DIRS.async,
 							resultsDir: DIRS.results,
 							fleetKeybindings: config.fleetKeybindings,
-							inspectorPlugins: () => getInspectorPlugins(pi),
+							inspectorPlugins: () => getInspectorPlugins(evoharness),
 						});
 					} catch (error) {
 						if (isStaleExtensionContextError(error)) {
@@ -565,7 +565,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		preferredModelProvider?: string,
 		options: { projectTrusted?: boolean } = {},
 	) => {
-		if (listRuntimeAgentConfigs(pi).length === 0)
+		if (listRuntimeAgentConfigs(evoharness).length === 0)
 			return discoverAgents(cwd, scope, preferredModelProvider, {
 				globalNpmRoot: globalRoot,
 				projectTrusted: options.projectTrusted,
@@ -579,7 +579,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		const all = snapshot.all;
 		const configuredAgents: AgentConfig[] = [...all.builtin, ...all.package, ...all.user, ...all.project];
 		// Runtime agents take model settings from the scope discovery actually used.
-		const merged = mergeRuntimeAgents(pi, discovered, configuredAgents, {
+		const merged = mergeRuntimeAgents(evoharness, discovered, configuredAgents, {
 			cwd,
 			scope: discovered.scope,
 			preferredModelProvider,
@@ -607,7 +607,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		resetJobs,
 		restoreActiveJobs,
 		dispose: disposeAsyncJobTracker,
-	} = createAsyncJobTracker(pi, state, DIRS.async, {
+	} = createAsyncJobTracker(evoharness, state, DIRS.async, {
 		widgetEnabled: asyncWidgetEnabled,
 		widgetCollapsed: asyncWidgetCollapsed,
 		widgetLayout: asyncWidgetLayout,
@@ -620,7 +620,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		supervisorRequestState: supervisorChannel.getSupervisorRequestState,
 		onJobsChanged: programStatus.sync,
 	});
-	const resultWatcher = createResultWatcher(pi, state, DIRS.results, 10 * 60 * 1000, {
+	const resultWatcher = createResultWatcher(evoharness, state, DIRS.results, 10 * 60 * 1000, {
 		notifier: completionNotifier,
 		ownership: resultDeliveryOwnership,
 		onResultDelivered: (runId) => {
@@ -671,7 +671,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 	};
 
 	const executorDeps: SubagentExecutorDeps = {
-		pi,
+		evoharness,
 		parentWake,
 		state,
 		config,
@@ -709,9 +709,9 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		});
 		return executorPromise;
 	};
-	// Loading these on first use could happen days after startup, when pi-subagents may have
+	// Loading these on first use could happen days after startup, when subagents may have
 	// changed on disk and the new files would import stale cached copies of modules loaded at
-	// startup. Load them shortly after a session starts instead, off Pi's startup path; child
+	// startup. Load them shortly after a session starts instead, off evoharness's startup path; child
 	// runtimes return before registration and never schedule this.
 	let modulePreloadTimer: ReturnType<typeof setTimeout> | undefined;
 	const scheduleModulePreload = () => {
@@ -724,9 +724,10 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		modulePreloadTimer.unref?.();
 	};
 
-	for (const customType of SUBAGENT_MESSAGE_TYPES) pi.registerMessageRenderer(customType, renderSubagentMessage);
+	for (const customType of SUBAGENT_MESSAGE_TYPES)
+		evoharness.registerMessageRenderer(customType, renderSubagentMessage);
 	const registerEntryRenderer = (
-		pi as unknown as {
+		evoharness as unknown as {
 			registerEntryRenderer?: (
 				customType: string,
 				renderer: (
@@ -738,10 +739,11 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		}
 	).registerEntryRenderer;
 	if (typeof registerEntryRenderer === "function") {
-		for (const customType of SUBAGENT_ENTRY_TYPES) registerEntryRenderer.call(pi, customType, renderSubagentEntry);
+		for (const customType of SUBAGENT_ENTRY_TYPES)
+			registerEntryRenderer.call(evoharness, customType, renderSubagentEntry);
 	}
 
-	pi.registerMessageRenderer<SlashMessageDetails>(SLASH_RESULT_TYPE, (message, options, theme) => {
+	evoharness.registerMessageRenderer<SlashMessageDetails>(SLASH_RESULT_TYPE, (message, options, theme) => {
 		const details = resolveSlashMessageDetails(message.details);
 		if (!details) return undefined;
 		return createSlashResultComponent(
@@ -754,10 +756,10 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		);
 	});
 
-	// Pi sends custom messages to the model as plain user messages, so every model-visible
-	// pi-subagents message is wrapped in a marker naming its source. The marker depends only on
+	// evoharness sends custom messages to the model as plain user messages, so every model-visible
+	// subagents message is wrapped in a marker naming its source. The marker depends only on
 	// the message, so history renders the same bytes every turn and cached prefixes stay valid.
-	// It runs on context_with_system, not context: Pi treats any change a context handler makes
+	// It runs on context_with_system, not context: evoharness treats any change a context handler makes
 	// to the message list as a rewritten conversation and folds every mid-conversation system
 	// message into the leading one, which misses the prompt cache on every later turn.
 	const markedMessageTypes = new Set([
@@ -767,7 +769,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		SLASH_TEXT_RESULT_TYPE,
 		ADMIN_MESSAGE_TYPE,
 	]);
-	pi.on("context_with_system", (event) => {
+	evoharness.on("context_with_system", (event) => {
 		const messages: typeof event.messages = [];
 		for (const message of event.messages) {
 			if (message.role !== "custom" || !markedMessageTypes.has(message.customType)) {
@@ -781,8 +783,8 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 				(message.details as { viewOnly?: unknown } | undefined)?.viewOnly === true
 			)
 				continue;
-			const open = `<pi_subagents_notice type="${message.customType}" origin="automated message from the pi-subagents extension, not typed by the user">`;
-			const close = "</pi_subagents_notice>";
+			const open = `<subagents_notice type="${message.customType}" origin="automated message from the subagents extension, not typed by the user">`;
+			const close = "</subagents_notice>";
 			messages.push({
 				...message,
 				content:
@@ -794,7 +796,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		return { messages };
 	});
 
-	pi.registerMessageRenderer<undefined>(SLASH_TEXT_RESULT_TYPE, (message, _options, _theme) => {
+	evoharness.registerMessageRenderer<undefined>(SLASH_TEXT_RESULT_TYPE, (message, _options, _theme) => {
 		const content =
 			typeof message.content === "string"
 				? message.content
@@ -818,7 +820,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 	// Names this runtime's planned auto-resumes in the process-global registry.
 	const autoResumeOwner = {};
 	const postAutoResumeFailure = (sourceRunId: string, refusal: Parameters<typeof autoResumeFailureText>[1]) => {
-		pi.sendMessage(
+		evoharness.sendMessage(
 			{
 				customType: WORKFLOW_AUTO_RESUME_MESSAGE_TYPE,
 				content: autoResumeFailureText(sourceRunId, refusal),
@@ -848,7 +850,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 			// A run launched by a runtime that was cleaned up meanwhile would keep running through its stale context.
 			if (outcome.launched && runtimeCleaned)
 				state.workflowControllers?.get(prepared.newRunId)?.abort(runtimeReplacedAbortReason());
-			// A cleaned-up runtime's pi can no longer post; the refusal stays in the run for its notice.
+			// A cleaned-up runtime's evoharness can no longer post; the refusal stays in the run for its notice.
 			if (outcome.launched || runtimeCleaned) return;
 			try {
 				postAutoResumeFailure(prepared.sourceRunId, outcome.refusal);
@@ -892,13 +894,13 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 	};
 
 	const slashBridge = registerSlashSubagentBridge({
-		events: pi.events,
+		events: evoharness.events,
 		getContext: () => state.lastUiContext,
 		execute: (id, params, signal, onUpdate, ctx) => executeSubagentCollapsed(id, params, signal, onUpdate, ctx),
 	});
 
 	const promptTemplateBridge = registerPromptTemplateDelegationBridge({
-		events: pi.events,
+		events: evoharness.events,
 		getContext: () => state.lastUiContext,
 		execute: (requestId, params, signal, ctx, onUpdate) =>
 			executeSubagentCollapsed(requestId, params, signal, onUpdate, ctx),
@@ -911,7 +913,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 
 	const disabledFeatures = resolveDisabledFeatureSurface(config);
 	const rpcBridge = registerSubagentRpcBridge({
-		events: pi.events,
+		events: evoharness.events,
 		getContext: () => state.lastUiContext,
 		execute: executeSubagentReady,
 		state,
@@ -973,15 +975,15 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		},
 	};
 
-	registerPinnedTool(pi, tool);
+	registerPinnedTool(evoharness, tool);
 	// Declared with the same definition children use, so a fork's tool list equals this session's.
-	registerPinnedTool(pi, topLevelSupervisorTool());
+	registerPinnedTool(evoharness, topLevelSupervisorTool());
 
-	pi.on("before_agent_start", async (event, ctx) => {
+	evoharness.on("before_agent_start", async (event, ctx) => {
 		await waitForAdvertisement();
 		const sessionId = state.currentSessionId ?? resolveCurrentSessionId(ctx.sessionManager);
-		// Structured sections let Pi append a transcript delta instead of replacing the
-		// cached system prompt. Set the section on every turn it applies: Pi rebuilds the
+		// Structured sections let evoharness append a transcript delta instead of replacing the
+		// cached system prompt. Set the section on every turn it applies: evoharness rebuilds the
 		// options each turn, and an unset turn records a removal.
 		// Active runs are listed even when only subagents_enable is selected, e.g. runs re-adopted after a resume.
 		const activeRuns =
@@ -991,13 +993,13 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		const catalog = buildAdvertisedAgentCatalog(
 			advertisedAgents,
 			resolveCurrentSubagentCapabilityCeiling(ctx.sessionManager.getSessionId() ?? undefined),
-			recordedPromptSection(pi, "advertised_subagents"),
+			recordedPromptSection(evoharness, "advertised_subagents"),
 		);
 		if (catalog) event.systemPromptOptions.sections.advertised_subagents = catalog;
 	});
 
 	registerWaitTool(
-		pi,
+		evoharness,
 		state,
 		waitToolConfig.enabled,
 		waitSubscriptionManager,
@@ -1006,10 +1008,10 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		supervisorChannel.hasPendingRequests,
 	);
 
-	pi.on("agent_end", async (_event, ctx) => {
+	evoharness.on("agent_end", async (_event, ctx) => {
 		try {
 			// The run is still active here, so its signal tells a user stop (Esc) apart from a finished or failed run.
-			// Pi skips agent_before_settle after an abort. Background runs keep going, but they must not restart the parent.
+			// evoharness skips agent_before_settle after an abort. Background runs keep going, but they must not restart the parent.
 			if (ctx.hasUI && ctx.signal?.aborted) {
 				parentWake.userAborted();
 				const active = activeAsyncJobCount();
@@ -1020,12 +1022,12 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 					);
 			}
 			// A headless host may dispose the session as soon as this turn settles, so hand
-			// finished results to Pi now; Pi runs the queued completion turn after agent_end.
+			// finished results to evoharness now; evoharness runs the queued completion turn after agent_end.
 			// A failed drain rejects without this step so its deadline stays exact.
 			if (!ctx.hasUI)
 				await drainOutstandingWork({
 					state,
-					events: pi.events,
+					events: evoharness.events,
 					hasPendingSupervisorRequest: supervisorChannel.hasPendingRequests,
 				}).then(resultWatcher.deliverPendingResults);
 		} finally {
@@ -1046,7 +1048,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 						turnId: goalTurnId,
 					})) {
 						handleSubagentControlNotice({
-							pi: parentWake,
+							evoharness: parentWake,
 							state,
 							visibleControlNotices: new Set(),
 							details: { source: "goal", event: notice.event, noticeText: notice.message },
@@ -1060,7 +1062,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 	});
 
 	const disposeSlashCommands = slashCommandsEnabled
-		? registerSlashCommands(pi, state, {
+		? registerSlashCommands(evoharness, state, {
 				fleetKeybindings: config.fleetKeybindings,
 				foregroundDetachShortcut,
 				workflowScriptsDisabled: disabledFeatures.features.has("workflow-scripts"),
@@ -1070,24 +1072,28 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 	let visibleControlNotices = new Set<string>();
 	const activeHerdrRuns = () => projectActiveHerdrRuns(state);
 	const herdrStatusBridge = registerHerdrStatusBridge({
-		events: pi.events,
+		events: evoharness.events,
 		getRuns: activeHerdrRuns,
 		getProjectPaneCount: () =>
 			[...(state.herdrProjectPanes?.values() ?? [])].filter((pane) => pane.state === "open").length,
 		async runHerdr(args) {
-			await pi.exec(process.env.HERDR_BIN || "herdr", [...args], { timeout: 5_000 });
+			await evoharness.exec(process.env.HERDR_BIN || "herdr", [...args], { timeout: 5_000 });
 		},
 	});
 	const controlEventHandler = (payload: unknown) => {
 		handleSubagentControlNotice({
-			pi: parentWake,
+			evoharness: parentWake,
 			state,
 			visibleControlNotices,
 			details: payload as SubagentControlMessageDetails,
 		});
 	};
 	const steeringNoticeHandler = (payload: unknown) => {
-		handleSubagentSteeringNotice({ pi: parentWake, state, details: payload as SubagentSteeringMessageDetails });
+		handleSubagentSteeringNotice({
+			evoharness: parentWake,
+			state,
+			details: payload as SubagentSteeringMessageDetails,
+		});
 	};
 	const asyncStartedHandler = (payload: unknown) => {
 		handleStarted(payload);
@@ -1113,21 +1119,21 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		fleetStatus?.refresh();
 	};
 	const eventUnsubscribes = [
-		registerRuntimeAgentEventListener(pi),
-		registerInspectorEventListener(pi),
-		pi.events.on(SUBAGENT_ASYNC_STARTED_EVENT, asyncStartedHandler),
-		pi.events.on(SUBAGENT_ASYNC_COMPLETE_EVENT, asyncCompleteHandler),
-		pi.events.on(SUBAGENT_PROCESS_TERMINAL_EVENT, () => {
+		registerRuntimeAgentEventListener(evoharness),
+		registerInspectorEventListener(evoharness),
+		evoharness.events.on(SUBAGENT_ASYNC_STARTED_EVENT, asyncStartedHandler),
+		evoharness.events.on(SUBAGENT_ASYNC_COMPLETE_EVENT, asyncCompleteHandler),
+		evoharness.events.on(SUBAGENT_PROCESS_TERMINAL_EVENT, () => {
 			refreshActiveAsyncCapacity();
 			fleetStatus?.refresh();
 		}),
-		pi.events.on(SUBAGENT_CONTROL_EVENT, controlEventHandler),
-		pi.events.on(SUBAGENT_STEERING_NOTICE_EVENT, steeringNoticeHandler),
+		evoharness.events.on(SUBAGENT_CONTROL_EVENT, controlEventHandler),
+		evoharness.events.on(SUBAGENT_STEERING_NOTICE_EVENT, steeringNoticeHandler),
 		herdrStatusBridge.dispose,
 		rpcBridge.dispose,
 	];
 
-	pi.on("tool_result", (event, ctx) => {
+	evoharness.on("tool_result", (event, ctx) => {
 		if (event.toolName !== "subagent") return;
 		if (!ctx.hasUI) return;
 		state.lastUiContext = ctx;
@@ -1191,7 +1197,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		state.baseCwd = ctx.cwd;
 		goalTurnId = 0;
 		state.currentSessionId = resolveCurrentSessionId(ctx.sessionManager);
-		// Pi passes previousSessionFile only for new/resume/fork, after tearing that session down in this process.
+		// evoharness passes previousSessionFile only for new/resume/fork, after tearing that session down in this process.
 		if (previousSessionFile) recordSessionReplacement(state.currentSessionId, previousSessionFile);
 		state.supervisorOwnerSessionId = ctx.sessionManager.getSessionId() || null;
 		transitionResultDelivery();
@@ -1241,7 +1247,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		resetJobs(ctx);
 		logSlowPhase("reset-jobs", phaseStartedAt);
 		phaseStartedAt = Date.now();
-		// Runs other sessions in this folder left when their Pi died, from what this restore reads anyway.
+		// Runs other sessions in this folder left when their evoharness died, from what this restore reads anyway.
 		const interruptedElsewhere = ctx.hasUI
 			? createInterruptedElsewhereCollector({
 					currentSessionId: state.currentSessionId,
@@ -1323,7 +1329,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 			}
 			state.workflowControllers?.clear();
 			state.workflowChildStops?.clear();
-			clearRuntimeAgentsForPi(pi);
+			clearRuntimeAgentsForPi(evoharness);
 			if (resultIndexCleanupTimer) clearTimeout(resultIndexCleanupTimer);
 			resultIndexCleanupTimer = undefined;
 			if (asyncRetentionTimer) clearTimeout(asyncRetentionTimer);
@@ -1381,7 +1387,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 
 	const installRuntime = (ctx: ExtensionContext) => {
 		if (runtimeCleaned) {
-			throw new Error("Cannot restart a cleaned pi-subagents extension runtime; register a new extension instance.");
+			throw new Error("Cannot restart a cleaned subagents extension runtime; register a new extension instance.");
 		}
 		const sessionManager = ctx.sessionManager as object;
 		const previousRuntime = runtimeRegistry.bySessionManager.get(sessionManager);
@@ -1417,7 +1423,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		compactionResumeTimer = undefined;
 	};
 
-	pi.on("agent_start", () => {
+	evoharness.on("agent_start", () => {
 		cancelCompactionResume();
 		parentWake.agentStarted();
 		resumeWidgetsAfterCompaction();
@@ -1425,26 +1431,26 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		programStatus.agentStarted();
 	});
 
-	pi.on("message_start", (event) => {
-		// Pi also compacts between turns of a running loop, with no agent_start after it. A message
+	evoharness.on("message_start", (event) => {
+		// evoharness also compacts between turns of a running loop, with no agent_start after it. A message
 		// starts only once that compaction has finished and its status indicator is cleared.
 		resumeWidgetsAfterCompaction();
 		completionNotifier.messageStarted(event.message);
 	});
 
-	pi.on("agent_settled", () => {
+	evoharness.on("agent_settled", () => {
 		resumeWidgetsAfterCompaction();
 		programStatus.agentSettled();
 	});
 
-	pi.on("session_before_compact", (event) => {
+	evoharness.on("session_before_compact", (event) => {
 		if (event.reason !== "manual") suspendWidgetsForCompaction();
 	});
 
-	// Pi emits session_compact before it clears its compaction state. sendMessage's run path has no
+	// evoharness emits session_compact before it clears its compaction state. sendMessage's run path has no
 	// compaction guard (only prompt() refuses), so wait for the parent to go idle before the resume notice
 	// starts a run. A run that starts first cancels the pending resume.
-	pi.on("session_compact", (event) => {
+	evoharness.on("session_compact", (event) => {
 		if (event.reason !== "manual") return;
 		if (activeAsyncJobCount() === 0 || !withLastUiContext(() => true)) return;
 		cancelCompactionResume();
@@ -1458,7 +1464,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 				if (Date.now() < deadline) compactionResumeTimer = setTimeout(resumeWhenIdle, COMPACTION_RESUME_POLL_MS);
 				return;
 			}
-			// Pi's compact() aborts a live run first, which set the user-abort hold; this resume is deliberate.
+			// evoharness's compact() aborts a live run first, which set the user-abort hold; this resume is deliberate.
 			parentWake.releaseHold();
 			parentWake.sendMessage(
 				{
@@ -1473,7 +1479,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		compactionResumeTimer = setTimeout(resumeWhenIdle, COMPACTION_RESUME_POLL_MS);
 	});
 
-	pi.on("session_start", (event, ctx) => {
+	evoharness.on("session_start", (event, ctx) => {
 		parentWake.bindSession(ctx);
 		completionNotifier.bindSession(ctx.sessionManager);
 		installRuntime(ctx);
@@ -1510,7 +1516,7 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 		supervisorChannel.activateTransport();
 	});
 
-	pi.on("session_shutdown", async (event) => {
+	evoharness.on("session_shutdown", async (event) => {
 		cancelCompactionResume();
 		completionNotifier.sessionShutdown(event?.reason);
 		parentWake.sessionShutdown(event?.reason);
@@ -1524,16 +1530,16 @@ export default function registerSubagentExtension(pi: ExtensionAPI): void {
 	});
 
 	// Child processes and Herdr panes never load this module; in-process children have no UI.
-	pi.on(
+	evoharness.on(
 		"session_start",
 		(_event, ctx) =>
 			void showUpgradeNotice(ctx).catch((error) =>
-				console.error("Failed to show the pi-subagents upgrade notice:", error),
+				console.error("Failed to show the subagents upgrade notice:", error),
 			),
 	);
-	pi.on("session_start", (_event, ctx) => beginAdvertisement(ctx));
+	evoharness.on("session_start", (_event, ctx) => beginAdvertisement(ctx));
 
-	registerSubagentToolActivation(pi, {
+	registerSubagentToolActivation(evoharness, {
 		mode: config.toolActivation,
 		// The channel's session_start poll already declared the reply tool for these; the replay must not drop it.
 		hasPendingSupervisorRequest: () =>

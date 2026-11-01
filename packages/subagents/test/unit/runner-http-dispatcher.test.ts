@@ -19,7 +19,7 @@ function fixture(settings: { global?: unknown; project?: unknown; globalRaw?: st
 	agentDir: string;
 	cwd: string;
 } {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-http-idle-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-http-idle-"));
 	roots.push(root);
 	const agentDir = path.join(root, "agent");
 	const cwd = path.join(root, "work");
@@ -36,7 +36,7 @@ after(() => {
 	for (const root of roots) fs.rmSync(root, { recursive: true, force: true });
 });
 
-describe("parseHttpIdleTimeoutMs mirrors Pi", () => {
+describe("parseHttpIdleTimeoutMs mirrors evoharness", () => {
 	it("floors numbers, accepts numeric strings, treats disabled as 0", () => {
 		assert.equal(parseHttpIdleTimeoutMs(1200.9), 1200);
 		assert.equal(parseHttpIdleTimeoutMs(" 900000 "), 900000);
@@ -51,7 +51,7 @@ describe("parseHttpIdleTimeoutMs mirrors Pi", () => {
 });
 
 describe("resolveHttpIdleTimeoutMs", () => {
-	it("defaults to Pi's 300s when no settings file sets it", () => {
+	it("defaults to evoharness's 300s when no settings file sets it", () => {
 		assert.deepEqual(resolveHttpIdleTimeoutMs(fixture({ global: { theme: "dark" } })), {
 			timeoutMs: DEFAULT_HTTP_IDLE_TIMEOUT_MS,
 			source: "default",
@@ -162,7 +162,7 @@ describe("runner dispatcher honours the resolved idle timeout", () => {
 		});
 	});
 
-	it("keeps the proxy-aware shape and connection attempt timeout of Pi's dispatcher", () => {
+	it("keeps the proxy-aware shape and connection attempt timeout of evoharness's dispatcher", () => {
 		assert.deepEqual(runnerHttpDispatcherOptions(42), {
 			allowH2: false,
 			proxyTunnel: true,

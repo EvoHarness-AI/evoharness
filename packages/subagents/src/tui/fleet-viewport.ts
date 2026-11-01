@@ -1,6 +1,6 @@
 import { type Component, ScrollView } from "@evoharness/tui";
 
-/** Overlay-local clipping: ordinary overlays do not enter Pi's scroll layout traversal. */
+/** Overlay-local clipping: ordinary overlays do not enter evoharness's scroll layout traversal. */
 export class FleetViewport {
 	private readonly body: Component & { lines: string[] } = {
 		lines: [],

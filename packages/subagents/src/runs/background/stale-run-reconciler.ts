@@ -356,7 +356,7 @@ function buildFailedRepair(
 ): { status: AsyncStatus; result: Record<string, unknown>; message: string } {
 	const runId = status.runId || path.basename(asyncDir);
 	const pid = typeof status.pid === "number" ? status.pid : "unknown";
-	// A dead workflow host is the Pi process itself; its journal keeps the finished children for a relaunch.
+	// A dead workflow host is the evoharness process itself; its journal keeps the finished children for a relaunch.
 	const exitedWorkflow = ownerExited && status.mode === "workflow" ? status.workflow : undefined;
 	// Its owner process is dead, so nothing else can deliver its notice: an owning session that repairs it
 	// adopts it, and a repair elsewhere leaves it to whichever session owns the run.
@@ -378,7 +378,7 @@ function buildFailedRepair(
 	const baseMessage =
 		reason ??
 		(exitedWorkflow
-			? `The Pi process (PID ${pid}) that ran workflow ${runId} exited before the workflow finished. Marked run failed by stale-run reconciliation. Its finished children are kept.`
+			? `The evoharness process (PID ${pid}) that ran workflow ${runId} exited before the workflow finished. Marked run failed by stale-run reconciliation. Its finished children are kept.`
 			: `Async runner process ${pid} ${exitText} before writing a result. Marked run failed by stale-run reconciliation.`);
 	const diagnostics = readRunnerStartupDiagnostics(asyncDir);
 	const message = diagnostics ? `${baseMessage}\n\nRunner stderr tail:\n${diagnostics}` : baseMessage;

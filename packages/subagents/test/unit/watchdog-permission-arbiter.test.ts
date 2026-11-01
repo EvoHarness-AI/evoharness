@@ -134,7 +134,7 @@ describe("watchdog permission arbiter", () => {
 		assert.deepEqual(calls[0]?.messages[0], {
 			role: "system",
 			content: [
-				"You are the pi-subagents watchdog permission arbiter.",
+				"You are the subagents watchdog permission arbiter.",
 				"Decide only whether this exact non-bash child tool call should proceed.",
 				"Call watchdog_permission_decision exactly once with approve or deny and a concise reason.",
 				"Deny when uncertain. Do not produce freeform advice or ask the parent orchestrator.",

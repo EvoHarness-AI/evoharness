@@ -9,10 +9,10 @@ import { buildRunnerChildLaunch } from "../../src/runs/background/runner-child-l
 import { buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
 import {
 	type ChildSessionLaunch,
+	type CodingAgentModule,
 	createDefaultChildSessionFactory,
-	type PiCodingAgentModule,
 } from "../../src/runs/shared/child-session.ts";
-import { resolvePiLaunchToolPlan } from "../../src/runs/shared/child-tool-plan.ts";
+import { resolveHostLaunchToolPlan } from "../../src/runs/shared/child-tool-plan.ts";
 import {
 	assertRequiredChildExtensionsAdmitted,
 	resolveRequiredChildExtensions,
@@ -20,7 +20,7 @@ import {
 } from "../../src/shared/required-child-extensions.ts";
 
 function fixture() {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-required-ext-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-required-ext-"));
 	const file = path.join(dir, "required.mjs");
 	fs.writeFileSync(file, "export default () => {};\n");
 	return { dir, file };
@@ -40,16 +40,16 @@ function baseInput(sessionId: string) {
 	};
 }
 
-/** Expects the child session to be refused with `pi` and EVOHARNESS_CODING_AGENT_DIR=`agentDir`; then restores the variable and removes `dir`. */
+/** Expects the child session to be refused with `evoharness` and EVOHARNESS_CODING_AGENT_DIR=`agentDir`; then restores the variable and removes `dir`. */
 async function rejectsChildCreate(
 	dir: string,
 	agentDir: string,
-	pi: PiCodingAgentModule,
+	evoharness: CodingAgentModule,
 	session: ChildSessionLaunch,
 	expected: RegExp,
 ): Promise<void> {
 	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
-	const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+	const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 	try {
 		await assert.rejects(() => factory.create(session), expected);
@@ -109,7 +109,7 @@ describe("required child extension host policy", () => {
 	it("fails closed when the capability ceiling denies a nonempty required set", () => {
 		assert.throws(
 			() =>
-				resolvePiLaunchToolPlan({
+				resolveHostLaunchToolPlan({
 					requiredExtensions: [{ id: "required", path: "/tmp/required.mjs" }],
 					capabilityCeiling: { version: 1, denyExtensions: true, sources: ["host-test"] },
 				}),
@@ -221,8 +221,8 @@ describe("ordinary extension failures next to required child extensions", () => 
 							{ sessionEnabled: false, watchdogStatus() {} },
 						);
 			let errors: string[] = [];
-			// SAFETY: real Pi resource loading stops at createAgentSession; no other SDK members are used.
-			const pi = {
+			// SAFETY: real evoharness resource loading stops at createAgentSession; no other SDK members are used.
+			const evoharness = {
 				ModelRuntime: { create: async () => ({}) },
 				SettingsManager,
 				DefaultResourceLoader,
@@ -231,8 +231,8 @@ describe("ordinary extension failures next to required child extensions", () => 
 					errors = resourceLoader.getExtensions().errors.map(({ path }) => path);
 					throw new Error("reached session creation");
 				},
-			} as PiCodingAgentModule;
-			await rejectsChildCreate(dir, agentDir, pi, launch.session, /reached session creation/);
+			} as CodingAgentModule;
+			await rejectsChildCreate(dir, agentDir, evoharness, launch.session, /reached session creation/);
 			assert.deepEqual(errors, [failure === "broken ambient" ? broken : missing]);
 		});
 	}
@@ -244,22 +244,22 @@ describe("aliased required child extension failures", () => {
 			["load", "throw new Error('load failed');", /Required child extension failed to load:.*load failed/],
 			[
 				"provider",
-				"pi.registerProvider('bad', {});",
+				"evoharness.registerProvider('bad', {});",
 				/Required child extension provider registration failed.*bad provider/,
 			],
 			[
 				"native provider",
-				"pi.registerProvider({ id: 'bad' });",
+				"evoharness.registerProvider({ id: 'bad' });",
 				/Required child extension provider registration failed.*bad provider/,
 			],
 			[
 				"virtual model",
-				"pi.registerVirtualModel({ provider: 'bad', id: 'bad', route() {} });",
+				"evoharness.registerVirtualModel({ provider: 'bad', id: 'bad', route() {} });",
 				/Required child extension virtual model registration failed.*bad provider/,
 			],
 			[
 				"startup",
-				"pi.on('session_start', () => { throw new Error('startup failed'); });",
+				"evoharness.on('session_start', () => { throw new Error('startup failed'); });",
 				/Required child extension failed during startup:.*startup failed/,
 			],
 		] as const) {
@@ -269,7 +269,7 @@ describe("aliased required child extension failures", () => {
 				const aliasDir = path.join(dir, "alias");
 				fs.mkdirSync(agentDir);
 				fs.symlinkSync(dir, aliasDir, "junction");
-				fs.writeFileSync(file, `export default (pi) => { ${source} };\n`);
+				fs.writeFileSync(file, `export default (evoharness) => { ${source} };\n`);
 				const alias = path.join(aliasDir, "required.mjs");
 				const input = {
 					cwd: dir,
@@ -288,8 +288,8 @@ describe("aliased required child extension failures", () => {
 								{ sessionEnabled: false, watchdogStatus() {} },
 							);
 				let disposed = false;
-				// SAFETY: real Pi loading supplies errors/queues; only model registration and session binding are scripted.
-				const pi = {
+				// SAFETY: real evoharness loading supplies errors/queues; only model registration and session binding are scripted.
+				const evoharness = {
 					ModelRuntime: {
 						create: async () => ({
 							registerProvider() {
@@ -335,8 +335,8 @@ describe("aliased required child extension failures", () => {
 							extensionRunner: { hasHandlers: () => false },
 						},
 					}),
-				} as PiCodingAgentModule;
-				await rejectsChildCreate(dir, agentDir, pi, launch.session, expected);
+				} as CodingAgentModule;
+				await rejectsChildCreate(dir, agentDir, evoharness, launch.session, expected);
 				assert.equal(disposed, failure === "startup");
 			});
 		}
@@ -354,7 +354,7 @@ describe("required child extension loaded identities", () => {
 			"Unicode alias loaded",
 			"repeated entries",
 		]) {
-			it(`checks ${scenario} using Pi's loaded identity in the ${host} loader`, async () => {
+			it(`checks ${scenario} using evoharness's loaded identity in the ${host} loader`, async () => {
 				const dir = fs.realpathSync(fixture().dir);
 				const agentDir = path.join(dir, "agent");
 				const realDir = path.join(dir, "real");
@@ -384,13 +384,13 @@ describe("required child extension loaded identities", () => {
 						: scenario === "load failure"
 							? "throw new Error('load failed');"
 							: scenario === "provider failure"
-								? "pi.registerProvider('bad', {});"
+								? "evoharness.registerProvider('bad', {});"
 								: scenario === "startup failure"
-									? "pi.on('session_start', () => { throw new Error('startup failed'); });"
+									? "evoharness.on('session_start', () => { throw new Error('startup failed'); });"
 									: "";
 				fs.writeFileSync(
 					requiredFile,
-					`import fs from 'node:fs'; export default (pi) => { fs.writeFileSync(${JSON.stringify(marker)}, 'x'); ${action} };\n`,
+					`import fs from 'node:fs'; export default (evoharness) => { fs.writeFileSync(${JSON.stringify(marker)}, 'x'); ${action} };\n`,
 				);
 				const ordinary = path.join(dir, "ordinary.mjs");
 				fs.writeFileSync(ordinary, "export default () => {};\n");
@@ -418,8 +418,8 @@ describe("required child extension loaded identities", () => {
 								{ sessionEnabled: false, watchdogStatus() {} },
 							);
 				let disposed = false;
-				// SAFETY: Pi supplies real loaded paths and queues; session binding only invokes its loaded startup handlers.
-				const pi = {
+				// SAFETY: evoharness supplies real loaded paths and queues; session binding only invokes its loaded startup handlers.
+				const evoharness = {
 					ModelRuntime: {
 						create: async () => ({
 							registerProvider() {
@@ -463,7 +463,7 @@ describe("required child extension loaded identities", () => {
 							},
 						};
 					},
-				} as PiCodingAgentModule;
+				} as CodingAgentModule;
 				const expected =
 					scenario === "Unicode alias loaded" || scenario === "repeated entries"
 						? /reached session creation/
@@ -472,7 +472,7 @@ describe("required child extension loaded identities", () => {
 							: scenario === "provider failure"
 								? /Required child extension provider registration failed/
 								: /Required child extension failed to load/;
-				await rejectsChildCreate(dir, agentDir, pi, launch.session, expected);
+				await rejectsChildCreate(dir, agentDir, evoharness, launch.session, expected);
 				assert.equal(disposed, scenario === "startup failure");
 			});
 		}
@@ -509,12 +509,16 @@ describe("require-for-all-runners admission", () => {
 	it("admits every runner for a legacy registration but rejects non-native routes for an opt-in one", () => {
 		const legacy = snapshotRequiredChildExtensions([{ id: "legacy", path: "/tmp/legacy.mjs" }], "requiredExtensions");
 		assertRequiredChildExtensionsAdmitted([legacy], { agent: "worker", runnerType: "external-cli" });
-		assertRequiredChildExtensionsAdmitted([legacy], { agent: "worker", runnerType: "pi", machine: "workmac" });
+		assertRequiredChildExtensionsAdmitted([legacy], {
+			agent: "worker",
+			runnerType: "evoharness",
+			machine: "workmac",
+		});
 		const optIn = snapshotRequiredChildExtensions(
 			[{ id: "policy", path: "/tmp/policy.mjs", requireForAllRunners: true }],
 			"requiredExtensions",
 		);
-		assertRequiredChildExtensionsAdmitted([optIn], { agent: "worker", runnerType: "pi" });
+		assertRequiredChildExtensionsAdmitted([optIn], { agent: "worker", runnerType: "evoharness" });
 		assertRequiredChildExtensionsAdmitted([undefined, []], { agent: "worker", runnerType: "external-job" });
 		assert.throws(
 			() => assertRequiredChildExtensionsAdmitted([optIn], { agent: "worker", runnerType: "external-cli" }),
@@ -526,7 +530,11 @@ describe("require-for-all-runners admission", () => {
 		);
 		assert.throws(
 			() =>
-				assertRequiredChildExtensionsAdmitted([optIn], { agent: "worker", runnerType: "pi", machine: "workmac" }),
+				assertRequiredChildExtensionsAdmitted([optIn], {
+					agent: "worker",
+					runnerType: "evoharness",
+					machine: "workmac",
+				}),
 			/cannot run on machine 'workmac'/,
 		);
 	});

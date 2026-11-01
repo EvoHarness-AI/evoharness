@@ -6,14 +6,14 @@ import { describe, it } from "node:test";
 import type { AssistantMessage } from "@evoharness/ai";
 import type { ChildSessionLaunch } from "../../src/runs/shared/child-session.ts";
 import { remoteShellCommand } from "../../src/runs/shared/herdr-connection.ts";
-import { createPlacementAwareChildSessionFactory, HerdrPiSession } from "../../src/runs/shared/herdr-placed-run.ts";
+import { createPlacementAwareChildSessionFactory, HerdrHostSession } from "../../src/runs/shared/herdr-placed-run.ts";
 import { REX_BUNDLE_BIN } from "../../src/runs/shared/rex-machine.ts";
 import { closeOwnedRexPane, connectRex, REX_SSH_SESSION_LABEL } from "../../src/runs/shared/rex-pane-host.ts";
 import type { RexSshMachineReference } from "../../src/shared/types.ts";
 
-// Live check against a real Mac over SSH: PI_SUBAGENTS_REX_SSH_SMOKE=<ssh target> (Rex running there, Pi and this pi-subagents
+// Live check against a real Mac over SSH: EVOHARNESS_SUBAGENTS_REX_SSH_SMOKE=<ssh target> (Rex running there, evoharness and this subagents
 // version installed there). It opens tabs only in that Mac's `subagents` session and removes the temp directory it makes there.
-const target = process.env.PI_SUBAGENTS_REX_SSH_SMOKE;
+const target = process.env.EVOHARNESS_SUBAGENTS_REX_SSH_SMOKE;
 const log = (line: string) => process.stdout.write(`[rex-ssh-smoke] ${line}\n`);
 const ssh = (script: string, args: string[] = []) =>
 	spawnSync(
@@ -24,17 +24,17 @@ const ssh = (script: string, args: string[] = []) =>
 const remoteRex = (args: string[]) => ssh(`exec "$HOME/${REX_BUNDLE_BIN}" --autostart=false "$@"`, args);
 
 describe(
-	"Rex SSH placement against a real Mac and a real Pi",
+	"Rex SSH placement against a real Mac and a real evoharness",
 	{
 		skip: !target
-			? "set PI_SUBAGENTS_REX_SSH_SMOKE=<ssh target>"
+			? "set EVOHARNESS_SUBAGENTS_REX_SSH_SMOKE=<ssh target>"
 			: process.platform === "win32"
 				? "Rex placement is POSIX-only"
 				: false,
 	},
 	() => {
 		it(
-			"opens a background Pi tab in the remote subagents session, completes a prompt round trip, and cleans up only what it owns",
+			"opens a background evoharness tab in the remote subagents session, completes a prompt round trip, and cleans up only what it owns",
 			{ timeout: 240_000 },
 			async () => {
 				const made = ssh(
@@ -45,7 +45,7 @@ describe(
 				const sessionsBefore = remoteRex(["ls", "--json"]).stdout;
 				log(`remote project ${project}; sessions before ${sessionsBefore.replace(/\s+/gu, " ")}`);
 				const machine: RexSshMachineReference = { provider: "rex", id: "smokemac", target: target!, cwd: project };
-				const model = process.env.PI_SUBAGENTS_REX_SMOKE_MODEL ?? "opencode-go/glm-5.3-flash";
+				const model = process.env.EVOHARNESS_SUBAGENTS_REX_SMOKE_MODEL ?? "opencode-go/glm-5.3-flash";
 				const launch: ChildSessionLaunch = {
 					cwd: project,
 					machine,
@@ -81,7 +81,7 @@ describe(
 				try {
 					const started = Date.now();
 					const child = await factory.create(launch);
-					assert.ok(child instanceof HerdrPiSession);
+					assert.ok(child instanceof HerdrHostSession);
 					const identity = child.identity,
 						session = identity.workspaceId;
 					log(
@@ -132,7 +132,7 @@ describe(
 						...launch,
 						runtime: { ...launch.runtime, runId: "rexsshsmoke2" },
 					});
-					assert.ok(finished instanceof HerdrPiSession);
+					assert.ok(finished instanceof HerdrHostSession);
 					const kept = finished.identity;
 					assert.equal(kept.workspaceId, session);
 					await finished.dispose();
@@ -147,12 +147,12 @@ describe(
 					assert.equal(remoteRex(["block", "inspect", "-s", session, kept.paneId]).status, 3);
 				} finally {
 					await factory.dispose();
-					// The remote Pi keeps its session files in its agent dir, under a folder named for the temp project; remove that folder.
+					// The remote evoharness keeps its session files in its agent dir, under a folder named for the temp project; remove that folder.
 					const removed = ssh(
 						'd="$HOME/.evoharness/agent/sessions/$1"; case "$1" in --*-tmp-rex-ssh-smoke.*--) test -d "$d" && rm -rf -- "$d" && echo "$d";; *) exit 64;; esac',
 						[`--${project.slice(1).replaceAll("/", "-")}--`],
 					);
-					log(`removed remote Pi session folder: ${removed.stdout.trim() || "none"}`);
+					log(`removed remote evoharness session folder: ${removed.stdout.trim() || "none"}`);
 					assert.equal(
 						ssh(
 							'case "$1" in /tmp/rex-ssh-smoke.*|/private/tmp/rex-ssh-smoke.*) rm -rf -- "$1";; *) exit 64;; esac',

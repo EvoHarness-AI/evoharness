@@ -1,6 +1,6 @@
 /**
  * A child whose model comes from an extension-registered provider fails to
- * start when that extension is not loaded into it, and Pi core reports only
+ * start when that extension is not loaded into it, and evoharness core reports only
  * that the model is unknown. These tests drive the real failure paths for both
  * hosts: a foreground child must be told that it inherits the parent's
  * registered providers and how to load the extension itself, and a child that
@@ -14,17 +14,17 @@ import { runChildSession } from "../../src/runs/background/run-child-session.ts"
 import { buildRunnerChildLaunch } from "../../src/runs/background/runner-child-launch.ts";
 import { runSync } from "../../src/runs/foreground/execution.ts";
 import {
+	type CodingAgentModule,
 	createDefaultChildSessionFactory,
 	type ParentProviderRegistry,
-	type PiCodingAgentModule,
 } from "../../src/runs/shared/child-session.ts";
 import { createTempDir, makeAgent, removeTempDir } from "../support/helpers.ts";
 
 const MODEL = "pengepul/commandcode/deepseek/deepseek-v4.1-flash";
 const MODEL_NOT_FOUND = `Model "${MODEL}" not found. Use --list-models to see available models.`;
 
-/** A pi module stub whose model resolver rejects the provider-extension model. */
-function unresolvedModelPi(): PiCodingAgentModule {
+/** A evoharness module stub whose model resolver rejects the provider-extension model. */
+function unresolvedModelPi(): CodingAgentModule {
 	return {
 		ModelRuntime: { create: async () => ({}) },
 		SettingsManager: { create: () => ({}) },
@@ -34,11 +34,11 @@ function unresolvedModelPi(): PiCodingAgentModule {
 		SessionManager: { inMemory: () => ({}), create: () => ({}) },
 		resolveCliModel: (({ cliModel }: { cliModel: string }) => ({
 			error: `Model "${cliModel}" not found. Use --list-models to see available models.`,
-		})) as unknown as PiCodingAgentModule["resolveCliModel"],
+		})) as unknown as CodingAgentModule["resolveCliModel"],
 		createAgentSession: (async () => {
 			throw new Error("The child must not reach session creation.");
-		}) as unknown as PiCodingAgentModule["createAgentSession"],
-	} as unknown as PiCodingAgentModule;
+		}) as unknown as CodingAgentModule["createAgentSession"],
+	} as unknown as CodingAgentModule;
 }
 
 const PROVIDER_ERROR = "prompt-capture: no capture for this 120-char system prompt";
@@ -55,8 +55,8 @@ const errorReply = {
 	usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } },
 };
 
-/** A pi module stub whose `bridge/model` session replays `replies` as the first prompt's assistant messages; an Error reply rejects the prompt. `childClaimsBridge` makes a child extension register `bridge` while loading or on `session_start`. */
-function bridgePi(replies: unknown[], childClaimsBridge?: "load" | "session_start"): PiCodingAgentModule {
+/** A evoharness module stub whose `bridge/model` session replays `replies` as the first prompt's assistant messages; an Error reply rejects the prompt. `childClaimsBridge` makes a child extension register `bridge` while loading or on `session_start`. */
+function bridgePi(replies: unknown[], childClaimsBridge?: "load" | "session_start"): CodingAgentModule {
 	return {
 		ModelRuntime: {
 			create: async () => {
@@ -127,7 +127,7 @@ function bridgePi(replies: unknown[], childClaimsBridge?: "load" | "session_star
 				},
 			};
 		},
-	} as unknown as PiCodingAgentModule;
+	} as unknown as CodingAgentModule;
 }
 
 describe("child model resolution diagnostic", () => {
@@ -139,7 +139,7 @@ describe("child model resolution diagnostic", () => {
 	afterEach(() => removeTempDir(tempDir));
 
 	it("explains a foreground model that no parent provider serves", async () => {
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => unresolvedModelPi() });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => unresolvedModelPi() });
 		const result = await runSync(
 			tempDir,
 			[makeAgent("provider-model-worker", { model: MODEL })],
@@ -172,7 +172,7 @@ describe("child model resolution diagnostic", () => {
 	});
 
 	it("tells a foreground child that the capability ceiling denied the extension, not the frontmatter", async () => {
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => unresolvedModelPi() });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => unresolvedModelPi() });
 		const result = await runSync(
 			tempDir,
 			[makeAgent("provider-model-worker", { model: MODEL })],
@@ -199,7 +199,7 @@ describe("child model resolution diagnostic", () => {
 			["foreground-inherited-error-reply", [errorReply]],
 			["foreground-inherited-thrown", [new Error(PROVIDER_ERROR)]],
 		] as const) {
-			const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => bridgePi([...replies]) });
+			const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => bridgePi([...replies]) });
 			const result = await runSync(
 				tempDir,
 				[makeAgent("bridge-worker", { model: "bridge/model" })],
@@ -227,7 +227,7 @@ describe("child model resolution diagnostic", () => {
 	});
 
 	it("names the capability ceiling instead of suppressed remedies for an inherited provider", async () => {
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => bridgePi([errorReply]) });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => bridgePi([errorReply]) });
 		const result = await runSync(
 			tempDir,
 			[makeAgent("bridge-worker", { model: "bridge/model" })],
@@ -260,11 +260,11 @@ describe("child model resolution diagnostic", () => {
 			stopReason: "toolUse",
 			usage: errorReply.usage,
 		};
-		for (const [runId, pi] of [
+		for (const [runId, evoharness] of [
 			["foreground-claimed-provider", bridgePi([errorReply], "load")],
 			["foreground-after-success", bridgePi([toolTurn, errorReply])],
 		] as const) {
-			const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+			const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 			const result = await runSync(
 				tempDir,
 				[makeAgent("bridge-worker", { model: "bridge/model" })],
@@ -290,7 +290,7 @@ describe("child model resolution diagnostic", () => {
 			{ model: MODEL, sessionEnabled: false, watchdogStatus: () => {} },
 		);
 		assert.equal(launch.session.ambientExtensions, true, "the guard must exercise the ambient-extensions branch");
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => unresolvedModelPi() });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => unresolvedModelPi() });
 		const run = await runChildSession({
 			factory,
 			launch,
@@ -320,7 +320,7 @@ describe("child model resolution diagnostic", () => {
 			false,
 			"the ceiling must disable ambient extensions for this launch",
 		);
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => unresolvedModelPi() });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => unresolvedModelPi() });
 		const run = await runChildSession({
 			factory,
 			launch,
@@ -346,7 +346,12 @@ describe("child model resolution diagnostic", () => {
 				{ agent: "ambient", task: "Task" },
 			],
 			agents,
-			ctx: { pi: {} as never, cwd: tempDir, currentSessionId: "parent", parentProviderRegistry: bridgeParent },
+			ctx: {
+				evoharness: {} as never,
+				cwd: tempDir,
+				currentSessionId: "parent",
+				parentProviderRegistry: bridgeParent,
+			},
 			availableModels: [{ provider: "bridge", id: "model", fullId: "bridge/model" }],
 			asyncDir: tempDir,
 			maxSubagentDepth: 1,
@@ -359,13 +364,13 @@ describe("child model resolution diagnostic", () => {
 			"a child that loads the ambient extensions loads the provider's extension too",
 		);
 
-		const runStep = async (pi: PiCodingAgentModule) => {
+		const runStep = async (evoharness: CodingAgentModule) => {
 			const launch = buildRunnerChildLaunch(
 				lockedDown!,
 				{ cwd: tempDir, id: "runner-parent-provider", flatIndex: 0 },
 				{ model: "bridge/model", sessionEnabled: false, watchdogStatus: () => {} },
 			);
-			const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+			const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 			return runChildSession({
 				factory,
 				launch,

@@ -13,17 +13,18 @@ it(
 	"native reviewer consumes nested persona results via exact, prefix, and aggregate waits",
 	{
 		skip:
-			!process.env.PI_SUBAGENTS_NATIVE_PI_ROOT && "Requires PI_SUBAGENTS_NATIVE_PI_ROOT and native-peer-loader.mjs",
+			!process.env.EVOHARNESS_SUBAGENTS_NATIVE_HOST_ROOT &&
+			"Requires EVOHARNESS_SUBAGENTS_NATIVE_HOST_ROOT and native-peer-loader.mjs",
 		timeout: 60000,
 	},
 	async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-native-nested-wait-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-native-nested-wait-"));
 		const agentDir = path.join(root, "agent");
 		const auditPath = path.join(root, "audit.jsonl");
 		const savedEnv = { ...process.env };
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		process.env.EVOHARNESS_OFFLINE = "1";
-		process.env.PI_SUBAGENTS_NATIVE_WAIT_AUDIT = auditPath;
+		process.env.EVOHARNESS_SUBAGENTS_NATIVE_WAIT_AUDIT = auditPath;
 		const extension = fileURLToPath(new URL("../fixtures/native-nested-wait-provider.ts", import.meta.url));
 		fs.mkdirSync(path.join(agentDir, "agents"), { recursive: true });
 		fs.writeFileSync(
@@ -107,7 +108,11 @@ it(
 		} finally {
 			await factory.dispose();
 			setChildSessionFactory(undefined);
-			for (const key of ["EVOHARNESS_CODING_AGENT_DIR", "EVOHARNESS_OFFLINE", "PI_SUBAGENTS_NATIVE_WAIT_AUDIT"]) {
+			for (const key of [
+				"EVOHARNESS_CODING_AGENT_DIR",
+				"EVOHARNESS_OFFLINE",
+				"EVOHARNESS_SUBAGENTS_NATIVE_WAIT_AUDIT",
+			]) {
 				if (savedEnv[key] === undefined) delete process.env[key];
 				else process.env[key] = savedEnv[key];
 			}

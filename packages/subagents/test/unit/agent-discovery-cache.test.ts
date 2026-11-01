@@ -17,13 +17,13 @@ import { registerAgent } from "../../src/api/agents.ts";
 let tempRoot = "";
 let home = "";
 let project = "";
-let pi: ExtensionAPI;
+let evoharness: ExtensionAPI;
 const previousEnv: Record<string, string | undefined> = {};
 const managedEnv = [
 	"HOME",
 	"USERPROFILE",
 	"EVOHARNESS_CODING_AGENT_DIR",
-	"PI_SUBAGENT_EXTRA_AGENT_DIRS",
+	"EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS",
 	"EVOHARNESS_OFFLINE",
 ];
 
@@ -43,7 +43,7 @@ function makePi(): ExtensionAPI {
 
 describe("agent discovery snapshots", () => {
 	beforeEach(() => {
-		tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-agent-discovery-cache-"));
+		tempRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-agent-discovery-cache-"));
 		home = path.join(tempRoot, "home");
 		project = path.join(tempRoot, "project");
 		for (const name of managedEnv) previousEnv[name] = process.env[name];
@@ -51,13 +51,13 @@ describe("agent discovery snapshots", () => {
 		process.env.USERPROFILE = home;
 		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(home, ".evoharness", "agent");
 		process.env.EVOHARNESS_OFFLINE = "true";
-		delete process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
-		pi = makePi();
+		delete process.env.EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS;
+		evoharness = makePi();
 		clearAgentDiscoveryCache();
 	});
 
 	afterEach(() => {
-		clearRuntimeAgentsForPi(pi);
+		clearRuntimeAgentsForPi(evoharness);
 		clearAgentDiscoveryCache();
 		for (const name of managedEnv) {
 			const value = previousEnv[name];
@@ -134,7 +134,7 @@ describe("agent discovery snapshots", () => {
 		const hiddenPath = path.join(home, ".evoharness", "agent", "agents", "scope-hidden.md");
 		writeAgent(hiddenPath, "scope-hidden", "User hidden");
 		const registration = registerAgent({
-			pi,
+			evoharness,
 			name: "scope-hidden",
 			definition: { description: "Runtime hidden collision", systemPrompt: "Runtime." },
 		});
@@ -151,7 +151,7 @@ describe("agent discovery snapshots", () => {
 				false,
 			);
 			assert.throws(
-				() => mergeRuntimeAgents(pi, snapshot.effective, configured),
+				() => mergeRuntimeAgents(evoharness, snapshot.effective, configured),
 				/collides with configured agent 'scope-hidden'/,
 			);
 		} finally {
@@ -260,11 +260,11 @@ describe("agent discovery snapshots", () => {
 		writeJson(path.join(project, ".evoharness", "settings.json"), { packages: [projectPackageRoot] });
 		writeJson(path.join(userPackageRoot, "package.json"), {
 			name: "user-package",
-			"pi-subagents": { agents: [path.relative(userPackageRoot, sharedAgentDir)] },
+			subagents: { agents: [path.relative(userPackageRoot, sharedAgentDir)] },
 		});
 		writeJson(path.join(projectPackageRoot, "package.json"), {
 			name: "project-package",
-			"pi-subagents": { agents: [path.relative(projectPackageRoot, sharedAgentDir)] },
+			subagents: { agents: [path.relative(projectPackageRoot, sharedAgentDir)] },
 		});
 		writeAgent(path.join(sharedAgentDir, "shared.md"), "shared", "Shared package agent");
 
@@ -370,7 +370,7 @@ describe("agent discovery snapshots", () => {
 			"utf-8",
 		);
 		// The repository's own package.json can declare agents too.
-		writeJson(path.join(project, "package.json"), { name: "repo", "pi-subagents": { agents: ["./repo-agents"] } });
+		writeJson(path.join(project, "package.json"), { name: "repo", subagents: { agents: ["./repo-agents"] } });
 		writeAgent(path.join(project, "repo-agents", "repo-agent.md"), "repo-agent", "Repository agent");
 
 		const untrusted = { projectTrusted: false };
@@ -472,7 +472,7 @@ describe("agent discovery snapshots", () => {
 			);
 			// Runtime-registered agents take their model settings from the same untrusted view.
 			const registration = registerAgent({
-				pi,
+				evoharness,
 				name: "runtime-probe",
 				definition: { description: "Runtime probe", systemPrompt: "Runtime." },
 			});
@@ -481,7 +481,7 @@ describe("agent discovery snapshots", () => {
 					includeChains: false,
 					projectTrusted: false,
 				});
-				const merged = mergeRuntimeAgents(pi, snapshot.effective, snapshot.effective.agents, {
+				const merged = mergeRuntimeAgents(evoharness, snapshot.effective, snapshot.effective.agents, {
 					cwd: project,
 					scope: snapshot.effective.scope,
 					projectTrusted: false,

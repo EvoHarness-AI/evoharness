@@ -119,7 +119,7 @@ describe("intercom result delivery cutover", { skip: !available ? "executor not 
 	before(() => {
 		originalHome = process.env.HOME;
 		originalUserProfile = process.env.USERPROFILE;
-		homeDir = createTempDir("pi-subagent-intercom-home-");
+		homeDir = createTempDir("subagents-subagent-intercom-home-");
 		process.env.HOME = homeDir;
 		process.env.USERPROFILE = homeDir;
 		mockPi = createMockPi();
@@ -143,7 +143,7 @@ describe("intercom result delivery cutover", { skip: !available ? "executor not 
 	});
 
 	beforeEach(() => {
-		tempDir = createTempDir("pi-subagent-intercom-result-");
+		tempDir = createTempDir("subagents-subagent-intercom-result-");
 		mockPi.reset();
 	});
 
@@ -173,9 +173,11 @@ describe("intercom result delivery cutover", { skip: !available ? "executor not 
 			await new Promise((resolve) => setTimeout(resolve, 50));
 		}
 		if (callFile && parseError) {
-			throw new Error(`Mock Pi call record '${callFile}' remained incomplete after 10s.`, { cause: parseError });
+			throw new Error(`Mock evoharness call record '${callFile}' remained incomplete after 10s.`, {
+				cause: parseError,
+			});
 		}
-		assert.fail(`expected mock pi call at index ${index}`);
+		assert.fail(`expected mock evoharness call at index ${index}`);
 	}
 
 	async function waitForFile(filePath: string, timeoutMs = 10_000): Promise<void> {
@@ -190,7 +192,7 @@ describe("intercom result delivery cutover", { skip: !available ? "executor not 
 		const deadline = Date.now() + timeoutMs;
 		while (mockPi.callCount() < minimum) {
 			if (Date.now() > deadline)
-				assert.fail(`Timed out waiting for ${minimum} mock pi calls; saw ${mockPi.callCount()}`);
+				assert.fail(`Timed out waiting for ${minimum} mock evoharness calls; saw ${mockPi.callCount()}`);
 			await new Promise((resolve) => setTimeout(resolve, 50));
 		}
 	}
@@ -282,7 +284,7 @@ describe("intercom result delivery cutover", { skip: !available ? "executor not 
 			},
 		};
 		const executor = createSubagentExecutor!({
-			pi: {
+			evoharness: {
 				events,
 				getSessionName: () => "orchestrator",
 				setSessionName: () => {},
@@ -1960,7 +1962,7 @@ describe("intercom result delivery cutover", { skip: !available ? "executor not 
 			assert.equal(
 				fs.readdirSync(mockPi.dir).filter((name) => name.startsWith("call-")).length,
 				1,
-				"contending revival must not spawn Pi",
+				"contending revival must not spawn evoharness",
 			);
 
 			fs.writeFileSync(releasePath, "release", "utf-8");
@@ -2257,10 +2259,10 @@ describe("intercom result delivery cutover", { skip: !available ? "executor not 
 			);
 			assert.equal(blocked.isError, true);
 			assert.match(blocked.content[0]?.text ?? "", new RegExp(`already owned by run '${firstRevivedId}'`));
-			// The original and the first revival each spawn Pi asynchronously, so wait for both markers
+			// The original and the first revival each spawn evoharness asynchronously, so wait for both markers
 			// before asserting the contending revival added no third spawn.
 			await waitForCallCount(2);
-			assert.equal(mockPi.callCount(), 2, "contending foreground revival must not spawn Pi");
+			assert.equal(mockPi.callCount(), 2, "contending foreground revival must not spawn evoharness");
 
 			fs.writeFileSync(releasePath, "release", "utf-8");
 			await waitForFile(path.join(RESULTS_DIR, `${firstRevivedId}.json`));

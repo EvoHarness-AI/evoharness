@@ -3,7 +3,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
 import { type BUILTIN_AGENT_NAMES, validateOptionalMachine } from "../agents/agents.ts";
-import { getPiSpawnCommand } from "../runs/shared/pi-spawn.ts";
+import { getHostSpawnCommand } from "../runs/shared/host-spawn.ts";
 import {
 	findModelInfo,
 	getSupportedThinkingLevels,
@@ -366,14 +366,14 @@ function resolveProbeStatus(text: string, timedOut: boolean): ProbeStatus {
 }
 
 async function probeModel(
-	pi: Pick<ExtensionAPI, "exec"> | { exec?: ExtensionAPI["exec"] },
+	evoharness: Pick<ExtensionAPI, "exec"> | { exec?: ExtensionAPI["exec"] },
 	fullId: string,
 ): Promise<{ status: ProbeStatus; message?: string }> {
-	if (typeof pi.exec !== "function") {
-		return { status: "skipped", message: "pi.exec is unavailable in this runtime." };
+	if (typeof evoharness.exec !== "function") {
+		return { status: "skipped", message: "evoharness.exec is unavailable in this runtime." };
 	}
-	const spawnSpec = getPiSpawnCommand(["-p", "--model", fullId, "--no-tools", 'Reply with exactly "OK".']);
-	const result = await pi.exec(spawnSpec.command, spawnSpec.args, {
+	const spawnSpec = getHostSpawnCommand(["-p", "--model", fullId, "--no-tools", 'Reply with exactly "OK".']);
+	const result = await evoharness.exec(spawnSpec.command, spawnSpec.args, {
 		cwd: os.tmpdir(),
 		timeout: 45_000,
 	} as Record<string, unknown>);
@@ -485,7 +485,7 @@ function resolveProfilePath(name: string): string {
 }
 
 export function getSubagentProfilesRootDir(): string {
-	return path.join(getAgentDir(), "profiles", "pi-subagents");
+	return path.join(getAgentDir(), "profiles", "subagents");
 }
 
 export function getSubagentProfilesDir(): string {
@@ -582,7 +582,7 @@ export function isProviderModelCatalogStale(
 }
 
 export async function refreshProviderModelCatalog(
-	pi: Pick<ExtensionAPI, "exec"> | { exec?: ExtensionAPI["exec"] },
+	evoharness: Pick<ExtensionAPI, "exec"> | { exec?: ExtensionAPI["exec"] },
 	ctx: Pick<ExtensionContext, "cwd" | "modelRegistry">,
 	provider: string,
 	options: { force?: boolean; maxAgeDays?: number; probe?: boolean } = {},
@@ -623,7 +623,7 @@ export async function refreshProviderModelCatalog(
 		const probe =
 			options.probe === false
 				? { status: "skipped" as const, message: "Live probing disabled." }
-				: await probeModel(pi, fullId);
+				: await probeModel(evoharness, fullId);
 		observedModels.push({ rawModel, modelRecord, fullId, probe });
 	}
 	const classificationContext = buildClassificationContext(
@@ -695,7 +695,7 @@ export async function refreshProviderModelCatalog(
 }
 
 export async function generateProfilesForProvider(
-	pi: Pick<ExtensionAPI, "exec"> | { exec?: ExtensionAPI["exec"] },
+	evoharness: Pick<ExtensionAPI, "exec"> | { exec?: ExtensionAPI["exec"] },
 	ctx: Pick<ExtensionContext, "cwd" | "modelRegistry">,
 	provider: string,
 	options: { maxAgeDays?: number; forceRefresh?: boolean; probe?: boolean } = {},
@@ -713,7 +713,7 @@ export async function generateProfilesForProvider(
 		filePath: catalogPath,
 		catalog,
 		heuristicFallbackCount,
-	} = await refreshProviderModelCatalog(pi, ctx, normalizedProvider, {
+	} = await refreshProviderModelCatalog(evoharness, ctx, normalizedProvider, {
 		maxAgeDays: options.maxAgeDays,
 		force: options.forceRefresh,
 		probe: options.probe,
@@ -746,7 +746,7 @@ export async function generateProfilesForProvider(
 }
 
 export async function checkSubagentProfile(
-	pi: Pick<ExtensionAPI, "exec"> | { exec?: ExtensionAPI["exec"] },
+	evoharness: Pick<ExtensionAPI, "exec"> | { exec?: ExtensionAPI["exec"] },
 	ctx: Pick<ExtensionContext, "cwd" | "modelRegistry">,
 	name: string,
 ): Promise<ProfileCheckResult> {
@@ -763,7 +763,7 @@ export async function checkSubagentProfile(
 		const probeModelId = modelInfo ? `${modelInfo.fullId}${thinkingSuffix}` : entry.model;
 		let probe = probeCache.get(probeModelId);
 		if (!probe) {
-			probe = await probeModel(pi, probeModelId);
+			probe = await probeModel(evoharness, probeModelId);
 			probeCache.set(probeModelId, probe);
 		}
 		results.push({

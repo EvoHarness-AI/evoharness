@@ -1,11 +1,11 @@
 # Vision
 
-## What pi-subagents is
+## What subagents is
 
-pi-subagents lets one Pi session delegate focused work to child agents with supervision, evidence, and control.
-It serves a single Pi operator first: one person who wants more leverage from one session without losing control of what runs in their name.
+subagents lets one Evoharness session delegate focused work to child agents with supervision, evidence, and control.
+It serves a single operator first: one person who wants more leverage from one session without losing control of what runs in their name.
 It stays flexible enough for other people and other workflows, but it does not redesign itself around them.
-It owns the Pi delegation layer: child launch contracts, workflow orchestration, supervision, observability, and result handoff.
+It owns the delegation layer: child launch contracts, workflow orchestration, supervision, observability, and result handoff.
 
 ## One parent, many focused children
 
@@ -78,7 +78,7 @@ They are safety infrastructure for delegation, not the product itself.
 
 ## External agents earn trust
 
-Agents that are not Pi children are welcome inside workflows.
+Agents that are not Evoharness children are welcome inside workflows.
 Over time this points toward a vendor-neutral adapter layer for external CLIs and other harnesses.
 Today, external agents must be honest: they declare their real capabilities, receive a deliberate handoff instead of pretended native context, and fail closed when behavior is not proven.
 A passing demo is not a capability contract.
@@ -89,7 +89,7 @@ It does not become a general project manager or issue tracker.
 It does not own CI, merge policy, or release policy; it reports evidence into those systems.
 It does not add integrations for niche tools without clear demand.
 It does not add a second path to an outcome the operator can already reach with one ordinary action.
-It does not treat external agents as native Pi children before their capabilities are proven.
+It does not treat external agents as native Evoharness children before their capabilities are proven.
 It does not run background reviewers on every edit by default; delegation happens because the operator asked for it, directly or through their instructions.
 It does not accept a slower status loop, watcher, or common workflow just to make the machinery look richer.
 It does not accept a change that breaks the prompt cache of the parent or its children without measurement and owner approval.

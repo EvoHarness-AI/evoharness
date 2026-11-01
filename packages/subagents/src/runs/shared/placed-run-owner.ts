@@ -26,7 +26,7 @@ export async function discoverPlacedBridgeManifest(
 	access: PlacementMachineAccess,
 	runId: string,
 	runtimeDir: string,
-	missing = "The placed Pi's pi-subagents bridge manifest is not in its runtime directory; the Pi may have exited.",
+	missing = "The placed evoharness's subagents bridge manifest is not in its runtime directory; the evoharness may have exited.",
 ): Promise<PlacedBridgeManifest> {
 	for (let attempt = 0; attempt < 100; attempt++) {
 		const result = await access.runAsync(access.shellCommand(PLACED_MANIFEST_READ_SCRIPT, [runtimeDir]), {
@@ -66,7 +66,7 @@ export async function discoverPlacedBridgeManifest(
 
 export async function createPlacedRuntimeDir(access: PlacementMachineAccess, runId: string): Promise<string> {
 	const result = await access.runAsync(
-		access.shellCommand('umask 077; mktemp -d "${TMPDIR:-/tmp}/pi-subagents-herdr-$1-XXXXXXXX"', [runId]),
+		access.shellCommand('umask 077; mktemp -d "${TMPDIR:-/tmp}/subagents-herdr-$1-XXXXXXXX"', [runId]),
 		{ timeout: 10_000, maxBuffer: 4096 },
 	);
 	if (result.error)
@@ -81,7 +81,7 @@ export async function createPlacedRuntimeDir(access: PlacementMachineAccess, run
 export function removePlacedRuntimeDir(access: PlacementMachineAccess, runtimeDir: string): void {
 	const result = access.run(
 		access.shellCommand(
-			'p=$1; case "${p##*/}" in pi-subagents-herdr-*) test -d "$p" && test ! -L "$p" && rm -rf -- "$p";; *) exit 64;; esac',
+			'p=$1; case "${p##*/}" in subagents-herdr-*) test -d "$p" && test ! -L "$p" && rm -rf -- "$p";; *) exit 64;; esac',
 			[runtimeDir],
 		),
 		{ timeout: 10_000, maxBuffer: 4096 },
@@ -200,7 +200,7 @@ export class PlacedRunOwner<
 	journal(identity: HerdrRunIdentity): void {
 		this.identity = identity;
 		this.#snapshot = { ...this.#snapshot, identity };
-		const journalDir = path.join(getAgentDir(), "pi-subagents", "herdr-run-journal");
+		const journalDir = path.join(getAgentDir(), "subagents", "herdr-run-journal");
 		fs.mkdirSync(journalDir, { recursive: true, mode: 0o700 });
 		fs.writeFileSync(
 			path.join(journalDir, `${this.runId}.json`),

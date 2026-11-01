@@ -74,11 +74,11 @@ export interface McpRuntimeSnapshotHost {
 	};
 	getAllTools?(): readonly McpHostToolInfo[];
 	getCommands?(): readonly { name: string; sourceInfo: { path: string } }[];
-	/** Pi 0.99: servers extensions added with `pi.registerMcpServer()`. */
+	/** evoharness 0.99: servers extensions added with `evoharness.registerMcpServer()`. */
 	getMcpServers?(): readonly { name: string }[];
 }
 
-/** A `pi.getAllTools()` entry; `exposure` and `namespace` exist only from Pi 0.99. */
+/** A `evoharness.getAllTools()` entry; `exposure` and `namespace` exist only from evoharness 0.99. */
 export interface McpHostToolInfo {
 	name: string;
 	exposure?: string;
@@ -112,7 +112,7 @@ export interface McpDirectToolResolution {
 	/** Normal loaded config plus the selected runtime server definitions. */
 	mcpConfig?: McpConfig;
 	runtimeServerNames?: string[];
-	/** Set when the selectors were resolved against Pi's built-in MCP instead of pi-mcp-adapter. */
+	/** Set when the selectors were resolved against evoharness's built-in MCP instead of pi-mcp-adapter. */
 	builtin?: true;
 }
 
@@ -168,7 +168,7 @@ export function resolveMcpDirectToolSelections(
 }
 
 /**
- * pi-mcp-adapter keeps priority whenever it is loaded. 2.x registers /mcp, so Pi does not load its
+ * pi-mcp-adapter keeps priority whenever it is loaded. 2.x registers /mcp, so evoharness does not load its
  * built-in MCP. 3.x always registers /mcp-adapter and leaves /mcp to the built-in MCP.
  */
 function usesBuiltinMcp(host: McpRuntimeSnapshotHost | undefined): host is McpRuntimeSnapshotHost {
@@ -180,11 +180,11 @@ function usesBuiltinMcp(host: McpRuntimeSnapshotHost | undefined): host is McpRu
 }
 
 /**
- * Pi names built-in MCP tools `mcp__<server>__<tool>` with everything but `[A-Za-z0-9_]` replaced
+ * evoharness names built-in MCP tools `mcp__<server>__<tool>` with everything but `[A-Za-z0-9_]` replaced
  * by `_`, in the namespace `mcp__<server>` with `-` replaced by `_`. Selectors name the raw tool;
- * the server part may be the configured name or its `-`→`_` form, since Pi refuses two servers
+ * the server part may be the configured name or its `-`→`_` form, since evoharness refuses two servers
  * whose names differ only in `-` and `_`. An overlong name, or one an earlier tool already took (`a_b`
- * before `a.b`), gets a suffix hashed from the raw server and tool (Pi's `createMcpToolName`), so
+ * before `a.b`), gets a suffix hashed from the raw server and tool (evoharness's `createMcpToolName`), so
  * that suffixed name identifies the tool, and only the configured server name selects it. The
  * unsuffixed name may belong to another raw tool; the
  * child checks each granted tool's raw identity before it exposes the tool.
@@ -212,7 +212,7 @@ function resolveBuiltinMcpSelections(selectors: string[], tools: readonly McpHos
 	return { selections, unresolvedSelectors, builtin: true };
 }
 
-/** The names Pi's `createMcpToolName` can give a raw tool, the hash-suffixed one first. */
+/** The names evoharness's `createMcpToolName` can give a raw tool, the hash-suffixed one first. */
 function builtinMcpToolNames(server: string, tool: string): string[] {
 	const name = `mcp__${server}__${tool}`.replace(/[^A-Za-z0-9_]/g, "_");
 	const hash = createHash("sha256").update(`${server}\0${tool}`).digest("hex").slice(0, 8);
@@ -225,12 +225,12 @@ export function formatUnresolvedBuiltinMcpSelectors(
 	selectors: readonly string[],
 ): string {
 	const subject = agentName ? `Agent '${agentName}'` : "Subagent";
-	return `${subject} selects MCP tools that Pi's built-in MCP does not offer: ${selectors.map((selector) => `mcp:${selector}`).join(", ")}. The server may be missing, disconnected, still connecting, or its tools hidden; check /mcp.`;
+	return `${subject} selects MCP tools that evoharness's built-in MCP does not offer: ${selectors.map((selector) => `mcp:${selector}`).join(", ")}. The server may be missing, disconnected, still connecting, or its tools hidden; check /mcp.`;
 }
 
 /**
  * Selected servers that only an extension registered, which a child without ambient extensions
- * never has. A server of the same name in an `mcp.json` the child reads takes precedence; like Pi,
+ * never has. A server of the same name in an `mcp.json` the child reads takes precedence; like evoharness,
  * the project file is read only when the project is trusted.
  */
 export function extensionOnlyMcpServers(
@@ -339,7 +339,7 @@ function getRuntimeMcpServerSnapshot(host: McpRuntimeSnapshotHost, name: string)
 		name,
 	};
 	host.events.emit(MCP_RUNTIME_SNAPSHOT_EVENT, request);
-	if (!request.result) throw new Error("pi-mcp-adapter is not installed for this Pi instance");
+	if (!request.result) throw new Error("pi-mcp-adapter is not installed for this evoharness instance");
 	if (!request.result.ok) throw request.result.error;
 	const snapshot = request.result.snapshot;
 	if (
@@ -375,8 +375,8 @@ function loadMcpConfig(cwd: string): McpConfig {
 function getConfigPaths(projectRoot: string): string[] {
 	const agentDir = getAgentDir();
 	const projectDir = getProjectConfigDir(projectRoot);
-	// pi-mcp-adapter 3.x reads mcp-adapter.json. Pi's own mcp.json files belong to
-	// Pi's built-in MCP support, so servers there are never adapter-registered.
+	// pi-mcp-adapter 3.x reads mcp-adapter.json. evoharness's own mcp.json files belong to
+	// evoharness's built-in MCP support, so servers there are never adapter-registered.
 	const candidates = [
 		GENERIC_GLOBAL_CONFIG_PATH,
 		path.join(agentDir, "mcp-adapter.json"),

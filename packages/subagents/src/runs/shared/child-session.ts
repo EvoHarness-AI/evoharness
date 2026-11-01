@@ -1,11 +1,11 @@
 /**
  * In-process child sessions.
  *
- * A child is a pi `AgentSession` created inside the process that owns it: the
- * parent pi process for foreground children, the detached runner process for
+ * A child is a evoharness `AgentSession` created inside the process that owns it: the
+ * parent evoharness process for foreground children, the detached runner process for
  * background children. The factory is injectable so tests can script a child
  * without the real runtime; the default implementation wraps
- * `createAgentSession` from a pi package module.
+ * `createAgentSession` from a evoharness package module.
  */
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -21,19 +21,19 @@ import type {
 import { pinChildCacheRetention } from "../../shared/child-cache-retention.ts";
 import type { RequiredChildExtensionSnapshot } from "../../shared/required-child-extensions.ts";
 import type { HerdrRemoteGitStatus, PlacementMachineReference } from "../../shared/types.ts";
-import { getAgentDir, PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../shared/utils.ts";
+import { CODING_AGENT_PACKAGE_ROOT_ENV, getAgentDir } from "../../shared/utils.ts";
 import { resolvePackageSubpath } from "../background/runner-aliases.ts";
 import { CHILD_COMMAND_TOOL, createChildCommandRuntime } from "./child-commands.ts";
 import type { ChildRuntimeConfig } from "./child-runtime-config.ts";
 import { supervisorChannelDir } from "./child-tool-plan.ts";
-import { PI_CODING_AGENT_PACKAGE, resolveHostPiPackageRoot } from "./pi-spawn.ts";
+import { CODING_AGENT_PACKAGE, resolveHostPackageRoot } from "./host-spawn.ts";
 
 export interface ChildSessionEvent {
 	type: string;
 	[key: string]: unknown;
 }
 
-/** Mirror pi's JSON event projection: `message_update` drops the partial message. */
+/** Mirror evoharness's JSON event projection: `message_update` drops the partial message. */
 export function projectChildSessionEventForJson(event: ChildSessionEvent): unknown {
 	if (event.type !== "message_update") return event;
 	const assistantMessageEvent = event.assistantMessageEvent as Record<string, unknown> | undefined;
@@ -54,7 +54,7 @@ export interface ChildSessionExtensionError {
 
 export interface ChildHookExtension {
 	name: string;
-	factory: (pi: ExtensionAPI) => void;
+	factory: (evoharness: ExtensionAPI) => void;
 }
 
 export type ChildSessionStorage =
@@ -67,20 +67,20 @@ export interface ChildSessionLaunch {
 	cwd: string;
 	/** Resolved pane-native placement. Local launches omit this field. */
 	machine?: PlacementMachineReference;
-	/** The launching session's project trust; undefined keeps Pi's default for hosts without trust. */
+	/** The launching session's project trust; undefined keeps evoharness's default for hosts without trust. */
 	projectTrusted?: boolean;
 	/** Process-local provider source owned by the invoking foreground parent. */
 	parentProviderRegistry?: ParentProviderRegistry;
 	/** Logical names resolved only by the remote ambient package. */
 	remoteResources?: { agent: string; skills?: string[]; toolCeiling?: string[]; reads?: string[] | false };
 	storage: ChildSessionStorage;
-	/** The launching session's file, recorded as the new child session's `parentSession` header like Pi's forks. */
+	/** The launching session's file, recorded as the new child session's `parentSession` header like evoharness's forks. */
 	parentSessionFile?: string;
 	/** Model reference as the agent config names it (`provider/id`, optionally `:thinking`). */
 	model?: string;
-	/** Explicit tool allowlist; undefined keeps pi's defaults. */
+	/** Explicit tool allowlist; undefined keeps evoharness's defaults. */
 	tools?: string[];
-	/** Tools of Pi's built-in MCP extension the child must declare to its model directly, with the `mcp:` selector that granted each; `tools` names them too. */
+	/** Tools of evoharness's built-in MCP extension the child must declare to its model directly, with the `mcp:` selector that granted each; `tools` names them too. */
 	builtinMcpTools?: Array<{ name: string; selector: string }>;
 	/** Cancels startup before a child exists to receive abort(), including its MCP connection wait. */
 	signal?: AbortSignal;
@@ -91,7 +91,7 @@ export interface ChildSessionLaunch {
 	requiredExtensions?: RequiredChildExtensionSnapshot;
 	/**
 	 * Discover the ambient extensions (agent dir, project, settings) the way a
-	 * `pi` process would. False loads only `extensionPaths` and `hooks`.
+	 * `evoharness` process would. False loads only `extensionPaths` and `hooks`.
 	 */
 	ambientExtensions: boolean;
 	hooks: ChildHookExtension[];
@@ -128,7 +128,7 @@ export interface ChildSession {
 	dispose(): Promise<void>;
 	/** Final settlement check for commands owned by this child; unfinished commands are cancelled and reject completion. */
 	finishCommands?(): Promise<void>;
-	/** True while Pi still has steering or follow-up input that has not started a turn. */
+	/** True while evoharness still has steering or follow-up input that has not started a turn. */
 	hasQueuedMessages?(): boolean;
 	readonly messages: readonly AgentMessage[];
 	readonly sessionFile: string | undefined;
@@ -138,7 +138,7 @@ export interface ChildSession {
 	readonly inheritedProvider?: string;
 	/** Provider id of the selected model when an extension in this child's model runtime registered that provider, at load or later (e.g. on `session_start`). */
 	readonly claimedProvider?: string;
-	/** Live provider/id of the selected model when Pi marks it virtual (`api === "pi-virtual"`); assistant messages then name the dispatched physical model. */
+	/** Live provider/id of the selected model when evoharness marks it virtual (`api === "evoharness-virtual"`); assistant messages then name the dispatched physical model. */
 	readonly virtualModelId?: string;
 	readonly contextWindow?: number;
 	readonly machineEvidence?: {
@@ -169,20 +169,20 @@ export interface ChildSessionFactory {
 	dispose(): Promise<void>;
 }
 
-export type PiCodingAgentModule = typeof import("@evoharness/coding-agent");
+export type CodingAgentModule = typeof import("@evoharness/coding-agent");
 
 export interface DefaultChildSessionFactoryOptions {
 	/**
-	 * Loads the pi package the sessions are created from. The parent process
+	 * Loads the evoharness package the sessions are created from. The parent process
 	 * uses the host's in-process module; the detached runner imports the
 	 * installed package by absolute path.
 	 */
-	loadPiCodingAgent?: () => Promise<PiCodingAgentModule>;
+	loadCodingAgent?: () => Promise<CodingAgentModule>;
 	/** Upper bound on a disposed child's `session_shutdown` handlers before the session is dropped anyway. */
 	shutdownTimeoutMs?: number;
 }
 
-type ModelRuntimeInstance = Awaited<ReturnType<PiCodingAgentModule["ModelRuntime"]["create"]>>;
+type ModelRuntimeInstance = Awaited<ReturnType<CodingAgentModule["ModelRuntime"]["create"]>>;
 
 export type ParentProviderRegistry = Pick<
 	ModelRuntimeInstance,
@@ -227,9 +227,9 @@ function inheritParentProviders(
 	return inherited;
 }
 
-const CHILD_PROMPT_RUNTIME_EXTENSION_PATH = "<inline:pi-subagents:prompt-runtime>";
-const CHILD_PROMPT_BOUNDARY_EXTENSION_PATH = "<inline:pi-subagents:prompt-boundary>";
-/** Same class as UNICODE_SPACES in pi-coding-agent dist/utils/paths.js, which resolvePath(..., { normalizeUnicodeSpaces: true }) replaces with a space. */
+const CHILD_PROMPT_RUNTIME_EXTENSION_PATH = "<inline:subagents:prompt-runtime>";
+const CHILD_PROMPT_BOUNDARY_EXTENSION_PATH = "<inline:subagents:prompt-boundary>";
+/** Same class as UNICODE_SPACES in the host coding-agent dist/utils/paths.js, which resolvePath(..., { normalizeUnicodeSpaces: true }) replaces with a space. */
 const PI_UNICODE_SPACES = /[\u00A0\u2000-\u200A\u202F\u205F\u3000]/g;
 
 function childExtensionFileIdentity(extensionPath: string): string | undefined {
@@ -279,7 +279,7 @@ function orderChildPromptHooks<T extends { extensions: Array<{ path: string }> }
 function prioritizeChildCommandRuntime<T extends { extensions: Array<{ path: string; tools?: Map<string, unknown> }> }>(
 	result: T,
 ): T {
-	const index = result.extensions.findIndex(({ path }) => path === "<inline:pi-subagents:commands>");
+	const index = result.extensions.findIndex(({ path }) => path === "<inline:subagents:commands>");
 	if (index < 0) return result;
 	if (result.extensions.some((extension, otherIndex) => otherIndex !== index && extension.tools?.has("bash"))) {
 		const extensions = result.extensions.filter((_, otherIndex) => otherIndex !== index);
@@ -320,11 +320,11 @@ function prioritizeChildCommandRuntime<T extends { extensions: Array<{ path: str
 let loading: Promise<unknown> = Promise.resolve();
 
 /**
- * pi caches extension factories per process and clears that cache only when a
+ * evoharness caches extension factories per process and clears that cache only when a
  * loader reloads a second time, so every child in one process would share each
  * extension's module state. Marking the child's loader as already loaded makes
  * its first `reload()` clear the cache, so the child gets its own instances the
- * way a separate process had them. The flag is a private field of pi's loader.
+ * way a separate process had them. The flag is a private field of evoharness's loader.
  */
 function resetExtensionCacheOnReload(loader: object): boolean {
 	if (!("loaded" in loader)) return false;
@@ -344,12 +344,12 @@ function applyProcessEnv(values: Record<string, string | undefined> | undefined)
 }
 
 /**
- * Pi's built-in MCP extension registers server tools with the configured exposure, `codemode` by
+ * evoharness's built-in MCP extension registers server tools with the configured exposure, `codemode` by
  * default, which the child's `tools` allowlist cannot declare. Registering the selected names as
  * `direct` makes them model-declared and callable; `hidden` stays hidden. A name counts only when
- * the tool's raw identity, its `<server>/<tool>` label, matches the granting selector: Pi can give
+ * the tool's raw identity, its `<server>/<tool>` label, matches the granting selector: evoharness can give
  * the sanitized name of `srv/a.b` to `srv/a_b`. The selector's server part may be the configured
- * name or its `-`→`_` form, which Pi's namespace uses: Pi refuses two servers whose names differ
+ * name or its `-`→`_` form, which evoharness's namespace uses: evoharness refuses two servers whose names differ
  * only in `-` and `_`, so both forms name the same server. Every other tool the extension registers becomes
  * `hidden`, so neither codemode nor `ctx.executeTool()` can call it, independent of the `tools`
  * allowlist. The `builtin` entry loads
@@ -357,7 +357,7 @@ function applyProcessEnv(values: Record<string, string | undefined> | undefined)
  * ambient MCP extension that registers `/mcp` replace it, as in the parent.
  */
 function selectedBuiltinMcpExtension(
-	pi: PiCodingAgentModule,
+	evoharness: CodingAgentModule,
 	selections: ReadonlyArray<{ name: string; selector: string }>,
 	readinessTool: () => ToolDefinition | undefined,
 ): ChildHookExtension & {
@@ -365,12 +365,12 @@ function selectedBuiltinMcpExtension(
 	replaceable: true;
 	waitForTools(signal: AbortSignal, loadError: () => string | undefined): Promise<void>;
 } {
-	// Pi 0.99 export; the pinned SDK types predate it.
-	const createMcpExtension = (pi as { createMcpExtension?: () => (api: ExtensionAPI) => void | Promise<void> })
+	// evoharness 0.99 export; the pinned SDK types predate it.
+	const createMcpExtension = (evoharness as { createMcpExtension?: () => (api: ExtensionAPI) => void | Promise<void> })
 		.createMcpExtension;
 	if (typeof createMcpExtension !== "function")
 		throw new Error(
-			`Selected built-in MCP tools (${selections.map(({ name }) => name).join(", ")}) need a Pi version with built-in MCP.`,
+			`Selected built-in MCP tools (${selections.map(({ name }) => name).join(", ")}) need a evoharness version with built-in MCP.`,
 		);
 	const selectors = new Map(selections.map(({ name, selector }) => [name, selector]));
 	const split = (value: string) => {
@@ -424,13 +424,13 @@ function selectedBuiltinMcpExtension(
 			waitForTools = async (signal) => {
 				if (toolCallHandlers.length === 0)
 					throw new Error(
-						`Selected built-in MCP tools (${selections.map(({ name }) => name).join(", ")}) need Pi 0.99.2 or later; earlier built-in MCP cannot report when its servers have connected.`,
+						`Selected built-in MCP tools (${selections.map(({ name }) => name).join(", ")}) need evoharness 0.99.2 or later; earlier built-in MCP cannot report when its servers have connected.`,
 					);
-				// Run only MCP's readiness hook, not a tool or script. Pi 1.0 recognizes its
+				// Run only MCP's readiness hook, not a tool or script. evoharness 1.0 recognizes its
 				// own codemode schema; newer hosts use that tool's reachesTools metadata.
 				const event: ToolCallEvent = {
 					type: "tool_call",
-					toolCallId: "pi-subagents:mcp-startup",
+					toolCallId: "subagents:mcp-startup",
 					toolName: "codemode",
 					input: { code: selections.map(({ name }) => `tools.${name}`).join(";\n") },
 				};
@@ -459,7 +459,7 @@ function selectedBuiltinMcpExtension(
 			if (!waitForTools) {
 				const error = loadError();
 				throw new Error(
-					`Pi's built-in MCP readiness hook did not start in the child session${error ? `: ${error}` : "."}`,
+					`evoharness's built-in MCP readiness hook did not start in the child session${error ? `: ${error}` : "."}`,
 				);
 			}
 			await waitForTools(signal);
@@ -467,7 +467,7 @@ function selectedBuiltinMcpExtension(
 	};
 }
 
-/** Verify the declaration and callable exposure after Pi finishes the selected connection attempts. */
+/** Verify the declaration and callable exposure after evoharness finishes the selected connection attempts. */
 function missingBuiltinMcpTools(
 	session: { getAllTools(): Array<{ name: string }>; getActiveToolNames(): string[] },
 	names: readonly string[],
@@ -483,7 +483,7 @@ function missingBuiltinMcpTools(
 }
 
 function flushQueuedProviderRegistrations(
-	loader: InstanceType<PiCodingAgentModule["DefaultResourceLoader"]>,
+	loader: InstanceType<CodingAgentModule["DefaultResourceLoader"]>,
 	modelRuntime: ModelRuntimeInstance,
 	onError: ((error: ChildSessionExtensionError) => void) | undefined,
 	isRequiredSource: (extensionPath: string) => boolean,
@@ -521,7 +521,7 @@ function flushQueuedProviderRegistrations(
 		}
 	}
 	if (Array.isArray(runtime.pendingNativeProviderRegistrations)) runtime.pendingNativeProviderRegistrations = [];
-	// Pi core flushes pendingVirtualModelRegistrations when a session binds extensions
+	// evoharness core flushes pendingVirtualModelRegistrations when a session binds extensions
 	// (agent-session-services), but this factory resolves the requested model before that
 	// binding, so an extension-registered virtual model never resolves for the child. The
 	// structural cast keeps compiling against SDK versions that predate virtual models;
@@ -552,20 +552,20 @@ function flushQueuedProviderRegistrations(
 }
 
 /**
- * Load the host-owned pi-coding-agent module by absolute package entry so a
+ * Load the host-owned coding-agent module by absolute package entry so a
  * child cannot resolve an extension-owned copy. SDK and CLI root precedence is
- * shared through resolveHostPiPackageRoot. Once any root is selected, its manifest,
+ * shared through resolveHostPackageRoot. Once any root is selected, its manifest,
  * package identity, entry, and import must all succeed; the bare specifier is used
  * only when no root resolves.
  */
-export async function loadHostPiCodingAgent(): Promise<PiCodingAgentModule> {
-	const overrideRoot = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV]?.trim() || undefined;
-	const root = resolveHostPiPackageRoot();
+export async function loadHostPiCodingAgent(): Promise<CodingAgentModule> {
+	const overrideRoot = process.env[CODING_AGENT_PACKAGE_ROOT_ENV]?.trim() || undefined;
+	const root = resolveHostPackageRoot();
 	if (root) {
 		const entry = fs.realpathSync(resolveHostPackageEntry(root, root === overrideRoot ? overrideRoot : undefined));
 		return import(pathToFileURL(entry).href);
 	}
-	return import(PI_CODING_AGENT_PACKAGE);
+	return import(CODING_AGENT_PACKAGE);
 }
 
 function resolveHostPackageEntry(root: string, overrideRoot: string | undefined): string {
@@ -579,10 +579,10 @@ function resolveHostPackageEntry(root: string, overrideRoot: string | undefined)
 	}
 	if (!isUnknownRecord(parsed)) throw new Error(`invalid host SDK manifest at ${packageJson}: expected a JSON object`);
 	const pkg = parsed;
-	if (pkg.name !== PI_CODING_AGENT_PACKAGE) {
-		const source = overrideRoot !== undefined ? ` (${PI_CODING_AGENT_PACKAGE_ROOT_ENV} override)` : "";
+	if (pkg.name !== CODING_AGENT_PACKAGE) {
+		const source = overrideRoot !== undefined ? ` (${CODING_AGENT_PACKAGE_ROOT_ENV} override)` : "";
 		throw new Error(
-			`refusing to load the host SDK from ${root}${source}: package.json name is "${String(pkg.name ?? "(none)")}", expected "${PI_CODING_AGENT_PACKAGE}"`,
+			`refusing to load the host SDK from ${root}${source}: package.json name is "${String(pkg.name ?? "(none)")}", expected "${CODING_AGENT_PACKAGE}"`,
 		);
 	}
 	const entry = resolvePackageSubpath(root, ".");
@@ -599,17 +599,17 @@ function isUnknownRecord(value: unknown): value is Record<string, unknown> {
  * runtime; each parent-bound foreground launch gets an isolated runtime.
  */
 export function createDefaultChildSessionFactory(options: DefaultChildSessionFactoryOptions = {}): ChildSessionFactory {
-	const loadPiCodingAgent = options.loadPiCodingAgent ?? loadHostPiCodingAgent;
+	const loadCodingAgent = options.loadCodingAgent ?? loadHostPiCodingAgent;
 	const shutdownTimeoutMs = options.shutdownTimeoutMs ?? 5_000;
-	let runtime: ReturnType<PiCodingAgentModule["ModelRuntime"]["create"]> | undefined;
+	let runtime: ReturnType<CodingAgentModule["ModelRuntime"]["create"]> | undefined;
 	const live = new Set<ChildSession>();
 	/** Extension shutdowns still running for disposed children; `dispose()` waits for them. */
 	const shutdowns = new Set<Promise<void>>();
 	/** Launches still waiting for their MCP tools; `dispose()` ends the wait and waits for their shutdown. */
 	const mcpWaits = new Map<AbortController, Promise<void>>();
 	let disposals = 0;
-	const sharedRuntime = async (pi: PiCodingAgentModule) => {
-		runtime ??= pi.ModelRuntime.create().catch((error: unknown) => {
+	const sharedRuntime = async (evoharness: CodingAgentModule) => {
+		runtime ??= evoharness.ModelRuntime.create().catch((error: unknown) => {
 			runtime = undefined;
 			throw error;
 		});
@@ -618,13 +618,15 @@ export function createDefaultChildSessionFactory(options: DefaultChildSessionFac
 	return {
 		async create(launch) {
 			const disposalsAtStart = disposals;
-			const pi = await loadPiCodingAgent();
+			const evoharness = await loadCodingAgent();
 			const builtinMcpTools = launch.builtinMcpTools ?? [];
 			let readinessTool: ToolDefinition | undefined;
 			const builtinMcp = builtinMcpTools.length
-				? selectedBuiltinMcpExtension(pi, builtinMcpTools, () => readinessTool)
+				? selectedBuiltinMcpExtension(evoharness, builtinMcpTools, () => readinessTool)
 				: undefined;
-			const modelRuntime = launch.parentProviderRegistry ? await pi.ModelRuntime.create() : await sharedRuntime(pi);
+			const modelRuntime = launch.parentProviderRegistry
+				? await evoharness.ModelRuntime.create()
+				: await sharedRuntime(evoharness);
 			const agentDir = getAgentDir();
 			const commands =
 				launch.runtime.runId &&
@@ -634,25 +636,26 @@ export function createDefaultChildSessionFactory(options: DefaultChildSessionFac
 				launch.tools.includes(CHILD_COMMAND_TOOL) &&
 				!launch.excludeTools?.includes("bash") &&
 				!launch.excludeTools?.includes(CHILD_COMMAND_TOOL) &&
-				typeof pi.createBashTool === "function"
+				typeof evoharness.createBashTool === "function"
 					? createChildCommandRuntime(
 							supervisorChannelDir(launch.runtime.runId, launch.runtime.agent, launch.runtime.childIndex),
 						)
 					: undefined;
-			const settingsManager = pi.SettingsManager.create(launch.cwd, agentDir, {
+			const settingsManager = evoharness.SettingsManager.create(launch.cwd, agentDir, {
 				projectTrusted: launch.projectTrusted,
 			});
-			// Foreground children share Pi's global theme with the parent, so reinitializing it
+			// Foreground children share evoharness's global theme with the parent, so reinitializing it
 			// would overwrite the parent's active light/dark appearance. Detached runners have
 			// no initialized theme and must initialize one for headless extension renderers.
 			const themeKey = Symbol.for("@evoharness/coding-agent:theme");
 			const themeInitialized = Boolean((globalThis as Record<symbol, unknown>)[themeKey]);
-			if (!themeInitialized && typeof pi.initTheme === "function") pi.initTheme(settingsManager.getTheme());
-			// SDK sessions do not install Pi's CLI built-ins. Use the host's own
-			// codemode factory only when this child can select it; older Pi hosts
+			if (!themeInitialized && typeof evoharness.initTheme === "function")
+				evoharness.initTheme(settingsManager.getTheme());
+			// SDK sessions do not install evoharness's CLI built-ins. Use the host's own
+			// codemode factory only when this child can select it; older evoharness hosts
 			// without that factory retain the strict missing-tool diagnostic.
 			const createCodemodeExtension = (
-				pi as PiCodingAgentModule & { createCodemodeExtension?: () => ChildHookExtension["factory"] }
+				evoharness as CodingAgentModule & { createCodemodeExtension?: () => ChildHookExtension["factory"] }
 			).createCodemodeExtension;
 			const codemodeAllowed =
 				!launch.runtime.capabilityCeiling?.denyExtensions &&
@@ -688,21 +691,21 @@ export function createDefaultChildSessionFactory(options: DefaultChildSessionFac
 			const requiredPaths = new Set((launch.requiredExtensions ?? []).map(({ path }) => path));
 			const requiredExtensionIdentity = createRequiredChildExtensionIdentity(requiredPaths);
 			const resolvedExtensionPaths = new Map<string, string>();
-			// Pi reports failures by source path, without resolvedPath. A source Pi never loaded is classified by the
-			// file it names, after Pi's Unicode-space normalization. A required extension that failed under an
+			// evoharness reports failures by source path, without resolvedPath. A source evoharness never loaded is classified by the
+			// file it names, after evoharness's Unicode-space normalization. A required extension that failed under an
 			// unmatched spelling is still rejected by the missing-identity check after loading.
 			const isRequiredSource = (extensionPath: string) =>
 				requiredPaths.size > 0 &&
 				requiredExtensionIdentity(
 					resolvedExtensionPaths.get(extensionPath) ?? extensionPath.replace(PI_UNICODE_SPACES, " "),
 				) !== undefined;
-			const loader = new pi.DefaultResourceLoader({
+			const loader = new evoharness.DefaultResourceLoader({
 				cwd: launch.cwd,
 				agentDir,
 				settingsManager,
 				noExtensions: !launch.ambientExtensions,
 				noSkills: launch.noSkills,
-				// Pi merges skills from extensions' resources_discover without checking noSkills.
+				// evoharness merges skills from extensions' resources_discover without checking noSkills.
 				skillsOverride: launch.noSkills ? (base) => ({ ...base, skills: [] }) : undefined,
 				noPromptTemplates: true,
 				noThemes: true,
@@ -713,11 +716,11 @@ export function createDefaultChildSessionFactory(options: DefaultChildSessionFac
 					...(commands
 						? [
 								{
-									name: "pi-subagents:commands",
+									name: "subagents:commands",
 									factory: (api: ExtensionAPI) => {
 										api.registerTool(
 											commands.wrap(
-												pi.createBashTool(launch.cwd, {
+												evoharness.createBashTool(launch.cwd, {
 													commandPrefix: settingsManager.getShellCommandPrefix(),
 													shellPath: settingsManager.getShellPath(),
 												}) as unknown as ToolDefinition,
@@ -733,14 +736,14 @@ export function createDefaultChildSessionFactory(options: DefaultChildSessionFac
 				],
 				extensionsOverride: (result) => orderChildPromptHooks(prioritizeChildCommandRuntime(result)),
 				...(launch.systemPrompt !== undefined ? { systemPrompt: launch.systemPrompt } : {}),
-				// An empty list stops Pi from filling the slot with the operator's APPEND_SYSTEM.md (#2960).
+				// An empty list stops evoharness from filling the slot with the operator's APPEND_SYSTEM.md (#2960).
 				appendSystemPrompt: launch.appendSystemPrompt !== undefined ? [launch.appendSystemPrompt] : [],
 			});
-			// pi's own hosts emit `session_shutdown` before disposing a session so the
+			// evoharness's own hosts emit `session_shutdown` before disposing a session so the
 			// extensions loaded into it (ambient extensions included) release their
 			// watchers, servers, and timers. Do the same, then dispose.
 			const shutdownSession = async (
-				session: Awaited<ReturnType<PiCodingAgentModule["createAgentSession"]>>["session"],
+				session: Awaited<ReturnType<CodingAgentModule["createAgentSession"]>>["session"],
 			): Promise<void> => {
 				try {
 					await commands?.shutdown();
@@ -769,7 +772,7 @@ export function createDefaultChildSessionFactory(options: DefaultChildSessionFac
 						extensionPath: "<loader>",
 						event: "load",
 						error: new Error(
-							"pi's extension cache reset is unavailable; extensions loaded into this child share module state with other sessions in this process.",
+							"evoharness's extension cache reset is unavailable; extensions loaded into this child share module state with other sessions in this process.",
 						),
 					});
 				await loader.reload();
@@ -821,21 +824,21 @@ export function createDefaultChildSessionFactory(options: DefaultChildSessionFac
 				const newSessionFile = launch.storage.kind === "file" && !fs.existsSync(launch.storage.sessionFile);
 				const sessionManager =
 					launch.storage.kind === "file"
-						? pi.SessionManager.open(launch.storage.sessionFile, undefined, launch.cwd)
+						? evoharness.SessionManager.open(launch.storage.sessionFile, undefined, launch.cwd)
 						: launch.storage.kind === "dir"
-							? pi.SessionManager.create(launch.cwd, launch.storage.sessionDir, newSessionOptions)
+							? evoharness.SessionManager.create(launch.cwd, launch.storage.sessionDir, newSessionOptions)
 							: launch.storage.kind === "memory"
-								? pi.SessionManager.inMemory(launch.cwd, newSessionOptions)
-								: pi.SessionManager.create(launch.cwd, undefined, newSessionOptions);
+								? evoharness.SessionManager.inMemory(launch.cwd, newSessionOptions)
+								: evoharness.SessionManager.create(launch.cwd, undefined, newSessionOptions);
 				// SessionManager.open takes no parent for a file it is about to create, so set it on the
-				// header Pi writes with the first assistant message. Forked and resumed files keep theirs.
+				// header evoharness writes with the first assistant message. Forked and resumed files keep theirs.
 				const header = newSessionFile && launch.parentSessionFile ? sessionManager.getHeader() : null;
 				if (header) header.parentSession = launch.parentSessionFile;
 				const resolvedModel = launch.model
-					? pi.resolveCliModel({ cliModel: launch.model, modelRuntime })
+					? evoharness.resolveCliModel({ cliModel: launch.model, modelRuntime })
 					: undefined;
 				if (resolvedModel?.error) throw new Error(resolvedModel.error);
-				const { session } = await pi.createAgentSession({
+				const { session } = await evoharness.createAgentSession({
 					cwd: launch.cwd,
 					agentDir,
 					modelRuntime,
@@ -849,7 +852,7 @@ export function createDefaultChildSessionFactory(options: DefaultChildSessionFac
 					sessionStartEvent: { type: "session_start", reason: "startup" },
 				});
 				pinChildCacheRetention(session.agent);
-				// Pi reports handler failures through onError instead of throwing, so required startup failures must be collected here.
+				// evoharness reports handler failures through onError instead of throwing, so required startup failures must be collected here.
 				const requiredStartupErrors: string[] = [];
 				let binding = true;
 				try {
@@ -975,7 +978,9 @@ export function createDefaultChildSessionFactory(options: DefaultChildSessionFac
 						: undefined;
 				},
 				get virtualModelId() {
-					return session.model?.api === "pi-virtual" ? `${session.model.provider}/${session.model.id}` : undefined;
+					return session.model?.api === "evoharness-virtual"
+						? `${session.model.provider}/${session.model.id}`
+						: undefined;
 				},
 				get contextWindow() {
 					return session.model?.contextWindow;
@@ -1045,7 +1050,7 @@ export function setChildSessionFactory(factory: ChildSessionFactory | undefined)
 /**
  * Module path the detached background runner imports its child session factory
  * from. Tests point it at a scripted factory; production launches leave it
- * unset and the runner creates real sessions from the installed pi package.
+ * unset and the runner creates real sessions from the installed evoharness package.
  */
 export function childSessionFactoryModule(): string | undefined {
 	return activeFactoryModule;

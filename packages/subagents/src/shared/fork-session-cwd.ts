@@ -7,7 +7,7 @@ interface SessionEntry {
 	[key: string]: unknown;
 }
 
-/** Keep Pi from restoring a forked session into the parent's cwd instead of the child launch cwd. */
+/** Keep evoharness from restoring a forked session into the parent's cwd instead of the child launch cwd. */
 export function alignForkedSessionCwd(sessionFile: string, cwd: string): void {
 	const lines = fs
 		.readFileSync(sessionFile, "utf-8")

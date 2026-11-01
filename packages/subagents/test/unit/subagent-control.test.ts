@@ -419,7 +419,7 @@ describe("subagent control attention state", () => {
 		const omitted = formatControlNoticeMessage(buildControlEvent(base));
 		assert.doesNotMatch(omitted, /"action":"command\.(status|yield|cancel)"/);
 		assert.match(omitted, /Transcript: subagent\(/);
-		assert.match(omitted, /Recovery: For a local Pi child explicitly granted subagent_command/);
+		assert.match(omitted, /Recovery: For a local evoharness child explicitly granted subagent_command/);
 
 		const unavailable = formatControlNoticeMessage(buildControlEvent({ ...base, hasCommandController: false }));
 		assert.doesNotMatch(unavailable, /"action":"command\.(status|yield|cancel)"/);

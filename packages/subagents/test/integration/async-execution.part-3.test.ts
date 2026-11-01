@@ -4,7 +4,7 @@
  * Tests the async support utilities: jiti availability check,
  * status file reading/caching.
  *
- * Requires pi packages to be importable. Skips gracefully if unavailable.
+ * Requires evoharness packages to be importable. Skips gracefully if unavailable.
  */
 
 import assert from "node:assert/strict";
@@ -141,7 +141,7 @@ function waitForJson<T>(
 	});
 }
 
-describe("async execution utilities", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("async execution utilities", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	installAsyncExecutionHooks();
 
 	it(
@@ -176,7 +176,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				task: "Do work",
 				sessionFile,
 				agentConfig: makeAgent("worker", { model: "openai/gpt-5-mini" }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				availableModels: [{ provider: "openai", id: "gpt-5-mini", fullId: "openai/gpt-5-mini" }],
 				artifactConfig: {
 					enabled: false,
@@ -216,7 +216,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Do work",
 				agentConfig: makeAgent("worker", { model: "openai/gpt-5-mini" }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -257,7 +257,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Do work",
 				agentConfig: makeAgent("worker", { model: "openai/gpt-5-mini" }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -325,7 +325,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 					agent: "worker",
 					task: "Do work",
 					agentConfig: makeAgent("worker", { model: "openai/gpt-5-mini" }),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -377,7 +377,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Do work",
 				agentConfig: makeAgent("worker", { model: "openai/gpt-5-mini" }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -431,7 +431,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Do work",
 				agentConfig: makeAgent("worker", { model: "openai/gpt-5-mini" }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -471,7 +471,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "analyst",
 				task: "Analyze without modifying files",
 				agentConfig: makeAgent("analyst", { tools: ["read", "grep", "find", "ls"] }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -514,7 +514,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 	);
 
 	it(
-		"removes Pi turn-timing telemetry from runtime-persisted background output",
+		"removes evoharness turn-timing telemetry from runtime-persisted background output",
 		{ skip: !isAsyncAvailable() ? "jiti not available" : undefined },
 		async () => {
 			const report = "## Review\n\nVERDICT: FINDINGS";
@@ -526,7 +526,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "reviewer",
 				task: "Review without modifying files",
 				agentConfig: makeAgent("reviewer", { tools: ["read", "grep", "find", "ls"] }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -562,7 +562,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "researcher",
 				task: "Write report",
 				agentConfig: makeAgent("researcher", { output: "context.md" }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -605,7 +605,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 					output: "default-report.md",
 					systemPrompt: "Output format (`default-report.md`):\n\nWrite the full report to default-report.md.",
 				}),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -642,7 +642,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Do work",
 				agentConfig: makeAgent("worker", { output: "default-report.md" }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -685,7 +685,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Deploy app",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -728,7 +728,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				agent: "worker",
 				task: "Implement and write the approved fixes using the available mutation tools",
 				agentConfig: makeAgent("worker", { tools: ["read", "write", "bash"], mutationTools: ["replace"] }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -776,7 +776,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				delay: 500,
 				output: "Implemented second sibling change.",
 			});
-			const repo = createRepo("pi-subagents-shared-cwd-mutation-guard-");
+			const repo = createRepo("subagents-shared-cwd-mutation-guard-");
 			const id = `async-parallel-shared-cwd-mutation-${Date.now().toString(36)}`;
 			let runnerStarted = false;
 			const observer = observeSharedCwdRunner(id);
@@ -823,7 +823,7 @@ export default function() {
 						],
 						resultMode: "parallel",
 						agents: [makeAgent("first"), makeAgent("second")],
-						ctx: { pi: { events: { emit: observer.emit } }, cwd: repo, currentSessionId: "session-1" },
+						ctx: { evoharness: { events: { emit: observer.emit } }, cwd: repo, currentSessionId: "session-1" },
 						artifactConfig: {
 							enabled: false,
 							includeInput: false,
@@ -904,7 +904,7 @@ export default function() {
 				agent: "worker",
 				task: "Implement the approved fixes",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -952,7 +952,7 @@ export default function() {
 				agent: "worker",
 				task: "Return structured data",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1033,7 +1033,7 @@ export default function() {
 				agent: "worker",
 				task: "Return structured data",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1077,7 +1077,7 @@ export default function() {
 					agent: "worker",
 					task: "Return structured data",
 					agentConfig: makeAgent("worker"),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -1151,7 +1151,7 @@ export default function() {
 				agent: "worker",
 				task: "Return structured data",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1300,7 +1300,7 @@ export default function() {
 				agent: "worker",
 				task: "Return structured data",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1338,7 +1338,7 @@ export default function() {
 				agent: "test-runner",
 				task: "Run cold start test after patch",
 				agentConfig: makeAgent("test-runner", { tools: ["read", "grep", "bash", "ls"] }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1376,7 +1376,7 @@ export default function() {
 				task: "Do work",
 				agentConfig: makeAgent("worker", { model: "gpt-5-mini" }),
 				ctx: {
-					pi: { events: { emit() {} } },
+					evoharness: { events: { emit() {} } },
 					cwd: tempDir,
 					currentSessionId: "session-1",
 					currentModelProvider: "github-copilot",
@@ -1442,7 +1442,7 @@ export default function() {
 			fs.rmSync(rejectedAsyncDir, { recursive: true, force: true });
 			fs.rmSync(rejectedResultPath, { force: true });
 			const executor = createSubagentExecutor!({
-				pi: { events: createEventBus(), getSessionName: () => undefined },
+				evoharness: { events: createEventBus(), getSessionName: () => undefined },
 				state,
 				config: { maxActiveAsyncRunsPerSession: 1, artifactDir: "project" },
 				asyncByDefault: false,
@@ -1454,8 +1454,8 @@ export default function() {
 			const context = makeMinimalCtx(tempDir);
 			context.sessionManager.getSessionFile = () => null;
 			context.sessionManager.getSessionId = () => "session-cap";
-			const previousDepth = process.env.PI_SUBAGENT_DEPTH;
-			process.env.PI_SUBAGENT_DEPTH = "0";
+			const previousDepth = process.env.EVOHARNESS_SUBAGENT_DEPTH;
+			process.env.EVOHARNESS_SUBAGENT_DEPTH = "0";
 			const result = await executor.execute(
 				"cap-rejected",
 				{ agent: "worker", task: "Must not start", async: true },
@@ -1463,8 +1463,8 @@ export default function() {
 				undefined,
 				context,
 			);
-			if (previousDepth === undefined) delete process.env.PI_SUBAGENT_DEPTH;
-			else process.env.PI_SUBAGENT_DEPTH = previousDepth;
+			if (previousDepth === undefined) delete process.env.EVOHARNESS_SUBAGENT_DEPTH;
+			else process.env.EVOHARNESS_SUBAGENT_DEPTH = previousDepth;
 			assert.equal(result.isError, true);
 			assert.match(
 				result.content[0]?.type === "text" ? result.content[0].text : "",
@@ -1498,7 +1498,7 @@ export default function() {
 				lastForegroundControlId: null,
 			};
 			const executor = createSubagentExecutor!({
-				pi: { events: createEventBus(), getSessionName: () => undefined },
+				evoharness: { events: createEventBus(), getSessionName: () => undefined },
 				state,
 				config: { maxSubagentSpawnsPerSession: 1 },
 				asyncByDefault: false,
@@ -1565,7 +1565,7 @@ export default function() {
 				lastForegroundControlId: null,
 			};
 			const executor = createSubagentExecutor!({
-				pi: { events: createEventBus(), getSessionName: () => undefined },
+				evoharness: { events: createEventBus(), getSessionName: () => undefined },
 				state,
 				config: {},
 				asyncByDefault: false,
@@ -1612,7 +1612,7 @@ export default function() {
 				lastForegroundControlId: null,
 			};
 			const executor = createSubagentExecutor!({
-				pi: { events: createEventBus(), getSessionName: () => undefined },
+				evoharness: { events: createEventBus(), getSessionName: () => undefined },
 				state,
 				config: { maxSubagentSpawnsPerSession: 5 },
 				asyncByDefault: false,
@@ -1662,7 +1662,7 @@ export default function() {
 				lastForegroundControlId: null,
 			};
 			const executor = createSubagentExecutor!({
-				pi: { events: createEventBus(), getSessionName: () => undefined },
+				evoharness: { events: createEventBus(), getSessionName: () => undefined },
 				state,
 				config: {},
 				asyncByDefault: false,
@@ -1716,7 +1716,7 @@ export default function() {
 				lastForegroundControlId: null,
 			};
 			const executor = createSubagentExecutor!({
-				pi: { events: createEventBus(), getSessionName: () => undefined },
+				evoharness: { events: createEventBus(), getSessionName: () => undefined },
 				state,
 				config: {},
 				asyncByDefault: false,
@@ -1767,7 +1767,7 @@ export default function() {
 				task: "Do work",
 				agentConfig: makeAgent("worker"),
 				ctx: {
-					pi: { events: { emit() {} } },
+					evoharness: { events: { emit() {} } },
 					cwd: tempDir,
 					currentSessionId: "session-1",
 					currentModelProvider: "deepseek",
@@ -1897,7 +1897,7 @@ export default function() {
 			};
 			const makeExecutor = () =>
 				createSubagentExecutor!({
-					pi: { events: createEventBus(), getSessionName: () => undefined },
+					evoharness: { events: createEventBus(), getSessionName: () => undefined },
 					state: {
 						baseCwd: tempDir,
 						currentSessionId: sessionId,
@@ -2000,7 +2000,7 @@ export default function() {
 			};
 			const ctx = makeMinimalCtx(tempDir);
 			const executor = createSubagentExecutor!({
-				pi: { events: createEventBus(), getSessionName: () => undefined, sendMessage() {} },
+				evoharness: { events: createEventBus(), getSessionName: () => undefined, sendMessage() {} },
 				state: {
 					baseCwd: tempDir,
 					currentSessionId: "session-123",
@@ -2365,7 +2365,7 @@ syncBuiltinESMExports();
 				agent: "worker",
 				task: "Initial work",
 				agentConfig: makeAgent("worker", { model: luna.fullId }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-123" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-123" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2416,7 +2416,7 @@ syncBuiltinESMExports();
 				agent: "worker",
 				task: "Initial work",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-123" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-123" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2521,7 +2521,7 @@ syncBuiltinESMExports();
 				agent: "worker",
 				task: "Initial work",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-123" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-123" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2935,7 +2935,7 @@ syncBuiltinESMExports();
 				chain: [{ agent: "worker", task: "Do work" }],
 				agents: [makeAgent("worker")],
 				ctx: {
-					pi: { events: { emit() {} } },
+					evoharness: { events: { emit() {} } },
 					cwd: tempDir,
 					currentSessionId: "session-1",
 					currentModelProvider: "deepseek",
@@ -2974,7 +2974,7 @@ syncBuiltinESMExports();
 				chain: [{ agent: "worker", task: "Do work", model: "" }],
 				agents: [makeAgent("worker", { model: "anthropic/claude-sonnet-4-5", thinking: "high" })],
 				ctx: {
-					pi: { events: { emit() {} } },
+					evoharness: { events: { emit() {} } },
 					cwd: tempDir,
 					currentSessionId: "session-1",
 					currentModelProvider: "openai",
@@ -3016,7 +3016,7 @@ syncBuiltinESMExports();
 		{ skip: !isAsyncAvailable() ? "jiti not available" : undefined },
 		async () => {
 			mockPi.onCall({ output: "Done asynchronously" });
-			const taskCwd = createTempDir("pi-subagent-async-task-cwd-");
+			const taskCwd = createTempDir("subagents-subagent-async-task-cwd-");
 			const id = `async-skill-cwd-${Date.now().toString(36)}`;
 			const asyncDir = path.join(ASYNC_DIR, id);
 			const resultPath = path.join(RESULTS_DIR, `${id}.json`);
@@ -3028,7 +3028,7 @@ syncBuiltinESMExports();
 					agent: "worker",
 					task: "Do work",
 					agentConfig: makeAgent("worker", { skills: ["async-task-cwd-skill"] }),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					cwd: taskCwd,
 					artifactConfig: {
 						enabled: false,
@@ -3076,7 +3076,7 @@ syncBuiltinESMExports();
 				agent: "worker",
 				task: "Do work",
 				agentConfig: makeAgent("worker", { filePath: agentFile, skills: ["local"], skillPath: ["./skills"] }),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -3122,7 +3122,7 @@ syncBuiltinESMExports();
 				],
 				resultMode: "parallel",
 				agents,
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -3155,13 +3155,13 @@ syncBuiltinESMExports();
 		},
 	);
 
-	it("background single runs report unavailable pi-subagents skill requests", () => {
-		const id = `async-pi-subagents-skill-${Date.now().toString(36)}`;
+	it("background single runs report unavailable subagents skill requests", () => {
+		const id = `async-subagents-skill-${Date.now().toString(36)}`;
 		const result = executeAsyncSingle(id, {
 			agent: "worker",
 			task: "Do work",
 			agentConfig: makeAgent("worker"),
-			ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+			ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 			cwd: tempDir,
 			artifactConfig: {
 				enabled: false,
@@ -3173,20 +3173,20 @@ syncBuiltinESMExports();
 			},
 			shareEnabled: false,
 			sessionRoot: path.join(tempDir, "sessions"),
-			skills: ["pi-subagents"],
+			skills: ["subagents"],
 			maxSubagentDepth: 2,
 		});
 
 		assert.equal(result.isError, true);
-		assert.match(result.content[0]?.text ?? "", /Skills not found: pi-subagents/);
+		assert.match(result.content[0]?.text ?? "", /Skills not found: subagents/);
 	});
 
-	it("background chains report unavailable pi-subagents skill requests", () => {
-		const id = `async-chain-pi-subagents-skill-${Date.now().toString(36)}`;
+	it("background chains report unavailable subagents skill requests", () => {
+		const id = `async-chain-subagents-skill-${Date.now().toString(36)}`;
 		const result = executeAsyncChain(id, {
-			chain: [{ agent: "worker", task: "Do work", skill: ["pi-subagents"] }],
+			chain: [{ agent: "worker", task: "Do work", skill: ["subagents"] }],
 			agents: [makeAgent("worker")],
-			ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+			ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 			cwd: tempDir,
 			artifactConfig: {
 				enabled: false,
@@ -3202,7 +3202,7 @@ syncBuiltinESMExports();
 		});
 
 		assert.equal(result.isError, true);
-		assert.match(result.content[0]?.text ?? "", /Skills not found: pi-subagents/);
+		assert.match(result.content[0]?.text ?? "", /Skills not found: subagents/);
 	});
 
 	it(
@@ -3210,7 +3210,7 @@ syncBuiltinESMExports();
 		{ skip: !isAsyncAvailable() ? "jiti not available" : undefined },
 		async () => {
 			mockPi.onCall({ output: "Done asynchronously" });
-			const chainCwd = createTempDir("pi-subagent-async-chain-cwd-");
+			const chainCwd = createTempDir("subagents-subagent-async-chain-cwd-");
 			const id = `async-chain-skill-cwd-${Date.now().toString(36)}`;
 			const asyncDir = path.join(ASYNC_DIR, id);
 			const resultPath = path.join(RESULTS_DIR, `${id}.json`);
@@ -3221,7 +3221,7 @@ syncBuiltinESMExports();
 				executeAsyncChain(id, {
 					chain: [{ agent: "worker", task: "Do work", cwd: "packages/app", skill: ["async-chain-step-skill"] }],
 					agents: [makeAgent("worker")],
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					cwd: chainCwd,
 					artifactConfig: {
 						enabled: false,
@@ -3295,7 +3295,7 @@ syncBuiltinESMExports();
 					},
 				],
 				agents: [makeAgent("reader"), makeAgent("editor")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -3350,7 +3350,7 @@ syncBuiltinESMExports();
 				agent: "worker",
 				task: "Do work",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -3388,7 +3388,7 @@ syncBuiltinESMExports();
 				agent: "worker",
 				task: "Initial work",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-123" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-123" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -3521,7 +3521,7 @@ syncBuiltinESMExports();
 					task: "Must never start",
 					agentConfig: makeAgent("worker"),
 					ctx: {
-						pi: {
+						evoharness: {
 							events: {
 								emit(type: string, proof: unknown) {
 									eventsSeen.push(type);
@@ -3643,8 +3643,8 @@ syncBuiltinESMExports();
 				`
 import fs from "node:fs";
 import path from "node:path";
-const started = process.env.PI_SUBAGENTS_TEST_IMPORT_STARTED;
-const reject = process.env.PI_SUBAGENTS_TEST_IMPORT_REJECT;
+const started = process.env.EVOHARNESS_SUBAGENTS_TEST_IMPORT_STARTED;
+const reject = process.env.EVOHARNESS_SUBAGENTS_TEST_IMPORT_REJECT;
 const watchStarted = ${JSON.stringify(watchStartedPath)};
 const rejectSeen = ${JSON.stringify(rejectSeenPath)};
 const mark = (file, text) => { try { fs.writeFileSync(file, text); } catch {} };
@@ -3664,9 +3664,9 @@ throw new Error("injected parent-visible heavy import rejection");
 					`${JSON.stringify({ type: "session", version: 1, id: `child-${id}`, cwd: fs.realpathSync(tempDir) })}\n`,
 				);
 			const callsBefore = fs.readdirSync(mockPi.dir).filter((name) => name.startsWith("call-")).length;
-			const previousModule = process.env.PI_SUBAGENTS_TEST_RUNNER_EXECUTION_MODULE;
-			const previousStarted = process.env.PI_SUBAGENTS_TEST_IMPORT_STARTED;
-			const previousReject = process.env.PI_SUBAGENTS_TEST_IMPORT_REJECT;
+			const previousModule = process.env.EVOHARNESS_SUBAGENTS_TEST_RUNNER_EXECUTION_MODULE;
+			const previousStarted = process.env.EVOHARNESS_SUBAGENTS_TEST_IMPORT_STARTED;
+			const previousReject = process.env.EVOHARNESS_SUBAGENTS_TEST_IMPORT_REJECT;
 			const processEvents = new Map<
 				number,
 				Array<{ type: "exit" | "close"; at: string; exitCode: number | null; signal: NodeJS.Signals | null }>
@@ -3732,14 +3732,14 @@ throw new Error("injected parent-visible heavy import rejection");
 			childProcessChannel.subscribe(observeProcess);
 			try {
 				try {
-					process.env.PI_SUBAGENTS_TEST_RUNNER_EXECUTION_MODULE = pathToFileURL(fixturePath).href;
-					process.env.PI_SUBAGENTS_TEST_IMPORT_STARTED = startedPath;
-					process.env.PI_SUBAGENTS_TEST_IMPORT_REJECT = rejectPath;
+					process.env.EVOHARNESS_SUBAGENTS_TEST_RUNNER_EXECUTION_MODULE = pathToFileURL(fixturePath).href;
+					process.env.EVOHARNESS_SUBAGENTS_TEST_IMPORT_STARTED = startedPath;
+					process.env.EVOHARNESS_SUBAGENTS_TEST_IMPORT_REJECT = rejectPath;
 					executeAsyncSingle(id, {
 						agent: "worker",
 						task: "Must never start",
 						agentConfig: makeAgent("worker"),
-						ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: sessionId },
+						ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: sessionId },
 						artifactConfig: {
 							enabled: false,
 							includeInput: false,
@@ -3764,12 +3764,12 @@ throw new Error("injected parent-visible heavy import rejection");
 					});
 					await waitForPath(startedPath, asyncDir);
 				} finally {
-					if (previousModule === undefined) delete process.env.PI_SUBAGENTS_TEST_RUNNER_EXECUTION_MODULE;
-					else process.env.PI_SUBAGENTS_TEST_RUNNER_EXECUTION_MODULE = previousModule;
-					if (previousStarted === undefined) delete process.env.PI_SUBAGENTS_TEST_IMPORT_STARTED;
-					else process.env.PI_SUBAGENTS_TEST_IMPORT_STARTED = previousStarted;
-					if (previousReject === undefined) delete process.env.PI_SUBAGENTS_TEST_IMPORT_REJECT;
-					else process.env.PI_SUBAGENTS_TEST_IMPORT_REJECT = previousReject;
+					if (previousModule === undefined) delete process.env.EVOHARNESS_SUBAGENTS_TEST_RUNNER_EXECUTION_MODULE;
+					else process.env.EVOHARNESS_SUBAGENTS_TEST_RUNNER_EXECUTION_MODULE = previousModule;
+					if (previousStarted === undefined) delete process.env.EVOHARNESS_SUBAGENTS_TEST_IMPORT_STARTED;
+					else process.env.EVOHARNESS_SUBAGENTS_TEST_IMPORT_STARTED = previousStarted;
+					if (previousReject === undefined) delete process.env.EVOHARNESS_SUBAGENTS_TEST_IMPORT_REJECT;
+					else process.env.EVOHARNESS_SUBAGENTS_TEST_IMPORT_REJECT = previousReject;
 				}
 				assert.equal(fs.readdirSync(mockPi.dir).filter((name) => name.startsWith("call-")).length, callsBefore);
 				fs.writeFileSync(rejectPath, "reject");
@@ -3835,7 +3835,7 @@ throw new Error("injected pre-run child factory rejection");
 			try {
 				setChildSessionFactoryModule(factoryPath);
 				const common = {
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: sessionId },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: sessionId },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,

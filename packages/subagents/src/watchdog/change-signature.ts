@@ -22,15 +22,15 @@ function positiveEnvNumber(name: string, fallback: number): number {
 // Read at call time (not module load) so tests can override env guards after
 // this module is imported.
 function maxHashFileBytes(): number {
-	return positiveEnvNumber("PI_SUBAGENTS_MAX_HASH_FILE_BYTES", DEFAULT_MAX_HASH_FILE_BYTES);
+	return positiveEnvNumber("EVOHARNESS_SUBAGENTS_MAX_HASH_FILE_BYTES", DEFAULT_MAX_HASH_FILE_BYTES);
 }
 
 function maxHashTotalBytes(): number {
-	return positiveEnvNumber("PI_SUBAGENTS_MAX_HASH_TOTAL_BYTES", DEFAULT_MAX_HASH_TOTAL_BYTES);
+	return positiveEnvNumber("EVOHARNESS_SUBAGENTS_MAX_HASH_TOTAL_BYTES", DEFAULT_MAX_HASH_TOTAL_BYTES);
 }
 
 function maxHashEntries(): number {
-	return positiveEnvNumber("PI_SUBAGENTS_MAX_HASH_ENTRIES", DEFAULT_MAX_HASH_ENTRIES);
+	return positiveEnvNumber("EVOHARNESS_SUBAGENTS_MAX_HASH_ENTRIES", DEFAULT_MAX_HASH_ENTRIES);
 }
 
 export interface WatchdogRepoChangeSignature {
@@ -131,7 +131,7 @@ function hashFileEntry(normalized: string, fullPath: string, stat: fs.Stats, bud
 			hash = largeFileHash(stat);
 			if (code !== "ERR_FS_FILE_TOO_LARGE") {
 				console.warn(
-					"[pi-subagents] watchdog hashFile fell back to metadata for",
+					"[subagents] watchdog hashFile fell back to metadata for",
 					normalized + ":",
 					(error as Error)?.message,
 				);
@@ -241,7 +241,7 @@ export function computeWatchdogRepoChangeSignature(cwd: string): WatchdogRepoCha
 	try {
 		return buildRepoChangeSignature(root, statusOutput);
 	} catch (error) {
-		console.warn("[pi-subagents] watchdog repo change signature failed:", (error as Error)?.message);
+		console.warn("[subagents] watchdog repo change signature failed:", (error as Error)?.message);
 		return undefined;
 	}
 }

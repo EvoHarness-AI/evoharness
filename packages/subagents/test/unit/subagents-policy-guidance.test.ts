@@ -5,11 +5,11 @@ import { describe, it } from "node:test";
 
 const readProjectFile = (file: string): string => readFileSync(join(process.cwd(), file), "utf-8");
 
-describe("pi-subagents delegation policy guidance", () => {
+describe("subagents delegation policy guidance", () => {
 	it("keeps delegation operator-authorized and cost-bounded", () => {
-		const skill = readProjectFile("skills/pi-subagents/SKILL.md");
-		const prompting = readProjectFile("skills/pi-subagents/references/prompting-and-roles.md");
-		const orchestration = readProjectFile("skills/pi-subagents/references/orchestration.md");
+		const skill = readProjectFile("skills/subagents/SKILL.md");
+		const prompting = readProjectFile("skills/subagents/references/prompting-and-roles.md");
+		const orchestration = readProjectFile("skills/subagents/references/orchestration.md");
 		const guidance = [skill, prompting, orchestration].join("\n");
 
 		assert.match(skill, /parent works directly by default/i);
@@ -31,8 +31,8 @@ describe("pi-subagents delegation policy guidance", () => {
 		assert.doesNotMatch(guidance, /use this at the start of non-trivial work/i);
 	});
 
-	it("says which pi-subagents tools codemode scripts cannot call", () => {
-		const text = readProjectFile("skills/pi-subagents/SKILL.md");
+	it("says which subagents tools codemode scripts cannot call", () => {
+		const text = readProjectFile("skills/subagents/SKILL.md");
 		assert.match(
 			text,
 			/`subagent`, `subagents_enable`, `subagent_supervisor`, `contact_supervisor`, and `structured_output`[^\n]*model-only/,

@@ -76,10 +76,10 @@ function errorText(input: { code: TmuxErrorCode; message: string }): string {
 }
 
 /** Pane option carrying this run's ownership marker; a pane without it is never ours to kill. */
-const OWNER_OPTION = "@pi-subagents-inspector";
+const OWNER_OPTION = "@subagents-inspector";
 
 function ownerTag(runId: string, index?: number): string {
-	return `pi-subagents:${runId}:${index ?? "-"}`;
+	return `subagents:${runId}:${index ?? "-"}`;
 }
 
 type PaneProbe =

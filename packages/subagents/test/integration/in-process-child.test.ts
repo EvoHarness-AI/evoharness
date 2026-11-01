@@ -1,5 +1,5 @@
 /**
- * Foreground children run as in-process pi sessions. These tests drive
+ * Foreground children run as in-process evoharness sessions. These tests drive
  * `runSync` against the scripted child session factory and check the seams
  * the in-process launch owns: hook config, steering, interrupt, timeout,
  * structured output capture, disposal, and detach.
@@ -15,10 +15,10 @@ import { runSync } from "../../src/runs/foreground/execution.ts";
 import {
 	type ChildSessionFactory,
 	type ChildSessionLaunch,
+	type CodingAgentModule,
 	childSessionFactory,
 	createDefaultChildSessionFactory,
 	disposeChildSessions,
-	type PiCodingAgentModule,
 } from "../../src/runs/shared/child-session.ts";
 import { createNestedRoute } from "../../src/runs/shared/nested-events.ts";
 import { createStructuredOutputRuntime } from "../../src/runs/shared/structured-output.ts";
@@ -55,14 +55,14 @@ describe("in-process foreground child", () => {
 	beforeEach(() => {
 		tempDir = createTempDir();
 		mockPi.reset();
-		process.env.PI_SUBAGENT_CHILD_AGENT = savedEnv.PI_SUBAGENT_CHILD_AGENT ?? "";
-		delete process.env.PI_SUBAGENT_CHILD_AGENT;
+		process.env.EVOHARNESS_SUBAGENT_CHILD_AGENT = savedEnv.EVOHARNESS_SUBAGENT_CHILD_AGENT ?? "";
+		delete process.env.EVOHARNESS_SUBAGENT_CHILD_AGENT;
 	});
 
 	after(() => removeTempDir(tempDir));
 
 	it("passes the child hooks a typed config built without the environment", async () => {
-		process.env.PI_SUBAGENT_CHILD_AGENT = "leaked-parent-value";
+		process.env.EVOHARNESS_SUBAGENT_CHILD_AGENT = "leaked-parent-value";
 		try {
 			mockPi.onCall({ output: "done" });
 			const result = await runSync(tempDir, makeAgentConfigs(["echo"]), "echo", "Task", {
@@ -84,7 +84,7 @@ describe("in-process foreground child", () => {
 			assert.equal(session.launch.systemPrompt?.startsWith('<active_agent name="echo"/>'), true);
 			assert.deepEqual(session.launch.storage, { kind: "memory" });
 		} finally {
-			delete process.env.PI_SUBAGENT_CHILD_AGENT;
+			delete process.env.EVOHARNESS_SUBAGENT_CHILD_AGENT;
 		}
 	});
 
@@ -607,8 +607,8 @@ describe("in-process foreground child", () => {
 	});
 });
 
-/** A pi module stub whose loader reads `process.env` after an await, the way a real extension load does. */
-function stubPi(session: Record<string, unknown> = {}, onReload?: () => void): PiCodingAgentModule {
+/** A evoharness module stub whose loader reads `process.env` after an await, the way a real extension load does. */
+function stubPi(session: Record<string, unknown> = {}, onReload?: () => void): CodingAgentModule {
 	return {
 		ModelRuntime: { create: async () => ({}) },
 		SettingsManager: { create: () => ({}) },
@@ -635,7 +635,7 @@ function stubPi(session: Record<string, unknown> = {}, onReload?: () => void): P
 				...session,
 			},
 		}),
-	} as unknown as PiCodingAgentModule;
+	} as unknown as CodingAgentModule;
 }
 const stubLaunch: ChildSessionLaunch = {
 	cwd: process.cwd(),
@@ -659,19 +659,19 @@ describe("default child session factory", () => {
 		const bound: string[] = [];
 		const bindExtensions = async () => {
 			await new Promise((resolve) => setTimeout(resolve, 10));
-			bound.push(process.env.PI_SUBAGENT_TEST_ENV ?? "");
+			bound.push(process.env.EVOHARNESS_SUBAGENT_TEST_ENV ?? "");
 		};
 		const factory = createDefaultChildSessionFactory({
-			loadPiCodingAgent: async () =>
+			loadCodingAgent: async () =>
 				stubPi({ bindExtensions }, () => {
-					seen.push(process.env.PI_SUBAGENT_TEST_ENV ?? "");
+					seen.push(process.env.EVOHARNESS_SUBAGENT_TEST_ENV ?? "");
 				}),
 		});
 		await Promise.all([
-			factory.create({ ...stubLaunch, processEnv: { PI_SUBAGENT_TEST_ENV: "a" } }),
-			factory.create({ ...stubLaunch, processEnv: { PI_SUBAGENT_TEST_ENV: "b" } }),
+			factory.create({ ...stubLaunch, processEnv: { EVOHARNESS_SUBAGENT_TEST_ENV: "a" } }),
+			factory.create({ ...stubLaunch, processEnv: { EVOHARNESS_SUBAGENT_TEST_ENV: "b" } }),
 		]);
-		delete process.env.PI_SUBAGENT_TEST_ENV;
+		delete process.env.EVOHARNESS_SUBAGENT_TEST_ENV;
 		assert.deepEqual(seen, ["a", "b"]);
 		assert.deepEqual(bound, ["a", "b"]);
 	});
@@ -680,60 +680,60 @@ describe("default child session factory", () => {
 		const seen: Array<string | undefined> = [];
 		const bound: Array<string | undefined> = [];
 		const bindExtensions = async () => {
-			bound.push(process.env.PI_SUBAGENT_TEST_ENV);
+			bound.push(process.env.EVOHARNESS_SUBAGENT_TEST_ENV);
 		};
-		process.env.PI_SUBAGENT_TEST_ENV = "parent";
+		process.env.EVOHARNESS_SUBAGENT_TEST_ENV = "parent";
 		try {
 			const factory = createDefaultChildSessionFactory({
-				loadPiCodingAgent: async () =>
+				loadCodingAgent: async () =>
 					stubPi({ bindExtensions }, () => {
-						seen.push(process.env.PI_SUBAGENT_TEST_ENV);
+						seen.push(process.env.EVOHARNESS_SUBAGENT_TEST_ENV);
 					}),
 			});
 			await factory.create({
 				...stubLaunch,
-				processEnv: { PI_SUBAGENT_TEST_ENV: "child" },
+				processEnv: { EVOHARNESS_SUBAGENT_TEST_ENV: "child" },
 				restoreProcessEnv: true,
 			});
-			assert.equal(process.env.PI_SUBAGENT_TEST_ENV, "parent");
+			assert.equal(process.env.EVOHARNESS_SUBAGENT_TEST_ENV, "parent");
 			await factory.create({
 				...stubLaunch,
-				processEnv: { PI_SUBAGENT_TEST_ENV: undefined },
+				processEnv: { EVOHARNESS_SUBAGENT_TEST_ENV: undefined },
 				restoreProcessEnv: true,
 			});
-			assert.equal(process.env.PI_SUBAGENT_TEST_ENV, "parent");
+			assert.equal(process.env.EVOHARNESS_SUBAGENT_TEST_ENV, "parent");
 			assert.deepEqual(seen, ["child", undefined]);
 			assert.deepEqual(bound, ["child", undefined]);
 
-			delete process.env.PI_SUBAGENT_TEST_ENV;
+			delete process.env.EVOHARNESS_SUBAGENT_TEST_ENV;
 			const failing = stubPi({}, () => {
 				throw new Error("load failed");
 			});
-			const failingFactory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => failing });
+			const failingFactory = createDefaultChildSessionFactory({ loadCodingAgent: async () => failing });
 			await assert.rejects(
 				failingFactory.create({
 					...stubLaunch,
-					processEnv: { PI_SUBAGENT_TEST_ENV: "child" },
+					processEnv: { EVOHARNESS_SUBAGENT_TEST_ENV: "child" },
 					restoreProcessEnv: true,
 				}),
 				/load failed/,
 			);
-			assert.equal(Object.hasOwn(process.env, "PI_SUBAGENT_TEST_ENV"), false);
+			assert.equal(Object.hasOwn(process.env, "EVOHARNESS_SUBAGENT_TEST_ENV"), false);
 		} finally {
-			delete process.env.PI_SUBAGENT_TEST_ENV;
+			delete process.env.EVOHARNESS_SUBAGENT_TEST_ENV;
 		}
 	});
 
-	it("marks each child's loader as reloaded so pi resets its extension cache", async () => {
+	it("marks each child's loader as reloaded so evoharness resets its extension cache", async () => {
 		const flags: boolean[] = [];
-		const pi = stubPi();
-		pi.DefaultResourceLoader = class {
+		const evoharness = stubPi();
+		evoharness.DefaultResourceLoader = class {
 			loaded = false;
 			async reload() {
 				flags.push(this.loaded);
 			}
-		} as unknown as PiCodingAgentModule["DefaultResourceLoader"];
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+		} as unknown as CodingAgentModule["DefaultResourceLoader"];
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 		await factory.create(stubLaunch);
 		await factory.create(stubLaunch);
 		assert.deepEqual(flags, [true, true]);
@@ -742,13 +742,13 @@ describe("default child session factory", () => {
 	it("registers the host codemode provider only for children allowed to select it", async () => {
 		const registrations: string[] = [];
 		const loaded: Array<{ names: string[]; ambient: boolean; paths: string[] }> = [];
-		const pi = Object.assign(stubPi(), {
+		const evoharness = Object.assign(stubPi(), {
 			createCodemodeExtension: () => (api: { registerTool: (tool: { name: string }) => void }) =>
 				api.registerTool({ name: "codemode" }),
 		});
-		pi.DefaultResourceLoader = class {
-			private options: ConstructorParameters<PiCodingAgentModule["DefaultResourceLoader"]>[0];
-			constructor(options: ConstructorParameters<PiCodingAgentModule["DefaultResourceLoader"]>[0]) {
+		evoharness.DefaultResourceLoader = class {
+			private options: ConstructorParameters<CodingAgentModule["DefaultResourceLoader"]>[0];
+			constructor(options: ConstructorParameters<CodingAgentModule["DefaultResourceLoader"]>[0]) {
 				this.options = options;
 			}
 			async reload() {
@@ -764,8 +764,8 @@ describe("default child session factory", () => {
 						registerTool: (tool: { name: string }) => registrations.push(tool.name),
 					} as never);
 			}
-		} as unknown as PiCodingAgentModule["DefaultResourceLoader"];
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+		} as unknown as CodingAgentModule["DefaultResourceLoader"];
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 		const hooks = [{ name: "existing-child-hook", factory() {} }];
 		const requested = {
 			...stubLaunch,
@@ -789,7 +789,7 @@ describe("default child session factory", () => {
 			{ names: [], ambient: false, paths: [] },
 		]);
 		// The supported older SDK has no codemode export. Do not require it for ordinary children.
-		await createDefaultChildSessionFactory({ loadPiCodingAgent: async () => stubPi() }).create({
+		await createDefaultChildSessionFactory({ loadCodingAgent: async () => stubPi() }).create({
 			...stubLaunch,
 			tools: ["read"],
 		});
@@ -797,8 +797,8 @@ describe("default child session factory", () => {
 
 	it("runs the child prompt filter first and the child boundary last without reordering other extensions", async () => {
 		const orderedPaths: string[][] = [];
-		const pi = stubPi();
-		pi.DefaultResourceLoader = class {
+		const evoharness = stubPi();
+		evoharness.DefaultResourceLoader = class {
 			private readonly options: {
 				extensionsOverride?: (base: {
 					extensions: Array<{ path: string }>;
@@ -815,10 +815,10 @@ describe("default child session factory", () => {
 					extensions: [
 						{ path: "/ambient/first.ts" },
 						{ path: "/ambient/claude-bridge.ts" },
-						{ path: "<inline:pi-subagents:prompt-runtime>" },
-						{ path: "<inline:pi-subagents:prompt-boundary>" },
+						{ path: "<inline:subagents:prompt-runtime>" },
+						{ path: "<inline:subagents:prompt-boundary>" },
 						{ path: "/ambient/last.ts" },
-						{ path: "<inline:pi-subagents:completion-intent>" },
+						{ path: "<inline:subagents:completion-intent>" },
 					],
 					errors: [] as unknown[],
 					runtime: {},
@@ -829,18 +829,18 @@ describe("default child session factory", () => {
 			getExtensions() {
 				return this.result;
 			}
-		} as unknown as PiCodingAgentModule["DefaultResourceLoader"];
+		} as unknown as CodingAgentModule["DefaultResourceLoader"];
 
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 		await factory.create({ ...stubLaunch, ambientExtensions: true });
 
 		assert.deepEqual(orderedPaths[0], [
-			"<inline:pi-subagents:prompt-runtime>",
+			"<inline:subagents:prompt-runtime>",
 			"/ambient/first.ts",
 			"/ambient/claude-bridge.ts",
 			"/ambient/last.ts",
-			"<inline:pi-subagents:completion-intent>",
-			"<inline:pi-subagents:prompt-boundary>",
+			"<inline:subagents:completion-intent>",
+			"<inline:subagents:prompt-boundary>",
 		]);
 	});
 
@@ -851,8 +851,8 @@ describe("default child session factory", () => {
 		let pendingRuntime:
 			| { pendingProviderRegistrations: unknown[]; pendingNativeProviderRegistrations: unknown[] }
 			| undefined;
-		const pi = stubPi();
-		pi.ModelRuntime = {
+		const evoharness = stubPi();
+		evoharness.ModelRuntime = {
 			create: async () => ({
 				registerProvider: (name: string) => {
 					registeredProviders.push(name);
@@ -864,8 +864,8 @@ describe("default child session factory", () => {
 					refreshed = true;
 				},
 			}),
-		} as unknown as PiCodingAgentModule["ModelRuntime"];
-		pi.DefaultResourceLoader = class {
+		} as unknown as CodingAgentModule["ModelRuntime"];
+		evoharness.DefaultResourceLoader = class {
 			runtime = {
 				pendingProviderRegistrations: [
 					{ name: "router", config: { models: [{ id: "mimo-v2.5" }] }, extensionPath: "/extensions/router.ts" },
@@ -883,15 +883,15 @@ describe("default child session factory", () => {
 			getExtensions() {
 				return { extensions: [], errors: [], runtime: this.runtime };
 			}
-		} as unknown as PiCodingAgentModule["DefaultResourceLoader"];
-		pi.resolveCliModel = (({ cliModel }) => {
+		} as unknown as CodingAgentModule["DefaultResourceLoader"];
+		evoharness.resolveCliModel = (({ cliModel }) => {
 			assert.equal(cliModel, "router/mimo-v2.5");
 			assert.deepEqual(registeredProviders, ["router"]);
 			assert.deepEqual(registeredNativeProviders, ["native-router"]);
 			assert.equal(refreshed, true);
 			return { model: { provider: "router", id: "mimo-v2.5" } };
-		}) as unknown as PiCodingAgentModule["resolveCliModel"];
-		pi.createAgentSession = (async ({ model }) => ({
+		}) as unknown as CodingAgentModule["resolveCliModel"];
+		evoharness.createAgentSession = (async ({ model }) => ({
 			session: {
 				bindExtensions: async () => {},
 				dispose() {},
@@ -905,9 +905,9 @@ describe("default child session factory", () => {
 				sessionId: "s",
 				model,
 			},
-		})) as unknown as PiCodingAgentModule["createAgentSession"];
+		})) as unknown as CodingAgentModule["createAgentSession"];
 
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 		const child = await factory.create({ ...stubLaunch, model: "router/mimo-v2.5" });
 
 		assert.equal(child.modelId, "router/mimo-v2.5");
@@ -922,7 +922,7 @@ describe("default child session factory", () => {
 				this.model = { ...this.model, contextWindow: 1_050_000 };
 			},
 		};
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => stubPi(session) });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => stubPi(session) });
 		const child = await factory.create(stubLaunch);
 
 		assert.equal(child.contextWindow, 1_050_000);
@@ -932,8 +932,8 @@ describe("default child session factory", () => {
 		const registeredProviders: string[] = [];
 		let refreshed = false;
 		let pendingRuntime: { pendingProviderRegistrations?: unknown[] } | undefined;
-		const pi = stubPi();
-		pi.ModelRuntime = {
+		const evoharness = stubPi();
+		evoharness.ModelRuntime = {
 			create: async () => ({
 				registerProvider: (name: string) => {
 					registeredProviders.push(name);
@@ -943,8 +943,8 @@ describe("default child session factory", () => {
 					refreshed = true;
 				},
 			}),
-		} as unknown as PiCodingAgentModule["ModelRuntime"];
-		pi.DefaultResourceLoader = class {
+		} as unknown as CodingAgentModule["ModelRuntime"];
+		evoharness.DefaultResourceLoader = class {
 			runtime = {
 				pendingProviderRegistrations: [
 					{ name: "router", config: { models: [{ id: "mimo-v2.5" }] }, extensionPath: "/extensions/router.ts" },
@@ -956,14 +956,14 @@ describe("default child session factory", () => {
 			getExtensions() {
 				return { extensions: [], errors: [], runtime: this.runtime };
 			}
-		} as unknown as PiCodingAgentModule["DefaultResourceLoader"];
-		pi.resolveCliModel = (({ cliModel }) => {
+		} as unknown as CodingAgentModule["DefaultResourceLoader"];
+		evoharness.resolveCliModel = (({ cliModel }) => {
 			assert.equal(cliModel, "router/mimo-v2.5");
 			assert.deepEqual(registeredProviders, ["router"]);
 			assert.equal(refreshed, true);
 			return { model: { provider: "router", id: "mimo-v2.5" } };
-		}) as unknown as PiCodingAgentModule["resolveCliModel"];
-		pi.createAgentSession = (async ({ model }) => ({
+		}) as unknown as CodingAgentModule["resolveCliModel"];
+		evoharness.createAgentSession = (async ({ model }) => ({
 			session: {
 				bindExtensions: async () => {},
 				dispose() {},
@@ -977,9 +977,9 @@ describe("default child session factory", () => {
 				sessionId: "s",
 				model,
 			},
-		})) as unknown as PiCodingAgentModule["createAgentSession"];
+		})) as unknown as CodingAgentModule["createAgentSession"];
 
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 		const child = await factory.create({ ...stubLaunch, model: "router/mimo-v2.5" });
 
 		assert.equal(child.modelId, "router/mimo-v2.5");
@@ -988,7 +988,7 @@ describe("default child session factory", () => {
 
 	it("reports a missing extension cache reset when the child loads extension files", async () => {
 		const errors: string[] = [];
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => stubPi() });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => stubPi() });
 		await factory.create({ ...stubLaunch, onExtensionError: (error) => errors.push(error.extensionPath) });
 		await factory.create({
 			...stubLaunch,
@@ -1000,29 +1000,29 @@ describe("default child session factory", () => {
 
 	it("drops skills that extensions add to a child when inheritSkills is false", async () => {
 		const host = await import("@evoharness/coding-agent");
-		const skillDir = createTempDir("pi-subagents-ext-skill-");
+		const skillDir = createTempDir("subagents-ext-skill-");
 		fs.writeFileSync(
 			path.join(skillDir, "SKILL.md"),
 			"---\nname: ext-skill\ndescription: Contributed by an extension.\n---\nBody\n",
 		);
 		try {
 			for (const noSkills of [true, false]) {
-				let loader: InstanceType<PiCodingAgentModule["DefaultResourceLoader"]> | undefined;
-				const pi = stubPi();
-				pi.SettingsManager = {
+				let loader: InstanceType<CodingAgentModule["DefaultResourceLoader"]> | undefined;
+				const evoharness = stubPi();
+				evoharness.SettingsManager = {
 					create: () => host.SettingsManager.inMemory(),
-				} as unknown as PiCodingAgentModule["SettingsManager"];
-				pi.DefaultResourceLoader = class extends host.DefaultResourceLoader {
-					constructor(options: ConstructorParameters<PiCodingAgentModule["DefaultResourceLoader"]>[0]) {
+				} as unknown as CodingAgentModule["SettingsManager"];
+				evoharness.DefaultResourceLoader = class extends host.DefaultResourceLoader {
+					constructor(options: ConstructorParameters<CodingAgentModule["DefaultResourceLoader"]>[0]) {
 						super(options);
 						loader = this;
 					}
 				};
-				await createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi }).create({
+				await createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness }).create({
 					...stubLaunch,
 					noSkills,
 				});
-				// The same call Pi's session makes with an extension's resources_discover skillPaths.
+				// The same call evoharness's session makes with an extension's resources_discover skillPaths.
 				loader!.extendResources({
 					skillPaths: [{ path: skillDir, metadata: { source: "ext", scope: "temporary", origin: "top-level" } }],
 				});
@@ -1038,21 +1038,21 @@ describe("default child session factory", () => {
 
 	it("reads project resources only when the launching session trusts the project", async () => {
 		const host = await import("@evoharness/coding-agent");
-		const projectDir = createTempDir("pi-subagents-project-trust-");
+		const projectDir = createTempDir("subagents-project-trust-");
 		fs.mkdirSync(path.join(projectDir, ".evoharness"));
 		fs.writeFileSync(path.join(projectDir, ".evoharness", "SYSTEM.md"), "project system prompt");
 		try {
 			for (const projectTrusted of [true, false]) {
-				let loader: InstanceType<PiCodingAgentModule["DefaultResourceLoader"]> | undefined;
-				const pi = stubPi();
-				pi.SettingsManager = host.SettingsManager;
-				pi.DefaultResourceLoader = class extends host.DefaultResourceLoader {
-					constructor(options: ConstructorParameters<PiCodingAgentModule["DefaultResourceLoader"]>[0]) {
+				let loader: InstanceType<CodingAgentModule["DefaultResourceLoader"]> | undefined;
+				const evoharness = stubPi();
+				evoharness.SettingsManager = host.SettingsManager;
+				evoharness.DefaultResourceLoader = class extends host.DefaultResourceLoader {
+					constructor(options: ConstructorParameters<CodingAgentModule["DefaultResourceLoader"]>[0]) {
 						super(options);
 						loader = this;
 					}
 				};
-				await createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi }).create({
+				await createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness }).create({
 					...stubLaunch,
 					cwd: projectDir,
 					projectTrusted,
@@ -1066,7 +1066,7 @@ describe("default child session factory", () => {
 
 	it("records the launching session as the parent of a new child session", async () => {
 		const host = await import("@evoharness/coding-agent");
-		const dir = createTempDir("pi-subagents-parent-session-");
+		const dir = createTempDir("subagents-parent-session-");
 		try {
 			const parentSessionFile = path.join(dir, "parent.jsonl");
 			const forkedFile = path.join(dir, "forks", "forked.jsonl");
@@ -1077,14 +1077,16 @@ describe("default child session factory", () => {
 				`${JSON.stringify({ type: "session", version: 3, id: "forked", timestamp: new Date().toISOString(), cwd: dir, parentSession: "/sessions/source.jsonl" })}\n`,
 			);
 			const managers: InstanceType<typeof host.SessionManager>[] = [];
-			const pi = stubPi();
-			pi.SessionManager = host.SessionManager;
-			const createAgentSession = pi.createAgentSession;
-			pi.createAgentSession = (async (options: { sessionManager: InstanceType<typeof host.SessionManager> }) => {
+			const evoharness = stubPi();
+			evoharness.SessionManager = host.SessionManager;
+			const createAgentSession = evoharness.createAgentSession;
+			evoharness.createAgentSession = (async (options: {
+				sessionManager: InstanceType<typeof host.SessionManager>;
+			}) => {
 				managers.push(options.sessionManager);
 				return createAgentSession(options as Parameters<typeof createAgentSession>[0]);
 			}) as typeof createAgentSession;
-			const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+			const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 			const storages: ChildSessionLaunch["storage"][] = [
 				{ kind: "file", sessionFile: path.join(dir, "run-0", "session.jsonl") },
 				{ kind: "dir", sessionDir: path.join(dir, "run-1") },
@@ -1114,7 +1116,7 @@ describe("default child session factory", () => {
 					parentSession?: string;
 				};
 			});
-			// Pi records a fork's parent as the parent's session file; a forked child keeps the parent its fork recorded.
+			// evoharness records a fork's parent as the parent's session file; a forked child keeps the parent its fork recorded.
 			assert.deepEqual(
 				headers.map((header) => header.parentSession),
 				[parentSessionFile, parentSessionFile, "/sessions/source.jsonl"],
@@ -1129,14 +1131,14 @@ describe("default child session factory", () => {
 		const globals = globalThis as Record<symbol, unknown>;
 		const previousTheme = globals[themeKey];
 		const initialized: Array<string | undefined> = [];
-		const pi = stubPi();
-		pi.initTheme = ((themeName?: string) => {
+		const evoharness = stubPi();
+		evoharness.initTheme = ((themeName?: string) => {
 			initialized.push(themeName);
-		}) as PiCodingAgentModule["initTheme"];
-		pi.SettingsManager = {
+		}) as CodingAgentModule["initTheme"];
+		evoharness.SettingsManager = {
 			create: () => ({ getTheme: () => "vesper-light/vesper-dark" }),
-		} as unknown as PiCodingAgentModule["SettingsManager"];
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+		} as unknown as CodingAgentModule["SettingsManager"];
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 		globals[themeKey] = { name: "vesper-light" };
 		try {
 			await factory.create(stubLaunch);
@@ -1152,14 +1154,14 @@ describe("default child session factory", () => {
 		const globals = globalThis as Record<symbol, unknown>;
 		const previousTheme = globals[themeKey];
 		const initialized: Array<string | undefined> = [];
-		const pi = stubPi();
-		pi.initTheme = ((themeName?: string) => {
+		const evoharness = stubPi();
+		evoharness.initTheme = ((themeName?: string) => {
 			initialized.push(themeName);
-		}) as PiCodingAgentModule["initTheme"];
-		pi.SettingsManager = {
+		}) as CodingAgentModule["initTheme"];
+		evoharness.SettingsManager = {
 			create: () => ({ getTheme: () => "vesper-light/vesper-dark" }),
-		} as unknown as PiCodingAgentModule["SettingsManager"];
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+		} as unknown as CodingAgentModule["SettingsManager"];
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 		delete globals[themeKey];
 		try {
 			await factory.create(stubLaunch);
@@ -1172,7 +1174,7 @@ describe("default child session factory", () => {
 	it("disposes the session when bindExtensions rejects", async () => {
 		let disposed = 0;
 		const factory = createDefaultChildSessionFactory({
-			loadPiCodingAgent: async () =>
+			loadCodingAgent: async () =>
 				stubPi({
 					bindExtensions: async () => {
 						throw new Error("bind failed");
@@ -1189,18 +1191,18 @@ describe("default child session factory", () => {
 	it("leaves detached children running on dispose and keeps the shared runtime", async () => {
 		let aborted = 0;
 		let runtimes = 0;
-		const pi = stubPi({
+		const evoharness = stubPi({
 			abort: async () => {
 				aborted += 1;
 			},
 		});
-		pi.ModelRuntime = {
+		evoharness.ModelRuntime = {
 			create: async () => {
 				runtimes += 1;
 				return {};
 			},
-		} as unknown as PiCodingAgentModule["ModelRuntime"];
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+		} as unknown as CodingAgentModule["ModelRuntime"];
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 		const child = await factory.create(stubLaunch);
 		child.detached = true;
 		await factory.dispose();
@@ -1213,7 +1215,7 @@ describe("default child session factory", () => {
 	it("bounds the wait for a stuck session_shutdown handler", { timeout: 2_000 }, async () => {
 		const factory = createDefaultChildSessionFactory({
 			shutdownTimeoutMs: 50,
-			loadPiCodingAgent: async () =>
+			loadCodingAgent: async () =>
 				stubPi({ extensionRunner: { hasHandlers: () => true, emit: () => new Promise(() => {}) } }),
 		});
 		(await factory.create(stubLaunch)).dispose();
@@ -1228,8 +1230,8 @@ describe("default child session factory", () => {
 		const script = `
 			import { createDefaultChildSessionFactory } from ${JSON.stringify(childSession)};
 			const session = { bindExtensions: async () => {}, dispose() {}, extensionRunner: { hasHandlers: () => true, emit: () => new Promise(() => {}) }, subscribe: () => () => {}, prompt: async () => {}, abort: async () => {}, steer: async () => {}, followUp: async () => {}, messages: [], sessionId: "s" };
-			const pi = { ModelRuntime: { create: async () => ({}) }, SettingsManager: { create: () => ({}) }, DefaultResourceLoader: class { async reload() {} }, SessionManager: { inMemory: () => ({}) }, resolveCliModel: () => ({}), createAgentSession: async () => ({ session }) };
-			const factory = createDefaultChildSessionFactory({ shutdownTimeoutMs: 200, loadPiCodingAgent: async () => pi });
+			const evoharness = { ModelRuntime: { create: async () => ({}) }, SettingsManager: { create: () => ({}) }, DefaultResourceLoader: class { async reload() {} }, SessionManager: { inMemory: () => ({}) }, resolveCliModel: () => ({}), createAgentSession: async () => ({ session }) };
+			const factory = createDefaultChildSessionFactory({ shutdownTimeoutMs: 200, loadCodingAgent: async () => evoharness });
 			const child = await factory.create(${JSON.stringify(stubLaunch)});
 			await child.dispose();
 			process.stdout.write("disposed");
@@ -1262,7 +1264,7 @@ function builtinMcpPi(
 	const lifecycle: string[] = [];
 	let allowlist: string[] = [];
 	const getAllTools = () => [...definitions.values()].filter(({ name }) => allowlist.includes(name));
-	const pi = stubPi({
+	const evoharness = stubPi({
 		bindExtensions: async () => {
 			for (const handler of handlers.get("session_start") ?? []) await handler({}, {});
 		},
@@ -1281,7 +1283,7 @@ function builtinMcpPi(
 				.filter(({ exposure }) => exposure === "direct")
 				.map(({ name }) => name),
 	});
-	Object.assign(pi, {
+	Object.assign(evoharness, {
 		createCodemodeExtension: () => (api: { registerTool(tool: Tool): void }) =>
 			api.registerTool({ name: "codemode", exposure: "codemode", reachesTools: () => ["mcp__srv"] }),
 		createMcpExtension:
@@ -1317,7 +1319,7 @@ function builtinMcpPi(
 			},
 	});
 	type Entry = { name: string; factory: (api: unknown) => unknown; builtin?: boolean; replaceable?: boolean };
-	pi.DefaultResourceLoader = class {
+	evoharness.DefaultResourceLoader = class {
 		private readonly options: { additionalExtensionPaths: string[]; extensionFactories: Entry[] };
 		constructor(options: typeof this.options) {
 			this.options = options;
@@ -1340,13 +1342,13 @@ function builtinMcpPi(
 				});
 			}
 		}
-	} as unknown as PiCodingAgentModule["DefaultResourceLoader"];
-	const createSession = pi.createAgentSession;
-	pi.createAgentSession = ((options: { tools?: string[] }) => {
+	} as unknown as CodingAgentModule["DefaultResourceLoader"];
+	const createSession = evoharness.createAgentSession;
+	evoharness.createAgentSession = ((options: { tools?: string[] }) => {
 		allowlist = options.tools ?? [];
 		return createSession(options);
-	}) as PiCodingAgentModule["createAgentSession"];
-	return { pi, registry, definitions, loaded, lifecycle };
+	}) as CodingAgentModule["createAgentSession"];
+	return { evoharness, registry, definitions, loaded, lifecycle };
 }
 
 describe("selected built-in MCP tools in a child session", () => {
@@ -1358,7 +1360,7 @@ describe("selected built-in MCP tools in a child session", () => {
 
 	it("declares exactly the selected tools as direct and hides the other MCP tools", async () => {
 		const mcp = builtinMcpPi();
-		await createDefaultChildSessionFactory({ loadPiCodingAgent: async () => mcp.pi }).create(mcpLaunch);
+		await createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness }).create(mcpLaunch);
 		assert.deepEqual(mcp.loaded, [{ name: "mcp", replaceable: true }]);
 		assert.deepEqual(
 			[...mcp.registry],
@@ -1378,7 +1380,7 @@ describe("selected built-in MCP tools in a child session", () => {
 		const name = "mcp__codebase_memory__list_projects";
 		for (const selector of ["codebase-memory", "codebase_memory", "codebase_memory/list_projects"]) {
 			const mcp = builtinMcpPi([[name, "codebase-memory/list_projects"]]);
-			await createDefaultChildSessionFactory({ loadPiCodingAgent: async () => mcp.pi }).create({
+			await createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness }).create({
 				...stubLaunch,
 				tools: [name],
 				builtinMcpTools: [{ name, selector }],
@@ -1389,7 +1391,7 @@ describe("selected built-in MCP tools in a child session", () => {
 
 	it("fails the launch and shuts the session down when a selected tool never registers", async () => {
 		const mcp = builtinMcpPi();
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => mcp.pi });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness });
 		await assert.rejects(
 			factory.create({
 				...mcpLaunch,
@@ -1401,9 +1403,9 @@ describe("selected built-in MCP tools in a child session", () => {
 		assert.deepEqual(mcp.lifecycle, ["session_shutdown", "dispose"]);
 	});
 
-	it("does not expose a tool whose name Pi gave to a different raw tool than the selector names", async () => {
+	it("does not expose a tool whose name evoharness gave to a different raw tool than the selector names", async () => {
 		const mcp = builtinMcpPi([["mcp__srv__a_b", "srv/a_b"]]);
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => mcp.pi });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness });
 		await assert.rejects(
 			factory.create({
 				...stubLaunch,
@@ -1424,13 +1426,13 @@ describe("selected built-in MCP tools in a child session", () => {
 			}),
 		);
 		let waitEnded = false;
-		const waiting = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => mcp.pi })
+		const waiting = createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness })
 			.create({ ...mcpLaunch, builtinMcpTools: [{ name: "mcp__gone__x", selector: "gone" }] })
 			.finally(() => {
 				waitEnded = true;
 			});
 		while (mcp.loaded.length === 0) await new Promise((resolve) => setTimeout(resolve, 5));
-		await createDefaultChildSessionFactory({ loadPiCodingAgent: async () => stubPi() }).create(stubLaunch);
+		await createDefaultChildSessionFactory({ loadCodingAgent: async () => stubPi() }).create(stubLaunch);
 		assert.equal(waitEnded, false);
 		connected();
 		await assert.rejects(waiting, /mcp__gone__x/);
@@ -1438,7 +1440,7 @@ describe("selected built-in MCP tools in a child session", () => {
 
 	it("shuts down a child still waiting for MCP tools when the factory is disposed", async () => {
 		const mcp = builtinMcpPi(undefined, new Promise<void>(() => {}));
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => mcp.pi });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness });
 		const creating = factory.create({ ...mcpLaunch, builtinMcpTools: [{ name: "mcp__gone__x", selector: "gone" }] });
 		while (mcp.loaded.length === 0) await new Promise((resolve) => setTimeout(resolve, 5));
 		await new Promise((resolve) => setTimeout(resolve, 20));
@@ -1449,26 +1451,27 @@ describe("selected built-in MCP tools in a child session", () => {
 
 	it("loads no built-in MCP when no tools are selected", async () => {
 		const mcp = builtinMcpPi();
-		await createDefaultChildSessionFactory({ loadPiCodingAgent: async () => mcp.pi }).create({
+		await createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness }).create({
 			...stubLaunch,
 			builtinMcpTools: [],
 		});
 		assert.deepEqual(mcp.loaded, []);
 	});
 
-	it("rejects selected tools when the host Pi has no built-in MCP", async () => {
+	it("rejects selected tools when the host evoharness has no built-in MCP", async () => {
 		await assert.rejects(
-			createDefaultChildSessionFactory({ loadPiCodingAgent: async () => stubPi() }).create(mcpLaunch),
-			/mcp__srv__echo\) need a Pi version with built-in MCP/,
+			createDefaultChildSessionFactory({ loadCodingAgent: async () => stubPi() }).create(mcpLaunch),
+			/mcp__srv__echo\) need a evoharness version with built-in MCP/,
 		);
 	});
 
-	it("names the Pi 0.99.2 floor when built-in MCP has no connection readiness hook", async () => {
+	it("names the evoharness 0.99.2 floor when built-in MCP has no connection readiness hook", async () => {
 		const mcp = builtinMcpPi();
 		type Api = { on(type: string, handler: unknown): void };
-		const create = (mcp.pi as unknown as { createMcpExtension: () => (api: Api) => unknown }).createMcpExtension;
-		// Pi 0.99.0 and 0.99.1 register no tool_call handler.
-		Object.assign(mcp.pi, {
+		const create = (mcp.evoharness as unknown as { createMcpExtension: () => (api: Api) => unknown })
+			.createMcpExtension;
+		// evoharness 0.99.0 and 0.99.1 register no tool_call handler.
+		Object.assign(mcp.evoharness, {
 			createMcpExtension: () => (api: Api) =>
 				create()({
 					...api,
@@ -1478,8 +1481,8 @@ describe("selected built-in MCP tools in a child session", () => {
 				}),
 		});
 		await assert.rejects(
-			createDefaultChildSessionFactory({ loadPiCodingAgent: async () => mcp.pi }).create(mcpLaunch),
-			/mcp__srv__echo\) need Pi 0\.99\.2 or later/,
+			createDefaultChildSessionFactory({ loadCodingAgent: async () => mcp.evoharness }).create(mcpLaunch),
+			/mcp__srv__echo\) need evoharness 0\.99\.2 or later/,
 		);
 		assert.deepEqual(mcp.lifecycle, ["session_shutdown", "dispose"]);
 	});

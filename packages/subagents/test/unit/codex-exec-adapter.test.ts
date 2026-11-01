@@ -24,7 +24,7 @@ import {
 
 const tempDirs: string[] = [];
 function tempDir(): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-codex-exec-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-codex-exec-"));
 	tempDirs.push(dir);
 	return dir;
 }
@@ -306,7 +306,7 @@ describe("Codex exec adapter", () => {
 			);
 			fs.writeFileSync(
 				path.join(packageRoot, "package.json"),
-				JSON.stringify({ name: "unsafe-codex-package", "pi-subagents": { agents: ["./agents"] } }),
+				JSON.stringify({ name: "unsafe-codex-package", subagents: { agents: ["./agents"] } }),
 			);
 			fs.writeFileSync(
 				path.join(packageRoot, "agents", "codex-exec.md"),

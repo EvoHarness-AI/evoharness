@@ -11,7 +11,7 @@ let agentDir: string;
 
 beforeEach(() => {
 	previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
-	agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-observed-model-agent-"));
+	agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-observed-model-agent-"));
 	fs.chmodSync(agentDir, 0o700);
 	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 });
@@ -62,7 +62,7 @@ function assistantReply(provider: string, model: string): unknown {
 
 describe("async step reports the observed child model", () => {
 	it("publishes the model the assistant actually ran on, not the launch model", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-observed-model-switch-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-observed-model-switch-"));
 		const queue = path.join(root, "queue");
 		fs.mkdirSync(queue, { recursive: true });
 		fs.writeFileSync(
@@ -91,7 +91,7 @@ describe("async step reports the observed child model", () => {
 	});
 
 	it("keeps the launch model when the child reports the same model", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-observed-model-same-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-observed-model-same-"));
 		const queue = path.join(root, "queue");
 		fs.mkdirSync(queue, { recursive: true });
 		fs.writeFileSync(
@@ -119,7 +119,7 @@ describe("async step reports the observed child model", () => {
 	});
 
 	it("records the provider and model of the child's own reply, not the requested model or a forked parent's records", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-observed-model-resolved-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-observed-model-resolved-"));
 		const queue = path.join(root, "queue");
 		fs.mkdirSync(queue, { recursive: true });
 		fs.writeFileSync(

@@ -80,7 +80,7 @@ function createState(): SubagentState {
 
 function createExecutor() {
 	return createSubagentExecutor({
-		pi: {
+		evoharness: {
 			events: {
 				emit() {},
 				on() {
@@ -124,8 +124,8 @@ function ctx(root: string) {
 
 describe("workflow chat progress policy", () => {
 	it("treats managed worktrees as same repo and sibling repos as other repo", () => {
-		const repo = createRepo("pi-workflow-progress-repo-");
-		const other = createRepo("pi-workflow-progress-other-");
+		const repo = createRepo("subagents-workflow-progress-repo-");
+		const other = createRepo("subagents-workflow-progress-other-");
 		const worktree = path.join(
 			os.tmpdir(),
 			`pi-workflow-progress-wt-${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2)}`,
@@ -199,9 +199,10 @@ describe("workflow chat progress rendering", () => {
 		it(`emits foreground lifecycle updates before settlement with ${scenario}`, async () => {
 			const root =
 				scenario === "non-repository auto"
-					? fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflow-progress-headless-"))
-					: createRepo("pi-workflow-progress-off-");
-			const other = scenario === "cross-repository auto" ? createRepo("pi-workflow-progress-cross-") : undefined;
+					? fs.mkdtempSync(path.join(os.tmpdir(), "subagents-workflow-progress-headless-"))
+					: createRepo("subagents-workflow-progress-off-");
+			const other =
+				scenario === "cross-repository auto" ? createRepo("subagents-workflow-progress-cross-") : undefined;
 			try {
 				const updates: Details[] = [];
 				let settled = false;
@@ -246,7 +247,7 @@ describe("workflow chat progress rendering", () => {
 	}
 
 	it("emits headless workflow values before returning final output without an update callback requirement", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflow-progress-emits-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-workflow-progress-emits-"));
 		try {
 			const updates: Details[] = [];
 			const params = {
@@ -285,7 +286,7 @@ describe("workflow chat progress rendering", () => {
 	});
 
 	it("emits live-card updates with bounded workflow ids", async () => {
-		const repo = createRepo("pi-workflow-progress-executor-");
+		const repo = createRepo("subagents-workflow-progress-executor-");
 		const toolCallId = `wf-live-${"x".repeat(300)}`;
 		const workflowRunId = encodeIndexSegment(toolCallId);
 		try {
@@ -333,7 +334,7 @@ describe("workflow chat progress rendering", () => {
 
 	for (const nestedRootRunId of [undefined, "binding-root"])
 		it(`writes mission binding at the actual async launch location (${nestedRootRunId ?? "top-level"})`, () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflow-child-binding-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-workflow-child-binding-"));
 			const asyncId = `workflow-child-${process.pid}-${Date.now()}`;
 			const asyncDir = path.join(
 				nestedRootRunId ? nestedRunScope(nestedRootRunId).asyncDirRoot : DIRS.async,
@@ -365,7 +366,7 @@ describe("workflow chat progress rendering", () => {
 		});
 
 	it("marks workflow launch preparation failures as failed mission children", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflow-prep-failure-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-workflow-prep-failure-"));
 		try {
 			const location = {
 				projectRoot: root,
@@ -402,7 +403,7 @@ describe("workflow chat progress rendering", () => {
 	});
 
 	it("warns once when a workflow child outlives its mission record", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflow-missing-mission-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-workflow-missing-mission-"));
 		const originalWarn = console.warn;
 		const warnings: string[] = [];
 		try {
@@ -449,7 +450,7 @@ describe("workflow chat progress rendering", () => {
 						mode: "workflow",
 						runId: "wf_8f3a123456",
 						results: [],
-						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "pi-subagents" },
+						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "subagents" },
 						workflow: {
 							trace: [
 								{
@@ -496,7 +497,7 @@ describe("workflow chat progress rendering", () => {
 		);
 
 		assert.match(text, /workflow wf_8f3a12345 .* same repo .* failed/);
-		assert.match(text, /Repo {3}pi-subagents/);
+		assert.match(text, /Repo {3}subagents/);
 		assert.match(text, /Phase {2}Validation/);
 		assert.match(text, /complete\s+scout Found renderer seam/);
 		assert.match(text, /running\s+tests focused integration suite/);
@@ -528,7 +529,7 @@ describe("workflow chat progress rendering", () => {
 						mode: "workflow",
 						runId: "wf_detached_123456",
 						results: [],
-						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "pi-subagents" },
+						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "subagents" },
 						workflow: { trace, emits: [], console: [] },
 					},
 				},
@@ -561,7 +562,7 @@ describe("workflow chat progress rendering", () => {
 				runId: "wf_planned",
 				results: [],
 				preflight,
-				chatProgress: { mode: "live-card" as const, repoRelation: "same" as const, repoLabel: "pi-subagents" },
+				chatProgress: { mode: "live-card" as const, repoRelation: "same" as const, repoLabel: "subagents" },
 				workflow: { trace: [], emits: [], console: [] },
 			},
 		};
@@ -655,7 +656,7 @@ describe("workflow chat progress rendering", () => {
 					coverage: "complete" as const,
 					lanes: [{ key: "writer", mode: "mutation" as const }],
 				},
-				chatProgress: { mode: "live-card" as const, repoRelation: "same" as const, repoLabel: "pi-subagents" },
+				chatProgress: { mode: "live-card" as const, repoRelation: "same" as const, repoLabel: "subagents" },
 				workflow: {
 					trace: [{ operation: "run" as const, key: "writer", state: "started" as const }],
 					emits: [],
@@ -697,7 +698,7 @@ describe("workflow chat progress rendering", () => {
 						mode: "workflow",
 						runId: "wf_mixed_failure",
 						results: [],
-						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "pi-subagents" },
+						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "subagents" },
 						workflow: {
 							trace: [
 								{
@@ -744,7 +745,7 @@ describe("workflow chat progress rendering", () => {
 				mode: "workflow" as const,
 				runId: "wf_density",
 				results: [],
-				chatProgress: { mode: "live-card" as const, repoRelation: "same" as const, repoLabel: "pi-subagents" },
+				chatProgress: { mode: "live-card" as const, repoRelation: "same" as const, repoLabel: "subagents" },
 				workflow: { trace, emits: [], console: [] },
 			},
 		};
@@ -754,7 +755,7 @@ describe("workflow chat progress rendering", () => {
 			compactResultMaxLines: 3,
 		}).render(120);
 		assert.equal(compact.length, 3);
-		assert.match(compact[1]!, /^Repo {3}pi-subagents\s*$/);
+		assert.match(compact[1]!, /^Repo {3}subagents\s*$/);
 		assert.match(compact[2]!, /rows hidden/);
 
 		const expanded = renderSubagentResult(result, { expanded: true }, theme as any, undefined, {
@@ -762,7 +763,7 @@ describe("workflow chat progress rendering", () => {
 			compactResultMaxLines: 3,
 		}).render(120);
 		assert.ok(expanded.length > 3);
-		assert.match(expanded[1]!, /^ {2}Repo {3}pi-subagents\s*$/);
+		assert.match(expanded[1]!, /^ {2}Repo {3}subagents\s*$/);
 		assert.match(expanded.join("\n"), /phase-9 1 active/);
 		assert.doesNotMatch(expanded.join("\n"), /rows hidden · .* expands/);
 	});
@@ -787,7 +788,7 @@ describe("workflow chat progress rendering", () => {
 						mode: "workflow",
 						runId: "wf_noisy",
 						results: [],
-						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "pi-subagents" },
+						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "subagents" },
 						workflow: { trace, emits: [], console: [] },
 					},
 				},
@@ -812,7 +813,7 @@ describe("workflow chat progress rendering", () => {
 						mode: "workflow",
 						runId: "wf_mixed_error",
 						results: [],
-						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "pi-subagents" },
+						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "subagents" },
 						workflow: {
 							trace: [
 								{
@@ -886,7 +887,7 @@ describe("workflow chat progress rendering", () => {
 						mode: "workflow",
 						runId: "wf_done",
 						results: [],
-						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "pi-subagents" },
+						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "subagents" },
 						workflow: {
 							value: "final answer",
 							trace: [{ operation: "run", key: "scout", state: "completed", runId: "run-scout" }],

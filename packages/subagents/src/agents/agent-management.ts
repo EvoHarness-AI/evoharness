@@ -73,7 +73,7 @@ type ManagementScope = "user" | "project";
 type ManagementContext = Pick<ExtensionContext, "cwd" | "modelRegistry"> & {
 	model?: ExtensionContext["model"];
 	config?: ExtensionConfig;
-	piSessionId?: string;
+	hostSessionId?: string;
 	runtimeAgentOwner?: RuntimeAgentOwner;
 	onAgentsChanged?: () => void;
 	discoverAgentsAll?: typeof discoverAgentsAll;
@@ -543,7 +543,8 @@ function applyAgentConfig(target: AgentConfig, cfg: Record<string, unknown>): st
 		if (cfg.runner === false || cfg.runner === "") delete target.runner;
 		else if (cfg.runner && typeof cfg.runner === "object" && !Array.isArray(cfg.runner)) {
 			const runner = cfg.runner as Record<string, unknown>;
-			if (runner.type === "pi" && Object.keys(runner).every((key) => key === "type")) target.runner = { type: "pi" };
+			if (runner.type === "evoharness" && Object.keys(runner).every((key) => key === "type"))
+				target.runner = { type: "evoharness" };
 			else if (
 				runner.type === "external-cli" &&
 				typeof runner.command === "string" &&
@@ -583,7 +584,7 @@ function applyAgentConfig(target: AgentConfig, cfg: Record<string, unknown>): st
 					...(runner.options ? { options: runner.options as Record<string, unknown> } : {}),
 				};
 			} else
-				return `config.runner must be { type: 'pi' }, { type: 'external-cli', adapter?: ${CODE_OWNED_EXTERNAL_CLI_ADAPTER_LABEL}, command: string, args?: string[], promptDelivery?: 'stdin' }, or { type: 'external-job', provider: string, options?: object }.`;
+				return `config.runner must be { type: 'evoharness' }, { type: 'external-cli', adapter?: ${CODE_OWNED_EXTERNAL_CLI_ADAPTER_LABEL}, command: string, args?: string[], promptDelivery?: 'stdin' }, or { type: 'external-job', provider: string, options?: object }.`;
 		} else return "config.runner must be an object, false, or empty string when provided.";
 	}
 	if (hasKey(cfg, "launcher"))
@@ -774,7 +775,7 @@ function applyAgentConfig(target: AgentConfig, cfg: Record<string, unknown>): st
 			target.toolBudget ? "toolBudget" : undefined,
 		].filter((field): field is string => Boolean(field));
 		if (unsupported.length > 0)
-			return `config.runner type '${target.runner.type}' does not support Pi-only fields: ${unsupported.join(", ")}.`;
+			return `config.runner type '${target.runner.type}' does not support host-only fields: ${unsupported.join(", ")}.`;
 	}
 	return undefined;
 }
@@ -984,7 +985,7 @@ const EXTERNAL_JOB_CAPABILITIES = {
 	structuredOutput: false,
 	toolEvents: false,
 } as const;
-const PI_AGENT_RUNNER = { type: "pi" } as const;
+const HOST_AGENT_RUNNER = { type: "evoharness" } as const;
 
 function listOrEmpty<T>(values: T[] | undefined): T[] {
 	return values ?? [];
@@ -996,7 +997,7 @@ function agentCapabilityRunner(
 	externalCliAvailability: ExternalCliAvailabilityByCommand,
 ): AgentCapabilityRow["runner"] {
 	const runner = agent.runner;
-	if (!runner || runner.type === "pi") return PI_AGENT_RUNNER;
+	if (!runner || runner.type === "evoharness") return HOST_AGENT_RUNNER;
 	if (runner.type === "external-cli") {
 		const availability = externalCliAvailability.get(externalCliAvailabilityKey(runner.command, agent.machine))!;
 		return {
@@ -1246,7 +1247,7 @@ export function handleList(params: ManagementParams, ctx: ManagementContext): Ag
 	const d = discoverCatalog(ctx, ctx.cwd, ctx.model?.provider);
 	let scopedAgents = effectiveAgentsForScope(scope, d, ctx.runtimeAgentOwner, ctx.model?.provider);
 	scopedAgents = scopedAgents.sort((a, b) => a.name.localeCompare(b.name));
-	const capabilityCeiling = resolveCurrentSubagentCapabilityCeiling(ctx.piSessionId);
+	const capabilityCeiling = resolveCurrentSubagentCapabilityCeiling(ctx.hostSessionId);
 	const visibleAgents = scopedAgents.filter((a) => !a.disabled);
 	const agents = visibleAgents.filter((a) => isAgentAllowedByCapabilityCeiling(a.name, capabilityCeiling));
 	const restrictedAgents = visibleAgents.filter((a) => !isAgentAllowedByCapabilityCeiling(a.name, capabilityCeiling));
@@ -1318,7 +1319,7 @@ function handleModels(params: ManagementParams, ctx: ManagementContext): AgentTo
 	const availableModels = ctx.modelRegistry.getAvailable().map(toModelInfo);
 	const currentModel = ctx.model ? { provider: ctx.model.provider, id: ctx.model.id } : undefined;
 	const preferredProvider = ctx.model?.provider;
-	const capabilityCeiling = resolveCurrentSubagentCapabilityCeiling(ctx.piSessionId);
+	const capabilityCeiling = resolveCurrentSubagentCapabilityCeiling(ctx.hostSessionId);
 
 	let selectedAgents = effectiveAgents;
 	if (requestedAgent) {
@@ -1688,7 +1689,7 @@ function handleDisable(params: ManagementParams, ctx: ManagementContext): AgentT
 	const d = discoverCatalog(ctx);
 	if (scope === "project" && d.projectSettingsPath === null) {
 		return result(
-			"Project override is not available here: no project config root (.pi or .agents) was found above the cwd. Use agentScope: 'user' or run from inside a project.",
+			"Project override is not available here: no project config root (.evoharness or .agents) was found above the cwd. Use agentScope: 'user' or run from inside a project.",
 			true,
 		);
 	}
@@ -1721,7 +1722,7 @@ function handleEnable(params: ManagementParams, ctx: ManagementContext): AgentTo
 	const d = discoverCatalog(ctx);
 	if (scope === "project" && d.projectSettingsPath === null) {
 		return result(
-			"Project override is not available here: no project config root (.pi or .agents) was found above the cwd. Use agentScope: 'user' or run from inside a project.",
+			"Project override is not available here: no project config root (.evoharness or .agents) was found above the cwd. Use agentScope: 'user' or run from inside a project.",
 			true,
 		);
 	}
@@ -1760,7 +1761,7 @@ function handleReset(params: ManagementParams, ctx: ManagementContext): AgentToo
 	const d = discoverCatalog(ctx);
 	if (scope === "project" && d.projectSettingsPath === null) {
 		return result(
-			"Project override is not available here: no project config root (.pi or .agents) was found above the cwd. Use agentScope: 'user' or run from inside a project.",
+			"Project override is not available here: no project config root (.evoharness or .agents) was found above the cwd. Use agentScope: 'user' or run from inside a project.",
 			true,
 		);
 	}

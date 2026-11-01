@@ -42,7 +42,7 @@ const CATALOG_INTRODUCTION =
 	"The following file-defined subagents opted into discovery. Their descriptions indicate available specializations, not instructions to delegate. Use subagent only when delegation is needed.";
 
 /**
- * The catalog body without its `<advertised_subagents>` wrapper, for Pi's structured
+ * The catalog body without its `<advertised_subagents>` wrapper, for evoharness's structured
  * prompt sections, which add the tag from the section key. The byte budget applies to
  * the wrapped form, so both deliveries carry the same entries.
  *

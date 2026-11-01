@@ -17,7 +17,7 @@ import {
 	EXTERNAL_JOB_PROVIDER_REGISTRY_KEY,
 	registerExternalJobProvider,
 } from "../../src/api/external-job-provider.ts";
-import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
+import { CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
 import { openSubagentsAdmin } from "../../src/slash/subagents-admin.ts";
 import { writeNodeCommand } from "../support/node-command.ts";
 
@@ -34,9 +34,9 @@ function readText(result: { content: Array<{ type: string; text?: string }> }): 
 
 describe("agent management config parsing", () => {
 	beforeEach(() => {
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-management-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-management-"));
 		// Anchor project discovery here. On Windows, os.tmpdir() is below the
-		// physical user home, so an unanchored test can climb into ~/.pi and
+		// physical user home, so an unanchored test can climb into ~/.evoharness and
 		// write fixture agents into the operator's real configuration.
 		fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
 		oldAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -713,10 +713,7 @@ Remote.
 			path.join(userAgentsDir, "worker.md"),
 			"---\nname: worker\ndescription: User worker override\n---\n\nUser worker.\n",
 		);
-		fs.writeFileSync(
-			path.join(packageDir, "package.json"),
-			JSON.stringify({ "pi-subagents": { agents: ["agents"] } }),
-		);
+		fs.writeFileSync(path.join(packageDir, "package.json"), JSON.stringify({ subagents: { agents: ["agents"] } }));
 		fs.writeFileSync(
 			path.join(packageDir, "agents", "worker.md"),
 			"---\nname: worker\ndescription: Package worker override\n---\n\nPackage worker.\n",
@@ -745,7 +742,7 @@ Remote.
 			JSON.stringify({
 				name: "test-surf",
 				version: "9.8.7",
-				pi: { subagents: { agents: ["agents"] } },
+				evoharness: { subagents: { agents: ["agents"] } },
 			}),
 		);
 		fs.writeFileSync(
@@ -797,7 +794,7 @@ Advise only.
 			JSON.stringify({
 				name: "test-surf",
 				version: "9.8.7",
-				pi: { subagents: { agents: ["agents"] } },
+				evoharness: { subagents: { agents: ["agents"] } },
 			}),
 		);
 		fs.writeFileSync(
@@ -890,7 +887,7 @@ Advise only.
 			fs.mkdirSync(path.join(packageRoot, "agents"), { recursive: true });
 			fs.writeFileSync(
 				path.join(packageRoot, "package.json"),
-				JSON.stringify({ "pi-subagents": { agents: ["agents"] } }),
+				JSON.stringify({ subagents: { agents: ["agents"] } }),
 			);
 		}
 		fs.writeFileSync(
@@ -932,10 +929,7 @@ Advise only.
 	it("reports a malformed project agent before lower-priority ambiguity", () => {
 		const packageRoot = path.join(tempDir, "package");
 		fs.mkdirSync(path.join(packageRoot, "agents"), { recursive: true });
-		fs.writeFileSync(
-			path.join(packageRoot, "package.json"),
-			JSON.stringify({ "pi-subagents": { agents: ["agents"] } }),
-		);
+		fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({ subagents: { agents: ["agents"] } }));
 		fs.writeFileSync(
 			path.join(packageRoot, "agents", "foo.md"),
 			"---\nname: foo\npackage: acme\ndescription: Package foo\n---\nPackage foo.\n",
@@ -1003,7 +997,7 @@ Advise only.
 		);
 	});
 
-	it("blocks a malformed .pi agent from falling back to a legacy project agent", () => {
+	it("blocks a malformed .evoharness agent from falling back to a legacy project agent", () => {
 		const canonicalAgentsDir = path.join(tempDir, ".evoharness", "agents");
 		const legacyAgentsDir = path.join(tempDir, ".agents");
 		fs.mkdirSync(canonicalAgentsDir, { recursive: true });
@@ -1029,16 +1023,16 @@ Advise only.
 	});
 
 	it("blocks a malformed custom canonical agent directory from falling back to legacy", () => {
-		const previousPackageRoot = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
+		const previousPackageRoot = process.env[CODING_AGENT_PACKAGE_ROOT_ENV];
 		const packageRoot = path.join(tempDir, "coding-agent-root");
 		try {
 			fs.mkdirSync(packageRoot, { recursive: true });
 			fs.writeFileSync(
 				path.join(packageRoot, "package.json"),
-				JSON.stringify({ name: "@evoharness/coding-agent", piConfig: { configDir: ".custom-pi" } }),
+				JSON.stringify({ name: "@evoharness/coding-agent", evoharnessConfig: { configDir: ".custom-evoharness" } }),
 			);
-			process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = packageRoot;
-			const canonicalAgentsDir = path.join(tempDir, ".custom-pi", "agents");
+			process.env[CODING_AGENT_PACKAGE_ROOT_ENV] = packageRoot;
+			const canonicalAgentsDir = path.join(tempDir, ".custom-evoharness", "agents");
 			const legacyAgentsDir = path.join(tempDir, ".agents");
 			fs.mkdirSync(canonicalAgentsDir, { recursive: true });
 			fs.mkdirSync(legacyAgentsDir, { recursive: true });
@@ -1061,21 +1055,21 @@ Advise only.
 				/Agent 'shared' has invalid configuration: Agent 'shared' has invalid runner\.type/,
 			);
 		} finally {
-			if (previousPackageRoot === undefined) delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
-			else process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = previousPackageRoot;
+			if (previousPackageRoot === undefined) delete process.env[CODING_AGENT_PACKAGE_ROOT_ENV];
+			else process.env[CODING_AGENT_PACKAGE_ROOT_ENV] = previousPackageRoot;
 		}
 	});
 
 	it("blocks a malformed canonical .agents/agents definition from legacy .agents", () => {
-		const previousPackageRoot = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
+		const previousPackageRoot = process.env[CODING_AGENT_PACKAGE_ROOT_ENV];
 		const packageRoot = path.join(tempDir, "coding-agent-root");
 		try {
 			fs.mkdirSync(packageRoot, { recursive: true });
 			fs.writeFileSync(
 				path.join(packageRoot, "package.json"),
-				JSON.stringify({ name: "@evoharness/coding-agent", piConfig: { configDir: ".agents" } }),
+				JSON.stringify({ name: "@evoharness/coding-agent", evoharnessConfig: { configDir: ".agents" } }),
 			);
-			process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = packageRoot;
+			process.env[CODING_AGENT_PACKAGE_ROOT_ENV] = packageRoot;
 			const legacyAgentsDir = path.join(tempDir, ".agents");
 			const canonicalAgentsDir = path.join(legacyAgentsDir, "agents");
 			fs.mkdirSync(canonicalAgentsDir, { recursive: true });
@@ -1095,8 +1089,8 @@ Advise only.
 			assert.equal(result.isError, true);
 			assert.match(readText(result), /Agent 'foo' has invalid configuration: Agent 'foo' has invalid runner\.type/);
 		} finally {
-			if (previousPackageRoot === undefined) delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
-			else process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = previousPackageRoot;
+			if (previousPackageRoot === undefined) delete process.env[CODING_AGENT_PACKAGE_ROOT_ENV];
+			else process.env[CODING_AGENT_PACKAGE_ROOT_ENV] = previousPackageRoot;
 		}
 	});
 
@@ -1502,7 +1496,7 @@ Advise only.
 					name: "child-tool-user",
 					description: "Uses child tools",
 					scope: "project",
-					subagentOnlyExtensions: "./tools/child-only.ts, /opt/pi/child.ts",
+					subagentOnlyExtensions: "./tools/child-only.ts, /opt/evoharness/child.ts",
 				},
 			},
 			ctx,
@@ -1511,7 +1505,7 @@ Advise only.
 		assert.equal(result.isError, false);
 		const filePath = path.join(tempDir, ".evoharness", "agents", "child-tool-user.md");
 		const content = fs.readFileSync(filePath, "utf-8");
-		assert.match(content, /^subagentOnlyExtensions: \.\/tools\/child-only\.ts, \/opt\/pi\/child\.ts$/m);
+		assert.match(content, /^subagentOnlyExtensions: \.\/tools\/child-only\.ts, \/opt\/evoharness\/child\.ts$/m);
 
 		const got = handleManagementAction("get", { agent: "child-tool-user" }, ctx);
 		assert.equal(got.isError, false);
@@ -1519,7 +1513,7 @@ Advise only.
 			readText(got).includes(
 				"Subagent-only extensions: " +
 					path.join(tempDir, ".evoharness", "agents", "tools", "child-only.ts") +
-					", /opt/pi/child.ts",
+					", /opt/evoharness/child.ts",
 			),
 		);
 	});
@@ -1831,13 +1825,13 @@ Drive the failing test first.
 	it("shows provider-scoped runtime agent metadata but refuses edits without writing configuration", async () => {
 		const sent: Array<{ content?: string }> = [];
 		const notified: string[] = [];
-		const pi = {
+		const evoharness = {
 			on() {},
 			registerTool() {},
 			sendMessage: (message: { content?: string }) => sent.push(message),
 		} as never;
 		const registration = registerAgent({
-			pi,
+			evoharness,
 			name: "runtime-admin-helper",
 			definition: { description: "Runtime admin helper", systemPrompt: "Help at runtime." },
 		});
@@ -1854,7 +1848,7 @@ Drive the failing test first.
 				}),
 			);
 			await openSubagentsAdmin(
-				pi,
+				evoharness,
 				{
 					cwd: tempDir,
 					hasUI: false,
@@ -1869,7 +1863,7 @@ Drive the failing test first.
 			fs.rmSync(path.join(tempDir, "agent-home", "settings.json"));
 
 			await openSubagentsAdmin(
-				pi,
+				evoharness,
 				{
 					cwd: tempDir,
 					hasUI: true,
@@ -1900,20 +1894,20 @@ Drive the failing test first.
 			agentPath,
 			"---\nname: disabled-runtime-name\ndescription: Hidden configured agent\ndisabled: true\n---\nHidden.\n",
 		);
-		const pi = {
+		const evoharness = {
 			on() {},
 			registerTool() {},
 			sendMessage: () => assert.fail("a colliding runtime agent must not be listed"),
 		} as never;
 		const registration = registerAgent({
-			pi,
+			evoharness,
 			name: "disabled-runtime-name",
 			definition: { description: "Colliding runtime agent", systemPrompt: "Runtime." },
 		});
 		try {
 			await assert.rejects(
 				openSubagentsAdmin(
-					pi,
+					evoharness,
 					{
 						cwd: tempDir,
 						hasUI: false,
@@ -2407,7 +2401,7 @@ Drive the failing test first.
 			JSON.stringify({
 				name: "model-agents",
 				version: "1.2.3",
-				pi: { subagents: { agents: ["agents"] } },
+				evoharness: { subagents: { agents: ["agents"] } },
 			}),
 		);
 		const writeAgent = (dir: string, name: string, model: string, thinking: string) =>

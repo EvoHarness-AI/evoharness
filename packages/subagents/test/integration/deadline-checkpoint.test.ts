@@ -36,7 +36,7 @@ function journal(id: string): Array<{ type: string; requestId?: string; source?:
 
 describe(
 	"async single-agent deadline checkpoint lifecycle",
-	{ skip: !available ? "pi packages not available" : undefined },
+	{ skip: !available ? "evoharness packages not available" : undefined },
 	() => {
 		installAsyncExecutionHooks();
 

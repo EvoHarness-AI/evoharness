@@ -55,7 +55,7 @@ describe("supervisor command actions", () => {
 			const runId = `command-action-${randomUUID()}`;
 			const channel = supervisorChannelDir(runId, "worker", 1);
 			const commands = createChildCommandRuntime(channel);
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-command-action-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-command-action-"));
 			const state = liveState(runId);
 			const target =
 				kind === "foreground"
@@ -74,7 +74,7 @@ describe("supervisor command actions", () => {
 						],
 					}),
 				);
-			// On Windows, Pi ends a cancelled command with a taskkill it does not await.
+			// On Windows, evoharness ends a cancelled command with a taskkill it does not await.
 			const pidFile = path.join(dir, "command.pid");
 			fs.writeFileSync(
 				path.join(dir, "hold.cjs"),

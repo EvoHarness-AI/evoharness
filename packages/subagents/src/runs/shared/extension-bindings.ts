@@ -1,4 +1,4 @@
-export const PI_SUBAGENT_EXTENSION_BINDINGS_ENV = "PI_SUBAGENT_EXTENSION_BINDINGS";
+export const EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV = "EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS";
 export const MAX_EXTENSION_BINDING_NAMESPACES = 16;
 export const MAX_EXTENSION_BINDINGS_BYTES = 16 * 1024;
 export const MAX_EXTENSION_BINDINGS_DEPTH = 16;
@@ -103,6 +103,6 @@ export function encodeExtensionBindings(input: ExtensionBindings | undefined): s
 }
 
 export function omitExtensionBindingsEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-	const { [PI_SUBAGENT_EXTENSION_BINDINGS_ENV]: _extensionBindings, ...sanitized } = env;
+	const { [EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV]: _extensionBindings, ...sanitized } = env;
 	return sanitized;
 }

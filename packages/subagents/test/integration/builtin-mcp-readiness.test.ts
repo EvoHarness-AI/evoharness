@@ -5,9 +5,9 @@ import * as path from "node:path";
 import { it } from "node:test";
 import {
 	type ChildSessionLaunch,
+	type CodingAgentModule,
 	createDefaultChildSessionFactory,
 	loadHostPiCodingAgent,
-	type PiCodingAgentModule,
 } from "../../src/runs/shared/child-session.ts";
 
 // Opt-in, like nested-async-wait: the real host owns the MCP runtime and all peers.
@@ -15,11 +15,12 @@ it(
 	"native built-in MCP startup follows the selected connection attempts",
 	{
 		skip:
-			!process.env.PI_SUBAGENTS_NATIVE_PI_ROOT && "Requires PI_SUBAGENTS_NATIVE_PI_ROOT and native-peer-loader.mjs",
+			!process.env.EVOHARNESS_SUBAGENTS_NATIVE_HOST_ROOT &&
+			"Requires EVOHARNESS_SUBAGENTS_NATIVE_HOST_ROOT and native-peer-loader.mjs",
 		timeout: 60_000,
 	},
 	async (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-native-mcp-ready-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-native-mcp-ready-"));
 		const agentDir = path.join(root, "agent");
 		const serverPath = path.join(root, "server.cjs");
 		const auditPath = path.join(root, "server.jsonl");
@@ -54,15 +55,15 @@ rl.on("close", () => { record("closed"); process.exit(0); });
 `,
 		);
 		const host = await loadHostPiCodingAgent();
-		let session: Awaited<ReturnType<PiCodingAgentModule["createAgentSession"]>>["session"] | undefined;
-		const pi = {
+		let session: Awaited<ReturnType<CodingAgentModule["createAgentSession"]>>["session"] | undefined;
+		const evoharness = {
 			...host,
 			createAgentSession: async (options) => {
 				const result = await host.createAgentSession(options);
 				session = result.session;
 				return result;
 			},
-		} as PiCodingAgentModule;
+		} as CodingAgentModule;
 		const launch: ChildSessionLaunch = {
 			cwd: root,
 			storage: { kind: "memory" },
@@ -114,7 +115,7 @@ rl.on("close", () => { record("closed"); process.exit(0); });
 				"waits beyond ten seconds without waiting for an unselected server or requesting a model",
 				async () => {
 					configure(11_200, "selected", true);
-					const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+					const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 					try {
 						const started = Date.now();
 						const child = await factory.create(launch);
@@ -148,7 +149,7 @@ rl.on("close", () => { record("closed"); process.exit(0); });
 			);
 			await t.test("fails promptly after initialization fails and shuts the session down", async () => {
 				configure(0, "fail");
-				const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+				const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 				try {
 					const started = Date.now();
 					await assert.rejects(factory.create(launch), /Selected built-in MCP tools did not register/);
@@ -160,7 +161,7 @@ rl.on("close", () => { record("closed"); process.exit(0); });
 			});
 			await t.test("fails closed when a connected server does not offer the selected tool", async () => {
 				configure(0);
-				const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+				const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 				try {
 					await assert.rejects(
 						factory.create({
@@ -178,7 +179,7 @@ rl.on("close", () => { record("closed"); process.exit(0); });
 			});
 			await t.test("factory disposal cancels a pending connection and closes its stdio server", async () => {
 				configure(25_000);
-				const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+				const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 				const creating = factory.create(launch);
 				const rejected = assert.rejects(creating, /disposed while the child waited for its MCP tools/);
 				try {
@@ -199,7 +200,7 @@ rl.on("close", () => { record("closed"); process.exit(0); });
 			});
 			await t.test("launch cancellation stops a pending MCP connection before the model starts", async () => {
 				configure(25_000);
-				const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+				const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 				const cancel = new AbortController();
 				const creating = factory.create({ ...launch, signal: cancel.signal });
 				const rejected = assert.rejects(creating, /launch was cancelled while waiting for its MCP tools/);

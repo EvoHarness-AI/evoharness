@@ -35,7 +35,7 @@ function makePackageSkill(packageRoot: string, name: string, body: string, packa
 	fs.mkdirSync(skillDir, { recursive: true });
 	fs.writeFileSync(
 		path.join(packageRoot, "package.json"),
-		JSON.stringify({ name: packageName, version: "1.0.0", pi: { skills: ["./skills"] } }, null, 2),
+		JSON.stringify({ name: packageName, version: "1.0.0", evoharness: { skills: ["./skills"] } }, null, 2),
 		"utf-8",
 	);
 	fs.writeFileSync(path.join(skillDir, "SKILL.md"), `${body}\n`, "utf-8");
@@ -61,7 +61,7 @@ async function importAgentsFresh() {
 
 describe("skills filesystem fallback", () => {
 	beforeEach(() => {
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-skills-fallback-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-skills-fallback-"));
 		clearSkillCache();
 	});
 
@@ -178,7 +178,7 @@ describe("skills filesystem fallback", () => {
 		writeSkillFile(path.join(tempDir, "skills", "group", "issue-262-settings-nested"), "Use settings nested skill.");
 		fs.writeFileSync(
 			path.join(tempDir, "package.json"),
-			JSON.stringify({ name: "fixture", version: "1.0.0", pi: { skills: ["./skills"] } }, null, 2),
+			JSON.stringify({ name: "fixture", version: "1.0.0", evoharness: { skills: ["./skills"] } }, null, 2),
 			"utf-8",
 		);
 		fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
@@ -202,7 +202,7 @@ describe("skills filesystem fallback", () => {
 		);
 		fs.writeFileSync(
 			path.join(tempDir, "package.json"),
-			JSON.stringify({ name: "fixture", version: "1.0.0", pi: { skills: ["./skills"] } }, null, 2),
+			JSON.stringify({ name: "fixture", version: "1.0.0", evoharness: { skills: ["./skills"] } }, null, 2),
 			"utf-8",
 		);
 		fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
@@ -257,26 +257,26 @@ describe("skills filesystem fallback", () => {
 		assert.match(injection, /amp&amp;skill[\\/]SKILL\.md/);
 	});
 
-	it("does not expose pi-subagents as a child-injectable skill", () => {
-		makeProjectSkill(tempDir, "pi-subagents", "Parent orchestration only.");
+	it("does not expose subagents as a child-injectable skill", () => {
+		makeProjectSkill(tempDir, "subagents", "Parent orchestration only.");
 		makeProjectSkill(tempDir, "safe-bash", "Use safe bash.");
 
 		const available = discoverAvailableSkills(tempDir).map((skill) => skill.name);
-		assert.equal(available.includes("pi-subagents"), false);
+		assert.equal(available.includes("subagents"), false);
 		assert.equal(available.includes("safe-bash"), true);
 
-		const { resolved, missing } = resolveSkills(["pi-subagents", "safe-bash"], tempDir);
-		assert.deepEqual(missing, ["pi-subagents"]);
+		const { resolved, missing } = resolveSkills(["subagents", "safe-bash"], tempDir);
+		assert.deepEqual(missing, ["subagents"]);
 		assert.deepEqual(
 			resolved.map((skill) => skill.name),
 			["safe-bash"],
 		);
 
 		const agentDir = path.join(tempDir, "agent");
-		writeSkillFile(path.join(agentDir, "skills", "pi-subagents"), "Still parent-only.");
-		const local = resolveSkills(["pi-subagents"], tempDir, ["./skills"], agentDir);
+		writeSkillFile(path.join(agentDir, "skills", "subagents"), "Still parent-only.");
+		const local = resolveSkills(["subagents"], tempDir, ["./skills"], agentDir);
 		assert.deepEqual(local.resolved, []);
-		assert.deepEqual(local.missing, ["pi-subagents"]);
+		assert.deepEqual(local.missing, ["subagents"]);
 	});
 
 	it("classifies package-provided skills as project-package", () => {
@@ -477,8 +477,8 @@ describe("skills filesystem fallback", () => {
 			JSON.stringify(
 				{
 					name: "windows-global-package",
-					pi: { skills: ["./skills"] },
-					"pi-subagents": { agents: ["./agents"] },
+					evoharness: { skills: ["./skills"] },
+					subagents: { agents: ["./agents"] },
 				},
 				null,
 				2,
@@ -552,8 +552,8 @@ Windows global agent.
 			JSON.stringify(
 				{
 					name: "fallback-global-package",
-					pi: { skills: ["./skills"] },
-					"pi-subagents": { agents: ["./agents"] },
+					evoharness: { skills: ["./skills"] },
+					subagents: { agents: ["./agents"] },
 				},
 				null,
 				2,

@@ -26,7 +26,7 @@ afterEach(() => {
 
 describe("async recovery descriptor", () => {
 	it("rejects a mandatory-policy launch on an external runner before spawning the runner", (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-required-all-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-required-all-"));
 		const runId = `required-all-${Date.now().toString(36)}`;
 		const asyncDir = path.join(DIRS.async, runId);
 		const spawn = t.mock.method(childProcess, "spawn", () => {
@@ -45,7 +45,7 @@ describe("async recovery descriptor", () => {
 				agentConfig: makeAgent("external", {
 					runner: { type: "external-cli", command: process.execPath, args: ["fake.mjs"] },
 				}),
-				ctx: { pi: { events: { emit() {} } }, cwd: root, currentSessionId: "required-all-runners" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: root, currentSessionId: "required-all-runners" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -72,7 +72,7 @@ describe("async recovery descriptor", () => {
 	});
 
 	it("snapshots an explicit empty descendant allowlist before detached spawn", (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-recovery-allowed-agents-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-recovery-allowed-agents-"));
 		const runId = `recovery-allowed-agents-${Date.now().toString(36)}`;
 		const asyncDir = path.join(DIRS.async, runId);
 		const spawn = t.mock.method(childProcess, "spawn", () => {
@@ -84,7 +84,7 @@ describe("async recovery descriptor", () => {
 				agent: "worker",
 				task: "Coordinate",
 				agentConfig: makeAgent("worker", { allowedAgents: [] }),
-				ctx: { pi: { events: { emit() {} } }, cwd: root, currentSessionId: "recovery-allowed-agents" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: root, currentSessionId: "recovery-allowed-agents" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -110,7 +110,7 @@ describe("async recovery descriptor", () => {
 	});
 
 	it("accepts launchContractDigest written by async execution", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-recovery-digest-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-recovery-digest-"));
 		try {
 			const digest = "launch-contract-digest";
 			fs.writeFileSync(
@@ -144,7 +144,7 @@ describe("async recovery descriptor", () => {
 	});
 
 	it("accepts a safe baseRef in persisted recovery descriptors", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-recovery-base-ref-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-recovery-base-ref-"));
 		try {
 			fs.writeFileSync(
 				path.join(root, "recovery-descriptor.json"),
@@ -172,7 +172,7 @@ describe("async recovery descriptor", () => {
 	});
 
 	it("reads a recorded launcher name and rejects an invalid one", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-recovery-launcher-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-recovery-launcher-"));
 		const write = (launcher: unknown) =>
 			fs.writeFileSync(
 				path.join(root, "recovery-descriptor.json"),
@@ -206,7 +206,7 @@ describe("async recovery descriptor", () => {
 	});
 
 	it("rejects unsafe baseRef values in persisted recovery descriptors", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-recovery-bad-base-ref-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-recovery-bad-base-ref-"));
 		try {
 			for (const baseRef of ["refs/heads/unsafe..ref", "a".repeat(40), "a".repeat(64)] as const) {
 				fs.writeFileSync(
@@ -236,7 +236,7 @@ describe("async recovery descriptor", () => {
 	});
 
 	it("defaults inheritGlobalContext from inheritProjectContext for descriptors from older versions", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-recovery-legacy-global-context-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-recovery-legacy-global-context-"));
 		try {
 			fs.writeFileSync(
 				path.join(root, "recovery-descriptor.json"),
@@ -265,7 +265,7 @@ describe("async recovery descriptor", () => {
 	});
 
 	it("defaults legacy non-parent models to configured origin", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-recovery-legacy-model-origin-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-recovery-legacy-model-origin-"));
 		try {
 			fs.writeFileSync(
 				path.join(root, "recovery-descriptor.json"),
@@ -296,7 +296,7 @@ describe("async recovery descriptor", () => {
 	});
 
 	it("defaults legacy parent models to inherited origin", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-recovery-legacy-parent-origin-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-recovery-legacy-parent-origin-"));
 		try {
 			fs.writeFileSync(
 				path.join(root, "recovery-descriptor.json"),
@@ -328,7 +328,7 @@ describe("async recovery descriptor", () => {
 	});
 
 	it("rejects unresolved profile context values", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-recovery-bad-context-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-recovery-bad-context-"));
 		try {
 			fs.writeFileSync(
 				path.join(root, "recovery-descriptor.json"),
@@ -357,7 +357,7 @@ describe("async recovery descriptor", () => {
 	});
 
 	it("accepts persisted boolean fast settings and leaves omitted fast unset", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-recovery-fast-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-recovery-fast-"));
 		try {
 			const base = {
 				version: 1,
@@ -396,7 +396,7 @@ describe("async recovery descriptor", () => {
 	});
 
 	it("rejects non-boolean fast values in persisted recovery descriptors", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-recovery-bad-fast-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-recovery-bad-fast-"));
 		try {
 			fs.writeFileSync(
 				path.join(root, "recovery-descriptor.json"),
@@ -424,7 +424,7 @@ describe("async recovery descriptor", () => {
 	});
 
 	it("rejects malformed launchContractDigest values", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-recovery-bad-digest-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-recovery-bad-digest-"));
 		try {
 			fs.writeFileSync(
 				path.join(root, "recovery-descriptor.json"),

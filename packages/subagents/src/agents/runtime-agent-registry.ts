@@ -24,7 +24,7 @@ import {
 } from "./agents.ts";
 import { BUILTIN_AGENT_NAMES } from "./builtin-names.ts";
 
-export const RUNTIME_AGENT_REGISTRY_KEY = "pi-subagents.runtime-agents.v1";
+export const RUNTIME_AGENT_REGISTRY_KEY = "subagents.runtime-agents.v1";
 
 const MAX_RUNTIME_AGENTS_PER_PI = 200;
 const MAX_AGENT_NAME_LENGTH = 128;
@@ -70,7 +70,7 @@ export interface RuntimeAgentDefinition {
 }
 
 export interface RegisterRuntimeAgentInput {
-	pi: ExtensionAPI;
+	evoharness: ExtensionAPI;
 	name: string;
 	definition: RuntimeAgentDefinition;
 }
@@ -80,7 +80,7 @@ export interface RuntimeAgentRegistration {
 }
 
 interface RuntimeAgentRecord {
-	pi: ExtensionAPI;
+	evoharness: ExtensionAPI;
 	agent: AgentConfig;
 }
 
@@ -124,10 +124,10 @@ function registry(): RuntimeAgentRegistry {
 
 function validatePi(value: unknown): ExtensionAPI {
 	if (!value || typeof value !== "object" || Array.isArray(value))
-		throw new Error("Runtime agent pi must be an ExtensionAPI object.");
-	const pi = value as Partial<ExtensionAPI>;
-	if (typeof pi.on !== "function" || typeof pi.registerTool !== "function")
-		throw new Error("Runtime agent pi must be an ExtensionAPI object.");
+		throw new Error("Runtime agent evoharness must be an ExtensionAPI object.");
+	const evoharness = value as Partial<ExtensionAPI>;
+	if (typeof evoharness.on !== "function" || typeof evoharness.registerTool !== "function")
+		throw new Error("Runtime agent evoharness must be an ExtensionAPI object.");
 	return value as ExtensionAPI;
 }
 
@@ -183,10 +183,10 @@ function validateRunner(value: unknown): AgentRunnerConfig | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value))
 		throw new Error("Runtime agent definition runner must be an object when provided.");
 	const runner = value as Record<string, unknown>;
-	if (runner.type === "pi") {
+	if (runner.type === "evoharness") {
 		if (Object.keys(runner).some((key) => key !== "type"))
-			throw new Error("Runtime agent definition Pi runner supports only 'type'.");
-		return { type: "pi" };
+			throw new Error("Runtime agent definition evoharness runner supports only 'type'.");
+		return { type: "evoharness" };
 	}
 	if (runner.type === "external-job") {
 		if (typeof runner.provider !== "string" || !runner.provider.trim() || runner.provider.trim() !== runner.provider)
@@ -210,7 +210,7 @@ function validateRunner(value: unknown): AgentRunnerConfig | undefined {
 		};
 	}
 	if (runner.type !== "external-cli")
-		throw new Error("Runtime agent definition runner.type must be 'pi', 'external-cli', or 'external-job'.");
+		throw new Error("Runtime agent definition runner.type must be 'evoharness', 'external-cli', or 'external-job'.");
 	if (typeof runner.command !== "string" || !runner.command.trim())
 		throw new Error("Runtime agent definition external-cli runner requires a non-empty command string.");
 	if (runner.args !== undefined && (!Array.isArray(runner.args) || runner.args.some((arg) => typeof arg !== "string")))
@@ -505,7 +505,7 @@ function toAgentConfig(name: string, definition: RuntimeAgentDefinition): AgentC
 }
 
 export function registerRuntimeAgent(input: RegisterRuntimeAgentInput): RuntimeAgentRegistration {
-	const pi = validatePi(input.pi);
+	const evoharness = validatePi(input.evoharness);
 	const name = validateString(input.name, "Runtime agent name", MAX_AGENT_NAME_LENGTH);
 	const definition = validateDefinition(input.definition);
 	const agent = toAgentConfig(name, definition);
@@ -513,36 +513,38 @@ export function registerRuntimeAgent(input: RegisterRuntimeAgentInput): RuntimeA
 	if (profileError) throw new Error(profileError);
 	assertNoBuiltinCollision(agent);
 	const current = registry();
-	const records = current.byPi.get(pi) ?? [];
+	const records = current.byPi.get(evoharness) ?? [];
 	if (records.length >= MAX_RUNTIME_AGENTS_PER_PI)
-		throw new Error(`Runtime agent registry supports at most ${MAX_RUNTIME_AGENTS_PER_PI} agents per Pi runtime.`);
+		throw new Error(
+			`Runtime agent registry supports at most ${MAX_RUNTIME_AGENTS_PER_PI} agents per evoharness runtime.`,
+		);
 	assertNoRuntimeCollision(
 		agent,
 		records.map((record) => record.agent),
 	);
-	const record: RuntimeAgentRecord = { pi, agent };
+	const record: RuntimeAgentRecord = { evoharness, agent };
 	records.push(record);
-	current.byPi.set(pi, records);
+	current.byPi.set(evoharness, records);
 	let disposed = false;
 	return {
 		dispose() {
 			if (disposed) return;
 			disposed = true;
-			const latest = current.byPi.get(pi);
+			const latest = current.byPi.get(evoharness);
 			if (!latest) return;
 			const next = latest.filter((entry) => entry !== record);
-			if (next.length > 0) current.byPi.set(pi, next);
-			else current.byPi.delete(pi);
+			if (next.length > 0) current.byPi.set(evoharness, next);
+			else current.byPi.delete(evoharness);
 		},
 	};
 }
 
-export function clearRuntimeAgentsForPi(pi: RuntimeAgentOwner): void {
-	registry().byPi.delete(pi);
+export function clearRuntimeAgentsForPi(evoharness: RuntimeAgentOwner): void {
+	registry().byPi.delete(evoharness);
 }
 
-export function listRuntimeAgentConfigs(pi: RuntimeAgentOwner): AgentConfig[] {
-	return (registry().byPi.get(pi) ?? []).map((record) => ({
+export function listRuntimeAgentConfigs(evoharness: RuntimeAgentOwner): AgentConfig[] {
+	return (registry().byPi.get(evoharness) ?? []).map((record) => ({
 		...record.agent,
 		aliases: record.agent.aliases ? [...record.agent.aliases] : undefined,
 	}));
@@ -575,12 +577,12 @@ function assertNoConfiguredCollision(
  * carry only their registered definition.
  */
 export function mergeRuntimeAgents<T extends { agents: AgentConfig[]; agentDiagnostics?: AgentDiscoveryDiagnostic[] }>(
-	pi: RuntimeAgentOwner,
+	evoharness: RuntimeAgentOwner,
 	discovered: T,
 	configuredAgents: readonly AgentConfig[] = discovered.agents,
 	settings?: RuntimeAgentSettingsContext,
 ): T {
-	const registered = listRuntimeAgentConfigs(pi).filter((agent) => agent.disabled !== true);
+	const registered = listRuntimeAgentConfigs(evoharness).filter((agent) => agent.disabled !== true);
 	if (registered.length === 0) return discovered;
 	assertNoIdentityCollisions(registered, "Runtime agent registration");
 	assertNoConfiguredCollision(configuredAgents, registered);

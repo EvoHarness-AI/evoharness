@@ -65,7 +65,7 @@ async function waitForFile(filePath: string): Promise<void> {
 
 describe("external-job runner bridge", () => {
 	it("starts a provider job and persists result artifact metadata", async () => {
-		const dir = tempDir("pi-external-job-start-");
+		const dir = tempDir("subagents-external-job-start-");
 		let startInput: { promptDigest: string; options: Record<string, unknown> } | undefined;
 		registerExternalJobProvider({
 			name: "surf-oracle",
@@ -102,7 +102,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("reattaches an existing provider job instead of redispatching the prompt", async () => {
-		const dir = tempDir("pi-external-job-reattach-");
+		const dir = tempDir("subagents-external-job-reattach-");
 		const prompt = "same prompt";
 		fs.writeFileSync(
 			path.join(dir, "status.json"),
@@ -155,7 +155,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("fails closed with the blocking provider job on capacity conflicts", async () => {
-		const dir = tempDir("pi-external-job-capacity-");
+		const dir = tempDir("subagents-external-job-capacity-");
 		registerExternalJobProvider({
 			name: "surf-oracle",
 			start: () => {
@@ -189,7 +189,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("recovers an incomplete start claim and dispatches the original request once", async () => {
-		const dir = tempDir("pi-external-job-claimed-start-");
+		const dir = tempDir("subagents-external-job-claimed-start-");
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
@@ -239,7 +239,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("does not dispatch a start request twice while the first claim is active", async () => {
-		const dir = tempDir("pi-external-job-active-claim-");
+		const dir = tempDir("subagents-external-job-active-claim-");
 		let starts = 0;
 		let resolveStart: ((value: { providerJobId: string; state: "completed" }) => void) | undefined;
 		registerExternalJobProvider({
@@ -292,7 +292,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("does not fail an old active start claim while provider start may still be running", () => {
-		const dir = tempDir("pi-external-job-long-active-claim-");
+		const dir = tempDir("subagents-external-job-long-active-claim-");
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
@@ -342,7 +342,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("settles an abandoned start claim without redispatching", () => {
-		const dir = tempDir("pi-external-job-abandoned-claim-");
+		const dir = tempDir("subagents-external-job-abandoned-claim-");
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
@@ -396,7 +396,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("reports abandoned follow-up claims with follow-up context", () => {
-		const dir = tempDir("pi-external-job-abandoned-follow-up-");
+		const dir = tempDir("subagents-external-job-abandoned-follow-up-");
 		let followUps = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
@@ -458,7 +458,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("recovers a persisted start handle from a dead owner claim", () => {
-		const dir = tempDir("pi-external-job-dead-owner-handle-");
+		const dir = tempDir("subagents-external-job-dead-owner-handle-");
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
@@ -516,7 +516,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("ignores a stale start request snapshot after another host claimed it", async () => {
-		const dir = tempDir("pi-external-job-stale-snapshot-");
+		const dir = tempDir("subagents-external-job-stale-snapshot-");
 		let starts = 0;
 		let resolveStart: ((value: { providerJobId: string; state: "completed" }) => void) | undefined;
 		registerExternalJobProvider({
@@ -569,7 +569,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("does not redispatch after a completed start claim", async () => {
-		const dir = tempDir("pi-external-job-completed-claim-");
+		const dir = tempDir("subagents-external-job-completed-claim-");
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
@@ -611,7 +611,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("does not let completed start claims starve later requests", async () => {
-		const dir = tempDir("pi-external-job-completed-claim-starvation-");
+		const dir = tempDir("subagents-external-job-completed-claim-starvation-");
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
@@ -677,7 +677,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("does not start again after a bridge timeout without provider job id", async () => {
-		const dir = tempDir("pi-external-job-timeout-retry-");
+		const dir = tempDir("subagents-external-job-timeout-retry-");
 		const prompt = "prompt";
 		fs.writeFileSync(
 			path.join(dir, "status.json"),
@@ -727,7 +727,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("fails closed when existing status.json is malformed", async () => {
-		const dir = tempDir("pi-external-job-corrupt-status-");
+		const dir = tempDir("subagents-external-job-corrupt-status-");
 		fs.writeFileSync(path.join(dir, "status.json"), "{ not json", "utf-8");
 		let starts = 0;
 		registerExternalJobProvider({
@@ -759,7 +759,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("fails closed when existing status.json has an invalid steps shape", async () => {
-		const dir = tempDir("pi-external-job-invalid-steps-");
+		const dir = tempDir("subagents-external-job-invalid-steps-");
 		fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify({ steps: "nope" }), "utf-8");
 		let starts = 0;
 		registerExternalJobProvider({
@@ -791,7 +791,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("starts when existing status.json has a pending step without an external job", async () => {
-		const dir = tempDir("pi-external-job-pending-step-");
+		const dir = tempDir("subagents-external-job-pending-step-");
 		fs.writeFileSync(
 			path.join(dir, "status.json"),
 			JSON.stringify({
@@ -830,7 +830,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("stops waiting for start when local timeout fires before a provider job id", async () => {
-		const dir = tempDir("pi-external-job-start-local-timeout-");
+		const dir = tempDir("subagents-external-job-start-local-timeout-");
 		let starts = 0;
 		let timeout: (() => void) | undefined;
 		registerExternalJobProvider({
@@ -892,7 +892,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("waits for a slow start response instead of timing out without provider job id", async () => {
-		const dir = tempDir("pi-external-job-slow-start-");
+		const dir = tempDir("subagents-external-job-slow-start-");
 		let starts = 0;
 		let settled = false;
 		let resolveStart: ((value: { providerJobId: string; state: "completed" }) => void) | undefined;
@@ -941,7 +941,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("tolerates extra provider fields such as kind, wakeChannels, and follow", async () => {
-		const dir = tempDir("pi-external-job-extra-fields-");
+		const dir = tempDir("subagents-external-job-extra-fields-");
 		registerExternalJobProvider({
 			name: "surf-oracle",
 			kind: "external-job",
@@ -969,7 +969,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("dispatches a provider follow-up and persists source lineage", async () => {
-		const dir = tempDir("pi-external-job-follow-up-");
+		const dir = tempDir("subagents-external-job-follow-up-");
 		const prompt = "ask a follow-up";
 		const promptDigest = externalJobPromptDigest(prompt);
 		const requestDigest = externalJobFollowUpRequestDigest({
@@ -1042,7 +1042,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("fails closed when a provider does not support follow-up", async () => {
-		const dir = tempDir("pi-external-job-follow-up-unsupported-");
+		const dir = tempDir("subagents-external-job-follow-up-unsupported-");
 		registerExternalJobProvider({
 			name: "surf-oracle",
 			start: () => ({ providerJobId: "job-start", state: "completed" }),
@@ -1073,7 +1073,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("fails closed with the blocking provider job on follow-up capacity conflicts", async () => {
-		const dir = tempDir("pi-external-job-follow-up-capacity-");
+		const dir = tempDir("subagents-external-job-follow-up-capacity-");
 		registerExternalJobProvider({
 			name: "surf-oracle",
 			start: () => {
@@ -1117,7 +1117,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("does not redispatch an ambiguous follow-up without a provider job id", async () => {
-		const dir = tempDir("pi-external-job-follow-up-in-doubt-");
+		const dir = tempDir("subagents-external-job-follow-up-in-doubt-");
 		fs.writeFileSync(
 			path.join(dir, "status.json"),
 			JSON.stringify({
@@ -1181,7 +1181,7 @@ describe("external-job runner bridge", () => {
 	});
 
 	it("fails closed when the parent provider thread is missing", async () => {
-		const dir = tempDir("pi-external-job-follow-up-parent-missing-");
+		const dir = tempDir("subagents-external-job-follow-up-parent-missing-");
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",

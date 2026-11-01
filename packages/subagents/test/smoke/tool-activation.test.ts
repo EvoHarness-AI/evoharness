@@ -41,7 +41,7 @@ async function runNativeSession(
 	responses: FauxResponseStep[],
 	prompts: string[],
 ): Promise<void> {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-activation-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-tool-activation-"));
 	const cwd = path.join(root, "project");
 	const agentDir = path.join(root, "agent");
 	fs.mkdirSync(cwd);
@@ -51,9 +51,9 @@ async function runNativeSession(
 		fs.writeFileSync(path.join(agentDir, "extensions", "subagent", "config.json"), JSON.stringify(config));
 	}
 	const priorAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
-	const priorChild = process.env.PI_SUBAGENT_CHILD;
+	const priorChild = process.env.EVOHARNESS_SUBAGENT_CHILD;
 	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-	delete process.env.PI_SUBAGENT_CHILD;
+	delete process.env.EVOHARNESS_SUBAGENT_CHILD;
 	let session: Awaited<ReturnType<typeof createAgentSession>>["session"] | undefined;
 	try {
 		const { default: registerSubagentExtension } = await import(`../../index.ts?native-activation=${Date.now()}`);
@@ -69,7 +69,7 @@ async function runNativeSession(
 			noPromptTemplates: true,
 			noThemes: true,
 			noContextFiles: true,
-			extensionFactories: [registerSubagentExtension, (pi) => pi.registerProvider(faux.provider)],
+			extensionFactories: [registerSubagentExtension, (evoharness) => evoharness.registerProvider(faux.provider)],
 		});
 		await resourceLoader.reload();
 		const modelRuntime = await ModelRuntime.create({
@@ -96,14 +96,14 @@ async function runNativeSession(
 		}
 		if (priorAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 		else process.env.EVOHARNESS_CODING_AGENT_DIR = priorAgentDir;
-		if (priorChild === undefined) delete process.env.PI_SUBAGENT_CHILD;
-		else process.env.PI_SUBAGENT_CHILD = priorChild;
+		if (priorChild === undefined) delete process.env.EVOHARNESS_SUBAGENT_CHILD;
+		else process.env.EVOHARNESS_SUBAGENT_CHILD = priorChild;
 		fs.rmSync(root, { recursive: true, force: true });
 	}
 }
 
 test(
-	"native Pi exposes the full subagent schema on the request immediately after activation",
+	"native evoharness exposes the full subagent schema on the request immediately after activation",
 	{ timeout: 30_000 },
 	async () => {
 		const captured: number[] = [];
@@ -114,7 +114,7 @@ test(
 				(context) => {
 					const tools = getCurrentTools(context.messages);
 					const systemPrompt = getCurrentSystemPrompt(context.messages);
-					assert.match(systemPrompt, /pi-subagents is installed/i);
+					assert.match(systemPrompt, /subagents is installed/i);
 					assert.match(systemPrompt, /complexity alone is not authorization/i);
 					captured.push(serializedCharacters(tools));
 					sizes.push(perToolSizes(tools));
@@ -168,7 +168,7 @@ test(
 );
 
 test(
-	"native Pi starts auto sessions with subagent and no loader when the model cannot add tools",
+	"native evoharness starts auto sessions with subagent and no loader when the model cannot add tools",
 	{ timeout: 30_000 },
 	async () => {
 		// The faux model sets no compat flags.

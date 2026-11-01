@@ -41,7 +41,7 @@ function makeState(): SubagentState {
 
 describe("completion replay", () => {
 	it("surfaces a consumed completion after in-memory watcher state is lost", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-completion-replay-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-completion-replay-"));
 		try {
 			const now = Date.now();
 			recordWaitCompletion(
@@ -91,7 +91,7 @@ describe("completion replay", () => {
 	});
 
 	it("surfaces pending completions when the direct session index is temporarily inaccessible", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-completion-index-denied-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-completion-index-denied-"));
 		const originalReadFileSync = fsCjs.readFileSync;
 		try {
 			const publicPath = path.join(resultsDir, "run-pending.json");
@@ -126,7 +126,7 @@ describe("completion replay", () => {
 	});
 
 	it("surfaces malformed pending payload errors when the direct session index is inaccessible", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-completion-index-denied-malformed-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-completion-index-denied-malformed-"));
 		const originalReadFileSync = fsCjs.readFileSync;
 		try {
 			const publicPath = path.join(resultsDir, "run-pending.json");
@@ -166,7 +166,7 @@ describe("completion replay", () => {
 	});
 
 	it("does not delete untrusted or cross-run archive paths from replay records", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-completion-replay-untrusted-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-completion-replay-untrusted-"));
 		try {
 			const resultsDir = path.join(root, "results");
 			const replayDir = path.join(resultsDir, "completion-replay");
@@ -234,7 +234,7 @@ describe("completion replay", () => {
 	});
 
 	it("treats replay read deletion failures as best-effort cleanup", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-completion-replay-rm-failure-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-completion-replay-rm-failure-"));
 		const originalRmSync = fsCjs.rmSync;
 		try {
 			const resultsDir = path.join(root, "results");
@@ -279,7 +279,7 @@ describe("completion replay", () => {
 	});
 
 	it("throttles cleanup while writing completion replay records", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-completion-replay-throttle-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-completion-replay-throttle-"));
 		const originalReaddirSync = fsCjs.readdirSync;
 		let cleanupScans = 0;
 		try {
@@ -322,7 +322,7 @@ describe("completion replay", () => {
 	});
 
 	it("prefers saved outputs and bounds fallback output tails", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-completion-archive-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-completion-archive-"));
 		try {
 			const savedOutput = path.join(root, "saved-output.md");
 			fs.writeFileSync(savedOutput, "saved", "utf-8");

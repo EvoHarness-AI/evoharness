@@ -2,7 +2,7 @@
 
 How subagents pick models, and how to change that.
 
-Builtin agents inherit your current Pi default model. This keeps new installs from depending on a provider you may not have configured. From there you can layer defaults and overrides:
+Builtin agents inherit your current evoharness default model. This keeps new installs from depending on a provider you may not have configured. From there you can layer defaults and overrides:
 
 - `subagents.defaultModel` — a default for every subagent that does not set its own model.
 - `subagents.defaultProvider` — a provider preference for bare model ids, such as `llama-3`, when multiple providers expose the same id.
@@ -13,7 +13,7 @@ Builtin agents inherit your current Pi default model. This keeps new installs fr
 
 Precedence, strongest first: per-run override → provider-scoped role override → `agentOverrides.<name>.model` → agent frontmatter `model` → `subagents.defaultModel` → the parent session model. A provider preference does not replace this order; it only resolves bare model ids when the active registry has more than one match. Fully qualified `provider/model` strings still win exactly.
 
-On the two Claude Code adapters a model is Claude Code's own alias or id rather than a Pi child model, so a value set for one of them resolves nothing against the registry. `subagents.defaultModel` is ignored there, because it is a default for Pi children. An explicit `agentOverrides.<name>.model` or agent frontmatter `model` is passed on as given, and Claude Code reports it when it does not recognize the value. See [agents](agents.md).
+On the two Claude Code adapters a model is Claude Code's own alias or id rather than a evoharness child model, so a value set for one of them resolves nothing against the registry. `subagents.defaultModel` is ignored there, because it is a default for evoharness children. An explicit `agentOverrides.<name>.model` or agent frontmatter `model` is passed on as given, and Claude Code reports it when it does not recognize the value. See [agents](agents.md).
 
 Each launch resolves one model. Provider errors, including HTTP 429 responses, are returned from that model rather than selecting another one. Separately, a verified compaction abort after useful progress may continue the retained child session once on the same resolved model; this lifecycle recovery preserves work and is not model fallback.
 
@@ -21,7 +21,7 @@ Use `model: "inherit"` in agent frontmatter or `agentOverrides.<name>.model` to 
 
 ## Setting defaults and overrides
 
-In `~/.pi/agent/settings.json` (user) or the project config settings file (`.pi/settings.json` in standard Pi; project wins):
+In `~/.evoharness/agent/settings.json` (user) or the project config settings file (`.evoharness/settings.json` in standard evoharness; project wins):
 
 ```json
 {
@@ -124,7 +124,7 @@ If your provider rejects model IDs with thinking suffixes, set `subagents.disabl
 
 ### Thinking ceiling
 
-Set `subagents.maxThinking` to enforce a hard maximum for every child that can ask for a thinking level: native Pi children and the two Claude Code adapters. The supported levels, from least to most thinking, are `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`:
+Set `subagents.maxThinking` to enforce a hard maximum for every child that can ask for a thinking level: native evoharness children and the two Claude Code adapters. The supported levels, from least to most thinking, are `off`, `minimal`, `low`, `medium`, `high`, `xhigh`, and `max`:
 
 ```json
 {
@@ -141,7 +141,7 @@ Requests above the ceiling fail before child startup; the setting covers frontma
 
 Set `subagents.defaultExtensions` to give builtin, package, user, and project agents without an `extensions` field a shared extension allowlist:
 
-- Absent: preserves Pi's normal ambient extension discovery.
+- Absent: preserves evoharness's normal ambient extension discovery.
 - Empty array: sets `extensions: []` for agents that do not explicitly define it, disabling ambient extension loading.
 - Non-empty array: supplies that allowlist to agents that do not explicitly define one.
 
@@ -166,14 +166,14 @@ The two defaults resolve independently, with an explicitly present project value
 
 ## Inspecting the live mapping
 
-To see what `pi-subagents` has actually loaded right now:
+To see what `subagents` has actually loaded right now:
 
 ```text
 /subagents-models
 /subagents-models reviewer
 ```
 
-That reports the live runtime mapping, which can differ from settings on disk until you reload Pi.
+That reports the live runtime mapping, which can differ from settings on disk until you reload evoharness.
 
 ## Fuzzy model matching
 
@@ -186,7 +186,7 @@ You do not have to spell a model exactly. Model ids are matched fuzzily against 
 
 Exact `provider/id` matches still win, and a qualified provider query never silently switches providers — it only matches within the named provider. Ambiguous bare ids that exist under multiple providers still require a provider prefix or the current session's provider to disambiguate.
 
-Registry ids that themselves contain `/` (Hugging Face `owner/name`) resolve the same way as Pi's main agent: `thinkingmachines/Inkling` becomes `huggingface/thinkingmachines/Inkling` when that id is unique or offered by the current session provider. A first path segment that matches a registered provider still means `provider/id`.
+Registry ids that themselves contain `/` (Hugging Face `owner/name`) resolve the same way as evoharness's main agent: `thinkingmachines/Inkling` becomes `huggingface/thinkingmachines/Inkling` when that id is unique or offered by the current session provider. A first path segment that matches a registered provider still means `provider/id`.
 
 ## Model scope enforcement
 
@@ -208,7 +208,7 @@ To keep subagents inside a budget or compliance profile, enforce a model scope. 
 }
 ```
 
-- `allow` is a list of glob patterns matched against the resolved `provider/id` (only `*` is special, case-insensitive). The literal `inherit` means the current parent session model. The literal `scoped` means every model in the parent session's scoped-model set (pi's `/scoped-models`); when that set is empty, it means the same as `inherit`. Because `scoped` is reserved, it cannot match a provider literally named `scoped`.
+- `allow` is a list of glob patterns matched against the resolved `provider/id` (only `*` is special, case-insensitive). The literal `inherit` means the current parent session model. The literal `scoped` means every model in the parent session's scoped-model set (evoharness's `/scoped-models`); when that set is empty, it means the same as `inherit`. Because `scoped` is reserved, it cannot match a provider literally named `scoped`.
 - `agents.<name>` adds a second allow-list for that agent. The model must pass both the global list and the matching agent list, so an agent rule cannot weaken the global rule. Agent rules inherit `enforce` and `strict` when those fields are absent.
 - A top-level `enforce: true` with only agent allow-lists restricts only those named agents. Unknown names are allowed so settings can be shared across projects and machines.
 - Models you pass explicitly — the tool-call `model`, `--model`, or a clarify pick — error and abort the run.
@@ -218,7 +218,7 @@ To keep subagents inside a budget or compliance profile, enforce a model scope. 
 
 Model scope is policy only. It rejects or warns; it does not select a cheaper model. Set `agentOverrides.worker.model` to choose a worker model and use `modelScope.agents.worker` to prevent a per-run override from escaping that restriction.
 
-`inherit` and `scoped` expand in the parent process at each launch. They are never sent to the child as model ids. A nested child therefore inherits its immediate parent's current model, not the original top-level model. `scoped` uses the scoped-model set at launch, so a mid-session `/scoped-models` change applies to the next child; background runs keep the set captured when the run started. Pi reports an empty set when the session is unscoped, either because nothing is configured or because no configured pattern matches an available model, and then lets the parent use every model. In that case `scoped` behaves exactly as `inherit`, which is narrower. If no parent model is available, an enforced `inherit` or `scoped` entry does not match and fails closed.
+`inherit` and `scoped` expand in the parent process at each launch. They are never sent to the child as model ids. A nested child therefore inherits its immediate parent's current model, not the original top-level model. `scoped` uses the scoped-model set at launch, so a mid-session `/scoped-models` change applies to the next child; background runs keep the set captured when the run started. evoharness reports an empty set when the session is unscoped, either because nothing is configured or because no configured pattern matches an available model, and then lets the parent use every model. In that case `scoped` behaves exactly as `inherit`, which is narrower. If no parent model is available, an enforced `inherit` or `scoped` entry does not match and fails closed.
 
 Project `modelScope` settings replace the complete user `modelScope`, as with the existing project-over-user settings precedence. This applies only when the session trusts the project: when project trust is declined, project subagent settings are ignored and the user `modelScope` applies.
 
@@ -229,13 +229,13 @@ Profiles let you generate and save role-to-model assignments from a provider's l
 Profiles are stored under:
 
 ```text
-~/.pi/agent/profiles/pi-subagents/
+~/.evoharness/agent/profiles/subagents/
 ```
 
 Provider model catalogs are cached under:
 
 ```text
-~/.pi/agent/profiles/pi-subagents/providers/
+~/.evoharness/agent/profiles/subagents/providers/
 ```
 
 The workflow:
@@ -246,7 +246,7 @@ The workflow:
 /subagents-load-profile openai-codex.quota
 ```
 
-- `/subagents-refresh-provider-models` writes a serialized provider model catalog with observed registry data, simple role-oriented classification, and live probe results from tiny one-shot `pi -p --model ... --no-tools` checks. The cache refreshes when missing or stale; use `--force` to ignore freshness and probe again immediately.
+- `/subagents-refresh-provider-models` writes a serialized provider model catalog with observed registry data, simple role-oriented classification, and live probe results from tiny one-shot `evoharness -p --model ... --no-tools` checks. The cache refreshes when missing or stale; use `--force` to ignore freshness and probe again immediately.
 - `/subagents-generate-profiles` uses the provider catalog to produce quota and quality profiles.
 - `/subagents-check-profile` re-checks each assigned model in a saved profile against the current registry and a live probe, so you can detect model removals, auth problems, or stale assignments.
 

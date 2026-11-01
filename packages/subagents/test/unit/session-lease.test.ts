@@ -87,7 +87,7 @@ async function waitForPidExit(pid: number, timeoutMs = 10_000): Promise<void> {
 
 describe("session revival leases", () => {
 	it("allows one owner and reports its run metadata on contention", () => {
-		const { root, leases, sessionFile } = fixture("pi-session-lease-owner-");
+		const { root, leases, sessionFile } = fixture("subagents-session-lease-owner-");
 		try {
 			const first = acquireSessionLease(request(sessionFile, "revive-a"), {
 				rootDir: leases,
@@ -135,7 +135,7 @@ describe("session revival leases", () => {
 					: undefined,
 		},
 		() => {
-			const { root, leases, sessionFile } = fixture("pi-session-lease-no-ps-");
+			const { root, leases, sessionFile } = fixture("subagents-session-lease-no-ps-");
 			try {
 				const lease = acquireSessionLease(request(sessionFile, "no-ps"), { rootDir: leases });
 				assert.match(lease.owner.processStartIdentity ?? "", /^runtime:/);
@@ -150,7 +150,7 @@ describe("session revival leases", () => {
 		"keys aliases by the canonical session path",
 		{ skip: process.platform === "win32" ? "symlink creation is not portable on Windows CI" : undefined },
 		() => {
-			const { root, leases, sessionFile } = fixture("pi-session-lease-canonical-");
+			const { root, leases, sessionFile } = fixture("subagents-session-lease-canonical-");
 			try {
 				const alias = path.join(root, "alias.jsonl");
 				fs.symlinkSync(sessionFile, alias);
@@ -169,7 +169,7 @@ describe("session revival leases", () => {
 	);
 
 	it("allows different canonical session files concurrently", () => {
-		const { root, leases, sessionFile } = fixture("pi-session-lease-distinct-");
+		const { root, leases, sessionFile } = fixture("subagents-session-lease-distinct-");
 		try {
 			const otherSession = path.join(root, "other.jsonl");
 			fs.writeFileSync(otherSession, "", "utf-8");
@@ -183,7 +183,7 @@ describe("session revival leases", () => {
 	});
 
 	it("reclaims only demonstrably dead or PID-reused owners", () => {
-		const { root, leases, sessionFile } = fixture("pi-session-lease-stale-");
+		const { root, leases, sessionFile } = fixture("subagents-session-lease-stale-");
 		try {
 			const dead = acquireSessionLease(request(sessionFile, "dead-owner"), {
 				rootDir: leases,
@@ -229,7 +229,7 @@ describe("session revival leases", () => {
 	});
 
 	it("does not reclaim a dead runner while its writer is live or still spawning", () => {
-		const { root, leases, sessionFile } = fixture("pi-session-lease-writer-state-");
+		const { root, leases, sessionFile } = fixture("subagents-session-lease-writer-state-");
 		try {
 			const lease = acquireSessionLease(request(sessionFile, "runner-owner"), {
 				rootDir: leases,
@@ -271,7 +271,7 @@ describe("session revival leases", () => {
 	});
 
 	it("does not reclaim unverifiable owners on another host", () => {
-		const { root, leases, sessionFile } = fixture("pi-session-lease-host-");
+		const { root, leases, sessionFile } = fixture("subagents-session-lease-host-");
 		try {
 			const lease = acquireSessionLease(request(sessionFile, "remote-owner"), {
 				rootDir: leases,
@@ -297,7 +297,7 @@ describe("session revival leases", () => {
 	});
 
 	it("keeps an orphaned writer exclusive after its runner exits", async () => {
-		const { root, leases, sessionFile } = fixture("pi-session-lease-orphan-writer-");
+		const { root, leases, sessionFile } = fixture("subagents-session-lease-orphan-writer-");
 		const helper = fileURLToPath(new URL("../support/session-lease-child.mjs", import.meta.url));
 		const releaseSignal = path.join(root, "unused-release");
 		let writerPid: number | undefined;
@@ -332,7 +332,7 @@ describe("session revival leases", () => {
 	});
 
 	it("enforces ownership across independent Node processes and elects one stale successor", async () => {
-		const { root, leases, sessionFile } = fixture("pi-session-lease-process-");
+		const { root, leases, sessionFile } = fixture("subagents-session-lease-process-");
 		const helper = fileURLToPath(new URL("../support/session-lease-child.mjs", import.meta.url));
 		const releaseSignal = path.join(root, "release");
 		let child: ChildProcess | undefined;

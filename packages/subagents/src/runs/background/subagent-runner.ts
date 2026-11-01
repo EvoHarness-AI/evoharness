@@ -44,11 +44,11 @@ import {
 	type ExternalJobStatus,
 	type ExternalProcessStatus,
 	type HerdrMachineReference,
+	type HostWriterProcessInstanceExit,
 	type LaunchResolvedChildExtensions,
 	type MaxOutputConfig,
 	type NestedRouteInfo,
 	type NestedRunSummary,
-	type PiWriterProcessInstanceExit,
 	type ResolvedControlConfig,
 	type ResolvedToolBudget,
 	type RunFanoutBudgetDescriptor,
@@ -112,7 +112,7 @@ import type { ChildSessionFactory, DefaultChildSessionFactoryOptions } from "../
 import {
 	applyThinkingSuffix,
 	projectLaunchResolvedChildExtensions,
-	resolvePiLaunchToolPlan,
+	resolveHostLaunchToolPlan,
 	supervisorChannelDir,
 } from "../shared/child-tool-plan.ts";
 import { resolveClaudeCodeLaunch } from "../shared/claude-code-adapter.ts";
@@ -136,6 +136,7 @@ import {
 	prepareInternalHerdrExternalAdapter,
 } from "../shared/herdr-external-adapters.ts";
 import { formatHerdrMachineHint, prepareHerdrMachineExternalCliRun } from "../shared/herdr-machine.ts";
+import { CODING_AGENT_PACKAGE, resolveInstalledHostPackageRoot } from "../shared/host-spawn.ts";
 import { preflightLaunchCwd } from "../shared/launch-cwd.ts";
 import {
 	createMutatingFailureState,
@@ -181,7 +182,6 @@ import {
 	type RunnerSubagentStep as SubagentStep,
 } from "../shared/parallel-utils.ts";
 import { timedOutRunSummary } from "../shared/partial-output.ts";
-import { PI_CODING_AGENT_PACKAGE, resolveInstalledPiPackageRoot } from "../shared/pi-spawn.ts";
 import {
 	formatMidToolExitError,
 	isOrdinaryToolForMidToolExit,
@@ -288,7 +288,7 @@ import {
 
 const INTERCOM_DETACH_RECEIPT = "Detached for intercom coordination before task completion.";
 
-// This process hosts child sessions. An ambient copy of pi-subagents loaded
+// This process hosts child sessions. An ambient copy of subagents loaded
 // into one of them must register nothing; the variable marks the process as a
 // child host.
 process.env[SUBAGENT_CHILD_ENV] = "1";
@@ -312,12 +312,12 @@ export interface SubagentRunConfig {
 	sessionId?: string | null;
 	completionOwnerId?: string;
 	completionOwnerProcess?: RecordedPid;
-	piPackageRoot?: string;
+	hostPackageRoot?: string;
 	/** Test seam: module the runner imports its `ChildSessionFactory` from. */
 	childSessionFactoryModule?: string;
 	/** The launching executor's own child runtime when it was itself an in-process child. */
 	inheritedChildRuntime?: InheritedChildRuntime;
-	/** The launching session's project trust; undefined keeps Pi's default for hosts without trust. */
+	/** The launching session's project trust; undefined keeps evoharness's default for hosts without trust. */
 	projectTrusted?: boolean;
 	worktreeSetupHook?: string;
 	worktreeSetupHookTimeoutMs?: number;
@@ -359,7 +359,7 @@ export interface SubagentRunConfig {
 	runtimeAcknowledgedExtensions?: RuntimeAcknowledgedChildExtensions;
 	runnerProcessInstanceId?: string;
 	launchBarrierToken?: string;
-	/** Pi's boot id, set only for a direct (non-launcher) runner; the runner never reads its own. */
+	/** evoharness's boot id, set only for a direct (non-launcher) runner; the runner never reads its own. */
 	bootId?: string;
 	parentWorkflowRunId?: string;
 	workflowKey?: string;
@@ -451,7 +451,7 @@ function persistStepArtifacts(input: {
 
 const ASYNC_INTERRUPT_SIGNAL: NodeJS.Signals = process.platform === "win32" ? "SIGBREAK" : "SIGUSR2";
 const DEFAULT_MAX_ASYNC_EVENTS_BYTES = 50 * 1024 * 1024;
-const ASYNC_EVENTS_MAX_BYTES_ENV = "PI_SUBAGENT_ASYNC_EVENTS_MAX_BYTES";
+const ASYNC_EVENTS_MAX_BYTES_ENV = "EVOHARNESS_SUBAGENT_ASYNC_EVENTS_MAX_BYTES";
 const TRUNCATED_EVENT_TYPE = "subagent.events.truncated";
 const TRUNCATION_MARKER_RESERVE_BYTES = 512;
 
@@ -653,13 +653,13 @@ function formatChildFailureDiagnostic(input: {
 }
 
 function resolvePiPackageRootFallback(): string {
-	const root = resolveInstalledPiPackageRoot();
+	const root = resolveInstalledHostPackageRoot();
 	if (root) return root;
-	throw new Error(`Could not resolve ${PI_CODING_AGENT_PACKAGE} package root`);
+	throw new Error(`Could not resolve ${CODING_AGENT_PACKAGE} package root`);
 }
 
-async function exportSessionHtml(sessionFile: string, outputDir: string, piPackageRoot?: string): Promise<string> {
-	const pkgRoot = piPackageRoot ?? resolvePiPackageRootFallback();
+async function exportSessionHtml(sessionFile: string, outputDir: string, hostPackageRoot?: string): Promise<string> {
+	const pkgRoot = hostPackageRoot ?? resolvePiPackageRootFallback();
 	const exportModulePath = path.join(pkgRoot, "dist", "core", "export-html", "index.js");
 	const moduleUrl = pathToFileURL(exportModulePath).href;
 	const mod = await import(moduleUrl);
@@ -817,7 +817,7 @@ interface SingleStepContext {
 	flatStepCount: number;
 	outputFile: string;
 	transcriptPath?: string;
-	piPackageRoot?: string;
+	hostPackageRoot?: string;
 	/** Factory the runner creates this step's child session through. */
 	childSessions: ChildSessionFactory;
 	/** The launching executor's own child runtime; nested route, depth, and ceilings come from here. */
@@ -997,9 +997,9 @@ export async function runSingleStepInner(step: SubagentStep, ctx: SingleStepCont
 	const placeholderRegex = new RegExp(ctx.placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
 	let task = step.task.replace(placeholderRegex, () => ctx.previousOutput);
 	if (ctx.outputs) task = resolveOutputReferences(task, ctx.outputs);
-	let resolvedTaskToolPlan: ReturnType<typeof resolvePiLaunchToolPlan> | undefined;
+	let resolvedTaskToolPlan: ReturnType<typeof resolveHostLaunchToolPlan> | undefined;
 	if (!step.runner) {
-		resolvedTaskToolPlan = resolvePiLaunchToolPlan(
+		resolvedTaskToolPlan = resolveHostLaunchToolPlan(
 			omitUndefinedProperties({
 				tools: step.tools,
 				excludeTools: step.excludeTools,
@@ -1157,7 +1157,7 @@ export async function runSingleStepInner(step: SubagentStep, ctx: SingleStepCont
 			});
 		}
 		if (step.machine) {
-			if (step.machine.provider !== "herdr") throw new Error("Rex supports native Pi children only.");
+			if (step.machine.provider !== "herdr") throw new Error("Rex supports native evoharness children only.");
 			const runner = resolveExternalCliRunnerStatus({ ...step.runner, machine: step.machine });
 			const outputSnapshot = captureSingleOutputSnapshot(step.outputPath);
 			const placedRunId = `${ctx.id}-${ctx.flatIndex}`;
@@ -1547,13 +1547,13 @@ export async function runSingleStepInner(step: SubagentStep, ctx: SingleStepCont
 		}
 		const { warnings, capabilityAudit: attemptCapabilityAudit } = launch;
 		if (!launchWarningsEmitted && warnings.length > 0) {
-			for (const warning of warnings) console.warn(`[pi-subagents] ${warning}`);
+			for (const warning of warnings) console.warn(`[subagents] ${warning}`);
 			launchWarningsEmitted = true;
 		}
 		if (step.definitionDigest) {
 			const toolPlan =
 				resolvedTaskToolPlan ??
-				resolvePiLaunchToolPlan(
+				resolveHostLaunchToolPlan(
 					omitUndefinedProperties({
 						tools: step.tools,
 						excludeTools: step.excludeTools,
@@ -2446,7 +2446,7 @@ function missingRequiredOutputAfterUsefulMutation(result: SingleStepResult): boo
 function partialExecutionWithUsefulMutation(result: SingleStepResult): boolean {
 	if (result.execution?.status !== "partial") return false;
 	// Pane-native external results are deliberately partial from bounded terminal
-	// evidence alone; Pi mutation-based partials retain their existing behavior.
+	// evidence alone; evoharness mutation-based partials retain their existing behavior.
 	if (result.runner?.type === "external-cli" && result.runner.machine) return true;
 	const fileMutation = result.effects?.fileMutation;
 	return fileMutation?.attempted === true || Boolean(fileMutation?.evidence?.changedFiles.length);
@@ -3431,7 +3431,7 @@ export async function runSubagent(config: SubagentRunConfig, childSessions: Chil
 		reportedGitProbeErrors.add(externalCwd);
 		const detail = error instanceof Error ? error.message : String(error);
 		console.error(
-			`[pi-subagents] Git activity evidence unavailable for '${externalCwd.slice(-300)}'; check the cwd and Git installation: ${detail.slice(0, 500)}`,
+			`[subagents] Git activity evidence unavailable for '${externalCwd.slice(-300)}'; check the cwd and Git installation: ${detail.slice(0, 500)}`,
 		);
 	};
 	const readSharedGitFingerprint = (externalCwd: string): Promise<string | undefined> => {
@@ -3498,7 +3498,7 @@ export async function runSubagent(config: SubagentRunConfig, childSessions: Chil
 	const mutatingFailureStates = initialStatusSteps.map(() => createMutatingFailureState());
 	type PendingToolResult = { tool: string; path?: string; mutates: boolean; startedAt?: number };
 	const pendingToolResults: Array<PendingToolResult | undefined> = initialStatusSteps.map(() => undefined);
-	// Pi's parallel tool execution emits every tool_execution_start before the first result message, so each
+	// evoharness's parallel tool execution emits every tool_execution_start before the first result message, so each
 	// step matches results to calls by toolCallId; pendingToolResults keeps the last-started call for events without one.
 	const pendingToolResultsByCallId = initialStatusSteps.map(() => new Map<string, PendingToolResult>());
 	type ActiveToolCall = {
@@ -4162,7 +4162,7 @@ export async function runSubagent(config: SubagentRunConfig, childSessions: Chil
 			}
 			syncTopLevelCurrentTool();
 		} else if (event.type === "message_end" && event.message?.role === "toolResult") {
-			// Pi delivers every tool result, including a blocked call, as a toolResult message after tool_execution_end.
+			// evoharness delivers every tool result, including a blocked call, as a toolResult message after tool_execution_end.
 			const resultCallId = (event.message as { toolCallId?: unknown }).toolCallId;
 			const byCallId = pendingToolResultsByCallId[flatIndex]!;
 			const keyedSnapshot = typeof resultCallId === "string" ? byCallId.get(resultCallId) : undefined;
@@ -5152,7 +5152,7 @@ export async function runSubagent(config: SubagentRunConfig, childSessions: Chil
 							flatStepCount: Math.max(statusPayload.steps.length, 1),
 							outputFile: path.join(asyncDir, `output-${fi}.log`),
 							projectTrusted: config.projectTrusted,
-							piPackageRoot: config.piPackageRoot,
+							hostPackageRoot: config.hostPackageRoot,
 							childSessions,
 							inheritedChildRuntime: config.inheritedChildRuntime,
 							childIntercomTarget: config.childIntercomTargets?.[fi],
@@ -5719,7 +5719,7 @@ export async function runSubagent(config: SubagentRunConfig, childSessions: Chil
 								flatStepCount: Math.max(statusPayload.steps.length, 1),
 								projectTrusted: config.projectTrusted,
 								outputFile: path.join(asyncDir, `output-${fi}.log`),
-								piPackageRoot: config.piPackageRoot,
+								hostPackageRoot: config.hostPackageRoot,
 								childSessions,
 								inheritedChildRuntime: config.inheritedChildRuntime,
 								childIntercomTarget: config.childIntercomTargets?.[fi],
@@ -6212,7 +6212,7 @@ export async function runSubagent(config: SubagentRunConfig, childSessions: Chil
 						flatIndex,
 						flatStepCount: Math.max(statusPayload.steps.length, 1),
 						outputFile: path.join(asyncDir, `output-${flatIndex}.log`),
-						piPackageRoot: config.piPackageRoot,
+						hostPackageRoot: config.hostPackageRoot,
 						childSessions,
 						inheritedChildRuntime: config.inheritedChildRuntime,
 						childIntercomTarget: config.childIntercomTargets?.[flatIndex],
@@ -6584,7 +6584,7 @@ export async function runSubagent(config: SubagentRunConfig, childSessions: Chil
 		if (sessionFile) {
 			try {
 				const exportDir = config.sessionDir ?? path.dirname(sessionFile);
-				const htmlPath = await exportSessionHtml(sessionFile, exportDir, config.piPackageRoot);
+				const htmlPath = await exportSessionHtml(sessionFile, exportDir, config.hostPackageRoot);
 				const share = createShareLink(htmlPath);
 				if ("error" in share) shareError = share.error;
 				else {
@@ -6939,7 +6939,7 @@ export async function runSubagent(config: SubagentRunConfig, childSessions: Chil
 	indexPersistence.dispose();
 	if (config.runnerProcessInstanceId) {
 		// Children run inside this process, so no step has writer processes to prove terminal.
-		const writers: Record<string, PiWriterProcessInstanceExit[]> = {};
+		const writers: Record<string, HostWriterProcessInstanceExit[]> = {};
 		const expectedWriters: Record<string, number> = {};
 		for (const index of results.keys()) {
 			writers[String(index)] = [];
@@ -6969,9 +6969,9 @@ export async function runConfiguredSubagentExecution(
 ): Promise<void> {
 	let childSessions: ChildSessionFactory;
 	try {
-		// Detached Node runners do not receive Pi's CLI dispatcher setup. Binary
+		// Detached Node runners do not receive evoharness's CLI dispatcher setup. Binary
 		// hosts install the same dispatcher before entering the shared bootstrap.
-		if (!options?.loadPiCodingAgent) installRunnerHttpDispatcher({ agentDir: getAgentDir(), cwd: process.cwd() });
+		if (!options?.loadCodingAgent) installRunnerHttpDispatcher({ agentDir: getAgentDir(), cwd: process.cwd() });
 		childSessions = await loadRunnerChildSessionFactory(config, options);
 	} catch (error) {
 		try {

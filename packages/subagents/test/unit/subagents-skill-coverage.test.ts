@@ -6,7 +6,7 @@ import { SubagentParams } from "../../src/extension/schemas.ts";
 import { readSubagentGuide } from "../../src/extension/subagent-guide.ts";
 import { SUBAGENT_ACTIONS } from "../../src/shared/types.ts";
 
-const skillDir = path.resolve(import.meta.dirname, "..", "..", "skills", "pi-subagents");
+const skillDir = path.resolve(import.meta.dirname, "..", "..", "skills", "subagents");
 const skillFiles = [
 	"SKILL.md",
 	...fs.readdirSync(path.join(skillDir, "references")).map((name) => path.join("references", name)),
@@ -14,7 +14,7 @@ const skillFiles = [
 const read = (file: string): string => fs.readFileSync(path.join(skillDir, file), "utf-8");
 
 // The skill points agents at tool lookups instead of copying them, so every name it uses must exist in the tool.
-describe("pi-subagents skill names resolve in the tool", () => {
+describe("subagents skill names resolve in the tool", () => {
 	for (const file of skillFiles) {
 		it(`${file} names only real guide sections, actions, links, and call fields`, () => {
 			const text = read(file);

@@ -4,7 +4,7 @@
  * Tests: agent crashes, stderr capture, detectSubagentError override,
  * signal/abort handling, and error propagation in chains.
  *
- * Requires pi packages for execution tests. Skips gracefully if unavailable.
+ * Requires evoharness packages for execution tests. Skips gracefully if unavailable.
  */
 
 import assert from "node:assert/strict";
@@ -108,7 +108,7 @@ describe("detectSubagentError", { skip: !detectSubagentError ? "utils not import
 // runSync error handling
 // ---------------------------------------------------------------------------
 
-describe("runSync error handling", { skip: !piAvailable ? "pi packages not available" : undefined }, () => {
+describe("runSync error handling", { skip: !piAvailable ? "evoharness packages not available" : undefined }, () => {
 	let tempDir: string;
 	let mockPi: MockPi;
 

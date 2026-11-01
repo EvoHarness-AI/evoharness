@@ -29,7 +29,7 @@ describe("child model resolution diagnostic", () => {
 		});
 		assert.match(
 			text,
-			/Agent 'provider-model-worker' ran as a foreground child, which never loads the parent's ambient extensions\. It inherits the providers they registered, but not virtual models registered with `pi\.registerVirtualModel\(\)`/,
+			/Agent 'provider-model-worker' ran as a foreground child, which never loads the parent's ambient extensions\. It inherits the providers they registered, but not virtual models registered with `evoharness\.registerVirtualModel\(\)`/,
 		);
 		assert.match(
 			text,

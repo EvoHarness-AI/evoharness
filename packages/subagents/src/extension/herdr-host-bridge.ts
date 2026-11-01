@@ -12,15 +12,15 @@ import { discoverAgents } from "../agents/agents.ts";
 import { buildSkillInjection, resolveSkills } from "../agents/skills.ts";
 import { assertNoToolModifierEntries } from "../runs/shared/child-tool-plan.ts";
 import {
-	encodeHerdrPiFrame,
-	HERDR_PI_MAX_FRAME_BYTES,
-	HERDR_PI_PROTOCOL,
-	HERDR_PI_RUN_ENV,
-	HERDR_PI_RUNTIME_DIR_ENV,
-	type HerdrPiFrame,
-	HerdrPiFrameDecoder,
-	validateHerdrPiRunId,
-} from "../runs/shared/herdr-pi-protocol.ts";
+	encodeHerdrHostFrame,
+	HERDR_HOST_MAX_FRAME_BYTES,
+	HERDR_HOST_PROTOCOL,
+	HERDR_HOST_RUN_ENV,
+	HERDR_HOST_RUNTIME_DIR_ENV,
+	type HerdrHostFrame,
+	HerdrHostFrameDecoder,
+	validateHerdrHostRunId,
+} from "../runs/shared/herdr-host-protocol.ts";
 import { rewriteSubagentPrompt } from "../runs/shared/subagent-prompt-runtime.ts";
 import { MODEL_ONLY_TOOL } from "../shared/extension-context.ts";
 import { resolveExistingReadPaths } from "../shared/settings.ts";
@@ -84,7 +84,9 @@ export function resolveRemoteHerdrResources(
 	const names = resources.skills ?? agent.skills ?? [];
 	const skills = resolveSkills(names, cwd);
 	if (skills.missing.length)
-		throw new Error(`Remote Pi skills not found: ${skills.missing.join(", ")}. Configure them on the saved machine.`);
+		throw new Error(
+			`Remote evoharness skills not found: ${skills.missing.join(", ")}. Configure them on the saved machine.`,
+		);
 	const skillPrompt = buildSkillInjection(skills.resolved);
 	const reads = resources.reads === undefined ? (agent.defaultReads ?? false) : resources.reads;
 	const readPaths = Array.isArray(reads) ? resolveExistingReadPaths(reads, cwd) : [];
@@ -110,9 +112,9 @@ export function resolveRemoteHerdrResources(
 	};
 }
 
-export default function registerHerdrPiBridge(pi: ExtensionAPI): void {
-	const runId = validateHerdrPiRunId(process.env[HERDR_PI_RUN_ENV]);
-	const runDir = process.env[HERDR_PI_RUNTIME_DIR_ENV];
+export default function registerHerdrHostBridge(evoharness: ExtensionAPI): void {
+	const runId = validateHerdrHostRunId(process.env[HERDR_HOST_RUN_ENV]);
+	const runDir = process.env[HERDR_HOST_RUNTIME_DIR_ENV];
 	if (!runDir || !path.isAbsolute(runDir) || fs.lstatSync(runDir).isSymbolicLink())
 		throw new Error("Herdr bridge runtime directory was not authoritatively provisioned.");
 	fs.chmodSync(runDir, 0o700);
@@ -148,9 +150,9 @@ export default function registerHerdrPiBridge(pi: ExtensionAPI): void {
 	>();
 	let evidenceCursor = 0;
 	let journalBytes = 0;
-	const journal: HerdrPiFrame[] = [];
+	const journal: HerdrHostFrame[] = [];
 	const send = (frame: { type: string; [key: string]: unknown }) => {
-		const record = { protocol: HERDR_PI_PROTOCOL, runId, ...frame, cursor: ++evidenceCursor } as HerdrPiFrame;
+		const record = { protocol: HERDR_HOST_PROTOCOL, runId, ...frame, cursor: ++evidenceCursor } as HerdrHostFrame;
 		const size = Buffer.byteLength(JSON.stringify(record));
 		journal.push(record);
 		journalBytes += size;
@@ -159,11 +161,11 @@ export default function registerHerdrPiBridge(pi: ExtensionAPI): void {
 			if (removed) journalBytes -= Buffer.byteLength(JSON.stringify(removed));
 		}
 		if (!client || client.destroyed) return;
-		client.write(encodeHerdrPiFrame(record));
+		client.write(encodeHerdrHostFrame(record));
 	};
 	const sessionId = (ctx: BridgeContext) => ctx.sessionManager?.getSessionId?.();
 
-	pi.registerTool({
+	evoharness.registerTool({
 		name: "contact_supervisor",
 		...MODEL_ONLY_TOOL,
 		label: "Contact supervisor",
@@ -227,9 +229,9 @@ export default function registerHerdrPiBridge(pi: ExtensionAPI): void {
 		const request = pending.get(requestId);
 		if (!request) throw new Error(`Unknown or already consumed bridge request '${requestId}'.`);
 		pending.delete(requestId);
-		if (sessionId(ctx) !== nativeSessionId) throw new Error("Native Pi session identity changed.");
+		if (sessionId(ctx) !== nativeSessionId) throw new Error("Native evoharness session identity changed.");
 		send({ type: "accepted", requestId, operation: request.operation, nativeSessionId });
-		const api = pi as unknown as {
+		const api = evoharness as unknown as {
 			sendUserMessage(text: string, options?: { deliverAs?: "steer" | "followUp" }): void;
 			abort(): void;
 		};
@@ -249,17 +251,17 @@ export default function registerHerdrPiBridge(pi: ExtensionAPI): void {
 		}
 		send({ type: "control-ack", requestId, operation: request.operation, nativeSessionId });
 	};
-	pi.registerCommand("pi-subagents-bridge", {
+	evoharness.registerCommand("subagents-bridge", {
 		description: "Internal pane-native request dispatch",
 		handler: (args, ctx) => execute(args.trim(), ctx as unknown as BridgeContext),
 	});
 
-	const on = pi.on as unknown as (
+	const on = evoharness.on as unknown as (
 		name: string,
 		handler: (event: Record<string, unknown>, ctx: BridgeContext) => unknown,
 	) => void;
 	on("before_agent_start", (event) => {
-		// The remote Pi fills its append slot from the remote operator's APPEND_SYSTEM.md; it is not the child's
+		// The remote evoharness fills its append slot from the remote operator's APPEND_SYSTEM.md; it is not the child's
 		// prompt, as for local children. Cleared before event.systemPrompt renders from these options.
 		const options = event.systemPromptOptions as { appendSystemPrompt?: unknown } | undefined;
 		if (typeof options?.appendSystemPrompt === "string") options.appendSystemPrompt = "";
@@ -272,11 +274,12 @@ export default function registerHerdrPiBridge(pi: ExtensionAPI): void {
 	on("session_start", (_event, ctx) => {
 		context = ctx;
 		nativeSessionId = sessionId(ctx);
-		if (!nativeSessionId) throw new Error("Pane-native Pi bridge requires a persisted native session identity.");
+		if (!nativeSessionId)
+			throw new Error("Pane-native evoharness bridge requires a persisted native session identity.");
 		fs.writeFileSync(
 			manifestPath,
 			JSON.stringify({
-				protocol: HERDR_PI_PROTOCOL,
+				protocol: HERDR_HOST_PROTOCOL,
 				packageVersion: packageJson.version,
 				runId,
 				socketPath,
@@ -291,7 +294,7 @@ export default function registerHerdrPiBridge(pi: ExtensionAPI): void {
 			nativeSessionId,
 			sessionFile: ctx.sessionManager?.getSessionFile?.(),
 			cwd: process.cwd(),
-			tools: pi.getActiveTools(),
+			tools: evoharness.getActiveTools(),
 			model: ctx.model?.provider && ctx.model.id ? `${ctx.model.provider}/${ctx.model.id}` : undefined,
 			configured,
 			activeRequestId,
@@ -332,12 +335,12 @@ export default function registerHerdrPiBridge(pi: ExtensionAPI): void {
 			return;
 		}
 		client = socket;
-		const decoder = new HerdrPiFrameDecoder();
+		const decoder = new HerdrHostFrameDecoder();
 		let total = 0;
-		for (const record of journal) socket.write(encodeHerdrPiFrame(record));
+		for (const record of journal) socket.write(encodeHerdrHostFrame(record));
 		socket.on("data", (chunk: Buffer) => {
 			total += chunk.byteLength;
-			if (total > HERDR_PI_MAX_FRAME_BYTES * 32) {
+			if (total > HERDR_HOST_MAX_FRAME_BYTES * 32) {
 				socket.destroy(new Error("Bridge byte budget exceeded."));
 				return;
 			}
@@ -391,17 +394,17 @@ export default function registerHerdrPiBridge(pi: ExtensionAPI): void {
 								...(resources.toolCeiling ? { toolCeiling: resources.toolCeiling as string[] } : {}),
 								...(resources.reads !== undefined ? { reads: resources.reads as string[] | false } : {}),
 							},
-							context ? pi.getActiveTools() : [],
+							context ? evoharness.getActiveTools() : [],
 						);
 						resolvedSystemPrompt = resolved.systemPrompt;
 						resolvedContextPolicy = resolved;
-						pi.setActiveTools(resolved.tools);
-						const acknowledged = context ? pi.getActiveTools() : [];
+						evoharness.setActiveTools(resolved.tools);
+						const acknowledged = context ? evoharness.getActiveTools() : [];
 						if (
 							acknowledged.some((tool) => !resolved.tools.includes(tool)) ||
 							resolved.tools.some((tool) => !acknowledged.includes(tool))
 						)
-							throw new Error("Remote Pi did not apply the resolved active-tool set exactly.");
+							throw new Error("Remote evoharness did not apply the resolved active-tool set exactly.");
 						configured = true;
 						send({
 							type: "configured",
@@ -460,7 +463,7 @@ export default function registerHerdrPiBridge(pi: ExtensionAPI): void {
 				nativeSessionId,
 				sessionFile: context.sessionManager?.getSessionFile?.(),
 				cwd: process.cwd(),
-				tools: pi.getActiveTools(),
+				tools: evoharness.getActiveTools(),
 				model:
 					context.model?.provider && context.model.id
 						? `${context.model.provider}/${context.model.id}`

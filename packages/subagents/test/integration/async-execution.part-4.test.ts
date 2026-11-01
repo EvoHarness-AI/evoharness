@@ -4,7 +4,7 @@
  * Tests the async support utilities: jiti availability check,
  * status file reading/caching.
  *
- * Requires pi packages to be importable. Skips gracefully if unavailable.
+ * Requires evoharness packages to be importable. Skips gracefully if unavailable.
  */
 
 import assert from "node:assert/strict";
@@ -53,7 +53,7 @@ import {
 } from "../support/async-execution-fixture.ts";
 import { createEventBus, createTempDir, events, makeAgent, makeMinimalCtx, removeTempDir } from "../support/helpers.ts";
 
-describe("async execution utilities", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("async execution utilities", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	installAsyncExecutionHooks();
 
 	it(
@@ -171,7 +171,7 @@ export default function() {
 					},
 				],
 				agents: [makeAgent("worker")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -248,7 +248,7 @@ export default function() {
 				timeout: 25_000,
 			},
 			async (t) => {
-				const repo = createRepo("pi-background-setup-");
+				const repo = createRepo("subagents-background-setup-");
 				const baseDir = createTempDir();
 				const id = `async-setup-${mode}-${Date.now().toString(36)}`;
 				const asyncDir = path.join(ASYNC_DIR, id);
@@ -304,7 +304,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					const receipt = executeAsyncChain(id, {
 						chain: [{ agent: "worker", task: "Do work", worktree: true }],
 						agents: [makeAgent("worker")],
-						ctx: { pi: { events: bus }, cwd: repo, currentSessionId: "session-1" },
+						ctx: { evoharness: { events: bus }, cwd: repo, currentSessionId: "session-1" },
 						artifactConfig: {
 							enabled: false,
 							includeInput: false,
@@ -532,7 +532,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Do not start",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -564,7 +564,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Do work",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				cwd: missingCwd,
 				artifactConfig: {
 					enabled: false,
@@ -587,7 +587,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 			const chainResult = executeAsyncChain(chainId, {
 				chain: [{ agent: "worker", task: "Do work" }],
 				agents: [makeAgent("worker")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				cwd: missingCwd,
 				artifactConfig: {
 					enabled: false,
@@ -615,7 +615,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 			const originalExecPath = process.execPath;
 			const pathKey = process.platform === "win32" ? "Path" : "PATH";
 			const originalPath = process.env[pathKey];
-			process.execPath = path.join(tempDir, process.platform === "win32" ? "pi.exe" : "pi");
+			process.execPath = path.join(tempDir, process.platform === "win32" ? "evoharness.exe" : "evoharness");
 			process.env[pathKey] = tempDir;
 			try {
 				const id = `async-spawn-fail-${Date.now().toString(36)}`;
@@ -623,7 +623,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					agent: "worker",
 					task: "Do work",
 					agentConfig: makeAgent("worker"),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -663,7 +663,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 			const result = executeAsyncChain(id, {
 				chain: [{ agent: "worker", task: "Do work" }],
 				agents: [makeAgent("worker")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -707,7 +707,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					agent: "worker",
 					task: "Do work",
 					agentConfig: makeAgent("worker"),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -764,7 +764,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					agent: "worker",
 					task: "Do work",
 					agentConfig: makeAgent("worker"),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -804,7 +804,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					agent: "worker",
 					task: "Return data",
 					agentConfig: makeAgent("worker"),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -871,7 +871,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					task: "Return data, then fail",
 					agentConfig: makeAgent("worker"),
 					acceptance: false,
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -943,7 +943,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					task: "Return data",
 					agentConfig: makeAgent("worker"),
 					acceptance: false,
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -990,7 +990,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					agent: "worker",
 					task: "Do work",
 					agentConfig: makeAgent("worker"),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -1040,7 +1040,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					agent: "worker",
 					task: "Do work",
 					agentConfig: makeAgent("worker"),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -1093,7 +1093,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Do work",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1143,7 +1143,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					agent: "worker",
 					task: "Do work",
 					agentConfig: makeAgent("worker"),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -1186,7 +1186,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					agent: "worker",
 					task: "Do work",
 					agentConfig: makeAgent("worker"),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -1225,7 +1225,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Do work",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1278,7 +1278,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				task: "Inspect something",
 				agentConfig: makeAgent("scout"),
 				acceptance: { level: "attested", criteria: ["Finish cleanly"] },
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1339,7 +1339,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Do work",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1372,7 +1372,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 		{ skip: !isAsyncAvailable() ? "jiti not available" : undefined },
 		async () => {
 			const partialOutput = "I’ll inspect the retained candidate before changing it.";
-			const repo = createRepo("pi-subagents-missing-handoff-partial-");
+			const repo = createRepo("subagents-missing-handoff-partial-");
 			const outputPath = path.join(repo, "missing-challenge-report.md");
 			mockPi.onCall({
 				jsonl: [
@@ -1409,7 +1409,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					agent: "worker",
 					task,
 					agentConfig: makeAgent("worker"),
-					ctx: { pi: { events: { emit() {} } }, cwd: repo, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: repo, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -1484,7 +1484,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Implement the approved file changes",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1548,7 +1548,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "oracle",
 				task: "Write a report",
 				agentConfig: makeAgent("oracle"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1642,7 +1642,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					agent: "worker",
 				},
 				agents: [makeAgent("worker")],
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1674,7 +1674,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 		"keeps concrete sibling failures above partial mutation evidence",
 		{ skip: !isAsyncAvailable() ? "jiti not available" : undefined },
 		async () => {
-			const repo = createRepo("pi-subagents-partial-sibling-failure-");
+			const repo = createRepo("subagents-partial-sibling-failure-");
 			const outputPath = path.join(repo, "missing-report.md");
 			mockPi.onCall({
 				matchArgIncludes: "Write required report",
@@ -1709,7 +1709,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					],
 					resultMode: "parallel",
 					agents: [makeAgent("partial", { output: outputPath, outputMode: "file-only" }), makeAgent("failure")],
-					ctx: { pi: { events: { emit() {} } }, cwd: repo, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: repo, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -1787,7 +1787,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Run commands",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1847,7 +1847,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "scout",
 				task: "Investigate behavior",
 				agentConfig: makeAgent("scout"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -1932,7 +1932,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Run the command",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2033,7 +2033,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Run the command",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2134,7 +2134,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Run the command",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2223,7 +2223,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Ask the supervisor for a blocking decision",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2362,7 +2362,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Implement the approved fixes",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2429,7 +2429,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 		"background runs record a parallel batch's mutating failure against the failed call's path",
 		{ skip: !isAsyncAvailable() ? "jiti not available" : undefined },
 		async () => {
-			// Pi's parallel tool execution: every start and end comes before the result messages.
+			// evoharness's parallel tool execution: every start and end comes before the result messages.
 			const result = (toolCallId: string, isError: boolean, text: string) => ({
 				type: "message_end",
 				message: { role: "toolResult", toolCallId, toolName: "edit", isError, content: [{ type: "text", text }] },
@@ -2467,7 +2467,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Edit both files",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2515,7 +2515,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 	);
 
 	it(
-		"background status shows a tool-budget block from Pi's tool result message while the run is active",
+		"background status shows a tool-budget block from evoharness's tool result message while the run is active",
 		{ skip: !isAsyncAvailable() ? "jiti not available" : undefined },
 		async () => {
 			const blockedMessage =
@@ -2536,7 +2536,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 							events.toolResult("bash", "1"),
 						],
 					},
-					// Pi's sequence for a call blocked by a tool_call handler: start, end with isError, then the toolResult message.
+					// evoharness's sequence for a call blocked by a tool_call handler: start, end with isError, then the toolResult message.
 					{
 						jsonl: [
 							{
@@ -2561,7 +2561,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Run echo three times",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2603,8 +2603,8 @@ setTimeout(() => process.exit(90), 15000).unref();
 		"background event logs drop noisy message updates and cap child diagnostics",
 		{ skip: !isAsyncAvailable() ? "jiti not available" : undefined },
 		async () => {
-			const previousMaxBytes = process.env.PI_SUBAGENT_ASYNC_EVENTS_MAX_BYTES;
-			process.env.PI_SUBAGENT_ASYNC_EVENTS_MAX_BYTES = "1100";
+			const previousMaxBytes = process.env.EVOHARNESS_SUBAGENT_ASYNC_EVENTS_MAX_BYTES;
+			process.env.EVOHARNESS_SUBAGENT_ASYNC_EVENTS_MAX_BYTES = "1100";
 			try {
 				mockPi.onCall({
 					steps: [
@@ -2640,7 +2640,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					agent: "worker",
 					task: "Stream noisy diagnostics",
 					agentConfig: makeAgent("worker"),
-					ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+					ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 					artifactConfig: {
 						enabled: false,
 						includeInput: false,
@@ -2666,8 +2666,8 @@ setTimeout(() => process.exit(90), 15000).unref();
 				assert.match(eventsText, /"type":"subagent\.events\.truncated"/);
 				assert.match(eventsText, /"droppedEventType":"tool_execution_start"/);
 			} finally {
-				if (previousMaxBytes === undefined) delete process.env.PI_SUBAGENT_ASYNC_EVENTS_MAX_BYTES;
-				else process.env.PI_SUBAGENT_ASYNC_EVENTS_MAX_BYTES = previousMaxBytes;
+				if (previousMaxBytes === undefined) delete process.env.EVOHARNESS_SUBAGENT_ASYNC_EVENTS_MAX_BYTES;
+				else process.env.EVOHARNESS_SUBAGENT_ASYNC_EVENTS_MAX_BYTES = previousMaxBytes;
 			}
 		},
 	);
@@ -2695,7 +2695,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 				agent: "worker",
 				task: "Stream detailed progress",
 				agentConfig: makeAgent("worker"),
-				ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -2816,7 +2816,7 @@ setTimeout(() => process.exit(90), 15000).unref();
 					name: "wrap",
 					argv: runnerLaunchers.wrap,
 				});
-				// A launcher may run the runner under another kernel, so its pid never carries Pi's boot id.
+				// A launcher may run the runner under another kernel, so its pid never carries evoharness's boot id.
 				assert.equal((asking as AsyncStatusPayload & { bootId?: unknown }).bootId, undefined);
 				const wrapperArgv = fs.readFileSync(argvLog, "utf-8").trimEnd().split("\n");
 				assert.equal(wrapperArgv[0], "tag arg");
@@ -3325,7 +3325,12 @@ runner.on("exit", (code, signal) => process.exit(signal ? 128 + require("node:os
 		executeAsyncChain(id, {
 			chain,
 			agents,
-			ctx: { pi: { events: createEventBus() }, cwd: tempDir, currentSessionId: "session-1", runnerLaunchers },
+			ctx: {
+				evoharness: { events: createEventBus() },
+				cwd: tempDir,
+				currentSessionId: "session-1",
+				runnerLaunchers,
+			},
 			artifactConfig: {
 				enabled: false,
 				includeInput: false,
@@ -3445,7 +3450,7 @@ runner.on("exit", (code, signal) => process.exit(signal ? 128 + require("node:os
 				assert.match(
 					external.content[0]?.text ?? "",
 					new RegExp(
-						`Agent 'ext' uses launcher 'a', which wraps the local Pi background runner, so it cannot run with runner\\.type='${runner.type}'`,
+						`Agent 'ext' uses launcher 'a', which wraps the local evoharness background runner, so it cannot run with runner\\.type='${runner.type}'`,
 					),
 				);
 			}

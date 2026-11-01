@@ -16,12 +16,12 @@ import {
 	readProviderModelCatalog,
 	refreshProviderModelCatalog,
 } from "../../src/profiles/profiles.ts";
-import { PI_SUBAGENT_PI_BINARY_ENV } from "../../src/runs/shared/pi-spawn.ts";
+import { EVOHARNESS_SUBAGENT_HOST_BINARY_ENV } from "../../src/runs/shared/host-spawn.ts";
 
 let homeDir = "";
 const previousHome = process.env.HOME;
 const previousUserProfile = process.env.USERPROFILE;
-const previousPiBinary = process.env[PI_SUBAGENT_PI_BINARY_ENV];
+const previousPiBinary = process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV];
 
 function makeCtx(cwd: string, models: Array<Record<string, unknown>>) {
 	return {
@@ -34,10 +34,10 @@ function makeCtx(cwd: string, models: Array<Record<string, unknown>>) {
 
 describe("profiles helpers", () => {
 	beforeEach(() => {
-		homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subprofiles-home-"));
+		homeDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-subprofiles-home-"));
 		process.env.HOME = homeDir;
 		process.env.USERPROFILE = homeDir;
-		process.env[PI_SUBAGENT_PI_BINARY_ENV] = path.join(homeDir, "pi-test-bin");
+		process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV] = path.join(homeDir, "subagents-test-bin");
 	});
 
 	afterEach(() => {
@@ -45,8 +45,8 @@ describe("profiles helpers", () => {
 		else process.env.HOME = previousHome;
 		if (previousUserProfile === undefined) delete process.env.USERPROFILE;
 		else process.env.USERPROFILE = previousUserProfile;
-		if (previousPiBinary === undefined) delete process.env[PI_SUBAGENT_PI_BINARY_ENV];
-		else process.env[PI_SUBAGENT_PI_BINARY_ENV] = previousPiBinary;
+		if (previousPiBinary === undefined) delete process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV];
+		else process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV] = previousPiBinary;
 		fs.rmSync(homeDir, { recursive: true, force: true });
 	});
 
@@ -318,14 +318,14 @@ describe("profiles helpers", () => {
 		);
 	});
 
-	it("refreshes a provider model catalog using the resolved Pi executable and writes a cache file", async () => {
-		const piBinary = path.join(homeDir, "pi-wrapper.exe");
-		process.env[PI_SUBAGENT_PI_BINARY_ENV] = piBinary;
+	it("refreshes a provider model catalog using the resolved evoharness executable and writes a cache file", async () => {
+		const hostBinary = path.join(homeDir, "subagents-wrapper.exe");
+		process.env[EVOHARNESS_SUBAGENT_HOST_BINARY_ENV] = hostBinary;
 		const execCalls: string[] = [];
 		const execCwds: unknown[] = [];
-		const pi = {
+		const evoharness = {
 			exec: async (command: string, args: string[], options?: Record<string, unknown>) => {
-				assert.equal(command, piBinary);
+				assert.equal(command, hostBinary);
 				execCalls.push(args.join(" "));
 				execCwds.push(options?.cwd);
 				return { stdout: "OK\n", stderr: "", code: 0, killed: false };
@@ -338,7 +338,7 @@ describe("profiles helpers", () => {
 			{ provider: "openai-codex", id: "gpt-5.5", reasoning: true, name: "Best" },
 		]);
 
-		const result = await refreshProviderModelCatalog(pi, ctx as never, "openai-codex");
+		const result = await refreshProviderModelCatalog(evoharness, ctx as never, "openai-codex");
 		assert.equal(result.reused, false);
 		assert.equal(fs.existsSync(result.filePath), true);
 		assert.equal(result.catalog.models.length, 4);
@@ -368,7 +368,7 @@ describe("profiles helpers", () => {
 	});
 
 	it("does not count heuristic fallback when official metadata is present", async () => {
-		const pi = {
+		const evoharness = {
 			exec: async () => ({ stdout: "OK\n", stderr: "", code: 0, killed: false }),
 		};
 		const ctx = makeCtx(process.cwd(), [
@@ -391,7 +391,7 @@ describe("profiles helpers", () => {
 				cost: { input: 1.25, output: 10 },
 			},
 		]);
-		const result = await refreshProviderModelCatalog(pi, ctx as never, "openai");
+		const result = await refreshProviderModelCatalog(evoharness, ctx as never, "openai");
 		assert.equal(result.heuristicFallbackCount, 0);
 		assert.deepEqual(result.catalog.models[0]?.derived.classificationSources, [
 			"official-metadata",
@@ -401,7 +401,7 @@ describe("profiles helpers", () => {
 	});
 
 	it("reuses a fresh provider model catalog", async () => {
-		const pi = {
+		const evoharness = {
 			exec: async () => {
 				throw new Error("should not probe fresh cache");
 			},
@@ -422,12 +422,12 @@ describe("profiles helpers", () => {
 				2,
 			),
 		);
-		const result = await refreshProviderModelCatalog(pi, makeCtx(process.cwd(), []) as never, "openai-codex");
+		const result = await refreshProviderModelCatalog(evoharness, makeCtx(process.cwd(), []) as never, "openai-codex");
 		assert.equal(result.reused, true);
 	});
 
 	it("generates quota and quality profiles from sorted provider models", async () => {
-		const pi = {
+		const evoharness = {
 			exec: async () => ({ stdout: "OK\n", stderr: "", code: 0, killed: false }),
 		};
 		const ctx = makeCtx(process.cwd(), [
@@ -437,7 +437,7 @@ describe("profiles helpers", () => {
 			{ provider: "openai-codex", id: "gpt-5.5", reasoning: true },
 		]);
 
-		const result = await generateProfilesForProvider(pi, ctx as never, "openai-codex");
+		const result = await generateProfilesForProvider(evoharness, ctx as never, "openai-codex");
 		assert.equal(result.heuristicFallbackCount, 4);
 		assert.equal(result.selectedHeuristicFallbackCount, 4);
 		assert.equal(result.quotaModels.cheap, "openai-codex/gpt-5.3-codex-spark");
@@ -449,7 +449,7 @@ describe("profiles helpers", () => {
 	});
 
 	it("does not treat provider names like MiniMax as mini-tier tokens and prefers M3 over M2.7-highspeed for quality", async () => {
-		const pi = {
+		const evoharness = {
 			exec: async () => ({ stdout: "OK\n", stderr: "", code: 0, killed: false }),
 		};
 		const ctx = makeCtx(process.cwd(), [
@@ -482,14 +482,14 @@ describe("profiles helpers", () => {
 			},
 		]);
 
-		const refreshed = await refreshProviderModelCatalog(pi, ctx as never, "minimax");
+		const refreshed = await refreshProviderModelCatalog(evoharness, ctx as never, "minimax");
 		const highspeed = refreshed.catalog.models.find((entry) => entry.fullId === "minimax/MiniMax-M2.7-highspeed");
 		const m3 = refreshed.catalog.models.find((entry) => entry.fullId === "minimax/MiniMax-M3");
 		assert.equal(highspeed?.derived.latencyTier, "fast");
 		assert.equal(typeof highspeed?.derived.profileRank, "number");
 		assert.equal(typeof m3?.derived.profileRank, "number");
 		assert.equal((m3?.derived.profileRank ?? 0) > (highspeed?.derived.profileRank ?? 0), true);
-		const result = await generateProfilesForProvider(pi, ctx as never, "minimax", { forceRefresh: true });
+		const result = await generateProfilesForProvider(evoharness, ctx as never, "minimax", { forceRefresh: true });
 		assert.equal(result.quotaModels.cheap, "minimax/MiniMax-M2.7");
 		assert.equal(result.quotaModels.medium, "minimax/MiniMax-M2.7");
 		assert.equal(result.quotaModels.strong, "minimax/MiniMax-M2.7");
@@ -516,7 +516,7 @@ describe("profiles helpers", () => {
 				2,
 			),
 		);
-		const pi = {
+		const evoharness = {
 			exec: async (_command: string, args: string[]) => {
 				const model = args[2];
 				if (model === "openai-codex/gpt-5.9") {
@@ -526,7 +526,7 @@ describe("profiles helpers", () => {
 			},
 		};
 		const ctx = makeCtx(process.cwd(), [{ provider: "openai-codex", id: "gpt-5.3-codex-spark" }]);
-		const result = await checkSubagentProfile(pi, ctx as never, "demo");
+		const result = await checkSubagentProfile(evoharness, ctx as never, "demo");
 		assert.deepEqual(result.results, [
 			{
 				agent: "scout",
@@ -557,7 +557,7 @@ describe("profiles helpers", () => {
 			),
 		);
 		const probedModels: unknown[] = [];
-		const pi = {
+		const evoharness = {
 			exec: async (_command: string, args: string[]) => {
 				probedModels.push(args[2]);
 				assert.equal(args.includes("--no-tools"), true);
@@ -566,7 +566,7 @@ describe("profiles helpers", () => {
 			},
 		};
 		const ctx = makeCtx(process.cwd(), [{ provider: "openai-codex", id: "gpt-5.3-codex-spark" }]);
-		const result = await checkSubagentProfile(pi, ctx as never, "demo");
+		const result = await checkSubagentProfile(evoharness, ctx as never, "demo");
 		assert.equal(result.results[0]?.inRegistry, true);
 		assert.deepEqual(probedModels, ["openai-codex/gpt-5.3-codex-spark:high"]);
 	});

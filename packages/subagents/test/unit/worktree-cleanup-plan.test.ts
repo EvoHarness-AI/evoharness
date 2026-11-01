@@ -31,8 +31,8 @@ async function cleanupFixture(
 		planId: string;
 	}) => Promise<void>,
 ): Promise<void> {
-	const repo = createRepo("pi-cleanup-apply-");
-	const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-apply-base-"));
+	const repo = createRepo("subagents-cleanup-apply-");
+	const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cleanup-apply-base-"));
 	let setup: WorktreeSetup | undefined;
 	try {
 		setup = await createWorktrees(repo, "apply", 1, { baseDir });
@@ -187,7 +187,7 @@ describe("reviewed cleanup apply", () => {
 						worktreeBaseDir: baseDir,
 						foregroundRunOwnership: () => "terminal",
 					}).plan.planId;
-				const outside = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-redirect-"));
+				const outside = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cleanup-redirect-"));
 				const redirectedBase = path.join(outside, "moved");
 				fs.renameSync(originalBase, redirectedBase);
 				try {
@@ -598,7 +598,7 @@ function createRepo(prefix: string): string {
 }
 
 function createHookScript(fileName: string, source: string): string {
-	const hooksDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-plan-hook-script-"));
+	const hooksDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cleanup-plan-hook-script-"));
 	const hookPath = path.join(hooksDir, fileName);
 	fs.writeFileSync(hookPath, `#!/usr/bin/env node\n${source}\n`, "utf-8");
 	fs.chmodSync(hookPath, 0o755);
@@ -752,8 +752,8 @@ describe("worktree cleanup plan", () => {
 	});
 
 	it("builds and persists a deterministic metadata-backed plan without removing worktrees", async () => {
-		const repo = createRepo("pi-cleanup-plan-safe-");
-		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-plan-base-"));
+		const repo = createRepo("subagents-cleanup-plan-safe-");
+		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cleanup-plan-base-"));
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "safe", 1, { baseDir });
@@ -815,8 +815,8 @@ describe("worktree cleanup plan", () => {
 	});
 
 	it("keeps dirty and unowned worktrees out of the removable set", async () => {
-		const repo = createRepo("pi-cleanup-plan-unknown-");
-		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-plan-base-"));
+		const repo = createRepo("subagents-cleanup-plan-unknown-");
+		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cleanup-plan-base-"));
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "unknown", 2, { baseDir });
@@ -844,8 +844,8 @@ describe("worktree cleanup plan", () => {
 	});
 
 	it("keeps active async ownership and reports missing Git worktrees as stale", async () => {
-		const repo = createRepo("pi-cleanup-plan-active-");
-		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-plan-base-"));
+		const repo = createRepo("subagents-cleanup-plan-active-");
+		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cleanup-plan-base-"));
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "active", 1, { baseDir });
@@ -896,8 +896,8 @@ describe("worktree cleanup plan", () => {
 	});
 
 	it("requires foreground ownership proof instead of inferring activity from the artifacts directory", async () => {
-		const repo = createRepo("pi-cleanup-plan-foreground-");
-		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-plan-base-"));
+		const repo = createRepo("subagents-cleanup-plan-foreground-");
+		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cleanup-plan-base-"));
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "foreground", 1, { baseDir });
@@ -935,8 +935,8 @@ describe("worktree cleanup plan", () => {
 	});
 
 	it("requires a recorded patch or local target ancestry for committed divergence", async () => {
-		const repo = createRepo("pi-cleanup-plan-divergence-");
-		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-plan-base-"));
+		const repo = createRepo("subagents-cleanup-plan-divergence-");
+		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cleanup-plan-base-"));
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "divergence", 1, { baseDir });
@@ -966,8 +966,8 @@ describe("worktree cleanup plan", () => {
 	});
 
 	it("does not let trusted external diff hide cleanup-plan divergence", { skip: hookScriptSkip }, async () => {
-		const repo = createRepo("pi-cleanup-plan-external-diff-");
-		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-plan-base-"));
+		const repo = createRepo("subagents-cleanup-plan-external-diff-");
+		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cleanup-plan-base-"));
 		const externalDiffPath = createHookScript("external-diff-plan.mjs", "process.exit(0);");
 		let setup: WorktreeSetup | undefined;
 		try {
@@ -993,8 +993,8 @@ describe("worktree cleanup plan", () => {
 	});
 
 	it("keeps stale markers, pending captures, and inconsistent cleanup metadata non-removable", async () => {
-		const repo = createRepo("pi-cleanup-plan-stale-");
-		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-plan-base-"));
+		const repo = createRepo("subagents-cleanup-plan-stale-");
+		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cleanup-plan-base-"));
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "stale", 1, { baseDir });
@@ -1091,8 +1091,8 @@ describe("worktree cleanup plan", () => {
 	});
 
 	it("treats nested project directory as cleanup containment root", async () => {
-		const repo = createRepo("pi-cleanup-plan-nested-root-");
-		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-plan-nested-base-"));
+		const repo = createRepo("subagents-cleanup-plan-nested-root-");
+		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cleanup-plan-nested-base-"));
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "nested-root", 1, { baseDir });
@@ -1110,9 +1110,9 @@ describe("worktree cleanup plan", () => {
 	});
 
 	it("uses git toplevel parent as default cleanup root when input.repo is a subdirectory", async () => {
-		const repo = createRepo("pi-cleanup-plan-subdir-root-");
-		const previous = process.env.PI_SUBAGENTS_WORKTREE_DIR;
-		delete process.env.PI_SUBAGENTS_WORKTREE_DIR;
+		const repo = createRepo("subagents-cleanup-plan-subdir-root-");
+		const previous = process.env.EVOHARNESS_SUBAGENTS_WORKTREE_DIR;
+		delete process.env.EVOHARNESS_SUBAGENTS_WORKTREE_DIR;
 		let setup: WorktreeSetup | undefined;
 		try {
 			fs.mkdirSync(path.join(repo, "packages", "app"), { recursive: true });
@@ -1127,18 +1127,18 @@ describe("worktree cleanup plan", () => {
 			assert.equal(entry?.decision, "remove");
 			assert.equal(entry?.state, "safe");
 		} finally {
-			if (previous === undefined) delete process.env.PI_SUBAGENTS_WORKTREE_DIR;
-			else process.env.PI_SUBAGENTS_WORKTREE_DIR = previous;
+			if (previous === undefined) delete process.env.EVOHARNESS_SUBAGENTS_WORKTREE_DIR;
+			else process.env.EVOHARNESS_SUBAGENTS_WORKTREE_DIR = previous;
 			removeGeneratedWorktrees(repo, setup);
 			fs.rmSync(repo, { recursive: true, force: true });
 		}
 	});
 
 	it("marks flat dedicatedRoot leaves ineligible", () => {
-		const repo = createRepo("pi-cleanup-plan-flat-leaf-");
-		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-plan-flat-base-"));
-		const worktreePath = path.join(baseDir, "pi-worktree-flat-0");
-		const branch = "pi-parallel-flat-0";
+		const repo = createRepo("subagents-cleanup-plan-flat-leaf-");
+		const baseDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cleanup-plan-flat-base-"));
+		const worktreePath = path.join(baseDir, "subagents-worktree-flat-0");
+		const branch = "subagents-parallel-flat-0";
 		let setup: WorktreeSetup | undefined;
 		try {
 			git(repo, ["worktree", "add", "-b", branch, worktreePath]);
@@ -1174,9 +1174,9 @@ describe("worktree cleanup plan", () => {
 	});
 
 	it("marks checkout-internal worktrees ineligible when base is the repos parent", () => {
-		const repo = createRepo("pi-cleanup-plan-checkout-internal-");
-		const worktreePath = path.join(repo, "pi-worktree-internal-0");
-		const branch = "pi-parallel-internal-0";
+		const repo = createRepo("subagents-cleanup-plan-checkout-internal-");
+		const worktreePath = path.join(repo, "subagents-worktree-internal-0");
+		const branch = "subagents-parallel-internal-0";
 		let setup: WorktreeSetup | undefined;
 		try {
 			git(repo, ["worktree", "add", "-b", branch, worktreePath]);
@@ -1212,9 +1212,9 @@ describe("worktree cleanup plan", () => {
 		}
 	});
 
-	it("keeps a worktree whose project directory resolves into Pi extensions", () => {
-		const repo = createRepo("pi-cleanup-plan-extension-project-");
-		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-plan-home-"));
+	it("keeps a worktree whose project directory resolves into evoharness extensions", () => {
+		const repo = createRepo("subagents-cleanup-plan-extension-project-");
+		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cleanup-plan-home-"));
 		const agentDir = path.join(tempHome, ".evoharness", "agent");
 		const extensionsDir = path.join(agentDir, "extensions");
 		const baseDir = path.join(tempHome, "worktree-root");
@@ -1222,8 +1222,8 @@ describe("worktree cleanup plan", () => {
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
 		const projectDir = path.join(baseDir, path.basename(repo));
-		const worktreePath = path.join(projectDir, "pi-worktree-extension-project-0");
-		const branch = "pi-parallel-extension-project-0";
+		const worktreePath = path.join(projectDir, "subagents-worktree-extension-project-0");
+		const branch = "subagents-parallel-extension-project-0";
 		let setup: WorktreeSetup | undefined;
 		try {
 			fs.mkdirSync(extensionsDir, { recursive: true });
@@ -1254,7 +1254,7 @@ describe("worktree cleanup plan", () => {
 			const entry = entriesByPath(plan).get(__testables.realpathExisting(worktreePath)) ?? plan.entries[0];
 			assert.equal(entry?.decision, "keep");
 			assert.equal(entry?.state, "ineligible");
-			assert.match(entry?.reasons.join(" ") ?? "", /Pi extensions directory/i);
+			assert.match(entry?.reasons.join(" ") ?? "", /evoharness extensions directory/i);
 		} finally {
 			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
@@ -1270,7 +1270,7 @@ describe("worktree cleanup plan", () => {
 	});
 
 	it("rejects empty cleanup worktree base directory", () => {
-		const repo = createRepo("pi-cleanup-plan-empty-base-");
+		const repo = createRepo("subagents-cleanup-plan-empty-base-");
 		try {
 			assert.throws(
 				() => buildWorktreeCleanupPlan({ repo, worktreeBaseDir: "   " }),

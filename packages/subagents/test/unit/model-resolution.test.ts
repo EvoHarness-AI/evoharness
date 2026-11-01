@@ -214,7 +214,7 @@ describe("model response identity", () => {
 			) ?? "";
 		assert.match(
 			virtualMismatch,
-			/model_verification_failed: native Pi child selected virtual model 'other-router\/gpt-5-mini'/,
+			/model_verification_failed: native evoharness child selected virtual model 'other-router\/gpt-5-mini'/,
 		);
 		assert.doesNotMatch(virtualMismatch, /declare the exact mapping/);
 		assert.match(

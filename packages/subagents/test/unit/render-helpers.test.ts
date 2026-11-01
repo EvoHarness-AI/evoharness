@@ -553,7 +553,7 @@ test("workflow chat progress rows take the level of the child with the same key"
 						mode: "workflow",
 						runId: "wf_levels",
 						results: [],
-						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "pi-subagents" },
+						chatProgress: { mode: "live-card", repoRelation: "same", repoLabel: "subagents" },
 						workflowChildren: {
 							version: 1,
 							parentToolCallId: "call",

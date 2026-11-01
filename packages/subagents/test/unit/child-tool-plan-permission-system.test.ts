@@ -10,7 +10,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { type BuildInProcessChildLaunchInput, buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
-import { resolvePermissionSystemExtension, resolvePiLaunchToolPlan } from "../../src/runs/shared/child-tool-plan.ts";
+import { resolveHostLaunchToolPlan, resolvePermissionSystemExtension } from "../../src/runs/shared/child-tool-plan.ts";
 
 const originalEnv = {
 	HOME: process.env.HOME,
@@ -88,7 +88,7 @@ describe("resolvePermissionSystemExtension", () => {
 
 	it("throws when an installed extension dir has no package.json", () => {
 		const { agentDir } = createFixture();
-		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
+		const extDir = path.join(agentDir, "extensions", "subagents-permission-system");
 		const pkgPath = path.join(extDir, "package.json");
 		fs.mkdirSync(extDir, { recursive: true });
 		assert.throws(
@@ -97,17 +97,17 @@ describe("resolvePermissionSystemExtension", () => {
 		);
 	});
 
-	it("throws when package.json has no valid pi.extensions entry", () => {
+	it("throws when package.json has no valid evoharness.extensions entry", () => {
 		const { agentDir } = createFixture();
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
+		const extDir = path.join(agentDir, "extensions", "subagents-permission-system");
 		const pkgPath = path.join(extDir, "package.json");
 		fs.mkdirSync(extDir, { recursive: true });
 
 		for (const value of [
 			{ name: "test" },
-			{ name: "test", pi: { extensions: "./src/index.ts" } },
-			{ name: "test", pi: { extensions: [123] } },
+			{ name: "test", evoharness: { extensions: "./src/index.ts" } },
+			{ name: "test", evoharness: { extensions: [123] } },
 		]) {
 			fs.writeFileSync(pkgPath, JSON.stringify(value));
 			assert.throws(
@@ -120,7 +120,7 @@ describe("resolvePermissionSystemExtension", () => {
 	it("throws when package.json is malformed", () => {
 		const { agentDir } = createFixture();
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
+		const extDir = path.join(agentDir, "extensions", "subagents-permission-system");
 		const pkgPath = path.join(extDir, "package.json");
 		fs.mkdirSync(extDir, { recursive: true });
 		fs.writeFileSync(pkgPath, "{ malformed");
@@ -134,7 +134,7 @@ describe("resolvePermissionSystemExtension", () => {
 	it("throws when package.json cannot be read", () => {
 		const { agentDir } = createFixture();
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
+		const extDir = path.join(agentDir, "extensions", "subagents-permission-system");
 		const pkgPath = path.join(extDir, "package.json");
 		fs.mkdirSync(pkgPath, { recursive: true });
 
@@ -147,7 +147,7 @@ describe("resolvePermissionSystemExtension", () => {
 	it("throws with manifest context when package.json is not an object", () => {
 		const { agentDir } = createFixture();
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
+		const extDir = path.join(agentDir, "extensions", "subagents-permission-system");
 		const pkgPath = path.join(extDir, "package.json");
 		fs.mkdirSync(extDir, { recursive: true });
 		fs.writeFileSync(pkgPath, "null");
@@ -164,14 +164,14 @@ describe("resolvePermissionSystemExtension", () => {
 			() => undefined,
 		]) {
 			const { agentDir } = createFixture();
-			const primaryDir = path.join(agentDir, "npm", "node_modules", "@gotgenes", "pi-permission-system");
-			const fallbackDir = path.join(agentDir, "extensions", "pi-permission-system");
+			const primaryDir = path.join(agentDir, "npm", "node_modules", "@gotgenes", "subagents-permission-system");
+			const fallbackDir = path.join(agentDir, "extensions", "subagents-permission-system");
 			fs.mkdirSync(primaryDir, { recursive: true });
 			primarySetup(primaryDir);
 			fs.mkdirSync(path.join(fallbackDir, "src"), { recursive: true });
 			fs.writeFileSync(
 				path.join(fallbackDir, "package.json"),
-				JSON.stringify({ name: "test", pi: { extensions: ["./src/index.ts"] } }),
+				JSON.stringify({ name: "test", evoharness: { extensions: ["./src/index.ts"] } }),
 			);
 			fs.writeFileSync(path.join(fallbackDir, "src", "index.ts"), "export default () => {};");
 
@@ -184,31 +184,31 @@ describe("resolvePermissionSystemExtension", () => {
 	it("returns extension path when fully installed", () => {
 		const { agentDir } = createFixture();
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
+		const extDir = path.join(agentDir, "extensions", "subagents-permission-system");
 		fs.mkdirSync(extDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(extDir, "package.json"),
-			JSON.stringify({ name: "test", pi: { extensions: ["./src/index.ts"] } }),
+			JSON.stringify({ name: "test", evoharness: { extensions: ["./src/index.ts"] } }),
 		);
 		fs.mkdirSync(path.join(extDir, "src"), { recursive: true });
 		fs.writeFileSync(path.join(extDir, "src", "index.ts"), "export default () => {};");
 		const result = resolvePermissionSystemExtension();
 		assert.ok(result, "expected extension path");
 		if (!result) return; // narrow for TS
-		assert.ok(result.endsWith(path.join("pi-permission-system", "src", "index.ts")));
+		assert.ok(result.endsWith(path.join("subagents-permission-system", "src", "index.ts")));
 	});
 
 	it("throws when the configured entry file does not exist", () => {
 		const { agentDir } = createFixture();
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
+		const extDir = path.join(agentDir, "extensions", "subagents-permission-system");
 		const pkgPath = path.join(extDir, "package.json");
 		fs.mkdirSync(extDir, { recursive: true });
 		fs.writeFileSync(
 			pkgPath,
 			JSON.stringify({
 				name: "test",
-				pi: { extensions: ["./src/missing.ts"] },
+				evoharness: { extensions: ["./src/missing.ts"] },
 			}),
 		);
 
@@ -219,16 +219,16 @@ describe("resolvePermissionSystemExtension", () => {
 	});
 });
 
-describe("resolvePiLaunchToolPlan with permission system", () => {
+describe("resolveHostLaunchToolPlan with permission system", () => {
 	it("does not inject the permission system when no native permission rules are set", () => {
 		const { agentDir } = createFixture();
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
+		const extDir = path.join(agentDir, "extensions", "subagents-permission-system");
 		fs.mkdirSync(path.join(extDir, "src"), { recursive: true });
 		fs.writeFileSync(path.join(extDir, "src", "index.ts"), "export default () => {};");
 		fs.writeFileSync(
 			path.join(extDir, "package.json"),
-			JSON.stringify({ name: "test", pi: { extensions: ["./src/index.ts"] } }),
+			JSON.stringify({ name: "test", evoharness: { extensions: ["./src/index.ts"] } }),
 		);
 
 		const { session } = buildInProcessChildLaunch(childLaunch());
@@ -242,12 +242,12 @@ describe("resolvePiLaunchToolPlan with permission system", () => {
 	it("injects the permission system when explicit native permission rules are set", () => {
 		const { agentDir } = createFixture();
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-		const extDir = path.join(agentDir, "extensions", "pi-permission-system");
+		const extDir = path.join(agentDir, "extensions", "subagents-permission-system");
 		fs.mkdirSync(path.join(extDir, "src"), { recursive: true });
 		fs.writeFileSync(path.join(extDir, "src", "index.ts"), "export default () => {};");
 		fs.writeFileSync(
 			path.join(extDir, "package.json"),
-			JSON.stringify({ name: "test", pi: { extensions: ["./src/index.ts"] } }),
+			JSON.stringify({ name: "test", evoharness: { extensions: ["./src/index.ts"] } }),
 		);
 
 		const { session } = buildInProcessChildLaunch(childLaunch({ permissionRules: { write: "ask" } }));
@@ -261,23 +261,23 @@ describe("resolvePiLaunchToolPlan with permission system", () => {
 		const { agentDir } = createFixture();
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 
-		const plan = resolvePiLaunchToolPlan({});
-		const permExt = plan.runtimeExtensions.find((e) => e.includes("pi-permission-system"));
+		const plan = resolveHostLaunchToolPlan({});
+		const permExt = plan.runtimeExtensions.find((e) => e.includes("subagents-permission-system"));
 		assert.equal(permExt, undefined);
 	});
 
 	it("does NOT include permission system when denyExtensions is set", () => {
 		const { agentDir } = createFixture();
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-		const extDir = path.join(agentDir, "npm", "node_modules", "@gotgenes", "pi-permission-system");
+		const extDir = path.join(agentDir, "npm", "node_modules", "@gotgenes", "subagents-permission-system");
 		fs.mkdirSync(path.join(extDir, "src"), { recursive: true });
 		fs.writeFileSync(path.join(extDir, "src", "index.ts"), "export default () => {};");
 		fs.writeFileSync(
 			path.join(extDir, "package.json"),
-			JSON.stringify({ name: "test", pi: { extensions: ["./src/index.ts"] } }),
+			JSON.stringify({ name: "test", evoharness: { extensions: ["./src/index.ts"] } }),
 		);
 
-		const plan = resolvePiLaunchToolPlan({
+		const plan = resolveHostLaunchToolPlan({
 			capabilityCeiling: {
 				version: 1 as const,
 				allowedTools: ["read"],
@@ -285,7 +285,7 @@ describe("resolvePiLaunchToolPlan with permission system", () => {
 				sources: ["test"],
 			},
 		});
-		const permExt = plan.runtimeExtensions.find((e) => e.includes("pi-permission-system"));
+		const permExt = plan.runtimeExtensions.find((e) => e.includes("subagents-permission-system"));
 		assert.equal(permExt, undefined);
 	});
 });
@@ -365,7 +365,7 @@ describe("child launch <active_agent> tag injection", () => {
 		const { agentDir } = createFixture();
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 
-		const plan = resolvePiLaunchToolPlan({});
+		const plan = resolveHostLaunchToolPlan({});
 		assert.ok(plan.runtimeExtensions.length >= 1);
 		const hasPromptRuntime = plan.runtimeExtensions.some((e) => e.endsWith("subagent-prompt-runtime.ts"));
 		assert.ok(hasPromptRuntime, "prompt runtime extension should always be included");

@@ -18,10 +18,10 @@ function writeAgent(dir: string, name: string): string {
 	return filePath;
 }
 
-describe("PI_SUBAGENT_EXTRA_AGENT_DIRS discovery", () => {
+describe("EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS discovery", () => {
 	beforeEach(() => {
 		for (const key of MANAGED_ENV) saved[key] = process.env[key];
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-extra-agent-dirs-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-extra-agent-dirs-"));
 		// Isolate from the developer's real user agent dirs so defaults are empty.
 		agentDir = path.join(tempDir, "agent");
 		const homeDir = path.join(tempDir, "home");

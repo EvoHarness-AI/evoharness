@@ -39,7 +39,7 @@ function host() {
 		lastForegroundControlId: null,
 	};
 	const executor = createSubagentExecutor({
-		pi: { events, getSessionName: () => undefined, sendMessage() {} } as ExtensionAPI,
+		evoharness: { events, getSessionName: () => undefined, sendMessage() {} } as ExtensionAPI,
 		state,
 		config: {},
 		asyncByDefault: false,

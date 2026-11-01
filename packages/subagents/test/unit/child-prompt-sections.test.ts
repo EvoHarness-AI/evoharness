@@ -30,7 +30,7 @@ type Run = {
 	structured?: boolean;
 	prompts?: string[];
 	toolTurn?: boolean;
-	hooks?: Array<(pi: ExtensionAPI) => void>;
+	hooks?: Array<(evoharness: ExtensionAPI) => void>;
 };
 
 const count = (text: string, part: string) => text.split(part).length - 1;
@@ -42,7 +42,7 @@ describe("child provider system prompt", () => {
 	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 
 	before(() => {
-		root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-child-prompt-sections-"));
+		root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-child-prompt-sections-"));
 		agentDir = path.join(root, "agent");
 		repo = path.join(root, "repo");
 		fs.mkdirSync(repo);
@@ -74,7 +74,7 @@ describe("child provider system prompt", () => {
 		toggle(path.join(repo, "AGENTS.md"), repoContext, () =>
 			fs.writeFileSync(path.join(repo, "AGENTS.md"), "REPO-CONTEXT-MARKER"),
 		);
-		toggle(path.join(agentDir, "skills", "pi-subagents"), orchestrationSkill, () => writeSkill("pi-subagents"));
+		toggle(path.join(agentDir, "skills", "subagents"), orchestrationSkill, () => writeSkill("subagents"));
 	}
 
 	/** Runs a real SDK child, one run per prompt, and returns the system prompt of every provider request. */
@@ -119,15 +119,18 @@ describe("child provider system prompt", () => {
 			...(run.fanout ? { allowNestedSubagents: true } : {}),
 			...(run.structured ? { structuredOutput: createStructuredOutputRuntime({ type: "object" }, repo) } : {}),
 		});
-		// Unset flags make the prompt runtime leave the prompt alone, so the same launch yields Pi's original render.
+		// Unset flags make the prompt runtime leave the prompt alone, so the same launch yields evoharness's original render.
 		if (run.unsetFlags)
 			Object.assign(config, {
 				inheritProjectContext: undefined,
 				inheritGlobalContext: undefined,
 				inheritSkills: undefined,
 			});
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: () => import("@evoharness/coding-agent") });
-		const hooks = [(pi: ExtensionAPI) => pi.registerProvider(faux.provider as never), ...(run.hooks ?? [])];
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: () => import("@evoharness/coding-agent") });
+		const hooks = [
+			(evoharness: ExtensionAPI) => evoharness.registerProvider(faux.provider as never),
+			...(run.hooks ?? []),
+		];
 		const child = await factory.create({
 			...session,
 			hooks: [...session.hooks, ...hooks.map((factory, index) => ({ name: `probe-${index}`, factory }))],
@@ -148,12 +151,12 @@ describe("child provider system prompt", () => {
 			prompts: ["Task", "Next task"],
 			toolTurn: true,
 			hooks: [
-				(pi) =>
-					pi.on("before_agent_start", (event) => {
+				(evoharness) =>
+					evoharness.on("before_agent_start", (event) => {
 						captured.push(event.systemPrompt);
 					}),
-				(pi) =>
-					pi.on("before_agent_start", (event) => {
+				(evoharness) =>
+					evoharness.on("before_agent_start", (event) => {
 						event.systemPromptOptions.sections.probe = "PROBE-SECTION-MARKER";
 					}),
 			],
@@ -176,7 +179,9 @@ describe("child provider system prompt", () => {
 	it("appends the boundary once to a prompt another extension returns", async () => {
 		const [request] = await providerPrompts({
 			flags: { inheritProjectContext: true, inheritGlobalContext: true, inheritSkills: true },
-			hooks: [(pi) => pi.on("before_agent_start", () => ({ systemPrompt: "Extension-owned prompt." }))],
+			hooks: [
+				(evoharness) => evoharness.on("before_agent_start", () => ({ systemPrompt: "Extension-owned prompt." })),
+			],
 		});
 		assert.equal(request, `Extension-owned prompt.\n\n${CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS}`);
 	});
@@ -193,13 +198,13 @@ describe("child provider system prompt", () => {
 		["global context removed", { flags: noGlobal }, { globalContext: false }],
 		["the only context file removed", { flags: noGlobal, fixture: { repoContext: false } }, { globalContext: false }],
 		[
-			"pi-subagents skill removed next to another skill",
+			"subagents skill removed next to another skill",
 			{ flags: inheritAll, fixture: { orchestrationSkill: true } },
 			{ orchestrationSkill: false },
 		],
 		["structured output", { flags: noGlobal, structured: true }, { globalContext: false }],
 	] as Array<[string, Run, Fixture]>) {
-		it(`sends a child without other extensions Pi's render of the launch without the removed resources, plus the boundary (${label})`, async () => {
+		it(`sends a child without other extensions evoharness's render of the launch without the removed resources, plus the boundary (${label})`, async () => {
 			// The launch without the removed resources leaves rewriteSubagentPrompt nothing to strip, so it only appends the boundary.
 			const [render] = await providerPrompts({ ...run, fixture: { ...run.fixture, ...absent }, unsetFlags: true });
 			const [actual] = await providerPrompts(run);
@@ -214,13 +219,13 @@ describe("child provider system prompt", () => {
 			flags,
 			fanout: true,
 			hooks: [
-				(pi) =>
-					pi.on("before_agent_start", (event) => {
+				(evoharness) =>
+					evoharness.on("before_agent_start", (event) => {
 						seen.push(event.systemPrompt);
 					}),
 			],
 		});
-		// With everything inherited the filter removes nothing, so the prompt seen mid-chain is Pi's original render.
+		// With everything inherited the filter removes nothing, so the prompt seen mid-chain is evoharness's original render.
 		assert.equal(rewritten, rewriteSubagentPrompt(seen[0]!, { ...flags, fanoutChild: true }));
 		assert.ok(rewritten!.endsWith(`\n\n${CHILD_FANOUT_BOUNDARY_INSTRUCTIONS}`));
 	});

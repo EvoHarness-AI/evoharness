@@ -6,7 +6,7 @@ import { after, before, describe, test } from "node:test";
 import { discoverAgents } from "../../src/agents/agents.ts";
 import { clearSkillCache, resolveSkillPath } from "../../src/agents/skills.ts";
 
-const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-path-resolution-"));
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-path-resolution-"));
 const cwdDir = path.join(tmpDir, "cwd");
 const homeDir = path.join(tmpDir, "home");
 const userAgentsDir = path.join(homeDir, ".agents");

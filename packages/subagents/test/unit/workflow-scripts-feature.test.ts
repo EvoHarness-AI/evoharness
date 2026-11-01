@@ -27,7 +27,7 @@ const SCRIPTS_DISABLED = `subagent workflow scripts are disabled by config ${SET
 
 function createExecutor(config: ExtensionConfig) {
 	return createSubagentExecutor({
-		pi: {
+		evoharness: {
 			events: {
 				emit() {},
 				on() {
@@ -250,7 +250,7 @@ describe("workflow-scripts admission", () => {
 				isError: false,
 			});
 		});
-		const pi = {
+		const evoharness = {
 			events,
 			on() {
 				return () => {};
@@ -262,7 +262,7 @@ describe("workflow-scripts admission", () => {
 			sendMessage() {},
 		};
 		const disposer = registerSlashCommands(
-			pi as never,
+			evoharness as never,
 			{ ...createChildSafeState(), baseCwd: process.cwd() },
 			{ workflowScriptsDisabled: true },
 		);

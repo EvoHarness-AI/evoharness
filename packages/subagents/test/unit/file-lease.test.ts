@@ -6,7 +6,7 @@ import { it } from "node:test";
 import { FileLeaseBusyError, tryLease, withFileLease } from "../../src/shared/file-lease.ts";
 
 it("withFileLease waits a bounded time for a live owner, then updates once it is released", () => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-file-lease-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-file-lease-"));
 	const file = path.join(fs.realpathSync(dir), "history.json");
 	const release = tryLease(`${file}.write-lock`);
 	assert.ok(release);
@@ -23,7 +23,7 @@ it("withFileLease waits a bounded time for a live owner, then updates once it is
 });
 
 it("withFileLease with no wait makes one attempt and reports a busy lease as FileLeaseBusyError", () => {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-file-lease-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-file-lease-"));
 	const file = path.join(fs.realpathSync(dir), "history.json");
 	const release = tryLease(`${file}.write-lock`);
 	assert.ok(release);

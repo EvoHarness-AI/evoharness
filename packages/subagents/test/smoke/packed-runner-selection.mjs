@@ -6,11 +6,11 @@ import { pathToFileURL } from "node:url";
 import { mock } from "node:test";
 
 const installed = process.argv[2];
-const piEntry = process.argv[3];
+const hostEntry = process.argv[3];
 assert.ok(installed && path.isAbsolute(installed));
-assert.ok(piEntry && path.isAbsolute(piEntry));
+assert.ok(hostEntry && path.isAbsolute(hostEntry));
 assert.match(installed, /[/\\]node_modules[/\\]/);
-process.argv[1] = piEntry;
+process.argv[1] = hostEntry;
 const require = nodeModule.createRequire(path.join(installed, "package.json"));
 const jitiPackage = require.resolve("jiti/package.json");
 const { createJiti } = await import(pathToFileURL(path.join(path.dirname(jitiPackage), "lib/jiti.mjs")).href);
@@ -25,7 +25,7 @@ const result = executeAsyncSingle("packed-selection", {
 		name: "worker", description: "packed selector", systemPrompt: "", systemPromptMode: "replace",
 		inheritGlobalContext: false, inheritProjectContext: false, inheritSkills: false,
 	},
-	ctx: { pi: { events: { emit() {} } }, cwd: process.cwd(), currentSessionId: "packed-selector" },
+	ctx: { evoharness: { events: { emit() {} } }, cwd: process.cwd(), currentSessionId: "packed-selector" },
 	artifactConfig: { enabled: false, includeInput: false, includeOutput: false, includeJsonl: false, includeMetadata: false, cleanupDays: 7 },
 	shareEnabled: false,
 	maxSubagentDepth: 1,

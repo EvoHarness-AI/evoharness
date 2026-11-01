@@ -314,12 +314,12 @@ describe("Herdr status bridge", () => {
 			"report-metadata",
 			"w1:p1",
 			"--source",
-			"pi-subagents:herdr",
+			"subagents:herdr",
 			"--agent",
-			"pi",
+			"evoharness",
 			"--applies-to-source",
 		]);
-		assert.ok(commands[0]?.includes("herdr:pi"));
+		assert.ok(commands[0]?.includes("herdr:evoharness"));
 		assert.ok(commands[0]?.includes("--state-label"));
 		assert.ok(commands[0]?.includes("working=⏳ 1 subagent (worker)"));
 		assert.ok(commands[0]?.includes("idle=⏳ 1 subagent (worker)"));

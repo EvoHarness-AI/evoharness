@@ -179,7 +179,7 @@ function hookRuntime(launch: ChildSessionLaunch, platform: NodeJS.Platform, sign
 			(name) => (!launch.tools || launch.tools.includes(name)) && !launch.excludeTools?.includes(name),
 		);
 	let closed = false;
-	const pi = {
+	const evoharness = {
 		events: createEventBus(),
 		on(name: string, handler: (event: unknown, ctx: unknown) => unknown) {
 			handlers.set(name, [...(handlers.get(name) ?? []), handler]);
@@ -204,7 +204,7 @@ function hookRuntime(launch: ChildSessionLaunch, platform: NodeJS.Platform, sign
 	const descriptor = Object.getOwnPropertyDescriptor(process, "platform")!;
 	try {
 		Object.defineProperty(process, "platform", { ...descriptor, value: platform });
-		for (const hook of launch.hooks) hook.factory(pi as never);
+		for (const hook of launch.hooks) hook.factory(evoharness as never);
 	} finally {
 		Object.defineProperty(process, "platform", descriptor);
 	}
@@ -214,7 +214,7 @@ function hookRuntime(launch: ChildSessionLaunch, platform: NodeJS.Platform, sign
 		registered,
 		active,
 		notices,
-		events: pi.events,
+		events: evoharness.events,
 		get closed() {
 			return closed;
 		},
@@ -902,7 +902,7 @@ describe("supervisor ask registration", () => {
 		let race = false;
 		let racedAsk: string | undefined;
 		const executor = createSubagentExecutor({
-			pi: {} as never,
+			evoharness: {} as never,
 			state,
 			config: { maxSubagentDepth: 2, control: {}, intercomBridge: {} } as never,
 			asyncByDefault: false,
@@ -1022,7 +1022,7 @@ describe("supervisor ask registration", () => {
 		let starts = 0;
 		let unrefs = 0;
 		const sent: string[] = [];
-		const pi = {
+		const evoharness = {
 			getAllTools: () => [],
 			registerTool() {},
 			getSessionName: () => "parent",
@@ -1036,7 +1036,7 @@ describe("supervisor ask registration", () => {
 				if (message.details?.id) sent.push(message.details.id);
 			},
 		};
-		const channel = createNativeSupervisorChannel(pi as never, state, {
+		const channel = createNativeSupervisorChannel(evoharness as never, state, {
 			platform: "darwin",
 			watch: (() => {
 				throw new Error("Darwin must not call fs.watch");
@@ -1065,7 +1065,7 @@ describe("supervisor ask registration", () => {
 		};
 		let terminal: () => void = () => {};
 		const executor = createSubagentExecutor({
-			pi: pi as never,
+			evoharness: evoharness as never,
 			state,
 			config: { maxSubagentDepth: 2, control: {}, intercomBridge: {} } as never,
 			asyncByDefault: false,
@@ -1155,7 +1155,7 @@ describe("supervisor ask registration", () => {
 			async function start(owner) {
 				const handlers = new Map();
 				const tools = new Map();
-				const pi = new Proxy({
+				const evoharness = new Proxy({
 					events: { on() { return () => {}; }, emit() {} },
 					on(name, handler) { handlers.set(name, [...(handlers.get(name) ?? []), handler]); },
 					getAllTools() { return [...tools.keys()].map(name => ({ name })); },
@@ -1175,7 +1175,7 @@ describe("supervisor ask registration", () => {
 					},
 					modelRegistry: { getAvailable() { return []; } },
 				};
-				registerExtension(pi);
+				registerExtension(evoharness);
 				for (const handler of handlers.get("session_start") ?? []) await handler({ reason: "startup" }, ctx);
 				stale = true;
 				// Exercise the production stale-context clearing path, not direct state assignment.
@@ -1214,7 +1214,7 @@ describe("supervisor ask registration", () => {
 			}
 		`;
 		const env = { ...process.env };
-		delete env.PI_SUBAGENT_CHILD;
+		delete env.EVOHARNESS_SUBAGENT_CHILD;
 		execFileSync(
 			process.execPath,
 			[
@@ -1471,14 +1471,14 @@ describe("supervisor ask registration", () => {
 		state.lastUiContext = null;
 		let attempts = 0;
 		let requestFile = "";
-		const pi = makePi({
+		const evoharness = makePi({
 			tools,
 			onSend: (message) => {
 				attempts++;
 				assert.fail(`progress update should not be sent: ${message.content}`);
 			},
 		});
-		const channel = createNativeSupervisorChannel(pi as never, state, { platform: "darwin" });
+		const channel = createNativeSupervisorChannel(evoharness as never, state, { platform: "darwin" });
 		try {
 			channel.start();
 			const requestId = writeRequest({ sessionId, runId, reason: "progress_update" });
@@ -1504,7 +1504,7 @@ describe("supervisor ask registration", () => {
 		const sessionId = `session-${randomUUID()}`;
 		const runId = `run-${randomUUID()}`;
 		const handlers = new Map<string, Set<(event: unknown) => void>>();
-		const pi = {
+		const evoharness = {
 			...makePi({ tools: new Map() }),
 			on(name: string, handler: (event: unknown) => void) {
 				const set = handlers.get(name) ?? new Set();
@@ -1518,7 +1518,7 @@ describe("supervisor ask registration", () => {
 			for (const handler of handlers.get(name) ?? []) handler(event);
 		};
 		let appended = false;
-		const channel = createNativeSupervisorChannel(pi as never, makeState(sessionId, makeCtx(sessionId)), {
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(sessionId, makeCtx(sessionId)), {
 			platform: "darwin",
 			parentWake: { sendMessage: () => appended },
 		});
@@ -1536,7 +1536,7 @@ describe("supervisor ask registration", () => {
 			channel.hasPendingRequests();
 			assert.ok(
 				expiresAt(queued) > Date.now() + 500,
-				"a notice Pi queued behind a busy run must not let the ask expire unread",
+				"a notice evoharness queued behind a busy run must not let the ask expire unread",
 			);
 			await new Promise((resolve) => setTimeout(resolve, 200));
 			assert.equal(channel.hasPendingRequests(), true);
@@ -1584,14 +1584,14 @@ describe("supervisor ask registration", () => {
 		const runId = `run-${randomUUID()}`;
 		const requestId = writeRequest({ sessionId, runId });
 		const tools = new Map<string, SupervisorTool>();
-		const pi = makePi({
+		const evoharness = makePi({
 			tools,
 			onSend: () => {
 				throw new Error("no UI attached");
 			},
 		});
 		const secondId = writeRequest({ sessionId, runId });
-		const channel = createNativeSupervisorChannel(pi as never, makeState(sessionId, makeCtx(sessionId)), {
+		const channel = createNativeSupervisorChannel(evoharness as never, makeState(sessionId, makeCtx(sessionId)), {
 			platform: "darwin",
 		});
 

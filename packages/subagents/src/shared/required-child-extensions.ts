@@ -95,7 +95,7 @@ interface Registry {
 }
 
 function registry(): Registry {
-	const key = Symbol.for("pi-subagents.required-child-extensions.v1");
+	const key = Symbol.for("subagents.required-child-extensions.v1");
 	const root = globalThis as Record<PropertyKey, unknown>;
 	const existing = root[key];
 	if (existing === undefined) {
@@ -178,12 +178,12 @@ export function assertRequiredChildExtensionsAdmitted(
 	if (ids.length === 0) return;
 	const route = launch.machine
 		? `machine '${launch.machine}'`
-		: launch.runnerType !== undefined && launch.runnerType !== "pi"
+		: launch.runnerType !== undefined && launch.runnerType !== "evoharness"
 			? `runner.type='${launch.runnerType}'`
 			: undefined;
 	if (route)
 		throw new Error(
-			`Agent '${launch.agent}' cannot run on ${route}: the host requires child extensions (${ids.join(", ")}) for every runner, and only local native Pi children load them.`,
+			`Agent '${launch.agent}' cannot run on ${route}: the host requires child extensions (${ids.join(", ")}) for every runner, and only local native evoharness children load them.`,
 		);
 }
 

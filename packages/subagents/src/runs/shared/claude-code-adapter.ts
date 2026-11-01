@@ -58,7 +58,7 @@ export const CLAUDE_CODE_ENV_ALLOWLIST = [
 ] as const;
 
 /**
- * Claude Code exposes a five-value `--effort` scale. Pi's thinking vocabulary is
+ * Claude Code exposes a five-value `--effort` scale. evoharness's thinking vocabulary is
  * wider, so the extra levels collapse onto the nearest supported value and `off`
  * means "pass no flag at all".
  */
@@ -96,8 +96,8 @@ export interface ClaudeCodeAgentModel {
 }
 
 /**
- * The model an agent pins for itself. `subagents.defaultModel` is a Pi child
- * model, so it is a default for Pi children only and never becomes `--model`.
+ * The model an agent pins for itself. `subagents.defaultModel` is a evoharness child
+ * model, so it is a default for evoharness children only and never becomes `--model`.
  */
 function agentPinnedModel(agent: ClaudeCodeAgentModel | undefined): string | undefined {
 	const model = typeof agent?.model === "string" ? agent.model : undefined;
@@ -125,10 +125,10 @@ function combineClaudeCodeModel(launch: string | undefined, pinned: string | und
  * adapter. Returns undefined when neither was requested, so the CLI falls back
  * to its own configured default.
  *
- * The level travels as the same `:level` suffix Pi children use:
+ * The level travels as the same `:level` suffix evoharness children use:
  * `model: "claude-opus-5.5:high"` pins the model and the effort, and a bare
  * `model: ":high"` takes the effort alone on the agent's own model. A suffix
- * wins over the frontmatter `thinking` value, which is the precedence Pi
+ * wins over the frontmatter `thinking` value, which is the precedence evoharness
  * children already use.
  *
  * Values are validated here because this module owns the adapter's argv: every
@@ -187,7 +187,7 @@ export function resolveClaudeCodeOverride(input: {
 }
 
 /**
- * A Claude Code launch pins a model the Pi registry does not know, so an enforced
+ * A Claude Code launch pins a model the evoharness registry does not know, so an enforced
  * model scope can only be honored by checking the id the CLI will actually run.
  * A launch that pins nothing cannot be checked at all, and an enforced scope must
  * not be bypassed by staying silent.

@@ -55,7 +55,7 @@ interface AsyncJobTrackerOptions {
 	platform?: NodeJS.Platform;
 	onJobTerminal?: (job: AsyncJobState) => void;
 	onJobCleanup?: (asyncId: string) => void;
-	/** Lets a run whose launching Pi exited hold its publication in the session that owns it. */
+	/** Lets a run whose launching evoharness exited hold its publication in the session that owns it. */
 	deliveryOwnerId?: ResultDeliveryOwnership["deliveryOwnerId"];
 	watch?: typeof fs.watch;
 	kill?: (pid: number, signal?: NodeJS.Signals | 0) => boolean;
@@ -109,7 +109,7 @@ function rememberFleetJob(state: SubagentState, job: AsyncJobState): void {
 }
 
 export function createAsyncJobTracker(
-	pi: Pick<ExtensionAPI, "events">,
+	evoharness: Pick<ExtensionAPI, "events">,
 	state: SubagentState,
 	asyncDirRoot: string,
 	options: AsyncJobTrackerOptions = {},
@@ -156,7 +156,7 @@ export function createAsyncJobTracker(
 	};
 	const rerenderWidget = (ctx: ExtensionContext, jobs = Array.from(state.asyncJobs.values())) => {
 		options.onJobsChanged?.();
-		pi.events.emit(SUBAGENT_JOBS_CHANGED_EVENT, { version: 1 });
+		evoharness.events.emit(SUBAGENT_JOBS_CHANGED_EVENT, { version: 1 });
 		if (state.widgetsSuspended) return;
 		renderWidget(ctx, options.widgetEnabled === false ? [] : jobs, options.widgetCollapsed, options.widgetLayout);
 		(ctx.ui as { requestRender?: () => void }).requestRender?.();
@@ -288,7 +288,7 @@ export function createAsyncJobTracker(
 	};
 	const deliverControlRecord = (record: ControlRecord, payload: ControlPayload) => {
 		if (record.channels.includes("event")) {
-			pi.events.emit(SUBAGENT_CONTROL_EVENT, payload);
+			evoharness.events.emit(SUBAGENT_CONTROL_EVENT, payload);
 		}
 		if (
 			record.event.type !== "active_long_running" &&
@@ -296,7 +296,7 @@ export function createAsyncJobTracker(
 			record.intercom?.to &&
 			record.intercom.message
 		) {
-			pi.events.emit(SUBAGENT_CONTROL_INTERCOM_EVENT, {
+			evoharness.events.emit(SUBAGENT_CONTROL_INTERCOM_EVENT, {
 				...payload,
 				to: record.intercom.to,
 				message: record.intercom.message,
@@ -373,7 +373,7 @@ export function createAsyncJobTracker(
 					)
 						return;
 					try {
-						pi.events.emit(SUBAGENT_CHILD_STATUS_EVENT, {
+						evoharness.events.emit(SUBAGENT_CHILD_STATUS_EVENT, {
 							type: "subagent.child-status",
 							version: 1,
 							runId: event.runId,
@@ -416,7 +416,7 @@ export function createAsyncJobTracker(
 								steeringNoticeSeen.delete(seenKey);
 						}
 					}
-					pi.events.emit(SUBAGENT_STEERING_NOTICE_EVENT, {
+					evoharness.events.emit(SUBAGENT_STEERING_NOTICE_EVENT, {
 						...notice,
 						source: "async",
 						asyncDir: job.asyncDir,
@@ -445,7 +445,7 @@ export function createAsyncJobTracker(
 				if (supervisorRequest && record.event.currentTool !== "intercom") {
 					// Status and waits still react now; the parent notice and intercom copy wait for the grace period.
 					if (record.channels.includes("event"))
-						pi.events.emit(SUBAGENT_CONTROL_EVENT, { ...payload, noticeDeferred: true });
+						evoharness.events.emit(SUBAGENT_CONTROL_EVENT, { ...payload, noticeDeferred: true });
 					scheduleSupervisorNotice(job.asyncId, record, payload);
 					return;
 				}
@@ -1006,7 +1006,7 @@ export function createAsyncJobTracker(
 		if (!state.currentSessionId) return;
 		let runs: AsyncRunSummary[];
 		try {
-			// A workflow whose Pi exited is repaired here, in the session that owns it, which then delivers its notice.
+			// A workflow whose evoharness exited is repaired here, in the session that owns it, which then delivers its notice.
 			runs = listAsyncRuns(
 				asyncDirRoot,
 				{

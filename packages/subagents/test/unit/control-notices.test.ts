@@ -38,7 +38,7 @@ function makeRecorder() {
 	const sent: Array<{ message: unknown; options: unknown }> = [];
 	return {
 		sent,
-		pi: {
+		evoharness: {
 			sendMessage(message: unknown, options: unknown) {
 				sent.push({ message, options });
 			},
@@ -52,7 +52,7 @@ describe("subagent control notice delivery", () => {
 		const recorder = makeRecorder();
 
 		handleSubagentControlNotice({
-			pi: recorder.pi,
+			evoharness: recorder.evoharness,
 			state,
 			visibleControlNotices: new Set(),
 			details: { source: "async", event: needsAttentionEvent() },
@@ -67,7 +67,7 @@ describe("subagent control notice delivery", () => {
 		const recorder = makeRecorder();
 
 		handleSubagentControlNotice({
-			pi: recorder.pi,
+			evoharness: recorder.evoharness,
 			state,
 			visibleControlNotices: new Set(),
 			details: { source: "goal", event: needsAttentionEvent(), noticeText: "Goal is ready." },
@@ -80,7 +80,7 @@ describe("subagent control notice delivery", () => {
 	it("sends nothing for a deferred supervisor-request status event", () => {
 		const recorder = makeRecorder();
 		handleSubagentControlNotice({
-			pi: recorder.pi,
+			evoharness: recorder.evoharness,
 			state: makeState(),
 			visibleControlNotices: new Set(),
 			details: {
@@ -92,7 +92,7 @@ describe("subagent control notice delivery", () => {
 		assert.deepEqual(recorder.sent, []);
 	});
 
-	it("does not queue a foreground notice that Pi could flush after completion", () => {
+	it("does not queue a foreground notice that evoharness could flush after completion", () => {
 		const state = makeState();
 		state.foregroundControls.set("run-1", {
 			runId: "run-1",
@@ -105,14 +105,14 @@ describe("subagent control notice delivery", () => {
 		});
 		const queued: Array<{ message: unknown; options: unknown }> = [];
 		const visible: Array<{ message: unknown; options: unknown }> = [];
-		const pi = {
+		const evoharness = {
 			sendMessage(message: unknown, options: unknown) {
 				queued.push({ message, options });
 			},
 		};
 
 		handleSubagentControlNotice({
-			pi,
+			evoharness,
 			state,
 			visibleControlNotices: new Set(),
 			details: { source: "foreground", event: needsAttentionEvent() },

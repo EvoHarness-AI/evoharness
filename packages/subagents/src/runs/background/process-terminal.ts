@@ -307,7 +307,7 @@ export function finalizeProcessTerminal(
 			} else if (inconsistentWriters || (allWriters.length === 0 && expectedEntries.length === 0)) {
 				proof = unknownProof(runId, runnerClose.processInstanceId, "writer-close-unverified");
 			} else if (
-				allWriters.some((writer) => writer.kind === "pi-writer" && writer.processTree.state !== "observed")
+				allWriters.some((writer) => writer.kind === "host-writer" && writer.processTree.state !== "observed")
 			) {
 				proof = unknownProof(runId, runnerClose.processInstanceId, "process-tree-unverified");
 			} else {

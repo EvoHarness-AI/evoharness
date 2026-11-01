@@ -11,11 +11,11 @@ import { validateAcceptanceInput } from "../shared/acceptance.ts";
 
 export const MAX_REMEMBERED_FOREGROUND_RUNS = 50;
 export const FOREGROUND_OWNER_EXITED_STOP_ERROR =
-	"Subagent stopped because the Pi process that ran it exited before the run finished.";
+	"Subagent stopped because the evoharness process that ran it exited before the run finished.";
 const MAX_INLINE_OUTPUT_BYTES = 64 * 1024;
 const MAX_RESUME_CONTRACT_BYTES = 64 * 1024;
 
-// One file per run, so Pi processes sharing the results dir never rewrite each other's records.
+// One file per run, so evoharness processes sharing the results dir never rewrite each other's records.
 function historyDir(resultsDir: string): string {
 	return path.join(resultsDir, "foreground-history");
 }
@@ -76,7 +76,7 @@ function hasRunningChild(run: Pick<ForegroundResumeRun, "children">): boolean {
 	return run.children.some((child) => child.status === "running");
 }
 
-/** A `running` record is kept only for a single run whose owning Pi process can be probed later. */
+/** A `running` record is kept only for a single run whose owning evoharness process can be probed later. */
 function isAdmittedChildStatus(run: Partial<ForegroundResumeRun>, status: unknown): boolean {
 	return (
 		isRestorableForegroundStatus(status) ||
@@ -209,7 +209,7 @@ function pruneHistory(dir: string, limit: number): void {
 		.sort((left, right) => left.mtimeMs - right.mtimeMs);
 	for (const { name, mtimeMs } of byAge.slice(0, byAge.length - limit)) {
 		const filePath = path.join(dir, name);
-		// A running record is replaced later by its run's final save, possibly in another Pi process;
+		// A running record is replaced later by its run's final save, possibly in another evoharness process;
 		// once its owner is confirmed dead nothing can replace it, so it is final.
 		const run = readRunFile(filePath);
 		if (run && hasRunningChild(run) && !ownerConfirmedDead(run)) continue;
@@ -251,13 +251,13 @@ export function discardRunningForegroundRun(runId: string, options: { resultsDir
 	if (run && hasRunningChild(run) && run.owner?.pid === process.pid) fs.rmSync(filePath, { force: true });
 }
 
-/** For a record with a `running` child: its owning Pi process is gone. */
+/** For a record with a `running` child: its owning evoharness process is gone. */
 export function ownerConfirmedDead(run: ForegroundResumeRun): boolean {
 	// readRunFile admits a running child only with a valid owner.
 	return checkRecordedPidLiveness(run.owner!) === "dead";
 }
 
-/** A run whose owning Pi process is gone loads as stopped and resumable; one whose owner may be alive is not loaded. */
+/** A run whose owning evoharness process is gone loads as stopped and resumable; one whose owner may be alive is not loaded. */
 function restoreInterruptedRun(run: ForegroundResumeRun): ForegroundResumeRun | undefined {
 	if (!ownerConfirmedDead(run)) return undefined;
 	const { owner: _owner, ...rest } = run;
@@ -285,14 +285,16 @@ function restoreInterruptedRun(run: ForegroundResumeRun): ForegroundResumeRun | 
 	};
 }
 
-/** State text for a remembered child; a child cut off by a Pi exit names the resume target. */
+/** State text for a remembered child; a child cut off by a evoharness exit names the resume target. */
 export function foregroundChildStateLabel(
 	run: Pick<ForegroundResumeRun, "runId">,
 	child: Pick<ForegroundResumeChild, "status" | "error" | "sessionFile">,
 ): string {
 	if (child.status !== "stopped" || child.error !== FOREGROUND_OWNER_EXITED_STOP_ERROR) return child.status;
 	// Without a transcript there is nothing to resume from.
-	return child.sessionFile ? `interrupted when Pi exited · resume ${run.runId}` : "interrupted when Pi exited";
+	return child.sessionFile
+		? `interrupted when evoharness exited · resume ${run.runId}`
+		: "interrupted when evoharness exited";
 }
 
 export function restoreForegroundRunHistory(

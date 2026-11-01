@@ -46,7 +46,7 @@ describe("bounded index segments", () => {
 	});
 
 	it("indexes and releases active runs with oversized provider tool-call ids", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-active-index-long-tool-call-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-active-index-long-tool-call-"));
 		try {
 			const asyncDir = path.join(root, "workflow-run");
 			const toolCallId = `call_${"opaque/+=".repeat(80)}`;
@@ -87,7 +87,7 @@ describe("bounded index segments", () => {
 	});
 
 	it("keeps the authoritative marker when optional tool-call indexing fails", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-active-index-optional-alias-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-active-index-optional-alias-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -108,7 +108,7 @@ describe("bounded index segments", () => {
 	});
 
 	it("readStatus safely handles oversized directory paths without throwing ENAMETOOLONG", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-read-status-long-path-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-read-status-long-path-"));
 		try {
 			const longSegment = "x".repeat(300);
 			const longDir = path.join(root, longSegment);
@@ -143,7 +143,7 @@ describe("bounded index segments", () => {
 	});
 
 	it("surfaces ENAMETOOLONG errors from status reads", (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-read-status-read-error-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-read-status-read-error-"));
 		const asyncDir = path.join(root, "short-status-id");
 		const statusPath = path.join(asyncDir, "status.json");
 		const error = new Error("unrelated status read path too long") as NodeJS.ErrnoException;

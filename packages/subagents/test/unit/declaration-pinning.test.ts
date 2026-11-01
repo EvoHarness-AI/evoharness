@@ -23,9 +23,9 @@ import { SubagentFlatParams } from "../../src/extension/schemas.ts";
 
 const systemMessages = (messages: Message[]) => messages.filter((message) => message.role === "system");
 
-/** A temporary Pi agent directory and project that load pi-subagents, and a way to run one session in them. */
+/** A temporary evoharness agent directory and project that load subagents, and a way to run one session in them. */
 function pinningHarness() {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-declaration-pinning-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-declaration-pinning-"));
 	const cwd = path.join(root, "project");
 	const agentDir = path.join(root, "agent");
 	fs.mkdirSync(cwd);
@@ -37,9 +37,9 @@ function pinningHarness() {
 		"---\nname: specialist\ndescription: Pinning specialist\nadvertise: true\n---\nAct narrowly.\n",
 	);
 	const priorAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
-	const priorChild = process.env.PI_SUBAGENT_CHILD;
+	const priorChild = process.env.EVOHARNESS_SUBAGENT_CHILD;
 	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-	delete process.env.PI_SUBAGENT_CHILD;
+	delete process.env.EVOHARNESS_SUBAGENT_CHILD;
 	const faux = fauxProvider({ provider: "declaration-pinning", models: [{ id: "local" }], tokensPerSecond: 100_000 });
 	// Runs one prompt, and optionally a background wake, and returns the messages of every request.
 	const run = async (
@@ -54,7 +54,7 @@ function pinningHarness() {
 				return reply;
 			}),
 		);
-		// Pi loads extensions again for every session it starts or resumes.
+		// evoharness loads extensions again for every session it starts or resumes.
 		const settingsManager = SettingsManager.inMemory({});
 		const resourceLoader = new DefaultResourceLoader({
 			cwd,
@@ -65,7 +65,7 @@ function pinningHarness() {
 			noPromptTemplates: true,
 			noThemes: true,
 			noContextFiles: true,
-			extensionFactories: [registerSubagentExtension, (pi) => pi.registerProvider(faux.provider)],
+			extensionFactories: [registerSubagentExtension, (evoharness) => evoharness.registerProvider(faux.provider)],
 		});
 		await resourceLoader.reload();
 		const modelRuntime = await ModelRuntime.create({
@@ -105,15 +105,15 @@ function pinningHarness() {
 	const dispose = () => {
 		if (priorAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 		else process.env.EVOHARNESS_CODING_AGENT_DIR = priorAgentDir;
-		if (priorChild === undefined) delete process.env.PI_SUBAGENT_CHILD;
-		else process.env.PI_SUBAGENT_CHILD = priorChild;
+		if (priorChild === undefined) delete process.env.EVOHARNESS_SUBAGENT_CHILD;
+		else process.env.EVOHARNESS_SUBAGENT_CHILD = priorChild;
 		fs.rmSync(root, { recursive: true, force: true });
 	};
 	return { cwd, agentDir, run, dispose };
 }
 
 it(
-	"keeps a resumed session on the pi-subagents tools and prompt text it declared, gives a new session the current ones, and re-declares them when pinToolDeclarations is false",
+	"keeps a resumed session on the subagents tools and prompt text it declared, gives a new session the current ones, and re-declares them when pinToolDeclarations is false",
 	{ timeout: 30_000 },
 	async () => {
 		const { cwd, agentDir, run, dispose } = pinningHarness();
@@ -123,7 +123,7 @@ it(
 			const original = SessionManager.inMemory(cwd);
 			const [first] = await run(original, [fauxAssistantMessage("ok")]);
 
-			// The same session as recorded by an older pi-subagents release.
+			// The same session as recorded by an older subagents release.
 			const older = structuredClone(original.getEntries());
 			const entry = older.find((candidate) => candidate.type === "message" && candidate.message.role === "system");
 			assert.ok(entry?.type === "message" && entry.message.role === "system");
@@ -217,11 +217,11 @@ it(
 	{ timeout: 30_000 },
 	async () => {
 		const { cwd, run, dispose } = pinningHarness();
-		// Pi's codemode appends this to each declared script-callable tool and records the result.
+		// evoharness's codemode appends this to each declared script-callable tool and records the result.
 		const note = "\n\nCodemode: `tools.bg_wait(args)` resolves to a string.";
 		const declaredTool = (messages: Message[], name: string) =>
 			getCurrentSystemMessage(messages)!.toolsAdded!.find((tool) => tool.name === name)!;
-		// The host decorates what pi-subagents registered: the newest recorded bg_wait gets the note.
+		// The host decorates what subagents registered: the newest recorded bg_wait gets the note.
 		const decorate = (entries: ReturnType<SessionManager["getEntries"]>) => {
 			const latest = entries.findLast(
 				(entry) =>

@@ -4,7 +4,7 @@ import type { AsyncJobState } from "../shared/types.ts";
 
 /**
  * Reports each subagent run to the terminal with OSC 7501, the Program Status Protocol
- * (https://www.superlogical.com/rex/docs/build/program-status). Pi owns the root record;
+ * (https://www.superlogical.com/rex/docs/build/program-status). evoharness owns the root record;
  * runs live under `subagents/`.
  */
 
@@ -36,7 +36,7 @@ export interface ProgramStatusReporter {
 	agentStarted(): void;
 	agentSettled(): void;
 	/**
-	 * Stops reporting. Unless Pi is quitting, clears every record sent, since the runtime that replaces
+	 * Stops reporting. Unless evoharness is quitting, clears every record sent, since the runtime that replaces
 	 * this one cannot clear them. On quit, finished records stay for the user, as the spec intends.
 	 */
 	dispose(shutdownReason?: string): void;
@@ -127,7 +127,7 @@ function programStatusReport(fields: {
 	msg?: string;
 }): string {
 	const pairs = [`state=${fields.state}`, `id=${fields.id}`];
-	if (fields.state !== "clear") pairs.push("app=pi-subagents");
+	if (fields.state !== "clear") pairs.push("app=subagents");
 	if (fields.kind) pairs.push(`kind=${fields.kind}`);
 	if (fields.title !== undefined) pairs.push(`title=${encodeText(fields.title, MAX_TITLE_BYTES)}`);
 	if (fields.msg !== undefined) pairs.push(`msg=${encodeText(fields.msg, MAX_MSG_BYTES)}`);
@@ -147,7 +147,7 @@ export function registerProgramStatusReporter(options: ProgramStatusReporterOpti
 	let parentIdle = true;
 	// A request counts as waiting on the user only after the parent settled without answering it.
 	let unansweredAtSettle = new Set<string>();
-	// Pi clears every OSC 7501 record when it suspends on Ctrl+Z and re-reports only its own root
+	// evoharness clears every OSC 7501 record when it suspends on Ctrl+Z and re-reports only its own root
 	// record on resume, so the records this extension shows are sent again.
 	const resend = (): void => {
 		if (!active) return;

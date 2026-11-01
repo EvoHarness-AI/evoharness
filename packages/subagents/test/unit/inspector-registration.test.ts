@@ -94,7 +94,7 @@ describe("external inspector registration", () => {
 	});
 
 	it("routes existing inspector actions and launch permissions to a registered provider without fallback on failure", async (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspector-registration-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspector-registration-"));
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		const asyncDir = path.join(root, "run-provider");
 		fs.mkdirSync(asyncDir);
@@ -213,7 +213,7 @@ describe("inspector open and close serialization", () => {
 	}
 
 	function runDir(t: { after(fn: () => void): void }) {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspector-serialize-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-inspector-serialize-"));
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		fs.mkdirSync(path.join(root, "run-serial"));
 		fs.writeFileSync(

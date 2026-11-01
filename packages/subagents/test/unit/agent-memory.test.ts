@@ -45,7 +45,7 @@ function mkdtemp(prefix: string): string {
 }
 
 function withTempHome<T>(fn: (home: string) => T): T {
-	const home = mkdtemp("pi-subagents-mem-home-");
+	const home = mkdtemp("subagents-mem-home-");
 	const oldHome = process.env.HOME;
 	const oldUserProfile = process.env.USERPROFILE;
 	const oldPiCodingAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -64,9 +64,9 @@ function withTempHome<T>(fn: (home: string) => T): T {
 	}
 }
 
-// Create a temp project root that findNearestProjectRoot will recognise (.pi dir present).
+// Create a temp project root that findNearestProjectRoot will recognise (.evoharness dir present).
 function mkProject(): string {
-	const dir = mkdtemp("pi-subagents-mem-project-");
+	const dir = mkdtemp("subagents-mem-project-");
 	fs.mkdirSync(path.join(dir, ".evoharness", "agents"), { recursive: true });
 	return dir;
 }
@@ -151,26 +151,26 @@ describe("agentHasWriteTools", () => {
 
 describe("resolveMemoryDir", () => {
 	it("resolves a simple and nested path under the root", () => {
-		const root = mkdtemp("pi-subagents-mem-root-");
+		const root = mkdtemp("subagents-mem-root-");
 		assert.deepEqual(resolveMemoryDir(root, "reviewer"), { dir: path.join(root, "reviewer") });
 		assert.deepEqual(resolveMemoryDir(root, "team/reviewer"), { dir: path.join(root, "team", "reviewer") });
 	});
 
 	it("rejects empty paths", () => {
-		const root = mkdtemp("pi-subagents-mem-root-");
+		const root = mkdtemp("subagents-mem-root-");
 		assert.ok("error" in resolveMemoryDir(root, ""));
 		assert.ok("error" in resolveMemoryDir(root, "   "));
 	});
 
 	it("rejects dot and parent segments", () => {
-		const root = mkdtemp("pi-subagents-mem-root-");
+		const root = mkdtemp("subagents-mem-root-");
 		assert.ok("error" in resolveMemoryDir(root, "."));
 		assert.ok("error" in resolveMemoryDir(root, ".."));
 		assert.ok("error" in resolveMemoryDir(root, "a/../b"));
 	});
 
 	it("rejects absolute and Windows drive-like paths", () => {
-		const root = mkdtemp("pi-subagents-mem-root-");
+		const root = mkdtemp("subagents-mem-root-");
 		assert.ok("error" in resolveMemoryDir(root, "/tmp/reviewer"));
 		assert.ok("error" in resolveMemoryDir(root, "C:\\Users\\reviewer"));
 		assert.ok("error" in resolveMemoryDir(root, "C:reviewer"));
@@ -178,8 +178,8 @@ describe("resolveMemoryDir", () => {
 	});
 
 	it("rejects a symlinked ancestor before prompting a first write", () => {
-		const root = mkdtemp("pi-subagents-mem-root-");
-		const outside = mkdtemp("pi-subagents-mem-outside-");
+		const root = mkdtemp("subagents-mem-root-");
+		const outside = mkdtemp("subagents-mem-outside-");
 		const linkPath = path.join(root, "leak");
 		try {
 			fs.symlinkSync(outside, linkPath);
@@ -191,8 +191,8 @@ describe("resolveMemoryDir", () => {
 	});
 
 	it("rejects a memory dir that is a symlink escaping the root", () => {
-		const root = mkdtemp("pi-subagents-mem-root-");
-		const outside = mkdtemp("pi-subagents-mem-outside-");
+		const root = mkdtemp("subagents-mem-root-");
+		const outside = mkdtemp("subagents-mem-outside-");
 		const linkPath = path.join(root, "leak");
 		try {
 			fs.symlinkSync(outside, linkPath);
@@ -207,12 +207,12 @@ describe("resolveMemoryDir", () => {
 
 describe("readMemoryFile", () => {
 	it("returns null when no memory file exists", () => {
-		const dir = mkdtemp("pi-subagents-mem-dir-");
+		const dir = mkdtemp("subagents-mem-dir-");
 		assert.equal(readMemoryFile(dir), null);
 	});
 
 	it("skips a FIFO with no writer without blocking", { skip: process.platform === "win32" }, () => {
-		const dir = mkdtemp("pi-subagents-mem-fifo-");
+		const dir = mkdtemp("subagents-mem-fifo-");
 		execFileSync("mkfifo", [path.join(dir, AGENT_MEMORY_FILE)]);
 		// Isolate the synchronous read so a regression cannot hang the test runner.
 		const moduleUrl = new URL("../../src/agents/agent-memory.ts", import.meta.url).href;
@@ -230,7 +230,7 @@ console.log(readMemoryFile(process.argv[1]));`;
 	});
 
 	it("reads contents and reports byte capping", () => {
-		const dir = mkdtemp("pi-subagents-mem-dir-");
+		const dir = mkdtemp("subagents-mem-dir-");
 		writeMemoryFile(dir, "line one\nline two\n");
 		const result = readMemoryFile(dir);
 		assert.ok(result && typeof result === "object" && !("error" in result) && result !== "unsafe");
@@ -239,7 +239,7 @@ console.log(readMemoryFile(process.argv[1]));`;
 	});
 
 	it("flags byte-capped contents", () => {
-		const dir = mkdtemp("pi-subagents-mem-dir-");
+		const dir = mkdtemp("subagents-mem-dir-");
 		const bigLine = "x".repeat(500);
 		writeMemoryFile(dir, Array.from({ length: 50 }, () => bigLine).join("\n"));
 		const result = readMemoryFile(dir);
@@ -248,7 +248,7 @@ console.log(readMemoryFile(process.argv[1]));`;
 	});
 
 	it("does not return more than the memory byte cap", () => {
-		const dir = mkdtemp("pi-subagents-mem-dir-");
+		const dir = mkdtemp("subagents-mem-dir-");
 		writeMemoryFile(dir, "x".repeat(1024 * 1024));
 		const result = readMemoryFile(dir);
 		assert.ok(result && result !== "unsafe");
@@ -257,8 +257,8 @@ console.log(readMemoryFile(process.argv[1]));`;
 	});
 
 	it("rejects a symlinked memory file that escapes the memory dir", () => {
-		const dir = mkdtemp("pi-subagents-mem-dir-");
-		const outsideFile = path.join(mkdtemp("pi-subagents-mem-outside-"), "secret.md");
+		const dir = mkdtemp("subagents-mem-dir-");
+		const outsideFile = path.join(mkdtemp("subagents-mem-outside-"), "secret.md");
 		fs.writeFileSync(outsideFile, "leaked", "utf-8");
 		try {
 			fs.symlinkSync(outsideFile, path.join(dir, AGENT_MEMORY_FILE));
@@ -302,7 +302,7 @@ describe("buildAgentMemoryInjection", () => {
 	});
 
 	it("resolves project memory through a linked worktree when Git trace writes to stderr", () => {
-		const root = mkdtemp("pi-subagents-mem-worktree-");
+		const root = mkdtemp("subagents-mem-worktree-");
 		const project = path.join(root, "project");
 		const worktree = path.join(root, "worktree");
 		fs.mkdirSync(path.join(project, ".evoharness", "agents"), { recursive: true });
@@ -353,7 +353,7 @@ describe("buildAgentMemoryInjection", () => {
 	});
 
 	it("maps nested project memory from a linked worktree to the same main-checkout path", () => {
-		const root = mkdtemp("pi-subagents-mem-nested-worktree-");
+		const root = mkdtemp("subagents-mem-nested-worktree-");
 		const project = path.join(root, "project");
 		const worktree = path.join(root, "worktree");
 		const nested = path.join("packages", "app");
@@ -378,7 +378,7 @@ describe("buildAgentMemoryInjection", () => {
 
 	it("rejects a forged marker pointing at another repository's valid worktree metadata", () => {
 		const project = mkProject();
-		const other = path.join(mkdtemp("pi-subagents-mem-other-repo-"), "project");
+		const other = path.join(mkdtemp("subagents-mem-other-repo-"), "project");
 		const otherWorktree = path.join(path.dirname(other), "worktree");
 		fs.mkdirSync(other, { recursive: true });
 		fs.writeFileSync(path.join(other, "tracked.txt"), "fixture\n");
@@ -399,7 +399,7 @@ describe("buildAgentMemoryInjection", () => {
 
 	it("rejects self-consistent forged worktree metadata that Git does not recognize", () => {
 		const project = mkProject();
-		const fakeMain = mkdtemp("pi-subagents-mem-forged-main-");
+		const fakeMain = mkdtemp("subagents-mem-forged-main-");
 		const fakeWorktreeGitDir = path.join(fakeMain, ".git", "worktrees", "forged");
 		fs.mkdirSync(fakeWorktreeGitDir, { recursive: true });
 		fs.writeFileSync(path.join(project, ".git"), `gitdir: ${fakeWorktreeGitDir}\n`);
@@ -415,7 +415,7 @@ describe("buildAgentMemoryInjection", () => {
 	});
 
 	it("uses the Git root when a linked worktree has no local project config directory", () => {
-		const root = mkdtemp("pi-subagents-mem-unconfigured-worktree-");
+		const root = mkdtemp("subagents-mem-unconfigured-worktree-");
 		const project = path.join(root, "project");
 		const worktree = path.join(root, "worktree");
 		fs.mkdirSync(project, { recursive: true });
@@ -429,7 +429,7 @@ describe("buildAgentMemoryInjection", () => {
 	});
 
 	it("keeps project memory checkout-local for unsupported separate Git directories", () => {
-		const root = mkdtemp("pi-subagents-mem-separate-git-dir-");
+		const root = mkdtemp("subagents-mem-separate-git-dir-");
 		const project = path.join(root, "project");
 		const gitDir = path.join(root, "metadata");
 		fs.mkdirSync(path.join(project, ".evoharness", "agents"), { recursive: true });
@@ -486,7 +486,7 @@ describe("buildAgentMemoryInjection", () => {
 	});
 
 	it("returns empty for project scope when no project root is found", () => {
-		const nowhere = mkdtemp("pi-subagents-mem-noroot-");
+		const nowhere = mkdtemp("subagents-mem-noroot-");
 		// Skip deterministically if an ancestor happens to register as a project root.
 		if (findNearestProjectRoot(nowhere) !== null) return;
 		const agent = makeAgent({ memory: { scope: "project", path: "x" }, tools: ["read"] });
@@ -503,7 +503,7 @@ describe("buildAgentMemoryInjection", () => {
 		const project = mkProject();
 		const memoryDir = path.join(project, ".evoharness", AGENT_MEMORY_DIR_NAME, "leak");
 		fs.mkdirSync(memoryDir, { recursive: true });
-		const outsideFile = path.join(mkdtemp("pi-subagents-mem-outside-"), "secret.md");
+		const outsideFile = path.join(mkdtemp("subagents-mem-outside-"), "secret.md");
 		fs.writeFileSync(outsideFile, "leaked", "utf-8");
 		try {
 			fs.symlinkSync(outsideFile, path.join(memoryDir, AGENT_MEMORY_FILE));

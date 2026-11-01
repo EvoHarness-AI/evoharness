@@ -18,14 +18,14 @@ A background child awaited by an `async: false` workflow cannot receive a superv
 
 Child-safety boundaries are enforced at runtime:
 
-- Child sessions do not receive the bundled `pi-subagents` skill.
+- Child sessions do not receive the bundled `subagents` skill.
 - Child context filtering removes parent-only subagent artifacts (hidden orchestration-instruction messages, slash/status/control messages, and `subagent` tool-call/tool-result history) while preserving ordinary prose and unrelated tool calls/results. A forked child sends the history it inherited exactly as the parent sent it, so its first request can reuse the parent's prompt cache; it still cannot run `subagent`.
 - By default, children do not register the `subagent` tool and receive boundary instructions that they are not the parent orchestrator and must not propose or run subagents.
 - The explicit exception is an agent whose resolved builtin `tools` includes `subagent`; that child gets a child-safe `subagent` tool for the fanout work the parent assigned, still bounded by `maxSubagentDepth`.
 
 ### Failed lane recovery and execution-mode boundaries
 
-A failure in the subagent workflow, child launch, prompt runtime, extension loading, or child tooling setup is a lane infrastructure blocker. It is not permission to silently retry through `interactive_shell`, `pi -ne`, Codex/Claude/Cursor CLI, a foreground agent, or another external execution mode.
+A failure in the subagent workflow, child launch, prompt runtime, extension loading, or child tooling setup is a lane infrastructure blocker. It is not permission to silently retry through `interactive_shell`, `evoharness -ne`, Codex/Claude/Cursor CLI, a foreground agent, or another external execution mode.
 
 Stop and report the exact failure, run/status, and repository/cwd/worktree/branch/ref state. Before a same-protocol retry or asking the owner, verify the worktree is clean or capture the partial diff. Retry or fix the `subagent` path only through a clear same-protocol action. For backlog lanes and other subagent-governed workflows, external/foreground/CLI fallback requires explicit owner approval. `interactive_shell` remains valid when the user explicitly requests visible foreground/CLI work or the task is outside the governed subagent protocol.
 
@@ -33,23 +33,23 @@ Failed workflow details and async `status.json` include `workflow.failureKind` a
 
 When `/reload`, a session resume, or a pi-web project switch replaces the extension runtime, a running async workflow stops with `workflow.stopCause: "runtime-replaced"` in `status.json`, and its awaited async children keep running. Its in-process foreground children are stopped, including ones that detached to ask their supervisor. When the same workflow script is launched again with the same `args` in that session, a `runs.run` with the same key and params returns a child that already finished successfully without launching it, and waits for a child that is still running instead of starting another. Those results carry `reused: true`, their step and trace entry are marked `reused`, and the new run records `workflow.reusedFrom`. Failed and stopped children, and children that ran in-process, launch again. Reuse applies only when the newest run of that script and args in the session was stopped this way; a user stop or a completed run ends it. From another session, such as one that took over after a handoff, relaunch the same script as an async workflow with `options: { reuseFrom: "<stopped run id>" }`; the run must have stopped this way in the same cwd, and `args` may differ, because each child is still reused only when its key and params match.
 
-When the Pi process that ran an async workflow exits before the workflow finishes (a crash, a kill, or a machine restart), the stale-run check that runs when its session reopens, or when `options.reuseFrom` names the run, marks it failed with `workflow.stopCause: "owner-exited"`, and a relaunch reuses its finished children the same way. On any relaunch, `runs.steer` and `runs.host` calls run again and only `runs.run` results are reused, so a replayed check such as "tests passed" can be stale.
+When the evoharness process that ran an async workflow exits before the workflow finishes (a crash, a kill, or a machine restart), the stale-run check that runs when its session reopens, or when `options.reuseFrom` names the run, marks it failed with `workflow.stopCause: "owner-exited"`, and a relaunch reuses its finished children the same way. On any relaunch, `runs.steer` and `runs.host` calls run again and only `runs.run` results are reused, so a replayed check such as "tests passed" can be stale.
 
-A stopped run is continued by one relaunch only. While that relaunch exists, another relaunch of the same stopped run, by the same script or by `options.reuseFrom`, is refused with `workflow run '<id>' was resumed as <new id>; wait on it or stop it.` If that relaunch stops the same way, relaunch it instead: it carries the children of every run before it. If the Pi process that started the relaunch exits before the relaunch begins, the stopped run can be relaunched again.
+A stopped run is continued by one relaunch only. While that relaunch exists, another relaunch of the same stopped run, by the same script or by `options.reuseFrom`, is refused with `workflow run '<id>' was resumed as <new id>; wait on it or stop it.` If that relaunch stops the same way, relaunch it instead: it carries the children of every run before it. If the evoharness process that started the relaunch exits before the relaunch begins, the stopped run can be relaunched again.
 
-To continue a stopped run without sending its script again, resume it by id from the session that owns it: `subagent({ action: "resume", id: "<stopped run id>" })` with no `message`. Every async top-level workflow saves its launch (the script or named resource, its `args` and options) when it starts, and the resume relaunches that launch with `options.reuseFrom` set to the stopped run, in the stopped run's cwd, with no more authority than it had. A named resource is resolved again and must still have the same script. The new run records `workflow.resumeOrigin: { sourceRunId, attempt }`, where `attempt` counts the resumes that followed a Pi exit. Another session cannot resume the run by id; reopen the session that started it, or relaunch the same script with `options.reuseFrom`. When the run cannot be resumed this way (it started before launches were saved, was launched from `tasks` or `chain`, or its resource changed), the refusal says so; relaunch the same script by hand with `options: { reuseFrom: "<stopped run id>" }`.
+To continue a stopped run without sending its script again, resume it by id from the session that owns it: `subagent({ action: "resume", id: "<stopped run id>" })` with no `message`. Every async top-level workflow saves its launch (the script or named resource, its `args` and options) when it starts, and the resume relaunches that launch with `options.reuseFrom` set to the stopped run, in the stopped run's cwd, with no more authority than it had. A named resource is resolved again and must still have the same script. The new run records `workflow.resumeOrigin: { sourceRunId, attempt }`, where `attempt` counts the resumes that followed a evoharness exit. Another session cannot resume the run by id; reopen the session that started it, or relaunch the same script with `options.reuseFrom`. When the run cannot be resumed this way (it started before launches were saved, was launched from `tasks` or `chain`, or its resource changed), the refusal says so; relaunch the same script by hand with `options: { reuseFrom: "<stopped run id>" }`.
 
-When the session that owns such a run is reopened or reloaded, the run is resumed this way automatically, once, if it was interrupted in the last 24 hours: for a Pi exit, measured from the last time the dead Pi process updated the run. Session start does not wait for the relaunch. A run that cannot be relaunched is named in its notice (`Not auto-resumed: …`, with how to continue by hand); a launch that fails after session start also posts one `Workflow <id> was not auto-resumed: <reason>.` message. Either way the run is not tried again. `/new` and forks do not resume the runs of the session they replaced. The `autoResume` setting turns this off; see [Configuration](configuration.md#autoresume).
+When the session that owns such a run is reopened or reloaded, the run is resumed this way automatically, once, if it was interrupted in the last 24 hours: for a evoharness exit, measured from the last time the dead evoharness process updated the run. Session start does not wait for the relaunch. A run that cannot be relaunched is named in its notice (`Not auto-resumed: …`, with how to continue by hand); a launch that fails after session start also posts one `Workflow <id> was not auto-resumed: <reason>.` message. Either way the run is not tried again. `/new` and forks do not resume the runs of the session they replaced. The `autoResume` setting turns this off; see [Configuration](configuration.md#autoresume).
 
-Starting Pi in a folder where another session's subagent runs were cut off by its Pi dying in the last 24 hours shows one info line per such session, such as ``2 subagent runs were interrupted in another session. Reopen it to resume them: `pi --session <id>` ``; it only points to that session, changes nothing in it, and is not sent to the model.
+Starting evoharness in a folder where another session's subagent runs were cut off by its evoharness dying in the last 24 hours shows one info line per such session, such as ``2 subagent runs were interrupted in another session. Reopen it to resume them: `evoharness --session <id>` ``; it only points to that session, changes nothing in it, and is not sent to the model.
 
-The completion notice of a workflow stopped by a Pi exit or a runtime replacement has one line right after `Workflow run: <id>` that says what happens next: `Auto-resumed as <new id>.`, `Resumed as <new id>.` (resumed by id), `Relaunched as <new id>.` (relaunched with the same script or `options.reuseFrom`), `Not auto-resumed: <reason>.` followed by the way to continue by hand, or, when nothing continues it, `Resume by hand: subagent({ action: "resume", id: "<id>" })` (or the `options.reuseFrom` form when its launch cannot be resumed by id).
+The completion notice of a workflow stopped by a evoharness exit or a runtime replacement has one line right after `Workflow run: <id>` that says what happens next: `Auto-resumed as <new id>.`, `Resumed as <new id>.` (resumed by id), `Relaunched as <new id>.` (relaunched with the same script or `options.reuseFrom`), `Not auto-resumed: <reason>.` followed by the way to continue by hand, or, when nothing continues it, `Resume by hand: subagent({ action: "resume", id: "<id>" })` (or the `options.reuseFrom` form when its launch cannot be resumed by id).
 
-After `/new`, `/resume`, or a fork in the same Pi process, the new session owns the async runs of the session it replaced, and of the sessions that one replaced. It can list, `bg_wait` on, steer, stop, and resume them, receives their completion notices, and answers their children's pending supervisor requests. Over RPC, a host can steer, interrupt, stop, resume, and inspect them, and sees them in the fleet and `subagent-async` snapshots. Startup and other Pi processes inherit nothing; `/reload` adds nothing new but keeps what the session already inherited. To relaunch a stopped workflow instead of controlling its children one by one, use `options.reuseFrom`.
+After `/new`, `/resume`, or a fork in the same evoharness process, the new session owns the async runs of the session it replaced, and of the sessions that one replaced. It can list, `bg_wait` on, steer, stop, and resume them, receives their completion notices, and answers their children's pending supervisor requests. Over RPC, a host can steer, interrupt, stop, resume, and inspect them, and sees them in the fleet and `subagent-async` snapshots. Startup and other evoharness processes inherit nothing; `/reload` adds nothing new but keeps what the session already inherited. To relaunch a stopped workflow instead of controlling its children one by one, use `options.reuseFrom`.
 
-Once the Pi process that started a background single, parallel, or chain run has exited, the run is reported once to a Pi window that has its session open, whether it finished while Pi was closed or finishes later. A workflow's children are reported through their workflow.
+Once the evoharness process that started a background single, parallel, or chain run has exited, the run is reported once to a evoharness window that has its session open, whether it finished while evoharness was closed or finishes later. A workflow's children are reported through their workflow.
 
-Pi core may print a generic `pi -ne` extension-load hint; that out-of-repo hint is not protocol-approved fallback. A verified compaction abort may continue the retained child once on its already resolved model; it does not authorize an execution-mode or model switch.
+evoharness core may print a generic `evoharness -ne` extension-load hint; that out-of-repo hint is not protocol-approved fallback. A verified compaction abort may continue the retained child once on its already resolved model; it does not authorize an execution-mode or model switch.
 
 ## Prompt shortcuts
 
@@ -79,7 +79,7 @@ The `workflow` field selects the script source:
 
 `workflow: true` works only from a model tool call. Slash commands, RPC, and schedules pass scripts through their own inputs. Examples below that show only a ```` ```js workflow ```` block run with `subagent({ workflow: true })` in the same reply.
 
-For multi-step or parallel work, make exactly one top-level `subagent` workflow call with `async:true` and launch children only inside it. Read this guide for recipes rather than constructing a second top-level orchestration. Available sandbox helpers include `runs.run`, `runs.all`, `runs.lanes`, `runs.steer`, `runs.status`, `runs.ref`/`runs.refs`, `emit`, `console`, standard JavaScript, and mission `state` when enabled. No filesystem, shell, arbitrary Pi tools, or host globals are available; named resources alone may grant `runs.host` authority.
+For multi-step or parallel work, make exactly one top-level `subagent` workflow call with `async:true` and launch children only inside it. Read this guide for recipes rather than constructing a second top-level orchestration. Available sandbox helpers include `runs.run`, `runs.all`, `runs.lanes`, `runs.steer`, `runs.status`, `runs.ref`/`runs.refs`, `emit`, `console`, standard JavaScript, and mission `state` when enabled. No filesystem, shell, arbitrary evoharness tools, or host globals are available; named resources alone may grant `runs.host` authority.
 
 Workflow-level child controls default onto each `runs.run`/`runs.all` launch; explicit child fields override them. See [retained children](tool-reference.md#retained-children) for follow-up challenges, [output binding](tool-reference.md#output-mode-details) for durable artifacts, and [schedules](missions.md#schedules) for delayed/recurring scripts.
 
@@ -87,7 +87,7 @@ Child results cross into the script as plain JSON data. Non-JSON host metadata i
 
 On Node, each script runs in a new permission-restricted process that can read only its supervisor, worker and Acorn parser; Node denies file writes, other reads, child processes and nested workers. The process inherits no host startup flags, preloads or environment variables (except `SystemRoot` on Windows) and starts in Acorn's directory, because Node lets worker threads read their working directory. A small supervisor keeps IPC responsive, so a busy script is still killed when the parent disconnects. Each workflow gets its own process, terminated as soon as the workflow settles.
 
-This is a permission layer around the VM, not an OS sandbox: network access stays open on Node 22 and 24, and child launches and `runs.host` commands still run in Pi under their own contracts. Bun has no permission model, so it keeps the in-process worker. If the Node process fails to start, the workflow fails; it never retries in an unrestricted worker.
+This is a permission layer around the VM, not an OS sandbox: network access stays open on Node 22 and 24, and child launches and `runs.host` commands still run in evoharness under their own contracts. Bun has no permission model, so it keeps the in-process worker. If the Node process fails to start, the workflow fails; it never retries in an unrestricted worker.
 
 Omitting a child's `async` preserves awaited final-result semantics, even if the child runs in the background. Explicit child `async: true` intentionally returns after launch: its receipt has `state: "running"`, `ok: false`, an empty `output`, and no completion error or final `outputReference`. `ok` confirms successful child completion, not successful dispatch. It does not confirm that the task's intent was carried out: a child that declines or cannot do the work can still end normally. When later steps depend on the work having happened, give the child an `outputSchema` with an explicit status field (and check `structuredOutput` in the script) or a host-run `gate`, and treat only that verdict as success. Use `runId` and `asyncDir` to inspect the running child; `artifactPaths` may include runtime directories and is not a list of final reports. Reusing the same workflow key returns the same receipt, not a refreshed result.
 
@@ -263,7 +263,7 @@ return { verdict: review.structuredOutput.verdict, report: "reports/review.md" }
 
 The parent receives a pointer plus a verdict instead of the review text. See [typed gates](tool-reference.md#typed-gates) for the contract and failure rules.
 
-**A typed step** is an agent whose runner is a command rather than a Pi session. The prompt arrives on stdin, stdout is the child's output, and the workflow uses it like any other child:
+**A typed step** is an agent whose runner is a command rather than a evoharness session. The prompt arrives on stdin, stdout is the child's output, and the workflow uses it like any other child:
 
 ```yaml
 ---
@@ -287,7 +287,7 @@ const results = await runs.all(items.map((item) => ({ key: item.key, agent: "cla
 const routed = results.map((r, i) => ({ key: items[i].key, ...JSON.parse(r.output) }));
 ```
 
-Command-runner agents are async-only; workflows launch children async by default, but a direct `async: false` call is refused. The runner gets only the assembled prompt, never a forked transcript, so keep `inheritProjectContext` and `inheritGlobalContext` off unless the command wants that text. See [examples/typed-gate](https://github.com/nicobailon/pi-subagents/tree/main/examples/typed-gate) for a runnable version of both shapes.
+Command-runner agents are async-only; workflows launch children async by default, but a direct `async: false` call is refused. The runner gets only the assembled prompt, never a forked transcript, so keep `inheritProjectContext` and `inheritGlobalContext` off unless the command wants that text. See [examples/typed-gate](../examples/typed-gate) for a runnable version of both shapes.
 
 ### Host command steps
 
@@ -310,7 +310,7 @@ const receipt = await runs.steer("writer", "Also check: " + evidence.output, { m
 return { writer: await writer, receipt };
 ```
 
-The receipt state is `queued`, `delivered`, `missed`, or `failed`. For an async child, `delivered` means it consumed the correlated user input; for a foreground child, it means the in-process Pi transport accepted the input. It does not mean the model followed it. `missed` means the keyed child became terminal or had no live route before delivery. This first slice uses the existing foreground and async steering transports but does not start steering recovery. Workflow traces include one steering attempt entry and one receipt entry.
+The receipt state is `queued`, `delivered`, `missed`, or `failed`. For an async child, `delivered` means it consumed the correlated user input; for a foreground child, it means the in-process evoharness transport accepted the input. It does not mean the model followed it. `missed` means the keyed child became terminal or had no live route before delivery. This first slice uses the existing foreground and async steering transports but does not start steering recovery. Workflow traces include one steering attempt entry and one receipt entry.
 
 Always await or return a `runs.steer` promise. The workflow waits for an observed steering side effect to settle before it exits and rejects fire-and-forget calls. Use ordinary `Promise.race` when the first child or steering receipt should advance the script. There is no callback API or child inbox access.
 
@@ -428,7 +428,7 @@ A plain workflow creates one enclosing mission by default. Its children do not c
 
 Use stable child keys and keep process logic in ordinary JavaScript. `runs.run` launches one child, `runs.all` launches independent children together, and later steps can use each completed child's `output`. Put long task text in arrays joined with `"\n"` so Markdown fences do not conflict with the script string. Pass long child briefs as files and put only their paths in task text, not the briefs themselves in `args`, which is limited to 16 KiB.
 
-For a process you run often, save the task as a prompt template under `.pi/prompts/` or `~/.pi/agent/prompts/` and launch it with `/prompt-workflow`. The adapter compiles prompt steps into a workflow script, so templates describe the work instead of embedding raw `subagent` tool calls. You can ask the parent agent to create or update these prompt files from a process described in natural language.
+For a process you run often, save the task as a prompt template under `.pi/prompts/` or `~/.evoharness/agent/prompts/` and launch it with `/prompt-workflow`. The adapter compiles prompt steps into a workflow script, so templates describe the work instead of embedding raw `subagent` tool calls. You can ask the parent agent to create or update these prompt files from a process described in natural language.
 
 ```md
 ---
@@ -477,7 +477,7 @@ Each child uses the existing worktree lifecycle: it branches from clean HEAD, jo
 
 A top-level `{ workflow: true, worktree: true }` makes isolation the default for every workflow child. An individual child can override that default with `worktree: false`. Keep one writer when parallel writes are not intentionally isolated.
 
-Before a materialized `runs.run` or `runs.all` group dispatches fresh children, isolated sources must be Git repositories with clean working trees (excluding `.pi/subagents/` runtime state). A rejected group dispatches no children and spends no fan-out slots or child output claims; key-level failure traces can remain. Checks are shared only within that group, are cancellable, and run again at allocation because sources can change. Retained resumes keep their stored contracts. Select the correct cwd or arrange an operator-approved commit/stash; isolation is never dropped automatically.
+Before a materialized `runs.run` or `runs.all` group dispatches fresh children, isolated sources must be Git repositories with clean working trees (excluding `.evoharness/subagents/` runtime state). A rejected group dispatches no children and spends no fan-out slots or child output claims; key-level failure traces can remain. Checks are shared only within that group, are cancellable, and run again at allocation because sources can change. Retained resumes keep their stored contracts. Select the correct cwd or arrange an operator-approved commit/stash; isolation is never dropped automatically.
 
 Use `baseRef` to branch managed worktrees from `HEAD` or a supported named ref such as `refs/heads/release`, `refs/tags/v1`, or `origin/main`. Full 40/64-character commit IDs and revision expressions such as `HEAD~1` are unsupported. For example, `{ workflow: true, worktree: true, baseRef: "refs/heads/release" }` applies the release ref to children unless a child supplies its own `baseRef`. If omitted, the default `HEAD` is resolved at worktree allocation, not when the script is validated or a schedule is created. The source checkout must still be clean, and the ref must resolve to a commit before any worktree is allocated.
 
@@ -516,7 +516,7 @@ Inspect the handoff before reconciliation; cleanup still requires fresh checks.
 
 ## Supervisor coordination (child asks parent)
 
-Child agents can talk back to the parent Pi session without installing `pi-intercom`. `pi-subagents` provides the child-facing `contact_supervisor` tool and the parent-facing `subagent_supervisor({ action: "reply" })` path natively. A session that has `subagent` also declares `contact_supervisor`, so a forked child's tools match its parent's; there it only returns an error saying the session has no supervisor. Generic `intercom` remains available only when an explicitly loaded external provider supplies it.
+Child agents can talk back to the parent evoharness session without installing `pi-intercom`. `subagents` provides the child-facing `contact_supervisor` tool and the parent-facing `subagent_supervisor({ action: "reply" })` path natively. A session that has `subagent` also declares `contact_supervisor`, so a forked child's tools match its parent's; there it only returns an error saying the session has no supervisor. Generic `intercom` remains available only when an explicitly loaded external provider supplies it.
 
 Use it for work where the child might need a decision instead of guessing:
 
@@ -536,7 +536,7 @@ The child uses one dedicated coordination tool, `contact_supervisor`, with a `re
 
 Children should not ask for clarification when the only conflict is review-only/no-edit versus progress-writing or artifact-writing instructions; no-edit wins.
 
-The parent replies with `subagent_supervisor({ action: "reply", replyTo, message })` or checks pending requests with `subagent_supervisor({ action: "pending" })`. Supervisor messages are scoped to the exact Pi session id that spawned the child. A second Pi session in the same repository does not receive those requests.
+The parent replies with `subagent_supervisor({ action: "reply", replyTo, message })` or checks pending requests with `subagent_supervisor({ action: "pending" })`. Supervisor messages are scoped to the exact evoharness session id that spawned the child. A second evoharness session in the same repository does not receive those requests.
 
 A nested coordinator needs both directions of coordination. If its agent declares an explicit `tools` allowlist, include `subagent_supervisor` to answer its own children, alongside `subagent` for delegation and `contact_supervisor` for asking its parent:
 
@@ -560,23 +560,23 @@ By default, nesting is limited to two levels: main session → subagent → sub-
 
 Configure the limit with:
 
-1. `PI_SUBAGENT_MAX_DEPTH` before starting Pi
+1. `EVOHARNESS_SUBAGENT_MAX_DEPTH` before starting evoharness
 2. `config.maxSubagentDepth`
 3. `maxSubagentDepth` in agent frontmatter, which can only tighten the inherited limit
 
 ```bash
-export PI_SUBAGENT_MAX_DEPTH=3
-export PI_SUBAGENT_MAX_DEPTH=1
-export PI_SUBAGENT_MAX_DEPTH=0
+export EVOHARNESS_SUBAGENT_MAX_DEPTH=3
+export EVOHARNESS_SUBAGENT_MAX_DEPTH=1
+export EVOHARNESS_SUBAGENT_MAX_DEPTH=0
 ```
 
-`PI_SUBAGENT_MAX_DEPTH` applies to the top-level parent; children inherit their limit through their runtime config, and their own depth is tracked there too.
+`EVOHARNESS_SUBAGENT_MAX_DEPTH` applies to the top-level parent; children inherit their limit through their runtime config, and their own depth is tracked there too.
 
 ## Prompt-template integration
 
-`pi-subagents` includes a native prompt-workflow adapter for reusable subagent prompt templates, so you do not need `pi-prompt-template-model` for the common subagent workflow path.
+`subagents` includes a native prompt-workflow adapter for reusable subagent prompt templates, so you do not need `pi-prompt-template-model` for the common subagent workflow path.
 
-Create a prompt in `.pi/prompts/` or `~/.pi/agent/prompts/`:
+Create a prompt in `.pi/prompts/` or `~/.evoharness/agent/prompts/`:
 
 ```md
 ---

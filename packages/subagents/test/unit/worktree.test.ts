@@ -65,7 +65,7 @@ function cleanupProjectWorktrees(repoDir: string, baseDir?: string): void {
 }
 
 function createHookScript(_repoDir: string, fileName: string, source: string): string {
-	const hooksDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-hook-script-"));
+	const hooksDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-worktree-hook-script-"));
 	const hookPath = path.join(hooksDir, fileName);
 	fs.writeFileSync(hookPath, `#!/usr/bin/env node\n${source}\n`, "utf-8");
 	fs.chmodSync(hookPath, 0o755);
@@ -116,7 +116,7 @@ function assertRetainedHookFailure(error: unknown, message: RegExp): true {
 
 describe("worktree", () => {
 	it("createWorktrees returns expected structure", async () => {
-		const repoDir = createRepo("pi-worktree-structure-");
+		const repoDir = createRepo("subagents-worktree-structure-");
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repoDir, "structure", 2, { provider: "native" });
@@ -124,7 +124,7 @@ describe("worktree", () => {
 			assert.equal(setup.cwd, git(repoDir, ["rev-parse", "--show-toplevel"]));
 			for (let i = 0; i < setup.worktrees.length; i++) {
 				const worktree = setup.worktrees[i]!;
-				assert.equal(worktree.branch, `pi-subagents/task-structure-s0-t${i}`);
+				assert.equal(worktree.branch, `subagents/task-structure-s0-t${i}`);
 				assert.equal(worktree.index, i);
 				assert.equal(worktree.agentCwd, worktree.path);
 				assert.equal(worktree.nodeModulesLinked, false);
@@ -138,7 +138,7 @@ describe("worktree", () => {
 	});
 
 	it("reports attempted ownership before spawn and only validated worktrees after allocation", async () => {
-		const repoDir = createRepo("pi-worktree-before-create-");
+		const repoDir = createRepo("subagents-worktree-before-create-");
 		let setup: WorktreeSetup | undefined;
 		let attemptedPath: string | undefined;
 		let validated: WorktreeSetup | undefined;
@@ -151,7 +151,7 @@ describe("worktree", () => {
 						attemptedPath = attempt.path;
 						assert.ok(attemptedPath);
 						assert.equal(fs.existsSync(attemptedPath), false);
-						assert.equal(attempt.branch, "pi-subagents/task-before-creat-s0-t0");
+						assert.equal(attempt.branch, "subagents/task-before-creat-s0-t0");
 						assert.deepEqual(snapshot.setup.worktrees, []);
 					}
 					if (snapshot.setup.worktrees.length) {
@@ -171,7 +171,7 @@ describe("worktree", () => {
 	});
 
 	it("compensates a rejected ready publication without retaining command output in snapshots", async () => {
-		const repoDir = createRepo("pi-worktree-ready-rejected-");
+		const repoDir = createRepo("subagents-worktree-ready-rejected-");
 		try {
 			await assert.rejects(
 				() =>
@@ -217,7 +217,7 @@ describe("worktree", () => {
 		} catch {
 			return;
 		}
-		const repoDir = createRepo("pi-worktree-worktrunk-");
+		const repoDir = createRepo("subagents-worktree-worktrunk-");
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repoDir, "worktrunk-s0", 1, {
@@ -225,11 +225,11 @@ describe("worktree", () => {
 				agents: ["worker"],
 				labels: ["Review API"],
 				tasks: ["Review API behavior"],
-				branchPrefix: "pi-test/",
+				branchPrefix: "subagents-test/",
 			});
 			const worktree = setup.worktrees[0]!;
 			assert.equal(worktree.provider, "worktrunk");
-			assert.equal(worktree.branch, "pi-test/Review-API-1f1a55a7-worktrunk-s0-t0");
+			assert.equal(worktree.branch, "subagents-test/Review-API-1f1a55a7-worktrunk-s0-t0");
 			assert.equal(worktree.naming?.requestedBranch, worktree.branch);
 			assert.ok(fs.existsSync(worktree.path));
 			assert.notEqual(worktree.path, resolveExpectedWorktreeAgentCwd(repoDir, "worktrunk-s0", 0));
@@ -241,7 +241,7 @@ describe("worktree", () => {
 
 	it("rejects Worktrunk responses that point at the source checkout", async () => {
 		if (await runPoisonCaseInChild("rejects Worktrunk responses that point at the source checkout")) return;
-		const fakeBin = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-fake-source-wt-"));
+		const fakeBin = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-worktree-fake-source-wt-"));
 		const fakeScript = path.join(fakeBin, "wt.cjs");
 		// Git for Windows dispatches extensionless git-* test commands through its bundled shell.
 		const fakeWt = path.join(fakeBin, process.platform === "win32" ? "git-wt" : "wt");
@@ -269,7 +269,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		const previousPath = process.env.PATH;
 		const previousWindowsPath = process.env.Path;
 		const previousPathExt = process.env.PATHEXT;
-		const repoDir = createRepo("pi-worktree-source-wt-");
+		const repoDir = createRepo("subagents-worktree-source-wt-");
 		try {
 			const originalHead = git(repoDir, ["rev-parse", "HEAD"]);
 			process.env.PATH = `${fakeBin}${path.delimiter}${previousPath ?? ""}`;
@@ -285,20 +285,20 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 					assert.ok(error.snapshot.unknown);
 					assert.deepEqual(error.snapshot.setup.worktrees, []);
 					assert.equal(error.snapshot.attempts[0]?.validated, false);
-					assert.equal(error.snapshot.attempts[0]?.branch, "pi-subagents/task-source-path-s0-t0");
+					assert.equal(error.snapshot.attempts[0]?.branch, "subagents/task-source-path-s0-t0");
 					assert.equal(error.snapshot.cleanup?.pruned, false);
 					return true;
 				},
 			);
 			// Invalid output grants no authority to restore or delete source state.
-			assert.equal(git(repoDir, ["branch", "--show-current"]), "pi-subagents/task-source-path-s0-t0");
+			assert.equal(git(repoDir, ["branch", "--show-current"]), "subagents/task-source-path-s0-t0");
 			assert.equal(git(repoDir, ["rev-parse", "HEAD"]), originalHead);
 			assert.equal(fs.readFileSync(path.join(repoDir, "tracked.txt"), "utf-8"), "initial\n");
 			await assert.rejects(
 				() => createWorktrees(repoDir, "after-unknown", 1, { provider: "native" }),
 				/unknown|manual reconciliation/i,
 			);
-			assert.equal(git(repoDir, ["branch", "--list", "pi-subagents/task-after-unknow-s0-t0"]), "");
+			assert.equal(git(repoDir, ["branch", "--list", "subagents/task-after-unknow-s0-t0"]), "");
 		} finally {
 			if (previousPath === undefined) delete process.env.PATH;
 			else process.env.PATH = previousPath;
@@ -312,14 +312,14 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	});
 
 	it("falls back to native only when Worktrunk capability probing fails", async () => {
-		const fakeBin = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-fake-wt-"));
+		const fakeBin = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-worktree-fake-wt-"));
 		const fakeWt = path.join(fakeBin, process.platform === "win32" ? "git-wt" : "wt");
 		fs.writeFileSync(fakeWt, "#!/bin/sh\nprintf 'not-worktrunk\\n'\n", "utf-8");
 		fs.chmodSync(fakeWt, 0o755);
 		const previousPath = process.env.PATH;
 		const previousWindowsPath = process.env.Path;
 		const previousPathExt = process.env.PATHEXT;
-		const repoDir = createRepo("pi-worktree-provider-fallback-");
+		const repoDir = createRepo("subagents-worktree-provider-fallback-");
 		let setup: WorktreeSetup | undefined;
 		try {
 			process.env.PATH = `${fakeBin}${path.delimiter}${previousPath ?? ""}`;
@@ -355,17 +355,17 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 			index: 4,
 			agent: "worker",
 			task: "Fix: API / paths",
-			branchPrefix: "pi-custom",
+			branchPrefix: "subagents-custom",
 		});
-		assert.equal(naming.requestedBranch, "pi-custom/worker-Fix-API-paths-17ad7139-run-s3-t4");
-		assert.equal(naming.branchPrefix, "pi-custom/");
+		assert.equal(naming.requestedBranch, "subagents-custom/worker-Fix-API-paths-17ad7139-run-s3-t4");
+		assert.equal(naming.branchPrefix, "subagents-custom/");
 		assert.equal(sanitizeWorktreePathComponent("..."), "task");
 		assert.ok(Buffer.byteLength(sanitizeWorktreePathComponent("é".repeat(200)), "utf-8") <= 96);
 		assert.equal(
 			buildWorktreeNaming({ runId: "run", index: 0, agent: "worker", task: "Fix\nAPI" }).label,
 			"worker-Fix API",
 		);
-		assert.equal(normalizeWorktreeBranchPrefix("pi-custom/"), "pi-custom/");
+		assert.equal(normalizeWorktreeBranchPrefix("subagents-custom/"), "subagents-custom/");
 		assert.throws(() => normalizeWorktreeBranchPrefix("../unsafe"), /invalid/i);
 	});
 
@@ -380,7 +380,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	});
 
 	it("createWorktrees maps subdirectory cwd to each agentCwd", async () => {
-		const repoDir = createRepo("pi-worktree-subdir-");
+		const repoDir = createRepo("subagents-worktree-subdir-");
 		const nestedDir = path.join(repoDir, "packages", "app");
 		fs.mkdirSync(nestedDir, { recursive: true });
 		fs.writeFileSync(path.join(nestedDir, "index.ts"), "export const value = 1;\n", "utf-8");
@@ -398,7 +398,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	});
 
 	it("previews expected worktree agent cwd for repository subdirectories", () => {
-		const repoDir = createRepo("pi-worktree-preview-");
+		const repoDir = createRepo("subagents-worktree-preview-");
 		const nestedDir = path.join(repoDir, "packages", "app");
 		fs.mkdirSync(nestedDir, { recursive: true });
 		fs.writeFileSync(path.join(nestedDir, "index.ts"), "export const value = 1;\n", "utf-8");
@@ -413,7 +413,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 					path.dirname(repoRoot),
 					"worktrees",
 					path.basename(repoRoot),
-					"pi-worktree-preview-2",
+					"subagents-worktree-preview-2",
 					"packages",
 					"app",
 				),
@@ -424,12 +424,15 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	});
 
 	it("creates worktrees under a configured base directory", async () => {
-		const repoDir = createRepo("pi-worktree-base-dir-");
-		const baseDir = path.join(os.tmpdir(), `pi-worktree-base-${Date.now().toString(36)}`, "nested");
+		const repoDir = createRepo("subagents-worktree-base-dir-");
+		const baseDir = path.join(os.tmpdir(), `subagents-worktree-base-${Date.now().toString(36)}`, "nested");
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repoDir, "base-dir", 1, { baseDir });
-			assert.equal(setup.worktrees[0]!.path, path.join(baseDir, path.basename(repoDir), "pi-worktree-base-dir-0"));
+			assert.equal(
+				setup.worktrees[0]!.path,
+				path.join(baseDir, path.basename(repoDir), "subagents-worktree-base-dir-0"),
+			);
 			assert.ok(fs.existsSync(baseDir), "configured base directory should be created");
 		} finally {
 			if (setup) cleanupWorktrees(setup);
@@ -437,9 +440,9 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		}
 	});
 
-	it("rejects worktree base directories inside Pi extensions", async () => {
-		const repoDir = createRepo("pi-worktree-extension-dir-");
-		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
+	it("rejects worktree base directories inside evoharness extensions", async () => {
+		const repoDir = createRepo("subagents-worktree-extension-dir-");
+		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-worktree-home-"));
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
@@ -450,11 +453,11 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 			delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 			await assert.rejects(
 				() => createWorktrees(repoDir, "extension-dir", 1, { baseDir: extensionsDir }),
-				/worktree base directory cannot be inside Pi extensions directory/i,
+				/worktree base directory cannot be inside evoharness extensions directory/i,
 			);
 			await assert.rejects(
 				() => createWorktrees(repoDir, "extension-subdir", 1, { baseDir: path.join(extensionsDir, "checkout") }),
-				/worktree base directory cannot be inside Pi extensions directory/i,
+				/worktree base directory cannot be inside evoharness extensions directory/i,
 			);
 		} finally {
 			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -468,9 +471,9 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		}
 	});
 
-	it("rejects symlinked worktree base directories inside Pi extensions", async () => {
-		const repoDir = createRepo("pi-worktree-extension-symlink-");
-		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
+	it("rejects symlinked worktree base directories inside evoharness extensions", async () => {
+		const repoDir = createRepo("subagents-worktree-extension-symlink-");
+		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-worktree-home-"));
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
@@ -484,7 +487,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 			fs.symlinkSync(extensionsDir, aliasDir, process.platform === "win32" ? "junction" : "dir");
 			await assert.rejects(
 				() => createWorktrees(repoDir, "extension-symlink", 1, { baseDir: path.join(aliasDir, "checkout") }),
-				/worktree base directory cannot be inside Pi extensions directory/i,
+				/worktree base directory cannot be inside evoharness extensions directory/i,
 			);
 		} finally {
 			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -499,8 +502,8 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	});
 
 	it("keeps auto-managed extension repository worktrees outside extension discovery", async () => {
-		const sourceRepo = createRepo("pi-worktree-extension-source-");
-		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
+		const sourceRepo = createRepo("subagents-worktree-extension-source-");
+		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-worktree-home-"));
 		const agentDir = path.join(tempHome, ".evoharness", "agent");
 		const repoDir = path.join(agentDir, "extensions", "powerline-footer");
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -519,7 +522,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 			assert.equal(setup.worktrees[0]?.provider, "native");
 			assert.equal(
 				setup.worktrees[0]?.path,
-				path.join(agentDir, "worktrees", "powerline-footer", "pi-worktree-extension-auto-0"),
+				path.join(agentDir, "worktrees", "powerline-footer", "subagents-worktree-extension-auto-0"),
 			);
 			assert.equal(resolveExpectedWorktreeAgentCwd(repoDir, "extension-auto", 0), setup.worktrees[0]?.path);
 		} finally {
@@ -537,8 +540,8 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	});
 
 	it("does not relocate explicitly native extension repository worktrees", async () => {
-		const sourceRepo = createRepo("pi-worktree-extension-native-source-");
-		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
+		const sourceRepo = createRepo("subagents-worktree-extension-native-source-");
+		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-worktree-home-"));
 		const agentDir = path.join(tempHome, ".evoharness", "agent");
 		const repoDir = path.join(agentDir, "extensions", "powerline-footer");
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -553,7 +556,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 
 			await assert.rejects(
 				() => createWorktrees(repoDir, "extension-native", 1, { provider: "native" }),
-				/worktree base directory cannot be inside Pi extensions directory/i,
+				/worktree base directory cannot be inside evoharness extensions directory/i,
 			);
 			assert.equal(fs.existsSync(path.join(agentDir, "worktrees")), false);
 		} finally {
@@ -569,9 +572,9 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		}
 	});
 
-	it("rejects a final project directory inside Pi extensions", async () => {
-		const sourceRepo = createRepo("pi-worktree-extension-project-");
-		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
+	it("rejects a final project directory inside evoharness extensions", async () => {
+		const sourceRepo = createRepo("subagents-worktree-extension-project-");
+		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-worktree-home-"));
 		const repoDir = path.join(tempHome, "extensions");
 		const agentDir = path.join(tempHome, ".evoharness", "agent");
 		const extensionsDir = path.join(agentDir, "extensions");
@@ -587,11 +590,11 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 
 			await assert.rejects(
 				() => createWorktrees(repoDir, "extension-project", 1, { provider: "native", baseDir: agentDir }),
-				/worktree path cannot be inside Pi extensions directory/i,
+				/worktree path cannot be inside evoharness extensions directory/i,
 			);
 			assert.throws(
 				() => resolveExpectedWorktreeAgentCwd(repoDir, "extension-project", 0, agentDir),
-				/worktree path cannot be inside Pi extensions directory/i,
+				/worktree path cannot be inside evoharness extensions directory/i,
 			);
 			assert.deepEqual(
 				git(repoDir, ["worktree", "list", "--porcelain"])
@@ -613,9 +616,9 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		}
 	});
 
-	it("rejects a project directory symlink into Pi extensions", async () => {
-		const repoDir = createRepo("pi-worktree-extension-project-symlink-");
-		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
+	it("rejects a project directory symlink into evoharness extensions", async () => {
+		const repoDir = createRepo("subagents-worktree-extension-project-symlink-");
+		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-worktree-home-"));
 		const agentDir = path.join(tempHome, ".evoharness", "agent");
 		const extensionsDir = path.join(agentDir, "extensions");
 		const baseDir = path.join(tempHome, "worktree-root");
@@ -636,11 +639,11 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 
 			await assert.rejects(
 				() => createWorktrees(repoDir, "extension-project-symlink", 1, { provider: "native", baseDir }),
-				/worktree path cannot be inside Pi extensions directory/i,
+				/worktree path cannot be inside evoharness extensions directory/i,
 			);
 			assert.throws(
 				() => resolveExpectedWorktreeAgentCwd(repoDir, "extension-project-symlink", 0, baseDir),
-				/worktree path cannot be inside Pi extensions directory/i,
+				/worktree path cannot be inside evoharness extensions directory/i,
 			);
 			assert.deepEqual(
 				git(repoDir, ["worktree", "list", "--porcelain"])
@@ -661,31 +664,31 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		}
 	});
 
-	it("uses PI_SUBAGENTS_WORKTREE_DIR when no base directory is configured", async () => {
-		const repoDir = createRepo("pi-worktree-env-base-dir-");
-		const previous = process.env.PI_SUBAGENTS_WORKTREE_DIR;
-		const baseDir = path.join(os.tmpdir(), `pi-worktree-env-base-${Date.now().toString(36)}`);
+	it("uses EVOHARNESS_SUBAGENTS_WORKTREE_DIR when no base directory is configured", async () => {
+		const repoDir = createRepo("subagents-worktree-env-base-dir-");
+		const previous = process.env.EVOHARNESS_SUBAGENTS_WORKTREE_DIR;
+		const baseDir = path.join(os.tmpdir(), `subagents-worktree-env-base-${Date.now().toString(36)}`);
 		let setup: WorktreeSetup | undefined;
 		try {
-			process.env.PI_SUBAGENTS_WORKTREE_DIR = baseDir;
+			process.env.EVOHARNESS_SUBAGENTS_WORKTREE_DIR = baseDir;
 			setup = await createWorktrees(repoDir, "env-base-dir", 1);
 			assert.equal(
 				setup.worktrees[0]!.path,
-				path.join(baseDir, path.basename(repoDir), "pi-worktree-env-base-dir-0"),
+				path.join(baseDir, path.basename(repoDir), "subagents-worktree-env-base-dir-0"),
 			);
 		} finally {
 			if (setup) cleanupWorktrees(setup);
 			if (previous === undefined) {
-				delete process.env.PI_SUBAGENTS_WORKTREE_DIR;
+				delete process.env.EVOHARNESS_SUBAGENTS_WORKTREE_DIR;
 			} else {
-				process.env.PI_SUBAGENTS_WORKTREE_DIR = previous;
+				process.env.EVOHARNESS_SUBAGENTS_WORKTREE_DIR = previous;
 			}
 			cleanupRepo(repoDir, baseDir);
 		}
 	});
 
 	it("rejects empty worktree base directory", async () => {
-		const repoDir = createRepo("pi-worktree-empty-base-");
+		const repoDir = createRepo("subagents-worktree-empty-base-");
 		try {
 			await assert.rejects(
 				() => createWorktrees(repoDir, "empty-base", 1, { baseDir: "   " }),
@@ -697,9 +700,9 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	});
 
 	it("rejects worktree paths that would land inside the repository checkout", async () => {
-		const repoDir = createRepo("pi-worktree-inside-");
+		const repoDir = createRepo("subagents-worktree-inside-");
 		const repoParent = path.dirname(repoDir);
-		const leakedLeaf = "pi-worktree-inside-0";
+		const leakedLeaf = "subagents-worktree-inside-0";
 		try {
 			await assert.rejects(
 				() => createWorktrees(repoDir, "inside", 1, { baseDir: repoParent }),
@@ -721,11 +724,11 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	});
 
 	it("rejects worktree paths that are direct children of the repository parent", async () => {
-		const repoDir = createRepo("pi-worktree-parent-child-");
+		const repoDir = createRepo("subagents-worktree-parent-child-");
 		const repoParent = path.dirname(repoDir);
-		const dedicatedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-parent-child-root-"));
+		const dedicatedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-worktree-parent-child-root-"));
 		const projectDir = path.join(dedicatedRoot, path.basename(repoDir));
-		const leakedLeaf = path.join(repoParent, "pi-worktree-parent-child-0");
+		const leakedLeaf = path.join(repoParent, "subagents-worktree-parent-child-0");
 		try {
 			fs.symlinkSync(repoParent, projectDir, process.platform === "win32" ? "junction" : "dir");
 			await assert.rejects(
@@ -751,7 +754,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	});
 
 	it("does not mkdir inside the checkout when rejecting unsafe locations", async () => {
-		const repoDir = createRepo("pi-worktree-no-mkdir-inside-");
+		const repoDir = createRepo("subagents-worktree-no-mkdir-inside-");
 		try {
 			await assert.rejects(
 				() => createWorktrees(repoDir, "inside-self", 1, { baseDir: repoDir }),
@@ -775,7 +778,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	});
 
 	it("createWorktrees rejects dirty repositories before resolving the requested base ref", async () => {
-		const repoDir = createRepo("pi-worktree-dirty-");
+		const repoDir = createRepo("subagents-worktree-dirty-");
 		try {
 			fs.writeFileSync(path.join(repoDir, "tracked.txt"), "dirty\n", "utf-8");
 			await assert.rejects(
@@ -791,7 +794,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		"allocates from baseRef while preserving source HEAD and propagating baseCommit to hooks and diffs",
 		{ skip: hookScriptSkip },
 		async () => {
-			const repoDir = createRepo("pi-worktree-base-ref-");
+			const repoDir = createRepo("subagents-worktree-base-ref-");
 			const firstCommit = git(repoDir, ["rev-parse", "HEAD"]);
 			git(repoDir, ["branch", "release"]);
 			fs.writeFileSync(path.join(repoDir, "tracked.txt"), "second\n", "utf-8");
@@ -832,7 +835,7 @@ process.stdout.write(JSON.stringify({ syntheticPaths: [".base-commit"] }));
 	);
 
 	it("rejects unsafe and unresolved base refs before allocation", async () => {
-		const repoDir = createRepo("pi-worktree-invalid-base-ref-");
+		const repoDir = createRepo("subagents-worktree-invalid-base-ref-");
 		try {
 			for (const baseRef of [
 				"unsafe..ref",
@@ -867,8 +870,8 @@ process.stdout.write(JSON.stringify({ syntheticPaths: [".base-commit"] }));
 		}
 	});
 
-	it("createWorktrees ignores pi-subagents runtime artifacts in the source checkout", async () => {
-		const repoDir = createRepo("pi-worktree-runtime-artifacts-");
+	it("createWorktrees ignores subagents runtime artifacts in the source checkout", async () => {
+		const repoDir = createRepo("subagents-worktree-runtime-artifacts-");
 		let setup: WorktreeSetup | undefined;
 		try {
 			fs.mkdirSync(path.join(repoDir, ".evoharness/subagents", "missions"), { recursive: true });
@@ -911,7 +914,7 @@ process.stdout.write(JSON.stringify({ syntheticPaths: [".base-commit"] }));
 	});
 
 	it("diffWorktrees captures committed, modified, and new files without staging the node_modules symlink", async () => {
-		const repoDir = createRepo("pi-worktree-diff-");
+		const repoDir = createRepo("subagents-worktree-diff-");
 		const nodeModulesDir = path.join(repoDir, "node_modules");
 		fs.mkdirSync(nodeModulesDir, { recursive: true });
 		fs.writeFileSync(path.join(nodeModulesDir, "fixture.txt"), "fixture\n", "utf-8");
@@ -953,7 +956,7 @@ process.stdout.write(JSON.stringify({ syntheticPaths: [".base-commit"] }));
 		"captures applyable patches despite external diffs and display configuration",
 		{ skip: hookScriptSkip },
 		async () => {
-			const repoDir = createRepo("pi-worktree-diff-external-");
+			const repoDir = createRepo("subagents-worktree-diff-external-");
 			const externalDiffPath = createHookScript(
 				repoDir,
 				"external-diff.mjs",
@@ -986,7 +989,7 @@ process.stdout.write("corrupt external diff output\\n");
 	);
 
 	it("includes binary data in captured patches", async () => {
-		const repoDir = createRepo("pi-worktree-diff-binary-");
+		const repoDir = createRepo("subagents-worktree-diff-binary-");
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repoDir, "diff-binary", 1);
@@ -1005,7 +1008,7 @@ process.stdout.write("corrupt external diff output\\n");
 	});
 
 	it("cleanupWorktrees removes worktrees and branches", async () => {
-		const repoDir = createRepo("pi-worktree-cleanup-");
+		const repoDir = createRepo("subagents-worktree-cleanup-");
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repoDir, "cleanup", 2);
@@ -1032,7 +1035,7 @@ process.stdout.write("corrupt external diff output\\n");
 	});
 
 	it("preserves dirty worktrees when no patch was captured", async () => {
-		const repoDir = createRepo("pi-worktree-uncaptured-");
+		const repoDir = createRepo("subagents-worktree-uncaptured-");
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repoDir, "uncaptured", 1);
@@ -1059,7 +1062,7 @@ process.stdout.write("corrupt external diff output\\n");
 	});
 
 	it("preserves committed branch work when no patch was captured", async () => {
-		const repoDir = createRepo("pi-worktree-committed-uncaptured-");
+		const repoDir = createRepo("subagents-worktree-committed-uncaptured-");
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repoDir, "committed-uncaptured", 1);
@@ -1086,7 +1089,7 @@ process.stdout.write("corrupt external diff output\\n");
 		"does not let trusted external diff hide uncaptured committed work during cleanup",
 		{ skip: hookScriptSkip },
 		async () => {
-			const repoDir = createRepo("pi-worktree-cleanup-external-diff-");
+			const repoDir = createRepo("subagents-worktree-cleanup-external-diff-");
 			const externalDiffPath = createHookScript(repoDir, "external-diff-clean.mjs", "process.exit(0);");
 			let setup: WorktreeSetup | undefined;
 			try {
@@ -1112,7 +1115,7 @@ process.stdout.write("corrupt external diff output\\n");
 	);
 
 	it("removes dirty worktrees only after their captured patch is recorded in the handoff manifest", async () => {
-		const repoDir = createRepo("pi-worktree-captured-");
+		const repoDir = createRepo("subagents-worktree-captured-");
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repoDir, "captured", 1);
@@ -1168,7 +1171,7 @@ process.stdout.write("corrupt external diff output\\n");
 	});
 
 	it("createWorktrees creates node_modules link when node_modules exists", async () => {
-		const repoDir = createRepo("pi-worktree-node-modules-");
+		const repoDir = createRepo("subagents-worktree-node-modules-");
 		const nodeModulesDir = path.join(repoDir, "node_modules");
 		fs.mkdirSync(nodeModulesDir, { recursive: true });
 		fs.writeFileSync(path.join(nodeModulesDir, "fixture.txt"), "fixture\n", "utf-8");
@@ -1193,7 +1196,7 @@ process.stdout.write("corrupt external diff output\\n");
 			skip: process.platform === "win32" ? "Git symlink behavior differs on Windows CI environments." : undefined,
 		},
 		async () => {
-			const repoDir = createRepo("pi-worktree-dangling-node-modules-");
+			const repoDir = createRepo("subagents-worktree-dangling-node-modules-");
 			const sourceModulesName = ".source-dependencies";
 			fs.mkdirSync(path.join(repoDir, sourceModulesName));
 			fs.appendFileSync(path.join(repoDir, ".git", "info", "exclude"), `${sourceModulesName}/\n`);
@@ -1222,7 +1225,7 @@ process.stdout.write("corrupt external diff output\\n");
 	);
 
 	it("preserves a tracked node_modules destination before validating the source", async () => {
-		const repoDir = createRepo("pi-worktree-tracked-node-modules-file-");
+		const repoDir = createRepo("subagents-worktree-tracked-node-modules-file-");
 		fs.writeFileSync(path.join(repoDir, "node_modules"), "tracked destination\n", "utf-8");
 		git(repoDir, ["add", "node_modules"]);
 		git(repoDir, ["commit", "-m", "track node_modules file"]);
@@ -1249,7 +1252,7 @@ process.stdout.write("corrupt external diff output\\n");
 					: undefined,
 		},
 		async () => {
-			const repoDir = createRepo("pi-worktree-dangling-source-node-modules-");
+			const repoDir = createRepo("subagents-worktree-dangling-source-node-modules-");
 			fs.appendFileSync(path.join(repoDir, ".git", "info", "exclude"), "/node_modules\n");
 			fs.symlinkSync("missing-source-dependencies", path.join(repoDir, "node_modules"));
 
@@ -1269,7 +1272,7 @@ process.stdout.write("corrupt external diff output\\n");
 	);
 
 	it("adds dependency paths and cause when source inspection fails", async () => {
-		const repoDir = createRepo("pi-worktree-node-modules-probe-failure-");
+		const repoDir = createRepo("subagents-worktree-node-modules-probe-failure-");
 		const nodeModulesDir = path.join(repoDir, "node_modules");
 		fs.mkdirSync(nodeModulesDir);
 		const originalStatSync = fsCjs.statSync;
@@ -1315,7 +1318,7 @@ process.stdout.write("corrupt external diff output\\n");
 	});
 
 	it("rejects and compensates when node_modules link creation fails", async () => {
-		const repoDir = createRepo("pi-worktree-node-modules-failure-");
+		const repoDir = createRepo("subagents-worktree-node-modules-failure-");
 		const nodeModulesDir = path.join(repoDir, "node_modules");
 		fs.mkdirSync(nodeModulesDir);
 		const originalSymlinkSync = fsCjs.symlinkSync;
@@ -1365,7 +1368,7 @@ process.stdout.write("corrupt external diff output\\n");
 			skip: process.platform === "win32" ? "Symlink behavior differs on Windows CI environments." : undefined,
 		},
 		async () => {
-			const repoDir = createRepo("pi-worktree-tracked-node-modules-");
+			const repoDir = createRepo("subagents-worktree-tracked-node-modules-");
 			const vendorDir = path.join(repoDir, "vendor-modules");
 			fs.mkdirSync(vendorDir, { recursive: true });
 			fs.writeFileSync(path.join(vendorDir, "fixture.txt"), "fixture\n", "utf-8");
@@ -1393,7 +1396,7 @@ process.stdout.write("corrupt external diff output\\n");
 	);
 
 	it("runs a repo-relative worktree setup hook and records synthetic paths", { skip: hookScriptSkip }, async () => {
-		const repoDir = createRepo("pi-worktree-hook-relative-");
+		const repoDir = createRepo("subagents-worktree-hook-relative-");
 		const hookPath = createHookScript(
 			repoDir,
 			"setup-hook.mjs",
@@ -1420,7 +1423,7 @@ process.stdout.write(JSON.stringify({ syntheticPaths: [".venv"] }));
 	});
 
 	it("runs an absolute worktree setup hook path", { skip: hookScriptSkip }, async () => {
-		const repoDir = createRepo("pi-worktree-hook-absolute-");
+		const repoDir = createRepo("subagents-worktree-hook-absolute-");
 		const hookPath = createHookScript(
 			repoDir,
 			"setup-hook.mjs",
@@ -1444,7 +1447,7 @@ process.stdout.write(JSON.stringify({ syntheticPaths: [] }));
 	});
 
 	it("rejects bare command names for worktree setup hooks", async () => {
-		const repoDir = createRepo("pi-worktree-hook-bare-");
+		const repoDir = createRepo("subagents-worktree-hook-bare-");
 		try {
 			await assert.rejects(
 				() => createWorktrees(repoDir, "hook-bare", 1, { setupHook: { hookPath: "node" } }),
@@ -1457,7 +1460,7 @@ process.stdout.write(JSON.stringify({ syntheticPaths: [] }));
 
 	it("rejects tracked synthetic paths from hook output", { skip: hookScriptSkip }, async () => {
 		if (await runPoisonCaseInChild("rejects tracked synthetic paths from hook output")) return;
-		const repoDir = createRepo("pi-worktree-hook-tracked-");
+		const repoDir = createRepo("subagents-worktree-hook-tracked-");
 		const hookPath = createHookScript(
 			repoDir,
 			"tracked-hook.mjs",
@@ -1486,7 +1489,7 @@ process.stdout.write(JSON.stringify({ syntheticPaths: ["tracked.txt"] }));
 
 	it("rejects absolute synthetic paths from hook output", { skip: hookScriptSkip }, async () => {
 		if (await runPoisonCaseInChild("rejects absolute synthetic paths from hook output")) return;
-		const repoDir = createRepo("pi-worktree-hook-absolute-synthetic-");
+		const repoDir = createRepo("subagents-worktree-hook-absolute-synthetic-");
 		const hookPath = createHookScript(
 			repoDir,
 			"absolute-path-hook.mjs",
@@ -1514,7 +1517,7 @@ process.stdout.write(JSON.stringify({ syntheticPaths: [payload.worktreePath + "/
 	});
 
 	it("excludes hook-created synthetic files from captured patch output", { skip: hookScriptSkip }, async () => {
-		const repoDir = createRepo("pi-worktree-hook-diff-");
+		const repoDir = createRepo("subagents-worktree-hook-diff-");
 		const hookPath = createHookScript(
 			repoDir,
 			"setup-copy-hook.mjs",
@@ -1549,7 +1552,7 @@ process.stdout.write(JSON.stringify({ syntheticPaths: [".env.local"] }));
 		async () => {
 			if (await runPoisonCaseInChild("retains created worktrees when a later hook failure has unknown settlement"))
 				return;
-			const repoDir = createRepo("pi-worktree-hook-cleanup-");
+			const repoDir = createRepo("subagents-worktree-hook-cleanup-");
 			const runId = `hook-cleanup-${Date.now().toString(36)}`;
 			let retained: WorktreeSetup | undefined;
 			const hookPath = createHookScript(
@@ -1594,7 +1597,7 @@ process.stdout.write(JSON.stringify({ syntheticPaths: [] }));
 	);
 
 	it("fails when the hook exceeds the configured timeout", { skip: hookScriptSkip }, async () => {
-		const repoDir = createRepo("pi-worktree-hook-timeout-");
+		const repoDir = createRepo("subagents-worktree-hook-timeout-");
 		const hookPath = createHookScript(
 			repoDir,
 			"slow-hook.mjs",
@@ -1628,7 +1631,7 @@ setTimeout(() => {
 
 describe("manifest-backed worktree discard", () => {
 	it("keeps incomplete cleanup actionable with exact manual Git commands", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-discard-manifest-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-worktree-discard-manifest-"));
 		try {
 			const manifestPath = path.join(root, "handoff.json");
 			const worktreePath = path.join(root, "preserved-worktree");
@@ -1656,7 +1659,7 @@ describe("manifest-backed worktree discard", () => {
 									{
 										index: 0,
 										path: worktreePath,
-										branch: "pi-parallel-discard",
+										branch: "subagents-parallel-discard",
 										worktreeRemoved: false,
 										branchRemoved: false,
 										preserved: true,

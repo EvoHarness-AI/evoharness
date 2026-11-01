@@ -30,12 +30,12 @@ function sourceRank(source: AgentConfig["source"]): number {
 	return 3;
 }
 
-function allVisibleAgents(pi: RuntimeAgentOwner, cwd: string, preferredModelProvider?: string): AgentConfig[] {
+function allVisibleAgents(evoharness: RuntimeAgentOwner, cwd: string, preferredModelProvider?: string): AgentConfig[] {
 	const d = discoverAgentsAll(cwd, preferredModelProvider);
 	const allConfigured = [...d.project, ...d.user, ...d.package, ...d.builtin];
 	const visibleConfigured = allConfigured.filter((agent) => !agent.disabled);
 	// Disabled definitions remain in collision checks even though the panel hides them.
-	const agents = mergeRuntimeAgents(pi, { agents: visibleConfigured }, allConfigured, {
+	const agents = mergeRuntimeAgents(evoharness, { agents: visibleConfigured }, allConfigured, {
 		cwd,
 		scope: "both",
 		preferredModelProvider,
@@ -69,8 +69,8 @@ function agentMatches(agent: AgentConfig, rawName: string): boolean {
 	return agent.name === name || frontmatterNameForConfig(agent) === name;
 }
 
-function sendAdminMessage(pi: ExtensionAPI, content: string): void {
-	pi.sendMessage({
+function sendAdminMessage(evoharness: ExtensionAPI, content: string): void {
+	evoharness.sendMessage({
 		customType: ADMIN_MESSAGE_TYPE,
 		content,
 		display: true,
@@ -172,12 +172,16 @@ function readOnlyAgentMessage(agent: AgentConfig, field: EditableOverrideField):
 		return `Cannot update '${agent.name}' ${field} because that field is owned by its read-only package definition.`;
 	}
 	return isReadOnlyExtraAgent(agent)
-		? `Cannot update '${agent.name}' because its definition in PI_SUBAGENT_EXTRA_AGENT_DIRS is read-only.`
+		? `Cannot update '${agent.name}' because its definition in EVOHARNESS_SUBAGENT_EXTRA_AGENT_DIRS is read-only.`
 		: undefined;
 }
 
-async function selectAgent(pi: RuntimeAgentOwner, ctx: ExtensionContext, args: string): Promise<AgentSelection> {
-	const agents = allVisibleAgents(pi, ctx.cwd, ctx.model?.provider);
+async function selectAgent(
+	evoharness: RuntimeAgentOwner,
+	ctx: ExtensionContext,
+	args: string,
+): Promise<AgentSelection> {
+	const agents = allVisibleAgents(evoharness, ctx.cwd, ctx.model?.provider);
 	const requestedName = args.trim().split(/\s+/)[0] ?? "";
 	if (agents.length === 0) return { kind: "not-found", agents, requestedName: requestedName || undefined };
 
@@ -462,12 +466,12 @@ async function editSystemPrompt(ctx: ExtensionContext, agent: AgentConfig): Prom
 	return saveAgentSystemPrompt(ctx, agent, edited);
 }
 
-export async function openSubagentsAdmin(pi: ExtensionAPI, ctx: ExtensionContext, args = ""): Promise<void> {
-	const selection = await selectAgent(pi, ctx, args);
+export async function openSubagentsAdmin(evoharness: ExtensionAPI, ctx: ExtensionContext, args = ""): Promise<void> {
+	const selection = await selectAgent(evoharness, ctx, args);
 	if (selection.kind === "cancelled") return;
 	if (selection.kind === "ambiguous") {
 		sendAdminMessage(
-			pi,
+			evoharness,
 			`Subagent '${selection.requestedName}' is ambiguous. Choose a scope in interactive mode:\n${selection.matches.map((agent) => `- ${agent.source}: ${agent.filePath}`).join("\n")}`,
 		);
 		return;
@@ -476,14 +480,14 @@ export async function openSubagentsAdmin(pi: ExtensionAPI, ctx: ExtensionContext
 		const text = selection.requestedName
 			? `Subagent '${selection.requestedName}' not found.\n\nAvailable subagents:\n${selection.agents.map((agent) => `- ${agent.name} (${agent.source})`).join("\n") || "- (none)"}`
 			: `Available subagents:\n${selection.agents.map((agent) => `- ${agent.name} (${agent.source})`).join("\n") || "- (none)"}`;
-		sendAdminMessage(pi, text);
+		sendAdminMessage(evoharness, text);
 		return;
 	}
 	const agent = selection.agent;
 
 	if (!ctx.hasUI) {
 		// Non-interactive (tool/headless): emit full metadata as the inspection result.
-		sendAdminMessage(pi, metadataFor(agent));
+		sendAdminMessage(evoharness, metadataFor(agent));
 		return;
 	}
 
@@ -511,26 +515,26 @@ export async function openSubagentsAdmin(pi: ExtensionAPI, ctx: ExtensionContext
 			const message = await saveAgentModel(ctx, agent, selectedModel);
 			if (message === null) return;
 			ctx.ui.notify(message, "info");
-			sendAdminMessage(pi, message);
+			sendAdminMessage(evoharness, message);
 		} else if (action === "Change thinking level") {
 			const selectedThinking = await chooseThinking(ctx, agent);
 			if (selectedThinking === null) return;
 			const message = await saveAgentThinking(ctx, agent, selectedThinking);
 			if (message === null) return;
 			ctx.ui.notify(message, "info");
-			sendAdminMessage(pi, message);
+			sendAdminMessage(evoharness, message);
 		} else if (action === "Edit system prompt") {
 			const message = await editSystemPrompt(ctx, agent);
 			if (message === null) return;
 			ctx.ui.notify(message, "info");
-			sendAdminMessage(pi, message);
+			sendAdminMessage(evoharness, message);
 		} else if (action === "Show details") {
 			// Full metadata is now opt-in (previously always posted to the thread).
-			sendAdminMessage(pi, metadataFor(agent));
+			sendAdminMessage(evoharness, metadataFor(agent));
 		}
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		ctx.ui.notify(message, "error");
-		sendAdminMessage(pi, `Failed to update '${agent.name}': ${message}`);
+		sendAdminMessage(evoharness, `Failed to update '${agent.name}': ${message}`);
 	}
 }

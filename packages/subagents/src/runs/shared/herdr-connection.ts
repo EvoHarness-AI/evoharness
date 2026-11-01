@@ -33,7 +33,7 @@ export const HERDR_SSH_BASE = [
 	"-o",
 	"SendEnv=-*",
 	"-o",
-	"SetEnv=PI_SUBAGENTS_SSH_GUARD=",
+	"SetEnv=EVOHARNESS_SUBAGENTS_SSH_GUARD=",
 ] as const;
 export function hardenedSshEnv(source: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
 	return {
@@ -452,7 +452,7 @@ async function terminateChild(child: ChildProcess): Promise<void> {
 }
 
 function openSshSockets(machine: SshTarget, options: { sshBin?: string; env?: NodeJS.ProcessEnv }): PlacementSockets {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-herdr-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-"));
 	fs.chmodSync(dir, 0o700);
 	const children = new Set<ChildProcess>();
 	const forward = async (remotePath: string, name: string) => {

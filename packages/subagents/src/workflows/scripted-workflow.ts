@@ -1552,7 +1552,7 @@ export async function runWorkflowScript(options: RunWorkflowScriptOptions): Prom
 		acornPath = resolveWorkflowParserEntry();
 	} catch (error) {
 		throw new WorkflowScriptError(
-			"Workflow parser dependency 'acorn' is unavailable from pi-subagents. Reinstall pi-subagents dependencies before launching workflowScript.",
+			"Workflow parser dependency 'acorn' is unavailable from subagents. Reinstall subagents dependencies before launching workflowScript.",
 			emptyPartial(),
 			"runtime",
 			{ cause: error },

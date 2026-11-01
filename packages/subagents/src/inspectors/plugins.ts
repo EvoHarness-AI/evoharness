@@ -7,25 +7,25 @@ import type { InspectorPlugin } from "./types.ts";
 
 type InspectorOwner = Pick<ExtensionAPI, "events">;
 // Keyed by event bus: a runtime that claims a registration can be replaced by a duplicate
-// pi-subagents runtime on the same bus, and the registration must survive that takeover.
+// subagents runtime on the same bus, and the registration must survive that takeover.
 const registries = new WeakMap<InspectorOwner["events"], { plugins: Map<string, InspectorPlugin>; owners: number }>();
 
 /** Built-ins retain host preference; external providers follow registration order. */
-export function getInspectorPlugins(pi: InspectorOwner): readonly InspectorPlugin[] {
+export function getInspectorPlugins(evoharness: InspectorOwner): readonly InspectorPlugin[] {
 	return [
 		createHerdrInspectorPlugin(),
 		createGhosttyInspectorPlugin(),
 		createTmuxInspectorPlugin(),
-		...(registries.get(pi.events)?.plugins.values() ?? []),
+		...(registries.get(evoharness.events)?.plugins.values() ?? []),
 	];
 }
 
 /** Registrations live while any owner runtime listens on this bus; child runtimes use their own bus. */
-export function registerInspectorEventListener(pi: InspectorOwner): () => void {
-	let registry = registries.get(pi.events);
+export function registerInspectorEventListener(evoharness: InspectorOwner): () => void {
+	let registry = registries.get(evoharness.events);
 	if (!registry) {
 		registry = { plugins: new Map(), owners: 0 };
-		registries.set(pi.events, registry);
+		registries.set(evoharness.events, registry);
 	}
 	registry.owners += 1;
 	const { plugins } = registry;
@@ -35,7 +35,7 @@ export function registerInspectorEventListener(pi: InspectorOwner): () => void {
 		createTmuxInspectorPlugin().name,
 	]);
 	/* oxlint-disable anti-slop/no-runtime-typeof -- This listener validates the untyped event-bus boundary, including callable provider methods. */
-	const unsubscribe = pi.events.on(INSPECTOR_REGISTER_EVENT, (rawRequest) => {
+	const unsubscribe = evoharness.events.on(INSPECTOR_REGISTER_EVENT, (rawRequest) => {
 		if (!rawRequest || typeof rawRequest !== "object" || Array.isArray(rawRequest)) return;
 		// SAFETY: The envelope is an object; its version and plugin are validated below before storing callbacks.
 		const request = rawRequest as Partial<InspectorRegistrationRequest>;
@@ -87,6 +87,6 @@ export function registerInspectorEventListener(pi: InspectorOwner): () => void {
 		registry.owners -= 1;
 		if (registry.owners > 0) return;
 		plugins.clear();
-		if (registries.get(pi.events) === registry) registries.delete(pi.events);
+		if (registries.get(evoharness.events) === registry) registries.delete(evoharness.events);
 	};
 }

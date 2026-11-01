@@ -77,7 +77,7 @@ export function resolveRexLocalPlacement(input: {
 		server = env.REX_SERVER?.trim();
 	if (!session)
 		throw new Error(
-			"Machine 'local' opens the child in a new tab of this Rex session, but this Pi is not running inside Rex (REX_SESSION is not set).",
+			"Machine 'local' opens the child in a new tab of this Rex session, but this evoharness is not running inside Rex (REX_SESSION is not set).",
 		);
 	const result = spawnSync(
 		resolveRexBinary(env),
@@ -94,7 +94,7 @@ export function resolveRexLocalPlacement(input: {
 		throw new Error(`Could not ask Rex about this session: ${result.error.message}`, { cause: result.error });
 	if (result.status === REX_EXIT_GONE)
 		throw new Error(
-			`Machine 'local' needs this Pi's Rex session, but the Rex server does not know session ${session}.`,
+			`Machine 'local' needs this evoharness's Rex session, but the Rex server does not know session ${session}.`,
 		);
 	if (result.status === REX_EXIT_UNREACHABLE)
 		throw new Error("Machine 'local' needs the Rex server, but it is unreachable.");

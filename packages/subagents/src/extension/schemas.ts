@@ -371,7 +371,7 @@ const SubagentParamProperties = {
 		Type.String({
 			minLength: 1,
 			description:
-				"Exact id of a workflow run ended by a reload, handoff or Pi exit; this async workflow reuses its finished children and re-attaches to its running ones.",
+				"Exact id of a workflow run ended by a reload, handoff or evoharness exit; this async workflow reuses its finished children and re-attaches to its running ones.",
 		}),
 	),
 	globalConcurrencyLimit: Type.Optional(Type.Integer({ minimum: 1 })),
@@ -432,7 +432,7 @@ const SubagentParamProperties = {
 			minLength: 1,
 			maxLength: 128,
 			description:
-				'Herdr saved machine id or label (runs an external CLI agent), a Rex host named in settings (runs a Pi child), or "local" (a Pi child in a Rex pane here). On another machine, cwd is a directory there.',
+				'Herdr saved machine id or label (runs an external CLI agent), a Rex host named in settings (runs a evoharness child), or "local" (a evoharness child in a Rex pane here). On another machine, cwd is a directory there.',
 		}),
 	),
 	artifacts: Type.Optional(Type.Boolean({ description: "Debug artifacts; default true." })),

@@ -57,7 +57,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("bounds compact JSON session previews without changing short output or stored evidence", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-transcript-preview-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-transcript-preview-"));
 		try {
 			const asyncDir = path.join(root, "runs", "preview");
 			fs.mkdirSync(asyncDir, { recursive: true });
@@ -128,7 +128,7 @@ describe("async run status inspection", () => {
 
 	for (const source of ["output", "recent", "result", "nested"] as const) {
 		it(`bounds the aggregate rendered ${source} transcript, retaining newest context`, () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-transcript-body-budget-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-transcript-body-budget-"));
 			const route = createNestedRoute(`preview-${source}-root`);
 			try {
 				const id = `preview-${source}`;
@@ -225,7 +225,7 @@ describe("async run status inspection", () => {
 	}
 
 	it("inspects live foreground artifacts on demand with child selection, ownership and bounded tails", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-live-foreground-transcript-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-live-foreground-transcript-"));
 		try {
 			const artifactRoot = getArtifactsDir(null, root, "project");
 			fs.mkdirSync(artifactRoot, { recursive: true });
@@ -320,7 +320,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("projects only published receipt references from result-only status", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-receipt-status-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-receipt-status-"));
 		try {
 			const resultPath = path.join(root, "receipt-run.json");
 			for (const workflowReceipt of [{ path: "/opaque/published.json", receipt: {} }, undefined, { path: 42 }, []]) {
@@ -348,7 +348,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("repairs stale running status and reports diagnosis plus result path", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-stale-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-stale-"));
 		let budgetDirectory: string | undefined;
 		try {
 			const asyncRoot = path.join(root, "runs");
@@ -416,7 +416,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("renders bounded recovery guidance from a failed status step", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-recovery-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-recovery-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-recovery");
@@ -479,7 +479,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("shows a follow-up hint for completed external-job runs when the provider supports it", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-external-follow-up-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-external-follow-up-"));
 		try {
 			registerExternalJobProvider({
 				name: "surf-oracle",
@@ -551,7 +551,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("normalizes old external-cli runner status before rendering adapter details", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-old-external-cli-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-old-external-cli-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-old-external-cli");
@@ -606,7 +606,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("shows parallel mode and aggregate progress for top-level async parallel runs", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-parallel-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-parallel-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-parallel");
@@ -685,7 +685,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("tails a readable transcript from async output artifacts", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-transcript-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-transcript-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-transcript");
@@ -747,7 +747,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("does not fall back to another child output when an explicit transcript index output is missing", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-transcript-index-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-transcript-index-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-indexed-transcript");
@@ -802,7 +802,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("does not advertise an output artifact that was never written", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-transcript-phantom-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-transcript-phantom-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-phantom-output");
@@ -848,7 +848,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("renders an indexed async workflow child's owned transcript", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-workflow-child-transcript-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-workflow-child-transcript-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const parentDir = path.join(asyncRoot, "workflow-parent");
@@ -950,7 +950,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("shows host steps in exact workflow status checklist", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-workflow-host-checklist-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-workflow-host-checklist-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-workflow-host");
@@ -1013,7 +1013,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("keeps preflight as a plan hint outside the runtime checklist", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-workflow-preflight-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-workflow-preflight-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-workflow-preflight");
@@ -1057,7 +1057,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("refuses to tail status outputFile paths outside the async directory", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-transcript-escape-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-transcript-escape-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-escape");
@@ -1100,7 +1100,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("escapes terminal control sequences in async output transcripts", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-transcript-unsafe-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-transcript-unsafe-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-unsafe-output");
@@ -1145,7 +1145,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("keeps run metadata when child output contains binary content", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-transcript-binary-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-transcript-binary-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-binary-output");
@@ -1189,7 +1189,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("refuses symlink session transcript paths even under trusted roots", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-transcript-session-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-transcript-session-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-session-symlink");
@@ -1241,7 +1241,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("shows an active read-only fleet view with transcript commands", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-fleet-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-fleet-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-fleet");
@@ -1335,7 +1335,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("selects bounded external-cli evidence by lifecycle and preserves it in summaries", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-external-logs-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-external-logs-"));
 		try {
 			const stdoutPath = path.join(root, "external-0.stdout.log");
 			const stderrPath = path.join(root, "external-0.stderr.log");
@@ -1398,7 +1398,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("refuses external-cli log paths that escape the async directory", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-external-escape-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-external-escape-"));
 		try {
 			const asyncDir = path.join(root, "run");
 			fs.mkdirSync(asyncDir);
@@ -1427,7 +1427,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("scopes fleet active-run discovery to the current session", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-fleet-session-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-fleet-session-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const currentDir = path.join(asyncRoot, "run-current");
@@ -1497,7 +1497,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("offers resume only to the session that launched the run", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-resume-owner-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-resume-owner-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -1564,7 +1564,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("escapes terminal control sequences in remembered foreground transcripts", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-foreground-transcript-unsafe-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-foreground-transcript-unsafe-"));
 		try {
 			const state = {
 				currentSessionId: "session-current",
@@ -1613,7 +1613,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("refuses transcript reads for async runs owned by another session", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-transcript-session-scope-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-transcript-session-scope-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-other-session");
@@ -1664,7 +1664,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("does not fall back to aggregate result output for an explicit completed child index", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-result-index-fallback-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-result-index-fallback-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -1705,7 +1705,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("surfaces steering counts and timestamps in exact and list status", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-steering-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-steering-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-steered");
@@ -1807,7 +1807,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("shows nested runs under owning steps with exact status hints", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-nested-root-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-nested-root-"));
 		const route = createNestedRoute("run-nested-root");
 		try {
 			const asyncRoot = path.join(root, "runs");
@@ -1871,7 +1871,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("repairs stale nested async descendants before rendering root status", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-stale-nested-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-stale-nested-"));
 		const route = createNestedRoute("run-stale-nested-root");
 		const nestedAsyncDir = path.join(TEMP_ROOT_DIR, "nested-subagent-runs", "run-stale-nested-root", "nested-stale");
 		try {
@@ -1958,7 +1958,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("shows a warning when nested projection fails for detailed status", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-nested-warning-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-nested-warning-"));
 		const route = createNestedRoute("run-nested-warning");
 		try {
 			const asyncRoot = path.join(root, "runs");
@@ -1995,7 +1995,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("shows a warning when nested projection fails for active status lists", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-nested-list-warning-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-nested-list-warning-"));
 		const route = createNestedRoute("run-nested-list-warning");
 		try {
 			const asyncRoot = path.join(root, "runs");
@@ -2036,7 +2036,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("keeps safe nested session content parts around binary content", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-nested-session-binary-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-nested-session-binary-"));
 		const route = createNestedRoute("run-nested-session-binary-root");
 		try {
 			const sessionFile = path.join(root, "session.jsonl");
@@ -2094,7 +2094,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("resolves exact nested run ids from the nested registry", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-nested-exact-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-nested-exact-"));
 		const route = createNestedRoute("run-nested-exact-root");
 		try {
 			writeNestedEvent(route, {
@@ -2140,7 +2140,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("shows indexed revive guidance for completed multi-child async runs with child sessions", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-multi-resume-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-multi-resume-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-multi");
@@ -2189,7 +2189,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("shows resolved child models and direct run-id recovery for workflow children", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-workflow-resume-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-workflow-resume-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "workflow-parent");
@@ -2276,7 +2276,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("returns a workflow terminal proof after every async child exits", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-workflow-terminal-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-workflow-terminal-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "workflow-parent");
@@ -2357,7 +2357,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("keeps supervisor-detached workflow children out of generic revive guidance", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-workflow-detached-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-workflow-detached-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "workflow-detached");
@@ -2409,7 +2409,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("uses original child indexes when result metadata contains invalid children", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-original-index-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-original-index-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -2447,7 +2447,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("labels chain parallel group children with logical step and agent numbers", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-chain-parallel-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-chain-parallel-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-chain");
@@ -2499,7 +2499,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("shows expected intercom target for still-running async steps", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-intercom-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-intercom-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-live");
@@ -2541,7 +2541,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("does not advertise a workflow steering command without a live foreground route", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-workflow-route-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-workflow-route-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "workflow-live");
@@ -2572,7 +2572,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("rejects ambiguous async run id prefixes", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-ambiguous-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-ambiguous-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			fs.mkdirSync(path.join(asyncRoot, "run-aaaa-one"), { recursive: true });
@@ -2599,7 +2599,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("rejects path-like async run ids", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-paths-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-paths-"));
 		try {
 			const result = inspectSubagentStatus(
 				{ id: "../run" },
@@ -2617,7 +2617,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("does not advertise revive for result fallback with only a top-level session file", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-result-no-child-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-result-no-child-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -2659,7 +2659,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("treats a top-level completed result as one transcript child", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-result-transcript-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-result-transcript-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -2702,7 +2702,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("validates completed result transcript indexes as integers", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-result-transcript-index-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-result-transcript-index-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -2739,7 +2739,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("shows stopped result-only runs without revive guidance", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-stopped-result-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-stopped-result-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -2784,7 +2784,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("shows signal-terminated result-only runs as stopped", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-signal-result-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-signal-result-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -2825,7 +2825,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("falls back to an existing result when async dir has no status file", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-result-fallback-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-result-fallback-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
@@ -2893,7 +2893,7 @@ describe("async run status inspection", () => {
 	});
 
 	it("shows the head of a long completed result summary and the file that holds all of it", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-run-status-result-head-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-run-status-result-head-"));
 		try {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");

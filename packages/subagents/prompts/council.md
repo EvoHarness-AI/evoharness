@@ -12,7 +12,7 @@ Before you orchestrate, load the council protocol with
 `subagent({ action: "guide", options: { topic: "council" } })`. If only `subagents_enable`
 is available, call it first; `subagent` is available on the next request. The
 guide returns the packaged council-mode skill and the references it asks you to
-read, so it also works when Pi runs with `--no-skills`.
+read, so it also works when evoharness runs with `--no-skills`.
 
 Parse the invocation yourself. The flags below are conventions, not runtime
 options. Record a brief with the question, scope, non-goals, evidence targets,
@@ -39,9 +39,9 @@ question and scope provide the decision frame. If the user wants a specific lens
 they should put it in the question, scope, or profile definition. Keep the roster
 at 2–3 and never exceed 4.
 
-Package advisors such as Surf's `gpt-pro` are valid only when the package Pi
+Package advisors such as Surf's `gpt-pro` are valid only when the package evoharness
 extension is installed and its external-job provider is registered. For Surf,
-that means the `surf-cli` Pi extension has loaded and `surf-oracle` appears in
+that means the `surf-cli` evoharness extension has loaded and `surf-oracle` appears in
 `subagent({ action: "list" })` or the advisor is explicitly requested in
 `--advisors` after that install. Treat them as external-runner advisors: omit
 child `async` for normal attached council results, do not pass `outputSchema`,

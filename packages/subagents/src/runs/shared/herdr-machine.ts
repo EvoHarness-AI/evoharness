@@ -13,7 +13,7 @@ export { shellQuoteRemote as shellQuote } from "./herdr-connection.ts";
  * Herdr saved-machine placement for external CLI children.
  *
  * Herdr owns which machines exist and how ssh reaches them (`herdr machine list --json`).
- * pi-subagents owns what runs there: native Pi and the six code-owned external profiles are
+ * subagents owns what runs there: native evoharness and the six code-owned external profiles are
  * launched in fresh Herdr-owned visible panes. SSH is bounded transport and never owns the agent.
  * `cwd` means the directory on that machine; the remote `cd` is the directory check.
  */
@@ -235,7 +235,7 @@ function machineSettingsFrom(
 		entry.env = { ...(record.env as Record<string, string>) };
 		if (Object.keys(entry.env).length > 0) {
 			throw new Error(
-				`Subagent settings in '${filePath}' set 'machines.${key}.env'. Saved-machine runs use the remote Herdr/Pi environment; configure credentials and environment on '${key}' and remove the local env map.`,
+				`Subagent settings in '${filePath}' set 'machines.${key}.env'. Saved-machine runs use the remote Herdr/evoharness environment; configure credentials and environment on '${key}' and remove the local env map.`,
 			);
 		}
 	}
@@ -308,7 +308,7 @@ export function resolveHerdrMachinePlacement(input: ResolveHerdrMachinePlacement
 	const settings = input.settings ?? readMachineSettings(input.cwd, keys);
 	if (settings?.env && Object.keys(settings.env).length > 0) {
 		throw new Error(
-			`Saved-machine environment for '${name}' must be configured remotely. Remove machines.${name}.env and configure the remote Herdr/Pi session instead.`,
+			`Saved-machine environment for '${name}' must be configured remotely. Remove machines.${name}.env and configure the remote Herdr/evoharness session instead.`,
 		);
 	}
 	const cwd = remoteMachineCwd(input.stepCwd, settings?.cwd, name);
@@ -348,9 +348,9 @@ export function resolveMachinePlacement(input: ResolveHerdrMachinePlacementInput
 	return resolveHerdrMachinePlacement(input);
 }
 
-/** A placed Pi keeps its transcript on the pane's machine, so it can't start from a local one. */
+/** A placed evoharness keeps its transcript on the pane's machine, so it can't start from a local one. */
 export const PLACED_RESTORE_UNSUPPORTED =
-	"Pane-native remote Pi does not support fork, resume, or revival; use fresh context.";
+	"Pane-native remote evoharness does not support fork, resume, or revival; use fresh context.";
 
 export function formatHerdrMachineRunnerUnsupported(input: {
 	machine?: string;
@@ -368,16 +368,16 @@ export function formatHerdrMachineRunnerUnsupported(input: {
 		return error instanceof Error ? error.message : String(error);
 	}
 	if (rex) {
-		if (input.runnerType !== undefined && input.runnerType !== "pi")
-			return `Agent '${input.agentName}' requested machine '${name}', but Rex supports native Pi children only. Remove the machine or use a native Pi agent.`;
+		if (input.runnerType !== undefined && input.runnerType !== "evoharness")
+			return `Agent '${input.agentName}' requested machine '${name}', but Rex supports native evoharness children only. Remove the machine or use a native evoharness agent.`;
 		if (input.worktree === true)
 			return `Agent '${input.agentName}' requested machine '${name}', but managed worktrees cannot be combined with machine placement.`;
 		if (process.platform === "win32")
 			return `Machine '${name}' runs the child in a Rex pane, which is not supported on Windows.`;
 		return undefined;
 	}
-	if (input.runnerType !== undefined && input.runnerType !== "pi" && input.runnerType !== "external-cli") {
-		return `Agent '${input.agentName}' requested machine '${input.machine}', but this runner cannot use pane-native Herdr placement. Use native Pi or a built-in Claude, Codex, or Cursor profile.`;
+	if (input.runnerType !== undefined && input.runnerType !== "evoharness" && input.runnerType !== "external-cli") {
+		return `Agent '${input.agentName}' requested machine '${input.machine}', but this runner cannot use pane-native Herdr placement. Use native evoharness or a built-in Claude, Codex, or Cursor profile.`;
 	}
 	if (
 		input.runnerType === "external-cli" &&
@@ -415,7 +415,7 @@ const HINTS: ReadonlyArray<readonly [RegExp, (machine: HerdrMachineReference) =>
 	[
 		/\bcd: .*(No such file or directory|not a directory|can't cd)|exit(?:ed with)? code 125\b/iu,
 		(machine) =>
-			`Nothing at ${machine.cwd} on ${machine.label ?? machine.id}. Clone the repo there first; pi-subagents never clones, pulls, or checks out on a machine.`,
+			`Nothing at ${machine.cwd} on ${machine.label ?? machine.id}. Clone the repo there first; subagents never clones, pulls, or checks out on a machine.`,
 	],
 	[
 		/(?:command not found|not found)\s*$|No such file or directory\s*$|exit(?:ed with)? code 127\b/imu,

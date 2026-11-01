@@ -38,7 +38,7 @@ it("keeps reload wakes scoped to one session manager and clears them on quit", a
 	const otherOwner = { getSessionId: () => sessionId };
 	const create = (sessionManager: Parameters<CompletionNotifier["bindSession"]>[0]) => {
 		const messages: any[] = [];
-		const pi = {
+		const evoharness = {
 			events: createEventBus(),
 			isHeld: () => false,
 			sendMessage(message: unknown) {
@@ -46,7 +46,7 @@ it("keeps reload wakes scoped to one session manager and clears them on quit", a
 			},
 		} as unknown as Parameters<typeof registerSubagentNotify>[0];
 		const notifier = registerSubagentNotify(
-			pi,
+			evoharness,
 			{ currentSessionId: sessionId, completionOwnerId: COMPLETION_OWNER_ID },
 			{ batchConfig: { enabled: false } },
 		);
@@ -111,7 +111,7 @@ it("keeps wakes accepted before the first session bind", async () => {
 	const owner = SessionManager.inMemory();
 	const sessionId = owner.getSessionId();
 	const messages: any[] = [];
-	const pi = {
+	const evoharness = {
 		events: createEventBus(),
 		isHeld: () => false,
 		sendMessage(message: unknown) {
@@ -119,7 +119,7 @@ it("keeps wakes accepted before the first session bind", async () => {
 		},
 	} as unknown as Parameters<typeof registerSubagentNotify>[0];
 	const first = registerSubagentNotify(
-		pi,
+		evoharness,
 		{ currentSessionId: sessionId, completionOwnerId: COMPLETION_OWNER_ID },
 		{ batchConfig: { enabled: false } },
 	);
@@ -127,7 +127,7 @@ it("keeps wakes accepted before the first session bind", async () => {
 	first.sessionShutdown("reload");
 	first.dispose();
 	const replacement = registerSubagentNotify(
-		pi,
+		evoharness,
 		{ currentSessionId: sessionId, completionOwnerId: COMPLETION_OWNER_ID },
 		{ batchConfig: { enabled: false } },
 	);
@@ -145,7 +145,7 @@ it("keeps wakes accepted before the first session bind", async () => {
 	replacement.dispose();
 });
 
-it("holds a completion that wakes an idle parent until Pi starts its message", async () => {
+it("holds a completion that wakes an idle parent until evoharness starts its message", async () => {
 	const owner = SessionManager.inMemory();
 	const sessionId = owner.getSessionId();
 	const calls: unknown[][] = [];
@@ -268,7 +268,7 @@ it("prints what happens next to an interrupted workflow right after its run id, 
 			asyncDir,
 			workflow: { stopCause: "runtime-replaced" },
 		});
-		// The line is read from the run only for a workflow that a runtime replacement or a Pi exit stopped.
+		// The line is read from the run only for a workflow that a runtime replacement or a evoharness exit stopped.
 		const claimed = join(root, "wf-auto");
 		mkdirSync(claimed);
 		claimWorkflowResume(claimed, { newRunId: "wf-auto-next", trigger: "auto" });
@@ -346,7 +346,7 @@ function createEventBus() {
 function createPi(currentSessionId = "session-1", registerOptions: RegisterSubagentNotifyOptions = {}) {
 	const events = createEventBus();
 	const sent: Array<{ message: unknown; options: unknown }> = [];
-	const pi = {
+	const evoharness = {
 		events,
 		isHeld: () => false,
 		sendMessage(message: unknown, options: unknown) {
@@ -357,7 +357,7 @@ function createPi(currentSessionId = "session-1", registerOptions: RegisterSubag
 	// Formatting-focused tests run with batching disabled so single completions
 	// emit synchronously. Batching behavior is covered by the dedicated suite below.
 	const notifier = registerSubagentNotify(
-		pi as never,
+		evoharness as never,
 		{ currentSessionId, completionOwnerId: COMPLETION_OWNER_ID },
 		{
 			batchConfig: { enabled: false },
@@ -372,7 +372,7 @@ function createPi(currentSessionId = "session-1", registerOptions: RegisterSubag
 function createBatchingPi(clock: ReturnType<typeof createFakeClock>, currentSessionId = "session-a") {
 	const events = createEventBus();
 	const sent: Array<{ message: unknown; options: unknown }> = [];
-	const pi = {
+	const evoharness = {
 		events,
 		isHeld: () => false,
 		sendMessage(message: unknown, options: unknown) {
@@ -380,7 +380,7 @@ function createBatchingPi(clock: ReturnType<typeof createFakeClock>, currentSess
 		},
 	};
 	const notifier = registerSubagentNotify(
-		pi as never,
+		evoharness as never,
 		{ currentSessionId, completionOwnerId: COMPLETION_OWNER_ID },
 		{
 			batchConfig: {
@@ -453,7 +453,7 @@ describe("registerSubagentNotify", () => {
 		const events = createEventBus();
 		const sent: Array<{ options: unknown }> = [];
 		const registry = createCompletionSendRegistry();
-		const pi = {
+		const evoharness = {
 			events,
 			isHeld: () => false,
 			sendMessage(_message: unknown, options: unknown) {
@@ -462,8 +462,8 @@ describe("registerSubagentNotify", () => {
 		};
 		const state = { currentSessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID };
 		const options = { batchConfig: { enabled: false }, sendRegistry: registry } as const;
-		const first = registerSubagentNotify(pi as never, state, options);
-		const second = registerSubagentNotify(pi as never, state, options);
+		const first = registerSubagentNotify(evoharness as never, state, options);
+		const second = registerSubagentNotify(evoharness as never, state, options);
 		try {
 			events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, completionResult({ id: "shared-async" }));
 			assert.equal(sent.length, 1);
@@ -478,7 +478,7 @@ describe("registerSubagentNotify", () => {
 		const events = createEventBus();
 		const sent: unknown[] = [];
 		const registry = createCompletionSendRegistry();
-		const pi = {
+		const evoharness = {
 			events,
 			isHeld: () => false,
 			sendMessage(message: unknown) {
@@ -487,8 +487,8 @@ describe("registerSubagentNotify", () => {
 		};
 		const state = { currentSessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID };
 		const options = { batchConfig: { enabled: false }, sendRegistry: registry } as const;
-		const first = registerSubagentNotify(pi as never, state, options);
-		const second = registerSubagentNotify(pi as never, state, options);
+		const first = registerSubagentNotify(evoharness as never, state, options);
+		const second = registerSubagentNotify(evoharness as never, state, options);
 		try {
 			events.emit(
 				SUBAGENT_FOREGROUND_COMPLETE_EVENT,
@@ -506,7 +506,7 @@ describe("registerSubagentNotify", () => {
 		const registry = createCompletionSendRegistry();
 		let attempts = 0;
 		let accepted = 0;
-		const pi = {
+		const evoharness = {
 			events,
 			isHeld: () => false,
 			sendMessage() {
@@ -517,8 +517,8 @@ describe("registerSubagentNotify", () => {
 		};
 		const state = { currentSessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID };
 		const options = { batchConfig: { enabled: false }, sendRegistry: registry } as const;
-		const first = registerSubagentNotify(pi as never, state, options);
-		const second = registerSubagentNotify(pi as never, state, options);
+		const first = registerSubagentNotify(evoharness as never, state, options);
+		const second = registerSubagentNotify(evoharness as never, state, options);
 		try {
 			events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, completionResult({ id: "retry-after-failure" }));
 			assert.equal(attempts, 2);
@@ -535,7 +535,7 @@ describe("registerSubagentNotify", () => {
 		let reentrant: Promise<boolean> | undefined;
 		let sends = 0;
 		let second!: ReturnType<typeof registerSubagentNotify>;
-		const pi = {
+		const evoharness = {
 			events: createEventBus(),
 			isHeld: () => false,
 			sendMessage() {
@@ -545,8 +545,8 @@ describe("registerSubagentNotify", () => {
 		};
 		const state = { currentSessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID };
 		const options = { batchConfig: { enabled: false }, sendRegistry: registry } as const;
-		const first = registerSubagentNotify(pi as never, state, options);
-		second = registerSubagentNotify(pi as never, state, options);
+		const first = registerSubagentNotify(evoharness as never, state, options);
+		second = registerSubagentNotify(evoharness as never, state, options);
 		try {
 			assert.equal(await first.deliver(result), true);
 			assert.equal(await reentrant, true);
@@ -560,7 +560,7 @@ describe("registerSubagentNotify", () => {
 	it("keeps identical completion ids isolated by session", async () => {
 		const registry = createCompletionSendRegistry();
 		const sent: unknown[] = [];
-		const pi = {
+		const evoharness = {
 			events: createEventBus(),
 			isHeld: () => false,
 			sendMessage(message: unknown) {
@@ -569,12 +569,12 @@ describe("registerSubagentNotify", () => {
 		};
 		const options = { batchConfig: { enabled: false }, sendRegistry: registry } as const;
 		const first = registerSubagentNotify(
-			pi as never,
+			evoharness as never,
 			{ currentSessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID },
 			options,
 		);
 		const second = registerSubagentNotify(
-			pi as never,
+			evoharness as never,
 			{ currentSessionId: "session-b", completionOwnerId: COMPLETION_OWNER_ID },
 			options,
 		);
@@ -742,7 +742,7 @@ describe("registerSubagentNotify", () => {
 	it("accepts completions of a session this process replaced", async () => {
 		const events = createEventBus();
 		const sent: unknown[] = [];
-		const pi = {
+		const evoharness = {
 			events,
 			isHeld: () => false,
 			sendMessage(message: unknown) {
@@ -753,7 +753,10 @@ describe("registerSubagentNotify", () => {
 		const ownership = createResultDeliveryOwnership(state);
 		recordSessionReplacement("session-new", "session-old");
 		state.currentSessionId = "session-new";
-		const notifier = registerSubagentNotify(pi as never, state, { batchConfig: { enabled: false }, ownership });
+		const notifier = registerSubagentNotify(evoharness as never, state, {
+			batchConfig: { enabled: false },
+			ownership,
+		});
 		try {
 			assert.equal(await notifier.deliver(completionResult({ id: "predecessor", sessionId: "session-old" })), true);
 			assert.equal(await notifier.deliver(completionResult({ id: "foreign", sessionId: "session-foreign" })), false);
@@ -773,7 +776,7 @@ describe("registerSubagentNotify", () => {
 		const clock = createFakeClock();
 		const events = createEventBus();
 		const sent: unknown[] = [];
-		const pi = {
+		const evoharness = {
 			events,
 			isHeld: () => false,
 			sendMessage(message: unknown) {
@@ -781,7 +784,7 @@ describe("registerSubagentNotify", () => {
 			},
 		};
 		const state = { currentSessionId: "session-a" as string | null, completionOwnerId: COMPLETION_OWNER_ID };
-		const notifier = registerSubagentNotify(pi as never, state, {
+		const notifier = registerSubagentNotify(evoharness as never, state, {
 			batchConfig: {
 				enabled: true,
 				debounceMs: 150,
@@ -1681,8 +1684,8 @@ describe("completion formatting helpers", () => {
 		assert.match(content, /1 additional child preview\(s\) omitted/);
 	});
 
-	it("reports false when Pi rejects sendMessage synchronously", async () => {
-		const pi = {
+	it("reports false when evoharness rejects sendMessage synchronously", async () => {
+		const evoharness = {
 			events: createEventBus(),
 			isHeld: () => false,
 			sendMessage() {
@@ -1690,7 +1693,7 @@ describe("completion formatting helpers", () => {
 			},
 		};
 		const notifier = registerSubagentNotify(
-			pi as never,
+			evoharness as never,
 			{ currentSessionId: "session-a" },
 			{ batchConfig: { enabled: false } },
 		);
@@ -1952,7 +1955,7 @@ describe("scheduled completions", () => {
 
 	it("wakes once for an actionable child failure but not an ordinary running success", () => {
 		const triggerTurns: boolean[] = [];
-		const pi = {
+		const evoharness = {
 			sendMessage(_message: unknown, options: unknown) {
 				if ((options as { triggerTurn?: boolean }).triggerTurn === true) triggerTurns.push(true);
 			},
@@ -1961,7 +1964,9 @@ describe("scheduled completions", () => {
 			{ workflowRunId: "workflow-1", childKey: "ready", outcome: "completed" as const, workflowRunning: true },
 			{ workflowRunId: "workflow-1", childKey: "broken", outcome: "failed" as const, workflowRunning: true },
 		]) {
-			pi.sendMessage(notification, { triggerTurn: incrementalChildCompletionTriggersTurn(notification, undefined) });
+			evoharness.sendMessage(notification, {
+				triggerTurn: incrementalChildCompletionTriggersTurn(notification, undefined),
+			});
 		}
 		assert.equal(triggerTurns.length, 1, "only the actionable child failure should trigger a provider turn");
 	});

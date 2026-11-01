@@ -269,7 +269,7 @@ function isolateCorruptActiveRun(asyncDir: string, runId: string, error: unknown
 			markerAction = `failed to release active marker: ${getErrorMessage(releaseError)}`;
 		}
 	}
-	const line = `[pi-subagents] Skipping corrupt active async run '${runId}' at '${statusPath}': ${getErrorMessage(error)}; ${markerAction}.`;
+	const line = `[subagents] Skipping corrupt active async run '${runId}' at '${statusPath}': ${getErrorMessage(error)}; ${markerAction}.`;
 	let fileSignature = "";
 	try {
 		const stat = fs.statSync(statusPath);

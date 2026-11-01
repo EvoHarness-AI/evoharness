@@ -20,7 +20,7 @@ describe("child watchdog registration", () => {
 		const sent: unknown[] = [];
 		const appended: unknown[] = [];
 		const statuses: unknown[] = [];
-		const pi = {
+		const evoharness = {
 			on(event: string, handler: (event: unknown, ctx: { cwd: string }) => unknown) {
 				handlers.set(event, [...(handlers.get(event) ?? []), handler]);
 			},
@@ -36,7 +36,7 @@ describe("child watchdog registration", () => {
 		};
 		const terminalState = { captured: true };
 		const runtime = registerChildWatchdog(
-			pi as never,
+			evoharness as never,
 			{
 				agentEndTimeoutMs: 1_000,
 				maxWarnings: 3,

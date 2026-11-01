@@ -14,7 +14,7 @@ import {
 } from "../../src/runs/background/process-terminal.ts";
 
 test("process-terminal proof requires the matching runner instance and writer close records", () => {
-	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-process-terminal-"));
+	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-process-terminal-"));
 	try {
 		writeProcessTerminalCandidate(asyncDir, {
 			version: 1,
@@ -25,7 +25,7 @@ test("process-terminal proof requires the matching runner instance and writer cl
 				"0": [
 					{
 						processInstanceId: "writer-1",
-						kind: "pi-writer",
+						kind: "host-writer",
 						attempt: 0,
 						closeObservedAt: 10,
 						exitCode: 0,
@@ -79,7 +79,7 @@ test("process-terminal proof requires the matching runner instance and writer cl
 });
 
 test("startup process-terminal candidate does not certify unobserved writers", () => {
-	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-process-terminal-startup-"));
+	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-process-terminal-startup-"));
 	try {
 		initializeProcessTerminal(asyncDir, "run-startup", "runner-startup");
 		fs.writeFileSync(
@@ -108,7 +108,7 @@ test("startup process-terminal candidate does not certify unobserved writers", (
 });
 
 test("process-terminal rejects missing writer close evidence", () => {
-	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-process-terminal-"));
+	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-process-terminal-"));
 	try {
 		writeProcessTerminalCandidate(asyncDir, {
 			version: 1,
@@ -141,7 +141,7 @@ test("process-terminal rejects missing writer close evidence", () => {
 });
 
 test("process-terminal fails closed when process-tree verification is unknown", () => {
-	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-process-terminal-"));
+	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-process-terminal-"));
 	try {
 		writeProcessTerminalCandidate(asyncDir, {
 			version: 1,
@@ -152,7 +152,7 @@ test("process-terminal fails closed when process-tree verification is unknown", 
 				"0": [
 					{
 						processInstanceId: "writer-tree-unknown",
-						kind: "pi-writer",
+						kind: "host-writer",
 						attempt: 0,
 						closeObservedAt: 10,
 						exitCode: 1,
@@ -207,7 +207,7 @@ test("process-terminal fails closed when process-tree verification is unknown", 
 });
 
 test("malformed process-terminal sidecars project unknown instead of throwing", () => {
-	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-process-terminal-"));
+	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-process-terminal-"));
 	try {
 		fs.writeFileSync(processTerminalPath(asyncDir), JSON.stringify({ version: 1, state: "bogus" }));
 		const proof = readProcessTerminal(asyncDir, {
@@ -231,7 +231,7 @@ test("malformed process-terminal sidecars project unknown instead of throwing", 
 });
 
 test("process-terminal preserves stopped non-resumability and requires lease release acknowledgement", () => {
-	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-process-terminal-"));
+	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-process-terminal-"));
 	try {
 		writeProcessTerminalCandidate(asyncDir, {
 			version: 1,
@@ -242,7 +242,7 @@ test("process-terminal preserves stopped non-resumability and requires lease rel
 				"0": [
 					{
 						processInstanceId: "stopped-writer",
-						kind: "pi-writer",
+						kind: "host-writer",
 						attempt: 0,
 						closeObservedAt: 10,
 						exitCode: 0,
@@ -298,7 +298,7 @@ test("process-terminal preserves stopped non-resumability and requires lease rel
 });
 
 test("process-terminal rejects cross-run observed sidecars and inconsistent expected writer maps", () => {
-	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-process-terminal-"));
+	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-process-terminal-"));
 	try {
 		fs.writeFileSync(
 			processTerminalPath(asyncDir),
@@ -333,7 +333,7 @@ test("process-terminal rejects cross-run observed sidecars and inconsistent expe
 				"0": [
 					{
 						processInstanceId: "unexpected-writer",
-						kind: "pi-writer",
+						kind: "host-writer",
 						attempt: 0,
 						closeObservedAt: 10,
 						exitCode: 0,
@@ -387,7 +387,7 @@ test("process-terminal sanitizes malformed status fallback proofs", () => {
 });
 
 test("process-terminal reports unknown when the runner candidate is unavailable", () => {
-	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-process-terminal-"));
+	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-process-terminal-"));
 	try {
 		const proof = finalizeProcessTerminal(asyncDir, "run-2", {
 			processInstanceId: "runner-2",
@@ -409,7 +409,7 @@ test("process-terminal reports unknown when the runner candidate is unavailable"
 });
 
 test("process-terminal adds the observed runner exit to a sticky runner-published unknown proof", () => {
-	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-process-terminal-"));
+	const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-process-terminal-"));
 	try {
 		const sticky = {
 			version: 1,

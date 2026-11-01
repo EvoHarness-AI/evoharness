@@ -43,7 +43,7 @@ function runnerStep(agent: string, task = "Use {previous}"): RunnerStep {
 
 describe("chain append requests", () => {
 	it("persists append requests for running async chains and records pending status", () => {
-		const root = createTempDir("pi-chain-append-");
+		const root = createTempDir("subagents-chain-append-");
 		try {
 			const asyncDir = path.join(root, "run-a");
 			writeStatus(asyncDir, {
@@ -81,7 +81,7 @@ describe("chain append requests", () => {
 	});
 
 	it("persists the request inside the admission callback", () => {
-		const root = createTempDir("pi-chain-append-admission-");
+		const root = createTempDir("subagents-chain-append-admission-");
 		try {
 			const asyncDir = path.join(root, "run-admission");
 			writeStatus(asyncDir, {
@@ -112,7 +112,7 @@ describe("chain append requests", () => {
 	});
 
 	it("reports accepted appends and keeps admission claims when bookkeeping fails after persistence", () => {
-		const root = createTempDir("pi-chain-append-bookkeeping-");
+		const root = createTempDir("subagents-chain-append-bookkeeping-");
 		const budget = createRunFanoutBudget("append-bookkeeping", 1);
 		try {
 			const asyncDir = path.join(root, "run-bookkeeping");
@@ -151,7 +151,7 @@ describe("chain append requests", () => {
 	});
 
 	it("reads pending append requests without consuming them and reports reserved output names", () => {
-		const root = createTempDir("pi-chain-append-pending-");
+		const root = createTempDir("subagents-chain-append-pending-");
 		try {
 			const asyncDir = path.join(root, "run-pending");
 			writeStatus(asyncDir, {
@@ -186,7 +186,7 @@ describe("chain append requests", () => {
 	});
 
 	it("rejects terminal and non-chain async runs", () => {
-		const root = createTempDir("pi-chain-append-reject-");
+		const root = createTempDir("subagents-chain-append-reject-");
 		try {
 			const completeDir = path.join(root, "complete");
 			writeStatus(completeDir, {

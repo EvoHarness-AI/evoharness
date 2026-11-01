@@ -120,7 +120,7 @@ it("restores pre-upgrade queued wakes without a tracking map", async () => {
 	const sessionId = randomUUID();
 	const manager = { getSessionId: () => sessionId };
 	const content = "Background task completed: **workflow**\n\nRetained legacy result";
-	const registry = (globalThis as any)[Symbol.for("pi-subagents.queued-completion-wakes.v2")];
+	const registry = (globalThis as any)[Symbol.for("subagents.queued-completion-wakes.v2")];
 	registry.set(manager, { sessionId, wakes: [content] });
 	const replacement = harness(manager);
 	try {

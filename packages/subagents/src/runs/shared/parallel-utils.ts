@@ -5,7 +5,7 @@ export interface RunnerSubagentStep {
 	parentSessionId?: string;
 	/** Parent session file, recorded as the new child session's `parentSession` header. */
 	parentSessionFile?: string;
-	/** Resolved opt-in rules for native Pi child tool calls. */
+	/** Resolved opt-in rules for native evoharness child tool calls. */
 	permissionRules?: import("./permissions.ts").PermissionRules;
 	agent: string;
 	/** Human-readable display name for the child session, derived internally at launch. */
@@ -62,7 +62,7 @@ export interface RunnerSubagentStep {
 	/** Private immutable host policy snapshot serialized to the native runner. */
 	requiredExtensions?: import("../../shared/required-child-extensions.ts").RequiredChildExtensionSnapshot;
 	mcpDirectTools?: string[];
-	/** The parent's resolution of `mcpDirectTools` against Pi's built-in MCP; the runner has no host to repeat it. */
+	/** The parent's resolution of `mcpDirectTools` against evoharness's built-in MCP; the runner has no host to repeat it. */
 	builtinMcpTools?: import("./mcp-direct-tool-grant.ts").ResolvedMcpDirectToolSelection[];
 	mutationTools?: string[];
 	systemPrompt?: string | null;

@@ -46,7 +46,7 @@ describe("boot id", () => {
 		const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "boot-id-runner-"));
 		try {
 			for (const [bootId, expected] of [
-				["boot-from-pi", "boot-from-pi"],
+				["boot-from-evoharness", "boot-from-evoharness"],
 				[undefined, undefined],
 				["", undefined],
 			] as const) {

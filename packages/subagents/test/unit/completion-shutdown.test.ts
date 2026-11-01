@@ -9,8 +9,8 @@ import registerNotify, { PENDING_NOTICE_ENTRY, unreplayedPendingNotices } from "
 
 type Entry = { type: string; customType?: string; content?: unknown; data?: unknown };
 
-// One session file shared by successive Pi processes. `appended` false is a busy parent:
-// Pi queues the notice as a steer, which it drops if the process ends before starting it.
+// One session file shared by successive evoharness processes. `appended` false is a busy parent:
+// evoharness queues the notice as a steer, which it drops if the process ends before starting it.
 // `abandoned` holds entries on another branch of the session tree: in the file, but not on the active branch.
 function session() {
 	const id = randomUUID();
@@ -27,7 +27,7 @@ function session() {
 	};
 }
 
-// A reload keeps Pi's session manager object; a new process creates a new one.
+// A reload keeps evoharness's session manager object; a new process creates a new one.
 function processOn(file: ReturnType<typeof session>, appended = false, manager = file.manager()) {
 	const sent: Array<{ message: any; options: any }> = [];
 	const notifier = registerNotify(
@@ -70,7 +70,7 @@ function processOn(file: ReturnType<typeof session>, appended = false, manager =
 	};
 }
 
-it("resends a notice whose wake Pi never started when the next process opens the session", async () => {
+it("resends a notice whose wake evoharness never started when the next process opens the session", async () => {
 	const file = session();
 	const runId = randomUUID();
 	const first = processOn(file);
@@ -129,7 +129,7 @@ it("resends a pending notice that only another branch of the session carries", a
 	}
 });
 
-it("records nothing for a notice Pi started or an idle parent appended", async () => {
+it("records nothing for a notice evoharness started or an idle parent appended", async () => {
 	const started = session();
 	const busy = processOn(started);
 	busy.bind();
@@ -153,7 +153,11 @@ it("keeps a queued notice through reload and records it when the session later q
 	await first.deliver();
 	first.notifier.sessionShutdown("reload");
 	first.notifier.dispose();
-	assert.equal(unreplayedPendingNotices(file.entries).length, 0, "reload keeps Pi\x27s queue, so nothing is recorded");
+	assert.equal(
+		unreplayedPendingNotices(file.entries).length,
+		0,
+		"reload keeps evoharness\x27s queue, so nothing is recorded",
+	);
 	const reloaded = processOn(file, false, first.manager);
 	reloaded.bind();
 	await tick();

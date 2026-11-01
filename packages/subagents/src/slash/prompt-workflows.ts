@@ -289,18 +289,18 @@ function formatWorkflowList(workflows: PromptWorkflow[]): string {
 	].join("\n");
 }
 
-export function registerPromptWorkflowCommands(input: { pi: ExtensionAPI; run: PromptWorkflowRunner }): void {
-	const { pi, run } = input;
+export function registerPromptWorkflowCommands(input: { evoharness: ExtensionAPI; run: PromptWorkflowRunner }): void {
+	const { evoharness, run } = input;
 
-	pi.registerCommand("prompt-workflow", {
-		description: "Run a prompt template through native pi-subagents: /prompt-workflow <name> [args]",
+	evoharness.registerCommand("prompt-workflow", {
+		description: "Run a prompt template through native subagents: /prompt-workflow <name> [args]",
 		handler: async (rawArgs, ctx) => {
 			const words = shellWords(rawArgs);
 			const name = words.shift();
 			const workflows = discoverPromptWorkflows(ctx.cwd);
 			if (!name || name === "list") {
-				pi.sendMessage({ content: formatWorkflowList(workflows), display: true } as Parameters<
-					typeof pi.sendMessage
+				evoharness.sendMessage({ content: formatWorkflowList(workflows), display: true } as Parameters<
+					typeof evoharness.sendMessage
 				>[0]);
 				return;
 			}

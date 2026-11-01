@@ -12,15 +12,15 @@ const script = String.raw`
 	const fs = await import("node:fs");
 	const os = await import("node:os");
 	const path = await import("node:path");
-	const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-agent-end-goal-"));
-	const hasOwner = process.env.PI_SUBAGENTS_TEST_NO_OWNER !== "1";
+	const projectRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-agent-end-goal-"));
+	const hasOwner = process.env.EVOHARNESS_SUBAGENTS_TEST_NO_OWNER !== "1";
 	console.error = (...args) => errors.push(args.map((value) => value instanceof Error ? value.message : String(value)).join(" "));
 	const { default: registerSubagentExtension } = await import("./src/extension/index.ts");
 	const { createEventBus } = await import("@evoharness/coding-agent");
 	const { registerBackgroundWorkProvider } = await import("./src/api/background-work.ts");
 	const { createMission, resolveMissionStoreLocation } = await import("./src/missions/store.ts");
 	const events = createEventBus();
-	const pi = new Proxy({
+	const evoharness = new Proxy({
 		events,
 		on(name, handler) { const list = handlers.get(name) ?? []; list.push(handler); handlers.set(name, list); },
 		registerTool() {}, registerCommand() {}, registerShortcut() {}, registerMessageRenderer() {}, getSessionName() {},
@@ -36,7 +36,7 @@ const script = String.raw`
 		},
 		modelRegistry: { getAvailable() { return []; } },
 	};
-	registerSubagentExtension(pi);
+	registerSubagentExtension(evoharness);
 	if (hasOwner) for (const handler of handlers.get("session_start") ?? []) await handler({ reason: "startup" }, ctx);
 	const mission = hasOwner ? createMission(resolveMissionStoreLocation({ projectRoot }), {
 		title: "Continue after drain", objective: "Deliver the goal reminder", goal: true,
@@ -46,11 +46,11 @@ const script = String.raw`
 	const dispose = registerBackgroundWorkProvider({
 		name: "agent-end-drain-test",
 		listActiveWork() {
-			if (process.env.PI_SUBAGENTS_TEST_DRAIN_FAILURE === "1") throw providerError;
+			if (process.env.EVOHARNESS_SUBAGENTS_TEST_DRAIN_FAILURE === "1") throw providerError;
 			return [];
 		},
 	});
-	if (process.env.PI_SUBAGENTS_TEST_FINISHED_RUN === "1") {
+	if (process.env.EVOHARNESS_SUBAGENTS_TEST_FINISHED_RUN === "1") {
 		const { RESULTS_DIR } = await import("./src/shared/types.ts");
 		const { resultFilePath, writeAsyncResultFile } = await import("./src/runs/background/result-files.ts");
 		const { currentCompletionOwnerId } = await import("./src/shared/completion-owner.ts");
@@ -89,7 +89,7 @@ function runScript(root: string, env: Record<string, string | undefined>) {
 			TMPDIR: root,
 			TMP: root,
 			TEMP: root,
-			PI_SUBAGENT_CHILD: undefined,
+			EVOHARNESS_SUBAGENT_CHILD: undefined,
 			...env,
 		},
 		timeout: 10_000,
@@ -115,11 +115,11 @@ describe("headless agent_end auto-drain", () => {
 		{ name: "preserves the drain rejection when no session owns goal notices", failedDrain: false, hasOwner: false },
 	]) {
 		it(scenario.name, () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-agent-end-fixture-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-agent-end-fixture-"));
 			try {
 				const payload = runScript(root, {
-					PI_SUBAGENTS_TEST_DRAIN_FAILURE: scenario.failedDrain ? "1" : "0",
-					PI_SUBAGENTS_TEST_NO_OWNER: scenario.hasOwner ? "0" : "1",
+					EVOHARNESS_SUBAGENTS_TEST_DRAIN_FAILURE: scenario.failedDrain ? "1" : "0",
+					EVOHARNESS_SUBAGENTS_TEST_NO_OWNER: scenario.hasOwner ? "0" : "1",
 				});
 				assert.equal(
 					payload.rejected,
@@ -147,9 +147,9 @@ describe("headless agent_end auto-drain", () => {
 	}
 
 	it("sends a finished run's completion before the turn settles, so disposal right after cannot lose it", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-agent-end-fixture-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-agent-end-fixture-"));
 		try {
-			const payload = runScript(root, { PI_SUBAGENTS_TEST_FINISHED_RUN: "1" });
+			const payload = runScript(root, { EVOHARNESS_SUBAGENTS_TEST_FINISHED_RUN: "1" });
 			assert.equal(payload.rejected, null);
 			assert.deepEqual(payload.errors, []);
 			const completions = payload.sent

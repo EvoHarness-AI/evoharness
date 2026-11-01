@@ -7,18 +7,18 @@ import packageJson from "../../../package.json" with { type: "json" };
 import type { HerdrRemoteGitStatus, PlacementMachineReference } from "../../shared/types.ts";
 import type { ChildRuntimeConfig } from "./child-runtime-config.ts";
 import type { ChildSession, ChildSessionEvent, ChildSessionFactory, ChildSessionLaunch } from "./child-session.ts";
+import {
+	encodeHerdrHostFrame,
+	HERDR_HOST_MODE_ENV,
+	HERDR_HOST_PROTOCOL,
+	HERDR_HOST_RUN_ENV,
+	HERDR_HOST_RUNTIME_DIR_ENV,
+	type HerdrHostFrame,
+	HerdrHostFrameDecoder,
+	validateHerdrHostRunId,
+} from "./herdr-host-protocol.ts";
 import { PLACED_RESTORE_UNSUPPORTED } from "./herdr-machine.ts";
 import { HerdrPlacedRunOwner, herdrPaneHost } from "./herdr-pane-host.ts";
-import {
-	encodeHerdrPiFrame,
-	HERDR_PI_MODE_ENV,
-	HERDR_PI_PROTOCOL,
-	HERDR_PI_RUN_ENV,
-	HERDR_PI_RUNTIME_DIR_ENV,
-	type HerdrPiFrame,
-	HerdrPiFrameDecoder,
-	validateHerdrPiRunId,
-} from "./herdr-pi-protocol.ts";
 import { discoverPlacedBridgeManifest, type PlacedBridgeManifest, type PlacedRunOwner } from "./placed-run-owner.ts";
 import type {
 	PlacementBridgeIdentity,
@@ -64,7 +64,7 @@ export function reconcileHerdrReconnect(
 			bridge.runId !== identity.runId ||
 			bridge.nativeSessionId !== identity.nativeSessionId ||
 			bridge.packageVersion !== packageJson.version ||
-			bridge.protocol !== HERDR_PI_PROTOCOL
+			bridge.protocol !== HERDR_HOST_PROTOCOL
 		)
 			return { ok: false, reason: "Bridge run, package, protocol, or native session identity changed." };
 		if (
@@ -107,10 +107,10 @@ export async function boundedHerdrReconnect(
 
 function safeRunId(value: string | undefined): string {
 	const prefix = value?.replace(/[^A-Za-z0-9_-]/gu, "_").slice(0, 48) ?? "run";
-	return validateHerdrPiRunId(`${prefix}_${randomBytes(8).toString("hex")}`);
+	return validateHerdrHostRunId(`${prefix}_${randomBytes(8).toString("hex")}`);
 }
 
-export function serializeHerdrPiLaunch(launch: ChildSessionLaunch): {
+export function serializeHerdrHostLaunch(launch: ChildSessionLaunch): {
 	args: string[];
 	resources: { agent: string; skills?: string[]; toolCeiling?: string[]; reads?: string[] | false };
 } {
@@ -120,15 +120,17 @@ export function serializeHerdrPiLaunch(launch: ChildSessionLaunch): {
 		throw new Error(PLACED_RESTORE_UNSUPPORTED);
 	if (launch.extensionPaths.length || launch.requiredExtensions?.length)
 		throw new Error(
-			"Pane-native remote Pi cannot transfer local extension paths; install/configure pi-subagents on the remote machine.",
+			"Pane-native remote evoharness cannot transfer local extension paths; install/configure subagents on the remote machine.",
 		);
 	if (
 		launch.processEnv &&
 		Object.values(launch.processEnv).some((value) => value !== undefined && value !== "__none__")
 	)
-		throw new Error("Pane-native remote Pi cannot transfer local bindings, MCP selections, or process environment.");
+		throw new Error(
+			"Pane-native remote evoharness cannot transfer local bindings, MCP selections, or process environment.",
+		);
 	if (launch.runtime.nestedRoute || launch.runtime.fanoutChild || launch.runtime.depth > 1)
-		throw new Error("Nested delegation from a pane-native remote Pi is not supported.");
+		throw new Error("Nested delegation from a pane-native remote evoharness is not supported.");
 	if (
 		launch.excludeTools?.length ||
 		launch.runtime.permissions ||
@@ -137,7 +139,7 @@ export function serializeHerdrPiLaunch(launch: ChildSessionLaunch): {
 		launch.runtime.mcpDirectTools?.length
 	)
 		throw new Error(
-			"Pane-native remote Pi cannot yet represent exclusions, permission rules, tool budgets, MCP direct tools, or required-extension contracts; remove machine placement.",
+			"Pane-native remote evoharness cannot yet represent exclusions, permission rules, tool budgets, MCP direct tools, or required-extension contracts; remove machine placement.",
 		);
 	const resources = launch.remoteResources;
 	if (
@@ -167,11 +169,11 @@ export function serializeHerdrPiLaunch(launch: ChildSessionLaunch): {
 
 export class BridgeChannel {
 	readonly socket: net.Socket;
-	readonly decoder = new HerdrPiFrameDecoder();
-	readonly listeners = new Set<(frame: HerdrPiFrame) => void>();
-	readonly waiters = new Map<string, { resolve(frame: HerdrPiFrame): void; reject(error: Error): void }>();
+	readonly decoder = new HerdrHostFrameDecoder();
+	readonly listeners = new Set<(frame: HerdrHostFrame) => void>();
+	readonly waiters = new Map<string, { resolve(frame: HerdrHostFrame): void; reject(error: Error): void }>();
 	readonly runId: string;
-	readonly frames: HerdrPiFrame[] = [];
+	readonly frames: HerdrHostFrame[] = [];
 	readonly failure: Promise<never>;
 	#rejectFailure!: (error: Error) => void;
 	#failed = false;
@@ -205,7 +207,8 @@ export class BridgeChannel {
 		});
 		this.socket.on("error", (error) => this.fail(error));
 		this.socket.on("close", () => {
-			if (!this.#failed) this.fail(new Error("Remote Pi bridge connection was lost; task state is unknown."));
+			if (!this.#failed)
+				this.fail(new Error("Remote evoharness bridge connection was lost; task state is unknown."));
 		});
 	}
 	fail(error: Error) {
@@ -218,20 +221,20 @@ export class BridgeChannel {
 	get failed() {
 		return this.#failed;
 	}
-	adopt(listener: (frame: HerdrPiFrame) => void): HerdrPiFrame[] {
+	adopt(listener: (frame: HerdrHostFrame) => void): HerdrHostFrame[] {
 		this.#adopted = true;
 		this.listeners.add(listener);
 		return this.frames.splice(0);
 	}
-	wait(type: string, requestId: string): Promise<HerdrPiFrame> {
+	wait(type: string, requestId: string): Promise<HerdrHostFrame> {
 		return new Promise((resolve, reject) => this.waiters.set(`${type}:${requestId}`, { resolve, reject }));
 	}
 	configure(resources: { agent: string; skills?: string[]; toolCeiling?: string[]; reads?: string[] | false }) {
 		const requestId = `cfg_${randomBytes(6).toString("hex")}`;
 		const waiting = this.wait("configured", requestId);
 		this.socket.write(
-			encodeHerdrPiFrame({
-				protocol: HERDR_PI_PROTOCOL,
+			encodeHerdrHostFrame({
+				protocol: HERDR_HOST_PROTOCOL,
 				runId: this.runId,
 				type: "configure",
 				requestId,
@@ -242,8 +245,8 @@ export class BridgeChannel {
 	}
 	supervisorDelivered(requestId: string) {
 		this.socket.write(
-			encodeHerdrPiFrame({
-				protocol: HERDR_PI_PROTOCOL,
+			encodeHerdrHostFrame({
+				protocol: HERDR_HOST_PROTOCOL,
 				runId: this.runId,
 				type: "supervisor-delivered",
 				requestId,
@@ -253,8 +256,8 @@ export class BridgeChannel {
 	prepare(requestId: string, operation: string, text?: string, supervisorId?: string, supervisorError?: string) {
 		const waiting = this.wait("prepared", requestId);
 		this.socket.write(
-			encodeHerdrPiFrame({
-				protocol: HERDR_PI_PROTOCOL,
+			encodeHerdrHostFrame({
+				protocol: HERDR_HOST_PROTOCOL,
 				runId: this.runId,
 				type: "prepare",
 				requestId,
@@ -276,10 +279,10 @@ function waitForReadyBridgeFrame(
 	timeoutMs: number,
 	timeoutMessage: string,
 	configured = false,
-): Promise<HerdrPiFrame> {
+): Promise<HerdrHostFrame> {
 	return new Promise((resolve, reject) => {
 		const timer = setTimeout(() => reject(new Error(timeoutMessage)), timeoutMs);
-		const listener = (frame: HerdrPiFrame) => {
+		const listener = (frame: HerdrHostFrame) => {
 			if (frame.type !== "ready" || (configured && frame.configured !== true)) return;
 			clearTimeout(timer);
 			bridge.listeners.delete(listener);
@@ -289,7 +292,7 @@ function waitForReadyBridgeFrame(
 	});
 }
 
-export class HerdrPiSession<C extends PlacementSockets = PlacementSockets> implements ChildSession {
+export class HerdrHostSession<C extends PlacementSockets = PlacementSockets> implements ChildSession {
 	readonly #listeners = new Set<(event: ChildSessionEvent) => void>();
 	#messages: AgentMessage[] = [];
 	#sequence = 0;
@@ -385,7 +388,7 @@ export class HerdrPiSession<C extends PlacementSockets = PlacementSockets> imple
 		this.#reconnecting ??= this.#reconnectFactory()
 			.catch((error) => {
 				const unknown = (this.#reconnectFailure = new Error(
-					`Remote Pi reconciliation failed; task state is unknown: ${error instanceof Error ? error.message : String(error)}`,
+					`Remote evoharness reconciliation failed; task state is unknown: ${error instanceof Error ? error.message : String(error)}`,
 				));
 				for (const operation of this.#operations.values())
 					if (!operation.settled) {
@@ -444,13 +447,13 @@ export class HerdrPiSession<C extends PlacementSockets = PlacementSockets> imple
 		}
 		this.armReconnect(this.#reconnectFactory!);
 	}
-	#frame(frame: HerdrPiFrame) {
+	#frame(frame: HerdrHostFrame) {
 		if (typeof frame.cursor === "number") {
 			if (frame.cursor <= this.#evidenceCursor) return;
 			this.#evidenceCursor = frame.cursor;
 		}
 		if (frame.nativeSessionId !== this.identity.nativeSessionId) {
-			this.bridge.fail(new Error("Remote Pi native session identity changed."));
+			this.bridge.fail(new Error("Remote evoharness native session identity changed."));
 			void this.connection.close();
 			return;
 		}
@@ -479,12 +482,12 @@ export class HerdrPiSession<C extends PlacementSockets = PlacementSockets> imple
 				operation.settled = true;
 				frame.idle === true && frame.pending === false
 					? operation.resolve()
-					: operation.reject(new Error("Remote Pi did not settle with an empty native queue."));
+					: operation.reject(new Error("Remote evoharness did not settle with an empty native queue."));
 			}
 			for (const listener of this.#listeners) listener({ type: "agent_settled" });
 		}
 	}
-	#relaySupervisor(frame: HerdrPiFrame) {
+	#relaySupervisor(frame: HerdrHostFrame) {
 		if (!this.supervisorDir || typeof frame.requestId !== "string") return;
 		const reason = frame.reason;
 		if (reason !== "need_decision" && reason !== "interview_request" && reason !== "progress_update") return;
@@ -526,7 +529,7 @@ export class HerdrPiSession<C extends PlacementSockets = PlacementSockets> imple
 				this.bridge.prepare(requestId, operation, text, supervisorId, supervisorError),
 				this.bridge.failure,
 			]);
-			await this.host.prompt(this.connection, this.identity, `/pi-subagents-bridge ${requestId}`);
+			await this.host.prompt(this.connection, this.identity, `/subagents-bridge ${requestId}`);
 			await completion;
 		} catch (error) {
 			if (operation === "prompt" && this.bridge.failed) {
@@ -591,8 +594,8 @@ export class HerdrPiSession<C extends PlacementSockets = PlacementSockets> imple
 	}
 }
 
-export async function reconnectHerdrPiSession<C extends PlacementSockets>(
-	session: HerdrPiSession<C>,
+export async function reconnectHerdrHostSession<C extends PlacementSockets>(
+	session: HerdrHostSession<C>,
 	launch: ChildSessionLaunch,
 	dependencies: {
 		connect?: (machine: PlacementMachineReference) => Promise<C>;
@@ -683,19 +686,19 @@ export async function reconnectHerdrPiSession<C extends PlacementSockets>(
 	await session.replaceTransport({ ...validated, paneId: result.paneId, cursor: result.cursor, state: result.state });
 }
 
-export async function createHerdrPiSession(launch: ChildSessionLaunch): Promise<ChildSession> {
-	if (!launch.machine) throw new Error("Pane-native Pi launch requires a saved machine.");
+export async function createHerdrHostSession(launch: ChildSessionLaunch): Promise<ChildSession> {
+	if (!launch.machine) throw new Error("Pane-native evoharness launch requires a saved machine.");
 	if (launch.machine.provider !== "herdr")
-		throw new Error("Herdr pane-native Pi launch requires a Herdr saved machine.");
-	const policy = serializeHerdrPiLaunch(launch);
+		throw new Error("Herdr pane-native evoharness launch requires a Herdr saved machine.");
+	const policy = serializeHerdrHostLaunch(launch);
 	const runId = safeRunId(launch.runtime.runId);
 	return startPlacedPiSession(launch, await HerdrPlacedRunOwner.create(launch.machine, runId), policy);
 }
 
 /** A Rex machine: the same bridge session, with the Rex pane host and local (`machine: "local"`) or SSH machine access. */
 export async function createRexPiSession(launch: ChildSessionLaunch): Promise<ChildSession> {
-	if (launch.machine?.provider !== "rex") throw new Error("Rex pane-native Pi launch requires a Rex machine.");
-	const policy = serializeHerdrPiLaunch(launch);
+	if (launch.machine?.provider !== "rex") throw new Error("Rex pane-native evoharness launch requires a Rex machine.");
+	const policy = serializeHerdrHostLaunch(launch);
 	const runId = safeRunId(launch.runtime.runId);
 	return startPlacedPiSession(launch, await RexPlacedRunOwner.create(launch.machine, runId), policy);
 }
@@ -703,7 +706,7 @@ export async function createRexPiSession(launch: ChildSessionLaunch): Promise<Ch
 async function startPlacedPiSession<C extends PlacementSockets>(
 	launch: ChildSessionLaunch,
 	owner: PlacedRunOwner<C>,
-	policy: ReturnType<typeof serializeHerdrPiLaunch>,
+	policy: ReturnType<typeof serializeHerdrHostLaunch>,
 ): Promise<ChildSession> {
 	const machine = owner.machine,
 		runId = owner.runId,
@@ -711,16 +714,16 @@ async function startPlacedPiSession<C extends PlacementSockets>(
 		connection = owner.connection;
 	try {
 		let reconnectSession: { reconnect(): Promise<void> } | undefined;
-		const agentName = `pi-${runId.slice(-20)}`;
+		const agentName = `evoharness-${runId.slice(-20)}`;
 		const { owned, terminalId } = await owner.launch(
 			{
-				kind: "pi",
+				kind: "evoharness",
 				name: agentName,
 				args: policy.args,
 				environment: {
-					[HERDR_PI_MODE_ENV]: "1",
-					[HERDR_PI_RUN_ENV]: runId,
-					[HERDR_PI_RUNTIME_DIR_ENV]: runtimeDir,
+					[HERDR_HOST_MODE_ENV]: "1",
+					[HERDR_HOST_RUN_ENV]: runId,
+					[HERDR_HOST_RUNTIME_DIR_ENV]: runtimeDir,
 				},
 			},
 			() =>
@@ -733,40 +736,40 @@ async function startPlacedPiSession<C extends PlacementSockets>(
 			owner.access,
 			runId,
 			runtimeDir,
-			"The placed Pi did not start the pi-subagents bridge, so its pane was closed. Start pi in a new pane on that machine to see why: it may wait on a prompt (such as a macOS folder-access prompt for the terminal app), exit at startup, or not load the same pi-subagents version as an extension.",
+			"The placed evoharness did not start the subagents bridge, so its pane was closed. Start evoharness in a new pane on that machine to see why: it may wait on a prompt (such as a macOS folder-access prompt for the terminal app), exit at startup, or not load the same subagents version as an extension.",
 		);
-		if (manifest.protocol !== HERDR_PI_PROTOCOL || manifest.packageVersion !== packageJson.version)
+		if (manifest.protocol !== HERDR_HOST_PROTOCOL || manifest.packageVersion !== packageJson.version)
 			throw new Error(
-				`Remote pi-subagents bridge version mismatch (remote ${manifest.packageVersion}, local ${packageJson.version}).`,
+				`Remote subagents bridge version mismatch (remote ${manifest.packageVersion}, local ${packageJson.version}).`,
 			);
 		const bridgeForward = await connection.forwardRemoteSocket(manifest.socketPath, "bridge");
 		const bridge = new BridgeChannel(bridgeForward.socketPath, runId);
-		const ready = await waitForReadyBridgeFrame(bridge, 15_000, "Remote Pi bridge handshake timed out.");
+		const ready = await waitForReadyBridgeFrame(bridge, 15_000, "Remote evoharness bridge handshake timed out.");
 		if (
 			ready.packageVersion !== packageJson.version ||
 			ready.nativeSessionId !== manifest.nativeSessionId ||
 			ready.cwd !== machine.cwd
 		)
-			throw new Error("Remote Pi bridge handshake identity mismatch.");
+			throw new Error("Remote evoharness bridge handshake identity mismatch.");
 		const configured = await Promise.race([bridge.configure(policy.resources), bridge.failure]);
 		if (configured.nativeSessionId !== manifest.nativeSessionId || configured.agent !== policy.resources.agent)
-			throw new Error("Remote Pi resource resolution identity mismatch.");
+			throw new Error("Remote evoharness resource resolution identity mismatch.");
 		if (
 			!Array.isArray(configured.tools) ||
 			(policy.resources.toolCeiling &&
 				configured.tools.some((tool) => !policy.resources.toolCeiling!.includes(String(tool))))
 		)
-			throw new Error("Remote Pi active-tool ceiling acknowledgement mismatch.");
-		// The remote Pi never receives the runtime contract, so required tools are checked here, against what it activated.
+			throw new Error("Remote evoharness active-tool ceiling acknowledgement mismatch.");
+		// The remote evoharness never receives the runtime contract, so required tools are checked here, against what it activated.
 		const missingRequired = (launch.runtime.requiredTools ?? []).filter(
 			(tool) => !(configured.tools as unknown[]).includes(tool),
 		);
 		if (missingRequired.length)
 			throw new Error(
-				`Remote Pi agent '${policy.resources.agent}' did not activate required tools: ${missingRequired.join(", ")}.`,
+				`Remote evoharness agent '${policy.resources.agent}' did not activate required tools: ${missingRequired.join(", ")}.`,
 			);
 		if (launch.model && configured.model !== launch.model.split(":")[0])
-			throw new Error(`Remote Pi model '${launch.model}' did not resolve to the requested provider/model.`);
+			throw new Error(`Remote evoharness model '${launch.model}' did not resolve to the requested provider/model.`);
 		const identity: HerdrRunIdentity = {
 			runId,
 			machineId: machine.id,
@@ -782,7 +785,7 @@ async function startPlacedPiSession<C extends PlacementSockets>(
 			runtimeDir,
 		};
 		owner.journal(identity);
-		const session = new HerdrPiSession(
+		const session = new HerdrHostSession(
 			owner,
 			bridgeForward,
 			bridge,
@@ -792,7 +795,7 @@ async function startPlacedPiSession<C extends PlacementSockets>(
 			ready.initialGit as HerdrRemoteGitStatus | undefined,
 		);
 		reconnectSession = session;
-		session.armReconnect(() => reconnectHerdrPiSession(session, launch));
+		session.armReconnect(() => reconnectHerdrHostSession(session, launch));
 		return session;
 	} catch (error) {
 		await owner.cleanup();
@@ -801,7 +804,7 @@ async function startPlacedPiSession<C extends PlacementSockets>(
 }
 
 function createPlacedPiSession(launch: ChildSessionLaunch): Promise<ChildSession> {
-	return launch.machine?.provider === "rex" ? createRexPiSession(launch) : createHerdrPiSession(launch);
+	return launch.machine?.provider === "rex" ? createRexPiSession(launch) : createHerdrHostSession(launch);
 }
 
 export function createPlacementAwareChildSessionFactory(
@@ -812,7 +815,7 @@ export function createPlacementAwareChildSessionFactory(
 	return {
 		async create(launch) {
 			if (!launch.machine) return local.create(launch);
-			serializeHerdrPiLaunch(launch);
+			serializeHerdrHostLaunch(launch);
 			const child = await createRemote(launch);
 			remote.add(child);
 			return child;

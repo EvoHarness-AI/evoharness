@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AgentToolResult } from "@evoharness/agent-core";
-import { getPiSpawnCommand } from "../../runs/shared/pi-spawn.ts";
+import { getHostSpawnCommand } from "../../runs/shared/host-spawn.ts";
 import { getProjectSubagentsDir } from "../../shared/artifacts.ts";
 import { writeAtomicJson } from "../../shared/atomic-json.ts";
 import type { Details, HerdrProjectPaneSnapshot, SubagentState } from "../../shared/types.ts";
@@ -12,7 +12,7 @@ import { focusHerdrPane, herdrPaneFocusTarget, herdrPaneRecord } from "./focus.t
 export const HERDR_PROJECT_PANE_ACTIONS = ["project.open", "project.status", "project.close"] as const;
 export type HerdrProjectPaneAction = (typeof HERDR_PROJECT_PANE_ACTIONS)[number];
 
-/** Versioned public contract exported through `pi-subagents/project-panes`. */
+/** Versioned public contract exported through `subagents/project-panes`. */
 export const PROJECT_PANES_API_VERSION = 1 as const;
 export const PROJECT_PANE_TRUST_STATUS = "human-verification-required" as const;
 
@@ -112,7 +112,7 @@ export interface GetProjectPaneStatusOptions {
 
 export interface CloseProjectPaneOptions {
 	cwd: string;
-	/** Fail closed unless Herdr explicitly reports the owning Pi pane as idle. */
+	/** Fail closed unless Herdr explicitly reports the owning evoharness pane as idle. */
 	requireIdle?: boolean;
 	signal?: AbortSignal;
 }
@@ -468,7 +468,7 @@ async function inspectPane(
 
 function projectPaneCommand(message: string | undefined): string {
 	const args = message?.trim() ? [message.trim()] : [];
-	const command = getPiSpawnCommand(args);
+	const command = getHostSpawnCommand(args);
 	return formatShellCommand(command.command, command.args);
 }
 
@@ -987,6 +987,6 @@ export async function handleHerdrProjectPaneAction(
 		);
 	}
 	return toolResult(
-		`Opened Herdr project pane ${opened.data.binding.paneId} for ${opened.data.projectRoot}. The pane runs its own Pi session; subagents launched there belong to that project.`,
+		`Opened Herdr project pane ${opened.data.binding.paneId} for ${opened.data.projectRoot}. The pane runs its own evoharness session; subagents launched there belong to that project.`,
 	);
 }

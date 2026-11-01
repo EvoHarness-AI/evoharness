@@ -37,7 +37,7 @@ function pendingPath(resultsDir: string, sessionId: string, runId: string): stri
 
 describe("result file indexes", () => {
 	it("resolves run ids without enumerating session indexes", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-run-index-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-run-index-"));
 		const originalReaddirSync = fsDefault.readdirSync;
 		try {
 			const resultPath = path.join(resultsDir, "direct-run.json");
@@ -62,7 +62,7 @@ describe("result file indexes", () => {
 	});
 
 	it("removes orphan index entries without deleting flat result files", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-index-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-index-"));
 		try {
 			writeAsyncResultFile(path.join(resultsDir, "kept.json"), {
 				id: "kept",
@@ -95,7 +95,7 @@ describe("result file indexes", () => {
 	});
 
 	it("promotes an indexed pending result payload", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-pending-payload-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-pending-payload-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -119,7 +119,7 @@ describe("result file indexes", () => {
 	});
 
 	it("writes an indexed pending result without publishing it", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-pending-only-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-pending-only-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -151,11 +151,11 @@ describe("result file indexes", () => {
 	});
 
 	it("keeps pending results for long session ids below filesystem component limits", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-long-session-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-long-session-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
-			const sessionId = `/Users/zhouatie/.config/pi/sessions/${"界".repeat(100)}.jsonl`;
+			const sessionId = `/Users/zhouatie/.config/evoharness/sessions/${"界".repeat(100)}.jsonl`;
 			const runId = "pending-long-session";
 			const resultPath = path.join(resultsDir, `${runId}.json`);
 			fs.mkdirSync(resultPath);
@@ -176,7 +176,7 @@ describe("result file indexes", () => {
 	});
 
 	it("keeps pending results for near-limit run ids below filesystem component limits", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-long-run-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-long-run-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -204,7 +204,7 @@ describe("result file indexes", () => {
 	});
 
 	it("keeps a legacy valid index while the result payload is not visible yet", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-legacy-late-payload-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-legacy-late-payload-"));
 		try {
 			const resultPath = path.join(resultsDir, "late.json");
 			writeResultIndexForData(resultPath, { id: "late", runId: "late", sessionId: "session-a", success: true });
@@ -223,7 +223,7 @@ describe("result file indexes", () => {
 	});
 
 	it("keeps an unindexed pending result recoverable when its session index cannot be written", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-index-failure-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-index-failure-"));
 		try {
 			fs.writeFileSync(path.join(resultsDir, "result-index"), "not a directory", "utf-8");
 			const resultPath = path.join(resultsDir, "blocked.json");
@@ -250,7 +250,7 @@ describe("result file indexes", () => {
 	});
 
 	it("treats a missing mission observer index directory as absent without logging", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-observer-enotdir-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-observer-enotdir-"));
 		const originalError = console.error;
 		const errors: unknown[][] = [];
 		try {
@@ -268,7 +268,7 @@ describe("result file indexes", () => {
 	});
 
 	it("does not commit a result payload without a session id", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-no-session-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-no-session-"));
 		try {
 			const resultPath = path.join(resultsDir, "blocked.json");
 
@@ -283,7 +283,7 @@ describe("result file indexes", () => {
 	});
 
 	it("prefers pending payload over an older public result", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-pending-wins-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-pending-wins-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -317,7 +317,7 @@ describe("result file indexes", () => {
 	});
 
 	it("keeps a newer pending payload readable when Windows cannot replace the public result", (t) => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-windows-pending-wins-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-windows-pending-wins-"));
 		try {
 			const resultPath = path.join(resultsDir, "blocked.json");
 			writeAsyncResultFile(resultPath, { id: "blocked", runId: "blocked", sessionId: "session-a", success: false });
@@ -348,7 +348,7 @@ describe("result file indexes", () => {
 	});
 
 	it("removes pending payloads with result indexes", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-pending-cleanup-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-pending-cleanup-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -374,7 +374,7 @@ describe("result file indexes", () => {
 		// Renames are the only writer steps readers can see. A consumer starts polling at each
 		// one in turn; from the moment its cleanup returns, nothing may reappear.
 		for (let startAt = 0, points = Infinity; startAt <= points; startAt++) {
-			const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-consumed-"));
+			const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-consumed-"));
 			const resultPath = path.join(resultsDir, "workflow-result.json");
 			const originalRenameSync = fsDefault.renameSync;
 			let point = 0;
@@ -429,7 +429,7 @@ describe("result file indexes", () => {
 	});
 
 	it("keeps a pending-only result findable by run id when looked up while it is being written", (t) => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-lookup-during-write-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-lookup-during-write-"));
 		const originalRenameSync = fsDefault.renameSync;
 		const originalError = console.error;
 		let inLookup = false;
@@ -473,7 +473,7 @@ describe("result file indexes", () => {
 	});
 
 	it("indexes results with oversized provider tool-call ids", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-long-tool-call-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-long-tool-call-"));
 		try {
 			const runId = "workflow-long-tool-call";
 			const toolCallId = `call_${"opaque/+=".repeat(80)}`;
@@ -491,7 +491,7 @@ describe("result file indexes", () => {
 	});
 
 	it("commits a result payload when only an optional index fails", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-optional-index-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-optional-index-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -516,7 +516,7 @@ describe("result file indexes", () => {
 	});
 
 	it("round-trips results for Windows session file paths", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-win-session-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-win-session-"));
 		try {
 			const sessionId = String.raw`C:\Users\theap.evoharness\agent\sessions\leaf.jsonl`;
 			const runId = "win-session-run";
@@ -534,7 +534,7 @@ describe("result file indexes", () => {
 	});
 
 	it("treats an unaddressable legacy session alias as absent and keeps canonical fallback candidates", (t) => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-legacy-enametoolong-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-legacy-enametoolong-"));
 		const sessionId = String.raw`C:\Users\theap.evoharness\agent\sessions\leaf.jsonl`;
 		const runId = "legacy-alias-fallback";
 		const resultPath = path.join(resultsDir, `${runId}.json`);
@@ -583,7 +583,7 @@ describe("result file indexes", () => {
 	});
 
 	it("leaves an unaddressable legacy index untouched during cleanup", (t) => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-cleanup-enametoolong-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-cleanup-enametoolong-"));
 		const sessionId = String.raw`C:\Users\theap.evoharness\agent\sessions\leaf.jsonl`;
 		const runId = "legacy-cleanup";
 		const originalStatSync = fsDefault.statSync;
@@ -620,7 +620,7 @@ describe("result file indexes", () => {
 	});
 
 	it("reads a pre-hash URI-encoded session index after the encoding change", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-legacy-session-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-legacy-session-"));
 		try {
 			const sessionId = String.raw`C:\Users\theap.evoharness\agent\sessions\leaf.jsonl`;
 			const runId = "legacy-session-run";
@@ -639,7 +639,7 @@ describe("result file indexes", () => {
 	});
 
 	it("reads a pre-hash extension-like run index filename", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-legacy-run-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-legacy-run-"));
 		try {
 			const sessionId = "session-a";
 			const runId = "legacy.jsonl";
@@ -658,7 +658,7 @@ describe("result file indexes", () => {
 	});
 
 	it("reads a pre-hash extension-like pending filename", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-legacy-pending-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-legacy-pending-"));
 		const originalError = console.error;
 		try {
 			const sessionId = "session-a";
@@ -680,7 +680,7 @@ describe("result file indexes", () => {
 	});
 
 	it("throws access-denied direct session index reads", (t) => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-eacces-index-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-eacces-index-"));
 		const error = new Error("permission denied") as NodeJS.ErrnoException;
 		error.code = "EACCES";
 		try {
@@ -707,7 +707,7 @@ describe("result file indexes", () => {
 	});
 
 	it("returns no session candidates when the session index is unlistable", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-eperm-scan-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-eperm-scan-"));
 		const error = new Error("operation not permitted") as NodeJS.ErrnoException;
 		error.code = "EPERM";
 		const originalReaddirSync = fsDefault.readdirSync;
@@ -756,7 +756,7 @@ describe("a run's paused result replaced by its final result", () => {
 			writeAsyncResultFile(publicPath, final(path.dirname(publicPath)));
 		});
 	const fixture = (fileName = `${runId}.json`) => {
-		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-replaced-"));
+		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-files-replaced-"));
 		fs.writeFileSync(path.join(dir, "mission.json"), "{}", "utf-8");
 		return { dir, publicPath: path.join(dir, fileName) };
 	};

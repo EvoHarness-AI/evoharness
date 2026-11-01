@@ -350,7 +350,7 @@ it("fanout child bg_wait yields to a descendant's supervisor request while the a
 		sessionManager: { getSessionFile: () => sessionFile, getSessionId: () => ownerSessionId, getEntries: () => [] },
 	};
 	// SAFETY: this fixture supplies the registration/event APIs both child hooks use; other calls are inert.
-	const pi = new Proxy(
+	const evoharness = new Proxy(
 		{
 			events,
 			on: (event: string, fn: Function) => {
@@ -383,7 +383,8 @@ it("fanout child bg_wait yields to a descendant's supervisor request while the a
 		);
 		updateActiveRunIndex(asyncDir, "running");
 		// Real hook order: the prompt runtime registers bg_wait before fanout-child installs the supervisor channel.
-		for (const hook of createChildHooks(childConfig({ fanoutChild: true, nestedRoute: route }))) hook.factory(pi);
+		for (const hook of createChildHooks(childConfig({ fanoutChild: true, nestedRoute: route })))
+			hook.factory(evoharness);
 		for (const fn of handlers.get("session_start") ?? []) await fn({ reason: "startup" }, ctx);
 		events.emit(SUBAGENT_ASYNC_STARTED_EVENT, { id: runId, asyncDir, sessionId: sessionFile, agents: ["worker"] });
 
@@ -453,7 +454,7 @@ const watchdogConfig: ChildWatchdogConfig = {
 } as ChildWatchdogConfig;
 
 const SKILLS_SECTION =
-	"\n\nThe following skills provide specialized instructions for specific tasks.\nUse the read tool to load a skill's file when the task matches its description.\nWhen a skill file references a relative path, resolve it against the skill directory (parent of SKILL.md / dirname of the path) and use that absolute path in tool commands.\n\n<available_skills>\n  <skill>\n    <name>safe-bash</name>\n    <description>desc</description>\n    <location>/tmp/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>pi-subagents</name>\n    <description>delegate to subagents</description>\n    <location>/tmp/pi-subagents/SKILL.md</location>\n  </skill>\n</available_skills>";
+	"\n\nThe following skills provide specialized instructions for specific tasks.\nUse the read tool to load a skill's file when the task matches its description.\nWhen a skill file references a relative path, resolve it against the skill directory (parent of SKILL.md / dirname of the path) and use that absolute path in tool commands.\n\n<available_skills>\n  <skill>\n    <name>safe-bash</name>\n    <description>desc</description>\n    <location>/tmp/SKILL.md</location>\n  </skill>\n  <skill>\n    <name>subagents</name>\n    <description>delegate to subagents</description>\n    <location>/tmp/subagents/SKILL.md</location>\n  </skill>\n</available_skills>";
 
 const BASE_PROMPT = [
 	"You are a subagent.",
@@ -567,21 +568,21 @@ describe("subagent prompt runtime", () => {
 
 	it("registers no permission hook by default and routes ask only to the watchdog arbiter", async () => {
 		const handlers: Array<(event: { toolName?: string; input?: unknown }, ctx?: unknown) => unknown> = [];
-		const pi = {
+		const evoharness = {
 			on(event: string, handler: (event: { toolName?: string; input?: unknown }, ctx?: unknown) => unknown) {
 				if (event === "tool_call") handlers.push(handler);
 			},
 		};
-		registerPermissionGate(pi as never, undefined, undefined);
+		registerPermissionGate(evoharness as never, undefined, undefined);
 		assert.equal(handlers.length, 0);
 
-		registerPermissionGate(pi as never, { rules: { write: "deny" } }, undefined);
+		registerPermissionGate(evoharness as never, { rules: { write: "deny" } }, undefined);
 		assert.equal(handlers.length, 1);
 		assert.equal(await handlers[0]!({ toolName: "bash", input: { command: "rm -rf /" } }), undefined);
 		assert.equal(await handlers[0]!({ toolName: "contact_supervisor", input: {} }), undefined);
 		assert.deepEqual(await handlers[0]!({ toolName: "write", input: {} }), {
 			block: true,
-			reason: "Blocked by pi-subagents permission rule: 'write' is denied.",
+			reason: "Blocked by subagents permission rule: 'write' is denied.",
 		});
 
 		const askHandlers: Array<(event: { toolName?: string; input?: unknown }, ctx: unknown) => unknown> = [];
@@ -639,7 +640,7 @@ describe("subagent prompt runtime", () => {
 			assert.deepEqual(result, {
 				block: true,
 				reason:
-					"Blocked by pi-subagents permission rule: Watchdog permission arbiter failed closed: Watchdog permission decision timed out after 5ms.",
+					"Blocked by subagents permission rule: Watchdog permission arbiter failed closed: Watchdog permission decision timed out after 5ms.",
 			});
 		}
 	});
@@ -996,7 +997,7 @@ describe("subagent prompt runtime", () => {
 		assert.ok(rewritten.includes("Repo rules"));
 	});
 
-	it("recognizes Pi context filenames case-insensitively", () => {
+	it("recognizes evoharness context filenames case-insensitively", () => {
 		const globalDir = getAgentDir();
 		const prompt = [
 			"You are a subagent.",
@@ -1113,9 +1114,9 @@ describe("subagent prompt runtime", () => {
 		);
 	});
 
-	it("keeps Pi's base prompt first and appends the boundary and structured-output instructions once", () => {
+	it("keeps evoharness's base prompt first and appends the boundary and structured-output instructions once", () => {
 		const piPrompt =
-			"You are an expert coding assistant operating inside pi, a coding agent harness.\n\nAvailable tools:\n- read\n\nCurrent working directory: /repo";
+			"You are an expert coding assistant operating inside evoharness, a coding agent harness.\n\nAvailable tools:\n- read\n\nCurrent working directory: /repo";
 		const options = {
 			inheritProjectContext: true,
 			inheritGlobalContext: true,
@@ -1124,7 +1125,7 @@ describe("subagent prompt runtime", () => {
 		};
 		const rewritten = rewriteSubagentPrompt(piPrompt, options);
 
-		assert.ok(rewritten.startsWith("You are an expert coding assistant operating inside pi"));
+		assert.ok(rewritten.startsWith("You are an expert coding assistant operating inside evoharness"));
 		assert.ok(
 			rewritten.indexOf(CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS) >
 				rewritten.indexOf("Current working directory: /repo"),
@@ -1214,13 +1215,13 @@ describe("subagent prompt runtime", () => {
 		});
 
 		assert.ok(rewritten.includes("<name>safe-bash</name>"));
-		assert.ok(!rewritten.includes("<name>pi-subagents</name>"));
+		assert.ok(!rewritten.includes("<name>subagents</name>"));
 		assert.ok(!rewritten.includes("delegate to subagents"));
 	});
 
-	it("strips explicit pi-subagents skill injection from child prompts", () => {
+	it("strips explicit subagents skill injection from child prompts", () => {
 		const prompt =
-			'Before\n\n<skill name="pi-subagents">\nDo not keep this.\n</skill>\n\n<skill name="safe-bash">\nKeep this.\n</skill>\nAfter';
+			'Before\n\n<skill name="subagents">\nDo not keep this.\n</skill>\n\n<skill name="safe-bash">\nKeep this.\n</skill>\nAfter';
 		const rewritten = stripSubagentOrchestrationSkill(prompt);
 
 		assert.ok(!rewritten.includes("Do not keep this"));
@@ -1650,13 +1651,13 @@ describe("subagent prompt runtime", () => {
 			childConfig({ inheritProjectContext: true, inheritGlobalContext: false, inheritSkills: true }),
 		);
 		const options = {
-			customPrompt: `Role.\n\n<skill name="pi-subagents">\nOrchestrate.\n</skill>\n\n${CHILD_FANOUT_BOUNDARY_INSTRUCTIONS}`,
+			customPrompt: `Role.\n\n<skill name="subagents">\nOrchestrate.\n</skill>\n\n${CHILD_FANOUT_BOUNDARY_INSTRUCTIONS}`,
 			appendSystemPrompt: `Extra.\n\n${CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS}`,
 			contextFiles: [
 				{ path: path.join(getAgentDir(), "AGENTS.md"), content: "Global" },
 				{ path: "/repo/AGENTS.md", content: "Repo" },
 			],
-			skills: [{ name: "pi-subagents" }, { name: "safe-bash" }],
+			skills: [{ name: "subagents" }, { name: "safe-bash" }],
 			sections: {},
 		};
 
@@ -1693,7 +1694,7 @@ describe("subagent prompt runtime", () => {
 		assert.equal(handlers[0]!({ systemPrompt: finalized!.systemPrompt }), undefined);
 	});
 
-	it("strips subagent history without moving Pi's system messages", async () => {
+	it("strips subagent history without moving evoharness's system messages", async () => {
 		const handlers = new Map<string, Function[]>();
 		registerSubagentPromptRuntime(
 			{

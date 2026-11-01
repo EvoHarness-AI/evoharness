@@ -245,7 +245,7 @@ function markDeliveredNotification(
  * so old callbacks can never emit or delete after reload/session replacement.
  */
 export function createResultWatcher(
-	pi: { events: IntercomEventBus },
+	evoharness: { events: IntercomEventBus },
 	state: SubagentState,
 	resultsDir: string,
 	completionTtlMs: number,
@@ -672,7 +672,7 @@ export function createResultWatcher(
 							? "chain"
 							: "single";
 				intercomDelivered = await deliverSubagentResultIntercomEvent(
-					pi.events,
+					evoharness.events,
 					buildSubagentResultIntercomPayload({
 						to: intercomTarget,
 						runId,
@@ -744,7 +744,7 @@ export function createResultWatcher(
 			}
 			markSeenWithTtl(state.completionSeen, completionKey, Date.now(), completionTtlMs);
 			try {
-				pi.events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, {
+				evoharness.events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, {
 					...data,
 					runId,
 					triggerTurn,

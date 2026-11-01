@@ -767,7 +767,7 @@ function rememberParentModel(
 }
 
 interface ExecutorDeps {
-	pi: ExtensionAPI;
+	evoharness: ExtensionAPI;
 	parentWake?: Pick<ExtensionAPI, "sendMessage">;
 	state: SubagentState;
 	config: ExtensionConfig;
@@ -1010,7 +1010,7 @@ function trustedSessionRoots(parentSessionFile: string | null, deps: ExecutorDep
 	return [...new Set(roots)];
 }
 
-/** Children follow the launching session's trust; hosts older than Pi's trust concept keep Pi's default. */
+/** Children follow the launching session's trust; hosts older than evoharness's trust concept keep evoharness's default. */
 function sessionProjectTrust(ctx: ExtensionContext): boolean | undefined {
 	return typeof ctx.isProjectTrusted === "function" ? ctx.isProjectTrusted() : undefined;
 }
@@ -1307,7 +1307,7 @@ function rememberForegroundRun(
 }
 
 /**
- * Saves a starting single run to its history file only, so a Pi exit before the run ends leaves a
+ * Saves a starting single run to its history file only, so a evoharness exit before the run ends leaves a
  * record that loads as stopped and resumable. The final save replaces it by run id.
  */
 function rememberRunningForegroundRun(
@@ -1665,9 +1665,9 @@ function isStaleExtensionContextError(error: unknown): boolean {
 	return /extension ctx is stale|stale after session replacement or reload/i.test(error.message);
 }
 
-function emitAdvisoryControlEvent(pi: ExtensionAPI, channel: string, payload: unknown): void {
+function emitAdvisoryControlEvent(evoharness: ExtensionAPI, channel: string, payload: unknown): void {
 	try {
-		pi.events.emit(channel, payload);
+		evoharness.events.emit(channel, payload);
 	} catch (error) {
 		if (isStaleExtensionContextError(error)) return;
 		throw error;
@@ -1712,7 +1712,7 @@ function persistAsyncWorkflowControlEvent(input: {
 }
 
 function emitControlNotification(input: {
-	pi: ExtensionAPI;
+	evoharness: ExtensionAPI;
 	controlConfig: ResolvedControlConfig;
 	intercomBridge: IntercomBridgeState;
 	event: ControlEvent;
@@ -1729,7 +1729,7 @@ function emitControlNotification(input: {
 		noticeText: formatControlNoticeMessage(input.event, childIntercomTarget),
 	};
 	if (input.controlConfig.notifyChannels.includes("event")) {
-		emitAdvisoryControlEvent(input.pi, SUBAGENT_CONTROL_EVENT, payload);
+		emitAdvisoryControlEvent(input.evoharness, SUBAGENT_CONTROL_EVENT, payload);
 	}
 	if (
 		input.event.type !== "active_long_running" &&
@@ -1737,7 +1737,7 @@ function emitControlNotification(input: {
 		input.intercomBridge.active &&
 		input.intercomBridge.orchestratorTarget
 	) {
-		emitAdvisoryControlEvent(input.pi, SUBAGENT_CONTROL_INTERCOM_EVENT, {
+		emitAdvisoryControlEvent(input.evoharness, SUBAGENT_CONTROL_INTERCOM_EVENT, {
 			...payload,
 			to: input.intercomBridge.orchestratorTarget,
 			message: formatControlIntercomMessage(input.event, childIntercomTarget),
@@ -1989,7 +1989,7 @@ function appendStepToAsyncChain(input: {
 	const chainSkills = chainSkillInput === false ? [] : (chainSkillInput ?? []);
 	const parentModel = input.parentModel;
 	const asyncCtx = compactOptional<Parameters<typeof executeAsyncSingle>[1]["ctx"]>({
-		pi: input.deps.pi,
+		evoharness: input.deps.evoharness,
 		cwd: input.ctx.cwd,
 		currentSessionId: resolveCurrentSessionId(input.ctx.sessionManager),
 		parentSessionId: input.ctx.sessionManager.getSessionId() ?? undefined,
@@ -2246,12 +2246,12 @@ function resolveNestedExternalJobResumeTarget(
 	const steps = status?.steps ?? [];
 	const step = steps[params.index ?? 0];
 	if (!step) {
-		// An index outside an external-job run gets the async resolver's index error instead of a Pi revive.
+		// An index outside an external-job run gets the async resolver's index error instead of a evoharness revive.
 		if (params.index === undefined || !steps.some((candidate) => candidate.runner?.type === "external-job"))
 			return undefined;
 	} else if (!step.runner) {
-		// Pi steps record no runner, and neither does a launch status before the runner starts.
-		// A session file means a Pi run; otherwise the agent definition says what the step runs.
+		// evoharness steps record no runner, and neither does a launch status before the runner starts.
+		// A session file means a evoharness run; otherwise the agent definition says what the step runs.
 		if (nestedRunSessionFile(run)) return undefined;
 		const agent = deps
 			.discoverAgents(status?.cwd ?? deps.state.baseCwd, resolveExecutionAgentScope(params.agentScope))
@@ -2261,7 +2261,7 @@ function resolveNestedExternalJobResumeTarget(
 	} else if (step.runner.type !== "external-job") {
 		return undefined;
 	}
-	// External-job runs have no Pi session, so resume them as a provider follow-up from their own run directory.
+	// External-job runs have no evoharness session, so resume them as a provider follow-up from their own run directory.
 	const target = resolveAsyncResumeTarget(
 		compactOptional<Parameters<typeof resolveAsyncResumeTarget>[0]>({ dir: asyncDir, index: params.index }),
 		nestedRunScope(match.match.rootRunId),
@@ -2275,7 +2275,7 @@ function readNestedRunStatus(asyncDir: string, run: NestedRunSummary): AsyncStat
 	try {
 		return readStatus(asyncDir);
 	} catch (error) {
-		// A nested Pi run revives from its session file, so its unreadable status file must not block it.
+		// A nested evoharness run revives from its session file, so its unreadable status file must not block it.
 		if (nestedRunSessionFile(run)) return null;
 		throw error;
 	}
@@ -2581,7 +2581,7 @@ async function steerNestedRun(input: {
 		content: [
 			{
 				type: "text",
-				text: `Nested run ${run.id} is not a live async Pi child session with a steering inbox. action='steer' cannot target foreground nested runs.`,
+				text: `Nested run ${run.id} is not a live async evoharness child session with a steering inbox. action='steer' cannot target foreground nested runs.`,
 			},
 		],
 		isError: true,
@@ -2655,7 +2655,7 @@ function externalRunnerControlError(
 			: `External adapter '${externalCli.adapter.id}' cannot resume: ${externalCli.nonResumableReason}`
 		: action === "steer"
 			? "External runners do not accept live steer messages."
-			: "External runners do not persist Pi sessions and cannot be resumed.";
+			: "External runners do not persist evoharness sessions and cannot be resumed.";
 	return { content: [{ type: "text", text: message }], isError: true, details: { mode: "management", results: [] } };
 }
 
@@ -2853,7 +2853,7 @@ async function resumeExternalJobFollowUp(input: {
 			agentConfig,
 			recoveryAgentConfig: agentConfig,
 			ctx: compactOptional<Parameters<typeof executeAsyncSingle>[1]["ctx"]>({
-				pi: input.deps.pi,
+				evoharness: input.deps.evoharness,
 				cwd: input.requestCwd,
 				currentSessionId,
 				parentSessionId: input.ctx.sessionManager.getSessionId() ?? undefined,
@@ -3081,7 +3081,7 @@ async function resumeAsyncRun(input: {
 	const unknownAgentDiagnosticContext = diagnosticContextFromDiscovery(discovered, effectiveCwd, scope);
 	const modelScope = discovered.modelScope;
 	const sessionName = resolveIntercomSessionTarget(
-		input.deps.childRuntime?.intercomSessionName ?? input.deps.pi.getSessionName(),
+		input.deps.childRuntime?.intercomSessionName ?? input.deps.evoharness.getSessionName(),
 		input.ctx.sessionManager.getSessionId(),
 	);
 	const recoveryDescriptor = "recoveryDescriptor" in target ? target.recoveryDescriptor : undefined;
@@ -3131,7 +3131,7 @@ async function resumeAsyncRun(input: {
 		const runner = normalizeExternalCliRunnerStatus(target.runner);
 		const message = runner
 			? `External adapter '${runner.adapter.id}' cannot resume: ${runner.nonResumableReason}`
-			: "External runners do not persist Pi sessions and cannot be resumed.";
+			: "External runners do not persist evoharness sessions and cannot be resumed.";
 		return {
 			content: [{ type: "text", text: message }],
 			isError: true,
@@ -3218,7 +3218,7 @@ async function resumeAsyncRun(input: {
 				content: [
 					{
 						type: "text",
-						text: "Async mode requires upstream jiti for TypeScript execution but it could not be found. Ensure the pi-subagents package dependencies are installed.",
+						text: "Async mode requires upstream jiti for TypeScript execution but it could not be found. Ensure the subagents package dependencies are installed.",
 					},
 				],
 				isError: true,
@@ -3292,7 +3292,7 @@ async function resumeAsyncRun(input: {
 				agents,
 				unknownAgentDiagnosticContext,
 				ctx: compactOptional<Parameters<typeof executeAsyncSingle>[1]["ctx"]>({
-					pi: input.deps.pi,
+					evoharness: input.deps.evoharness,
 					cwd: input.requestCwd,
 					currentSessionId: input.deps.state.currentSessionId,
 					parentSessionId: input.ctx.sessionManager.getSessionId() ?? undefined,
@@ -3542,7 +3542,7 @@ async function resumeAsyncRun(input: {
 			agentConfig,
 			recoveryAgentConfig,
 			ctx: compactOptional<Parameters<typeof executeAsyncSingle>[1]["ctx"]>({
-				pi: input.deps.pi,
+				evoharness: input.deps.evoharness,
 				cwd: input.requestCwd,
 				currentSessionId: input.deps.state.currentSessionId,
 				parentSessionId: input.ctx.sessionManager.getSessionId() ?? undefined,
@@ -3719,7 +3719,7 @@ async function resumeAsyncRun(input: {
 			details,
 			emptyOutputText: `Revived ${target.source} subagent ${revivedId} completed without output.`,
 			state: input.deps.state,
-			pi: input.deps.pi,
+			evoharness: input.deps.evoharness,
 		});
 	}
 	const revivedTarget = intercomBridge.active ? resolveSubagentIntercomTarget(revivedId, target.agent, 0) : undefined;
@@ -3777,7 +3777,7 @@ function formatFailedSingleRunOutput(result: SingleResult, displayOutput: string
 
 function createForegroundControlNotifier(
 	data: Pick<ExecutionContextData, "controlConfig" | "contextPolicy" | "intercomBridge" | "params">,
-	deps: Pick<ExecutorDeps, "pi" | "state">,
+	deps: Pick<ExecutorDeps, "evoharness" | "state">,
 ): (event: ControlEvent) => void {
 	return (event) => {
 		applyControlEventToRememberedForegroundRun(deps.state, event);
@@ -3804,7 +3804,7 @@ function createForegroundControlNotifier(
 			});
 		}
 		emitControlNotification({
-			pi: deps.pi,
+			evoharness: deps.evoharness,
 			controlConfig: data.controlConfig,
 			intercomBridge: eventBridge,
 			event: enriched,
@@ -3840,7 +3840,7 @@ export function shouldSuppressRoutineResultIntercom(input: {
 }
 
 async function emitForegroundResultIntercom(input: {
-	pi: ExtensionAPI;
+	evoharness: ExtensionAPI;
 	intercomBridge: IntercomBridgeState;
 	runId: string;
 	mode: SubagentRunMode;
@@ -3879,13 +3879,13 @@ async function emitForegroundResultIntercom(input: {
 		...(typeof input.chainSteps === "number" ? { chainSteps: input.chainSteps } : {}),
 		...(input.parallelHandoff ? { parallelHandoff: input.parallelHandoff } : {}),
 	});
-	const delivered = await deliverSubagentResultIntercomEvent(input.pi.events, payload);
+	const delivered = await deliverSubagentResultIntercomEvent(input.evoharness.events, payload);
 	if (!delivered) return null;
 	return payload;
 }
 
 async function maybeBuildForegroundIntercomReceipt(input: {
-	pi: ExtensionAPI;
+	evoharness: ExtensionAPI;
 	intercomBridge: IntercomBridgeState;
 	runId: string;
 	mode: SubagentRunMode;
@@ -3894,7 +3894,7 @@ async function maybeBuildForegroundIntercomReceipt(input: {
 	preserveDetailsOutputs?: boolean;
 }): Promise<{ text: string; details: Details } | null> {
 	const payload = await emitForegroundResultIntercom({
-		pi: input.pi,
+		evoharness: input.evoharness,
 		intercomBridge: input.intercomBridge,
 		runId: input.runId,
 		mode: input.mode,
@@ -4932,7 +4932,7 @@ function removeWorkflowAwaitedResult(
 }
 
 function emitWorkflowAwaitedChildComplete(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	state: SubagentState,
 	runId: string,
 	asyncDir: string,
@@ -4948,7 +4948,7 @@ function emitWorkflowAwaitedChildComplete(
 			error,
 		);
 	}
-	pi.events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, {
+	evoharness.events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, {
 		id: runId,
 		runId,
 		sessionId: status?.sessionId ?? completed.importedPublication?.sessionId ?? state.currentSessionId,
@@ -4977,13 +4977,13 @@ function importWorkflowAwaitedChildResult(
 		details: Details;
 		emptyOutputText?: string;
 		state: SubagentState;
-		pi: ExtensionAPI;
+		evoharness: ExtensionAPI;
 	},
 ): AgentToolResult<Details> {
 	if (completed.importedPublication)
 		removeWorkflowAwaitedResult(options.asyncDir, options.resultPath, options.runId, completed.importedPublication);
 	emitWorkflowAwaitedChildComplete(
-		options.pi,
+		options.evoharness,
 		options.state,
 		options.runId,
 		options.asyncDir,
@@ -5084,7 +5084,7 @@ async function waitForWorkflowAsyncSingleResult(
 		task: string;
 		signal?: AbortSignal;
 		state: SubagentState;
-		pi: ExtensionAPI;
+		evoharness: ExtensionAPI;
 		kill?: ExecutorDeps["kill"];
 	},
 ): Promise<AgentToolResult<Details>> {
@@ -5114,7 +5114,7 @@ async function waitForWorkflowAsyncSingleResult(
 		parentWorkflowRunId: params.workflowParentRunId,
 		details: launchResult.details,
 		state: options.state,
-		pi: options.pi,
+		evoharness: options.evoharness,
 	});
 }
 
@@ -5147,7 +5147,7 @@ async function runAsyncPath(data: ExecutionContextData, deps: ExecutorDeps): Pro
 			content: [
 				{
 					type: "text",
-					text: "Async mode requires upstream jiti for TypeScript execution but it could not be found. Ensure the pi-subagents package dependencies are installed.",
+					text: "Async mode requires upstream jiti for TypeScript execution but it could not be found. Ensure the subagents package dependencies are installed.",
 				},
 			],
 			isError: true,
@@ -5157,7 +5157,7 @@ async function runAsyncPath(data: ExecutionContextData, deps: ExecutorDeps): Pro
 	const id = data.asyncRunId;
 	const parentModel = data.parentModel;
 	const asyncCtx = compactOptional<Parameters<typeof executeAsyncSingle>[1]["ctx"]>({
-		pi: deps.pi,
+		evoharness: deps.evoharness,
 		cwd: ctx.cwd,
 		currentSessionId: data.parentSessionId!,
 		parentSessionId: data.parentPiSessionId,
@@ -5315,7 +5315,7 @@ async function runAsyncPath(data: ExecutionContextData, deps: ExecutorDeps): Pro
 			task: params.task ?? "",
 			signal: data.signal,
 			state: deps.state,
-			pi: deps.pi,
+			evoharness: deps.evoharness,
 			kill: deps.kill,
 		});
 	}
@@ -6163,7 +6163,9 @@ async function runSinglePath(data: ExecutionContextData, deps: ExecutorDeps): Pr
 	const syncHerdrForegroundChild = () => {
 		if (!foregroundControl?.parentWorkflowRunId) return;
 		try {
-			deps.pi.events.emit(HERDR_FOREGROUND_CONTROL_CHANGED_EVENT, { runId: foregroundControl.parentWorkflowRunId });
+			deps.evoharness.events.emit(HERDR_FOREGROUND_CONTROL_CHANGED_EVENT, {
+				runId: foregroundControl.parentWorkflowRunId,
+			});
 		} catch (error) {
 			console.error("Failed to sync Herdr foreground child:", error);
 		}
@@ -6281,7 +6283,7 @@ async function runSinglePath(data: ExecutionContextData, deps: ExecutorDeps): Pr
 				projectTrusted: sessionProjectTrust(ctx),
 				remoteReads: foregroundMachine ? readsOverride : undefined,
 				permissions: deps.config.permissions,
-				runtimeSnapshotHost: deps.pi,
+				runtimeSnapshotHost: deps.evoharness,
 				parentSessionId: ctx.sessionManager.getSessionId() ?? undefined,
 				parentSessionFile: ctx.sessionManager.getSessionFile() ?? undefined,
 				requiredExtensions,
@@ -6304,7 +6306,7 @@ async function runSinglePath(data: ExecutionContextData, deps: ExecutorDeps): Pr
 				abortedAsStopped: params.workflowParentRunId !== undefined,
 				interruptSignal: interruptController.signal,
 				allowIntercomDetach: agentConfig.systemPrompt?.includes(INTERCOM_BRIDGE_MARKER) === true,
-				intercomEvents: deps.pi.events,
+				intercomEvents: deps.evoharness.events,
 				runId,
 				sessionDir: sessionDirForIndex(0),
 				sessionFile: childSessionFile,
@@ -6381,7 +6383,7 @@ async function runSinglePath(data: ExecutionContextData, deps: ExecutorDeps): Pr
 								sessionId: data.parentSessionId,
 								index: 0,
 								result,
-								events: deps.pi.events,
+								events: deps.evoharness.events,
 								notify: true,
 							});
 						} catch {
@@ -6394,7 +6396,7 @@ async function runSinglePath(data: ExecutionContextData, deps: ExecutorDeps): Pr
 								workflowRunId: workflowParentRunId,
 								childRunId: runId,
 								result,
-								events: deps.pi.events,
+								events: deps.evoharness.events,
 								workflowKey: params.workflowKey ?? foregroundControl?.workflowKey,
 							});
 						}
@@ -6551,7 +6553,7 @@ async function runSinglePath(data: ExecutionContextData, deps: ExecutorDeps): Pr
 	if (!r.detached && !r.interrupted && !suppressRoutineResultIntercom) {
 		if (foregroundControl) updateForegroundNestedProjection(foregroundControl);
 		const intercomReceipt = await maybeBuildForegroundIntercomReceipt({
-			pi: deps.pi,
+			evoharness: deps.evoharness,
 			intercomBridge: data.intercomBridge,
 			runId,
 			mode: "single",
@@ -6664,12 +6666,12 @@ function recordMissionWorkflowChild(
 		if (error instanceof MissionNotFoundError) {
 			missionsMissingFromStore.add(binding.missionId);
 			console.warn(
-				`[pi-subagents] Mission '${binding.missionId}' is no longer in the mission store; stopped recording its workflow children. Terminal-mission retention can prune a mission while its run is still active.`,
+				`[subagents] Mission '${binding.missionId}' is no longer in the mission store; stopped recording its workflow children. Terminal-mission retention can prune a mission while its run is still active.`,
 			);
 			return;
 		}
 		console.warn(
-			`[pi-subagents] Failed to record mission workflow child '${key}': ${error instanceof Error ? error.message : String(error)}`,
+			`[subagents] Failed to record mission workflow child '${key}': ${error instanceof Error ? error.message : String(error)}`,
 		);
 	}
 }
@@ -7001,7 +7003,7 @@ function workflowSteerReceipt(key: string, result: AgentToolResult<Details>): Wo
 
 const CHILD_SESSION_NOT_RUNNING_YET = "Child session is not running yet.";
 const RUNTIME_REPLACED_STOP_ERROR =
-	"Subagent stopped because the pi-subagents runtime that ran it was replaced (reload or session switch).";
+	"Subagent stopped because the subagents runtime that ran it was replaced (reload or session switch).";
 const MAX_WORKFLOW_RESUME_HINT_BYTES = 1024;
 const MAX_WORKFLOW_CHILD_RUN_ID_BYTES = 256;
 const WORKFLOW_RESUME_HINT_PARENT_STATES = new Set(["complete", "failed", "partial"]);
@@ -7993,7 +7995,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 			if (workflowArtifactConfig.dir === "project" && !warnedArtifactPackageDirs.has(workflowCwd)) {
 				warnedArtifactPackageDirs.add(workflowCwd);
 				const warning = getProjectArtifactPackagingWarning(workflowCwd);
-				if (warning) console.warn(`[pi-subagents] ${warning}`);
+				if (warning) console.warn(`[subagents] ${warning}`);
 			}
 			const chatProgressResult = resolveWorkflowChatProgress({
 				requested: requestParams.chatProgress,
@@ -8338,7 +8340,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 					)
 						return false;
 					try {
-						(deps.parentWake ?? deps.pi).sendMessage(
+						(deps.parentWake ?? deps.evoharness).sendMessage(
 							{
 								customType: "subagent-workflow-result-write-failed",
 								content: `${message}\n\nParent action: ${STATUS_ACTION}`,
@@ -8560,7 +8562,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 					...(workflowArgsDigest ? { argsDigest: workflowArgsDigest } : {}),
 				});
 				try {
-					deps.pi.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, {
+					deps.evoharness.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, {
 						lifecycleArtifactVersion: SUBAGENT_LIFECYCLE_ARTIFACT_VERSION,
 						id: workflowRunId,
 						asyncDir,
@@ -8871,7 +8873,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 						};
 						appendWorkflowEvent({ ...childEvent });
 						try {
-							deps.pi.events.emit(SUBAGENT_CHILD_STATUS_EVENT, childEvent);
+							deps.evoharness.events.emit(SUBAGENT_CHILD_STATUS_EVENT, childEvent);
 						} catch (error) {
 							console.error("Failed to emit workflow child status event:", error);
 						}
@@ -9109,12 +9111,12 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 										requestParams.scheduleOrigin,
 									);
 									const content = formatIncrementalChildCompletion(notification);
-									(deps.parentWake ?? deps.pi).sendMessage(
+									(deps.parentWake ?? deps.evoharness).sendMessage(
 										{
 											customType: "subagent-incremental-child-notify",
 											content: triggerTurn ? `${content}\n\nParent action: ${COMPLETION_ACTION}` : content,
 											display: notification.outcome !== "completed",
-											// Render-only: Pi does not send details to the model.
+											// Render-only: evoharness does not send details to the model.
 											details: { childKey: notification.childKey, outcome: notification.outcome },
 										},
 										{ triggerTurn },
@@ -9241,7 +9243,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 											parentWorkflowRunId: workflowReuseSource?.runId,
 											details: { mode: "single", asyncId: priorRunId, asyncDir: priorAsyncDir, results: [] },
 											state: deps.state,
-											pi: deps.pi,
+											evoharness: deps.evoharness,
 										});
 										const reattachedResult = workflowChildResult(key, imported, childParams, deps.state);
 										// Like a settled journal match: only a successful child is reused; a failed or stopped one launches fresh.
@@ -10092,7 +10094,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 										childAgent?.runner?.type === "external-cli" ||
 										childAgent?.runner?.type === "external-job"
 									)
-										throw new Error("Workflow child permit supports native Pi children only.");
+										throw new Error("Workflow child permit supports native evoharness children only.");
 									workflowPermitContexts.set(childRequest, {
 										child: {
 											permit: delegatedWorkflowPermit,
@@ -10816,7 +10818,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 					cwd: requestCwd,
 					...(deps.config.missions ? { missions: deps.config.missions } : {}),
 					...(deps.config.authorityPolicy ? { authorityPolicy: deps.config.authorityPolicy } : {}),
-					plugins: getInspectorPlugins(deps.pi),
+					plugins: getInspectorPlugins(deps.evoharness),
 					signal,
 				});
 			}
@@ -11034,7 +11036,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 				let orchestratorTarget: string | undefined;
 				try {
 					orchestratorTarget = resolveIntercomSessionTarget(
-						deps.childRuntime?.intercomSessionName ?? deps.pi.getSessionName(),
+						deps.childRuntime?.intercomSessionName ?? deps.evoharness.getSessionName(),
 						ctx.sessionManager.getSessionId(),
 					);
 				} catch (error) {
@@ -11748,9 +11750,9 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 				...ctx,
 				cwd: requestCwd,
 				config: deps.config,
-				piSessionId: ctx.sessionManager.getSessionId() ?? undefined,
+				hostSessionId: ctx.sessionManager.getSessionId() ?? undefined,
 				discoverAgentsAll: deps.discoverAgentsAll,
-				runtimeAgentOwner: deps.pi,
+				runtimeAgentOwner: deps.evoharness,
 				onAgentsChanged: deps.onAgentsChanged,
 			});
 		}
@@ -11836,7 +11838,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 		const contextPolicy = contextPolicyResult;
 		effectiveParams = contextPolicy.params;
 		const sessionName = resolveIntercomSessionTarget(
-			deps.childRuntime?.intercomSessionName ?? deps.pi.getSessionName(),
+			deps.childRuntime?.intercomSessionName ?? deps.evoharness.getSessionName(),
 			ctx.sessionManager.getSessionId(),
 		);
 		const intercomBridge = resolveIntercomBridge({
@@ -12073,7 +12075,7 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 		if (artifactConfig.dir === "project" && !warnedArtifactPackageDirs.has(effectiveCwd)) {
 			warnedArtifactPackageDirs.add(effectiveCwd);
 			const warning = getProjectArtifactPackagingWarning(effectiveCwd);
-			if (warning) console.warn(`[pi-subagents] ${warning}`);
+			if (warning) console.warn(`[subagents] ${warning}`);
 		}
 
 		let sessionRoot: string;
@@ -12320,12 +12322,12 @@ export function createSubagentExecutor(deps: ExecutorDeps): {
 					.then((result) => {
 						if (result.isError)
 							console.warn(
-								`[pi-subagents] Prompt redo ${newRunId} failed: ${result.content.find((item) => item.type === "text")?.text ?? "unknown error"}`,
+								`[subagents] Prompt redo ${newRunId} failed: ${result.content.find((item) => item.type === "text")?.text ?? "unknown error"}`,
 							);
 					})
 					.catch((error) => {
 						console.warn(
-							`[pi-subagents] Prompt redo ${newRunId} failed: ${error instanceof Error ? error.message : String(error)}`,
+							`[subagents] Prompt redo ${newRunId} failed: ${error instanceof Error ? error.message : String(error)}`,
 						);
 					});
 				return { text: `Prompt redo started ${newRunId}.` };

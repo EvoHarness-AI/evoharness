@@ -9,10 +9,10 @@ import {
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@evoharness/coding-agent";
 import type { TSchema } from "typebox";
 
-// Pi records each declared tool definition and prompt section in the session transcript and
+// evoharness records each declared tool definition and prompt section in the session transcript and
 // re-declares any difference before the next request. A changed tool or prompt section makes
 // the provider re-read the whole conversation without its prompt cache, so a session keeps the
-// pi-subagents definitions and prompt text it already declared. Only a session that never
+// subagents definitions and prompt text it already declared. Only a session that never
 // declared a tool gets its current definition. Setting `pinToolDeclarations` to false turns this
 // off, so a resumed session gets the current definitions at the cost of one prompt-cache miss. (#2852)
 
@@ -36,10 +36,10 @@ interface Pins {
 }
 
 const pinsByApi = new WeakMap<ExtensionAPI, Pins>();
-const GUIDELINES_PLACEHOLDER = "\u0000pi-subagents guidelines";
+const GUIDELINES_PLACEHOLDER = "\u0000subagents guidelines";
 
 /**
- * A recorded description without the text a host appends to each declared tool, such as Pi's
+ * A recorded description without the text a host appends to each declared tool, such as evoharness's
  * codemode note on script-callable tools. The host decorates whatever is registered, so reusing a
  * decorated description would add the note again on every session start (#2889). Drops a repeated
  * trailing paragraph, then a trailing paragraph added after the current description.
@@ -72,12 +72,12 @@ function pinnedDefinition(tool: PinnableTool, pin: DeclaredPin | undefined): Pin
 	return definition;
 }
 
-function register(pi: ExtensionAPI, pins: Pins, name: string): void {
+function register(evoharness: ExtensionAPI, pins: Pins, name: string): void {
 	const definition = pinnedDefinition(pins.current.get(name)!, pins.declared.get(name));
 	const key = JSON.stringify([toToolDeclaration(definition), definition.promptSnippet, definition.promptGuidelines]);
 	if (pins.registered.get(name) === key) return;
 	pins.registered.set(name, key);
-	pi.registerTool(definition);
+	evoharness.registerTool(definition);
 }
 
 function sectionLines(text: string | undefined, name: string): string[] | undefined {
@@ -87,7 +87,7 @@ function sectionLines(text: string | undefined, name: string): string[] | undefi
 	return start >= 0 && end > start ? lines.slice(start + 1, end) : undefined;
 }
 
-/** Mirrors the unexported buildRules of Pi's default system prompt, without prompt-level guidelines. */
+/** Mirrors the unexported buildRules of evoharness's default system prompt, without prompt-level guidelines. */
 function ruleLines(activeTools: string[], guidelines: Map<string, string[]>): string[] {
 	const lines: string[] = [];
 	const add = (rule: string): void => {
@@ -114,17 +114,17 @@ const sameLines = (left: string[], right: string[]) =>
 /**
  * The rules section does not say which tool contributed a bullet, so a declared tool's guidelines
  * are recovered by rebuilding the recorded rules with candidate bullets at that tool's position.
- * Nothing is recovered unless the rebuild first reproduces Pi's current rules.
+ * Nothing is recovered unless the rebuild first reproduces evoharness's current rules.
  */
 function recordedGuidelines(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	ctx: ExtensionContext,
 	recorded: string[],
 	names: string[],
 ): Map<string, string[]> {
 	const recovered = new Map<string, string[]>();
-	const activeTools = pi.getActiveTools();
-	const guidelines = new Map(pi.getAllTools().map((tool) => [tool.name, tool.promptGuidelines ?? []]));
+	const activeTools = evoharness.getActiveTools();
+	const guidelines = new Map(evoharness.getAllTools().map((tool) => [tool.name, tool.promptGuidelines ?? []]));
 	const current = sectionLines(ctx.getSystemPrompt(), "rules");
 	if (!current || !sameLines(ruleLines(activeTools, guidelines), current)) return recovered;
 	const rebuild = (name: string, candidate: string[]) =>
@@ -143,7 +143,7 @@ function recordedGuidelines(
 }
 
 function recordedSystemMessage(ctx: ExtensionContext | undefined): SystemMessage | undefined {
-	// SAFETY: Pi's session manager exposes buildSessionContext, but its read-only extension type omits it.
+	// SAFETY: evoharness's session manager exposes buildSessionContext, but its read-only extension type omits it.
 	const sessionManager = ctx?.sessionManager as
 		| (ExtensionContext["sessionManager"] & { buildSessionContext?(): { messages: Message[] } })
 		| undefined;
@@ -153,7 +153,7 @@ function recordedSystemMessage(ctx: ExtensionContext | undefined): SystemMessage
 }
 
 function declaredPins(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	pins: Pins,
 	ctx: ExtensionContext | undefined,
 	system: SystemMessage | undefined,
@@ -164,7 +164,7 @@ function declaredPins(
 	const rules = sectionLines(system.sections?.rules ?? undefined, "rules");
 	const guidelines = rules
 		? recordedGuidelines(
-				pi,
+				evoharness,
 				ctx,
 				rules,
 				declarations.map((tool) => tool.name).filter((name) => pins.current.has(name)),
@@ -173,7 +173,7 @@ function declaredPins(
 	return new Map(
 		declarations.map((declaration) => {
 			const pin: DeclaredPin = { declaration };
-			// Pi renders each snippet on one line as "- <tool>: <snippet>".
+			// evoharness renders each snippet on one line as "- <tool>: <snippet>".
 			if (snippets)
 				pin.snippet = {
 					text: snippets
@@ -187,51 +187,51 @@ function declaredPins(
 	);
 }
 
-function pinsFor(pi: ExtensionAPI): Pins {
-	const existing = pinsByApi.get(pi);
+function pinsFor(evoharness: ExtensionAPI): Pins {
+	const existing = pinsByApi.get(evoharness);
 	if (existing) return existing;
 	const pins: Pins = { current: new Map(), declared: new Map(), registered: new Map(), sections: {}, pinned: true };
-	pinsByApi.set(pi, pins);
-	// Pi restores the transcript's active tools before both events, so handler order does not matter.
+	pinsByApi.set(evoharness, pins);
+	// evoharness restores the transcript's active tools before both events, so handler order does not matter.
 	const refresh = (ctx: ExtensionContext | undefined) => {
 		const system = pins.pinned ? recordedSystemMessage(ctx) : undefined;
 		pins.sections = system?.sections ?? {};
-		pins.declared = declaredPins(pi, pins, ctx, system);
-		for (const name of pins.current.keys()) register(pi, pins, name);
+		pins.declared = declaredPins(evoharness, pins, ctx, system);
+		for (const name of pins.current.keys()) register(evoharness, pins, name);
 	};
-	pi.on("session_start", (_event, ctx) => refresh(ctx));
-	pi.on("session_tree", (_event, ctx) => refresh(ctx));
+	evoharness.on("session_start", (_event, ctx) => refresh(ctx));
+	evoharness.on("session_tree", (_event, ctx) => refresh(ctx));
 	return pins;
 }
 
 /**
  * The text, without its tags, that the session transcript recorded for one of the prompt sections
- * pi-subagents adds, so that section can keep the wording the session already sent.
+ * subagents adds, so that section can keep the wording the session already sent.
  * A session that never recorded the section gets undefined.
  */
-export function recordedPromptSection(pi: ExtensionAPI, name: string): string | undefined {
-	return sectionLines(pinsFor(pi).sections[name] ?? undefined, name)?.join("\n");
+export function recordedPromptSection(evoharness: ExtensionAPI, name: string): string | undefined {
+	return sectionLines(pinsFor(evoharness).sections[name] ?? undefined, name)?.join("\n");
 }
 
 /**
- * Register a pi-subagents tool so a session keeps the definition, prompt snippet and guidelines
+ * Register a subagents tool so a session keeps the definition, prompt snippet and guidelines
  * its transcript already declared. Only a session that never declared the tool gets this definition.
  */
 export function registerPinnedTool<TParams extends TSchema, TDetails>(
-	pi: ExtensionAPI,
+	evoharness: ExtensionAPI,
 	tool: ToolDefinition<TParams, TDetails>,
 ): void {
-	const pins = pinsFor(pi);
+	const pins = pinsFor(evoharness);
 	// SAFETY: Pinning reads only model-facing fields and re-registers every runtime field unchanged.
 	pins.current.set(tool.name, tool as unknown as PinnableTool);
 	pins.registered.delete(tool.name);
-	register(pi, pins, tool.name);
+	register(evoharness, pins, tool.name);
 }
 
 /**
- * Choose whether this session keeps the pi-subagents definitions and prompt text its transcript
+ * Choose whether this session keeps the subagents definitions and prompt text its transcript
  * declared (the default) or gets the current ones. Call before registering any pinned tool.
  */
-export function setDeclarationPinning(pi: ExtensionAPI, pinned: boolean): void {
-	pinsFor(pi).pinned = pinned;
+export function setDeclarationPinning(evoharness: ExtensionAPI, pinned: boolean): void {
+	pinsFor(evoharness).pinned = pinned;
 }

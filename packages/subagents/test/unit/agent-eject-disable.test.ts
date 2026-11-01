@@ -50,7 +50,7 @@ function packageAgentPath(name: string): string {
 function writePackageAgent(name: string): void {
 	writeJson(path.join(tempDir, "package.json"), {
 		name: "test-package",
-		pi: { subagents: { agents: ["./packaged-agents"] } },
+		evoharness: { subagents: { agents: ["./packaged-agents"] } },
 	});
 	fs.mkdirSync(path.dirname(packageAgentPath(name)), { recursive: true });
 	fs.writeFileSync(
@@ -62,7 +62,7 @@ function writePackageAgent(name: string): void {
 
 describe("agent eject/disable/enable/reset management actions", () => {
 	beforeEach(() => {
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-eject-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-eject-"));
 		oldAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(tempDir, "agent-home");
 		clearSkillCache();

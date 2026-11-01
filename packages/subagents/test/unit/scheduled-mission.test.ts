@@ -91,13 +91,13 @@ function createRuntime(
 		watcherRestartTimer: null,
 		resultFileCoalescer: { schedule: () => false, clear() {} },
 	} as unknown as SubagentState;
-	const pi = {
+	const evoharness = {
 		events: createEventBus(),
 		getSessionName: () => "scheduled mission test",
 		sendMessage() {},
 	};
 	const executor = createSubagentExecutor({
-		pi: pi as never,
+		evoharness: evoharness as never,
 		state,
 		config,
 		asyncByDefault: false,

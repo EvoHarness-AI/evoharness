@@ -27,14 +27,14 @@ describe("fork prompt cache keys", () => {
 		assert.equal(deriveForkPromptCacheKey("   "), undefined);
 		const key = deriveForkPromptCacheKey("parent-session");
 		assert.ok(key);
-		assert.match(key, /^pi-fork:[0-9a-f]{56}$/);
+		assert.match(key, /^subagents-fork:[0-9a-f]{49}$/);
 		assert.equal(Array.from(key).length, 64);
 		assert.equal(key.includes("parent-session"), false);
 
 		const longKey = deriveForkPromptCacheKey(`${"🙂".repeat(80)}-parent`);
 		assert.ok(longKey);
 		assert.equal(Array.from(longKey).length, 64);
-		assert.match(longKey, /^pi-fork:[0-9a-f]{56}$/);
+		assert.match(longKey, /^subagents-fork:[0-9a-f]{49}$/);
 
 		const prefix = "/Users/example/.evoharness/agent/sessions/".repeat(3);
 		assert.notEqual(deriveForkPromptCacheKey(`${prefix}/one.jsonl`), deriveForkPromptCacheKey(`${prefix}/two.jsonl`));
@@ -48,7 +48,7 @@ describe("fork prompt cache keys", () => {
 	});
 
 	it("rewrites only existing OpenAI-style string prompt cache keys", () => {
-		const forkCacheKey = "pi-fork:parent-session";
+		const forkCacheKey = "subagents-fork:parent-session";
 		const payload = {
 			model: "test-model",
 			input: [{ role: "user", content: "hello" }],
@@ -61,20 +61,23 @@ describe("fork prompt cache keys", () => {
 				providerContext("openai-responses"),
 				forkCacheKey,
 			),
-			{ ...payload, prompt_cache_key: "pi-fork:parent-session" },
+			{ ...payload, prompt_cache_key: "subagents-fork:parent-session" },
 		);
 		assert.deepEqual(
 			rewriteForkCacheProviderRequest(
-				{ type: "before_provider_request", payload: { ...payload, prompt_cache_key: "pi-fork:parent-session" } },
+				{
+					type: "before_provider_request",
+					payload: { ...payload, prompt_cache_key: "subagents-fork:parent-session" },
+				},
 				providerContext("openai-responses"),
 				forkCacheKey,
 			),
-			{ ...payload, prompt_cache_key: "pi-fork:parent-session" },
+			{ ...payload, prompt_cache_key: "subagents-fork:parent-session" },
 		);
 	});
 
 	it("does not add prompt cache keys or touch non-OpenAI payloads", () => {
-		const forkCacheKey = "pi-fork:parent-session";
+		const forkCacheKey = "subagents-fork:parent-session";
 
 		assert.equal(
 			rewriteForkCacheProviderRequest(

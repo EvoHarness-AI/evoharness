@@ -6,21 +6,21 @@ import path from "node:path";
 import { type TestContext, test } from "node:test";
 import { pathToFileURL } from "node:url";
 
-const binary = process.env.PI_SUBAGENTS_WORKFLOW_BUN_SMOKE_BINARY;
-const packageRoot = process.env.PI_SUBAGENTS_WORKFLOW_BUN_SMOKE_PACKAGE_ROOT;
+const binary = process.env.EVOHARNESS_SUBAGENTS_WORKFLOW_BUN_SMOKE_BINARY;
+const packageRoot = process.env.EVOHARNESS_SUBAGENTS_WORKFLOW_BUN_SMOKE_PACKAGE_ROOT;
 const workflowModule = packageRoot
 	? pathToFileURL(path.resolve(packageRoot, "src/workflows/scripted-workflow.js")).href
 	: new URL("../../src/workflows/scripted-workflow.ts", import.meta.url).href;
 
-// Opt-in native gate: this specifically needs a Bun-compiled Pi, not Node's SDK.
+// Opt-in native gate: this specifically needs a Bun-compiled evoharness, not Node's SDK.
 // The cache is isolated but deliberately enabled across consecutive processes.
 function runWarmPhases(
 	t: TestContext,
-	pi: string,
+	evoharness: string,
 	probe: (root: string, resultFile: string) => string,
 	check: (result: string, phase: string) => void,
 ): void {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflow-bun-cache-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-workflow-bun-cache-"));
 	t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 	const extension = path.join(root, "probe.ts");
 	const resultFile = path.join(root, "result.json");
@@ -34,7 +34,7 @@ function runWarmPhases(
 	for (const phase of ["cold", "warm", "warm-repeat"]) {
 		fs.rmSync(resultFile, { force: true });
 		const result = spawnSync(
-			pi,
+			evoharness,
 			[
 				"--offline",
 				"--no-approve",
@@ -53,7 +53,7 @@ function runWarmPhases(
 		assert.equal(
 			result.status,
 			0,
-			`${phase}: a workflow must not abort the parent Pi process: ${result.error?.message ?? result.stderr}`,
+			`${phase}: a workflow must not abort the parent evoharness process: ${result.error?.message ?? result.stderr}`,
 		);
 		assert.ok(
 			fs.existsSync(resultFile),
@@ -65,7 +65,10 @@ function runWarmPhases(
 
 test(
 	"child results survive a warm Bun cache",
-	{ skip: !binary && "Set PI_SUBAGENTS_WORKFLOW_BUN_SMOKE_BINARY to a standalone Pi executable", timeout: 60_000 },
+	{
+		skip: !binary && "Set EVOHARNESS_SUBAGENTS_WORKFLOW_BUN_SMOKE_BINARY to a standalone evoharness executable",
+		timeout: 60_000,
+	},
 	(t) => {
 		assert.ok(binary, "native cache regression must run against the requested standalone executable");
 		runWarmPhases(
@@ -74,8 +77,8 @@ test(
 			(_root, resultFile) => `
 import { writeFileSync } from "node:fs";
 import { runWorkflowScript } from ${JSON.stringify(workflowModule)};
-export default function(pi) {
-  pi.on("session_start", async () => {
+export default function(evoharness) {
+  evoharness.on("session_start", async () => {
     try {
       if (!process.versions.bun) throw new Error("The test binary must use Bun");
       const result = await runWorkflowScript({
@@ -104,16 +107,16 @@ test(
 	{
 		skip:
 			(!binary || !packageRoot) &&
-			"Set PI_SUBAGENTS_WORKFLOW_BUN_SMOKE_BINARY and PI_SUBAGENTS_WORKFLOW_BUN_SMOKE_PACKAGE_ROOT",
+			"Set EVOHARNESS_SUBAGENTS_WORKFLOW_BUN_SMOKE_BINARY and EVOHARNESS_SUBAGENTS_WORKFLOW_BUN_SMOKE_PACKAGE_ROOT",
 		timeout: 60_000,
 	},
 	(t) => {
 		assert.ok(
 			binary && packageRoot,
-			"native package coverage requires an explicit standalone Pi and built or unpacked package",
+			"native package coverage requires an explicit standalone evoharness and built or unpacked package",
 		);
 		const manifest = JSON.parse(fs.readFileSync(path.join(packageRoot, "package.json"), "utf8"));
-		const entry = manifest.pi?.extensions?.[0];
+		const entry = manifest.evoharness?.extensions?.[0];
 		assert.equal(
 			typeof entry,
 			"string",
@@ -130,13 +133,13 @@ test(
 				return `
 import { writeFileSync } from "node:fs";
 import registerSubagents from ${JSON.stringify(pathToFileURL(path.resolve(packageRoot, entry)).href)};
-export default function(pi) {
+export default function(evoharness) {
   const tools = new Map();
-  registerSubagents(new Proxy(pi, {get(target, property) {
+  registerSubagents(new Proxy(evoharness, {get(target, property) {
     if (property === "registerTool") return tool => {tools.set(tool.name, tool); return target.registerTool(tool);};
     return Reflect.get(target, property);
   }}));
-  pi.on("session_start", async (_event, ctx) => {
+  evoharness.on("session_start", async (_event, ctx) => {
     try {
       if (!process.versions.bun) throw new Error("The test binary must use Bun");
       const signal = new AbortController().signal;

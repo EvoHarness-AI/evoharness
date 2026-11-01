@@ -9,11 +9,11 @@ import type { AgentConfig } from "../../src/agents/agents.ts";
 import { runSingleStepInner } from "../../src/runs/background/subagent-runner.ts";
 import { runSync } from "../../src/runs/foreground/execution.ts";
 import { formatAcceptancePrompt, resolveEffectiveAcceptance } from "../../src/runs/shared/acceptance.ts";
-import { createDefaultChildSessionFactory, type PiCodingAgentModule } from "../../src/runs/shared/child-session.ts";
+import { type CodingAgentModule, createDefaultChildSessionFactory } from "../../src/runs/shared/child-session.ts";
 import { createStructuredOutputRuntime } from "../../src/runs/shared/structured-output.ts";
 
 // Uses the existing isolated SDK fixture; never install dependencies or call a provider.
-const sdkRoot = process.env.PI_SUBAGENTS_NATIVE_SDK;
+const sdkRoot = process.env.EVOHARNESS_SUBAGENTS_NATIVE_SDK;
 for (const host of ["foreground", "runner"] as const) {
 	for (const [systemPromptMode, structured] of [
 		["append", false],
@@ -23,15 +23,15 @@ for (const host of ["foreground", "runner"] as const) {
 	] as const) {
 		it(
 			`exact acceptance survives actual SDK split-turn compaction: ${host}/${systemPromptMode}/${structured ? "structured" : "fenced"}`,
-			{ skip: !sdkRoot && "Set PI_SUBAGENTS_NATIVE_SDK to the isolated 1.2.0 SDK root" },
+			{ skip: !sdkRoot && "Set EVOHARNESS_SUBAGENTS_NATIVE_SDK to the isolated 1.2.0 SDK root" },
 			async () => {
 				const entry = execFileSync(
 					process.execPath,
 					["--input-type=module", "-e", "console.log(import.meta.resolve('@evoharness/coding-agent'))"],
 					{ cwd: sdkRoot, encoding: "utf8" },
 				).trim();
-				const pi: PiCodingAgentModule = await import(entry);
-				assert.equal(pi.VERSION, "1.2.0");
+				const evoharness: CodingAgentModule = await import(entry);
+				assert.equal(evoharness.VERSION, "1.2.0");
 				const cwd = mkdtempSync(join(tmpdir(), "acceptance-compaction-"));
 				const agentDir = join(cwd, "agent");
 				mkdirSync(agentDir);
@@ -172,10 +172,10 @@ for (const host of ["foreground", "runner"] as const) {
 					});
 				};
 				const factory = createDefaultChildSessionFactory({
-					loadPiCodingAgent: async () => ({
-						...pi,
+					loadCodingAgent: async () => ({
+						...evoharness,
 						createAgentSession: async (options) => {
-							const result = await pi.createAgentSession(options);
+							const result = await evoharness.createAgentSession(options);
 							assert.deepEqual(result.session.settingsManager.getCompactionSettings(), {
 								enabled: true,
 								reserveTokens: 2048,

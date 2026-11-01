@@ -33,7 +33,7 @@ describe("prompt workflows", () => {
 	let cwd = "";
 
 	beforeEach(() => {
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-prompt-workflows-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-prompt-workflows-"));
 		agentDir = path.join(tempDir, "agent");
 		cwd = path.join(tempDir, "repo");
 		fs.mkdirSync(cwd, { recursive: true });
@@ -119,7 +119,7 @@ Review $1 with $ARGUMENTS
 		const sent: unknown[] = [];
 		const runs: SubagentParamsLike[] = [];
 		registerPromptWorkflowCommands({
-			pi: {
+			evoharness: {
 				registerCommand: (name: string, command: { handler: (args: string, ctx: never) => Promise<void> }) =>
 					commands.set(name, command),
 				sendMessage: (message: unknown) => sent.push(message),
@@ -176,7 +176,7 @@ Fix from {previous}: $@
 		const commands = new Map<string, { handler: (args: string, ctx: never) => Promise<void> }>();
 		const runs: SubagentParamsLike[] = [];
 		registerPromptWorkflowCommands({
-			pi: {
+			evoharness: {
 				registerCommand: (name: string, command: { handler: (args: string, ctx: never) => Promise<void> }) =>
 					commands.set(name, command),
 				sendMessage: () => {},

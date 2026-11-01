@@ -10,7 +10,7 @@ const moduleUrl = new URL("../../src/runs/shared/worktree-lock.ts", import.meta.
 const nodeArgs = ["--experimental-strip-types", "--input-type=module", "--eval"];
 
 function fixture(): string {
-	const repo = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-lock-"));
+	const repo = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-worktree-lock-"));
 	execFileSync("git", ["init", repo], { stdio: "ignore" });
 	return repo;
 }
@@ -113,7 +113,7 @@ it("a delayed reclaimer of an old token cannot move a new live lease", async () 
 		await withRepositoryWorktreeLock(
 			repo,
 			async () => {
-				const ownerPath = path.join(repo, ".git", "pi-subagents-worktree.lock", "owner.json");
+				const ownerPath = path.join(repo, ".git", "subagents-worktree.lock", "owner.json");
 				const before = JSON.parse(fs.readFileSync(ownerPath, "utf-8"));
 				fs.writeFileSync(release, "continue");
 				assert.equal(await exited, 84, errors);
@@ -135,7 +135,7 @@ it("a delayed reclaimer of an old token cannot move a new live lease", async () 
 it("does not evict an ownerless lock", async () => {
 	const repo = fixture();
 	try {
-		const lockPath = path.join(repo, ".git", "pi-subagents-worktree.lock");
+		const lockPath = path.join(repo, ".git", "subagents-worktree.lock");
 		fs.mkdirSync(lockPath);
 		await assert.rejects(
 			withRepositoryWorktreeLock(repo, () => assert.fail("unknown owner was evicted"), { waitMs: 0 }),

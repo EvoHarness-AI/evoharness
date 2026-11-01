@@ -1,9 +1,9 @@
 import * as assert from "node:assert/strict";
 import * as fs from "node:fs";
 import { after, describe, it } from "node:test";
-import { createMockPi } from "../support/mock-pi.ts";
+import { createMockPi } from "../support/mock-host.ts";
 
-describe("mock Pi queue isolation", () => {
+describe("mock evoharness queue isolation", () => {
 	const mockPi = createMockPi();
 	after(() => mockPi.uninstall());
 

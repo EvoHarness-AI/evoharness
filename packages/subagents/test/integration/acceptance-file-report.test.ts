@@ -498,7 +498,7 @@ public static class AcceptanceIdentity {
 	};
 }
 
-describe("acceptance file reports", { skip: !runSync ? "pi packages not available" : undefined }, () => {
+describe("acceptance file reports", { skip: !runSync ? "evoharness packages not available" : undefined }, () => {
 	let tempDir: string;
 	let mockPi: MockPi;
 	let bodyStartedAt: number;
@@ -734,7 +734,7 @@ describe("acceptance file reports", { skip: !runSync ? "pi packages not availabl
 				const artifactsDir = path.join(tempDir, "rejected-inline-artifacts");
 				conflictingReportsCall(outputPath, "satisfied", "not-satisfied");
 				const executor = createSubagentExecutor!({
-					pi: { events: createEventBus(), getSessionName: () => undefined },
+					evoharness: { events: createEventBus(), getSessionName: () => undefined },
 					state: {
 						baseCwd: tempDir,
 						currentSessionId: null,
@@ -789,7 +789,7 @@ describe("acceptance file reports", { skip: !runSync ? "pi packages not availabl
 					writeFiles: [{ path: outputPath, content: fileReport }],
 				});
 				const executor = createSubagentExecutor!({
-					pi: { events: createEventBus(), getSessionName: () => undefined },
+					evoharness: { events: createEventBus(), getSessionName: () => undefined },
 					state: {
 						baseCwd: tempDir,
 						currentSessionId: null,
@@ -993,7 +993,7 @@ export default function() {
 							task: "Write the findings report.",
 							agentConfig: makeAgent("worker"),
 							ctx: {
-								pi: { events: { emit: diagnostic.emit } },
+								evoharness: { events: { emit: diagnostic.emit } },
 								cwd: tempDir,
 								currentSessionId: "session-file-report",
 							},

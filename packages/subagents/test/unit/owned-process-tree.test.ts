@@ -51,7 +51,7 @@ test(
 		assert.equal(processIsActive(writer.pid), false);
 		assert.equal(processIsActive(grandchildPid), false);
 
-		const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-process-tree-ps-"));
+		const fixtureDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-process-tree-ps-"));
 		const realPs = spawnSync("sh", ["-c", "command -v ps"], { encoding: "utf-8" }).stdout.trim();
 		const marker = path.join(fixtureDir, "failed-once");
 		const originalPath = process.env.PATH;

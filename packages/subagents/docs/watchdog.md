@@ -11,7 +11,7 @@ The watchdog is an opt-in second model that reviews what the agent just did and 
 | Cadence review | Every `cadence.everyNTools` tool results, minimum 5 | Opt-in | Steered after the current tool, before the next step |
 | LSP pre-pass | Before boundary review | Changed TypeScript/JavaScript files | Diagnostics become watchdog findings without a model call |
 
-Boundary reviews coalesce a turn's edits into one final-state review. Unchanged or reverted diffs are skipped unless the main-only activity opt-in below admits new evidence; `.pi/subagents/` and `tmp/` artifacts remain excluded. In orchestrated runs, each writing child reviews its own worktree and the parent reviews the aggregate diff after child changes land. There are no idle timer reviews. Cadence monitoring is inspired by [Scopey](https://github.com/ArchAstro/scopey).
+Boundary reviews coalesce a turn's edits into one final-state review. Unchanged or reverted diffs are skipped unless the main-only activity opt-in below admits new evidence; `.evoharness/subagents/` and `tmp/` artifacts remain excluded. In orchestrated runs, each writing child reviews its own worktree and the parent reviews the aggregate diff after child changes land. There are no idle timer reviews. Cadence monitoring is inspired by [Scopey](https://github.com/ArchAstro/scopey).
 
 Children get the same boundary, cadence, and LSP behavior. Child cadence resolves from `children.overrides.<agent>.cadence`, then `children.cadence`, then top-level `cadence`:
 
@@ -46,7 +46,7 @@ you ─▶ agent turn ─▶ edits repo ─▶ agent_end ─▶ watchdog review
                                              └─ warning: low/medium user entry, or high steered message
 ```
 
-A warning shows as one `[subagent] watchdog concern` or `[subagent] watchdog blocker` line, like every other message pi-subagents shows in the chat. Pi's expand key, or a click on the line, opens it to the summary, evidence, recommended action, importance, category, and source:
+A warning shows as one `[subagent] watchdog concern` or `[subagent] watchdog blocker` line, like every other message subagents shows in the chat. evoharness's expand key, or a click on the line, opens it to the summary, evidence, recommended action, importance, category, and source:
 
 ```
 [subagent] watchdog blocker
@@ -72,7 +72,7 @@ Child watchdog findings are lifted into the parent in three ways:
 - **Turn delta** with changed repo paths. Over-long input keeps the first 6,000 characters and the tail.
 - **Current scope** (`scope.enabled`, default on): bounded real user prompts. Side questions are additive; only explicit changes supersede older requirements. Scope survives compaction within the current session.
 - **`watchdog_diff`** when inside git: diff since the session-start commit, including later commits, plus untracked paths to inspect with `read`; accepts `path` and `stat:true`.
-- **`WATCHDOG.md`** standing instructions, read fresh on every review: `<project>/.pi/WATCHDOG.md` first, then `~/.pi/agent/WATCHDOG.md`, capped at 8,000 characters. Set `guidance.watchdogMd: false` to ignore them.
+- **`WATCHDOG.md`** standing instructions, read fresh on every review: `<project>/.pi/WATCHDOG.md` first, then `~/.evoharness/agent/WATCHDOG.md`, capped at 8,000 characters. Set `guidance.watchdogMd: false` to ignore them.
 - **LSP diagnostics** from `typescript-language-server`, auto-detected in `node_modules/.bin` or `PATH`; it is never installed and never run over the whole workspace. Errors become blockers, warnings concerns, and info/hints stay in status.
 
 ## Choosing a model
@@ -124,7 +124,7 @@ New unreviewed activity permits at most one additional boundary review per user 
 
 **Visibility limit:** external task/gate completions are visible when returned through those parent tool results. Standalone native completion notifications, arbitrary custom messages, direct shell/CI output, and events not delivered to the parent through these contracts are not ingested by this activity tail. Existing scope retains at most eight prompts (2,000 characters each); new streaming user input cancels an active review but is not added to scope unless `before_agent_start` fires. Reminders depend on retained evidence and model judgment, not an exhaustive view of running work.
 
-Set `subagents.watchdog.clarification: true` in Pi settings alongside `enabled: true`. It defaults to `false` and applies **only to the main watchdog**, not child watchdogs or child permission arbitration.
+Set `subagents.watchdog.clarification: true` in evoharness settings alongside `enabled: true`. It defaults to `false` and applies **only to the main watchdog**, not child watchdogs or child permission arbitration.
 
 ```json
 { "subagents": { "watchdog": { "enabled": true, "clarification": true } } }
@@ -132,7 +132,7 @@ Set `subagents.watchdog.clarification: true` in Pi settings alongside `enabled: 
 
 At an eligible activity or repo-edit boundary, the reviewer may use `watchdog_ask` for one focused question when missing orchestrator context prevents a concrete judgment. It cannot ask during cadence reviews, after an accepted warning, or during stalemate. There is at most one question per real user prompt.
 
-The tool **yields and ends that review**. A visible question with concrete evidence steers the main session into Pi's native automatic continuation after the boundary hook returns. The orchestrator handles the context as needed and continues; no answer, receipt, deadline or follow-up review is required or tracked. Questions are **not approval, permission, or warnings**.
+The tool **yields and ends that review**. A visible question with concrete evidence steers the main session into evoharness's native automatic continuation after the boundary hook returns. The orchestrator handles the context as needed and continues; no answer, receipt, deadline or follow-up review is required or tracked. Questions are **not approval, permission, or warnings**.
 
 Asking consumes the current review evidence, so an unchanged Git-backed boundary does not immediately review it again. Later reviews use the normal edit, cadence and bounded activity triggers, with the same read-only tools, warning thresholds, budgets and stalemate protections. Non-Git observed edits can also prompt a question: there is no cross-answer evidence guarantee to verify. Disabling watchdog or clarification, new user input, model changes and session lifecycle resets cancel applicable active reviews and suppress stale results; already delivered questions remain ordinary transcript messages.
 
@@ -167,7 +167,7 @@ Opt in under `subagents.watchdog.children`. `model` and `thinking` set the defau
 
 ## Native child tool permissions
 
-Opt-in, Pi child runtimes only. With no rules, every tool call passes through. Global non-bash rules live in `~/.pi/agent/extensions/subagent/config.json`; agents override matching rules in `permission:` or `permissions:` frontmatter:
+Opt-in, evoharness child runtimes only. With no rules, every tool call passes through. Global non-bash rules live in `~/.evoharness/agent/extensions/subagent/config.json`; agents override matching rules in `permission:` or `permissions:` frontmatter:
 
 ```yaml
 ---
@@ -182,6 +182,6 @@ Values are `allow`, `ask`, and `deny`. Agent rules override global ones, omitted
 
 `ask` pauses that exact tool call and sends a bounded, redacted preview to a one-call arbiter owned by the child watchdog, using the configured child-watchdog model. The arbiter returns only `approve` or `deny` and does not notify the parent. A disabled watchdog, missing model/auth, timeout, malformed response, or runtime error denies the call with a clear error. Requests and decisions are written to bounded audit JSONL. `contact_supervisor` and the optional `pi-intercom` extension are never permission-gated.
 
-Bash is always passed through; bash rules are rejected. Use `pi-guard` for command-level policy. Children are pi sessions inside the parent process (foreground) or the detached runner process (background), not separate `pi` binaries, so there is no per-child command wrapper; load `pi-guard` into a child through the agent's `extensions` or `subagentOnlyExtensions`, and background children also pick it up as an ambient extension. External CLI profiles are opaque processes, so native permissions cannot intercept their tools; launches with effective `ask` or `deny` rules are rejected for external CLI agents.
+Bash is always passed through; bash rules are rejected. Use `pi-guard` for command-level policy. Children are evoharness sessions inside the parent process (foreground) or the detached runner process (background), not separate `evoharness` binaries, so there is no per-child command wrapper; load `pi-guard` into a child through the agent's `extensions` or `subagentOnlyExtensions`, and background children also pick it up as an ambient extension. External CLI profiles are opaque processes, so native permissions cannot intercept their tools; launches with effective `ask` or `deny` rules are rejected for external CLI agents.
 
-Detached runners receive `PI_SUBAGENT_PARENT_SESSION` from their exact launch and retain it for that dedicated process. Root and in-process foreground hosts do not publish a global parent identity because multiple Pi sessions can share a host. Environment-only permission extensions therefore cannot safely forward foreground `ask` requests; that path remains unsupported until the extension accepts a session-scoped target. Native child permissions are unaffected.
+Detached runners receive `EVOHARNESS_SUBAGENT_PARENT_SESSION` from their exact launch and retain it for that dedicated process. Root and in-process foreground hosts do not publish a global parent identity because multiple evoharness sessions can share a host. Environment-only permission extensions therefore cannot safely forward foreground `ask` requests; that path remains unsupported until the extension accepts a session-scoped target. Native child permissions are unaffected.

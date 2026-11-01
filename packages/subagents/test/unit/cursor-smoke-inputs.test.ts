@@ -6,7 +6,7 @@ import test from "node:test";
 import { cursorSmokeInputs } from "../support/cursor-smoke-inputs.ts";
 
 function roots(): { root: string; workspace: string; stateRoot: string } {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cursor-smoke-inputs-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-cursor-smoke-inputs-"));
 	const workspace = path.join(root, "workspace");
 	const stateRoot = path.join(root, "state");
 	fs.mkdirSync(workspace);
@@ -17,9 +17,9 @@ function roots(): { root: string; workspace: string; stateRoot: string } {
 
 function env(workspace: string, stateRoot: string): NodeJS.ProcessEnv {
 	return {
-		PI_SUBAGENTS_CURSOR_SMOKE_DISPOSABLE: "1",
-		PI_SUBAGENTS_CURSOR_SMOKE_WORKSPACE: workspace,
-		PI_SUBAGENTS_CURSOR_SMOKE_STATE_ROOT: stateRoot,
+		EVOHARNESS_SUBAGENTS_CURSOR_SMOKE_DISPOSABLE: "1",
+		EVOHARNESS_SUBAGENTS_CURSOR_SMOKE_WORKSPACE: workspace,
+		EVOHARNESS_SUBAGENTS_CURSOR_SMOKE_STATE_ROOT: stateRoot,
 	};
 }
 
@@ -31,7 +31,7 @@ test("resolves existing disposable Cursor smoke roots", () => {
 		assert.deepEqual(cursorSmokeInputs(env(input.workspace, input.stateRoot)), {
 			workspace,
 			stateRoot,
-			canaryPath: path.join(workspace, "pi-subagents-cursor-write-canary.txt"),
+			canaryPath: path.join(workspace, "subagents-cursor-write-canary.txt"),
 			promptDirectory: path.join(stateRoot, "external-0.cursor-prompt"),
 		});
 	} finally {
@@ -46,7 +46,7 @@ test("requires disposable attestation and separate existing roots", () => {
 			() =>
 				cursorSmokeInputs({
 					...env(input.workspace, input.stateRoot),
-					PI_SUBAGENTS_CURSOR_SMOKE_DISPOSABLE: undefined,
+					EVOHARNESS_SUBAGENTS_CURSOR_SMOKE_DISPOSABLE: undefined,
 				}),
 			/DISPOSABLE=1 is required/,
 		);
@@ -64,9 +64,9 @@ test("refuses pre-existing Cursor smoke handoff and canary paths", () => {
 	const input = roots();
 	try {
 		const values = env(input.workspace, input.stateRoot);
-		fs.writeFileSync(path.join(input.workspace, "pi-subagents-cursor-write-canary.txt"), "existing");
+		fs.writeFileSync(path.join(input.workspace, "subagents-cursor-write-canary.txt"), "existing");
 		assert.throws(() => cursorSmokeInputs(values), /canary path must not exist/);
-		fs.rmSync(path.join(input.workspace, "pi-subagents-cursor-write-canary.txt"));
+		fs.rmSync(path.join(input.workspace, "subagents-cursor-write-canary.txt"));
 		fs.writeFileSync(path.join(input.stateRoot, "external-0.cursor-prompt", "handoff.txt"), "existing");
 		assert.throws(() => cursorSmokeInputs(values), /prompt directory must be empty/);
 	} finally {

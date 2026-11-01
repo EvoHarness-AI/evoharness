@@ -11,10 +11,10 @@ const UNSUPPORTED = {
 	steer: "The one-shot stdin adapter closes input after launch and cannot accept live steer messages.",
 	resume: "The one-shot stdin adapter has no durable external session identity.",
 	structuredOutput: "The generic external CLI adapter does not parse a trusted structured result.",
-	toolEvents: "The generic external CLI adapter treats stdout as untrusted text, not native Pi tool events.",
+	toolEvents: "The generic external CLI adapter treats stdout as untrusted text, not native evoharness tool events.",
 	supervisor: "The generic external CLI adapter has no trusted supervisor event transport.",
-	forkContext: "Native Pi fork context is not available without an adapter-owned handoff artifact.",
-	extensionBindings: "Native Pi extension bindings are never passed to external runners.",
+	forkContext: "Native evoharness fork context is not available without an adapter-owned handoff artifact.",
+	extensionBindings: "Native evoharness extension bindings are never passed to external runners.",
 } as const;
 
 const CAPABILITY_KEYS = new Set(Object.keys(UNSUPPORTED));

@@ -11,7 +11,7 @@ import { workflowScriptDigest } from "./workflow-reuse.ts";
 import { isRunId } from "./workflow-revival.ts";
 import { isReusableWorkflowStopCause, WORKFLOW_STOP_CAUSE_OWNER_EXITED } from "./workflow-stop-cause.ts";
 
-/** A run may be resumed again after at most this many resumes that followed Pi exits (auto-resume only). */
+/** A run may be resumed again after at most this many resumes that followed evoharness exits (auto-resume only). */
 const MAX_WORKFLOW_RESUME_ATTEMPTS = 3;
 
 type WorkflowResumeTrigger = "auto" | "manual";
@@ -128,12 +128,12 @@ export function prepareWorkflowResume(input: {
 	const status = readStatus(sourceAsyncDir);
 	if (!status || status.mode !== "workflow" || !isReusableWorkflowStopCause(status.workflow?.stopCause))
 		return refuse("not-interrupted", "not interrupted; pass message to revive one of its children");
-	// The attempt the resumed run records: only resumes that follow a Pi exit count.
+	// The attempt the resumed run records: only resumes that follow a evoharness exit count.
 	const attempt =
 		(status.workflow?.resumeOrigin?.attempt ?? 0) +
 		(status.workflow?.stopCause === WORKFLOW_STOP_CAUSE_OWNER_EXITED ? 1 : 0);
 	if (trigger === "auto" && attempt > MAX_WORKFLOW_RESUME_ATTEMPTS)
-		return refuse("attempts", `${MAX_WORKFLOW_RESUME_ATTEMPTS} resumes already followed Pi exits`);
+		return refuse("attempts", `${MAX_WORKFLOW_RESUME_ATTEMPTS} resumes already followed evoharness exits`);
 	const read = readWorkflowLaunchRecord(sourceAsyncDir);
 	if (!read.ok)
 		return read.missing

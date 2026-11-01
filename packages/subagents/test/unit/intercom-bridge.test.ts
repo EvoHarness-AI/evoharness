@@ -148,7 +148,7 @@ describe("resolveIntercomBridge", () => {
 	});
 
 	it("loads custom instructions from instructionFile", () => {
-		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-native-intercom-bridge-test-"));
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-native-intercom-bridge-test-"));
 		const instructionFile = path.join(tempDir, "bridge.md");
 		fs.writeFileSync(instructionFile, "Custom bridge for {orchestratorTarget}\nUse ask then send.");
 		try {

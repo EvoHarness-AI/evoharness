@@ -3,7 +3,7 @@
  *
  * These test the pure logic of how {task}, {previous}, and {chain_dir}
  * variables get resolved in chain steps. Uses dynamic import since
- * settings.ts transitively depends on pi packages.
+ * settings.ts transitively depends on evoharness packages.
  */
 
 import assert from "node:assert/strict";
@@ -27,7 +27,7 @@ const isParallelStep = settings?.isParallelStep;
 const createChainDir = settings?.createChainDir;
 const normalizeSkillInput = skills?.normalizeSkillInput;
 
-describe("resolveChainTemplates", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("resolveChainTemplates", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	it("uses step task for first step", () => {
 		const chain = [{ agent: "a", task: "Analyze {task}" }, { agent: "b" }];
 		const templates = resolveChainTemplates(chain);
@@ -81,7 +81,7 @@ describe("resolveChainTemplates", { skip: !available ? "pi packages not availabl
 	});
 });
 
-describe("isParallelStep", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("isParallelStep", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	it("returns true for parallel steps", () => {
 		assert.ok(isParallelStep({ parallel: [{ agent: "a", task: "t" }] }));
 	});
@@ -91,7 +91,7 @@ describe("isParallelStep", { skip: !available ? "pi packages not available" : un
 	});
 });
 
-describe("normalizeSkillInput", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("normalizeSkillInput", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	it("returns undefined for undefined input", () => {
 		assert.equal(normalizeSkillInput(undefined), undefined);
 	});
@@ -125,7 +125,7 @@ describe("normalizeSkillInput", { skip: !available ? "pi packages not available"
 	});
 });
 
-describe("resolveStepBehavior", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("resolveStepBehavior", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	it("returns agent defaults when no overrides", () => {
 		// Uses agentConfig.output, .defaultReads, .defaultProgress
 		const config = { name: "test", output: "report.md", defaultProgress: true, defaultReads: ["input.md"] };
@@ -185,7 +185,7 @@ describe("resolveStepBehavior", { skip: !available ? "pi packages not available"
 	});
 });
 
-describe("resolveParallelBehaviors", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("resolveParallelBehaviors", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	it("uses agent outputMode defaults unless a parallel task overrides them", () => {
 		const [defaultBehavior] = resolveParallelBehaviors(
 			[{ agent: "reviewer", task: "Review" }],
@@ -228,23 +228,27 @@ describe("resolveParallelBehaviors", { skip: !available ? "pi packages not avail
 	});
 });
 
-describe("read-only progress suppression", { skip: !available ? "pi packages not available" : undefined }, () => {
-	it("suppresses progress for review-only or no-edit tasks", () => {
-		const behavior = { reads: undefined, output: false, outputMode: "inline", progress: true, skills: undefined };
+describe(
+	"read-only progress suppression",
+	{ skip: !available ? "evoharness packages not available" : undefined },
+	() => {
+		it("suppresses progress for review-only or no-edit tasks", () => {
+			const behavior = { reads: undefined, output: false, outputMode: "inline", progress: true, skills: undefined };
 
-		assert.equal(taskDisallowsFileUpdates("Review-only. Do not edit files."), true);
-		assert.equal(taskDisallowsFileUpdates("Implement read-only mode for config files."), false);
-		assert.equal(taskDisallowsFileUpdates("This task is not read-only; edit files."), false);
-		assert.equal(suppressProgressForReadOnlyTask(behavior, "Review-only. Do not edit files.").progress, false);
-		assert.equal(
-			suppressProgressForReadOnlyTask(behavior, "{task}", "Review-only. Do not edit files.").progress,
-			false,
-		);
-		assert.equal(suppressProgressForReadOnlyTask(behavior, "Implement the approved fix.").progress, true);
-	});
-});
+			assert.equal(taskDisallowsFileUpdates("Review-only. Do not edit files."), true);
+			assert.equal(taskDisallowsFileUpdates("Implement read-only mode for config files."), false);
+			assert.equal(taskDisallowsFileUpdates("This task is not read-only; edit files."), false);
+			assert.equal(suppressProgressForReadOnlyTask(behavior, "Review-only. Do not edit files.").progress, false);
+			assert.equal(
+				suppressProgressForReadOnlyTask(behavior, "{task}", "Review-only. Do not edit files.").progress,
+				false,
+			);
+			assert.equal(suppressProgressForReadOnlyTask(behavior, "Implement the approved fix.").progress, true);
+		});
+	},
+);
 
-describe("buildChainInstructions", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("buildChainInstructions", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	it("includes existing reads and omits missing reads", () => {
 		const behavior = {
 			reads: ["context.md", "missing.md"],
@@ -338,7 +342,7 @@ describe("buildChainInstructions", { skip: !available ? "pi packages not availab
 	});
 });
 
-describe("createChainDir", { skip: !available ? "pi packages not available" : undefined }, () => {
+describe("createChainDir", { skip: !available ? "evoharness packages not available" : undefined }, () => {
 	it("creates directory with runId", () => {
 		const dir = createChainDir("test-run-123");
 		try {

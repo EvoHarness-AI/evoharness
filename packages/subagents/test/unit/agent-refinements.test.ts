@@ -70,7 +70,7 @@ function firstText(value: { content: Array<{ text?: string }> }): string {
 
 describe("agent refinements", () => {
 	beforeEach(() => {
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-refinements-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-refinements-"));
 	});
 
 	afterEach(() => {
@@ -216,7 +216,7 @@ describe("agent refinements", () => {
 		assert.equal(second.isError, undefined);
 
 		let prompt = appendAgentRefinementOverlay("Base", { cwd: tempDir, agentName: "worker" });
-		assert.match(prompt, /<pi-subagents-refinement agent="worker"/);
+		assert.match(prompt, /<subagents-refinement agent="worker"/);
 		assert.match(prompt, /When acceptance is rejected/);
 		assert.doesNotMatch(prompt, /Snapshots/);
 

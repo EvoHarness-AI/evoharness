@@ -42,7 +42,7 @@ function fakeOptions(fakeFs: FakeFs) {
 describe("ensureAccessibleDir", () => {
 	it("returns the requested path when it is usable", () => {
 		const fakeFs = new FakeFs();
-		const dirPath = "/tmp/pi-subagents-ok/results";
+		const dirPath = "/tmp/subagents-ok/results";
 
 		const result = ensureAccessibleDir(dirPath, fakeOptions(fakeFs));
 
@@ -52,7 +52,7 @@ describe("ensureAccessibleDir", () => {
 
 	it("falls back to a pid-scoped sibling when mkdir is persistently blocked", () => {
 		const fakeFs = new FakeFs();
-		const dirPath = "/tmp/pi-subagents-mkdir-eperm/results";
+		const dirPath = "/tmp/subagents-mkdir-eperm/results";
 		fakeFs.blockedMkdir.add(dirPath);
 
 		const result = ensureAccessibleDir(dirPath, fakeOptions(fakeFs));
@@ -63,7 +63,7 @@ describe("ensureAccessibleDir", () => {
 
 	it("falls back to a pid-scoped sibling when access is persistently blocked", () => {
 		const fakeFs = new FakeFs();
-		const dirPath = "/tmp/pi-subagents-access-eperm/results";
+		const dirPath = "/tmp/subagents-access-eperm/results";
 		fakeFs.blockedAccess.add(dirPath);
 
 		const result = ensureAccessibleDir(dirPath, fakeOptions(fakeFs));
@@ -73,7 +73,7 @@ describe("ensureAccessibleDir", () => {
 	});
 
 	it("does not delete existing primary directory contents when falling back", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-accessible-dir-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-accessible-dir-"));
 		try {
 			const dirPath = path.join(root, "async-subagent-runs");
 			const statusPath = path.join(dirPath, "run-1", "status.json");

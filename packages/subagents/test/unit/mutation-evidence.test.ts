@@ -15,7 +15,7 @@ function git(cwd: string, args: string[]): void {
 }
 
 function withRepo(run: (repo: string) => void): void {
-	const repo = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-mutation-evidence-"));
+	const repo = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-mutation-evidence-"));
 	try {
 		git(repo, ["init"]);
 		git(repo, ["config", "user.email", "test@example.com"]);

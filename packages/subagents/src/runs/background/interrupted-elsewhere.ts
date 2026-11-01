@@ -9,7 +9,7 @@ import { checkRecordedPidLiveness } from "./stale-run-reconciler.ts";
 const INTERRUPTED_ELSEWHERE_MAX_AGE_MS = 24 * 60 * 60 * 1000;
 
 function interruptedElsewhereLine(reopenId: string, count: number): string {
-	const command = `\`pi --session ${reopenId}\``;
+	const command = `\`evoharness --session ${reopenId}\``;
 	return count === 1
 		? `1 subagent run was interrupted in another session. Reopen it to resume it: ${command}`
 		: `${count} subagent runs were interrupted in another session. Reopen it to resume them: ${command}`;
@@ -20,12 +20,12 @@ interface InterruptedElsewhereCollector {
 	observeStatus: RawDrainStatusObserver;
 	/** Receives the foreground records of other sessions that session start already reads. */
 	observeForegroundRun: (run: ForegroundResumeRun) => void;
-	/** One line per other session that can be reopened and has runs whose Pi is dead. */
+	/** One line per other session that can be reopened and has runs whose evoharness is dead. */
 	lines: () => string[];
 }
 
 /**
- * Collects runs of other sessions in this folder that were cut off because their Pi died, from what
+ * Collects runs of other sessions in this folder that were cut off because their evoharness died, from what
  * session start reads anyway. Read-only: nothing is written to those runs or sessions. The cheap
  * filters run as records arrive; `lines` reads each session file's header once, then probes each
  * candidate's pid once.
@@ -79,7 +79,7 @@ export function createInterruptedElsewhereCollector(input: {
 			const lines: string[] = [];
 			for (const [sessionId, runs] of candidates) {
 				// Only a persisted session can be reopened; its id is then its file path, whose header names
-				// the id `pi --session` resolves, so the command needs no quoting in any shell.
+				// the id `evoharness --session` resolves, so the command needs no quoting in any shell.
 				const reopenId = resolvePiSessionId(sessionId);
 				if (!reopenId) continue;
 				let interrupted = 0;

@@ -81,7 +81,7 @@ describe("Herdr machine placement", () => {
 			assert.equal(env.PATH, "/usr/bin:/bin:/usr/sbin:/sbin");
 			assert.deepEqual(herdrSshArgs(source).slice(-2), ["-o", "IdentityAgent=/tmp/auth"]);
 			assert.ok(HERDR_SSH_BASE.includes("SendEnv=-*"));
-			assert.ok(HERDR_SSH_BASE.includes("SetEnv=PI_SUBAGENTS_SSH_GUARD="));
+			assert.ok(HERDR_SSH_BASE.includes("SetEnv=EVOHARNESS_SUBAGENTS_SSH_GUARD="));
 			assert.equal(HERDR_SSH_BASE.includes("-L" as never), false);
 		},
 	);
@@ -197,7 +197,7 @@ describe("Herdr machine placement", () => {
 				assert.ok(command.includes('exec "$herdr_path" status server --json'));
 				assert.equal(/(?:source|\.profile|\.zprofile|LOCAL_SECRET)/u.test(command), false);
 				const runtime = await createRemoteRuntimeDir(machine, "run_quote'1", options);
-				assert.match(path.basename(runtime), /^pi-subagents-herdr-run_quote'1-/u);
+				assert.match(path.basename(runtime), /^subagents-herdr-run_quote'1-/u);
 				fs.writeFileSync(
 					path.join(runtime, "manifest.json"),
 					JSON.stringify({
@@ -220,8 +220,8 @@ describe("Herdr machine placement", () => {
 		},
 	);
 	beforeEach(() => {
-		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-home-"));
-		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-project-"));
+		tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-home-"));
+		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-herdr-project-"));
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
 		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(tempHome, ".evoharness", "agent");
@@ -373,10 +373,14 @@ describe("Herdr machine placement", () => {
 	});
 
 	describe("launch gating", () => {
-		it("allows native Pi but rejects generic adapters and worktrees with a pointer", () => {
+		it("allows native evoharness but rejects generic adapters and worktrees with a pointer", () => {
 			if (process.platform !== "win32")
 				assert.equal(
-					formatHerdrMachineRunnerUnsupported({ machine: "workmac", agentName: "reviewer", runnerType: "pi" }),
+					formatHerdrMachineRunnerUnsupported({
+						machine: "workmac",
+						agentName: "reviewer",
+						runnerType: "evoharness",
+					}),
 					undefined,
 				);
 			assert.match(
@@ -397,7 +401,10 @@ describe("Herdr machine placement", () => {
 				}) ?? "",
 				/managed worktrees are local git operations/u,
 			);
-			assert.equal(formatHerdrMachineRunnerUnsupported({ agentName: "reviewer", runnerType: "pi" }), undefined);
+			assert.equal(
+				formatHerdrMachineRunnerUnsupported({ agentName: "reviewer", runnerType: "evoharness" }),
+				undefined,
+			);
 			if (process.platform === "win32") {
 				assert.match(
 					formatHerdrMachineRunnerUnsupported({

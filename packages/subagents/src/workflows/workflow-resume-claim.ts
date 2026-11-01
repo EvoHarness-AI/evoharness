@@ -57,7 +57,7 @@ type WorkflowResumeClaimState =
 type ClaimLiveness = (claim: WorkflowResumeClaim) => PidLiveness;
 
 // Claims this process holds, shared by every runtime in the process so a reload keeps them.
-const heldClaimsKey = Symbol.for("pi-subagents.workflow-resume-claims.v1");
+const heldClaimsKey = Symbol.for("subagents.workflow-resume-claims.v1");
 const heldClaimsGlobal = globalThis as typeof globalThis & { [heldClaimsKey]?: Set<string> };
 const heldClaims = heldClaimsGlobal[heldClaimsKey] ?? (heldClaimsGlobal[heldClaimsKey] = new Set<string>());
 

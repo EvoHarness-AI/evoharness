@@ -76,7 +76,7 @@ import {
 	type UsageBudgetConfig,
 	type WorkflowLaneMetadata,
 } from "../../shared/types.ts";
-import { PI_CODING_AGENT_PACKAGE_ROOT_ENV, PROMPT_REDACTED, resolveChildCwd } from "../../shared/utils.ts";
+import { CODING_AGENT_PACKAGE_ROOT_ENV, PROMPT_REDACTED, resolveChildCwd } from "../../shared/utils.ts";
 import { applyWatchdogLaunchRules, sendRuleViolationWarning } from "../../watchdog/rules.ts";
 import {
 	resolveAcceptanceReportMode,
@@ -106,7 +106,7 @@ import { childSessionFactoryModule } from "../shared/child-session.ts";
 import {
 	applyThinkingSuffix,
 	projectLaunchResolvedChildExtensions,
-	resolvePiLaunchToolPlan,
+	resolveHostLaunchToolPlan,
 } from "../shared/child-tool-plan.ts";
 import {
 	assertClaudeCodeModelScope,
@@ -127,6 +127,7 @@ import {
 	PLACED_RESTORE_UNSUPPORTED,
 	resolveMachinePlacement,
 } from "../shared/herdr-machine.ts";
+import { CODING_AGENT_PACKAGE, resolveBunHostExecutable, resolveHostPackageRoot } from "../shared/host-spawn.ts";
 import { assertWorkflowLaneKey, normalizeWorkflowLaneMetadata } from "../shared/lane-metadata.ts";
 import { preflightLaunchCwd } from "../shared/launch-cwd.ts";
 import {
@@ -148,7 +149,6 @@ import {
 } from "../shared/nested-events.ts";
 import { isDynamicRunnerGroup, isParallelGroup, type RunnerStep } from "../shared/parallel-utils.ts";
 import { type PermissionConfig, resolvePermissionRules } from "../shared/permissions.ts";
-import { PI_CODING_AGENT_PACKAGE, resolveBunPiExecutable, resolveHostPiPackageRoot } from "../shared/pi-spawn.ts";
 import { createRunFanoutBudget, writeRunFanoutBudgetDescriptor } from "../shared/run-fanout-budget.ts";
 import {
 	lookupRunnerLauncher,
@@ -187,14 +187,14 @@ import { checkRecordedPidLiveness } from "./stale-run-reconciler.ts";
 
 const require = nodeModule.createRequire(import.meta.url);
 // Cache failures as well as roots: management must remain loadable, and launches must not retry another SDK.
-const piPackageSelection = ((): { root?: string } | { error: unknown; root?: never } => {
+const hostPackageSelection = ((): { root?: string } | { error: unknown; root?: never } => {
 	try {
-		return { root: resolveHostPiPackageRoot() };
+		return { root: resolveHostPackageRoot() };
 	} catch (error) {
 		return { error };
 	}
 })();
-const piPackageRoot = piPackageSelection.root;
+const hostPackageRoot = hostPackageSelection.root;
 
 function resolveJitiCliFromPackageJson(packageJsonPath: string): string | undefined {
 	if (!fs.existsSync(packageJsonPath)) return undefined;
@@ -216,15 +216,15 @@ function resolveJitiCliPath(): string | undefined {
 	const candidates: Array<() => string | undefined> = [
 		() => require.resolve("jiti/package.json"),
 		() =>
-			piPackageRoot
-				? nodeModule.createRequire(path.join(piPackageRoot, "package.json")).resolve("jiti/package.json")
+			hostPackageRoot
+				? nodeModule.createRequire(path.join(hostPackageRoot, "package.json")).resolve("jiti/package.json")
 				: undefined,
 		() => {
 			if (!process.argv[1]) return undefined;
-			const piEntry = fs.realpathSync(process.argv[1]);
-			return nodeModule.createRequire(piEntry).resolve("jiti/package.json");
+			const hostEntry = fs.realpathSync(process.argv[1]);
+			return nodeModule.createRequire(hostEntry).resolve("jiti/package.json");
 		},
-		() => (piPackageRoot ? path.join(piPackageRoot, "node_modules", "jiti", "package.json") : undefined),
+		() => (hostPackageRoot ? path.join(hostPackageRoot, "node_modules", "jiti", "package.json") : undefined),
 	];
 	for (const candidate of candidates) {
 		try {
@@ -260,11 +260,11 @@ function supportsNativeRunner(nodeExecutable: string): boolean {
 }
 
 interface AsyncExecutionContext {
-	pi: ExtensionAPI;
+	evoharness: ExtensionAPI;
 	cwd: string;
 	currentSessionId: string;
 	completionOwnerId?: string;
-	/** Parent Pi session id (`getSessionId()`): keys permission-system ask forwarding and capability ceilings. */
+	/** Parent evoharness session id (`getSessionId()`): keys permission-system ask forwarding and capability ceilings. */
 	parentSessionId?: string;
 	/** Parent session file, recorded as each new child session's `parentSession` header. */
 	parentSessionFile?: string;
@@ -357,7 +357,7 @@ interface AsyncChainParams {
 	callToolTimeoutMs?: number;
 	/** Global config.toolTimeoutMs (third precedence, after agent frontmatter). */
 	configToolTimeoutMs?: number;
-	/** PI_SUBAGENT_TOOL_TIMEOUT_MS override (lowest precedence). */
+	/** EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS override (lowest precedence). */
 	toolTimeoutMsEnv?: string | undefined;
 	/** Global cap on simultaneously-running subagent tasks within the async run. */
 	globalConcurrencyLimit?: number;
@@ -438,7 +438,7 @@ interface AsyncSingleParams {
 	configToolBudget?: ResolvedToolBudget;
 	/** Global config.toolTimeoutMs (third precedence, after agent frontmatter). */
 	configToolTimeoutMs?: number;
-	/** PI_SUBAGENT_TOOL_TIMEOUT_MS override (lowest precedence). */
+	/** EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS override (lowest precedence). */
 	toolTimeoutMsEnv?: string | undefined;
 	allowZeroToolBudget?: boolean;
 	capabilityCeiling?: ResolvedSubagentCapabilityCeiling;
@@ -501,7 +501,7 @@ export interface AsyncRunnerStepBuildParams {
 	callToolTimeoutMs?: number;
 	/** Global config.toolTimeoutMs (third precedence, after agent frontmatter). */
 	configToolTimeoutMs?: number;
-	/** PI_SUBAGENT_TOOL_TIMEOUT_MS override (lowest precedence). */
+	/** EVOHARNESS_SUBAGENT_TOOL_TIMEOUT_MS override (lowest precedence). */
 	toolTimeoutMsEnv?: string | undefined;
 	capabilityCeiling?: ResolvedSubagentCapabilityCeiling;
 	/** Retained snapshot from the launch being continued; takes precedence over the live registry, as in single launches. */
@@ -528,7 +528,7 @@ export function formatAsyncStartedMessage(headline: string, interactive: boolean
 				'One-shot check: subagent({ action: "status", id: "..." }).',
 			]
 		: [
-				'Detached non-interactive run: Pi auto-drains current-session subagent work at agent_end. Do not run sleep timers or polling loops. Use bg_wait only for results this turn needs from work without native notification, and subagent({ action: "status", id: "..." }) for a one-shot check.',
+				'Detached non-interactive run: evoharness auto-drains current-session subagent work at agent_end. Do not run sleep timers or polling loops. Use bg_wait only for results this turn needs from work without native notification, and subagent({ action: "status", id: "..." }) for a one-shot check.',
 			];
 	return [headline, "", ...guidance].join("\n");
 }
@@ -536,7 +536,7 @@ export function formatAsyncStartedMessage(headline: string, interactive: boolean
 /** Check whether detached async execution has a supported runtime. */
 export function isAsyncAvailable(): boolean {
 	return (
-		resolveBunPiExecutable() !== undefined ||
+		resolveBunHostExecutable() !== undefined ||
 		supportsNativeRunner(resolveNodeExecutable()) ||
 		jitiCliPath !== undefined
 	);
@@ -912,7 +912,7 @@ function isStaleExtensionContextError(error: unknown): boolean {
 
 export function emitProcessTerminalEvent(ctx: AsyncExecutionContext, proof: unknown): void {
 	try {
-		ctx.pi.events.emit(SUBAGENT_PROCESS_TERMINAL_EVENT, proof);
+		ctx.evoharness.events.emit(SUBAGENT_PROCESS_TERMINAL_EVENT, proof);
 	} catch (error) {
 		if (isStaleExtensionContextError(error)) return;
 		console.error("Failed to emit subagent process-terminal event:", error);
@@ -948,9 +948,9 @@ function spawnRunner(
 	);
 	if (inconsistentParent) return { error: "Background runner steps have inconsistent parent session identities." };
 
-	// The compiled host exposes its SDK only through Pi's extension loader.
-	const binaryHost = resolveBunPiExecutable();
-	if (!binaryHost && "error" in piPackageSelection) throw piPackageSelection.error;
+	// The compiled host exposes its SDK only through evoharness's extension loader.
+	const binaryHost = resolveBunHostExecutable();
+	if (!binaryHost && "error" in hostPackageSelection) throw hostPackageSelection.error;
 	const nodeExecutable = resolveNodeExecutable();
 	const nativeRunnerSupported = supportsNativeRunner(nodeExecutable);
 	const runner = asyncRunnerSourcePath();
@@ -964,16 +964,16 @@ function spawnRunner(
 				: "Background runner requires enabled native TypeScript with synchronous module hooks, or installed upstream jiti for TypeScript execution.",
 		};
 	}
-	if (!binaryHost && !piPackageRoot) {
+	if (!binaryHost && !hostPackageRoot) {
 		return {
-			error: `Background children require a supported standalone Pi host or the installed npm package (${PI_CODING_AGENT_PACKAGE}); neither is available.`,
+			error: `Background children require a supported standalone evoharness host or the installed npm package (${CODING_AGENT_PACKAGE}); neither is available.`,
 		};
 	}
 	const hostPeerAliases =
-		!binaryHost && piPackageRoot ? resolveHostPeerAliases(piPackageRoot) : { aliases: {}, missing: [] };
+		!binaryHost && hostPackageRoot ? resolveHostPeerAliases(hostPackageRoot) : { aliases: {}, missing: [] };
 	if (hostPeerAliases.missing.length > 0) {
 		return {
-			error: `Background children require the host npm package (${PI_CODING_AGENT_PACKAGE}) with its dependencies; ${piPackageRoot} does not provide ${hostPeerAliases.missing.join(", ")}.`,
+			error: `Background children require the host npm package (${CODING_AGENT_PACKAGE}) with its dependencies; ${hostPackageRoot} does not provide ${hostPeerAliases.missing.join(", ")}.`,
 		};
 	}
 
@@ -983,7 +983,7 @@ function spawnRunner(
 	const hasRevivalLease = typeof (cfg as { revivalLease?: unknown }).revivalLease === "object";
 	const launchBarrierToken = hasRevivalLease ? undefined : runnerProcessInstanceId;
 	// A broker launcher may start the runner outside its own process, even under another kernel, so the
-	// spawned pid is only the wrapper's and only a direct runner shares Pi's boot id. The runner reports
+	// spawned pid is only the wrapper's and only a direct runner shares evoharness's boot id. The runner reports
 	// its own identity before it is allowed to proceed.
 	const launcher = (cfg as { launcher?: RunnerLauncher }).launcher;
 	const bootId = launcher ? undefined : currentBootId();
@@ -1062,7 +1062,7 @@ function spawnRunner(
 			stdoutFd = fs.openSync(logPaths.stdoutPath, "a");
 			stderrFd = fs.openSync(logPaths.stderrPath, "a");
 		}
-		// Short-circuit native peer aliases so Pi's loader and generated factories preserve filesystem resolution semantics.
+		// Short-circuit native peer aliases so evoharness's loader and generated factories preserve filesystem resolution semantics.
 		const preload =
 			Object.keys(hostPeerAliases.aliases).length > 0
 				? ["--import", new URL("../../../runner-peer-preload.mjs", import.meta.url).href]
@@ -1086,12 +1086,12 @@ function spawnRunner(
 		const runnerEnv: NodeJS.ProcessEnv = {
 			...omitGitRoutingEnv(omitExtensionBindingsEnv(process.env)),
 			...childCacheRetentionEnv(),
-			[PI_CODING_AGENT_PACKAGE_ROOT_ENV]: binaryHost ? undefined : piPackageRoot,
+			[CODING_AGENT_PACKAGE_ROOT_ENV]: binaryHost ? undefined : hostPackageRoot,
 			// npm must override inherited bundled layouts (#2071); binaries retain release assets.
-			EVOHARNESS_PACKAGE_DIR: binaryHost ? process.env.EVOHARNESS_PACKAGE_DIR : piPackageRoot,
+			EVOHARNESS_PACKAGE_DIR: binaryHost ? process.env.EVOHARNESS_PACKAGE_DIR : hostPackageRoot,
 			[JITI_ALIAS_ENV]: binaryHost ? undefined : JSON.stringify(hostPeerAliases.aliases),
 			PI_ASYNC_NATIVE_RUNNER: !binaryHost && (runnerIsJavaScript || nativeRunnerSupported) ? "1" : "0",
-			PI_SUBAGENT_RUNNER_CONFIG: binaryHost ? cfgPath : undefined,
+			EVOHARNESS_SUBAGENT_RUNNER_CONFIG: binaryHost ? cfgPath : undefined,
 		};
 		if (launchParentSessionId === undefined) delete runnerEnv[SUBAGENT_PARENT_SESSION_ENV];
 		else runnerEnv[SUBAGENT_PARENT_SESSION_ENV] = launchParentSessionId;
@@ -1115,7 +1115,7 @@ function spawnRunner(
 		closeFd(stdoutFd);
 		closeFd(stderrFd);
 		proc.on("error", (error) => {
-			console.error(`[pi-subagents] async spawn failed: ${error.message}`);
+			console.error(`[subagents] async spawn failed: ${error.message}`);
 		});
 		proc.once("close", (exitCode, signal) => {
 			const finalize = () => {
@@ -1425,7 +1425,7 @@ function formatAsyncStartError(mode: SubagentRunMode, message: string): AsyncExe
 	};
 }
 
-const UNAVAILABLE_SUBAGENT_SKILL_ERROR = "Skills not found: pi-subagents";
+const UNAVAILABLE_SUBAGENT_SKILL_ERROR = "Skills not found: subagents";
 
 class UnavailableSubagentSkillError extends Error {}
 class AsyncStartValidationError extends Error {}
@@ -1659,7 +1659,7 @@ export function buildAsyncRunnerSteps(id: string, params: AsyncRunnerStepBuildPa
 			a.skillPath,
 			a.filePath ? path.dirname(a.filePath) : stepCwd,
 		);
-		if (missingSkills.includes("pi-subagents"))
+		if (missingSkills.includes("subagents"))
 			throw new UnavailableSubagentSkillError(UNAVAILABLE_SUBAGENT_SKILL_ERROR);
 
 		const systemPrompt = buildEffectiveSystemPrompt({ agent: a, resolvedSkills, cwd: stepCwd });
@@ -1787,14 +1787,14 @@ export function buildAsyncRunnerSteps(id: string, params: AsyncRunnerStepBuildPa
 			cwd: machine ? runnerCwd : stepCwd,
 			agent: a.name,
 			model: selectedModel,
-			warn: (violation) => sendRuleViolationWarning(ctx.pi, violation),
+			warn: (violation) => sendRuleViolationWarning(ctx.evoharness, violation),
 		});
 		if (launchRuleError) throw new AsyncStartValidationError(launchRuleError);
 		const fast = s.fast ?? params.fast ?? a.fast;
 		const requiredExtensions = externalRunner
 			? []
 			: (params.requiredExtensions ?? ctx.childRuntime?.requiredExtensions ?? registeredExtensions);
-		const toolPlan = resolvePiLaunchToolPlan({
+		const toolPlan = resolveHostLaunchToolPlan({
 			tools: a.tools,
 			excludeTools: a.excludeTools,
 			allowNestedSubagents: a.allowNestedSubagents,
@@ -1811,7 +1811,7 @@ export function buildAsyncRunnerSteps(id: string, params: AsyncRunnerStepBuildPa
 			inheritedCapabilityCeiling: ctx.childRuntime?.capabilityCeiling,
 			agentName: a.name,
 			permissionRules,
-			runtimeSnapshotHost: ctx.pi,
+			runtimeSnapshotHost: ctx.evoharness,
 		});
 		const launchResolvedExtensions = externalRunner ? undefined : projectLaunchResolvedChildExtensions(toolPlan);
 		const parentExtensionProvider =
@@ -1826,7 +1826,7 @@ export function buildAsyncRunnerSteps(id: string, params: AsyncRunnerStepBuildPa
 					);
 		if (externalRunner && permissionRules) {
 			throw new AsyncStartValidationError(
-				`Agent '${a.name}' uses runner.type='${externalRunnerType}', which cannot enforce native Pi child permission rules.`,
+				`Agent '${a.name}' uses runner.type='${externalRunnerType}', which cannot enforce native evoharness child permission rules.`,
 			);
 		}
 		return {
@@ -2340,7 +2340,7 @@ export function executeAsyncChain(
 				completionOwnerId: ctx.completionOwnerId ?? currentCompletionOwnerId(),
 				completionOwnerProcess,
 				...(capabilityCeiling ? { capabilityCeiling } : {}),
-				piPackageRoot,
+				hostPackageRoot,
 				childSessionFactoryModule: childSessionFactoryModule(),
 				inheritedChildRuntime: inheritedChildRuntime(ctx.childRuntime),
 				projectTrusted: ctx.projectTrusted,
@@ -2498,7 +2498,7 @@ export function executeAsyncChain(
 					console.error("Failed to emit nested async start event:", error);
 				}
 			}
-			ctx.pi.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, {
+			ctx.evoharness.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, {
 				lifecycleArtifactVersion: SUBAGENT_LIFECYCLE_ARTIFACT_VERSION,
 				id,
 				pid: spawnResult.pid,
@@ -2642,7 +2642,7 @@ export function executeAsyncSingle(
 			unsupported.push("tool budget");
 		if (params.context === "fork") unsupported.push("fork context");
 		if ((params.skills?.length ?? 0) > 0) unsupported.push("skills");
-		if (permissionRules) unsupported.push("native Pi child permissions");
+		if (permissionRules) unsupported.push("native evoharness child permissions");
 		if (extensionBindings !== undefined) unsupported.push("extension bindings");
 		if (unsupported.length > 0)
 			return formatAsyncStartError(
@@ -2727,7 +2727,7 @@ export function executeAsyncSingle(
 		agentConfig.skillPath,
 		agentConfig.filePath ? path.dirname(agentConfig.filePath) : runnerCwd,
 	);
-	if (missingSkills.includes("pi-subagents")) return formatAsyncStartError("single", UNAVAILABLE_SUBAGENT_SKILL_ERROR);
+	if (missingSkills.includes("subagents")) return formatAsyncStartError("single", UNAVAILABLE_SUBAGENT_SKILL_ERROR);
 
 	const inheritedNestedRoute = inheritedNestedRouteOf(ctx.childRuntime);
 	const nestedAddress = inheritedNestedRoute ? inheritedNestedParentAddressOf(ctx.childRuntime) : undefined;
@@ -2925,7 +2925,7 @@ export function executeAsyncSingle(
 	const requiredExtensions = externalRunner
 		? []
 		: (params.requiredExtensions ?? ctx.childRuntime?.requiredExtensions ?? registeredExtensions);
-	const toolPlan = resolvePiLaunchToolPlan({
+	const toolPlan = resolveHostLaunchToolPlan({
 		tools: agentConfig.tools,
 		excludeTools: agentConfig.excludeTools,
 		allowNestedSubagents: agentConfig.allowNestedSubagents,
@@ -2942,7 +2942,7 @@ export function executeAsyncSingle(
 		inheritedCapabilityCeiling: ctx.childRuntime?.capabilityCeiling,
 		agentName: agentConfig.name,
 		permissionRules: resolvePermissionRules(ctx.permissions, agentConfig.permissions),
-		runtimeSnapshotHost: ctx.pi,
+		runtimeSnapshotHost: ctx.evoharness,
 	});
 	const launchResolvedExtensions = externalRunner ? undefined : projectLaunchResolvedChildExtensions(toolPlan);
 	const parentExtensionProvider =
@@ -3150,7 +3150,7 @@ export function executeAsyncSingle(
 				completionOwnerId: ctx.completionOwnerId ?? currentCompletionOwnerId(),
 				completionOwnerProcess,
 				...(capabilityCeiling ? { capabilityCeiling } : {}),
-				piPackageRoot,
+				hostPackageRoot,
 				childSessionFactoryModule: childSessionFactoryModule(),
 				projectTrusted: ctx.projectTrusted,
 				inheritedChildRuntime: inheritedChildRuntime(ctx.childRuntime),
@@ -3279,7 +3279,7 @@ export function executeAsyncSingle(
 					console.error("Failed to emit nested async start event:", error);
 				}
 			}
-			ctx.pi.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, {
+			ctx.evoharness.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, {
 				lifecycleArtifactVersion: SUBAGENT_LIFECYCLE_ARTIFACT_VERSION,
 				id,
 				pid: spawnResult.pid,

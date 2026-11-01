@@ -16,7 +16,7 @@ const MAX_SUMMARY_INPUT_CHARS = 100_000;
 const MAX_SUMMARY_TOKENS = 4_096;
 const RECOVERY_VERSION = 1;
 
-const SYSTEM_PROMPT = `You summarize overflow items from a forked Pi coding-agent transcript.
+const SYSTEM_PROMPT = `You summarize overflow items from a forked evoharness coding-agent transcript.
 Return strict JSON only, with this shape: {"summaries":[{"itemId":"...","summary":"..."}]}.
 Return exactly one entry for every requested itemId and no other ids.
 Each summary must be non-empty, factual, useful for continuing work, and at most 160 characters.

@@ -8,7 +8,7 @@ import { createScheduledRunManager, scheduledRunStorePath } from "../../src/runs
 
 const t0 = Date.parse("2030-01-01T00:00:00Z");
 async function setup(kind, action) {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-claim-boundary-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-claim-boundary-"));
 	const project = path.join(root, "project");
 	fs.mkdirSync(project);
 	const storeRoot = path.join(root, "stores");

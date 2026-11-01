@@ -101,7 +101,7 @@ export function loadPackageMcpServers(cwd: string): Record<string, McpServerDefi
 		if (!manifest || typeof manifest !== "object" || Array.isArray(manifest)) continue;
 		const packageName = (manifest as { name?: unknown }).name;
 		if (typeof packageName !== "string" || !packageName) continue;
-		const mcpValue = (manifest as { pi?: { mcp?: unknown } }).pi?.mcp;
+		const mcpValue = (manifest as { evoharness?: { mcp?: unknown } }).evoharness?.mcp;
 		const configPaths =
 			typeof mcpValue === "string"
 				? [mcpValue]

@@ -12,7 +12,7 @@ import {
 const roots: string[] = [];
 
 function workspace(): { root: string; parent: string } {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflow-model-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-workflow-model-"));
 	roots.push(root);
 	const parent = path.join(root, "parent");
 	fs.mkdirSync(parent);

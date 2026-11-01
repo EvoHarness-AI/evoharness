@@ -6,7 +6,7 @@ import { test } from "node:test";
 import { resolveRuntimeModuleExtension, resolveRuntimeModulePath } from "../../src/shared/runtime-module-path.ts";
 
 test("resolveRuntimeModuleExtension follows the siblings on disk and prefers compiled .js", () => {
-	const dir = mkdtempSync(path.join(tmpdir(), "pi-subagents-runtime-module-"));
+	const dir = mkdtempSync(path.join(tmpdir(), "subagents-runtime-module-"));
 	try {
 		assert.equal(resolveRuntimeModulePath(dir, "sibling"), path.join(dir, "sibling.js"));
 		// A source checkout ships only .ts siblings.

@@ -454,10 +454,10 @@ describe("below-editor subagent FleetView", () => {
 				notices.map(([, level]) => level),
 				["warning", "warning"],
 			);
-			assert.match(notices[0]![0], /^\[pi-subagents\] Removed Malformed cached external run 'bad': /);
+			assert.match(notices[0]![0], /^\[subagents\] Removed Malformed cached external run 'bad': /);
 			assert.match(
 				notices[1]![0],
-				/^\[pi-subagents\] Failed to inspect external jobs: Malformed external-run registry/,
+				/^\[subagents\] Failed to inspect external jobs: Malformed external-run registry/,
 			);
 			assert.ok(!notices.some(([message]) => message.includes("\0")));
 		} finally {

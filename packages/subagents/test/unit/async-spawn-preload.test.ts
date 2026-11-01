@@ -6,7 +6,7 @@ import * as os from "node:os";
 import * as path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
-import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
+import { CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
 
 test("executeAsyncSingle preloads all peer aliases before the selected runner loader when aliases exist", async (t) => {
 	const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "async-spawn-preload-")));
@@ -38,9 +38,9 @@ test("executeAsyncSingle preloads all peer aliases before the selected runner lo
 	const originalArgv1 = process.argv[1];
 	try {
 		for (const pkg of Object.keys(hostExports)) writeHostPackage(pkg);
-		// Production discovers the host from the Pi entrypoint at module load.
+		// Production discovers the host from the evoharness entrypoint at module load.
 		process.argv[1] = expectedAliases["@evoharness/coding-agent"];
-		// helpers -> mock-pi -> child-session -> readonly evidence -> child hooks
+		// helpers -> mock-host -> child-session -> readonly evidence -> child hooks
 		// also loads async-execution. Set the host before importing that graph.
 		const { makeAgent } = await import("../support/helpers.ts");
 		const { executeAsyncSingle } = await import("../../src/runs/background/async-execution.ts");
@@ -65,7 +65,7 @@ test("executeAsyncSingle preloads all peer aliases before the selected runner lo
 				agent: "worker",
 				task: "Inspect launch wiring",
 				agentConfig: makeAgent("worker", configuredExtension ? { extensions: [configuredExtension] } : {}),
-				ctx: { pi: { events: { emit() {} } }, cwd: root, currentSessionId: "spawn-preload-session" },
+				ctx: { evoharness: { events: { emit() {} } }, cwd: root, currentSessionId: "spawn-preload-session" },
 				artifactConfig: {
 					enabled: false,
 					includeInput: false,
@@ -89,7 +89,7 @@ test("executeAsyncSingle preloads all peer aliases before the selected runner lo
 			assert.equal(spawn.mock.callCount(), scenario === "stable" ? 1 : 2);
 			const [command, args, options] = spawn.mock.calls.at(-1)!.arguments;
 			assert.ok(path.isAbsolute(command));
-			assert.equal(options.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV], host);
+			assert.equal(options.env[CODING_AGENT_PACKAGE_ROOT_ENV], host);
 			const actualAliases = JSON.parse(options.env.JITI_ALIAS) as Record<string, string>;
 			assert.deepEqual(
 				Object.fromEntries(Object.entries(actualAliases).map(([key, target]) => [key, fs.realpathSync(target)])),

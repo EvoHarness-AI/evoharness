@@ -194,7 +194,7 @@ describe("subagent tool options", () => {
 
 describe("registered subagent tools with options", () => {
 	it("run management, control, schedule, and launch fields from options or the top level end to end", () => {
-		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagent-options-"));
+		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-subagent-options-"));
 		fs.writeFileSync(path.join(cwd, "flow.js"), "return 1;\n");
 		const script = String.raw`
 			import assert from "node:assert/strict";

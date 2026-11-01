@@ -21,7 +21,7 @@ export function formatSteeringNotice(
 }
 
 export function handleSubagentSteeringNotice(input: {
-	pi: Pick<ExtensionAPI, "sendMessage">;
+	evoharness: Pick<ExtensionAPI, "sendMessage">;
 	state: SubagentState;
 	details: SubagentSteeringMessageDetails;
 }): void {
@@ -32,7 +32,7 @@ export function handleSubagentSteeringNotice(input: {
 		return;
 	if (!input.state.currentSessionId || input.details.currentSessionId !== input.state.currentSessionId) return;
 	const noticeText = input.details.noticeText ?? formatSteeringNotice(input.details);
-	input.pi.sendMessage(
+	input.evoharness.sendMessage(
 		{
 			customType: SUBAGENT_STEERING_MESSAGE_TYPE,
 			content: noticeText,

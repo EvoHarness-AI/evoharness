@@ -14,8 +14,8 @@ import {
 
 const REFINEMENT_FORMAT_VERSION = 1;
 const REFINEMENT_DIR = "refinements";
-const CURRENT_FENCE = "pi-subagents-refinement-current";
-const SNAPSHOTS_FENCE = "pi-subagents-refinement-snapshots-json";
+const CURRENT_FENCE = "subagents-refinement-current";
+const SNAPSHOTS_FENCE = "subagents-refinement-snapshots-json";
 const MAX_EVIDENCE_ITEMS = 8;
 const MAX_AGE_DAYS = 14;
 const MAX_ITEM_BYTES = 2_048;
@@ -183,7 +183,7 @@ function extractFence(markdown: string, fence: string): string | null {
 }
 
 export function parseRefinementFile(markdown: string, label = "refinement file"): ParsedRefinementFile {
-	const metadataMatch = markdown.match(/^<!-- pi-subagents-refinement:v1\n([\s\S]*?)\n-->\n/);
+	const metadataMatch = markdown.match(/^<!-- subagents-refinement:v1\n([\s\S]*?)\n-->\n/);
 	if (!metadataMatch?.[1]) throw new Error(`${label} is missing refinement metadata.`);
 	const metadataValue = JSON.parse(metadataMatch[1]) as unknown;
 	const metadataRecord = record(metadataValue);
@@ -256,7 +256,7 @@ function serializeRefinementFile(parsed: ParsedRefinementFile): string {
 	const metadata = JSON.stringify(parsed.metadata, null, 2);
 	const snapshots = JSON.stringify(parsed.snapshots, null, 2);
 	return [
-		`<!-- pi-subagents-refinement:v${REFINEMENT_FORMAT_VERSION}`,
+		`<!-- subagents-refinement:v${REFINEMENT_FORMAT_VERSION}`,
 		metadata,
 		"-->",
 		"",
@@ -473,12 +473,12 @@ export function appendAgentRefinementOverlay(systemPrompt: string, input: { cwd:
 	}
 	if (!current) return systemPrompt;
 	const overlay = [
-		`<pi-subagents-refinement agent=${JSON.stringify(input.agentName)} source=${JSON.stringify(path.relative(input.cwd, filePath))}>`,
+		`<subagents-refinement agent=${JSON.stringify(input.agentName)} source=${JSON.stringify(path.relative(input.cwd, filePath))}>`,
 		"Project-local refinement guidance generated from recent bounded evidence.",
 		"It does not override tool, developer, task, output, acceptance, or safety instructions.",
 		"",
 		current,
-		"</pi-subagents-refinement>",
+		"</subagents-refinement>",
 	].join("\n");
 	return systemPrompt.trim() ? `${systemPrompt}\n\n${overlay}` : overlay;
 }
@@ -512,7 +512,7 @@ export function validateRefinementProposal(
 			return { ok: false, error: `Refinement proposal edit ${index} is missing title, guidance, or rationale.` };
 		if (cited.length === 0 || cited.some((id) => !allowed.has(id)))
 			return { ok: false, error: `Refinement proposal edit ${index} must cite known evidence ids.` };
-		if (guidance.includes("```") || guidance.includes("</pi-subagents-refinement>") || blocked.test(guidance))
+		if (guidance.includes("```") || guidance.includes("</subagents-refinement>") || blocked.test(guidance))
 			return { ok: false, error: `Refinement proposal edit ${index} contains disallowed guidance.` };
 		edits.push({ title, guidance, rationale, evidenceIds: cited });
 	}

@@ -3,12 +3,12 @@ import type { ExtensionContext } from "@evoharness/coding-agent";
 /**
  * Declares a tool to the model but keeps it out of codemode scripts and other `ctx.executeTool()`
  * callers. These tools need model-issued calls: nested calls hide their progress, block the script
- * on supervisor replies, and drop `terminate`. Pi 0.99 reads `exposure`; the pinned SDK types
+ * on supervisor replies, and drop `terminate`. evoharness 0.99 reads `exposure`; the pinned SDK types
  * predate it and older hosts ignore it.
  */
 export const MODEL_ONLY_TOOL = { exposure: "model-only" } as const;
 
-/** Pi exposes replaced extension contexts as ordinary Errors without a stable code. */
+/** evoharness exposes replaced extension contexts as ordinary Errors without a stable code. */
 export function isStaleExtensionContextError(error: unknown): boolean {
 	return (
 		error instanceof Error &&
@@ -19,14 +19,14 @@ export function isStaleExtensionContextError(error: unknown): boolean {
 }
 
 /**
- * Whether the host can render a `ctx.ui.custom()` component. Stock Pi RPC defines `custom` as a
+ * Whether the host can render a `ctx.ui.custom()` component. Stock evoharness RPC defines `custom` as a
  * no-op stub, so a non-TUI host must declare that it implements the custom-UI contract itself.
  */
 export function canRenderComponents(ctx: ExtensionContext): boolean {
-	return ctx.mode === "tui" || process.env.PI_SUBAGENTS_COMPONENT_UI === "1";
+	return ctx.mode === "tui" || process.env.EVOHARNESS_SUBAGENTS_COMPONENT_UI === "1";
 }
 
-/** Pi throws this from action methods while extensions are still loading, before it binds the runtime. */
+/** evoharness throws this from action methods while extensions are still loading, before it binds the runtime. */
 export function isUnboundExtensionRuntimeError(error: unknown): boolean {
 	return error instanceof Error && /extension runtime not initialized/i.test(error.message);
 }

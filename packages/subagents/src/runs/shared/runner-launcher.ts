@@ -10,7 +10,7 @@ export function lookupRunnerLauncher(
 	return argv ? { name, argv: [...argv] } : undefined;
 }
 
-/** A launcher wraps the local Pi background runner, so it cannot combine with machine placement or an external runner. */
+/** A launcher wraps the local evoharness background runner, so it cannot combine with machine placement or an external runner. */
 export function runnerLauncherPlacementError(
 	agent: Pick<AgentConfig, "name" | "launcher" | "runner">,
 	machine: string | undefined,
@@ -19,7 +19,7 @@ export function runnerLauncherPlacementError(
 	const runnerType =
 		agent.runner?.type === "external-cli" || agent.runner?.type === "external-job" ? agent.runner.type : undefined;
 	if (!machine && !runnerType) return undefined;
-	return `Agent '${agent.name}' uses launcher '${agent.launcher}', which wraps the local Pi background runner, so it cannot run ${machine ? `on machine '${machine}'` : `with runner.type='${runnerType}'`}.`;
+	return `Agent '${agent.name}' uses launcher '${agent.launcher}', which wraps the local evoharness background runner, so it cannot run ${machine ? `on machine '${machine}'` : `with runner.type='${runnerType}'`}.`;
 }
 
 /** The launcher an agent launch runs under, or the reason it cannot launch. */

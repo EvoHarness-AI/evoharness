@@ -15,7 +15,7 @@ import { toSubagentDelegationResponse, toSubagentDelegationUpdate } from "../../
 import { registerPromptTemplateDelegationBridge } from "../../src/slash/prompt-template-bridge.ts";
 import { available, installAsyncExecutionHooks, mockPi, tempDir } from "../support/async-execution-fixture.ts";
 import { makeAgent } from "../support/helpers.ts";
-import type { MockPiResponse } from "../support/mock-pi.ts";
+import type { MockPiResponse } from "../support/mock-host.ts";
 
 const zeroUsage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } };
 function assistant(stopReason: string, errorMessage?: string, text = "") {
@@ -83,11 +83,11 @@ async function runFixture(
 
 describe(
 	"foreground provider diagnostics propagation",
-	{ skip: !available ? "pi packages not available" : undefined },
+	{ skip: !available ? "evoharness packages not available" : undefined },
 	() => {
 		installAsyncExecutionHooks();
 
-		it("immediately projects zero-output errors, preserves history and snapshots through Pi retry recovery", async () => {
+		it("immediately projects zero-output errors, preserves history and snapshots through evoharness retry recovery", async () => {
 			const { result, updates, terminal } = await runFixture({
 				jsonl: [
 					failed(),
@@ -299,7 +299,7 @@ describe(
 		});
 
 		for (const mode of ["cancel", "timeout"] as const) {
-			it(`clears active retry on ${mode} even when Pi supplies no auto_retry_end`, async () => {
+			it(`clears active retry on ${mode} even when evoharness supplies no auto_retry_end`, async () => {
 				const { result, terminal } = await runFixture(
 					{
 						steps: [

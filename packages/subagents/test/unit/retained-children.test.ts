@@ -129,7 +129,7 @@ function writeRetainedRun(root: string, index: number, options: WriteRunOptions 
 
 describe("retained child roster", () => {
 	it("returns terminal workflow children newest first and formats a 10-row roster", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-retained-children-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-retained-children-"));
 		try {
 			for (let index = 0; index < 12; index++) writeRetainedRun(root, index);
 			writeRetainedRun(root, 50, { sessionId: "parent-b" });
@@ -170,7 +170,7 @@ describe("retained child roster", () => {
 	});
 
 	it("explains exact-id inspection when the workflow-only roster is empty", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-retained-children-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-retained-children-"));
 		try {
 			writeRetainedRun(root, 1, { parentWorkflowRunId: null });
 
@@ -193,7 +193,7 @@ describe("retained child roster", () => {
 	});
 
 	it("keeps an older resumable child visible behind ten newer non-resumable children", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-retained-children-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-retained-children-"));
 		try {
 			writeRetainedRun(root, 0);
 			for (let index = 1; index <= 10; index++) writeRetainedRun(root, index, { recoveryDescriptor: "missing" });
@@ -215,7 +215,7 @@ describe("retained child roster", () => {
 	});
 
 	it("keeps non-resumable retained children visible with exact reasons", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-retained-children-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-retained-children-"));
 		try {
 			writeRetainedRun(root, 1, { sessionFile: "omitted" });
 			writeRetainedRun(root, 2, { sessionFile: "missing" });
@@ -276,7 +276,7 @@ describe("retained child roster", () => {
 	});
 
 	it("does not advertise a retained child when its required cwd is missing", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-retained-children-missing-cwd-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-retained-children-missing-cwd-"));
 		try {
 			const missingCwd = path.join(root, "removed-worktree");
 			writeRetainedRun(root, 1, { recoveryCwd: missingCwd });

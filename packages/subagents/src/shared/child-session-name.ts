@@ -7,8 +7,8 @@ import { PROMPT_REDACTED } from "./utils.ts";
  * once and threads it two ways:
  *
  *  1. Into the child's runtime config as `sessionName`, where the prompt
- *     runtime calls `pi.setSessionName(...)` so the child's own session file
- *     is identifiable in `pi --resume` and host session browsers.
+ *     runtime calls `evoharness.setSessionName(...)` so the child's own session file
+ *     is identifiable in `evoharness --resume` and host session browsers.
  *  2. Into the `sessionName` field of result/progress payloads, so hosts
  *     rendering the parent stream can label each child row.
  *

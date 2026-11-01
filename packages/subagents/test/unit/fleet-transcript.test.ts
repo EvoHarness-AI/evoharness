@@ -36,7 +36,7 @@ function writeTranscript(root: string, records: Array<Record<string, unknown>>):
 
 describe("Fleet inspector structured transcript", () => {
 	it("projects assistant Markdown, compact tools, errors, and later supervisor messages", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-transcript-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-transcript-"));
 		try {
 			const transcriptPath = writeTranscript(root, [
 				{
@@ -125,7 +125,7 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("qualifies the assistant model line with the provider carried on the record", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-transcript-model-provider-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-transcript-model-provider-"));
 		try {
 			const transcriptPath = writeTranscript(root, [
 				{
@@ -159,7 +159,7 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("renders compact bash output and expanded read/bash-style tool results", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-tool-render-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-tool-render-"));
 		try {
 			const transcriptPath = writeTranscript(root, [
 				{
@@ -234,7 +234,7 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("escapes unsafe transcript code points across messages, notices, and tool fields", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-unsafe-transcript-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-unsafe-transcript-"));
 		try {
 			const unsafe = "escape:\u001b carriage:\r bidi:\u202e private:\ue000 invalid:\ud800";
 			const transcriptPath = writeTranscript(root, [
@@ -276,7 +276,7 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("preserves safe tool argument JSON formatting while sanitizing decoded values", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-args-payload-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-args-payload-"));
 		try {
 			const safePayload = '{\r\n\t"path": "src/tui/fleet.ts",\r\n\t"lines": [1, 2]\r\n}';
 			const standaloneCarriageReturnPayload = '{\r"safe": true\r}';
@@ -304,7 +304,7 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("replaces obvious binary transcript content with a warning placeholder", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-binary-transcript-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-binary-transcript-"));
 		try {
 			const binary = "PNG\u0000\u0001\u0002payload";
 			const transcriptPath = writeTranscript(root, [
@@ -333,7 +333,7 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("preserves normal Unicode, newlines, tabs, Markdown, code highlighting, and width", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-unicode-transcript-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-unicode-transcript-"));
 		try {
 			const text = '## Résumé 世界 👩🏽‍💻\r\n\r\n```ts\r\nconst café = "☕";\r\n```\r\n\tindented';
 			const transcriptPath = writeTranscript(root, [{ recordType: "message", role: "assistant", text }]);
@@ -354,7 +354,7 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("associates parallel same-name tool results by tool call id", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-parallel-tools-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-parallel-tools-"));
 		try {
 			const transcriptPath = writeTranscript(root, [
 				{ recordType: "tool_start", toolCallId: "read-a", toolName: "read", argsPreview: "a.ts", ts: 1 },
@@ -396,7 +396,7 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("does not attach an id-bearing result to another tool when its start was omitted", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-omitted-tool-start-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-omitted-tool-start-"));
 		try {
 			const transcriptPath = writeTranscript(root, [
 				{ recordType: "tool_start", toolCallId: "read-a", toolName: "read", argsPreview: "a.ts" },
@@ -434,7 +434,7 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("accepts a complete final record without a newline and drops an incomplete append", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-final-record-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-final-record-"));
 		try {
 			const transcriptPath = path.join(root, "child-transcript.jsonl");
 			fs.writeFileSync(
@@ -463,7 +463,7 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("keeps the first tool result authoritative when records arrive out of order", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-tool-order-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-tool-order-"));
 		try {
 			const transcriptPath = writeTranscript(root, [
 				{ recordType: "tool_start", toolCallId: "bash-1", toolName: "bash", ts: 1 },
@@ -501,7 +501,7 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("keeps a later supervisor message when bounded tailing omits the preceding assistant record", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-transcript-tail-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-transcript-tail-"));
 		try {
 			const transcriptPath = writeTranscript(root, [
 				{ recordType: "message", role: "assistant", text: "Earlier response" },
@@ -523,8 +523,8 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("refuses symlinked transcripts and parent-directory escapes", (context) => {
-		const trustedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-symlink-trusted-"));
-		const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-symlink-outside-"));
+		const trustedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-symlink-trusted-"));
+		const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-symlink-outside-"));
 		try {
 			const outsideTranscript = writeTranscript(outsideRoot, [
 				{ recordType: "message", role: "assistant", text: "secret" },
@@ -562,8 +562,8 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("refuses transcript paths outside trusted roots", () => {
-		const trustedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-trusted-"));
-		const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-outside-"));
+		const trustedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-trusted-"));
+		const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-outside-"));
 		try {
 			const transcriptPath = writeTranscript(outsideRoot, [
 				{ recordType: "message", role: "assistant", text: "secret" },
@@ -577,9 +577,9 @@ describe("Fleet inspector structured transcript", () => {
 		}
 	});
 
-	it("trusts only the recorded session file inside the Pi sessions base", () => {
-		const sessionsBase = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-recorded-session-"));
-		const outsideBase = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-recorded-outside-"));
+	it("trusts only the recorded session file inside the evoharness sessions base", () => {
+		const sessionsBase = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-recorded-session-"));
+		const outsideBase = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-recorded-outside-"));
 		try {
 			const projectDir = path.join(sessionsBase, "project");
 			fs.mkdirSync(projectDir);
@@ -619,8 +619,8 @@ describe("Fleet inspector structured transcript", () => {
 	});
 
 	it("sanitizes read-boundary warnings before other Fleet views consume them", () => {
-		const trustedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-warning-trusted-"));
-		const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-warning-outside-"));
+		const trustedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-warning-trusted-"));
+		const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-fleet-warning-outside-"));
 		try {
 			writeTranscript(outsideRoot, [{ recordType: "message", role: "assistant", text: "secret" }]);
 			const transcript = readFleetTranscript(path.join(outsideRoot, "unsafe-\u001b[31m.jsonl"), {

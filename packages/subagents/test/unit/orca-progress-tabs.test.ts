@@ -46,7 +46,7 @@ afterEach(() => {
 });
 
 function tempDir(): string {
-	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-orca-tabs-test-"));
+	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-orca-tabs-test-"));
 	tempDirs.push(dir);
 	return dir;
 }
@@ -116,7 +116,10 @@ test("resolveOrcaCommand only returns executable commands", () => {
 	const dir = tempDir();
 	const executable = writeNodeCommand(dir, "orca", "process.exit(0)");
 	assert.equal(resolveOrcaCommand({ PATH: dir, PATHEXT: ".CMD" }), executable);
-	assert.equal(resolveOrcaCommand({ PATH: "", PI_SUBAGENT_ORCA_BINARY: path.join(dir, "missing") }), undefined);
+	assert.equal(
+		resolveOrcaCommand({ PATH: "", EVOHARNESS_SUBAGENT_ORCA_BINARY: path.join(dir, "missing") }),
+		undefined,
+	);
 });
 
 test("an unavailable Orca command leaves native execution untouched", () => {
@@ -128,26 +131,26 @@ test("an unavailable Orca command leaves native execution untouched", () => {
 			agent: "worker",
 			index: 0,
 			config: { enabled: true },
-			env: { PATH: "", PI_SUBAGENT_ORCA_BINARY: path.join(dir, "missing") },
+			env: { PATH: "", EVOHARNESS_SUBAGENT_ORCA_BINARY: path.join(dir, "missing") },
 		}),
 		undefined,
 	);
 });
 
 test(
-	"standalone Pi executables use PATH Node for the watchdog and viewer",
+	"standalone evoharness executables use PATH Node for the watchdog and viewer",
 	{ skip: process.platform === "win32" ? "Orca progress tabs are not supported on Windows" : undefined },
 	async () => {
 		const dir = tempDir();
 		const capture = path.join(dir, "capture.json");
 		const fakeOrca = writeCaptureOrca(dir);
-		const fakePi = path.join(dir, "pi");
+		const fakeHostExe = path.join(dir, "evoharness");
 		const originalExecPath = process.execPath;
 		try {
-			process.execPath = fakePi;
+			process.execPath = fakeHostExe;
 			const tab = createOrcaProgressTab({
 				cwd: dir,
-				runId: "standalone-pi",
+				runId: "standalone-evoharness",
 				agent: "worker",
 				index: 0,
 				config: { enabled: true },
@@ -160,7 +163,7 @@ test(
 			const args = JSON.parse(fs.readFileSync(capture, "utf-8")) as string[];
 			const viewer = args[args.indexOf("--command") + 1]!;
 			assert.match(viewer, /^'node' '-e' /);
-			assert.equal(viewer.includes(fakePi), false);
+			assert.equal(viewer.includes(fakeHostExe), false);
 			assert.match(await captureCommand(viewer, dir), /failed/);
 		} finally {
 			process.execPath = originalExecPath;
@@ -191,17 +194,17 @@ test(
 			owner.once("error", reject);
 			owner.once("close", resolve);
 		});
-		let fakePid: number | undefined;
+		let fakeHostExed: number | undefined;
 		try {
 			assert.equal(await ownerClosed, 0);
 			assert.ok(Date.now() - startedAt < 2_000, "the Orca observer delayed runner completion");
 			await waitForFile(pidFile);
-			fakePid = Number.parseInt(fs.readFileSync(pidFile, "utf-8"), 10);
-			process.kill(fakePid, 0);
+			fakeHostExed = Number.parseInt(fs.readFileSync(pidFile, "utf-8"), 10);
+			process.kill(fakeHostExed, 0);
 		} finally {
-			if (fakePid !== undefined) {
+			if (fakeHostExed !== undefined) {
 				try {
-					process.kill(fakePid, "SIGKILL");
+					process.kill(fakeHostExed, "SIGKILL");
 				} catch {
 					/* already stopped */
 				}
@@ -311,7 +314,7 @@ test(
 );
 
 test(
-	"enabled tabs use a worktree sequence and successful Pi sessions get cleanup guidance",
+	"enabled tabs use a worktree sequence and successful evoharness sessions get cleanup guidance",
 	{ skip: process.platform === "win32" ? "Orca progress tabs are not supported on Windows" : undefined },
 	async () => {
 		const dir = tempDir();
@@ -374,7 +377,9 @@ test(
 		assert.match(text, /› read: README\.md/);
 		assert.match(text, /done output/);
 		const quotedSessionFile = `'${fs.realpathSync(sessionFile).replace(/'/g, `'"'"'`)}'`;
-		assert.ok(text.includes(`completed. To remove the Pi session for this run, run rm -- ${quotedSessionFile}`));
+		assert.ok(
+			text.includes(`completed. To remove the evoharness session for this run, run rm -- ${quotedSessionFile}`),
+		);
 		assert.doesNotMatch(text, /find ~\/.evoharness\/agent\/sessions/);
 
 		const nestedCwd = path.join(dir, "packages", "app");
@@ -399,7 +404,7 @@ test(
 		assert.ok(secondLog);
 		const secondText = fs.readFileSync(path.join(progressDir, secondLog), "utf-8");
 		assert.match(secondText, /failed/);
-		assert.doesNotMatch(secondText, /To remove the Pi session/);
+		assert.doesNotMatch(secondText, /To remove the evoharness session/);
 	},
 );
 
@@ -700,8 +705,8 @@ test(
 				"setTimeout(()=>fs.writeFileSync(capture,JSON.stringify(args)),delay);",
 			].join(""),
 		);
-		const fakePi = path.join(dir, "pi");
-		fs.writeFileSync(fakePi, "#!/bin/sh\nexit 0\n", { encoding: "utf-8", mode: 0o755 });
+		const fakeHostExe = path.join(dir, "evoharness");
+		fs.writeFileSync(fakeHostExe, "#!/bin/sh\nexit 0\n", { encoding: "utf-8", mode: 0o755 });
 		const fakeNode = path.join(dir, "node");
 		fs.writeFileSync(
 			fakeNode,
@@ -719,7 +724,7 @@ test(
 		const originalCleanupLog = process.env.ORCA_TEST_CLEANUP_LOG;
 		const originalPath = process.env.PATH;
 		try {
-			process.execPath = fakePi;
+			process.execPath = fakeHostExe;
 			process.env.PATH = `${dir}${path.delimiter}${originalPath ?? ""}`;
 			process.env.ORCA_TEST_CLEANUP_LOG = cleanupLog;
 			const env = {

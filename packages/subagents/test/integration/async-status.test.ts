@@ -82,7 +82,7 @@ describe("async status helpers", () => {
 	});
 
 	it("lists only requested states and includes flattened step summaries", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-"));
 		let budgetDirectory: string | undefined;
 		try {
 			const outputFile = path.join(root, "run-a", "output-1.log");
@@ -144,7 +144,7 @@ describe("async status helpers", () => {
 	});
 
 	it("forwards bounded timeout recovery evidence and formats the recovery route", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-recovery-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-recovery-"));
 		try {
 			const changedFiles = Array.from(
 				{ length: 25 },
@@ -199,7 +199,7 @@ describe("async status helpers", () => {
 	});
 
 	it("reports the planned runs.lanes stage count while the first child is running", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-staged-lane-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-staged-lane-"));
 		try {
 			const runId = "run-staged-lane";
 			createAsyncDir(root, runId, {
@@ -225,7 +225,7 @@ describe("async status helpers", () => {
 	});
 
 	it("loads typed host monitor nodes from workflow status without child identity", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-host-step-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-host-step-"));
 		try {
 			createAsyncDir(root, "workflow-host", {
 				runId: "workflow-host",
@@ -270,7 +270,7 @@ describe("async status helpers", () => {
 	});
 
 	it("fails closed when a persisted host monitor node is malformed", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-host-step-invalid-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-host-step-invalid-"));
 		try {
 			createAsyncDir(root, "workflow-host-invalid", {
 				runId: "workflow-host-invalid",
@@ -294,7 +294,7 @@ describe("async status helpers", () => {
 		}
 	});
 	it("projects bounded lane and display-only worktree metadata from status", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-lane-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-lane-"));
 		try {
 			createAsyncDir(root, "run-lane", {
 				runId: "run-lane",
@@ -308,7 +308,7 @@ describe("async status helpers", () => {
 						workflowKey: "writer",
 						lane: { version: 1, key: "writer", mode: "mutation", sourceRef: "owner/repo#1621" },
 						worktreePath: "/tmp/worktrees/run-lane-0",
-						branch: "pi-subagent/run-lane-0",
+						branch: "subagents-subagent/run-lane-0",
 						status: "running",
 					},
 				],
@@ -321,7 +321,7 @@ describe("async status helpers", () => {
 				sourceRef: "owner/repo#1621",
 			});
 			assert.equal(run.steps[0]?.worktreePath, "/tmp/worktrees/run-lane-0");
-			assert.equal(run.steps[0]?.branch, "pi-subagent/run-lane-0");
+			assert.equal(run.steps[0]?.branch, "subagents-subagent/run-lane-0");
 			assert.match(formatAsyncRunList([run]), /lane writer/);
 			assert.match(formatAsyncRunList([run]), /worktree .*run-lane-0 .*branch pi-subagent\/run-lane-0/);
 		} finally {
@@ -330,7 +330,7 @@ describe("async status helpers", () => {
 	});
 
 	it("rejects malformed or mismatched lane identity in status", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-lane-invalid-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-lane-invalid-"));
 		try {
 			const runDir = createAsyncDir(root, "run-lane-invalid", {
 				runId: "run-lane-invalid",
@@ -351,7 +351,7 @@ describe("async status helpers", () => {
 	});
 
 	it("renders persisted preflight mismatch warnings in async status lists", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-preflight-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-preflight-"));
 		try {
 			createAsyncDir(root, "run-preflight", {
 				runId: "run-preflight",
@@ -393,7 +393,7 @@ describe("async status helpers", () => {
 	});
 
 	it("reads legacy mutation-effect fields as inert persisted JSON", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-contract-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-contract-"));
 		try {
 			createAsyncDir(root, "run-contract", {
 				runId: "run-contract",
@@ -428,7 +428,7 @@ describe("async status helpers", () => {
 	});
 
 	it("preserves capability ceiling and audit projections on summaries", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-capability-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-capability-"));
 		try {
 			const ceiling = { version: 1, allowedTools: ["read"], denyExtensions: true, sources: ["plan"] };
 			const audit = {
@@ -464,7 +464,7 @@ describe("async status helpers", () => {
 	});
 
 	it("formats async run and step context labels", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-context-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-context-"));
 		try {
 			createAsyncDir(root, "run-context", {
 				runId: "run-context",
@@ -494,7 +494,7 @@ describe("async status helpers", () => {
 	});
 
 	it("formats model thinking in step summaries", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-model-thinking-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-model-thinking-"));
 		try {
 			createAsyncDir(root, "run-model", {
 				runId: "run-model",
@@ -522,7 +522,7 @@ describe("async status helpers", () => {
 	});
 
 	it("uses persisted running attention state from detached runners", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-running-state-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-running-state-"));
 		try {
 			const lastActivityAt = Date.now() - 65_000;
 			createAsyncDir(root, "run-running", {
@@ -547,7 +547,7 @@ describe("async status helpers", () => {
 	});
 
 	it("renders deferred turn-budget termination distinctly from a soft wrap-up request", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-turn-budget-deferred-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-turn-budget-deferred-"));
 		try {
 			createAsyncDir(root, "run-deferred", {
 				runId: "run-deferred",
@@ -590,7 +590,7 @@ describe("async status helpers", () => {
 	});
 
 	it("does not infer attention state when the runner has not persisted one", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-no-derived-attention-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-no-derived-attention-"));
 		try {
 			const now = Date.now();
 			createAsyncDir(root, "run-running", {
@@ -613,7 +613,7 @@ describe("async status helpers", () => {
 	});
 
 	it("does not infer workflow activity from the workflow launch time", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-workflow-no-false-activity-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-workflow-no-false-activity-"));
 		try {
 			const now = Date.now();
 			createAsyncDir(root, "workflow-running", {
@@ -635,7 +635,7 @@ describe("async status helpers", () => {
 	});
 
 	it("does not smear run-level attention state across running siblings when step metadata exists", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-step-attention-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-step-attention-"));
 		try {
 			const now = Date.now();
 			createAsyncDir(root, "run-mixed", {
@@ -664,7 +664,7 @@ describe("async status helpers", () => {
 	});
 
 	it("formats paused runs as lifecycle state without activity state", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-paused-status-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-paused-status-"));
 		try {
 			createAsyncDir(root, "run-paused", {
 				runId: "run-paused",
@@ -691,7 +691,7 @@ describe("async status helpers", () => {
 	});
 
 	it("surfaces malformed status files instead of silently skipping them", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-bad-status-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-bad-status-"));
 		const dir = path.join(root, "broken-run");
 		fs.mkdirSync(dir, { recursive: true });
 		fs.writeFileSync(path.join(dir, "status.json"), "{not-json", "utf-8");
@@ -703,7 +703,7 @@ describe("async status helpers", () => {
 	});
 
 	it("rejects malformed persisted session ids", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-bad-session-id-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-bad-session-id-"));
 		try {
 			createAsyncDir(root, "bad-session", {
 				runId: "bad-session",
@@ -722,7 +722,7 @@ describe("async status helpers", () => {
 	});
 
 	it("repairs stale running runs before listing active async runs", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-stale-list-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-stale-list-"));
 		const resultsDir = path.join(root, "results");
 		try {
 			const asyncDir = createAsyncDir(root, "run-stale", {
@@ -758,7 +758,7 @@ describe("async status helpers", () => {
 	});
 
 	it("uses foreground-style wording for top-level async parallel runs", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-top-parallel-wording-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-top-parallel-wording-"));
 		try {
 			createAsyncDir(root, "run-parallel", {
 				runId: "run-parallel",
@@ -785,7 +785,7 @@ describe("async status helpers", () => {
 	});
 
 	it("includes terminal outcome counts for failed top-level async parallel runs", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-terminal-parallel-counts-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-terminal-parallel-counts-"));
 		try {
 			createAsyncDir(root, "run-parallel-failed", {
 				runId: "run-parallel-failed",
@@ -811,7 +811,7 @@ describe("async status helpers", () => {
 	});
 
 	it("uses explicit parallel group wording for async chains", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-parallel-wording-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-parallel-wording-"));
 		try {
 			createAsyncDir(root, "run-parallel", {
 				runId: "run-parallel",
@@ -837,7 +837,7 @@ describe("async status helpers", () => {
 	});
 
 	it("uses parallel group wording even when concurrency leaves one agent running", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-parallel-one-running-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-parallel-one-running-"));
 		try {
 			createAsyncDir(root, "run-parallel-one", {
 				runId: "run-parallel-one",
@@ -863,7 +863,7 @@ describe("async status helpers", () => {
 	});
 
 	it("ignores invalid persisted parallel group metadata", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-invalid-parallel-group-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-invalid-parallel-group-"));
 		try {
 			createAsyncDir(root, "run-invalid-group", {
 				runId: "run-invalid-group",
@@ -888,7 +888,7 @@ describe("async status helpers", () => {
 	});
 
 	it("keeps top-level parallel wording without valid group metadata", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-parallel-invalid-group-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-parallel-invalid-group-"));
 		try {
 			createAsyncDir(root, "run-parallel-invalid-group", {
 				runId: "run-parallel-invalid-group",
@@ -913,7 +913,7 @@ describe("async status helpers", () => {
 	});
 
 	it("keeps serial step wording for sequential running chains", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-sequential-wording-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-sequential-wording-"));
 		try {
 			createAsyncDir(root, "run-seq", {
 				runId: "run-seq",
@@ -935,7 +935,7 @@ describe("async status helpers", () => {
 	});
 
 	it("lists indexed active runs without reading historical status files", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-indexed-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-indexed-"));
 		try {
 			for (let i = 0; i < 200; i++) {
 				createAsyncDir(root, `terminal-${i}`, {
@@ -967,7 +967,7 @@ describe("async status helpers", () => {
 	});
 
 	it("isolates corrupt active status while restoring valid runs and releases an aged marker", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-corrupt-active-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-corrupt-active-"));
 		const originalError = console.error;
 		const diagnostics: string[] = [];
 		try {
@@ -1022,7 +1022,7 @@ describe("async status helpers", () => {
 	});
 
 	it("logs a corrupt active status once per file and outcome across polls", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-corrupt-repeat-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-corrupt-repeat-"));
 		const originalError = console.error;
 		const diagnostics: string[] = [];
 		try {
@@ -1079,7 +1079,7 @@ describe("async status helpers", () => {
 	});
 
 	it("isolates active status validation failures while preserving ordinary validation errors", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-invalid-active-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-invalid-active-"));
 		const originalError = console.error;
 		const diagnostics: string[] = [];
 		try {
@@ -1125,7 +1125,7 @@ describe("async status helpers", () => {
 	});
 
 	it("isolates active reconciliation validation failures while preserving ordinary failures", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-reconcile-invalid-active-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-reconcile-invalid-active-"));
 		const originalError = console.error;
 		const diagnostics: string[] = [];
 		try {
@@ -1170,7 +1170,7 @@ describe("async status helpers", () => {
 	});
 
 	it("isolates active status summary projection failures while preserving ordinary projection errors", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-summary-invalid-active-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-summary-invalid-active-"));
 		const originalError = console.error;
 		const diagnostics: string[] = [];
 		try {
@@ -1224,7 +1224,7 @@ describe("async status helpers", () => {
 	});
 
 	it("isolates active workflowChildren identifier projection failures while preserving ordinary failures", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-child-id-invalid-active-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-child-id-invalid-active-"));
 		const originalError = console.error;
 		const diagnostics: string[] = [];
 		try {
@@ -1279,7 +1279,7 @@ describe("async status helpers", () => {
 	});
 
 	it("isolates active output file projection failures while preserving ordinary failures", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-output-file-invalid-active-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-output-file-invalid-active-"));
 		const originalError = console.error;
 		const diagnostics: string[] = [];
 		try {
@@ -1325,7 +1325,7 @@ describe("async status helpers", () => {
 	});
 
 	it("isolates active workflowGraph host-step projection failures while preserving ordinary failures", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-host-step-invalid-active-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-host-step-invalid-active-"));
 		const originalError = console.error;
 		const diagnostics: string[] = [];
 		try {
@@ -1376,7 +1376,7 @@ describe("async status helpers", () => {
 	});
 
 	it("isolates active workflowGraph container validation failures while preserving ordinary failures", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-workflow-graph-invalid-active-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-workflow-graph-invalid-active-"));
 		const originalError = console.error;
 		const diagnostics: string[] = [];
 		try {
@@ -1428,7 +1428,7 @@ describe("async status helpers", () => {
 	});
 
 	it("lists recent terminal runs from time-sortable session markers", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-terminal-index-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-terminal-index-"));
 		try {
 			for (let index = 1; index <= 3; index++) {
 				createAsyncDir(root, `terminal-${index}`, {
@@ -1458,7 +1458,7 @@ describe("async status helpers", () => {
 	});
 
 	it("isolates corrupt indexed terminal statuses without changing status or index evidence", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-terminal-corrupt-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-terminal-corrupt-"));
 		const originalError = console.error;
 		const diagnostics: string[] = [];
 		try {
@@ -1544,7 +1544,7 @@ describe("async status helpers", () => {
 	});
 
 	it("removes invalid terminal markers while reading the advisory index", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-terminal-heal-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-terminal-heal-"));
 		try {
 			const marker = path.join(
 				root,
@@ -1566,7 +1566,7 @@ describe("async status helpers", () => {
 	});
 
 	it("does not enumerate the async root for full-id or unsafe-prefix misses", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-exact-miss-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-exact-miss-"));
 		const originalReaddirSync = fsDefault.readdirSync;
 		try {
 			fsDefault.readdirSync = (() => {
@@ -1583,7 +1583,7 @@ describe("async status helpers", () => {
 	});
 
 	it("keeps terminal active markers until observed process-terminal proof releases them", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-index-prune-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-index-prune-"));
 		try {
 			const asyncDir = createAsyncDir(root, "finished", {
 				runId: "finished",
@@ -1629,7 +1629,7 @@ describe("async status helpers", () => {
 	});
 
 	it("prunes old terminal active markers without process-terminal proof", () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-async-status-index-aged-prune-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-async-status-index-aged-prune-"));
 		try {
 			const asyncDir = createAsyncDir(root, "finished", {
 				runId: "finished",

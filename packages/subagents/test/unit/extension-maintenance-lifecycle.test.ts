@@ -23,7 +23,7 @@ const script = String.raw`
 	const { registerInspector } = await import("./src/api/inspectors.ts");
 	const { getInspectorPlugins } = await import("./src/inspectors/plugins.ts");
 	const events = createEventBus();
-	const pi = new Proxy({
+	const evoharness = new Proxy({
 		events,
 		on(name, handler) { const list = handlers.get(name) ?? []; list.push(handler); handlers.set(name, list); },
 		registerTool() {}, registerCommand() {}, registerShortcut() {}, registerMessageRenderer() {}, sendMessage() {}, getSessionName() {},
@@ -34,12 +34,12 @@ const script = String.raw`
 		sessionManager: { getSessionId() { return "lifecycle-session"; }, getSessionFile() { return null; }, getEntries() { return []; } },
 		modelRegistry: { getAvailable() { return []; } },
 	};
-	registerSubagentExtension(pi);
+	registerSubagentExtension(evoharness);
 	registerInspector({ events }, {
 		name: "lifecycle-inspector", available: () => false, owns: () => false,
 		open: async () => { throw new Error("not available"); },
 	});
-	const inspectorsAtFactory = getInspectorPlugins(pi).map(plugin => plugin.name);
+	const inspectorsAtFactory = getInspectorPlugins(evoharness).map(plugin => plugin.name);
 	const atFactory = active.size;
 	for (const handler of handlers.get("session_start") ?? []) await handler({ reason: "startup" }, ctx);
 	const atStart = active.size;
@@ -47,7 +47,7 @@ const script = String.raw`
 	const atRepeatedStart = active.size;
 	for (const handler of handlers.get("session_shutdown") ?? []) await handler({ reason: "quit" }, ctx);
 	const atShutdown = active.size;
-	const inspectorsAtShutdown = getInspectorPlugins(pi).map(plugin => plugin.name);
+	const inspectorsAtShutdown = getInspectorPlugins(evoharness).map(plugin => plugin.name);
 	process.stdout.write(JSON.stringify({ atFactory, atStart, atRepeatedStart, atShutdown, inspectorsAtFactory, inspectorsAtShutdown }));
 `;
 
@@ -59,7 +59,7 @@ describe("extension maintenance lifecycle", () => {
 			{
 				cwd: process.cwd(),
 				encoding: "utf-8",
-				env: { ...process.env, PI_SUBAGENT_CHILD: undefined },
+				env: { ...process.env, EVOHARNESS_SUBAGENT_CHILD: undefined },
 			},
 		);
 		assert.equal(result.status, 0, result.stderr);

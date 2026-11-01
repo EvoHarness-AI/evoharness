@@ -62,7 +62,7 @@ function warnCorruptTerminalStatus(
 	reportedCorruptTerminalStatus.set(statusPath, signature);
 	const warning = `Skipping indexed terminal run '${runId}' with corrupt status at '${statusPath}': ${message}`;
 	if (onCorruptStatus) onCorruptStatus(warning);
-	else console.error(`[pi-subagents] ${warning}`);
+	else console.error(`[subagents] ${warning}`);
 }
 
 function indexRoot(asyncDirRoot: string): string {

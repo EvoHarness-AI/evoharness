@@ -6,7 +6,7 @@ import {
 	type HerdrRpcClient,
 	sshMachineAccess,
 } from "./herdr-connection.ts";
-import { HERDR_PI_MODE_ENV, HERDR_PI_RUN_ENV, HERDR_PI_RUNTIME_DIR_ENV } from "./herdr-pi-protocol.ts";
+import { HERDR_HOST_MODE_ENV, HERDR_HOST_RUN_ENV, HERDR_HOST_RUNTIME_DIR_ENV } from "./herdr-host-protocol.ts";
 import type { HerdrRunIdentity } from "./herdr-placed-run.ts";
 import {
 	createPlacedRuntimeDir,
@@ -146,7 +146,7 @@ export async function provisionHerdrPane(
 			workspaces = list(snapshot, "workspaces").filter((item): item is Record<string, unknown> =>
 				Boolean(item && typeof item === "object"),
 			);
-		const ownedLabel = `pi-subagents-${createHash("sha256").update(cwd).digest("hex").slice(0, 10)}`,
+		const ownedLabel = `subagents-${createHash("sha256").update(cwd).digest("hex").slice(0, 10)}`,
 			owned = workspaces.filter((item) => item.label === ownedLabel);
 		if (owned.length > 1) throw new Error("Herdr deterministic owned workspace identity is ambiguous.");
 		const cwdWorkspaceIds = new Set(
@@ -166,9 +166,9 @@ export async function provisionHerdrPane(
 				`Herdr workspace pane limit of ${HERDR_MAX_OWNED_PANES} is reached; close an existing pane before launching another placed run.`,
 			);
 		const env = environment ?? {
-			[HERDR_PI_MODE_ENV]: "1",
-			[HERDR_PI_RUN_ENV]: runId,
-			[HERDR_PI_RUNTIME_DIR_ENV]: runtimeDir,
+			[HERDR_HOST_MODE_ENV]: "1",
+			[HERDR_HOST_RUN_ENV]: runId,
+			[HERDR_HOST_RUNTIME_DIR_ENV]: runtimeDir,
 		};
 		if (selectedId) {
 			const tab = parseHerdrCreated(

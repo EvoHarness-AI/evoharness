@@ -53,7 +53,7 @@ function listQueueFiles(queueDir: string, prefix: string): string[] {
 }
 
 export function createMockPi(): MockPi {
-	const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-mock-cli-"));
+	const rootDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-mock-cli-"));
 	let queueGeneration = 0;
 	let queueDir = path.join(rootDir, `queue-${queueGeneration}`);
 	ensureDir(queueDir);

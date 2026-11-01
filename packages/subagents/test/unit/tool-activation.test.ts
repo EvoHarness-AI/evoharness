@@ -13,8 +13,8 @@ import {
 	resolveSupervisorChannelDir,
 	TOP_LEVEL_SUPERVISOR_REFUSAL,
 } from "../../src/intercom/native-supervisor-channel.ts";
-import { resolvePiPackageRoot } from "../../src/runs/shared/pi-spawn.ts";
-import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
+import { resolvePiPackageRoot } from "../../src/runs/shared/host-spawn.ts";
+import { CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
 
 type Handler = (event: any, context: any) => any;
 type Tool = {
@@ -42,7 +42,7 @@ function createRuntime(
 	let activeNames = ["read"];
 	const excludedNames = new Set(excluded);
 	const missingApiNames = new Set(missingApis);
-	const pi = new Proxy(
+	const evoharness = new Proxy(
 		{
 			events: {
 				on() {
@@ -62,7 +62,7 @@ function createRuntime(
 			getAllTools() {
 				return [...tools.values()]
 					.filter((tool) => !excludedNames.has(tool.name))
-					.map((tool) => ({ sourceInfo: { path: "pi-subagents" }, ...tool }));
+					.map((tool) => ({ sourceInfo: { path: "subagents" }, ...tool }));
 			},
 			getActiveTools() {
 				return [...activeNames];
@@ -125,7 +125,7 @@ function createRuntime(
 			},
 		},
 	};
-	const childEnv = process.env.PI_SUBAGENT_CHILD;
+	const childEnv = process.env.EVOHARNESS_SUBAGENT_CHILD;
 	const priorAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "tool-activation-agent-"));
 	if (options.config) {
@@ -133,12 +133,12 @@ function createRuntime(
 		fs.writeFileSync(path.join(agentDir, "extensions", "subagent", "config.json"), JSON.stringify(options.config));
 	}
 	process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-	delete process.env.PI_SUBAGENT_CHILD;
+	delete process.env.EVOHARNESS_SUBAGENT_CHILD;
 	try {
-		registerSubagentExtension(pi as any);
+		registerSubagentExtension(evoharness as any);
 	} finally {
-		if (childEnv === undefined) delete process.env.PI_SUBAGENT_CHILD;
-		else process.env.PI_SUBAGENT_CHILD = childEnv;
+		if (childEnv === undefined) delete process.env.EVOHARNESS_SUBAGENT_CHILD;
+		else process.env.EVOHARNESS_SUBAGENT_CHILD = childEnv;
 		if (priorAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 		else process.env.EVOHARNESS_CODING_AGENT_DIR = priorAgentDir;
 	}
@@ -201,7 +201,7 @@ describe("subagent tool activation", () => {
 		const tool = { name: "subagent", description: "historical", parameters: { type: "object" } };
 		const history = [{ role: "system", content: "", toolsAdded: [], timestamp: 1 }];
 		const cold = createRuntime(history, [], [], DYNAMIC);
-		// Real Pi restores the session's tool state on start; a cold transcript restores loader only.
+		// Real evoharness restores the session's tool state on start; a cold transcript restores loader only.
 		cold.select(["read", "subagents_enable"]);
 		await cold.emit("session_start", { type: "session_start", reason: "reload" });
 		assert.equal(cold.active().includes("subagent"), false);
@@ -264,10 +264,10 @@ describe("subagent tool activation", () => {
 });
 
 describe("host dynamic tool support detection", () => {
-	it("activates the loader on an in-process host with no Pi package root evidence", async () => {
-		const prior = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
+	it("activates the loader on an in-process host with no evoharness package root evidence", async () => {
+		const prior = process.env[CODING_AGENT_PACKAGE_ROOT_ENV];
 		const priorPiPackageDir = process.env.EVOHARNESS_PACKAGE_DIR;
-		delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
+		delete process.env[CODING_AGENT_PACKAGE_ROOT_ENV];
 		delete process.env.EVOHARNESS_PACKAGE_DIR;
 		try {
 			assert.equal(resolvePiPackageRoot(), undefined, "the test process must not look like a running host package");
@@ -276,7 +276,7 @@ describe("host dynamic tool support detection", () => {
 			assert.ok(runtime.tools.has("subagents_enable"));
 			assert.equal(runtime.active().includes("subagent"), false);
 		} finally {
-			if (prior !== undefined) process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = prior;
+			if (prior !== undefined) process.env[CODING_AGENT_PACKAGE_ROOT_ENV] = prior;
 			if (priorPiPackageDir !== undefined) process.env.EVOHARNESS_PACKAGE_DIR = priorPiPackageDir;
 		}
 	});
@@ -307,7 +307,7 @@ async function startAgent(runtime: ReturnType<typeof createRuntime>): Promise<st
 }
 
 type Runtime = ReturnType<typeof createRuntime>;
-// A compaction that kept no tool checkpoint, placed as Pi's buildSessionContext places it: first, with no system message before it.
+// A compaction that kept no tool checkpoint, placed as evoharness's buildSessionContext places it: first, with no system message before it.
 const compacted = { role: "compactionSummary", summary: "", tokensBefore: 0, timestamp: 0 };
 const other = declared(["read", "other_extension_tool"]);
 const OWNED = ["subagents_enable", "subagent", "contact_supervisor", "bg_wait"];
@@ -517,7 +517,7 @@ describe("toolActivation modes", () => {
 
 	it("brings back the extension's tools an unload left off when a new process restores the transcript", async () => {
 		const extensionTools = ["subagent", "contact_supervisor", "bg_wait", "subagent_supervisor"];
-		// A new process (`pi --continue`) starts with the transcript's tools, which the unload left without this extension's.
+		// A new process (`evoharness --continue`) starts with the transcript's tools, which the unload left without this extension's.
 		const restart = async (messages: any[], excluded: string[] = [], restored = ["read"]) => {
 			const runtime = createRuntime(messages, excluded, [], { model: COMPATIBLE });
 			runtime.tools.set("plan_tool", { name: "plan_tool", sourceInfo: { path: "other-extension" } });
@@ -579,7 +579,7 @@ describe("toolActivation modes", () => {
 		assert.equal(coldAuto.active().includes("bg_wait"), false, "cold: no bg_wait");
 		assert.ok((await startAgent(coldAuto)).includes("subagents_enable"), "cold: loader kept");
 
-		// Synthetic: Pi cannot remove a tool that was never declared. It pins that such a removal is a choice, not an unload.
+		// Synthetic: evoharness cannot remove a tool that was never declared. It pins that such a removal is a choice, not an unload.
 		const removedAfterCompaction = createRuntime(
 			[compacted, surviving, declared([], ["subagent", "contact_supervisor"])],
 			[],
@@ -953,7 +953,7 @@ describe("toolActivation modes", () => {
 			await runtime.emit("session_start", { type: "session_start", reason: "resume" });
 			assert.ok(runtime.active().includes("subagent_supervisor"));
 			assert.equal(runtime.active().includes("subagent"), false);
-			// Pi restores a branch's own tools before session_tree; a branch that never had the tool loses it.
+			// evoharness restores a branch's own tools before session_tree; a branch that never had the tool loses it.
 			runtime.select(["read", "subagents_enable", "bg_wait"]);
 			await runtime.emit("session_tree", { type: "session_tree", newLeafId: null, oldLeafId: null });
 			assert.ok(runtime.active().includes("subagent_supervisor"), "branch switch while a reply is owed");

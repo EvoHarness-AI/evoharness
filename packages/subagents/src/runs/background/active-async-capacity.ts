@@ -64,7 +64,7 @@ interface AbandonedRunnerEvidence {
 	abandonedSlotReleaseAfterMs: number;
 }
 
-/** A workflow's own status PID is the parent Pi host, so workflow evidence names its dead child runners instead. */
+/** A workflow's own status PID is the parent evoharness host, so workflow evidence names its dead child runners instead. */
 interface AbandonedWorkflowEvidence {
 	releasedBy: "abandoned-timeout";
 	processProof: "unknown";

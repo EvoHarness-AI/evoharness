@@ -52,13 +52,13 @@ function createState(): SubagentState {
 }
 
 function createResultWatcher(
-	pi: Parameters<typeof createRawResultWatcher>[0],
+	evoharness: Parameters<typeof createRawResultWatcher>[0],
 	state: Parameters<typeof createRawResultWatcher>[1],
 	resultsDir: Parameters<typeof createRawResultWatcher>[2],
 	completionTtlMs: Parameters<typeof createRawResultWatcher>[3],
 	deps: Parameters<typeof createRawResultWatcher>[4] = {},
 ): ReturnType<typeof createRawResultWatcher> {
-	return createRawResultWatcher(pi, state, resultsDir, completionTtlMs, {
+	return createRawResultWatcher(evoharness, state, resultsDir, completionTtlMs, {
 		platform: "linux",
 		coalesceDelayMs: 0,
 		...deps,
@@ -84,7 +84,7 @@ async function waitForPredicate(predicate: () => boolean, timeoutMs = 2_500): Pr
 
 describe("result watcher", () => {
 	it("keeps running workflow launch receipts nonterminal in notifications and completion events", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-dispatch-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-dispatch-"));
 		const state = createState();
 		state.currentSessionId = "session-1";
 		const delivered: unknown[] = [],
@@ -136,7 +136,7 @@ describe("result watcher", () => {
 		}
 	});
 	it("does not create Darwin native watchers or idle timers", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-darwin-idle-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-darwin-idle-"));
 		try {
 			let watchCalls = 0;
 			const intervals: number[] = [];
@@ -176,7 +176,7 @@ describe("result watcher", () => {
 	});
 
 	it("uses demand-gated Darwin polling for result delivery", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-darwin-demand-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-darwin-demand-"));
 		try {
 			let demand = true;
 			let poll: (() => void) | undefined;
@@ -220,10 +220,10 @@ describe("result watcher", () => {
 	});
 
 	it("processes deferred session-scoped results after session identity is restored", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-session-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-session-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
-			const pi = {
+			const evoharness = {
 				events: {
 					on: () => () => {},
 					emit(event: string, data: unknown) {
@@ -247,7 +247,7 @@ describe("result watcher", () => {
 				summary: "done",
 			});
 
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000);
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000);
 			try {
 				watcher.primeExistingResults();
 				await new Promise((resolve) => setTimeout(resolve, 10));
@@ -269,7 +269,7 @@ describe("result watcher", () => {
 	});
 
 	it("records an id-alias result when runId is empty", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-id-alias-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-id-alias-"));
 		try {
 			const state = createState();
 			state.currentSessionId = "session-current";
@@ -296,7 +296,7 @@ describe("result watcher", () => {
 	});
 
 	it("hands predecessor results to the replacement session without widening ownership", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-transition-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-transition-"));
 		try {
 			const state = createState();
 			state.currentSessionId = "session-old";
@@ -358,8 +358,8 @@ describe("result watcher", () => {
 		}
 	});
 
-	it("delivers a result once when the Pi process that launched it has exited, and keeps one from a live Pi", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-dead-owner-"));
+	it("delivers a result once when the evoharness process that launched it has exited, and keeps one from a live evoharness", async () => {
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-dead-owner-"));
 		try {
 			const state = createState();
 			state.currentSessionId = "session-reopened";
@@ -412,7 +412,7 @@ describe("result watcher", () => {
 	});
 
 	it("includes scheduled observer ids while priming current-session results", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-current-prime-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-current-prime-"));
 		try {
 			const state = createState();
 			state.currentSessionId = "session-current";
@@ -439,7 +439,7 @@ describe("result watcher", () => {
 	});
 
 	it("skips full parsing for unrelated sessions during priming, safety scans, and native watch events", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-filter-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-filter-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			const parsedIds: string[] = [];
@@ -561,7 +561,7 @@ describe("result watcher", () => {
 	});
 
 	it("syncs mission workflow child completion before result cleanup", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-mission-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-mission-"));
 		const resultsDir = path.join(root, "results");
 		const project = path.join(root, "project");
 		const asyncDir = path.join(root, "async-child");
@@ -631,7 +631,7 @@ describe("result watcher", () => {
 	});
 
 	it("bounds corrupt mission completion diagnostics while preserving retry and targeted errors", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-corrupt-mission-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-corrupt-mission-"));
 		const resultsDir = path.join(root, "results");
 		const asyncDir = path.join(root, "async");
 		const project = path.join(root, "project");
@@ -725,7 +725,7 @@ describe("result watcher", () => {
 	});
 
 	it("observes an unowned mission result once, and not at all once its observer index is gone", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-mission-once-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-mission-once-"));
 		const resultsDir = path.join(root, "results");
 		const asyncDir = path.join(root, "async-child");
 		fs.mkdirSync(asyncDir, { recursive: true });
@@ -785,7 +785,7 @@ describe("result watcher", () => {
 	});
 
 	it("observes a hash-only mission result once when its public alias is unaddressable", async (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-mission-enametoolong-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-mission-enametoolong-"));
 		const resultsDir = path.join(root, "results");
 		const project = path.join(root, "project");
 		const asyncDir = path.join(root, "async-child");
@@ -880,7 +880,7 @@ describe("result watcher", () => {
 	});
 
 	it("keeps result files until failed completion observers retry successfully", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-observer-retry-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-observer-retry-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -924,7 +924,7 @@ describe("result watcher", () => {
 	});
 
 	it("retries a mission observer acknowledgement silently while a runner holds the run's result lease", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-observer-lease-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-observer-lease-"));
 		const resultsDir = path.join(root, "results");
 		const asyncDir = path.join(root, "async-child");
 		fs.mkdirSync(resultsDir, { recursive: true });
@@ -1002,7 +1002,7 @@ describe("result watcher", () => {
 	});
 
 	it("delivers and cleans up completion when artifact verification reports I/O failure", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-artifact-verify-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-artifact-verify-"));
 		const artifactPath = path.join(resultsDir, "retained-output.md");
 		const resultPath = path.join(resultsDir, "artifact-verify.json");
 		const originalStatSync = fsDefault.statSync;
@@ -1037,7 +1037,7 @@ describe("result watcher", () => {
 
 			const state = createState();
 			state.currentSessionId = "session-current";
-			const pi = {
+			const evoharness = {
 				events: {
 					on: () => () => {},
 					emit(event: string) {
@@ -1049,8 +1049,8 @@ describe("result watcher", () => {
 					sent.push(message.content ?? "");
 				},
 			};
-			const notifier = registerSubagentNotify(pi as never, state, { batchConfig: { enabled: false } });
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000, { notifier });
+			const notifier = registerSubagentNotify(evoharness as never, state, { batchConfig: { enabled: false } });
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000, { notifier });
 			try {
 				watcher.primeExistingResults();
 				assert.equal(await waitForPredicate(() => !fs.existsSync(resultPath)), true);
@@ -1073,7 +1073,7 @@ describe("result watcher", () => {
 	});
 
 	it("does not redeliver user notification after reload while observer retry is pending", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-observer-reload-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-observer-reload-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -1088,7 +1088,7 @@ describe("result watcher", () => {
 			let observerCalls = 0;
 			let deliveries = 0;
 			let emitted = 0;
-			const pi = {
+			const evoharness = {
 				events: {
 					on: () => () => {},
 					emit: () => {
@@ -1098,7 +1098,7 @@ describe("result watcher", () => {
 			};
 			const firstState = createState();
 			firstState.currentSessionId = "session-current";
-			const firstWatcher = createResultWatcher(pi, firstState, resultsDir, 60_000, {
+			const firstWatcher = createResultWatcher(evoharness, firstState, resultsDir, 60_000, {
 				observeCompletion: () => {
 					observerCalls += 1;
 					throw new Error("observer unavailable");
@@ -1128,7 +1128,7 @@ describe("result watcher", () => {
 
 			const secondState = createState();
 			secondState.currentSessionId = "session-current";
-			const secondWatcher = createResultWatcher(pi, secondState, resultsDir, 60_000, {
+			const secondWatcher = createResultWatcher(evoharness, secondState, resultsDir, 60_000, {
 				observeCompletion: () => {
 					observerCalls += 1;
 				},
@@ -1156,7 +1156,7 @@ describe("result watcher", () => {
 	});
 
 	it("retains a readable result reference until failed completion replay persistence recovers", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-replay-failure-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-replay-failure-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -1225,7 +1225,7 @@ describe("result watcher", () => {
 	});
 
 	it("observes retained-project completions without changing active-session delivery", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-scheduled-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-scheduled-"));
 		const resultsDir = path.join(root, "results");
 		const project = path.join(root, "project-a");
 		fs.mkdirSync(resultsDir);
@@ -1312,7 +1312,7 @@ describe("result watcher", () => {
 	});
 
 	it("delivers the final result that replaced a paused result while the paused one was being delivered", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-replaced-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-replaced-"));
 		try {
 			const resultPath = path.join(resultsDir, "replaced-run.json");
 			// The runner's paused result has no tool-call id and its final result adds one; state and timestamp can match.
@@ -1356,7 +1356,7 @@ describe("result watcher", () => {
 
 	it("delivers a final result once when its promotion is denied and the older paused result stays public", async (t) => {
 		for (const finalState of ["paused", "complete"]) {
-			const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-stale-public-"));
+			const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-stale-public-"));
 			const resultPath = path.join(resultsDir, "stale-public.json");
 			const originalRenameSync = fsDefault.renameSync;
 			const originalError = console.error;
@@ -1442,7 +1442,7 @@ describe("result watcher", () => {
 	});
 
 	it("delivers indexed pending results during reload when public promotion is blocked", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-pending-index-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-pending-index-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -1503,7 +1503,7 @@ describe("result watcher", () => {
 	});
 
 	it("uses indexed result files and ignores unindexed stale files during reload", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-index-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-index-"));
 		try {
 			for (let i = 0; i < 300; i += 1) {
 				fs.writeFileSync(
@@ -1544,7 +1544,7 @@ describe("result watcher", () => {
 	});
 
 	it("includes observer-known run ids when current-session results are also indexed", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-mixed-observer-"));
+		const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-mixed-observer-"));
 		try {
 			const resultsDir = path.join(root, "results");
 			writeIndexedResult(path.join(resultsDir, "current.json"), {
@@ -1584,7 +1584,7 @@ describe("result watcher", () => {
 	});
 
 	it("delivers observed indexed pending results when public promotion is blocked", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-observed-pending-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-observed-pending-"));
 		const originalError = console.error;
 		try {
 			console.error = () => {};
@@ -1633,7 +1633,7 @@ describe("result watcher", () => {
 	});
 
 	it("uses observed run ids directly without scanning a stale result pile", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-observed-index-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-observed-index-"));
 		try {
 			for (let i = 0; i < 300; i += 1) {
 				fs.writeFileSync(
@@ -1689,11 +1689,11 @@ describe("result watcher", () => {
 	});
 
 	it("uses native completion delivery without attempting external grouped intercom when disabled", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-native-delivery-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-native-delivery-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			const delivered: unknown[] = [];
-			const pi = {
+			const evoharness = {
 				events: {
 					on: () => () => {},
 					emit(event: string, data: unknown) {
@@ -1715,7 +1715,7 @@ describe("result watcher", () => {
 				results: [{ agent: "worker", output: "", success: false, exitCode: 1, processSignal: "SIGTERM" }],
 				intercomTarget: "native-parent",
 			});
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000, {
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000, {
 				deliverIntercomResults: false,
 				notifier: {
 					deliver: async (result) => {
@@ -1744,11 +1744,11 @@ describe("result watcher", () => {
 	});
 
 	it("delivers result files only to the exact owning session when another watcher shares the same repo", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-scope-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-scope-"));
 		const createPi = () => {
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			const listeners = new Map<string, Set<(payload: unknown) => void>>();
-			const pi = {
+			const evoharness = {
 				events: {
 					on(event: string, handler: (payload: unknown) => void) {
 						const eventListeners = listeners.get(event) ?? new Set();
@@ -1764,14 +1764,14 @@ describe("result watcher", () => {
 								data && typeof data === "object" ? (data as { requestId?: unknown }).requestId : undefined;
 							if (typeof requestId === "string") {
 								setImmediate(() =>
-									pi.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
+									evoharness.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
 								);
 							}
 						}
 					},
 				},
 			};
-			return { pi, emitted };
+			return { evoharness, emitted };
 		};
 		try {
 			const owner = createPi();
@@ -1780,8 +1780,8 @@ describe("result watcher", () => {
 			ownerState.currentSessionId = "session-owner";
 			const otherState = createState();
 			otherState.currentSessionId = "session-other";
-			const ownerWatcher = createResultWatcher(owner.pi, ownerState, resultsDir, 60_000);
-			const otherWatcher = createResultWatcher(other.pi, otherState, resultsDir, 60_000);
+			const ownerWatcher = createResultWatcher(owner.evoharness, ownerState, resultsDir, 60_000);
+			const otherWatcher = createResultWatcher(other.evoharness, otherState, resultsDir, 60_000);
 			const ownerResultPath = path.join(resultsDir, "owner-run.json");
 			try {
 				writeIndexedResult(ownerResultPath, {
@@ -1829,7 +1829,7 @@ describe("result watcher", () => {
 	});
 
 	it("leaves same-session completions for the exact parent owner", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-owner-scope-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-owner-scope-"));
 		try {
 			const ownerState = createState();
 			ownerState.currentSessionId = "shared-session";
@@ -1916,11 +1916,11 @@ describe("result watcher", () => {
 	});
 
 	it("logs malformed result files instead of swallowing them silently", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-"));
 		try {
 			fs.writeFileSync(path.join(resultsDir, "bad.json"), "{bad-json", "utf-8");
 			const emitted: unknown[] = [];
-			const pi = {
+			const evoharness = {
 				events: {
 					on: () => () => {},
 					emit(_event: string, data: unknown) {
@@ -1936,7 +1936,7 @@ describe("result watcher", () => {
 				startedAt: Date.now(),
 				updatedAt: Date.now(),
 			});
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000);
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000);
 			const originalError = console.error;
 			const logged: unknown[][] = [];
 			console.error = (...args: unknown[]) => {
@@ -2024,10 +2024,10 @@ describe("result watcher", () => {
 	});
 
 	it("normalizes the native fs.watch path before watching result files", () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-"));
 		try {
 			const nativeResultsDir = path.join(path.dirname(resultsDir), `${path.basename(resultsDir)}-native`);
-			const pi = {
+			const evoharness = {
 				events: {
 					on: () => () => {},
 					emit() {},
@@ -2046,7 +2046,7 @@ describe("result watcher", () => {
 				fs.realpathSync(target, options as BufferEncoding)) as typeof fs.realpathSync;
 			realpathSync.native = ((target: fs.PathLike) =>
 				target === resultsDir ? nativeResultsDir : fs.realpathSync.native(target)) as typeof fs.realpathSync.native;
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000, {
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000, {
 				fs: {
 					...fs,
 					realpathSync,
@@ -2069,10 +2069,10 @@ describe("result watcher", () => {
 	});
 
 	it("drains durable results when an active fs.watch misses events", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
-			const pi = {
+			const evoharness = {
 				events: {
 					on: () => () => {},
 					emit(event: string, data: unknown) {
@@ -2090,7 +2090,7 @@ describe("result watcher", () => {
 				close() {},
 				unref() {},
 			} as unknown as fs.FSWatcher;
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000, {
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000, {
 				fs: { ...fs, watch: () => fakeWatcher },
 				deliverIntercomResults: false,
 				timers: {
@@ -2134,11 +2134,11 @@ describe("result watcher", () => {
 	});
 
 	it("falls back to polling when fs.watch throws EMFILE and preserves grouped intercom delivery", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			const listeners = new Map<string, Set<(payload: unknown) => void>>();
-			const pi = {
+			const evoharness = {
 				events: {
 					on(event: string, handler: (payload: unknown) => void) {
 						const eventListeners = listeners.get(event) ?? new Set();
@@ -2154,7 +2154,7 @@ describe("result watcher", () => {
 								data && typeof data === "object" ? (data as { requestId?: unknown }).requestId : undefined;
 							if (typeof requestId === "string") {
 								setImmediate(() =>
-									pi.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
+									evoharness.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
 								);
 							}
 						}
@@ -2166,7 +2166,7 @@ describe("result watcher", () => {
 			let poll: (() => void) | undefined;
 			const emfile = new Error("too many open files") as NodeJS.ErrnoException;
 			emfile.code = "EMFILE";
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000, {
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000, {
 				fs: {
 					...fs,
 					watch: () => {
@@ -2267,10 +2267,10 @@ describe("result watcher", () => {
 	});
 
 	it("falls back to polling when an active fs.watch emits ENOSPC", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
-			const pi = {
+			const evoharness = {
 				events: {
 					on: () => () => {},
 					emit(event: string, data: unknown) {
@@ -2290,7 +2290,7 @@ describe("result watcher", () => {
 				close() {},
 				unref() {},
 			} as fs.FSWatcher;
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000, {
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000, {
 				fs: {
 					...fs,
 					watch: () => fakeWatcher,
@@ -2338,11 +2338,11 @@ describe("result watcher", () => {
 	});
 
 	it("emits async completion plus one grouped intercom result event when an intercom target is present", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			const listeners = new Map<string, Set<(payload: unknown) => void>>();
-			const pi = {
+			const evoharness = {
 				events: {
 					on(event: string, handler: (payload: unknown) => void) {
 						const eventListeners = listeners.get(event) ?? new Set();
@@ -2358,7 +2358,7 @@ describe("result watcher", () => {
 								data && typeof data === "object" ? (data as { requestId?: unknown }).requestId : undefined;
 							if (typeof requestId === "string") {
 								setImmediate(() =>
-									pi.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
+									evoharness.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
 								);
 							}
 						}
@@ -2367,7 +2367,7 @@ describe("result watcher", () => {
 			};
 			const state = createState();
 			state.currentSessionId = "session-1";
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000);
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000);
 			const firstSession = path.join(resultsDir, "a-session.jsonl");
 			const missingSession = path.join(resultsDir, "b-session.jsonl");
 			try {
@@ -2457,11 +2457,11 @@ describe("result watcher", () => {
 	});
 
 	it("does not mark completed siblings as stopped when the overall async result is stopped", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-stopped-siblings-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-stopped-siblings-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			const listeners = new Map<string, Set<(payload: unknown) => void>>();
-			const pi = {
+			const evoharness = {
 				events: {
 					on(event: string, handler: (payload: unknown) => void) {
 						const set = listeners.get(event) ?? new Set();
@@ -2477,7 +2477,7 @@ describe("result watcher", () => {
 								data && typeof data === "object" ? (data as { requestId?: unknown }).requestId : undefined;
 							if (typeof requestId === "string")
 								setImmediate(() =>
-									pi.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
+									evoharness.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
 								);
 						}
 					},
@@ -2485,7 +2485,7 @@ describe("result watcher", () => {
 			};
 			const state = createState();
 			state.currentSessionId = "session-1";
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000);
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000);
 			try {
 				writeIndexedResult(path.join(resultsDir, "async-stopped.json"), {
 					id: "async-stopped",
@@ -2530,7 +2530,7 @@ describe("result watcher", () => {
 	});
 
 	it("enriches async completion and intercom payloads with nested registry children before deletion", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-nested-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-nested-"));
 		const route = createNestedRoute("async-nested-root");
 		try {
 			writeNestedEvent(route, {
@@ -2551,7 +2551,7 @@ describe("result watcher", () => {
 			});
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			const listeners = new Map<string, Set<(payload: unknown) => void>>();
-			const pi = {
+			const evoharness = {
 				events: {
 					on(event: string, handler: (payload: unknown) => void) {
 						const eventListeners = listeners.get(event) ?? new Set();
@@ -2567,7 +2567,7 @@ describe("result watcher", () => {
 								data && typeof data === "object" ? (data as { requestId?: unknown }).requestId : undefined;
 							if (typeof requestId === "string") {
 								setImmediate(() =>
-									pi.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
+									evoharness.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
 								);
 							}
 						}
@@ -2576,7 +2576,7 @@ describe("result watcher", () => {
 			};
 			const state = createState();
 			state.currentSessionId = "session-1";
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000);
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000);
 			const resultPath = path.join(resultsDir, "async-nested-root.json");
 			try {
 				writeIndexedResult(resultPath, {
@@ -2630,11 +2630,11 @@ describe("result watcher", () => {
 	});
 
 	it("filters malformed explicit nested children in result files before compacting", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-nested-malformed-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-nested-malformed-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			const listeners = new Map<string, Set<(payload: unknown) => void>>();
-			const pi = {
+			const evoharness = {
 				events: {
 					on(event: string, handler: (payload: unknown) => void) {
 						const eventListeners = listeners.get(event) ?? new Set();
@@ -2650,7 +2650,7 @@ describe("result watcher", () => {
 								data && typeof data === "object" ? (data as { requestId?: unknown }).requestId : undefined;
 							if (typeof requestId === "string") {
 								setImmediate(() =>
-									pi.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
+									evoharness.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
 								);
 							}
 						}
@@ -2659,7 +2659,7 @@ describe("result watcher", () => {
 			};
 			const state = createState();
 			state.currentSessionId = "session-1";
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000);
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000);
 			const resultPath = path.join(resultsDir, "async-explicit-nested.json");
 			const originalError = console.error;
 			const logged: unknown[][] = [];
@@ -2751,7 +2751,7 @@ describe("result watcher", () => {
 	});
 
 	it("retries and delivers result files after nested registry enrichment recovers", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-nested-retry-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-nested-retry-"));
 		const route = createNestedRoute("async-nested-retry");
 		try {
 			const registryPath = path.join(path.dirname(route.eventSink), "registry.json");
@@ -2773,7 +2773,7 @@ describe("result watcher", () => {
 			});
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			const listeners = new Map<string, Set<(payload: unknown) => void>>();
-			const pi = {
+			const evoharness = {
 				events: {
 					on(event: string, listener: (payload: unknown) => void) {
 						const set = listeners.get(event) ?? new Set();
@@ -2789,7 +2789,7 @@ describe("result watcher", () => {
 			};
 			const state = createState();
 			state.currentSessionId = "session-1";
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000);
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000);
 			const resultPath = path.join(resultsDir, "async-nested-retry.json");
 			const originalError = console.error;
 			const logged: unknown[][] = [];
@@ -2853,11 +2853,11 @@ describe("result watcher", () => {
 	});
 
 	it("does not advertise indexed revive from only a top-level async session file", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			const listeners = new Map<string, Set<(payload: unknown) => void>>();
-			const pi = {
+			const evoharness = {
 				events: {
 					emit: (event: string, data: unknown) => {
 						emitted.push({ event, data });
@@ -2874,7 +2874,7 @@ describe("result watcher", () => {
 			};
 			const state = createState();
 			state.currentSessionId = "session-1";
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000);
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000);
 			try {
 				writeIndexedResult(path.join(resultsDir, "async-top-session.json"), {
 					id: "async-top-session",
@@ -2907,11 +2907,11 @@ describe("result watcher", () => {
 	});
 
 	it("marks grouped async results as paused when the result file is paused", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			const listeners = new Map<string, Set<(payload: unknown) => void>>();
-			const pi = {
+			const evoharness = {
 				events: {
 					on(event: string, handler: (payload: unknown) => void) {
 						const eventListeners = listeners.get(event) ?? new Set();
@@ -2927,7 +2927,7 @@ describe("result watcher", () => {
 								data && typeof data === "object" ? (data as { requestId?: unknown }).requestId : undefined;
 							if (typeof requestId === "string") {
 								setImmediate(() =>
-									pi.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
+									evoharness.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
 								);
 							}
 						}
@@ -2936,7 +2936,7 @@ describe("result watcher", () => {
 			};
 			const state = createState();
 			state.currentSessionId = "session-1";
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000);
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000);
 			try {
 				writeIndexedResult(path.join(resultsDir, "async-paused.json"), {
 					id: "async-paused",
@@ -2994,10 +2994,10 @@ describe("result watcher", () => {
 	});
 
 	it("delivers a later terminal result after a paused payload for the same run", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-paused-then-complete-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-paused-then-complete-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
-			const pi = {
+			const evoharness = {
 				events: {
 					on() {
 						return () => {};
@@ -3017,7 +3017,7 @@ describe("result watcher", () => {
 			const pausedStarted = new Promise<void>((resolve) => {
 				pausedDeliverStarted = resolve;
 			});
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000, {
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000, {
 				deliverIntercomResults: false,
 				notifier: {
 					async deliver(result) {
@@ -3079,10 +3079,10 @@ describe("result watcher", () => {
 	});
 
 	it("keeps a same-state paused replacement written during paused delivery", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-paused-same-state-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-paused-same-state-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
-			const pi = {
+			const evoharness = {
 				events: {
 					on() {
 						return () => {};
@@ -3102,7 +3102,7 @@ describe("result watcher", () => {
 			const pausedStarted = new Promise<void>((resolve) => {
 				pausedDeliverStarted = resolve;
 			});
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000, {
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000, {
 				deliverIntercomResults: false,
 				notifier: {
 					async deliver(result) {
@@ -3197,10 +3197,10 @@ describe("result watcher", () => {
 	});
 
 	it("delivers a terminal result after the paused file was already consumed", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-paused-consumed-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-paused-consumed-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
-			const pi = {
+			const evoharness = {
 				events: {
 					on() {
 						return () => {};
@@ -3213,7 +3213,7 @@ describe("result watcher", () => {
 			const state = createState();
 			state.currentSessionId = "session-1";
 			const resultFile = path.join(resultsDir, "workflow-consumed.json");
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000, { deliverIntercomResults: false });
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000, { deliverIntercomResults: false });
 			try {
 				writeIndexedResult(resultFile, {
 					id: "workflow-consumed",
@@ -3263,10 +3263,10 @@ describe("result watcher", () => {
 	});
 
 	it("uses local completion fallback silently when no grouped-result listener is available", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
-			const pi = {
+			const evoharness = {
 				events: {
 					on(_event: string, _handler: (payload: unknown) => void) {
 						return () => {};
@@ -3278,7 +3278,7 @@ describe("result watcher", () => {
 			};
 			const state = createState();
 			state.currentSessionId = "session-1";
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000, { deliverIntercomResults: false });
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000, { deliverIntercomResults: false });
 			const originalError = console.error;
 			const logged: unknown[][] = [];
 			console.error = (...args: unknown[]) => {
@@ -3322,11 +3322,11 @@ describe("result watcher", () => {
 	});
 
 	it("warns when an available grouped-result listener does not acknowledge delivery", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-unacknowledged-listener-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-unacknowledged-listener-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			const listeners = new Map<string, Set<(payload: unknown) => void>>();
-			const pi = {
+			const evoharness = {
 				events: {
 					on(event: string, handler: (payload: unknown) => void) {
 						const eventListeners = listeners.get(event) ?? new Set();
@@ -3342,7 +3342,7 @@ describe("result watcher", () => {
 			};
 			const state = createState();
 			state.currentSessionId = "session-1";
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000);
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000);
 			const originalError = console.error;
 			const logged: unknown[][] = [];
 			console.error = (...args: unknown[]) => {
@@ -3379,11 +3379,11 @@ describe("result watcher", () => {
 	});
 
 	it("marks acknowledged grouped intercom results so local notification is suppressed", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-intercom-ack-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-intercom-ack-"));
 		try {
 			const emitted: Array<{ event: string; data: unknown }> = [];
 			const listeners = new Map<string, Set<(payload: unknown) => void>>();
-			const pi = {
+			const evoharness = {
 				events: {
 					on(event: string, handler: (payload: unknown) => void) {
 						const eventListeners = listeners.get(event) ?? new Set();
@@ -3399,7 +3399,7 @@ describe("result watcher", () => {
 								data && typeof data === "object" ? (data as { requestId?: unknown }).requestId : undefined;
 							if (typeof requestId === "string") {
 								setImmediate(() =>
-									pi.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
+									evoharness.events.emit("subagent:result-intercom-delivery", { requestId, delivered: true }),
 								);
 							}
 						}
@@ -3409,7 +3409,7 @@ describe("result watcher", () => {
 			const state = createState();
 			state.currentSessionId = "session-1";
 			const delivered: Array<{ intercomDelivered?: boolean }> = [];
-			const watcher = createResultWatcher(pi, state, resultsDir, 60_000, {
+			const watcher = createResultWatcher(evoharness, state, resultsDir, 60_000, {
 				notifier: {
 					async deliver(result) {
 						delivered.push({ intercomDelivered: result.intercomDelivered });
@@ -3445,7 +3445,7 @@ describe("result watcher", () => {
 	});
 
 	it("delivers a result when a previous duplicate key has expired", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-expired-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-expired-"));
 		try {
 			const state = createState();
 			state.currentSessionId = "session-1";
@@ -3490,7 +3490,7 @@ describe("result watcher", () => {
 	});
 
 	it("keeps an unaccepted result for retry and deletes it only after notifier acceptance", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-notifier-retry-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-notifier-retry-"));
 		try {
 			const state = createState();
 			state.currentSessionId = "session-1";
@@ -3543,7 +3543,7 @@ describe("result watcher", () => {
 	});
 
 	it("retries delivery after a transient session index access denial", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-index-retry-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-index-retry-"));
 		const originalError = console.error;
 		const originalReadFileSync = fsDefault.readFileSync;
 		try {
@@ -3622,7 +3622,7 @@ describe("result watcher", () => {
 	});
 
 	it("drops stale watcher authority without emitting or deleting", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-stale-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-stale-"));
 		try {
 			const state = createState();
 			state.currentSessionId = "session-1";
@@ -3671,7 +3671,7 @@ describe("result watcher", () => {
 	});
 
 	it("marks reload backlog display-only", async () => {
-		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-quiet-"));
+		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-quiet-"));
 		try {
 			const state = createState();
 			state.currentSessionId = "session-1";
@@ -3745,7 +3745,7 @@ describe("result watcher", () => {
 		};
 
 		const runScan = (deps: Record<string, unknown>) => {
-			const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-scanlog-"));
+			const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-scanlog-"));
 			const state = createState();
 			const watcher = createResultWatcher({ events: { on: () => () => {}, emit() {} } }, state, resultsDir, 60_000, {
 				observedCompletionRunIds: slowScan,
@@ -3791,7 +3791,7 @@ describe("result watcher", () => {
 		});
 
 		it('keeps slow scans that found work under "activity"', () => {
-			const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-scanlog-work-"));
+			const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-scanlog-work-"));
 			const state = createState();
 			state.currentSessionId = "session-current";
 			writeIndexedResult(path.join(resultsDir, "activity-run.json"), {
@@ -3818,7 +3818,7 @@ describe("result watcher", () => {
 		});
 
 		it('silences all slow scans under "off"', () => {
-			const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-watcher-scanlog-off-"));
+			const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-result-watcher-scanlog-off-"));
 			const state = createState();
 			state.currentSessionId = "session-current";
 			writeIndexedResult(path.join(resultsDir, "off-run.json"), {

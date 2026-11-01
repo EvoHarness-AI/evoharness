@@ -58,7 +58,7 @@ export function flattenSubagentToolOptions(
 		throw new Error(
 			`subagent option 'options.${disabledKey}' is disabled by config ${disabled!.params.get(disabledKey)}.`,
 		);
-	// Pi converts only the declared top-level parameters ("true" -> true); `options` is an untyped bag in the
+	// evoharness converts only the declared top-level parameters ("true" -> true); `options` is an untyped bag in the
 	// tool schema, so its values get the same conversion here. Some providers send nested scalars as strings.
 	const converted = Value.Convert(SubagentOptionParams, structuredClone(options));
 	if (!optionsValidator.Check(converted)) {

@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
 	type ChildSessionLaunch,
+	type CodingAgentModule,
 	createDefaultChildSessionFactory,
 	type ParentProviderRegistry,
-	type PiCodingAgentModule,
 } from "../../src/runs/shared/child-session.ts";
 
 type Config = { marker: string };
@@ -51,7 +51,7 @@ function registry(configs: Map<string, Config>, native = new Map<string, Native>
 	};
 }
 
-function fakePi(
+function fakeHostExe(
 	input: {
 		pending?: () => Pending;
 		onRuntime?: (runtime: Runtime) => void;
@@ -59,7 +59,7 @@ function fakePi(
 		onRefresh?: (runtime: Runtime) => void;
 		onResolve?: (runtime: Runtime) => void;
 	} = {},
-): PiCodingAgentModule {
+): CodingAgentModule {
 	return {
 		ModelRuntime: {
 			create: async () => {
@@ -100,7 +100,7 @@ function fakePi(
 			input.onResolve?.(modelRuntime as unknown as Runtime);
 			return { error: "stop" };
 		},
-	} as unknown as PiCodingAgentModule;
+	} as unknown as CodingAgentModule;
 }
 
 describe("default factory parent provider inheritance", () => {
@@ -113,12 +113,12 @@ describe("default factory parent provider inheritance", () => {
 		};
 		const runtimes: Runtime[] = [];
 		const resolved: Array<Config | undefined> = [];
-		const pi = fakePi({
+		const evoharness = fakeHostExe({
 			pending: () => pending,
 			onRuntime: (runtime) => runtimes.push(runtime),
 			onResolve: (runtime) => resolved.push(runtime.configs.get("router")),
 		});
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 		const parent = registry(parentConfigs);
 
 		await assert.rejects(() => factory.create(launch(parent)), /stop/);
@@ -146,14 +146,14 @@ describe("default factory parent provider inheritance", () => {
 
 	it("binds concurrent launches to their own parent config and native providers", async () => {
 		const resolved: Array<{ config?: string; native?: string }> = [];
-		const pi = fakePi({
+		const evoharness = fakeHostExe({
 			onResolve: (runtime) =>
 				resolved.push({
 					config: runtime.configs.get("router")?.marker,
 					native: runtime.native.get("native-router")?.marker,
 				}),
 		});
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 		const parentA = registry(
 			new Map([["router", { marker: "a-config" }]]),
 			new Map([["native-router", { id: "native-router", marker: "a-native" }]]),
@@ -174,7 +174,7 @@ describe("default factory parent provider inheritance", () => {
 	it("does not fall back to a parent provider when the explicit child registration fails", async () => {
 		const errors: string[] = [];
 		let resolved: Runtime | undefined;
-		const pi = fakePi({
+		const evoharness = fakeHostExe({
 			pending: () => ({
 				pendingProviderRegistrations: [
 					{ name: "router", config: { marker: "broken-child" }, extensionPath: "/broken.ts" },
@@ -187,7 +187,7 @@ describe("default factory parent provider inheritance", () => {
 				resolved = runtime;
 			},
 		});
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 		const parent = registry(new Map([["router", { marker: "parent" }]]));
 
 		await assert.rejects(
@@ -208,7 +208,7 @@ describe("default factory parent provider inheritance", () => {
 	it("reports refresh failure and fails before model resolution", async () => {
 		const errors: string[] = [];
 		let resolved = false;
-		const pi = fakePi({
+		const evoharness = fakeHostExe({
 			onRefresh: () => {
 				throw new Error("offline refresh failed");
 			},
@@ -216,7 +216,7 @@ describe("default factory parent provider inheritance", () => {
 				resolved = true;
 			},
 		});
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 
 		await assert.rejects(
 			() =>
@@ -235,7 +235,7 @@ describe("default factory parent provider inheritance", () => {
 	it("reports parent inheritance failure and does not resolve against a partial runtime", async () => {
 		const errors: string[] = [];
 		let resolved = false;
-		const pi = fakePi({
+		const evoharness = fakeHostExe({
 			onRegisterConfig: (_id, config) => {
 				if (config.marker === "broken-parent") throw new Error("parent registration failed");
 			},
@@ -243,7 +243,7 @@ describe("default factory parent provider inheritance", () => {
 				resolved = true;
 			},
 		});
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => pi });
+		const factory = createDefaultChildSessionFactory({ loadCodingAgent: async () => evoharness });
 
 		await assert.rejects(
 			() =>

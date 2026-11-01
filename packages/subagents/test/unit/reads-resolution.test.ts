@@ -5,7 +5,7 @@ import * as path from "node:path";
 import { after, before, describe, test } from "node:test";
 import { expandHomePath, resolveChainPath } from "../../src/shared/settings.ts";
 
-const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-reads-resolution-"));
+const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-reads-resolution-"));
 const homeDir = path.join(tmpDir, "home");
 const chainDir = path.join(tmpDir, "chain");
 const originalHome = process.env.HOME;

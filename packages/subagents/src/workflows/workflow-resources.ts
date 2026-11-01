@@ -53,7 +53,7 @@ interface WorkflowResourceRegistry {
 }
 
 function registry(): WorkflowResourceRegistry {
-	const key = Symbol.for("pi-subagents.workflow-resources.v1");
+	const key = Symbol.for("subagents.workflow-resources.v1");
 	const globalObject = globalThis as Record<PropertyKey, unknown>;
 	const existing = globalObject[key];
 	if (existing === undefined) {

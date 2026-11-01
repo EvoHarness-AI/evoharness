@@ -44,7 +44,7 @@ function fixture() {
 		activations = 0,
 		terminal = () => {};
 	let done = Promise.resolve();
-	const pi = {
+	const evoharness = {
 		getAllTools: () => [],
 		registerTool() {},
 		getSessionName: () => "parent",
@@ -58,7 +58,7 @@ function fixture() {
 			if (message.details?.id) sent.push(message.details.id);
 		},
 	};
-	const channel = createNativeSupervisorChannel(pi as never, state, {
+	const channel = createNativeSupervisorChannel(evoharness as never, state, {
 		getCurrentOwnerStates: () => executor.getCurrentSupervisorOwnerStates(),
 		platform: "darwin",
 		watch: (() => {
@@ -81,7 +81,7 @@ function fixture() {
 	});
 	const config = { maxSubagentDepth: 2, control: {}, intercomBridge: {} } as never;
 	const executor = createSubagentExecutor({
-		pi: pi as never,
+		evoharness: evoharness as never,
 		state,
 		config,
 		asyncByDefault: false,

@@ -11,7 +11,7 @@ const oxlint = path.join(projectRoot, "node_modules", "oxlint", "bin", "oxlint")
 const config = path.join(projectRoot, ".oxlintrc.json");
 
 function lintFixture(source: string): string {
-	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-anti-slop-"));
+	const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-anti-slop-"));
 	try {
 		const fixture = path.join(root, "rules.ts");
 		fs.writeFileSync(fixture, source, "utf8");

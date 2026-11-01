@@ -79,10 +79,10 @@ async function waitForFileCount(dir: string, count: number): Promise<void> {
 
 describe("Orca progress-tab observer", () => {
 	it(
-		"mirrors an in-process Pi child without replacing its execution path",
+		"mirrors an in-process evoharness child without replacing its execution path",
 		{ skip: process.platform === "win32" ? "Orca progress tabs are not supported on Windows" : undefined },
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-orca-native-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-orca-native-"));
 			tempDirs.push(dir);
 			const asyncDir = path.join(dir, "async");
 			const agentDir = path.join(dir, "agent-dir");
@@ -105,7 +105,7 @@ describe("Orca progress-tab observer", () => {
 					type: "message_end",
 					message: {
 						role: "assistant",
-						content: [{ type: "text", text: "native Pi result" }],
+						content: [{ type: "text", text: "native evoharness result" }],
 						stopReason: "stop",
 						usage: { input: 1, output: 2, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } },
 					},
@@ -125,7 +125,7 @@ describe("Orca progress-tab observer", () => {
 						{
 							agent: "worker",
 							task: "Read the repository",
-							systemPrompt: "Use native Pi",
+							systemPrompt: "Use native evoharness",
 							systemPromptMode: "replace",
 							inheritProjectContext: false,
 							inheritGlobalContext: false,
@@ -149,7 +149,7 @@ describe("Orca progress-tab observer", () => {
 				{
 					...process.env,
 					EVOHARNESS_CODING_AGENT_DIR: agentDir,
-					PI_SUBAGENT_ORCA_BINARY: fakeOrca,
+					EVOHARNESS_SUBAGENT_ORCA_BINARY: fakeOrca,
 					MOCK_PI_QUEUE_DIR: queueDir,
 					ORCA_TEST_CAPTURE: capture,
 				},
@@ -158,10 +158,10 @@ describe("Orca progress-tab observer", () => {
 			const result = JSON.parse(fs.readFileSync(resultPath, "utf-8"));
 			assert.equal(result.success, true);
 			assert.equal(result.results[0].runner, undefined);
-			assert.match(result.results[0].output, /native Pi result/);
+			assert.match(result.results[0].output, /native evoharness result/);
 			assert.match(
 				fs.readFileSync(path.join(asyncDir, "output-0.log"), "utf-8"),
-				/read: README\.md[\s\S]*native Pi result/,
+				/read: README\.md[\s\S]*native evoharness result/,
 			);
 
 			await waitForFile(capture);
@@ -176,7 +176,7 @@ describe("Orca progress-tab observer", () => {
 		"uses one observer tab for a background parallel run",
 		{ skip: process.platform === "win32" ? "Orca progress tabs are not supported on Windows" : undefined },
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-orca-parallel-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-orca-parallel-"));
 			tempDirs.push(dir);
 			const asyncDir = path.join(dir, "async");
 			const agentDir = path.join(dir, "agent-dir");
@@ -208,7 +208,7 @@ describe("Orca progress-tab observer", () => {
 								{
 									agent: "worker",
 									task: "One",
-									systemPrompt: "Use native Pi",
+									systemPrompt: "Use native evoharness",
 									systemPromptMode: "replace",
 									inheritProjectContext: false,
 									inheritGlobalContext: false,
@@ -217,7 +217,7 @@ describe("Orca progress-tab observer", () => {
 								{
 									agent: "reviewer",
 									task: "Two",
-									systemPrompt: "Use native Pi",
+									systemPrompt: "Use native evoharness",
 									systemPromptMode: "replace",
 									inheritProjectContext: false,
 									inheritGlobalContext: false,
@@ -244,7 +244,7 @@ describe("Orca progress-tab observer", () => {
 				{
 					...process.env,
 					EVOHARNESS_CODING_AGENT_DIR: agentDir,
-					PI_SUBAGENT_ORCA_BINARY: fakeOrca,
+					EVOHARNESS_SUBAGENT_ORCA_BINARY: fakeOrca,
 					MOCK_PI_QUEUE_DIR: queueDir,
 					ORCA_TEST_CAPTURE_DIR: captures,
 				},
@@ -272,7 +272,7 @@ describe("Orca progress-tab observer", () => {
 		"allocates unique worktree-wide numbers across concurrent processes and nested cwd values",
 		{ skip: process.platform === "win32" ? "Orca progress tabs are not supported on Windows" : undefined },
 		async () => {
-			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-orca-counter-"));
+			const dir = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-orca-counter-"));
 			tempDirs.push(dir);
 			fs.mkdirSync(path.join(dir, ".git"));
 			const nested = path.join(dir, "packages", "app");
@@ -295,7 +295,7 @@ describe("Orca progress-tab observer", () => {
 					repo,
 					{
 						...process.env,
-						PI_SUBAGENT_ORCA_BINARY: fakeOrca,
+						EVOHARNESS_SUBAGENT_ORCA_BINARY: fakeOrca,
 						ORCA_TEST_CAPTURE_DIR: captures,
 						ORCA_TEST_ORDER: orderFile,
 						CHILD_CWD: index % 2 === 0 ? dir : nested,

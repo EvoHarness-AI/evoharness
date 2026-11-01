@@ -19,11 +19,11 @@ it("loads the executor and Fleet within seconds of a session starting, not at se
 	const fleetLoaded = () => isLoaded(["tui", "fleet.ts"]);
 
 	// A top-level session; this test may itself run inside a subagent child.
-	delete process.env.PI_SUBAGENT_CHILD;
+	delete process.env.EVOHARNESS_SUBAGENT_CHILD;
 	const { default: registerSubagentExtension } = await import("../../src/extension/index.ts");
 	const { createEventBus } = await import("@evoharness/coding-agent");
 	const handlers = new Map<string, Array<(event: unknown, ctx: unknown) => unknown>>();
-	const pi = new Proxy(
+	const evoharness = new Proxy(
 		{
 			events: createEventBus(),
 			on(name: string, handler: (event: unknown, ctx: unknown) => unknown) {
@@ -52,10 +52,10 @@ it("loads the executor and Fleet within seconds of a session starting, not at se
 	};
 
 	t.mock.timers.enable({ apis: ["setTimeout"] });
-	registerSubagentExtension(pi as never);
+	registerSubagentExtension(evoharness as never);
 	for (const handler of handlers.get("session_start") ?? []) await handler({ reason: "startup" }, ctx);
-	assert.equal(executorLoaded(), false, "session_start must not load the executor on Pi's startup path");
-	assert.equal(fleetLoaded(), false, "session_start must not load Fleet on Pi's startup path");
+	assert.equal(executorLoaded(), false, "session_start must not load the executor on evoharness's startup path");
+	assert.equal(fleetLoaded(), false, "session_start must not load Fleet on evoharness's startup path");
 
 	t.mock.timers.tick(5_000);
 	assert.equal(executorLoaded(), true, "the executor loads within seconds of the session starting");

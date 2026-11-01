@@ -61,7 +61,7 @@ const terminalBeforePublicationScript = String.raw`
 	const events = createEventBus();
 	let rejectNextSend = true;
 	let onSend;
-	const pi = new Proxy({
+	const evoharness = new Proxy({
 		events,
 		on(name, handler) { handlers.set(name, [...(handlers.get(name) ?? []), handler]); return () => {}; },
 		registerTool() {}, registerCommand() {}, registerShortcut() {}, registerMessageRenderer() {}, getSessionName() {},
@@ -105,7 +105,7 @@ const terminalBeforePublicationScript = String.raw`
 		summary: "child complete", timestamp: Date.now(), sessionId, completionOwnerId,
 	});
 
-	registerSubagentExtension(pi);
+	registerSubagentExtension(evoharness);
 	for (const handler of handlers.get("session_start")) await handler({ reason: "startup" }, ctx);
 	assert.equal(provider.isActive(), false);
 	const asyncDir = writeStatus("running");
@@ -147,7 +147,7 @@ const terminalBeforePublicationScript = String.raw`
 	publishResult();
 	const accepted = await send;
 	await new Promise((resolve) => setImmediate(resolve));
-	assert.equal(provider.isActive(), true, "an accepted wake stays live until Pi starts it");
+	assert.equal(provider.isActive(), true, "an accepted wake stays live until evoharness starts it");
 	for (const handler of handlers.get("message_start")) handler({ message: { role: "custom", ...accepted.message } });
 	assert.equal(provider.isActive(), false, "the started wake hands the result to the parent");
 
@@ -161,18 +161,18 @@ describe("session liveness through result delivery", () => {
 		["event", "stays live when a completion event ends the job before its status refresh and the send is rejected"],
 	])
 		it(title, () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-session-liveness-delivery-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-session-liveness-delivery-"));
 			try {
 				fs.mkdirSync(path.join(root, "home"));
 				fs.mkdirSync(path.join(root, "agent"));
 				const env = { ...process.env };
-				delete env.PI_SUBAGENT_CHILD;
-				delete env.PI_SUBAGENT_PARENT_SESSION;
+				delete env.EVOHARNESS_SUBAGENT_CHILD;
+				delete env.EVOHARNESS_SUBAGENT_PARENT_SESSION;
 				Object.assign(env, {
 					HOME: path.join(root, "home"),
 					USERPROFILE: path.join(root, "home"),
 					EVOHARNESS_CODING_AGENT_DIR: path.join(root, "agent"),
-					PI_SUBAGENTS_TEMP_ROOT: path.join(root, "temp"),
+					EVOHARNESS_SUBAGENTS_TEMP_ROOT: path.join(root, "temp"),
 					TMPDIR: root,
 					TMP: root,
 					TEMP: root,
@@ -195,10 +195,10 @@ describe("session liveness through result delivery", () => {
 		});
 
 	it(
-		"stays live while Pi queues a completion wake during a turn and past agent_settled",
+		"stays live while evoharness queues a completion wake during a turn and past agent_settled",
 		{ timeout: 30_000 },
 		async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-session-liveness-sdk-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-session-liveness-sdk-"));
 			const agentDir = path.join(root, "agent");
 			fs.mkdirSync(agentDir);
 			const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -292,7 +292,7 @@ describe("session liveness through result delivery", () => {
 						(message) => message.role === "custom" && message.customType === "subagent-notify",
 					).length,
 					2,
-					"Pi started both queued wakes",
+					"evoharness started both queued wakes",
 				);
 				await (session.extensionRunner as unknown as { emit(event: unknown): Promise<unknown> }).emit({
 					type: "session_shutdown",
@@ -312,7 +312,7 @@ describe("session liveness through result delivery", () => {
 		"preserves an idle parent's completion wake across actual SDK reload until the woken run starts",
 		{ timeout: 30_000 },
 		async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-session-liveness-reload-"));
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "subagents-session-liveness-reload-"));
 			const agentDir = path.join(root, "agent");
 			fs.mkdirSync(agentDir);
 			const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -419,8 +419,8 @@ describe("session liveness through result delivery", () => {
 					activeBeforeReload: true,
 					registrations: 2, // reload actually bound the replacement producer
 					isIdle: true,
-					pendingMessageCount: 0, // Pi's deferred settled action is not counted as a pending message
-					noticeAppended: false, // the notice starts the run Pi deferred past agent_settled, so it is not in the session yet
+					pendingMessageCount: 0, // evoharness's deferred settled action is not counted as a pending message
+					noticeAppended: false, // the notice starts the run evoharness deferred past agent_settled, so it is not in the session yet
 					activeAfterReload: true, // the retained wake owns liveness until that deferred run starts
 				});
 				assert.equal(provider?.isActive(), false, "the woken run releases the retained wake");

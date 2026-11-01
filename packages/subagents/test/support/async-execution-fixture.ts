@@ -4,7 +4,7 @@
  * Tests the async support utilities: jiti availability check,
  * status file reading/caching.
  *
- * Requires pi packages to be importable. Skips gracefully if unavailable.
+ * Requires evoharness packages to be importable. Skips gracefully if unavailable.
  */
 
 import assert from "node:assert/strict";
@@ -322,7 +322,7 @@ async function waitForMockPiRuntime(
 			assert.ok(payload.runtime, "expected a recorded child runtime config");
 			return payload.runtime;
 		}
-		if (Date.now() > deadline) assert.fail(`Timed out waiting for recorded mock pi call ${index}`);
+		if (Date.now() > deadline) assert.fail(`Timed out waiting for recorded mock evoharness call ${index}`);
 		await new Promise((resolve) => setTimeout(resolve, 100));
 	}
 }
@@ -488,7 +488,7 @@ function writePackageSkill(packageRoot: string, skillName: string): void {
 	fs.writeFileSync(
 		path.join(packageRoot, "package.json"),
 		JSON.stringify(
-			{ name: `${skillName}-pkg`, version: "1.0.0", pi: { skills: [`./skills/${skillName}`] } },
+			{ name: `${skillName}-pkg`, version: "1.0.0", evoharness: { skills: [`./skills/${skillName}`] } },
 			null,
 			2,
 		),
@@ -796,7 +796,7 @@ export function observeSharedCwdRunner(id: string) {
 				return;
 			}
 			diagnostic(`#1906 ${text}`);
-			const directory = process.env.PI_SUBAGENTS_TERMINAL_EVIDENCE_DIR;
+			const directory = process.env.EVOHARNESS_SUBAGENTS_TERMINAL_EVIDENCE_DIR;
 			if (!directory) return;
 			try {
 				// Persist only the existing allowlisted projection, never copy run files.
@@ -865,7 +865,7 @@ async function waitForMockPiCall(
 			assert.ok(Array.isArray(payload.args), "expected recorded args");
 			return { args: resolveMockPiCallArgs(payload), systemPrompts: payload.systemPrompts ?? [] };
 		}
-		if (Date.now() > deadline) assert.fail(`Timed out waiting for recorded mock pi call ${index}`);
+		if (Date.now() > deadline) assert.fail(`Timed out waiting for recorded mock evoharness call ${index}`);
 		await new Promise((resolve) => setTimeout(resolve, 100));
 	}
 }
@@ -880,7 +880,7 @@ function readLastMockPiArgs(mockPi: MockPi): string[] {
 		.filter((name) => name.startsWith("call-") && name.endsWith(".json"))
 		.sort()
 		.at(-1);
-	assert.ok(callFile, "expected a recorded mock pi call");
+	assert.ok(callFile, "expected a recorded mock evoharness call");
 	const payload = JSON.parse(fs.readFileSync(path.join(mockPi.dir, callFile), "utf-8")) as MockPiCallRecord;
 	assert.ok(Array.isArray(payload.args), "expected recorded args");
 	return resolveMockPiCallArgs(payload);
@@ -965,7 +965,7 @@ function makeAsyncExecutor(
 	},
 ) {
 	return createSubagentExecutor!({
-		pi: { events: createEventBus(), getSessionName: () => undefined },
+		evoharness: { events: createEventBus(), getSessionName: () => undefined },
 		state: {
 			baseCwd: tempDir,
 			currentSessionId: null,
@@ -992,7 +992,7 @@ function launchProtocolTest(id: string): void {
 		agent: "worker",
 		task: "Exercise child protocol",
 		agentConfig: makeAgent("worker"),
-		ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+		ctx: { evoharness: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
 		artifactConfig: {
 			enabled: false,
 			includeInput: false,

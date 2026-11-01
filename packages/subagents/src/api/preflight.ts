@@ -28,7 +28,11 @@ import {
 	type ResolvedSubagentCapabilityCeiling,
 	type SubagentCapabilityAudit,
 } from "../runs/shared/capability-ceiling.ts";
-import { applyThinkingSuffix, type PiLaunchToolPlan, resolvePiLaunchToolPlan } from "../runs/shared/child-tool-plan.ts";
+import {
+	applyThinkingSuffix,
+	type HostLaunchToolPlan,
+	resolveHostLaunchToolPlan,
+} from "../runs/shared/child-tool-plan.ts";
 import {
 	assertClaudeCodeModelScope,
 	isClaudeCodeAdapterId,
@@ -155,7 +159,7 @@ export interface SubagentLaunchContractInput {
 	nestedRootRunId?: string;
 	capabilityCeiling?: ResolvedSubagentCapabilityCeiling;
 	inheritedCapabilityCeiling?: ResolvedSubagentCapabilityCeiling;
-	/** The calling extension's `pi`, so `mcp:` selectors resolve against the MCP the launch uses. Without it, preflight cannot see Pi's built-in MCP and resolves through pi-mcp-adapter's configuration. */
+	/** The calling extension's `evoharness`, so `mcp:` selectors resolve against the MCP the launch uses. Without it, preflight cannot see evoharness's built-in MCP and resolves through pi-mcp-adapter's configuration. */
 	runtimeSnapshotHost?: McpRuntimeSnapshotHost;
 	/** Per-launch bridge config; replaces the global `intercomBridge` config exactly as the tool and delegation overrides do. */
 	intercomBridge?: IntercomBridgeConfig;
@@ -488,7 +492,7 @@ export async function resolveSubagentLaunchContract(
 		diagnostics.push({
 			code: "host_required",
 			severity: "host-required",
-			message: "Exact fork session branching requires Pi host session snapshots.",
+			message: "Exact fork session branching requires evoharness host session snapshots.",
 		});
 	}
 	// Execution rewrites the discovered agent through the bridge before any
@@ -532,11 +536,11 @@ export async function resolveSubagentLaunchContract(
 		agent.skillPath,
 		agent.filePath ? path.dirname(agent.filePath) : effectiveCwd,
 	);
-	if (resolvedSkills.missing.includes("pi-subagents")) {
+	if (resolvedSkills.missing.includes("subagents")) {
 		return {
 			ok: false,
 			code: "missing_skill",
-			message: "The pi-subagents orchestration skill is not child-injectable.",
+			message: "The subagents orchestration skill is not child-injectable.",
 			diagnostics,
 		};
 	}
@@ -616,7 +620,7 @@ export async function resolveSubagentLaunchContract(
 			return { ok: false, code: "thinking_ceiling", message, diagnostics };
 		}
 	}
-	// The Claude Code adapters accept a model and a level that never become a Pi child
+	// The Claude Code adapters accept a model and a level that never become a evoharness child
 	// model, so validate has to run the same two checks the launch runs, or validate
 	// would report ok for a launch that then fails.
 	if (agent.runner?.type === "external-cli" && isClaudeCodeAdapterId(agent.runner.adapter)) {
@@ -641,12 +645,12 @@ export async function resolveSubagentLaunchContract(
 			return { ok: false, code, message, diagnostics };
 		}
 	}
-	let toolPlan: PiLaunchToolPlan;
+	let toolPlan: HostLaunchToolPlan;
 	const permissionRules = resolvePermissionRules(loadConfig().permissions, agent.permissions);
 	const fast = input.fast ?? agent.fast;
 	const requiredExtensions = externalRunner ? [] : resolveRequiredChildExtensions(input.parentSessionId);
 	try {
-		toolPlan = resolvePiLaunchToolPlan({
+		toolPlan = resolveHostLaunchToolPlan({
 			tools: agent.tools,
 			excludeTools: agent.excludeTools,
 			allowNestedSubagents: agent.allowNestedSubagents,
@@ -700,14 +704,14 @@ export async function resolveSubagentLaunchContract(
 			code: "host_required",
 			severity: "host-required",
 			message:
-				"No sessionRoot/sessionDir was supplied; exact child session paths require the Pi host session-root policy.",
+				"No sessionRoot/sessionDir was supplied; exact child session paths require the evoharness host session-root policy.",
 		});
 	if (!externalRunner && input.availableModels === undefined && (input.model || agent.model || input.parentModel)) {
 		diagnostics.push({
 			code: "host_required",
 			severity: "host-required",
 			message:
-				"No availableModels snapshot was supplied; model resolution may differ from the active Pi host registry.",
+				"No availableModels snapshot was supplied; model resolution may differ from the active evoharness host registry.",
 		});
 	}
 	if (resolvedSkills.missing.length > 0) {

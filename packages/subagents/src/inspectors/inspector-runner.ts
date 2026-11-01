@@ -42,7 +42,7 @@ export function formatInspectorDashboard(input: {
 }): string {
 	const { status, asyncDir, mission } = input;
 	const lines = [
-		`pi-subagents inspector for ${status.runId}`,
+		`subagents inspector for ${status.runId}`,
 		"This inspector mirrors lifecycle artifacts; closing it does not stop the run.",
 		"",
 	];
@@ -66,7 +66,7 @@ export function formatInspectorDashboard(input: {
 	lines.push(
 		"",
 		`Controls: ${controls.join(" | ")}`,
-		"Supervisor replies remain in the parent Pi session (subagent_supervisor/intercom); this inspector is read-only.",
+		"Supervisor replies remain in the parent evoharness session (subagent_supervisor/intercom); this inspector is read-only.",
 	);
 	return lines.join("\n");
 }
@@ -142,7 +142,9 @@ export function submitInspectorControl(options: RunnerOptions, line: string): st
 		return queueInspectorSteer(options, status, message);
 	}
 	if (command.startsWith("reply "))
-		throw new Error("Supervisor replies are owned by the parent Pi session; use subagent_supervisor/intercom there.");
+		throw new Error(
+			"Supervisor replies are owned by the parent evoharness session; use subagent_supervisor/intercom there.",
+		);
 	if (options.index === undefined && status.mode !== "single")
 		throw new Error(
 			"Plain guidance requires a child-specific inspector. Use steer <message> to target all running children from the aggregate inspector.",
@@ -158,7 +160,7 @@ export function runInspector(argv = process.argv.slice(2)): void {
 		const status = readStatus(options.asyncDir);
 		if (!status || status.runId !== options.runId) {
 			process.stdout.write(
-				`\x1b[2J\x1b[Hpi-subagents inspector\n\nLifecycle status for ${options.runId} is unavailable.\n`,
+				`\x1b[2J\x1b[Hsubagents inspector\n\nLifecycle status for ${options.runId} is unavailable.\n`,
 			);
 			return;
 		}

@@ -31,16 +31,16 @@ import { createCapturedChildHooks, withChildSessionErrorReporting } from "./chil
 import type { ChildRuntimeConfig } from "./child-runtime-config.ts";
 import type { ChildSessionLaunch, ChildSessionStorage } from "./child-session.ts";
 import {
+	type HostLaunchToolPlan,
 	isSubagentRuntimeExtensionPath,
-	type PiLaunchToolPlan,
 	projectLaunchResolvedChildExtensions,
-	resolvePiLaunchToolPlan,
+	resolveHostLaunchToolPlan,
 	supervisorChannelDir,
 } from "./child-tool-plan.ts";
 import {
+	EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV,
 	type ExtensionBindings,
 	encodeExtensionBindings,
-	PI_SUBAGENT_EXTENSION_BINDINGS_ENV,
 } from "./extension-bindings.ts";
 import {
 	extensionOnlyMcpServers,
@@ -112,7 +112,7 @@ export interface BuildInProcessChildLaunchInput {
 	requiredExtensions?: RequiredChildExtensionSnapshot;
 	systemPrompt?: string | null;
 	mcpDirectTools?: string[];
-	/** Selections the parent resolved against Pi's built-in MCP, carried to the runner. */
+	/** Selections the parent resolved against evoharness's built-in MCP, carried to the runner. */
 	builtinMcpTools?: ResolvedMcpDirectToolSelection[];
 	extensionBindings?: ExtensionBindings;
 	cwd: string;
@@ -165,7 +165,7 @@ export interface InProcessChildCapture {
 }
 
 export interface InProcessChildLaunch {
-	toolPlan: PiLaunchToolPlan;
+	toolPlan: HostLaunchToolPlan;
 	config: ChildRuntimeConfig;
 	session: Omit<ChildSessionLaunch, "onExtensionError">;
 	capture: InProcessChildCapture;
@@ -196,11 +196,11 @@ function inheritedCapabilityCeiling(
 /** Environment values external child extensions read in the runner, which hosts only children. */
 function childProcessEnv(
 	input: BuildInProcessChildLaunchInput,
-	toolPlan: PiLaunchToolPlan,
+	toolPlan: HostLaunchToolPlan,
 ): Record<string, string | undefined> {
 	const env: Record<string, string | undefined> = {};
-	env[PI_SUBAGENT_EXTENSION_BINDINGS_ENV] = encodeExtensionBindings(input.extensionBindings);
-	// Selectors resolved against Pi's built-in MCP never reach an adapter.
+	env[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV] = encodeExtensionBindings(input.extensionBindings);
+	// Selectors resolved against evoharness's built-in MCP never reach an adapter.
 	if (toolPlan.builtinMcpTools) env[MCP_DIRECT_TOOLS_ENV] = "__none__";
 	else if (!toolPlan.capabilityCeiling && input.mcpDirectTools?.length)
 		env[MCP_DIRECT_TOOLS_ENV] = input.mcpDirectTools.join(",");
@@ -246,7 +246,7 @@ export function buildInProcessChildLaunch(input: BuildInProcessChildLaunchInput)
 		agentCapabilityCeiling && !input.capabilityCeiling && !inheritedCeiling
 			? { version: 1 as const, denyExtensions: false, sources: [] }
 			: input.capabilityCeiling;
-	const toolPlan = resolvePiLaunchToolPlan({
+	const toolPlan = resolveHostLaunchToolPlan({
 		tools: input.tools,
 		excludeTools: input.excludeTools,
 		allowNestedSubagents: input.allowNestedSubagents,
@@ -268,7 +268,7 @@ export function buildInProcessChildLaunch(input: BuildInProcessChildLaunchInput)
 	});
 	// Foreground children load no ambient extensions, so an extension's registerMcpServer() never runs in them.
 	if (input.host === "parent" && input.runtimeSnapshotHost && toolPlan.builtinMcpTools?.length) {
-		// Pi treats a session without a trust decision as trusted.
+		// evoharness treats a session without a trust decision as trusted.
 		const servers = extensionOnlyMcpServers(
 			toolPlan.effectiveMcpSelections,
 			input.runtimeSnapshotHost,
@@ -432,7 +432,9 @@ export function buildInProcessChildLaunch(input: BuildInProcessChildLaunchInput)
 		...(input.host === "runner"
 			? { processEnv: childProcessEnv(input, toolPlan) }
 			: {
-					processEnv: { [PI_SUBAGENT_EXTENSION_BINDINGS_ENV]: encodeExtensionBindings(input.extensionBindings) },
+					processEnv: {
+						[EVOHARNESS_SUBAGENT_EXTENSION_BINDINGS_ENV]: encodeExtensionBindings(input.extensionBindings),
+					},
 					restoreProcessEnv: true,
 				}),
 		runtime: config,

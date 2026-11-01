@@ -26,12 +26,12 @@ function call(agent: { streamFunction: StreamFn }, options?: StreamOptions): voi
 describe("childCacheRetention", () => {
 	it("is unset by default so children inherit the parent's retention", () => {
 		assert.equal(childCacheRetention({}), undefined);
-		assert.equal(childCacheRetention({ PI_SUBAGENT_CACHE_RETENTION: "" }), undefined);
+		assert.equal(childCacheRetention({ EVOHARNESS_SUBAGENT_CACHE_RETENTION: "" }), undefined);
 	});
 
 	it("returns the configured tier", () => {
-		assert.equal(childCacheRetention({ PI_SUBAGENT_CACHE_RETENTION: "short" }), "short");
-		assert.equal(childCacheRetention({ PI_SUBAGENT_CACHE_RETENTION: "long" }), "long");
+		assert.equal(childCacheRetention({ EVOHARNESS_SUBAGENT_CACHE_RETENTION: "short" }), "short");
+		assert.equal(childCacheRetention({ EVOHARNESS_SUBAGENT_CACHE_RETENTION: "long" }), "long");
 	});
 
 	it("ignores the parent's own retention", () => {
@@ -49,7 +49,7 @@ describe("childCacheRetentionEnv", () => {
 	it("overrides the inherited value in a spawned child's launch environment", () => {
 		const launchEnv = {
 			...{ EVOHARNESS_CACHE_RETENTION: "long" },
-			...childCacheRetentionEnv({ PI_SUBAGENT_CACHE_RETENTION: "short" }),
+			...childCacheRetentionEnv({ EVOHARNESS_SUBAGENT_CACHE_RETENTION: "short" }),
 		};
 		assert.equal(launchEnv.EVOHARNESS_CACHE_RETENTION, "short");
 	});
@@ -70,14 +70,14 @@ describe("pinChildCacheRetention", () => {
 
 	it("overrides an inherited parent tier on the request env", () => {
 		const { agent, calls } = recordingAgent();
-		pinChildCacheRetention(agent, { PI_SUBAGENT_CACHE_RETENTION: "short" });
+		pinChildCacheRetention(agent, { EVOHARNESS_SUBAGENT_CACHE_RETENTION: "short" });
 		call(agent, { env: { EVOHARNESS_CACHE_RETENTION: "long" } });
 		assert.equal(calls[0]?.env?.EVOHARNESS_CACHE_RETENTION, "short");
 	});
 
 	it("preserves other request env values and options", () => {
 		const { agent, calls } = recordingAgent();
-		pinChildCacheRetention(agent, { PI_SUBAGENT_CACHE_RETENTION: "short" });
+		pinChildCacheRetention(agent, { EVOHARNESS_SUBAGENT_CACHE_RETENTION: "short" });
 		call(agent, { env: { ANTHROPIC_API_KEY: "sk-test" }, headers: { "x-trace": "1" } } as StreamOptions);
 		assert.equal(calls[0]?.env?.ANTHROPIC_API_KEY, "sk-test");
 		assert.equal(calls[0]?.env?.EVOHARNESS_CACHE_RETENTION, "short");
@@ -88,7 +88,7 @@ describe("pinChildCacheRetention", () => {
 		const before = process.env.EVOHARNESS_CACHE_RETENTION;
 		const child = recordingAgent();
 		const parent = recordingAgent();
-		pinChildCacheRetention(child.agent, { PI_SUBAGENT_CACHE_RETENTION: "short" });
+		pinChildCacheRetention(child.agent, { EVOHARNESS_SUBAGENT_CACHE_RETENTION: "short" });
 		assert.equal(parent.agent.streamFunction, parent.original);
 		call(parent.agent, { env: { EVOHARNESS_CACHE_RETENTION: "long" } });
 		assert.equal(parent.calls[0]?.env?.EVOHARNESS_CACHE_RETENTION, "long");

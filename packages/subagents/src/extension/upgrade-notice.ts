@@ -13,7 +13,7 @@ const versionNumber = (version: unknown) =>
 
 export async function showUpgradeNotice(
 	ctx: { hasUI: boolean; ui: { notify(message: string, type: "info"): void } },
-	stateDir = path.join(getAgentDir(), "pi-subagents"),
+	stateDir = path.join(getAgentDir(), "subagents"),
 	changelogPath = fileURLToPath(new URL("../../CHANGELOG.md", import.meta.url)),
 	version = packageJson.version,
 ): Promise<void> {
@@ -42,10 +42,10 @@ export async function showUpgradeNotice(
 	});
 	ctx.ui.notify(
 		[
-			`pi-subagents updated from ${lastSeen} to ${version}`,
+			`subagents updated from ${lastSeen} to ${version}`,
 			...bullets.slice(0, 5),
 			...(bullets.length > 5 ? [`...and ${bullets.length - 5} more`] : []),
-			"Changelog: https://github.com/nicobailon/pi-subagents/blob/main/CHANGELOG.md",
+			"See CHANGELOG.md in the package for details.",
 		].join("\n"),
 		"info",
 	);

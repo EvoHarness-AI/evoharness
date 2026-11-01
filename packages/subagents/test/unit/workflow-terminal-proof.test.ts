@@ -149,7 +149,7 @@ describe("readWorkflowTerminalProof", () => {
 
 	it("needs no process evidence for an async child whose launch failed before a runner existed", () =>
 		withFixture(({ root, asyncDir, writeChild }) => {
-			const launchError = "Unknown subagent model 'x/y' in the active Pi model registry.";
+			const launchError = "Unknown subagent model 'x/y' in the active evoharness model registry.";
 			type StepOutcome = Pick<Steps[number], "status" | "error">;
 			const steps = (step: StepOutcome): Steps => [
 				{ agent: "worker", workflowKey: "main", runId: "child-run", async: true, ...step },
