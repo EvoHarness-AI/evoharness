@@ -45,10 +45,12 @@ describe("provider diagnostics", () => {
 			"429 FreeUsageLimitError",
 			"429 Monthly usage limit reached",
 			"429 available balance required",
+			// evoharness ai(#11057):状态码不得匹配更长数字——request id 中的 429 不是限流
+			"request id 42901 failed",
 		]) {
 			assert.equal(observeProviderDiagnostics(undefined, errorEvent(text), 10)?.lastError?.kind, "unknown", text);
 		}
-		for (const text of ["overloaded", "HTTP 503 service unavailable", "fetch failed", "request id 42901 failed"]) {
+		for (const text of ["overloaded", "HTTP 503 service unavailable", "fetch failed"]) {
 			assert.equal(
 				observeProviderDiagnostics(undefined, errorEvent(text), 10)?.lastError?.kind,
 				"transient_other",

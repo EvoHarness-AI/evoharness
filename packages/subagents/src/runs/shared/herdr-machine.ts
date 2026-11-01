@@ -291,7 +291,7 @@ function remoteMachineCwd(stepCwd: string | undefined, root: string | undefined,
 	if (step && isRemoteAbsolute(step)) return step;
 	if (!root)
 		throw new Error(
-			`No root for ${name} in this repo. Set subagents.machines.${name}.cwd in .pi/settings.json or pass an absolute cwd on that machine.`,
+			`No root for ${name} in this repo. Set subagents.machines.${name}.cwd in .evoharness/settings.json or pass an absolute cwd on that machine.`,
 		);
 	return step ? path.posix.join(root, step) : root;
 }

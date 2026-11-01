@@ -7,7 +7,9 @@ import * as path from "node:path";
 // Kept: harness inputs that CI or a developer passes in on purpose. Nested test processes inherit the cleaned env.
 const harnessInput = /^PI_SUBAGENTS_(TEMP_ROOT|TERMINAL_EVIDENCE_DIR|NATIVE_PI_ROOT|NATIVE_SDK|\w+_SMOKE(_\w+)?)$/;
 if (process.env.PI_SUBAGENTS_TEST_LOADER === undefined) {
-	for (const name of Object.keys(process.env)) if (name.startsWith("PI_") && !harnessInput.test(name)) delete process.env[name];
+	// Kernel env renamed PI_* -> EVOHARNESS_* in this fork; clear both families so neither leaks in.
+	for (const name of Object.keys(process.env))
+		if ((name.startsWith("PI_") || name.startsWith("EVOHARNESS_")) && !harnessInput.test(name)) delete process.env[name];
 }
 
 const configuredTempRoot = process.env.PI_SUBAGENTS_TEMP_ROOT?.trim();

@@ -277,7 +277,7 @@ export function buildInProcessChildLaunch(input: BuildInProcessChildLaunchInput)
 		);
 		if (servers.length)
 			throw new Error(
-				`Agent '${input.childAgentName}' selects MCP tools from servers that extensions registered (${servers.join(", ")}). Only background children (async: true) load those extensions; run the agent in the background or add the server to the global mcp.json or a trusted project's .pi/mcp.json.`,
+				`Agent '${input.childAgentName}' selects MCP tools from servers that extensions registered (${servers.join(", ")}). Only background children (async: true) load those extensions; run the agent in the background or add the server to the global mcp.json or a trusted project's .evoharness/mcp.json.`,
 			);
 	}
 	toolPlan.capabilityCeiling = intersectSubagentCapabilityCeilings(toolPlan.capabilityCeiling, agentCapabilityCeiling);

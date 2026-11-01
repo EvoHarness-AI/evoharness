@@ -2372,7 +2372,7 @@ describe("agent frontmatter subagentOnlyExtensions", () => {
 		};
 
 		const serialized = serializeAgent(agent);
-		assert.match(serialized, /subagentOnlyExtensions: \.\/tools\/child-search\.ts, \/opt.evoharness\/child-only\.ts/);
+		assert.match(serialized, /subagentOnlyExtensions: \.\/tools\/child-search\.ts, \/opt\/pi\/child-only\.ts/);
 	});
 
 	it("parses subagentOnlyExtensions from discovered agent frontmatter", () => {

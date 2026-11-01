@@ -15,7 +15,8 @@
 | 项目配置目录回退 | `.pi` | `.evoharness`(主路径自适应读宿主 `CONFIG_DIR_NAME`) |
 | 测试基线 | 上游 unit 4127/4235(19 个 Windows 环境类失败) | 见 progress 文档 Phase 2 对照 |
 
-**未改名(自有命名,有意保留)**:`PI_SUBAGENT_*`/`PI_SUBAGENTS_*` 全系列、`pi-subagents:*` 协议常量、`pi-subagents.background-work.v1` 等注册表键、`.pi/subagents` 运行产物目录与 `pi-subagents/` worktree 分支前缀(决策 D3/D4)。
+**未改名(自有命名,有意保留)**:`PI_SUBAGENT_*`/`PI_SUBAGENTS_*` 全系列、`pi-subagents:*` 协议常量、`pi-subagents.background-work.v1` 等注册表键、`pi-subagents/` worktree 分支前缀(决策 D3/D4)。
+**已翻转(D4,v3)**:运行产物目录 `.pi/subagents` → **`.evoharness/subagents`**(产物目录位于配置目录内部;保留旧名会破坏 worktree 配置共享语义——Gate 2 实证)。
 
 ## 内核耦合点清单(改内核前先跑本包测试)
 

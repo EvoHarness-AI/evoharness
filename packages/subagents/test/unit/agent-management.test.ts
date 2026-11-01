@@ -1511,7 +1511,7 @@ Advise only.
 		assert.equal(result.isError, false);
 		const filePath = path.join(tempDir, ".evoharness", "agents", "child-tool-user.md");
 		const content = fs.readFileSync(filePath, "utf-8");
-		assert.match(content, /^subagentOnlyExtensions: \.\/tools\/child-only\.ts, \/opt.evoharness\/child\.ts$/m);
+		assert.match(content, /^subagentOnlyExtensions: \.\/tools\/child-only\.ts, \/opt\/pi\/child\.ts$/m);
 
 		const got = handleManagementAction("get", { agent: "child-tool-user" }, ctx);
 		assert.equal(got.isError, false);

@@ -98,7 +98,7 @@ describe("getPiSpawnCommand", () => {
 	for (const [platform, execPath] of [
 		["darwin", "/opt/pi/pi"],
 		["linux", "/opt/pi/pi"],
-		["win32", "C:\\Program Files\\Pi.evoharness.exe"],
+		["win32", "C:\\Program Files\\Pi\\pi.exe"],
 	] as const) {
 		it(`uses the standalone Pi executable directly on ${platform}`, () => {
 			const packageJsonPath = "/opt/pi-package/package.json";
