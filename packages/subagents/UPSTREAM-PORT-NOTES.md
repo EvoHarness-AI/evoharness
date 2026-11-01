@@ -59,7 +59,7 @@
 
 上游 `pi-subagents/.github/workflows/` 的有用部分已并入根 `ci.yml` 的 **`test (subagents)`** job,包内 `.github/` 已删除。根 `test` job 也补了 `timeout-minutes: 30` 并把 `packages/subagents` 移出 `other` 循环(原来它在 node22/无超时下跑 `test:unit`,一个 watch/spawn 用例可挂到 6h)。
 
-- **并入(按 evoharness 改造)**:取上游 ubuntu 已验证配方——**node 24**(非根其它 job 的 22)、job/step `timeout-minutes`、integration 步 `NODE_DISABLE_COMPILE_CACHE=1`;并**先 `build:offline` 宿主**(register-loader 经 dist 解析 `@evoharness/*`,与上游用 npm 装独立 pi 不同)。
+- **并入(按 evoharness 改造)**:取上游 ubuntu 已验证配方——**node 24**(非根其它 job 的 22)、job/step `timeout-minutes`、integration 步 `NODE_DISABLE_COMPILE_CACHE=1`;并**先 `npm run build` 宿主**(在线;`build:offline` 依赖 gitignore 的 model data,clean checkout 下会挂;register-loader 经 dist 解析 `@evoharness/*`,与上游用 npm 装独立 pi 不同)。
 - **integration 暂 report-only**(`continue-on-error`):monorepo 全量 integration 仍有跨文件 temp/lease 状态抖动(`result-publication`/`single-execution` 隔离绿、连跑偶红),Linux 首跑待观察,证稳后转 blocking。
 - **有意不并入**:
   - `release.yml`——本包 `private`、不发 npm,无 `dist-pkg`/provenance 需求。
