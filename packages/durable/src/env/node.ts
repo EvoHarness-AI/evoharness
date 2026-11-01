@@ -199,6 +199,29 @@ async function findBashOnPath(): Promise<string | null> {
 	return firstMatch && (await pathExists(firstMatch)) ? firstMatch : null;
 }
 
+/**
+ * Candidate bash.exe locations inside the installation tree of the git on PATH.
+ * Kept in sync with findGitBashCandidates in packages/coding-agent/src/utils/shell.ts:
+ * Git for Windows ships bash.exe under the install root while PATH usually carries
+ * only the git command directory, so a portable, per-user or other-drive install
+ * hid a Git Bash that was right there. Every candidate is inside the git tree, so a
+ * hit can only be that installation's bash.
+ */
+async function findGitBashCandidates(): Promise<string[]> {
+	const result = await runCommand("where", ["git.exe"], 5000);
+	if (result.status !== 0 || !result.stdout) return [];
+	const git = result.stdout.trim().split(/\r?\n/)[0];
+	if (!git) return [];
+	const gitDirectory = win32.dirname(git);
+	const root = win32.dirname(gitDirectory);
+	// gitDirectory\bash.exe covers a git whose directory already is `bin`.
+	return [
+		win32.join(root, "bin", "bash.exe"),
+		win32.join(root, "usr", "bin", "bash.exe"),
+		win32.join(gitDirectory, "bash.exe"),
+	];
+}
+
 interface ShellConfig {
 	shell: string;
 	args: string[];
@@ -241,6 +264,14 @@ async function getShellConfig(customShellPath?: string): Promise<Result<ShellCon
 				return ok(getBashShellConfig(candidate));
 			}
 		}
+		// Git elsewhere than the default directory: look beside the git that is on PATH.
+		const fromGit = await findGitBashCandidates();
+		for (const candidate of fromGit) {
+			if (await pathExists(candidate)) {
+				return ok(getBashShellConfig(candidate));
+			}
+		}
+		candidates.push(...fromGit);
 		const bashOnPath = await findBashOnPath();
 		if (bashOnPath) {
 			return ok(getBashShellConfig(bashOnPath));

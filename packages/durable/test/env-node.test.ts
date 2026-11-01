@@ -1008,3 +1008,27 @@ describe("NodeExecutionEnv shell", () => {
 		expect(spilled.at(-1)).toBe("line-15000");
 	});
 });
+
+// Git for Windows keeps bash.exe under the install root while PATH usually carries only
+// the git command directory, so a portable, per-user or other-drive install was invisible
+// to the known-locations list and exec failed with shell_unavailable. The resolution has
+// to find the Git Bash beside the git that is already on PATH.
+const gitOnPath =
+	process.platform === "win32" &&
+	(() => {
+		try {
+			execFileSync("where", ["git.exe"], { stdio: "ignore" });
+			return true;
+		} catch {
+			return false;
+		}
+	})();
+
+describe.skipIf(!gitOnPath)("Windows shell discovery beside git", () => {
+	it("resolves a POSIX shell without an explicit shellPath", async () => {
+		const env = new NodeExecutionEnv({ cwd: createTempDir() });
+		const collected = await collectShellOutput(env, "printf evoharness-shell-probe", undefined, BACKGROUND_CONTEXT);
+		getOrThrow(collected.result);
+		expect(collected.output).toBe("evoharness-shell-probe");
+	});
+});
