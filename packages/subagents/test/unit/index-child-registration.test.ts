@@ -3,8 +3,8 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import { WAIT_TOOL_ENABLED_ENV } from "../../src/runs/background/subagent-wait.ts";
 import { SUBAGENT_CHILD_ENV } from "../../src/runs/shared/child-runtime-config.ts";
 
@@ -93,7 +93,18 @@ describe("subagent extension child mode", () => {
 			const expected = ["subagent workflow (reply block) [async]", "subagent workflow ./ci/sweep.js", "subagent workflow review"];
 			if (JSON.stringify(rows) !== JSON.stringify(expected)) throw new Error("expected " + JSON.stringify(expected) + ", got " + JSON.stringify(rows));
 		`;
-		execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env: parentToolEnv(), stdio: "pipe" });
+		execFileSync(
+			process.execPath,
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"--eval",
+				script,
+			],
+			{ cwd: projectRoot, env: parentToolEnv(), stdio: "pipe" },
+		);
 	});
 
 	it("rejects model-sent workflowScript and workflowScriptPath on parent and fanout tools before execution", () => {
@@ -122,7 +133,18 @@ describe("subagent extension child mode", () => {
 			}
 			assert.deepEqual(expanded, [], "rejected calls must not reach parent execution");
 		`;
-		execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env: parentToolEnv(), stdio: "pipe" });
+		execFileSync(
+			process.execPath,
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"--eval",
+				script,
+			],
+			{ cwd: projectRoot, env: parentToolEnv(), stdio: "pipe" },
+		);
 	});
 
 	it("keeps registered tool errors actionable while successful results stay collapsed", () => {
@@ -258,7 +280,11 @@ describe("subagent extension child mode", () => {
 		try {
 			const configDir = path.join(agentDir, "extensions", "subagent");
 			fs.mkdirSync(configDir, { recursive: true });
-			fs.writeFileSync(path.join(configDir, "config.json"), JSON.stringify({ inlineToolDisplay: "summary" }), "utf-8");
+			fs.writeFileSync(
+				path.join(configDir, "config.json"),
+				JSON.stringify({ inlineToolDisplay: "summary" }),
+				"utf-8",
+			);
 
 			const script = String.raw`
 				import registerSubagentExtension from "./index.ts";
@@ -329,7 +355,18 @@ describe("subagent extension child mode", () => {
 			`;
 			const env = parentToolEnv();
 			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
+			execFileSync(
+				process.execPath,
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
+				{ cwd: projectRoot, env, stdio: "pipe" },
+			);
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
 		}
@@ -340,7 +377,11 @@ describe("subagent extension child mode", () => {
 		try {
 			const configDir = path.join(agentDir, "extensions", "subagent");
 			fs.mkdirSync(configDir, { recursive: true });
-			fs.writeFileSync(path.join(configDir, "config.json"), JSON.stringify({ mainWindowRenderer: { horizontalSpacing: 0 } }), "utf-8");
+			fs.writeFileSync(
+				path.join(configDir, "config.json"),
+				JSON.stringify({ mainWindowRenderer: { horizontalSpacing: 0 } }),
+				"utf-8",
+			);
 
 			const script = String.raw`
 				import registerSubagentExtension from "./index.ts";
@@ -359,7 +400,18 @@ describe("subagent extension child mode", () => {
 			`;
 			const env = parentToolEnv();
 			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
+			execFileSync(
+				process.execPath,
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
+				{ cwd: projectRoot, env, stdio: "pipe" },
+			);
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
 		}
@@ -370,7 +422,11 @@ describe("subagent extension child mode", () => {
 		try {
 			const configDir = path.join(agentDir, "extensions", "subagent");
 			fs.mkdirSync(configDir, { recursive: true });
-			fs.writeFileSync(path.join(configDir, "config.json"), JSON.stringify({ mainWindowRenderer: { horizontalSpacing: 0, compactResultMaxLines: 3 } }), "utf-8");
+			fs.writeFileSync(
+				path.join(configDir, "config.json"),
+				JSON.stringify({ mainWindowRenderer: { horizontalSpacing: 0, compactResultMaxLines: 3 } }),
+				"utf-8",
+			);
 
 			const script = String.raw`
 				import registerSubagentExtension from "./index.ts";
@@ -397,7 +453,18 @@ describe("subagent extension child mode", () => {
 			`;
 			const env = parentToolEnv();
 			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
+			execFileSync(
+				process.execPath,
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
+				{ cwd: projectRoot, env, stdio: "pipe" },
+			);
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
 		}
@@ -458,7 +525,18 @@ describe("subagent extension child mode", () => {
 				for (const handler of handlers.get("session_shutdown") ?? []) await handler();
 			`;
 			const env = parentToolEnv(agentDir);
-			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
+			execFileSync(
+				process.execPath,
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
+				{ cwd: projectRoot, env, stdio: "pipe" },
+			);
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
 		}
@@ -469,7 +547,11 @@ describe("subagent extension child mode", () => {
 		try {
 			const configDir = path.join(agentDir, "extensions", "subagent");
 			fs.mkdirSync(configDir, { recursive: true });
-			fs.writeFileSync(path.join(configDir, "config.json"), JSON.stringify({ waitTool: { enabled: false } }), "utf-8");
+			fs.writeFileSync(
+				path.join(configDir, "config.json"),
+				JSON.stringify({ waitTool: { enabled: false } }),
+				"utf-8",
+			);
 
 			const script = String.raw`
 				import registerSubagentExtension from "./index.ts";
@@ -539,15 +621,34 @@ describe("subagent extension child mode", () => {
 			try {
 				const configDir = path.join(agentDir, "extensions", "subagent");
 				fs.mkdirSync(configDir, { recursive: true });
-				fs.writeFileSync(path.join(configDir, "config.json"), JSON.stringify({ foregroundDetachShortcut: "ctrl+alt+d", ...config }), "utf-8");
-				const output = execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env: parentToolEnv(agentDir), encoding: "utf-8" });
+				fs.writeFileSync(
+					path.join(configDir, "config.json"),
+					JSON.stringify({ foregroundDetachShortcut: "ctrl+alt+d", ...config }),
+					"utf-8",
+				);
+				const output = execFileSync(
+					process.execPath,
+					[
+						"--experimental-strip-types",
+						"--import",
+						"./test/support/register-loader.mjs",
+						"--input-type=module",
+						"--eval",
+						script,
+					],
+					{ cwd: projectRoot, env: parentToolEnv(agentDir), encoding: "utf-8" },
+				);
 				return JSON.parse(output) as { tools: string[]; commands: string[]; shortcuts: string[] };
 			} finally {
 				fs.rmSync(agentDir, { recursive: true, force: true });
 			}
 		};
 		const defaults = register({});
-		assert.ok(defaults.commands.includes("run") && defaults.commands.includes("subagents-watchdog") && defaults.commands.includes("prompt-workflow"));
+		assert.ok(
+			defaults.commands.includes("run") &&
+				defaults.commands.includes("subagents-watchdog") &&
+				defaults.commands.includes("prompt-workflow"),
+		);
 		assert.deepEqual(defaults.shortcuts, ["ctrl+alt+d"]);
 		const disabled = register({ enableSlashCommands: false });
 		assert.deepEqual(disabled.commands, []);
@@ -636,7 +737,18 @@ describe("subagent extension child mode", () => {
 				fs.rmSync(channelDir, { recursive: true, force: true });
 			}
 		`;
-		execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env: parentToolEnv(), stdio: "pipe" });
+		execFileSync(
+			process.execPath,
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"--eval",
+				script,
+			],
+			{ cwd: projectRoot, env: parentToolEnv(), stdio: "pipe" },
+		);
 	});
 
 	it("does not restore the async widget from tool results when asyncWidget is disabled", () => {
@@ -674,7 +786,18 @@ describe("subagent extension child mode", () => {
 			`;
 			const env = parentToolEnv();
 			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
+			execFileSync(
+				process.execPath,
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
+				{ cwd: projectRoot, env, stdio: "pipe" },
+			);
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
 		}
@@ -685,7 +808,11 @@ describe("subagent extension child mode", () => {
 		try {
 			const configDir = path.join(agentDir, "extensions", "subagent");
 			fs.mkdirSync(configDir, { recursive: true });
-			fs.writeFileSync(path.join(configDir, "config.json"), JSON.stringify({ asyncWidgetCollapsed: true, asyncWidgetLayout: "rows" }), "utf-8");
+			fs.writeFileSync(
+				path.join(configDir, "config.json"),
+				JSON.stringify({ asyncWidgetCollapsed: true, asyncWidgetLayout: "rows" }),
+				"utf-8",
+			);
 			const script = String.raw`
 				import registerSubagentExtension from "./index.ts";
 				const eventHandlers = new Map();
@@ -721,7 +848,18 @@ describe("subagent extension child mode", () => {
 				for (const handler of handlers.get("session_shutdown")) await handler();
 			`;
 			const env = parentToolEnv(agentDir);
-			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
+			execFileSync(
+				process.execPath,
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
+				{ cwd: projectRoot, env, stdio: "pipe" },
+			);
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
 		}
@@ -762,7 +900,18 @@ describe("subagent extension child mode", () => {
 			`;
 			const env = parentToolEnv();
 			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
+			execFileSync(
+				process.execPath,
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
+				{ cwd: projectRoot, env, stdio: "pipe" },
+			);
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
 		}
@@ -819,7 +968,18 @@ describe("subagent extension child mode", () => {
 			for (const handler of handlers.get("session_shutdown")) await handler();
 			fs.rmSync(asyncDir, { recursive: true, force: true });
 		`;
-		execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env: parentToolEnv(), stdio: "pipe" });
+		execFileSync(
+			process.execPath,
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"--eval",
+				script,
+			],
+			{ cwd: projectRoot, env: parentToolEnv(), stdio: "pipe" },
+		);
 	});
 
 	it("registers pi-web liveness for the current session and releases it on shutdown", () => {
@@ -885,7 +1045,18 @@ describe("subagent extension child mode", () => {
 			if (released !== 1) throw new Error("liveness registration was not released exactly once: " + released);
 			delete globalThis[registryKey];
 		`;
-		execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env: parentToolEnv(), stdio: "pipe" });
+		execFileSync(
+			process.execPath,
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"--eval",
+				script,
+			],
+			{ cwd: projectRoot, env: parentToolEnv(), stdio: "pipe" },
+		);
 	});
 
 	it("keeps independent extension runtimes active in one process", () => {
@@ -993,7 +1164,14 @@ describe("subagent extension child mode", () => {
 
 		execFileSync(
 			process.execPath,
-			["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script],
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"--eval",
+				script,
+			],
 			{ cwd: projectRoot, env: parentToolEnv(), stdio: "pipe" },
 		);
 	});
@@ -1042,7 +1220,14 @@ describe("subagent extension child mode", () => {
 
 		execFileSync(
 			process.execPath,
-			["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script],
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"--eval",
+				script,
+			],
 			{ cwd: projectRoot, env: parentToolEnv(), stdio: "pipe" },
 		);
 	});
@@ -1051,7 +1236,11 @@ describe("subagent extension child mode", () => {
 		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-notify-shutdown-"));
 		const configDir = path.join(agentDir, "extensions", "subagent");
 		fs.mkdirSync(configDir, { recursive: true });
-		fs.writeFileSync(path.join(configDir, "config.json"), JSON.stringify({ completionBatch: { enabled: true, debounceMs: 150 } }), "utf-8");
+		fs.writeFileSync(
+			path.join(configDir, "config.json"),
+			JSON.stringify({ completionBatch: { enabled: true, debounceMs: 150 } }),
+			"utf-8",
+		);
 		const script = String.raw`
 			import registerSubagentExtension from "./index.ts";
 			import { currentCompletionOwnerId } from "./src/shared/completion-owner.ts";
@@ -1115,7 +1304,14 @@ describe("subagent extension child mode", () => {
 			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			execFileSync(
 				process.execPath,
-				["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script],
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
 				{ cwd: projectRoot, env, stdio: "pipe" },
 			);
 		} finally {
@@ -1127,7 +1323,11 @@ describe("subagent extension child mode", () => {
 		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-notify-reload-"));
 		const configDir = path.join(agentDir, "extensions", "subagent");
 		fs.mkdirSync(configDir, { recursive: true });
-		fs.writeFileSync(path.join(configDir, "config.json"), JSON.stringify({ completionBatch: { enabled: true, debounceMs: 150 } }), "utf-8");
+		fs.writeFileSync(
+			path.join(configDir, "config.json"),
+			JSON.stringify({ completionBatch: { enabled: true, debounceMs: 150 } }),
+			"utf-8",
+		);
 		const script = String.raw`
 			import registerSubagentExtension from "./index.ts";
 			import { currentCompletionOwnerId } from "./src/shared/completion-owner.ts";
@@ -1228,7 +1428,14 @@ describe("subagent extension child mode", () => {
 			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			execFileSync(
 				process.execPath,
-				["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script],
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
 				{ cwd: projectRoot, env, stdio: "pipe" },
 			);
 		} finally {
@@ -1240,7 +1447,11 @@ describe("subagent extension child mode", () => {
 		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-stale-ui-reload-"));
 		const configDir = path.join(agentDir, "extensions", "subagent");
 		fs.mkdirSync(configDir, { recursive: true });
-		fs.writeFileSync(path.join(configDir, "config.json"), JSON.stringify({ asyncWidget: false, fleetView: false }), "utf-8");
+		fs.writeFileSync(
+			path.join(configDir, "config.json"),
+			JSON.stringify({ asyncWidget: false, fleetView: false }),
+			"utf-8",
+		);
 		const script = String.raw`
 			import registerSubagentExtension from "./index.ts";
 			const handlers = new Map();
@@ -1276,7 +1487,14 @@ describe("subagent extension child mode", () => {
 			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 			execFileSync(
 				process.execPath,
-				["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script],
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
 				{ cwd: projectRoot, env, stdio: "pipe" },
 			);
 		} finally {
@@ -1288,7 +1506,11 @@ describe("subagent extension child mode", () => {
 		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-session-transition-"));
 		const configDir = path.join(agentDir, "extensions", "subagent");
 		fs.mkdirSync(configDir, { recursive: true });
-		fs.writeFileSync(path.join(configDir, "config.json"), JSON.stringify({ completionBatch: { enabled: false } }), "utf-8");
+		fs.writeFileSync(
+			path.join(configDir, "config.json"),
+			JSON.stringify({ completionBatch: { enabled: false } }),
+			"utf-8",
+		);
 		const script = String.raw`
 			import fs from "node:fs";
 			import path from "node:path";
@@ -1353,7 +1575,18 @@ describe("subagent extension child mode", () => {
 		try {
 			const env = parentToolEnv();
 			env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
-			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
+			execFileSync(
+				process.execPath,
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
+				{ cwd: projectRoot, env, stdio: "pipe" },
+			);
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
 		}
@@ -1438,7 +1671,18 @@ describe("subagent extension child mode", () => {
 			}
 		`;
 		try {
-			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env: parentToolEnv(agentDir), stdio: "pipe" });
+			execFileSync(
+				process.execPath,
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
+				{ cwd: projectRoot, env: parentToolEnv(agentDir), stdio: "pipe" },
+			);
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
 		}
@@ -1510,7 +1754,18 @@ describe("subagent extension child mode", () => {
 			assert.deepEqual(await modelContext([user, unrelated, assistant]), [user, unrelated, assistant]);
 		`;
 		try {
-			execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env: parentToolEnv(agentDir), stdio: "pipe" });
+			execFileSync(
+				process.execPath,
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
+				{ cwd: projectRoot, env: parentToolEnv(agentDir), stdio: "pipe" },
+			);
 		} finally {
 			fs.rmSync(agentDir, { recursive: true, force: true });
 		}
@@ -1593,11 +1848,27 @@ describe("subagent extension child mode", () => {
 			console.log(JSON.stringify({ messageTypes: messageRenderers.map(([type]) => type).sort(), entryTypes: entryRenderers.map(([type]) => type).sort(), blocks }));
 		`;
 
-		const output = JSON.parse(execFileSync(
-			process.execPath,
-			["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script],
-			{ cwd: projectRoot, env: parentToolEnv(), encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
-		).trim().split("\n").at(-1)!) as { messageTypes: string[]; entryTypes: string[]; blocks: { messages: Array<[string, string[]]>; entries: Array<[string, string[]]> } };
+		const output = JSON.parse(
+			execFileSync(
+				process.execPath,
+				[
+					"--experimental-strip-types",
+					"--import",
+					"./test/support/register-loader.mjs",
+					"--input-type=module",
+					"--eval",
+					script,
+				],
+				{ cwd: projectRoot, env: parentToolEnv(), encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] },
+			)
+				.trim()
+				.split("\n")
+				.at(-1)!,
+		) as {
+			messageTypes: string[];
+			entryTypes: string[];
+			blocks: { messages: Array<[string, string[]]>; entries: Array<[string, string[]]> };
+		};
 
 		assert.deepEqual(output.messageTypes, [
 			"subagent-auto-resume",
@@ -1693,7 +1964,12 @@ describe("subagent extension child mode", () => {
 
 	it("tells the user to restart Pi when the installed version changed after load", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-stale-load-"));
-		for (const file of ["index.ts", "package.json", "src/runs/shared/herdr-pi-protocol.ts", "src/shared/package-version.ts"]) {
+		for (const file of [
+			"index.ts",
+			"package.json",
+			"src/runs/shared/herdr-pi-protocol.ts",
+			"src/shared/package-version.ts",
+		]) {
 			fs.mkdirSync(path.dirname(path.join(root, file)), { recursive: true });
 			fs.copyFileSync(path.join(projectRoot, file), path.join(root, file));
 		}
@@ -1705,13 +1981,20 @@ describe("subagent extension child mode", () => {
 			fs.writeFileSync("package.json", JSON.stringify({ ...manifest, version: "999.0.0" }));
 			try { registerSubagentExtension({}); } catch (error) { console.log(error.message); }
 		`;
-		const output = execFileSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "--eval", script], {
-			cwd: root,
-			env: { ...parentToolEnv(), [SUBAGENT_CHILD_ENV]: "1" },
-			encoding: "utf-8",
-		});
+		const output = execFileSync(
+			process.execPath,
+			["--experimental-strip-types", "--input-type=module", "--eval", script],
+			{
+				cwd: root,
+				env: { ...parentToolEnv(), [SUBAGENT_CHILD_ENV]: "1" },
+				encoding: "utf-8",
+			},
+		);
 		const loaded = JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf-8")).version;
-		assert.equal(output.trim(), `pi-subagents 999.0.0 is installed, but this Pi process still has ${loaded} loaded. Restart Pi to load the update; /reload cannot replace extension modules that Node has already loaded.`);
+		assert.equal(
+			output.trim(),
+			`pi-subagents 999.0.0 is installed, but this Pi process still has ${loaded} loaded. Restart Pi to load the update; /reload cannot replace extension modules that Node has already loaded.`,
+		);
 	});
 
 	it("does not double-register the child-safe subagent tool when index and fanout-child both load", () => {

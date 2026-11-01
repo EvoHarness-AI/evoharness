@@ -5,13 +5,40 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { discoverAgents, formatUnknownAgentError, unknownAgentDiagnosticContext, type AgentConfig, type AgentScope, type UnknownAgentDiagnosticContext } from "../agents/agents.ts";
+import {
+	type AgentConfig,
+	type AgentScope,
+	discoverAgents,
+	formatUnknownAgentError,
+	type UnknownAgentDiagnosticContext,
+	unknownAgentDiagnosticContext,
+} from "../agents/agents.ts";
 import { normalizeSkillInput } from "../agents/skills.ts";
-import { normalizeOutputOverride, type OutputOverrideInput, type ResolvedStepBehavior } from "../runs/shared/child-launch-plan.ts";
-import { CHAIN_RUNS_DIR, type AcceptanceInput, type AgentContract, type ChainGateLayer, type JsonSchemaObject, type OutputMode, type ToolBudgetConfig } from "./types.ts";
+import {
+	normalizeOutputOverride,
+	type OutputOverrideInput,
+	type ResolvedStepBehavior,
+} from "../runs/shared/child-launch-plan.ts";
+import {
+	type AcceptanceInput,
+	type AgentContract,
+	CHAIN_RUNS_DIR,
+	type ChainGateLayer,
+	type JsonSchemaObject,
+	type OutputMode,
+	type ToolBudgetConfig,
+} from "./types.ts";
+
 const CHAIN_DIR_MAX_AGE_MS = 24 * 60 * 60 * 1000; // 24 hours
 const INITIAL_PROGRESS_CONTENT = "# Progress\n\n## Status\nIn Progress\n\n## Tasks\n\n## Files Changed\n\n## Notes\n";
 
+export type {
+	ChildLaunchPlan,
+	ChildLaunchPlanInput,
+	OutputOverrideInput,
+	ResolvedStepBehavior,
+	StepOverrides,
+} from "../runs/shared/child-launch-plan.ts";
 export {
 	planChildLaunch,
 	resolveStepBehavior,
@@ -19,7 +46,6 @@ export {
 	suppressProgressForReadOnlyTask,
 	taskDisallowsFileUpdates,
 } from "../runs/shared/child-launch-plan.ts";
-export type { ChildLaunchPlan, ChildLaunchPlanInput, OutputOverrideInput, ResolvedStepBehavior, StepOverrides } from "../runs/shared/child-launch-plan.ts";
 
 // =============================================================================
 // Chain Step Types
@@ -129,7 +155,12 @@ export function isParallelStep(step: ChainStep): step is ParallelStep {
 }
 
 export function isDynamicParallelStep(step: ChainStep): step is DynamicParallelStep {
-	return "expand" in step && "collect" in step && "parallel" in step && !Array.isArray((step as { parallel?: unknown }).parallel);
+	return (
+		"expand" in step &&
+		"collect" in step &&
+		"parallel" in step &&
+		!Array.isArray((step as { parallel?: unknown }).parallel)
+	);
 }
 
 /** Get all agent names in a step (single for sequential, multiple for parallel) */
@@ -197,9 +228,7 @@ export type ResolvedTemplates = (string | string[])[];
  * Resolve templates for a chain with parallel step support.
  * Returns string for sequential steps, string[] for parallel steps.
  */
-export function resolveChainTemplates(
-	steps: ChainStep[],
-): ResolvedTemplates {
+export function resolveChainTemplates(steps: ChainStep[]): ResolvedTemplates {
 	return steps.map((step, i) => {
 		if (isParallelStep(step)) {
 			// Parallel step: resolve each task's template
@@ -243,7 +272,11 @@ export function resolveChainPath(filePath: string, chainDir: string): string {
 	return path.isAbsolute(expanded) ? expanded : path.join(chainDir, expanded);
 }
 
-export function resolveExistingReadInstructionPaths(reads: readonly string[], instructionCwd: string, existenceCwd = instructionCwd): string[] {
+export function resolveExistingReadInstructionPaths(
+	reads: readonly string[],
+	instructionCwd: string,
+	existenceCwd = instructionCwd,
+): string[] {
 	return reads.flatMap((filePath) => {
 		const instructionPath = resolveChainPath(filePath, instructionCwd);
 		const existencePath = resolveChainPath(filePath, existenceCwd);
@@ -301,13 +334,9 @@ export function buildChainInstructions(
 		suffixParts.push(`Previous step output:\n${previousSummary.trim()}`);
 	}
 
-	const prefix = prefixParts.length > 0 
-		? prefixParts.join("\n") + "\n\n"
-		: "";
-	
-	const suffix = suffixParts.length > 0
-		? "\n\n---\n" + suffixParts.join("\n")
-		: "";
+	const prefix = prefixParts.length > 0 ? prefixParts.join("\n") + "\n\n" : "";
+
+	const suffix = suffixParts.length > 0 ? "\n\n---\n" + suffixParts.join("\n") : "";
 
 	return { prefix, suffix };
 }
@@ -333,10 +362,16 @@ export function resolveParallelBehaviors(
 	return tasks.map((task, taskIndex) => {
 		const config = agentConfigs.find((a) => a.name === task.agent);
 		if (!config) {
-			if (!diagnostics) throw new Error("resolveParallelBehaviors requires unknown-agent diagnostic context or fallback discovery input.");
-			const context = "directories" in diagnostics
-				? diagnostics
-				: unknownAgentDiagnosticContext(discoverAgents(path.resolve(diagnostics.cwd), diagnostics.scope ?? "both"));
+			if (!diagnostics)
+				throw new Error(
+					"resolveParallelBehaviors requires unknown-agent diagnostic context or fallback discovery input.",
+				);
+			const context =
+				"directories" in diagnostics
+					? diagnostics
+					: unknownAgentDiagnosticContext(
+							discoverAgents(path.resolve(diagnostics.cwd), diagnostics.scope ?? "both"),
+						);
 			throw new Error(formatUnknownAgentError(task.agent, context));
 		}
 
@@ -362,14 +397,10 @@ export function resolveParallelBehaviors(
 		}
 
 		// Reads: task override > agent default > false
-		const reads =
-			task.reads !== undefined ? task.reads : config.defaultReads ?? false;
+		const reads = task.reads !== undefined ? task.reads : (config.defaultReads ?? false);
 
 		// Progress: task override > agent default > false
-		const progress =
-			task.progress !== undefined
-				? task.progress
-				: config.defaultProgress ?? false;
+		const progress = task.progress !== undefined ? task.progress : (config.defaultProgress ?? false);
 
 		const taskSkillInput = normalizeSkillInput(task.skill);
 		let skills: string[] | false;
@@ -396,12 +427,7 @@ export function resolveParallelBehaviors(
 /**
  * Create subdirectories for parallel step outputs
  */
-export function createParallelDirs(
-	chainDir: string,
-	stepIndex: number,
-	taskCount: number,
-	agentNames: string[],
-): void {
+export function createParallelDirs(chainDir: string, stepIndex: number, taskCount: number, agentNames: string[]): void {
 	for (let i = 0; i < taskCount; i++) {
 		const subdir = path.join(chainDir, `parallel-${stepIndex}`, `${i}-${agentNames[i]}`);
 		fs.mkdirSync(subdir, { recursive: true });

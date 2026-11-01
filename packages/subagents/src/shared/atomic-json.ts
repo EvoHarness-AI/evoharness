@@ -1,7 +1,11 @@
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { DEFAULT_FILE_SYSTEM_RETRY_DELAYS_MS, runFileSystemOperationWithRetry, waitForFileSystemRetry } from "./file-system-retry.ts";
+import {
+	DEFAULT_FILE_SYSTEM_RETRY_DELAYS_MS,
+	runFileSystemOperationWithRetry,
+	waitForFileSystemRetry,
+} from "./file-system-retry.ts";
 
 type AtomicJsonFs = Pick<typeof fs, "mkdirSync" | "writeFileSync" | "renameSync" | "rmSync">;
 
@@ -27,9 +31,12 @@ function renameWithRetry(
 	retryDelaysMs: readonly number[],
 	wait: (delayMs: number) => void,
 ): void {
-	runFileSystemOperationWithRetry(() => {
-		fsImpl.renameSync(sourcePath, targetPath);
-	}, { retryDelaysMs, wait });
+	runFileSystemOperationWithRetry(
+		() => {
+			fsImpl.renameSync(sourcePath, targetPath);
+		},
+		{ retryDelaysMs, wait },
+	);
 }
 
 function tempBaseName(filePath: string, pid: number, nowMs: number, randomId: string): string {
@@ -40,7 +47,9 @@ function tempBaseName(filePath: string, pid: number, nowMs: number, randomId: st
 }
 
 /** `beforeRename` runs after the payload is written to its temporary file and before it appears at `filePath`. */
-export function createAtomicJsonWriter(options: AtomicJsonWriterOptions = {}): (filePath: string, payload: object, beforeRename?: () => void) => void {
+export function createAtomicJsonWriter(
+	options: AtomicJsonWriterOptions = {},
+): (filePath: string, payload: object, beforeRename?: () => void) => void {
 	const fsImpl = options.fs ?? fs;
 	const now = options.now ?? Date.now;
 	const pid = options.pid ?? process.pid;
@@ -54,16 +63,23 @@ export function createAtomicJsonWriter(options: AtomicJsonWriterOptions = {}): (
 	const directoryRetryDelaysMs = retryDirectoryErrors ? retryDelaysMs : [];
 	const wait = options.wait ?? waitForFileSystemRetry;
 	return (filePath: string, payload: object, beforeRename?: () => void): void => {
-		runFileSystemOperationWithRetry(() => {
-			fsImpl.mkdirSync(path.dirname(filePath), { recursive: true });
-		}, { retryDelaysMs: directoryRetryDelaysMs, wait });
+		runFileSystemOperationWithRetry(
+			() => {
+				fsImpl.mkdirSync(path.dirname(filePath), { recursive: true });
+			},
+			{ retryDelaysMs: directoryRetryDelaysMs, wait },
+		);
 		const tempPath = path.join(
 			path.dirname(filePath),
 			tempBaseName(filePath, pid, now(), random().toString(36).slice(2)),
 		);
 		let writeError: unknown;
 		try {
-			fsImpl.writeFileSync(tempPath, JSON.stringify(payload, null, 2), mode === undefined ? "utf-8" : { encoding: "utf-8", mode });
+			fsImpl.writeFileSync(
+				tempPath,
+				JSON.stringify(payload, null, 2),
+				mode === undefined ? "utf-8" : { encoding: "utf-8", mode },
+			);
 			beforeRename?.();
 			renameWithRetry(fsImpl, tempPath, filePath, renameRetryDelaysMs, wait);
 		} catch (error) {

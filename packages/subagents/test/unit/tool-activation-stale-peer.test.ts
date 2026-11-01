@@ -6,8 +6,11 @@ test("activates against the running Pi when a package-local pi-ai lacks transcri
 	// Simulate an older pi-ai installed beside this package, not the running host.
 	const hook = registerHooks({
 		resolve(specifier, context, nextResolve) {
-			if (specifier === "@evoharness/ai" && context.parentURL &&
-				new URL(context.parentURL).pathname.endsWith("/src/extension/tool-activation.ts")) {
+			if (
+				specifier === "@evoharness/ai" &&
+				context.parentURL &&
+				new URL(context.parentURL).pathname.endsWith("/src/extension/tool-activation.ts")
+			) {
 				return { url: "data:text/javascript,export const legacy = true", shortCircuit: true };
 			}
 			return nextResolve(specifier, context);
@@ -20,7 +23,9 @@ test("activates against the running Pi when a package-local pi-ai lacks transcri
 			getAllTools: () => [...tools].map((name) => ({ name })),
 			getActiveTools: () => ["read", "subagent"],
 			setActiveTools() {},
-			registerTool: (tool: { name: string }) => { tools.add(tool.name); },
+			registerTool: (tool: { name: string }) => {
+				tools.add(tool.name);
+			},
 			on: () => () => {},
 		};
 		// SAFETY: activation calls only the five Pi methods supplied by this fixture.

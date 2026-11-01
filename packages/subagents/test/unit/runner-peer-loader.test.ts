@@ -23,17 +23,26 @@ test("native preload leaves the SDK extension loader's require.resolve intact", 
 		fs.mkdirSync(typeboxRoot, { recursive: true });
 		fs.writeFileSync(sdkLoader, "");
 		fs.writeFileSync(target, "export const Type = {};\n");
-		fs.writeFileSync(path.join(typeboxRoot, "package.json"), JSON.stringify({ name: "typebox", type: "module", exports: "./index.mjs" }));
-		const child = spawnSync(process.execPath, [
-			"--import", new URL("../../runner-peer-preload.mjs", import.meta.url).href,
-			"--input-type=module", "-e",
-			"import { createRequire } from 'node:module'; console.log(createRequire(process.argv[1]).resolve('typebox'));",
-			sdkLoader,
-		], {
-			encoding: "utf8",
-			env: { ...process.env, JITI_ALIAS: JSON.stringify({ typebox: target }), PI_ASYNC_NATIVE_RUNNER: "1" },
-			timeout: 10_000,
-		});
+		fs.writeFileSync(
+			path.join(typeboxRoot, "package.json"),
+			JSON.stringify({ name: "typebox", type: "module", exports: "./index.mjs" }),
+		);
+		const child = spawnSync(
+			process.execPath,
+			[
+				"--import",
+				new URL("../../runner-peer-preload.mjs", import.meta.url).href,
+				"--input-type=module",
+				"-e",
+				"import { createRequire } from 'node:module'; console.log(createRequire(process.argv[1]).resolve('typebox'));",
+				sdkLoader,
+			],
+			{
+				encoding: "utf8",
+				env: { ...process.env, JITI_ALIAS: JSON.stringify({ typebox: target }), PI_ASYNC_NATIVE_RUNNER: "1" },
+				timeout: 10_000,
+			},
+		);
 		assert.equal(child.status, 0, child.stderr);
 		// Node 24 returns the alias path verbatim and Node 25 the realpath; on macOS /var is a symlink to /private/var.
 		assert.equal(fs.realpathSync(child.stdout.trim()), fs.realpathSync(target));
@@ -48,16 +57,28 @@ test("fallback loader aliases every host peer for a plain-JavaScript runner", as
 	const loader = await import(`${loaderUrl.href}?native`);
 	loader.initialize({ aliases, nativeRunner: true });
 	const packageContext = { parentURL: new URL("src/runs/background/subagent-runner.js", packageRootUrl).href };
-	assert.equal(loader.resolve("@evoharness/ai", packageContext, passthrough).url, pathToFileURL(aliases["@evoharness/ai"]).href);
-	assert.equal(loader.resolve("@evoharness/tui", packageContext, passthrough).url, pathToFileURL(aliases["@evoharness/tui"]).href);
+	assert.equal(
+		loader.resolve("@evoharness/ai", packageContext, passthrough).url,
+		pathToFileURL(aliases["@evoharness/ai"]).href,
+	);
+	assert.equal(
+		loader.resolve("@evoharness/tui", packageContext, passthrough).url,
+		pathToFileURL(aliases["@evoharness/tui"]).href,
+	);
 	assert.equal(loader.resolve("node:fs", packageContext, passthrough).url, "node:fs");
-	assert.equal(loader.resolve("@evoharness/ai", { parentURL: "file:///host/pi-loader.js" }, passthrough).url, pathToFileURL(aliases["@evoharness/ai"]).href);
+	assert.equal(
+		loader.resolve("@evoharness/ai", { parentURL: "file:///host/pi-loader.js" }, passthrough).url,
+		pathToFileURL(aliases["@evoharness/ai"]).href,
+	);
 });
 
 test("fallback loader aliases external imports for a native TypeScript runner", async () => {
 	const loader = await import(`${loaderUrl.href}?native-typescript`);
 	loader.initialize({ aliases, nativeRunner: true });
-	assert.equal(loader.resolve("@evoharness/ai", { parentURL: "file:///tmp/child-factory.mjs" }, passthrough).url, pathToFileURL(aliases["@evoharness/ai"]).href);
+	assert.equal(
+		loader.resolve("@evoharness/ai", { parentURL: "file:///tmp/child-factory.mjs" }, passthrough).url,
+		pathToFileURL(aliases["@evoharness/ai"]).href,
+	);
 });
 
 test("fallback loader redirects only the TUI for a jiti-hosted TypeScript runner", async () => {

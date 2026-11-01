@@ -40,7 +40,11 @@ export interface WatchdogRepoChangeSignature {
 }
 
 function git(cwd: string, args: string[]): string | undefined {
-	const result = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf-8", maxBuffer: 10 * 1024 * 1024, windowsHide: true });
+	const result = spawnSync("git", ["-C", cwd, ...args], {
+		encoding: "utf-8",
+		maxBuffer: 10 * 1024 * 1024,
+		windowsHide: true,
+	});
 	if (result.status !== 0) return undefined;
 	return result.stdout;
 }
@@ -82,9 +86,11 @@ function normalizeRelPath(value: string): string {
 
 function ignoredRelPath(relPath: string): boolean {
 	const normalized = normalizeRelPath(relPath);
-	return IGNORED_CHANGE_PATHS.has(normalized)
-		|| IGNORED_CHANGE_PREFIXES.some((prefix) => normalized.startsWith(prefix))
-		|| normalized.split("/").some((segment) => IGNORED_CHANGE_SEGMENTS.has(segment));
+	return (
+		IGNORED_CHANGE_PATHS.has(normalized) ||
+		IGNORED_CHANGE_PREFIXES.some((prefix) => normalized.startsWith(prefix)) ||
+		normalized.split("/").some((segment) => IGNORED_CHANGE_SEGMENTS.has(segment))
+	);
 }
 
 interface HashBudget {
@@ -124,7 +130,11 @@ function hashFileEntry(normalized: string, fullPath: string, stat: fs.Stats, bud
 			// metadata marker so one unreadable file never discards the whole signature.
 			hash = largeFileHash(stat);
 			if (code !== "ERR_FS_FILE_TOO_LARGE") {
-				console.warn("[pi-subagents] watchdog hashFile fell back to metadata for", normalized + ":", (error as Error)?.message);
+				console.warn(
+					"[pi-subagents] watchdog hashFile fell back to metadata for",
+					normalized + ":",
+					(error as Error)?.message,
+				);
 			}
 		}
 	}
@@ -158,7 +168,8 @@ function hashPath(root: string, relPath: string, budget: HashBudget): unknown {
 	}
 	if (stat.isDirectory()) {
 		if (fs.existsSync(path.join(fullPath, ".git"))) return gitWorktreeEntry(normalized, fullPath);
-		const entries = fs.readdirSync(fullPath)
+		const entries = fs
+			.readdirSync(fullPath)
 			.map((entry) => normalizeRelPath(path.posix.join(normalized, entry)))
 			.filter((entry) => !ignoredRelPath(entry))
 			.sort();
@@ -166,7 +177,12 @@ function hashPath(root: string, relPath: string, budget: HashBudget): unknown {
 		const selectedEntries = entries.slice(0, remainingEntries);
 		const childEntries = selectedEntries.map((entry) => hashPath(root, entry, budget));
 		if (selectedEntries.length < entries.length) {
-			childEntries.push({ path: normalized, state: "skipped-children", reason: "entry-limit", count: entries.length - selectedEntries.length });
+			childEntries.push({
+				path: normalized,
+				state: "skipped-children",
+				reason: "entry-limit",
+				count: entries.length - selectedEntries.length,
+			});
 		}
 		return { path: normalized, state: "dir", entries: childEntries };
 	}
@@ -252,8 +268,11 @@ export function eventIndicatesRepoEdit(event: unknown): boolean {
 	if (!event || typeof event !== "object") return false;
 	const input = event as Record<string, unknown>;
 	if (input.type === "turn_end" || input.event === "turn_end") {
-		return [input.message, ...(Array.isArray(input.toolResults) ? input.toolResults : [])].some(messageIndicatesRepoEdit);
+		return [input.message, ...(Array.isArray(input.toolResults) ? input.toolResults : [])].some(
+			messageIndicatesRepoEdit,
+		);
 	}
-	if (input.type === "tool_result" || input.event === "tool_result") return messageIndicatesRepoEdit({ role: "toolResult", ...input });
+	if (input.type === "tool_result" || input.event === "tool_result")
+		return messageIndicatesRepoEdit({ role: "toolResult", ...input });
 	return false;
 }

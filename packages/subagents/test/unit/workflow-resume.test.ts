@@ -4,28 +4,65 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 import { currentBootId } from "../../src/runs/background/boot-id.ts";
-import { writeWorkflowLaunchRecord, type WorkflowLaunchRecord } from "../../src/workflows/workflow-launch-record.ts";
-import { readWorkflowResumeClaim } from "../../src/workflows/workflow-resume-claim.ts";
+import { type WorkflowLaunchRecord, writeWorkflowLaunchRecord } from "../../src/workflows/workflow-launch-record.ts";
 import { prepareWorkflowResume } from "../../src/workflows/workflow-resume.ts";
+import { readWorkflowResumeClaim } from "../../src/workflows/workflow-resume-claim.ts";
 import { workflowScriptDigest } from "../../src/workflows/workflow-reuse.ts";
 
 const SCRIPT = "return args;";
-const scriptLaunch: WorkflowLaunchRecord = { version: 1, source: "script", params: { workflowScript: SCRIPT, args: { n: 1 }, cwd: "/repo" }, scriptDigest: workflowScriptDigest(SCRIPT) };
+const scriptLaunch: WorkflowLaunchRecord = {
+	version: 1,
+	source: "script",
+	params: { workflowScript: SCRIPT, args: { n: 1 }, cwd: "/repo" },
+	scriptDigest: workflowScriptDigest(SCRIPT),
+};
 const relaunch = (runId: string) => `Relaunch it by hand with options: { reuseFrom: "${runId}" }.`;
 
 describe("prepareWorkflowResume", () => {
-	const withRoot = (body: (root: string, writeRun: (runId: string, options?: { stopCause?: string; attempt?: number; state?: string; launch?: WorkflowLaunchRecord | string | null; ceiling?: unknown }) => void) => void) => {
+	const withRoot = (
+		body: (
+			root: string,
+			writeRun: (
+				runId: string,
+				options?: {
+					stopCause?: string;
+					attempt?: number;
+					state?: string;
+					launch?: WorkflowLaunchRecord | string | null;
+					ceiling?: unknown;
+				},
+			) => void,
+		) => void,
+	) => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-workflow-resume-"));
 		try {
 			body(root, (runId, options = {}) => {
 				const asyncDir = path.join(root, runId);
 				fs.mkdirSync(asyncDir, { recursive: true });
 				const stopCause = options.stopCause === undefined ? "runtime-replaced" : options.stopCause;
-				fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-					runId, sessionId: "session", mode: "workflow", state: options.state ?? "failed", startedAt: 1, endedAt: 2, cwd: "/repo",
-					...(options.ceiling ? { admissionCapabilityCeiling: options.ceiling } : {}),
-					workflow: { trace: [], emits: [], console: [], scriptDigest: workflowScriptDigest(SCRIPT), ...(stopCause ? { stopCause } : {}), ...(options.attempt !== undefined ? { resumeOrigin: { sourceRunId: "older", attempt: options.attempt } } : {}) },
-				}));
+				fs.writeFileSync(
+					path.join(asyncDir, "status.json"),
+					JSON.stringify({
+						runId,
+						sessionId: "session",
+						mode: "workflow",
+						state: options.state ?? "failed",
+						startedAt: 1,
+						endedAt: 2,
+						cwd: "/repo",
+						...(options.ceiling ? { admissionCapabilityCeiling: options.ceiling } : {}),
+						workflow: {
+							trace: [],
+							emits: [],
+							console: [],
+							scriptDigest: workflowScriptDigest(SCRIPT),
+							...(stopCause ? { stopCause } : {}),
+							...(options.attempt !== undefined
+								? { resumeOrigin: { sourceRunId: "older", attempt: options.attempt } }
+								: {}),
+						},
+					}),
+				);
 				const launch = options.launch === undefined ? scriptLaunch : options.launch;
 				if (typeof launch === "string") fs.writeFileSync(path.join(asyncDir, "launch.json"), launch);
 				else if (launch) writeWorkflowLaunchRecord(asyncDir, launch);
@@ -34,7 +71,8 @@ describe("prepareWorkflowResume", () => {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	};
-	const prepare = (root: string, runId: string, trigger: "auto" | "manual" = "manual") => prepareWorkflowResume({ asyncDirRoot: root, sourceRunId: runId, trigger, now: 10, currentSessionId: "session" });
+	const prepare = (root: string, runId: string, trigger: "auto" | "manual" = "manual") =>
+		prepareWorkflowResume({ asyncDirRoot: root, sourceRunId: runId, trigger, now: 10, currentSessionId: "session" });
 
 	it("claims the run and builds the relaunch from the saved launch", () => {
 		withRoot((root, writeRun) => {
@@ -43,11 +81,21 @@ describe("prepareWorkflowResume", () => {
 			const prepared = prepare(root, "source");
 			assert.equal(prepared.ok, true);
 			if (!prepared.ok) return;
-			assert.deepEqual(prepared.prepared.params, { workflowScript: SCRIPT, args: { n: 1 }, cwd: "/repo", async: true, reuseFrom: "source", capabilityCeiling: ceiling });
+			assert.deepEqual(prepared.prepared.params, {
+				workflowScript: SCRIPT,
+				args: { n: 1 },
+				cwd: "/repo",
+				async: true,
+				reuseFrom: "source",
+				capabilityCeiling: ceiling,
+			});
 			assert.deepEqual(prepared.prepared.resumeOrigin, { sourceRunId: "source", attempt: 0 });
 			assert.equal(prepared.prepared.expectedScriptDigest, workflowScriptDigest(SCRIPT));
 			const claim = readWorkflowResumeClaim(path.join(root, "source"));
-			assert.deepEqual({ newRunId: claim?.newRunId, trigger: claim?.trigger, claimedAt: claim?.claimedAt }, { newRunId: prepared.prepared.newRunId, trigger: "manual", claimedAt: 10 });
+			assert.deepEqual(
+				{ newRunId: claim?.newRunId, trigger: claim?.trigger, claimedAt: claim?.claimedAt },
+				{ newRunId: prepared.prepared.newRunId, trigger: "manual", claimedAt: 10 },
+			);
 		});
 	});
 
@@ -64,8 +112,17 @@ describe("prepareWorkflowResume", () => {
 			writeRun("replaced-at-cap", { stopCause: "runtime-replaced", attempt: 3 });
 			assert.equal(attemptOf("replaced-at-cap", "auto"), 3);
 			writeRun("exited-at-cap", { stopCause: "owner-exited", attempt: 3 });
-			assert.deepEqual(attemptOf("exited-at-cap", "auto"), { ok: false, code: "attempts", reason: "3 resumes already followed Pi exits", byHand: 'Resume by hand: subagent({ action: "resume", id: "exited-at-cap" })' });
-			assert.equal(readWorkflowResumeClaim(path.join(root, "exited-at-cap")), undefined, "a refused auto-resume takes no claim");
+			assert.deepEqual(attemptOf("exited-at-cap", "auto"), {
+				ok: false,
+				code: "attempts",
+				reason: "3 resumes already followed Pi exits",
+				byHand: 'Resume by hand: subagent({ action: "resume", id: "exited-at-cap" })',
+			});
+			assert.equal(
+				readWorkflowResumeClaim(path.join(root, "exited-at-cap")),
+				undefined,
+				"a refused auto-resume takes no claim",
+			);
 			assert.equal(attemptOf("exited-at-cap", "manual"), 4);
 		});
 	});
@@ -73,11 +130,31 @@ describe("prepareWorkflowResume", () => {
 	it("refuses a run that cannot be relaunched from its saved launch", () => {
 		withRoot((root, writeRun) => {
 			const cases: Array<[string, Parameters<typeof writeRun>[1], string, string]> = [
-				["completed", { stopCause: "", state: "complete" }, "not-interrupted", "not interrupted; pass message to revive one of its children"],
-				["missing", { launch: null }, "launch-missing", "launch.json is missing (the run started before launches were saved)"],
+				[
+					"completed",
+					{ stopCause: "", state: "complete" },
+					"not-interrupted",
+					"not interrupted; pass message to revive one of its children",
+				],
+				[
+					"missing",
+					{ launch: null },
+					"launch-missing",
+					"launch.json is missing (the run started before launches were saved)",
+				],
 				["invalid", { launch: "{bad" }, "launch-invalid", "launch.json is invalid: not valid JSON: "],
-				["structured", { launch: { version: 1, source: "structured", scriptDigest: "d" } }, "structured", "launched from tasks/chain"],
-				["edited", { launch: { ...scriptLaunch, params: { ...scriptLaunch.params, workflowScript: "return 2;" } } }, "launch-invalid", "launch.json is invalid: its script does not match its scriptDigest"],
+				[
+					"structured",
+					{ launch: { version: 1, source: "structured", scriptDigest: "d" } },
+					"structured",
+					"launched from tasks/chain",
+				],
+				[
+					"edited",
+					{ launch: { ...scriptLaunch, params: { ...scriptLaunch.params, workflowScript: "return 2;" } } },
+					"launch-invalid",
+					"launch.json is invalid: its script does not match its scriptDigest",
+				],
 			];
 			for (const [runId, options, code, reason] of cases) {
 				writeRun(runId, options);
@@ -96,8 +173,23 @@ describe("prepareWorkflowResume", () => {
 		withRoot((root, writeRun) => {
 			// The test runner's parent process is alive, so its claim is held.
 			writeRun("held");
-			fs.writeFileSync(path.join(root, "held", "resumed-by.1.json"), JSON.stringify({ version: 1, pid: process.ppid, ...(currentBootId() ? { bootId: currentBootId() } : {}), claimedAt: 1, newRunId: "pending-run", trigger: "auto" }));
-			assert.deepEqual(prepare(root, "held"), { ok: false, code: "claim-busy", reason: `being resumed by pid ${process.ppid}`, byHand: "" });
+			fs.writeFileSync(
+				path.join(root, "held", "resumed-by.1.json"),
+				JSON.stringify({
+					version: 1,
+					pid: process.ppid,
+					...(currentBootId() ? { bootId: currentBootId() } : {}),
+					claimedAt: 1,
+					newRunId: "pending-run",
+					trigger: "auto",
+				}),
+			);
+			assert.deepEqual(prepare(root, "held"), {
+				ok: false,
+				code: "claim-busy",
+				reason: `being resumed by pid ${process.ppid}`,
+				byHand: "",
+			});
 		});
 	});
 });

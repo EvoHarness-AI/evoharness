@@ -15,14 +15,45 @@ const retryStart = { type: "auto_retry_start", attempt: 1, maxAttempts: 3, delay
 
 describe("provider diagnostics", () => {
 	it("classifies only explicit throttling, excluding quota/billing/account exhaustion", () => {
-		for (const text of ["HTTP 429", "HTTP/1.1 429 Too Many Requests", 'status: 429', 'status_code: 429', "429 retry later", "rate_limit_exceeded", "rate-limited", "Too many requests"]) {
-			assert.equal(observeProviderDiagnostics(undefined, errorEvent(text), 10)?.lastError?.kind, "rate_limited", text);
+		for (const text of [
+			"HTTP 429",
+			"HTTP/1.1 429 Too Many Requests",
+			"status: 429",
+			"status_code: 429",
+			"429 retry later",
+			"rate_limit_exceeded",
+			"rate-limited",
+			"Too many requests",
+		]) {
+			assert.equal(
+				observeProviderDiagnostics(undefined, errorEvent(text), 10)?.lastError?.kind,
+				"rate_limited",
+				text,
+			);
 		}
-		for (const text of ["HTTP 429 insufficient_quota", "HTTP 429 billing required", "HTTP 429 quota exceeded", "HTTP 429 account limit exceeded", "429 credit exhausted", "HTTP 429 credits exhausted", "429 balance is depleted", "429 insufficient credits", "429 subscription_sharing_usage_limit_exceeded", "429 GoUsageLimitError", "429 FreeUsageLimitError", "429 Monthly usage limit reached", "429 available balance required"]) {
+		for (const text of [
+			"HTTP 429 insufficient_quota",
+			"HTTP 429 billing required",
+			"HTTP 429 quota exceeded",
+			"HTTP 429 account limit exceeded",
+			"429 credit exhausted",
+			"HTTP 429 credits exhausted",
+			"429 balance is depleted",
+			"429 insufficient credits",
+			"429 subscription_sharing_usage_limit_exceeded",
+			"429 GoUsageLimitError",
+			"429 FreeUsageLimitError",
+			"429 Monthly usage limit reached",
+			"429 available balance required",
+		]) {
 			assert.equal(observeProviderDiagnostics(undefined, errorEvent(text), 10)?.lastError?.kind, "unknown", text);
 		}
 		for (const text of ["overloaded", "HTTP 503 service unavailable", "fetch failed", "request id 42901 failed"]) {
-			assert.equal(observeProviderDiagnostics(undefined, errorEvent(text), 10)?.lastError?.kind, "transient_other", text);
+			assert.equal(
+				observeProviderDiagnostics(undefined, errorEvent(text), 10)?.lastError?.kind,
+				"transient_other",
+				text,
+			);
 		}
 		for (const text of [undefined, "", "Unauthorized", "Unrecognized failure"]) {
 			assert.equal(observeProviderDiagnostics(undefined, errorEvent(text), 10)?.lastError?.kind, "unknown", text);
@@ -44,7 +75,10 @@ describe("provider diagnostics", () => {
 	it("recognizes the explicit rate_limit_error token without accepting arbitrary suffixes", () => {
 		const text = '{"type":"error","error":{"type":"rate_limit_error","message":"Please retry later"}}';
 		assert.equal(observeProviderDiagnostics(undefined, errorEvent(text), 10)?.lastError?.kind, "rate_limited");
-		assert.equal(observeProviderDiagnostics(undefined, errorEvent("rate_limit_error_extra"), 10)?.lastError?.kind, "transient_other");
+		assert.equal(
+			observeProviderDiagnostics(undefined, errorEvent("rate_limit_error_extra"), 10)?.lastError?.kind,
+			"transient_other",
+		);
 	});
 
 	it("counts every failed assistant message including repeats/missing text and never copies secrets", () => {
@@ -52,7 +86,10 @@ describe("provider diagnostics", () => {
 		for (const text of ["HTTP 429 token=secret\nraw body", "HTTP 429 token=secret\nraw body", undefined]) {
 			diagnostics = observeProviderDiagnostics(diagnostics, errorEvent(text), 100);
 		}
-		assert.deepEqual(diagnostics, { errorCount: 3, lastError: { kind: "unknown", message: "Assistant request failed.", at: 100 } });
+		assert.deepEqual(diagnostics, {
+			errorCount: 3,
+			lastError: { kind: "unknown", message: "Assistant request failed.", at: 100 },
+		});
 		const retry = observeProviderDiagnostics(diagnostics, retryStart, 101);
 		assert.equal(retry?.errorCount, 3);
 		assert.doesNotMatch(JSON.stringify(retry), /secret|raw body/);
@@ -68,12 +105,22 @@ describe("provider diagnostics", () => {
 		assert.equal(inFlight.retry?.phase, "in_flight");
 		assert.equal(observeProviderDiagnostics(inFlight, { type: "turn_start" }, 31), inFlight);
 		assert.equal(snapshot.retry?.phase, "backoff");
-		assert.deepEqual(snapshot.retry, { phase: "backoff", attempt: 1, maxAttempts: 3, delayMs: 1000, scheduledAt: 20 });
+		assert.deepEqual(snapshot.retry, {
+			phase: "backoff",
+			attempt: 1,
+			maxAttempts: 3,
+			delayMs: 1000,
+			scheduledAt: 20,
+		});
 		assert.equal(first.retry, undefined);
 		const second = observeProviderDiagnostics(inFlight, errorEvent("HTTP 429"), 40)!;
 		assert.equal(second.errorCount, 2);
 		assert.equal(first.errorCount, 1);
-		for (const end of [{ type: "auto_retry_end", success: true }, { type: "auto_retry_end", success: false }, { type: "agent_settled" }]) {
+		for (const end of [
+			{ type: "auto_retry_end", success: true },
+			{ type: "auto_retry_end", success: false },
+			{ type: "agent_settled" },
+		]) {
 			const terminal = observeProviderDiagnostics(second, end, 50)!;
 			assert.equal(terminal.retry, undefined);
 			assert.equal(terminal.errorCount, 2);
@@ -89,18 +136,32 @@ describe("provider diagnostics", () => {
 
 	it("does not invent diagnostics for healthy reasoning, tools, user text, compaction, or aborts", () => {
 		for (const event of [
-			{ type: "agent_start" }, { type: "turn_start" },
+			{ type: "agent_start" },
+			{ type: "turn_start" },
 			{ type: "message_update", assistantMessageEvent: { type: "thinking_delta", delta: "HTTP 429" } },
-			{ type: "message_end", message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "HTTP 429" }] } },
+			{
+				type: "message_end",
+				message: { role: "assistant", stopReason: "stop", content: [{ type: "text", text: "HTTP 429" }] },
+			},
 			{ type: "message_end", message: { role: "assistant", stopReason: "aborted", errorMessage: "HTTP 429" } },
 			{ type: "message_end", message: { role: "user", stopReason: "error", errorMessage: "HTTP 429" } },
 			{ type: "message_end", message: { role: "toolResult", errorMessage: "HTTP 429", isError: true } },
-			{ type: "compaction_start" }, { type: "compaction_end" }, { type: "summarization_retry_scheduled" },
-			{ type: "auto_retry_end" }, { type: "agent_settled" },
+			{ type: "compaction_start" },
+			{ type: "compaction_end" },
+			{ type: "summarization_retry_scheduled" },
+			{ type: "auto_retry_end" },
+			{ type: "agent_settled" },
 		]) {
 			assert.equal(observeProviderDiagnostics(undefined, event, 10), undefined, event.type);
 		}
-		const contentOnly = observeProviderDiagnostics(undefined, { type: "message_end", message: { role: "assistant", stopReason: "error", content: [{ type: "text", text: "HTTP 429" }] } }, 10);
+		const contentOnly = observeProviderDiagnostics(
+			undefined,
+			{
+				type: "message_end",
+				message: { role: "assistant", stopReason: "error", content: [{ type: "text", text: "HTTP 429" }] },
+			},
+			10,
+		);
 		assert.equal(contentOnly?.lastError?.kind, "unknown");
 	});
 });

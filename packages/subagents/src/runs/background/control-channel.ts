@@ -19,13 +19,19 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { writeAtomicJson } from "../../shared/atomic-json.ts";
 import { POLL_INTERVAL_MS } from "../../shared/types.ts";
-import { shouldUseNativeFsWatch } from "../../shared/watch-strategy.ts";
 import { resolveWatchPath } from "../../shared/utils.ts";
+import { shouldUseNativeFsWatch } from "../../shared/watch-strategy.ts";
 
-export type ControlChannelFs = Pick<typeof fs, "mkdirSync" | "existsSync" | "rmSync" | "watch" | "readdirSync" | "readFileSync" | "realpathSync">;
+export type ControlChannelFs = Pick<
+	typeof fs,
+	"mkdirSync" | "existsSync" | "rmSync" | "watch" | "readdirSync" | "readFileSync" | "realpathSync"
+>;
 
 function writeJsonToExistingDir(filePath: string, payload: object): void {
-	const tempPath = path.join(path.dirname(filePath), `.${path.basename(filePath)}.${process.pid}.${Date.now()}.${randomUUID()}.tmp`);
+	const tempPath = path.join(
+		path.dirname(filePath),
+		`.${path.basename(filePath)}.${process.pid}.${Date.now()}.${randomUUID()}.tmp`,
+	);
 	try {
 		fs.writeFileSync(tempPath, JSON.stringify(payload, null, 2), { encoding: "utf-8", flag: "wx" });
 		fs.renameSync(tempPath, filePath);
@@ -87,27 +93,47 @@ export interface CommandRequest {
 function validCommandRequest(raw: unknown): raw is CommandRequest {
 	if (!raw || typeof raw !== "object") return false;
 	const value = raw as Partial<CommandRequest>;
-	return value.type === "command" && typeof value.id === "string" && /^[a-f0-9-]{36}$/.test(value.id)
-		&& typeof value.ownerId === "string" && /^[a-f0-9-]{36}$/.test(value.ownerId)
-		&& (value.operation === "status" || value.operation === "yield" || value.operation === "cancel")
-		&& Number.isSafeInteger(value.deadlineAt) && value.deadlineAt! > 0
-		&& (value.toolCallId === undefined ? value.operation === "status" : typeof value.toolCallId === "string" && value.toolCallId.length > 0 && value.toolCallId.length <= 256);
+	return (
+		value.type === "command" &&
+		typeof value.id === "string" &&
+		/^[a-f0-9-]{36}$/.test(value.id) &&
+		typeof value.ownerId === "string" &&
+		/^[a-f0-9-]{36}$/.test(value.ownerId) &&
+		(value.operation === "status" || value.operation === "yield" || value.operation === "cancel") &&
+		Number.isSafeInteger(value.deadlineAt) &&
+		value.deadlineAt! > 0 &&
+		(value.toolCallId === undefined
+			? value.operation === "status"
+			: typeof value.toolCallId === "string" && value.toolCallId.length > 0 && value.toolCallId.length <= 256)
+	);
 }
 
-function commandRequestsDir(dir: string): string { return path.join(controlInboxDir(dir), "command-requests"); }
+function commandRequestsDir(dir: string): string {
+	return path.join(controlInboxDir(dir), "command-requests");
+}
 export function requestAsyncCommand(dir: string, request: CommandRequest): void {
 	if (!validCommandRequest(request)) throw new Error("Malformed command request.");
 	writeAtomicJson(path.join(commandRequestsDir(dir), `${request.id}.json`), request);
 }
 function consumeCommandRequests(dir: string, fsImpl: ControlChannelFs): CommandRequest[] {
 	const requests: CommandRequest[] = [];
-	for (const name of fsImpl.readdirSync(commandRequestsDir(dir)).filter((entry) => entry.endsWith(".json")).sort()) {
+	for (const name of fsImpl
+		.readdirSync(commandRequestsDir(dir))
+		.filter((entry) => entry.endsWith(".json"))
+		.sort()) {
 		const file = path.join(commandRequestsDir(dir), name);
 		let value: unknown;
-		try { value = JSON.parse(fsImpl.readFileSync(file, "utf8")); }
-		catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") continue; }
-		try { fsImpl.rmSync(file); }
-		catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") continue; throw error; }
+		try {
+			value = JSON.parse(fsImpl.readFileSync(file, "utf8"));
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+		}
+		try {
+			fsImpl.rmSync(file);
+		} catch (error) {
+			if ((error as NodeJS.ErrnoException).code === "ENOENT") continue;
+			throw error;
+		}
 		if (validCommandRequest(value)) requests.push(value);
 	}
 	return requests;
@@ -165,19 +191,21 @@ export function closeStopInbox(asyncDir: string): void {
 	writeAtomicJson(stopInboxClosedPath(asyncDir), { version: 1, closedAt: Date.now() });
 }
 
-export function closeSteerInbox(asyncDir: string, state: string, write: (filePath: string, payload: object) => void = writeAtomicJson): void {
+export function closeSteerInbox(
+	asyncDir: string,
+	state: string,
+	write: (filePath: string, payload: object) => void = writeAtomicJson,
+): void {
 	write(steerInboxClosedPath(asyncDir), { version: 1, closedAt: Date.now(), state });
 }
 
 function assertChildIndex(index: number): void {
-	if (!Number.isInteger(index) || index < 0 || index > 1_000_000) throw new Error("child index must be a non-negative integer.");
+	if (!Number.isInteger(index) || index < 0 || index > 1_000_000)
+		throw new Error("child index must be a non-negative integer.");
 }
 
 function validStopChildId(childId: unknown): childId is string {
-	return typeof childId === "string"
-		&& Boolean(childId.trim())
-		&& childId.length <= 256
-		&& !/[\r\n]/.test(childId);
+	return typeof childId === "string" && Boolean(childId.trim()) && childId.length <= 256 && !/[\r\n]/.test(childId);
 }
 
 function steerRequestFileName(request: SteerRequest): string {
@@ -189,27 +217,33 @@ function stopRequestFileName(request: StopRequest): string {
 }
 
 function validSteerRequest(request: Partial<SteerRequest>): request is SteerRequest {
-	return request.type === "steer"
-		&& typeof request.id === "string"
-		&& /^[^\s]+$/.test(request.id)
-		&& request.id.length <= MAX_STEER_REQUEST_ID_LENGTH
-		&& typeof request.ts === "number"
-		&& Number.isFinite(request.ts)
-		&& request.ts > 0
-		&& typeof request.message === "string"
-		&& Boolean(request.message.trim())
-		&& Buffer.byteLength(request.message, "utf8") <= MAX_STEER_MESSAGE_BYTES
-		&& (request.mode === undefined || request.mode === "steer" || request.mode === "follow_up" || request.mode === "auto")
-		&& (request.targetIndex === undefined || (Number.isInteger(request.targetIndex) && request.targetIndex >= 0 && request.targetIndex <= 1_000_000))
-		&& (request.targetIndexes === undefined || (
-			request.targetIndex === undefined
-			&& Array.isArray(request.targetIndexes)
-			&& request.targetIndexes.length > 0
-			&& request.targetIndexes.length <= 1_000
-			&& request.targetIndexes.every((index) => Number.isInteger(index) && index >= 0 && index <= 1_000_000)
-			&& new Set(request.targetIndexes).size === request.targetIndexes.length
-		))
-		&& (request.source === undefined || (typeof request.source === "string" && Boolean(request.source.trim()) && request.source.length <= 256));
+	return (
+		request.type === "steer" &&
+		typeof request.id === "string" &&
+		/^[^\s]+$/.test(request.id) &&
+		request.id.length <= MAX_STEER_REQUEST_ID_LENGTH &&
+		typeof request.ts === "number" &&
+		Number.isFinite(request.ts) &&
+		request.ts > 0 &&
+		typeof request.message === "string" &&
+		Boolean(request.message.trim()) &&
+		Buffer.byteLength(request.message, "utf8") <= MAX_STEER_MESSAGE_BYTES &&
+		(request.mode === undefined ||
+			request.mode === "steer" ||
+			request.mode === "follow_up" ||
+			request.mode === "auto") &&
+		(request.targetIndex === undefined ||
+			(Number.isInteger(request.targetIndex) && request.targetIndex >= 0 && request.targetIndex <= 1_000_000)) &&
+		(request.targetIndexes === undefined ||
+			(request.targetIndex === undefined &&
+				Array.isArray(request.targetIndexes) &&
+				request.targetIndexes.length > 0 &&
+				request.targetIndexes.length <= 1_000 &&
+				request.targetIndexes.every((index) => Number.isInteger(index) && index >= 0 && index <= 1_000_000) &&
+				new Set(request.targetIndexes).size === request.targetIndexes.length)) &&
+		(request.source === undefined ||
+			(typeof request.source === "string" && Boolean(request.source.trim()) && request.source.length <= 256))
+	);
 }
 
 export function writeSteerRequestToDir(dir: string, request: SteerRequest): string {
@@ -275,24 +309,39 @@ export function requestAsyncStop(
 
 export function requestAsyncSteer(
 	asyncDir: string,
-	payload: { message: string; mode?: SteerDeliveryMode; targetIndex?: number; targetIndexes?: number[]; source?: string; id?: string; ts?: number },
+	payload: {
+		message: string;
+		mode?: SteerDeliveryMode;
+		targetIndex?: number;
+		targetIndexes?: number[];
+		source?: string;
+		id?: string;
+		ts?: number;
+	},
 	deps: { now?: () => number; randomId?: () => string } = {},
 ): string {
 	const message = payload.message.trim();
 	if (!message) throw new Error("steer message must not be empty.");
-	if (Buffer.byteLength(message, "utf8") > MAX_STEER_MESSAGE_BYTES) throw new Error(`steer message exceeds ${MAX_STEER_MESSAGE_BYTES} UTF-8 bytes.`);
-	if (payload.targetIndex !== undefined && (!Number.isInteger(payload.targetIndex) || payload.targetIndex < 0 || payload.targetIndex > 1_000_000)) {
+	if (Buffer.byteLength(message, "utf8") > MAX_STEER_MESSAGE_BYTES)
+		throw new Error(`steer message exceeds ${MAX_STEER_MESSAGE_BYTES} UTF-8 bytes.`);
+	if (
+		payload.targetIndex !== undefined &&
+		(!Number.isInteger(payload.targetIndex) || payload.targetIndex < 0 || payload.targetIndex > 1_000_000)
+	) {
 		throw new Error("steer targetIndex must be an integer between 0 and 1000000.");
 	}
-	if (payload.targetIndexes !== undefined && (
-		!Array.isArray(payload.targetIndexes)
-		|| payload.targetIndex !== undefined
-		|| payload.targetIndexes.length === 0
-		|| payload.targetIndexes.length > 1_000
-		|| payload.targetIndexes.some((index) => !Number.isInteger(index) || index < 0 || index > 1_000_000)
-		|| new Set(payload.targetIndexes).size !== payload.targetIndexes.length
-	)) {
-		throw new Error("steer targetIndexes must contain 1-1000 unique non-negative integers and cannot be combined with targetIndex.");
+	if (
+		payload.targetIndexes !== undefined &&
+		(!Array.isArray(payload.targetIndexes) ||
+			payload.targetIndex !== undefined ||
+			payload.targetIndexes.length === 0 ||
+			payload.targetIndexes.length > 1_000 ||
+			payload.targetIndexes.some((index) => !Number.isInteger(index) || index < 0 || index > 1_000_000) ||
+			new Set(payload.targetIndexes).size !== payload.targetIndexes.length)
+	) {
+		throw new Error(
+			"steer targetIndexes must contain 1-1000 unique non-negative integers and cannot be combined with targetIndex.",
+		);
 	}
 	const closedPath = steerInboxClosedPath(asyncDir);
 	if (fs.existsSync(closedPath)) throw new Error("Async run no longer accepts steering requests.");
@@ -330,10 +379,17 @@ function parseSteerRequest(raw: unknown): SteerRequest | undefined {
 	};
 }
 
-export function consumeSteerRequestsFromDir(dir: string, fsImpl: Pick<typeof fs, "existsSync" | "rmSync" | "readdirSync" | "readFileSync"> = fs, onError: (error: unknown) => void = () => {}): SteerRequest[] {
+export function consumeSteerRequestsFromDir(
+	dir: string,
+	fsImpl: Pick<typeof fs, "existsSync" | "rmSync" | "readdirSync" | "readFileSync"> = fs,
+	onError: (error: unknown) => void = () => {},
+): SteerRequest[] {
 	let entries: string[];
 	try {
-		entries = fsImpl.readdirSync(dir).filter((name) => name.endsWith(".json")).sort();
+		entries = fsImpl
+			.readdirSync(dir)
+			.filter((name) => name.endsWith(".json"))
+			.sort();
 	} catch (error) {
 		// Leave requests in place so the periodic poll can retry the scan.
 		if ((error as NodeJS.ErrnoException).code !== "ENOENT") onError(error);
@@ -367,7 +423,11 @@ export function consumeSteerRequestsFromDir(dir: string, fsImpl: Pick<typeof fs,
 	return requests.sort((left, right) => left.ts - right.ts || left.id.localeCompare(right.id));
 }
 
-export function consumeSteerRequests(asyncDir: string, fsImpl: Pick<typeof fs, "existsSync" | "rmSync" | "readdirSync" | "readFileSync"> = fs, onError?: (error: unknown) => void): SteerRequest[] {
+export function consumeSteerRequests(
+	asyncDir: string,
+	fsImpl: Pick<typeof fs, "existsSync" | "rmSync" | "readdirSync" | "readFileSync"> = fs,
+	onError?: (error: unknown) => void,
+): SteerRequest[] {
 	return consumeSteerRequestsFromDir(steerRequestsDir(asyncDir), fsImpl, onError);
 }
 
@@ -381,15 +441,19 @@ export function queueRevivalBrief(asyncDir: string, request: SteerRequest): stri
 export function readRevivalBriefs(asyncDir: string): Array<{ request: SteerRequest; path: string }> {
 	const dir = path.join(controlInboxDir(asyncDir), REVIVAL_BRIEFS_DIR);
 	if (!fs.existsSync(dir)) return [];
-	return fs.readdirSync(dir).filter((entry) => entry.endsWith(".json")).sort().flatMap((entry) => {
-		const filePath = path.join(dir, entry);
-		try {
-			const request = parseSteerRequest(JSON.parse(fs.readFileSync(filePath, "utf-8")));
-			return request ? [{ request, path: filePath }] : [];
-		} catch {
-			return [];
-		}
-	});
+	return fs
+		.readdirSync(dir)
+		.filter((entry) => entry.endsWith(".json"))
+		.sort()
+		.flatMap((entry) => {
+			const filePath = path.join(dir, entry);
+			try {
+				const request = parseSteerRequest(JSON.parse(fs.readFileSync(filePath, "utf-8")));
+				return request ? [{ request, path: filePath }] : [];
+			} catch {
+				return [];
+			}
+		});
 }
 
 /**
@@ -435,7 +499,11 @@ function parseStopRequest(raw: unknown): StopRequest | undefined {
 	if (!raw || typeof raw !== "object" || Array.isArray(raw)) return undefined;
 	const parsed = raw as Partial<StopRequest>;
 	if (parsed.type !== "stop") return undefined;
-	if (Object.hasOwn(parsed, "targetIndex") && !(Number.isInteger(parsed.targetIndex) && parsed.targetIndex! >= 0 && parsed.targetIndex! <= 1_000_000)) return undefined;
+	if (
+		Object.hasOwn(parsed, "targetIndex") &&
+		!(Number.isInteger(parsed.targetIndex) && parsed.targetIndex! >= 0 && parsed.targetIndex! <= 1_000_000)
+	)
+		return undefined;
 	if (Object.hasOwn(parsed, "childId") && !validStopChildId(parsed.childId)) return undefined;
 	return {
 		type: "stop",
@@ -485,7 +553,10 @@ export function consumeStopRequestPayloads(
 	if (fsImpl.existsSync(dir)) {
 		let entries: string[];
 		try {
-			entries = fsImpl.readdirSync(dir).filter((name) => name.endsWith(".json")).sort();
+			entries = fsImpl
+				.readdirSync(dir)
+				.filter((name) => name.endsWith(".json"))
+				.sort();
 		} catch (error) {
 			if (!(error instanceof Error && "code" in error && error.code === "ENOENT")) onError?.(error);
 			entries = [];
@@ -512,11 +583,7 @@ export function consumeStopRequestPayload(
 }
 
 /** Parent side: write the authoritative portable interrupt request. */
-export function deliverInterruptRequest(input: {
-	asyncDir: string;
-	now?: () => number;
-	source?: string;
-}): void {
+export function deliverInterruptRequest(input: { asyncDir: string; now?: () => number; source?: string }): void {
 	requestAsyncInterrupt(input.asyncDir, input.source ? { source: input.source } : {}, { now: input.now });
 }
 
@@ -541,9 +608,16 @@ export function deliverStopRequest(input: {
 	targetIndex?: number;
 	childId?: string;
 }): void {
-	requestAsyncStop(input.asyncDir, { ...(input.source ? { source: input.source } : {}), ...(input.targetIndex !== undefined ? { targetIndex: input.targetIndex } : {}), ...(input.childId ? { childId: input.childId } : {}) }, { now: input.now });
+	requestAsyncStop(
+		input.asyncDir,
+		{
+			...(input.source ? { source: input.source } : {}),
+			...(input.targetIndex !== undefined ? { targetIndex: input.targetIndex } : {}),
+			...(input.childId ? { childId: input.childId } : {}),
+		},
+		{ now: input.now },
+	);
 }
-
 
 /**
  * Active owner: watch and consume only kinds with installed handlers.
@@ -594,7 +668,10 @@ export function watchAsyncControlInbox(
 		}
 		repeated.suppressed++;
 		if (now - repeated.since < REPEATED_SCAN_ERROR_SUMMARY_MS) return;
-		report(`${repeated.suppressed} more identical failures in the last ${Math.round((now - repeated.since) / 1000)}s: ${text}`, "scan");
+		report(
+			`${repeated.suppressed} more identical failures in the last ${Math.round((now - repeated.since) / 1000)}s: ${text}`,
+			"scan",
+		);
 		repeated.suppressed = 0;
 		repeated.since = now;
 	};
@@ -616,21 +693,44 @@ export function watchAsyncControlInbox(
 		if (disposed) return;
 		scanFailed = false;
 		try {
-			if (opts.onCommand) for (const request of consumeCommandRequests(asyncDir, fsImpl)) {
-				try { opts.onCommand(request); } catch (error) { report(error, "callback"); }
-			}
-			if (opts.onStop) for (const request of consumeStopRequestPayloads(asyncDir, fsImpl, reportScan)) {
-				try { opts.onStop(request); } catch (error) { report(error, "callback"); }
-			}
+			if (opts.onCommand)
+				for (const request of consumeCommandRequests(asyncDir, fsImpl)) {
+					try {
+						opts.onCommand(request);
+					} catch (error) {
+						report(error, "callback");
+					}
+				}
+			if (opts.onStop)
+				for (const request of consumeStopRequestPayloads(asyncDir, fsImpl, reportScan)) {
+					try {
+						opts.onStop(request);
+					} catch (error) {
+						report(error, "callback");
+					}
+				}
 			if (opts.onTimeout && consumeTimeoutRequest(asyncDir, fsImpl)) {
-				try { opts.onTimeout(); } catch (error) { report(error, "callback"); }
+				try {
+					opts.onTimeout();
+				} catch (error) {
+					report(error, "callback");
+				}
 			}
 			if (opts.onInterrupt && consumeInterruptRequest(asyncDir, fsImpl)) {
-				try { opts.onInterrupt(); } catch (error) { report(error, "callback"); }
+				try {
+					opts.onInterrupt();
+				} catch (error) {
+					report(error, "callback");
+				}
 			}
-			if (opts.onSteer) for (const request of consumeSteerRequestsFromDir(steerRequestsDir(asyncDir), fsImpl, reportScan)) {
-				try { opts.onSteer(request); } catch (error) { report(error, "callback", request); }
-			}
+			if (opts.onSteer)
+				for (const request of consumeSteerRequestsFromDir(steerRequestsDir(asyncDir), fsImpl, reportScan)) {
+					try {
+						opts.onSteer(request);
+					} catch (error) {
+						report(error, "callback", request);
+					}
+				}
 		} catch (error) {
 			reportScan(error);
 		}
@@ -645,7 +745,10 @@ export function watchAsyncControlInbox(
 	let safetyInterval: ReturnType<typeof setInterval> | undefined;
 	const startPolling = (): void => {
 		if (interval || disposed) return;
-		if (safetyInterval) { timers.clearInterval(safetyInterval); safetyInterval = undefined; }
+		if (safetyInterval) {
+			timers.clearInterval(safetyInterval);
+			safetyInterval = undefined;
+		}
 		interval = timers.setInterval(check, opts.pollIntervalMs ?? POLL_INTERVAL_MS);
 		interval.unref?.();
 	};

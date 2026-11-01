@@ -1,13 +1,29 @@
-import { describe, it, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { MockPi } from "../support/helpers.ts";
-import { createEventBus, createMockPi, createTempDir, events, removeTempDir, resolveMockPiCallArgs, tryImport } from "../support/helpers.ts";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import { discoverAgents } from "../../src/agents/agents.ts";
 import { registerSubagentCapabilityCeiling } from "../../src/api/capability-ceiling.ts";
-import { ACTIVE_ASYNC_CAPACITY_DIR, acquireActiveAsyncCapacity, activeAsyncCapacitySessionKey } from "../../src/runs/background/active-async-capacity.ts";
-import { DEFAULT_FORK_PREAMBLE, INTERCOM_DETACH_REQUEST_EVENT, SUBAGENT_ASYNC_STARTED_EVENT } from "../../src/shared/types.ts";
+import {
+	ACTIVE_ASYNC_CAPACITY_DIR,
+	acquireActiveAsyncCapacity,
+	activeAsyncCapacitySessionKey,
+} from "../../src/runs/background/active-async-capacity.ts";
+import {
+	DEFAULT_FORK_PREAMBLE,
+	INTERCOM_DETACH_REQUEST_EVENT,
+	SUBAGENT_ASYNC_STARTED_EVENT,
+} from "../../src/shared/types.ts";
+import type { MockPi } from "../support/helpers.ts";
+import {
+	createEventBus,
+	createMockPi,
+	createTempDir,
+	events,
+	removeTempDir,
+	resolveMockPiCallArgs,
+	tryImport,
+} from "../support/helpers.ts";
 
 interface ExecutorModule {
 	createSubagentExecutor?: (...args: unknown[]) => {
@@ -122,40 +138,51 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 	}
 
 	function makeExecutorWithConfig(config: Record<string, unknown>) {
-		return makeExecutorWithDiscoverAgents(() => ({
-			agents: [
-				{ name: "echo", description: "Echo test agent" },
-				{ name: "second", description: "Second test agent" },
-			],
-			projectAgentsDir: null,
-		}), config);
+		return makeExecutorWithDiscoverAgents(
+			() => ({
+				agents: [
+					{ name: "echo", description: "Echo test agent" },
+					{ name: "second", description: "Second test agent" },
+				],
+				projectAgentsDir: null,
+			}),
+			config,
+		);
 	}
 
-	function makeExecutorWithDiscoverAgents(discoverAgentsImpl: typeof discoverAgents, config: Record<string, unknown> = {}, extraDeps: Record<string, unknown> = {}) {
+	function makeExecutorWithDiscoverAgents(
+		discoverAgentsImpl: typeof discoverAgents,
+		config: Record<string, unknown> = {},
+		extraDeps: Record<string, unknown> = {},
+	) {
 		let sessionName: string | undefined;
 		const eventsApi = createEventBus();
-		return Object.assign(createSubagentExecutor({
-			pi: {
-				events: eventsApi,
-				getSessionName: () => sessionName,
-				setSessionName: (name: string) => {
-					sessionName = name;
+		return Object.assign(
+			createSubagentExecutor({
+				pi: {
+					events: eventsApi,
+					getSessionName: () => sessionName,
+					setSessionName: (name: string) => {
+						sessionName = name;
+					},
+					sendMessage: () => {},
 				},
-				sendMessage: () => {},
-			},
-			state: makeState(tempDir),
-			config,
-			asyncByDefault: false,
-			tempArtifactsDir: tempDir,
-			getSubagentSessionRoot: () => tempDir,
-			expandTilde: (p: string) => p,
-			discoverAgents: discoverAgentsImpl,
-			...extraDeps,
-		}), { eventsApi });
+				state: makeState(tempDir),
+				config,
+				asyncByDefault: false,
+				tempArtifactsDir: tempDir,
+				getSubagentSessionRoot: () => tempDir,
+				expandTilde: (p: string) => p,
+				discoverAgents: discoverAgentsImpl,
+				...extraDeps,
+			}),
+			{ eventsApi },
+		);
 	}
 
 	function readCallArgs(): string[] {
-		const callFile = fs.readdirSync(mockPi.dir)
+		const callFile = fs
+			.readdirSync(mockPi.dir)
 			.filter((name) => name.startsWith("call-") && name.endsWith(".json"))
 			.sort()
 			.at(-1);
@@ -164,14 +191,18 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 	}
 
 	function readAllCallArgs(): string[][] {
-		return fs.readdirSync(mockPi.dir)
+		return fs
+			.readdirSync(mockPi.dir)
 			.filter((name) => name.startsWith("call-") && name.endsWith(".json"))
 			.sort()
 			.map((name) => readRecordedArgs(name));
 	}
 
 	function readRecordedArgs(callFile: string, effective = false): string[] {
-		const payload = JSON.parse(fs.readFileSync(path.join(mockPi.dir, callFile), "utf-8")) as { args?: string[]; effectiveArgs?: string[] };
+		const payload = JSON.parse(fs.readFileSync(path.join(mockPi.dir, callFile), "utf-8")) as {
+			args?: string[];
+			effectiveArgs?: string[];
+		};
 		assert.equal(typeof payload, "object", "expected recorded args payload");
 		assert.notEqual(payload, null, "expected recorded args payload");
 		assert.ok("args" in payload, "expected recorded args payload");
@@ -204,7 +235,11 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		const branchedLeafIds: string[] = [];
 		let counter = 0;
 		fs.mkdirSync(path.dirname(options.sessionFile), { recursive: true });
-		fs.writeFileSync(options.sessionFile, '{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n', "utf-8");
+		fs.writeFileSync(
+			options.sessionFile,
+			'{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n',
+			"utf-8",
+		);
 		const manager = {
 			getSessionId: () => "session-123",
 			getSessionFile: () => options.sessionFile,
@@ -216,7 +251,11 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 						branchedLeafIds.push(leafId);
 						counter++;
 						const childSessionFile = path.join(tempDir, `fork-${counter}.jsonl`);
-						fs.writeFileSync(childSessionFile, '{"type":"session","version":1,"id":"child","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n', "utf-8");
+						fs.writeFileSync(
+							childSessionFile,
+							'{"type":"session","version":1,"id":"child","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n',
+							"utf-8",
+						);
 						return childSessionFile;
 					},
 				};
@@ -250,7 +289,11 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		fs.mkdirSync(skillDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(packageRoot, "package.json"),
-			JSON.stringify({ name: `${skillName}-pkg`, version: "1.0.0", pi: { skills: [`./skills/${skillName}`] } }, null, 2),
+			JSON.stringify(
+				{ name: `${skillName}-pkg`, version: "1.0.0", pi: { skills: [`./skills/${skillName}`] } },
+				null,
+				2,
+			),
 			"utf-8",
 		);
 		fs.writeFileSync(
@@ -272,17 +315,49 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 
 	function makeSignedThinkingSessionManager(childSessionFile: string) {
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
-		fs.writeFileSync(parentSessionFile, '{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n', "utf-8");
+		fs.writeFileSync(
+			parentSessionFile,
+			'{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n',
+			"utf-8",
+		);
 		return {
 			getSessionId: () => "session-123",
 			getSessionFile: () => parentSessionFile,
 			getLeafId: () => "assistant-1",
 			openSession: () => ({
 				createBranchedSession: () => {
-					fs.writeFileSync(childSessionFile, [
-						{ type: "session", version: 1, id: "child", timestamp: "2026-04-16T00:00:00.000Z", cwd: "/tmp", parentSession: parentSessionFile },
-						{ type: "message", id: "assistant-1", parentId: null, timestamp: "2026-04-16T00:00:02.000Z", message: { role: "assistant", provider: "anthropic", api: "anthropic-messages", model: "anthropic/claude-sonnet-4-5", content: [{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" }, { type: "text", text: "answer" }] } },
-					].map((entry) => JSON.stringify(entry)).join("\n") + "\n", "utf-8");
+					fs.writeFileSync(
+						childSessionFile,
+						[
+							{
+								type: "session",
+								version: 1,
+								id: "child",
+								timestamp: "2026-04-16T00:00:00.000Z",
+								cwd: "/tmp",
+								parentSession: parentSessionFile,
+							},
+							{
+								type: "message",
+								id: "assistant-1",
+								parentId: null,
+								timestamp: "2026-04-16T00:00:02.000Z",
+								message: {
+									role: "assistant",
+									provider: "anthropic",
+									api: "anthropic-messages",
+									model: "anthropic/claude-sonnet-4-5",
+									content: [
+										{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" },
+										{ type: "text", text: "answer" },
+									],
+								},
+							},
+						]
+							.map((entry) => JSON.stringify(entry))
+							.join("\n") + "\n",
+						"utf-8",
+					);
 					return childSessionFile;
 				},
 			}),
@@ -320,38 +395,76 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 			modelRegistry: {
 				getAvailable: () => [model],
 				find: () => model,
-				getApiKeyAndHeaders: async () => { throw new Error("manual auth extraction must not run"); },
+				getApiKeyAndHeaders: async () => {
+					throw new Error("manual auth extraction must not run");
+				},
 			},
 		};
 
-		const result = await executor.execute("id", { agent: "echo", task: "test", context: "fork" }, new AbortController().signal, undefined, ctx);
+		const result = await executor.execute(
+			"id",
+			{ agent: "echo", task: "test", context: "fork" },
+			new AbortController().signal,
+			undefined,
+			ctx,
+		);
 		assert.equal(result.isError, undefined);
-		assert.equal(fs.readdirSync(mockPi.dir).some((name) => name.startsWith("call-") && name.endsWith(".json")), true);
+		assert.equal(
+			fs.readdirSync(mockPi.dir).some((name) => name.startsWith("call-") && name.endsWith(".json")),
+			true,
+		);
 	});
 
 	for (const forkMode of ["pruned", "full"] as const) {
 		it(`denies a ceiling-restricted agent before ${forkMode} fork preparation`, async () => {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
-			const { manager, openedPaths } = makeForkingSessionManagerRecorder({ sessionFile: parentSessionFile, leafId: "leaf-current" });
-			const executor = makeExecutorWithConfig(forkMode === "pruned" ? { forkContext: { mode: "pruned", model: "test/pruner" } } : {});
+			const { manager, openedPaths } = makeForkingSessionManagerRecorder({
+				sessionFile: parentSessionFile,
+				leafId: "leaf-current",
+			});
+			const executor = makeExecutorWithConfig(
+				forkMode === "pruned" ? { forkContext: { mode: "pruned", model: "test/pruner" } } : {},
+			);
 			const model = { provider: "test", id: "pruner", api: "test-api", maxTokens: 1024 };
 			const registryCalls: string[] = [];
 			const ctx = {
 				...makeCtx(manager),
 				modelRegistry: {
-					getAvailable: () => { registryCalls.push("getAvailable"); return [model]; },
-					find: () => { registryCalls.push("find"); return model; },
-					getApiKeyAndHeaders: async () => { registryCalls.push("getApiKeyAndHeaders"); return {}; },
+					getAvailable: () => {
+						registryCalls.push("getAvailable");
+						return [model];
+					},
+					find: () => {
+						registryCalls.push("find");
+						return model;
+					},
+					getApiKeyAndHeaders: async () => {
+						registryCalls.push("getApiKeyAndHeaders");
+						return {};
+					},
 				},
 			};
-			const handle = registerSubagentCapabilityCeiling({ sessionId: manager.getSessionId(), source: "plan-mode", ceiling: { allowedAgents: ["second"] } });
+			const handle = registerSubagentCapabilityCeiling({
+				sessionId: manager.getSessionId(),
+				source: "plan-mode",
+				ceiling: { allowedAgents: ["second"] },
+			});
 			try {
-				const result = await executor.execute("id", { agent: "echo", task: "test", context: "fork" }, new AbortController().signal, undefined, ctx);
+				const result = await executor.execute(
+					"id",
+					{ agent: "echo", task: "test", context: "fork" },
+					new AbortController().signal,
+					undefined,
+					ctx,
+				);
 				assert.equal(result.isError, true);
 				assert.match(result.content[0]?.text ?? "", /does not allow agent 'echo'/);
 				assert.deepEqual(openedPaths, []);
 				assert.deepEqual(registryCalls, []);
-				assert.equal(fs.readdirSync(mockPi.dir).some((name) => name.startsWith("call-") && name.endsWith(".json")), false);
+				assert.equal(
+					fs.readdirSync(mockPi.dir).some((name) => name.startsWith("call-") && name.endsWith(".json")),
+					false,
+				);
 			} finally {
 				handle.dispose();
 			}
@@ -359,15 +472,37 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 	}
 
 	for (const scenario of [
-		{ name: "an allowed agent listed before it", params: { tasks: [{ agent: "echo", task: "a" }, { agent: "second", task: "b" }] }, hasUI: false },
+		{
+			name: "an allowed agent listed before it",
+			params: {
+				tasks: [
+					{ agent: "echo", task: "a" },
+					{ agent: "second", task: "b" },
+				],
+			},
+			hasUI: false,
+		},
 		{ name: "clarify with a UI", params: { agent: "second", task: "b", clarify: true }, hasUI: true },
 	] as const) {
 		it(`denies a ceiling-restricted agent before any fork with ${scenario.name}`, async () => {
 			const parentSessionFile = path.join(tempDir, "parent.jsonl");
-			const { manager, openedPaths } = makeForkingSessionManagerRecorder({ sessionFile: parentSessionFile, leafId: "leaf-current" });
-			const handle = registerSubagentCapabilityCeiling({ sessionId: manager.getSessionId(), source: "plan-mode", ceiling: { allowedAgents: ["echo"] } });
+			const { manager, openedPaths } = makeForkingSessionManagerRecorder({
+				sessionFile: parentSessionFile,
+				leafId: "leaf-current",
+			});
+			const handle = registerSubagentCapabilityCeiling({
+				sessionId: manager.getSessionId(),
+				source: "plan-mode",
+				ceiling: { allowedAgents: ["echo"] },
+			});
 			try {
-				const result = await makeExecutor().execute("id", { ...scenario.params, context: "fork" }, new AbortController().signal, undefined, { ...makeCtx(manager), hasUI: scenario.hasUI });
+				const result = await makeExecutor().execute(
+					"id",
+					{ ...scenario.params, context: "fork" },
+					new AbortController().signal,
+					undefined,
+					{ ...makeCtx(manager), hasUI: scenario.hasUI },
+				);
 				assert.equal(result.isError, true);
 				assert.match(result.content[0]?.text ?? "", /does not allow agent 'second'/);
 				assert.deepEqual(openedPaths, []);
@@ -379,12 +514,33 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 
 	it("denies before any fork when only the inherited child-runtime ceiling excludes the agent", async () => {
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
-		const { manager, openedPaths } = makeForkingSessionManagerRecorder({ sessionFile: parentSessionFile, leafId: "leaf-current" });
-		const executor = makeExecutorWithDiscoverAgents(() => ({
-			agents: [{ name: "echo", description: "Echo test agent" }, { name: "second", description: "Second test agent" }],
-			projectAgentsDir: null,
-		}), {}, { childRuntime: { fanoutChild: false, capabilityCeiling: { version: 1, allowedAgents: ["echo"], denyExtensions: false, sources: ["parent"] } } });
-		const result = await executor.execute("id", { agent: "second", task: "b", context: "fork" }, new AbortController().signal, undefined, makeCtx(manager));
+		const { manager, openedPaths } = makeForkingSessionManagerRecorder({
+			sessionFile: parentSessionFile,
+			leafId: "leaf-current",
+		});
+		const executor = makeExecutorWithDiscoverAgents(
+			() => ({
+				agents: [
+					{ name: "echo", description: "Echo test agent" },
+					{ name: "second", description: "Second test agent" },
+				],
+				projectAgentsDir: null,
+			}),
+			{},
+			{
+				childRuntime: {
+					fanoutChild: false,
+					capabilityCeiling: { version: 1, allowedAgents: ["echo"], denyExtensions: false, sources: ["parent"] },
+				},
+			},
+		);
+		const result = await executor.execute(
+			"id",
+			{ agent: "second", task: "b", context: "fork" },
+			new AbortController().signal,
+			undefined,
+			makeCtx(manager),
+		);
 		assert.equal(result.isError, true);
 		assert.match(result.content[0]?.text ?? "", /does not allow agent 'second'/);
 		assert.deepEqual(openedPaths, []);
@@ -392,17 +548,34 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 
 	it("does not deny a ceiling-restricted dynamic template that fork preflight never prepares", async () => {
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
-		const { manager, openedPaths } = makeForkingSessionManagerRecorder({ sessionFile: parentSessionFile, leafId: "leaf-current" });
-		const handle = registerSubagentCapabilityCeiling({ sessionId: manager.getSessionId(), source: "plan-mode", ceiling: { allowedAgents: ["echo"] } });
+		const { manager, openedPaths } = makeForkingSessionManagerRecorder({
+			sessionFile: parentSessionFile,
+			leafId: "leaf-current",
+		});
+		const handle = registerSubagentCapabilityCeiling({
+			sessionId: manager.getSessionId(),
+			source: "plan-mode",
+			ceiling: { allowedAgents: ["echo"] },
+		});
 		try {
-			const result = await makeExecutor().execute("id", {
-				context: "fork",
-				chain: [
-					{ agent: "echo", task: "Produce targets", as: "targets", outputSchema: { type: "object" } },
-					{ expand: { from: { output: "targets", path: "/items" }, item: "target", maxItems: 0 }, parallel: { agent: "second", task: "Review {target}" }, collect: { as: "reviews" } },
-				],
-				clarify: false,
-			}, new AbortController().signal, undefined, makeCtx(manager));
+			const result = await makeExecutor().execute(
+				"id",
+				{
+					context: "fork",
+					chain: [
+						{ agent: "echo", task: "Produce targets", as: "targets", outputSchema: { type: "object" } },
+						{
+							expand: { from: { output: "targets", path: "/items" }, item: "target", maxItems: 0 },
+							parallel: { agent: "second", task: "Review {target}" },
+							collect: { as: "reviews" },
+						},
+					],
+					clarify: false,
+				},
+				new AbortController().signal,
+				undefined,
+				makeCtx(manager),
+			);
 			assert.doesNotMatch(result.content[0]?.text ?? "", /does not allow agent/);
 			// The allowed step's fork was prepared, so preflight got past the zero-item template.
 			assert.notDeepEqual(openedPaths, []);
@@ -411,14 +584,10 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		}
 	});
 
-
-
 	it("falls back to fresh when an implicit default fork has no persisted parent session", async () => {
 		const { manager } = makeSessionManagerRecorder({ sessionFile: undefined, leafId: "leaf-current" });
 		const executor = makeExecutorWithDiscoverAgents(() => ({
-			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork" },
-			],
+			agents: [{ name: "worker", description: "Worker", defaultContext: "fork" }],
 			projectAgentsDir: null,
 		}));
 
@@ -436,17 +605,14 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		assert.doesNotMatch(readCallArgs().at(-1) ?? "", /delegated subagent running from a fork/);
 	});
 
-
-
-
-
 	it("uses agent defaultContext fork when launch context is omitted", async () => {
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
-		const { manager, openedPaths, branchedLeafIds } = makeForkingSessionManagerRecorder({ sessionFile: parentSessionFile, leafId: "leaf-current" });
+		const { manager, openedPaths, branchedLeafIds } = makeForkingSessionManagerRecorder({
+			sessionFile: parentSessionFile,
+			leafId: "leaf-current",
+		});
 		const executor = makeExecutorWithDiscoverAgents(() => ({
-			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork" },
-			],
+			agents: [{ name: "worker", description: "Worker", defaultContext: "fork" }],
 			projectAgentsDir: null,
 		}));
 
@@ -467,13 +633,17 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 
 	it("uses global defaultSubagentContext fork for a fresh-default agent", async () => {
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
-		const { manager, openedPaths, branchedLeafIds } = makeForkingSessionManagerRecorder({ sessionFile: parentSessionFile, leafId: "leaf-current" });
-		const executor = makeExecutorWithDiscoverAgents(() => ({
-			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fresh" },
-			],
-			projectAgentsDir: null,
-		}), { defaultSubagentContext: "fork" });
+		const { manager, openedPaths, branchedLeafIds } = makeForkingSessionManagerRecorder({
+			sessionFile: parentSessionFile,
+			leafId: "leaf-current",
+		});
+		const executor = makeExecutorWithDiscoverAgents(
+			() => ({
+				agents: [{ name: "worker", description: "Worker", defaultContext: "fresh" }],
+				projectAgentsDir: null,
+			}),
+			{ defaultSubagentContext: "fork" },
+		);
 
 		const result = await executor.execute(
 			"id",
@@ -493,13 +663,17 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 
 	it("uses global defaultSubagentContext fresh for a fork-default agent", async () => {
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
-		const { manager, openedPaths } = makeForkingSessionManagerRecorder({ sessionFile: parentSessionFile, leafId: "leaf-current" });
-		const executor = makeExecutorWithDiscoverAgents(() => ({
-			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork" },
-			],
-			projectAgentsDir: null,
-		}), { defaultSubagentContext: "fresh" });
+		const { manager, openedPaths } = makeForkingSessionManagerRecorder({
+			sessionFile: parentSessionFile,
+			leafId: "leaf-current",
+		});
+		const executor = makeExecutorWithDiscoverAgents(
+			() => ({
+				agents: [{ name: "worker", description: "Worker", defaultContext: "fork" }],
+				projectAgentsDir: null,
+			}),
+			{ defaultSubagentContext: "fresh" },
+		);
 
 		const result = await executor.execute(
 			"id",
@@ -517,13 +691,17 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 
 	it("uses profile context over global defaultSubagentContext", async () => {
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
-		const { manager, openedPaths, branchedLeafIds } = makeForkingSessionManagerRecorder({ sessionFile: parentSessionFile, leafId: "leaf-current" });
-		const executor = makeExecutorWithDiscoverAgents(() => ({
-			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork" },
-			],
-			projectAgentsDir: null,
-		}), { defaultSubagentContext: "fresh" });
+		const { manager, openedPaths, branchedLeafIds } = makeForkingSessionManagerRecorder({
+			sessionFile: parentSessionFile,
+			leafId: "leaf-current",
+		});
+		const executor = makeExecutorWithDiscoverAgents(
+			() => ({
+				agents: [{ name: "worker", description: "Worker", defaultContext: "fork" }],
+				projectAgentsDir: null,
+			}),
+			{ defaultSubagentContext: "fresh" },
+		);
 
 		const result = await executor.execute(
 			"id",
@@ -541,10 +719,13 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 	});
 
 	it("fails profile context when the selected agent has no defaultContext", async () => {
-		const executor = makeExecutorWithDiscoverAgents(() => ({
-			agents: [{ name: "worker", description: "Worker" }],
-			projectAgentsDir: null,
-		}), { defaultSubagentContext: "fork" });
+		const executor = makeExecutorWithDiscoverAgents(
+			() => ({
+				agents: [{ name: "worker", description: "Worker" }],
+				projectAgentsDir: null,
+			}),
+			{ defaultSubagentContext: "fork" },
+		);
 
 		const result = await executor.execute(
 			"id",
@@ -555,31 +736,78 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		);
 
 		assert.equal(result.isError, true);
-		assert.match(result.content[0]?.text ?? "", /context: "profile" requires agent 'worker' to declare defaultContext/);
+		assert.match(
+			result.content[0]?.text ?? "",
+			/context: "profile" requires agent 'worker' to declare defaultContext/,
+		);
 	});
 
 	it("keeps inherited signed thinking verbatim and keeps child thinking", async () => {
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
 		const childSessionFile = path.join(tempDir, "fork-with-thinking.jsonl");
-		fs.writeFileSync(parentSessionFile, '{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n', "utf-8");
+		fs.writeFileSync(
+			parentSessionFile,
+			'{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n',
+			"utf-8",
+		);
 		const manager = {
 			getSessionId: () => "session-123",
 			getSessionFile: () => parentSessionFile,
 			getLeafId: () => "assistant-1",
 			openSession: () => ({
 				createBranchedSession: () => {
-					fs.writeFileSync(childSessionFile, [
-						{ type: "session", version: 1, id: "child", timestamp: "2026-04-16T00:00:00.000Z", cwd: "/tmp", parentSession: parentSessionFile },
-						{ type: "message", id: "user-1", parentId: null, timestamp: "2026-04-16T00:00:01.000Z", message: { role: "user", content: "prompt" } },
-						{ type: "message", id: "assistant-1", parentId: "user-1", timestamp: "2026-04-16T00:00:02.000Z", message: { role: "assistant", provider: "anthropic", api: "anthropic-messages", model: "anthropic/claude-sonnet-4-5", content: [{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" }, { type: "text", text: "answer" }] } },
-					].map((entry) => JSON.stringify(entry)).join("\n") + "\n", "utf-8");
+					fs.writeFileSync(
+						childSessionFile,
+						[
+							{
+								type: "session",
+								version: 1,
+								id: "child",
+								timestamp: "2026-04-16T00:00:00.000Z",
+								cwd: "/tmp",
+								parentSession: parentSessionFile,
+							},
+							{
+								type: "message",
+								id: "user-1",
+								parentId: null,
+								timestamp: "2026-04-16T00:00:01.000Z",
+								message: { role: "user", content: "prompt" },
+							},
+							{
+								type: "message",
+								id: "assistant-1",
+								parentId: "user-1",
+								timestamp: "2026-04-16T00:00:02.000Z",
+								message: {
+									role: "assistant",
+									provider: "anthropic",
+									api: "anthropic-messages",
+									model: "anthropic/claude-sonnet-4-5",
+									content: [
+										{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" },
+										{ type: "text", text: "answer" },
+									],
+								},
+							},
+						]
+							.map((entry) => JSON.stringify(entry))
+							.join("\n") + "\n",
+						"utf-8",
+					);
 					return childSessionFile;
 				},
 			}),
 		};
 		const executor = makeExecutorWithDiscoverAgents(() => ({
 			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork", model: "anthropic/claude-sonnet-4-5:high", thinking: "high" },
+				{
+					name: "worker",
+					description: "Worker",
+					defaultContext: "fork",
+					model: "anthropic/claude-sonnet-4-5:high",
+					thinking: "high",
+				},
 			],
 			projectAgentsDir: null,
 		}));
@@ -595,8 +823,15 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		assert.equal(result.isError, undefined);
 		const args = readCallArgs();
 		assert.equal(args[args.indexOf("--model") + 1], "anthropic/claude-sonnet-4-5:high");
-		const entries = fs.readFileSync(childSessionFile, "utf-8").trim().split("\n").map((line) => JSON.parse(line));
-		assert.deepEqual(entries[2].message.content, [{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" }, { type: "text", text: "answer" }]);
+		const entries = fs
+			.readFileSync(childSessionFile, "utf-8")
+			.trim()
+			.split("\n")
+			.map((line) => JSON.parse(line));
+		assert.deepEqual(entries[2].message.content, [
+			{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" },
+			{ type: "text", text: "answer" },
+		]);
 		assert.equal(entries.length, 3);
 		assert.ok(!entries.some((entry) => entry.type === "thinking_level_change"));
 	});
@@ -604,24 +839,62 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 	it("keeps thinking for an explicit Anthropic model on a forked child", async () => {
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
 		const childSessionFile = path.join(tempDir, "fork-explicit-anthropic.jsonl");
-		fs.writeFileSync(parentSessionFile, '{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n', "utf-8");
+		fs.writeFileSync(
+			parentSessionFile,
+			'{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n',
+			"utf-8",
+		);
 		const manager = {
 			getSessionId: () => "session-123",
 			getSessionFile: () => parentSessionFile,
 			getLeafId: () => "assistant-1",
 			openSession: () => ({
 				createBranchedSession: () => {
-					fs.writeFileSync(childSessionFile, [
-						{ type: "session", version: 1, id: "child", timestamp: "2026-04-16T00:00:00.000Z", cwd: "/tmp", parentSession: parentSessionFile },
-						{ type: "message", id: "assistant-1", parentId: null, timestamp: "2026-04-16T00:00:02.000Z", message: { role: "assistant", provider: "anthropic", api: "anthropic-messages", model: "anthropic/claude-sonnet-4-5", content: [{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" }, { type: "text", text: "answer" }] } },
-					].map((entry) => JSON.stringify(entry)).join("\n") + "\n", "utf-8");
+					fs.writeFileSync(
+						childSessionFile,
+						[
+							{
+								type: "session",
+								version: 1,
+								id: "child",
+								timestamp: "2026-04-16T00:00:00.000Z",
+								cwd: "/tmp",
+								parentSession: parentSessionFile,
+							},
+							{
+								type: "message",
+								id: "assistant-1",
+								parentId: null,
+								timestamp: "2026-04-16T00:00:02.000Z",
+								message: {
+									role: "assistant",
+									provider: "anthropic",
+									api: "anthropic-messages",
+									model: "anthropic/claude-sonnet-4-5",
+									content: [
+										{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" },
+										{ type: "text", text: "answer" },
+									],
+								},
+							},
+						]
+							.map((entry) => JSON.stringify(entry))
+							.join("\n") + "\n",
+						"utf-8",
+					);
 					return childSessionFile;
 				},
 			}),
 		};
 		const executor = makeExecutorWithDiscoverAgents(() => ({
 			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork", model: "openai/gpt-5-mini:high", thinking: "high" },
+				{
+					name: "worker",
+					description: "Worker",
+					defaultContext: "fork",
+					model: "openai/gpt-5-mini:high",
+					thinking: "high",
+				},
 			],
 			projectAgentsDir: null,
 		}));
@@ -646,8 +919,15 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		assert.equal(result.isError, undefined);
 		const args = readCallArgs();
 		assert.equal(args[args.indexOf("--model") + 1], "anthropic/claude-sonnet-4-5:high");
-		const entries = fs.readFileSync(childSessionFile, "utf-8").trim().split("\n").map((line) => JSON.parse(line));
-		assert.deepEqual(entries[1].message.content, [{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" }, { type: "text", text: "answer" }]);
+		const entries = fs
+			.readFileSync(childSessionFile, "utf-8")
+			.trim()
+			.split("\n")
+			.map((line) => JSON.parse(line));
+		assert.deepEqual(entries[1].message.content, [
+			{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" },
+			{ type: "text", text: "answer" },
+		]);
 		assert.equal(entries.length, 2);
 		assert.ok(!entries.some((entry) => entry.type === "thinking_level_change"));
 	});
@@ -656,24 +936,62 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		mockPi.onCall({ output: "done" });
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
 		const childSessionFile = path.join(tempDir, "fork-keep-thinking.jsonl");
-		fs.writeFileSync(parentSessionFile, '{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n', "utf-8");
+		fs.writeFileSync(
+			parentSessionFile,
+			'{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n',
+			"utf-8",
+		);
 		const manager = {
 			getSessionId: () => "session-123",
 			getSessionFile: () => parentSessionFile,
 			getLeafId: () => "assistant-1",
 			openSession: () => ({
 				createBranchedSession: () => {
-					fs.writeFileSync(childSessionFile, [
-						{ type: "session", version: 1, id: "child", timestamp: "2026-04-16T00:00:00.000Z", cwd: "/tmp", parentSession: parentSessionFile },
-						{ type: "message", id: "assistant-1", parentId: null, timestamp: "2026-04-16T00:00:02.000Z", message: { role: "assistant", provider: "anthropic", api: "anthropic-messages", model: "anthropic/claude-sonnet-4-5", content: [{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" }, { type: "text", text: "answer" }] } },
-					].map((entry) => JSON.stringify(entry)).join("\n") + "\n", "utf-8");
+					fs.writeFileSync(
+						childSessionFile,
+						[
+							{
+								type: "session",
+								version: 1,
+								id: "child",
+								timestamp: "2026-04-16T00:00:00.000Z",
+								cwd: "/tmp",
+								parentSession: parentSessionFile,
+							},
+							{
+								type: "message",
+								id: "assistant-1",
+								parentId: null,
+								timestamp: "2026-04-16T00:00:02.000Z",
+								message: {
+									role: "assistant",
+									provider: "anthropic",
+									api: "anthropic-messages",
+									model: "anthropic/claude-sonnet-4-5",
+									content: [
+										{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" },
+										{ type: "text", text: "answer" },
+									],
+								},
+							},
+						]
+							.map((entry) => JSON.stringify(entry))
+							.join("\n") + "\n",
+						"utf-8",
+					);
 					return childSessionFile;
 				},
 			}),
 		};
 		const executor = makeExecutorWithDiscoverAgents(() => ({
 			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork", model: "openai/gpt-5-mini:high", thinking: "high" },
+				{
+					name: "worker",
+					description: "Worker",
+					defaultContext: "fork",
+					model: "openai/gpt-5-mini:high",
+					thinking: "high",
+				},
 			],
 			projectAgentsDir: null,
 		}));
@@ -695,10 +1013,20 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		assert.equal(result.isError, undefined);
 		const args = readCallArgs();
 		assert.equal(args[args.indexOf("--model") + 1], "openai/gpt-5-mini:high");
-		const entries = fs.readFileSync(childSessionFile, "utf-8").trim().split("\n").map((line) => JSON.parse(line));
-		assert.deepEqual(entries[1].message.content, [{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" }, { type: "text", text: "answer" }]);
+		const entries = fs
+			.readFileSync(childSessionFile, "utf-8")
+			.trim()
+			.split("\n")
+			.map((line) => JSON.parse(line));
+		assert.deepEqual(entries[1].message.content, [
+			{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" },
+			{ type: "text", text: "answer" },
+		]);
 		assert.equal(entries.length, 2);
-		const text = result.content.filter((block) => block.type === "text").map((block) => block.text).join("\n");
+		const text = result.content
+			.filter((block) => block.type === "text")
+			.map((block) => block.text)
+			.join("\n");
 		assert.equal(text.includes("fork context forced thinking off"), false);
 	});
 
@@ -707,7 +1035,13 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		const manager = makeSignedThinkingSessionManager(childSessionFile);
 		const executor = makeExecutorWithDiscoverAgents(() => ({
 			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork", model: "openai/gpt-5-mini:high", thinking: "high" },
+				{
+					name: "worker",
+					description: "Worker",
+					defaultContext: "fork",
+					model: "openai/gpt-5-mini:high",
+					thinking: "high",
+				},
 			],
 			projectAgentsDir: null,
 			modelScope: { enforce: true, allow: ["anthropic/*"] },
@@ -745,7 +1079,13 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		const manager = makeSignedThinkingSessionManager(childSessionFile);
 		const executor = makeExecutorWithDiscoverAgents(() => ({
 			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork", model: "openai/gpt-5-mini", thinking: "high" },
+				{
+					name: "worker",
+					description: "Worker",
+					defaultContext: "fork",
+					model: "openai/gpt-5-mini",
+					thinking: "high",
+				},
 			],
 			projectAgentsDir: null,
 			modelScope: { enforce: true, allow: ["anthropic/*"] },
@@ -772,7 +1112,10 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 			}
 
 			assert.equal(warnings.length, 2);
-			assert.equal(warnings.every((warning) => warning.includes("outside the configured subagent model scope")), true);
+			assert.equal(
+				warnings.every((warning) => warning.includes("outside the configured subagent model scope")),
+				true,
+			);
 			for (const args of readAllCallArgs()) {
 				assert.equal(args[args.indexOf("--model") + 1], "openai/gpt-5-mini:high");
 			}
@@ -786,24 +1129,62 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		mockPi.onCall({ output: "done" });
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
 		const childSessionFile = path.join(tempDir, "fork-note-downgrade.jsonl");
-		fs.writeFileSync(parentSessionFile, '{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n', "utf-8");
+		fs.writeFileSync(
+			parentSessionFile,
+			'{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n',
+			"utf-8",
+		);
 		const manager = {
 			getSessionId: () => "session-123",
 			getSessionFile: () => parentSessionFile,
 			getLeafId: () => "assistant-1",
 			openSession: () => ({
 				createBranchedSession: () => {
-					fs.writeFileSync(childSessionFile, [
-						{ type: "session", version: 1, id: "child", timestamp: "2026-04-16T00:00:00.000Z", cwd: "/tmp", parentSession: parentSessionFile },
-						{ type: "message", id: "assistant-1", parentId: null, timestamp: "2026-04-16T00:00:02.000Z", message: { role: "assistant", provider: "anthropic", api: "anthropic-messages", model: "anthropic/claude-sonnet-4-5", content: [{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" }, { type: "text", text: "answer" }] } },
-					].map((entry) => JSON.stringify(entry)).join("\n") + "\n", "utf-8");
+					fs.writeFileSync(
+						childSessionFile,
+						[
+							{
+								type: "session",
+								version: 1,
+								id: "child",
+								timestamp: "2026-04-16T00:00:00.000Z",
+								cwd: "/tmp",
+								parentSession: parentSessionFile,
+							},
+							{
+								type: "message",
+								id: "assistant-1",
+								parentId: null,
+								timestamp: "2026-04-16T00:00:02.000Z",
+								message: {
+									role: "assistant",
+									provider: "anthropic",
+									api: "anthropic-messages",
+									model: "anthropic/claude-sonnet-4-5",
+									content: [
+										{ type: "thinking", thinking: "private chain", thinkingSignature: "signed" },
+										{ type: "text", text: "answer" },
+									],
+								},
+							},
+						]
+							.map((entry) => JSON.stringify(entry))
+							.join("\n") + "\n",
+						"utf-8",
+					);
 					return childSessionFile;
 				},
 			}),
 		};
 		const executor = makeExecutorWithDiscoverAgents(() => ({
 			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork", model: "anthropic/claude-sonnet-4-5:high", thinking: "high" },
+				{
+					name: "worker",
+					description: "Worker",
+					defaultContext: "fork",
+					model: "anthropic/claude-sonnet-4-5:high",
+					thinking: "high",
+				},
 			],
 			projectAgentsDir: null,
 		}));
@@ -811,7 +1192,9 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		const ctx = {
 			...makeCtx(manager),
 			modelRegistry: {
-				getAvailable: () => [{ provider: "anthropic", id: "claude-sonnet-4-5", api: "anthropic-messages", reasoning: true }],
+				getAvailable: () => [
+					{ provider: "anthropic", id: "claude-sonnet-4-5", api: "anthropic-messages", reasoning: true },
+				],
 			},
 		};
 		const result = await executor.execute(
@@ -823,7 +1206,10 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		);
 
 		assert.equal(result.isError, undefined);
-		const text = result.content.filter((block) => block.type === "text").map((block) => block.text).join("\n");
+		const text = result.content
+			.filter((block) => block.type === "text")
+			.map((block) => block.text)
+			.join("\n");
 		assert.equal(text.includes("forced thinking off"), false);
 		const noteArgs = readCallArgs();
 		assert.equal(noteArgs[noteArgs.indexOf("--model") + 1], "anthropic/claude-sonnet-4-5:high");
@@ -833,16 +1219,16 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		const childSessionFile = path.join(tempDir, "fork-inherit-thinking.jsonl");
 		const manager = makeSignedThinkingSessionManager(childSessionFile);
 		const executor = makeExecutorWithDiscoverAgents(() => ({
-			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork", thinking: "high" },
-			],
+			agents: [{ name: "worker", description: "Worker", defaultContext: "fork", thinking: "high" }],
 			projectAgentsDir: null,
 		}));
 		const ctx = {
 			...makeCtx(manager),
 			model: { provider: "anthropic", id: "claude-sonnet-4-5" },
 			modelRegistry: {
-				getAvailable: () => [{ provider: "anthropic", id: "claude-sonnet-4-5", api: "anthropic-messages", reasoning: true }],
+				getAvailable: () => [
+					{ provider: "anthropic", id: "claude-sonnet-4-5", api: "anthropic-messages", reasoning: true },
+				],
 			},
 		};
 
@@ -896,12 +1282,6 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		assert.match(explicit.content[0]?.text ?? "", /Unknown subagent model 'gateway\/unknown'/);
 	});
 
-
-
-
-
-
-
 	it("adds no fork-thinking downgrade note to failed results", async () => {
 		mockPi.reset();
 		mockPi.onCall({ stderr: "task failed", exitCode: 1 });
@@ -909,14 +1289,22 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		const manager = makeSignedThinkingSessionManager(childSessionFile);
 		const executor = makeExecutorWithDiscoverAgents(() => ({
 			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork", model: "anthropic/claude-sonnet-4-5:high", thinking: "high" },
+				{
+					name: "worker",
+					description: "Worker",
+					defaultContext: "fork",
+					model: "anthropic/claude-sonnet-4-5:high",
+					thinking: "high",
+				},
 			],
 			projectAgentsDir: null,
 		}));
 		const ctx = {
 			...makeCtx(manager),
 			modelRegistry: {
-				getAvailable: () => [{ provider: "anthropic", id: "claude-sonnet-4-5", api: "anthropic-messages", reasoning: true }],
+				getAvailable: () => [
+					{ provider: "anthropic", id: "claude-sonnet-4-5", api: "anthropic-messages", reasoning: true },
+				],
 			},
 		};
 
@@ -929,7 +1317,10 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		);
 
 		assert.equal(result.isError, true);
-		const text = result.content.filter((block) => block.text).map((block) => block.text).join("\n");
+		const text = result.content
+			.filter((block) => block.text)
+			.map((block) => block.text)
+			.join("\n");
 		assert.equal(text.includes("forced thinking off"), false);
 	});
 
@@ -937,9 +1328,7 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
 		const { manager } = makeForkingSessionManagerRecorder({ sessionFile: parentSessionFile, leafId: "leaf-current" });
 		const executor = makeExecutorWithDiscoverAgents(() => ({
-			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork" },
-			],
+			agents: [{ name: "worker", description: "Worker", defaultContext: "fork" }],
 			projectAgentsDir: null,
 		}));
 
@@ -948,13 +1337,7 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 			throw new Error("model registry unavailable");
 		};
 
-		const result = await executor.execute(
-			"id",
-			{ agent: "worker" },
-			new AbortController().signal,
-			undefined,
-			ctx,
-		);
+		const result = await executor.execute("id", { agent: "worker" }, new AbortController().signal, undefined, ctx);
 
 		assert.equal(result.isError, true);
 		assert.match(result.content[0]?.text ?? "", /model registry unavailable/);
@@ -963,11 +1346,12 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 
 	it("keeps explicit fresh context over agent defaultContext fork", async () => {
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
-		const { manager, openedPaths, branchedLeafIds } = makeForkingSessionManagerRecorder({ sessionFile: parentSessionFile, leafId: "leaf-current" });
+		const { manager, openedPaths, branchedLeafIds } = makeForkingSessionManagerRecorder({
+			sessionFile: parentSessionFile,
+			leafId: "leaf-current",
+		});
 		const executor = makeExecutorWithDiscoverAgents(() => ({
-			agents: [
-				{ name: "oracle", description: "Oracle", defaultContext: "fork" },
-			],
+			agents: [{ name: "oracle", description: "Oracle", defaultContext: "fork" }],
 			projectAgentsDir: null,
 		}));
 
@@ -987,15 +1371,13 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		assert.notEqual(readSessionArgsFromCalls()[0], path.join(tempDir, "fork-1.jsonl"));
 	});
 
-
-
-
-
-
-
 	it("fails before launching mixed parallel children when a default-fork session cannot branch", async () => {
 		const parentSessionFile = path.join(tempDir, "parent-mixed-fail.jsonl");
-		fs.writeFileSync(parentSessionFile, '{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n', "utf-8");
+		fs.writeFileSync(
+			parentSessionFile,
+			'{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n',
+			"utf-8",
+		);
 		const manager = {
 			getSessionId: () => "session-123",
 			getSessionFile: () => parentSessionFile,
@@ -1016,7 +1398,12 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 
 		const result = await executor.execute(
 			"id",
-			{ tasks: [{ agent: "scout", task: "scan" }, { agent: "worker", task: "write" }] },
+			{
+				tasks: [
+					{ agent: "scout", task: "scan" },
+					{ agent: "worker", task: "write" },
+				],
+			},
 			new AbortController().signal,
 			undefined,
 			makeCtx(manager),
@@ -1030,7 +1417,11 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 
 	it("preflights static default-fork chain steps even when the chain also has dynamic fanout", async () => {
 		const parentSessionFile = path.join(tempDir, "parent-dynamic-chain-fail.jsonl");
-		fs.writeFileSync(parentSessionFile, '{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n', "utf-8");
+		fs.writeFileSync(
+			parentSessionFile,
+			'{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n',
+			"utf-8",
+		);
 		const manager = {
 			getSessionId: () => "session-123",
 			getSessionFile: () => parentSessionFile,
@@ -1074,8 +1465,6 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		assert.equal(mockPi.callCount(), 0);
 	});
 
-
-
 	it("reports unknown top-level parallel agents before default-fork preconditions", async () => {
 		const { manager } = makeSessionManagerRecorder({ sessionFile: undefined, leafId: "leaf-current" });
 		const executor = makeExecutorWithDiscoverAgents(() => ({
@@ -1085,7 +1474,12 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 
 		const result = await executor.execute(
 			"id",
-			{ tasks: [{ agent: "worker", task: "one" }, { agent: "missing", task: "two" }] },
+			{
+				tasks: [
+					{ agent: "worker", task: "one" },
+					{ agent: "missing", task: "two" },
+				],
+			},
 			new AbortController().signal,
 			undefined,
 			makeCtx(manager),
@@ -1116,9 +1510,7 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		const parentSessionFile = path.join(tempDir, "unpersisted-parent.jsonl");
 		const { manager } = makeSessionManagerRecorder({ sessionFile: parentSessionFile, leafId: "leaf-current" });
 		const executor = makeExecutorWithDiscoverAgents(() => ({
-			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork" },
-			],
+			agents: [{ name: "worker", description: "Worker", defaultContext: "fork" }],
 			projectAgentsDir: null,
 		}));
 
@@ -1138,12 +1530,14 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 
 	it("falls back to fresh when an implicit default fork has no current leaf", async () => {
 		const parentSessionFile = path.join(tempDir, "parent-no-leaf.jsonl");
-		fs.writeFileSync(parentSessionFile, '{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n', "utf-8");
+		fs.writeFileSync(
+			parentSessionFile,
+			'{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n',
+			"utf-8",
+		);
 		const { manager } = makeSessionManagerRecorder({ sessionFile: parentSessionFile, leafId: null });
 		const executor = makeExecutorWithDiscoverAgents(() => ({
-			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork" },
-			],
+			agents: [{ name: "worker", description: "Worker", defaultContext: "fork" }],
 			projectAgentsDir: null,
 		}));
 
@@ -1164,9 +1558,7 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 	it("keeps explicit fork fail-fast even when the agent defaults to fork", async () => {
 		const { manager } = makeSessionManagerRecorder({ sessionFile: undefined, leafId: "leaf-current" });
 		const executor = makeExecutorWithDiscoverAgents(() => ({
-			agents: [
-				{ name: "worker", description: "Worker", defaultContext: "fork" },
-			],
+			agents: [{ name: "worker", description: "Worker", defaultContext: "fork" }],
 			projectAgentsDir: null,
 		}));
 
@@ -1202,7 +1594,11 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 	it("returns a tool error (instead of throwing) when branch creation fails", async () => {
 		const executor = makeExecutor();
 		const parentSessionFile = path.join(tempDir, "parent.jsonl");
-		fs.writeFileSync(parentSessionFile, '{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n', "utf-8");
+		fs.writeFileSync(
+			parentSessionFile,
+			'{"type":"session","version":1,"id":"parent","timestamp":"2026-04-16T00:00:00.000Z","cwd":"/tmp"}\n',
+			"utf-8",
+		);
 		const manager = {
 			getSessionId: () => "session-123",
 			getSessionFile: () => parentSessionFile,
@@ -1253,42 +1649,6 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		assert.equal(fs.existsSync(args[sessionIndex + 1]!), true);
 	});
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 	it("uses request cwd for management actions", async () => {
 		const executor = makeExecutor();
 		const worktreeDir = path.join(tempDir, "worktree");
@@ -1337,8 +1697,6 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		assert.notEqual(modelIndex, -1);
 		assert.equal(args[modelIndex + 1], "anthropic/claude-haiku-4-5");
 	});
-
-
 
 	it("uses request cwd for project builtin overrides during management", async () => {
 		const tempHome = createTempDir("pi-subagent-home-");

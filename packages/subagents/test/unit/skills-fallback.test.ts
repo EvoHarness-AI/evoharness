@@ -3,8 +3,8 @@ import { execFileSync, spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterEach, beforeEach, describe, it } from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import {
 	buildSkillInjection,
 	clearSkillCache,
@@ -17,11 +17,7 @@ let tempDir = "";
 
 function writeSkillFile(skillDir: string, body: string, description = "Test description"): void {
 	fs.mkdirSync(skillDir, { recursive: true });
-	fs.writeFileSync(
-		path.join(skillDir, "SKILL.md"),
-		`---\ndescription: ${description}\n---\n\n${body}\n`,
-		"utf-8",
-	);
+	fs.writeFileSync(path.join(skillDir, "SKILL.md"), `---\ndescription: ${description}\n---\n\n${body}\n`, "utf-8");
 }
 
 function makeProjectSkill(cwd: string, name: string, body: string, description = "Test description"): void {
@@ -49,14 +45,18 @@ async function importSkillsFresh() {
 	const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 	const modulePath = path.resolve(projectRoot, "src/agents/skills.ts");
 	const bust = `${Date.now()}-${Math.random()}`;
-	return await import(`${pathToFileURL(modulePath).href}?bust=${bust}`) as typeof import("../../src/agents/skills.ts");
+	return (await import(
+		`${pathToFileURL(modulePath).href}?bust=${bust}`
+	)) as typeof import("../../src/agents/skills.ts");
 }
 
 async function importAgentsFresh() {
 	const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 	const modulePath = path.resolve(projectRoot, "src/agents/agents.ts");
 	const bust = `${Date.now()}-${Math.random()}`;
-	return await import(`${pathToFileURL(modulePath).href}?bust=${bust}`) as typeof import("../../src/agents/agents.ts");
+	return (await import(
+		`${pathToFileURL(modulePath).href}?bust=${bust}`
+	)) as typeof import("../../src/agents/agents.ts");
 }
 
 describe("skills filesystem fallback", () => {
@@ -89,7 +89,12 @@ describe("skills filesystem fallback", () => {
 		] as const;
 
 		for (const [index, [indicator]] of cases.entries()) {
-			makeProjectSkill(tempDir, `block-scalar-${index}`, "Use block scalar metadata.", `${indicator}\n  first line\n  second line`);
+			makeProjectSkill(
+				tempDir,
+				`block-scalar-${index}`,
+				"Use block scalar metadata.",
+				`${indicator}\n  first line\n  second line`,
+			);
 		}
 
 		for (const [index, [, description]] of cases.entries()) {
@@ -99,7 +104,10 @@ describe("skills filesystem fallback", () => {
 
 			const { resolved, missing } = resolveSkills([name], tempDir);
 			assert.deepEqual(missing, []);
-			assert.match(buildSkillInjection(resolved), new RegExp(`<description>${description.replace("\n", "\\n")}</description>`));
+			assert.match(
+				buildSkillInjection(resolved),
+				new RegExp(`<description>${description.replace("\n", "\\n")}</description>`),
+			);
 		}
 	});
 
@@ -125,7 +133,10 @@ describe("skills filesystem fallback", () => {
 	it("stops recursive project skill discovery at the first SKILL.md anchor", () => {
 		const groupedRoot = path.join(tempDir, ".pi", "skills", "group");
 		writeSkillFile(path.join(groupedRoot, "issue-262-anchor"), "Use anchor skill.");
-		writeSkillFile(path.join(groupedRoot, "issue-262-anchor", "nested", "issue-262-leaked-skill"), "Should not leak.");
+		writeSkillFile(
+			path.join(groupedRoot, "issue-262-anchor", "nested", "issue-262-leaked-skill"),
+			"Should not leak.",
+		);
 		writeSkillFile(path.join(groupedRoot, "issue-262-sibling"), "Use sibling skill.");
 
 		const names = discoverAvailableSkills(tempDir).map((skill) => skill.name);
@@ -164,10 +175,7 @@ describe("skills filesystem fallback", () => {
 	});
 
 	it("keeps nested skills from higher-priority explicit settings roots after parent recursion", () => {
-		writeSkillFile(
-			path.join(tempDir, "skills", "group", "issue-262-settings-nested"),
-			"Use settings nested skill.",
-		);
+		writeSkillFile(path.join(tempDir, "skills", "group", "issue-262-settings-nested"), "Use settings nested skill.");
 		fs.writeFileSync(
 			path.join(tempDir, "package.json"),
 			JSON.stringify({ name: "fixture", version: "1.0.0", pi: { skills: ["./skills"] } }, null, 2),
@@ -259,7 +267,10 @@ describe("skills filesystem fallback", () => {
 
 		const { resolved, missing } = resolveSkills(["pi-subagents", "safe-bash"], tempDir);
 		assert.deepEqual(missing, ["pi-subagents"]);
-		assert.deepEqual(resolved.map((skill) => skill.name), ["safe-bash"]);
+		assert.deepEqual(
+			resolved.map((skill) => skill.name),
+			["safe-bash"],
+		);
 
 		const agentDir = path.join(tempDir, "agent");
 		writeSkillFile(path.join(agentDir, "skills", "pi-subagents"), "Still parent-only.");
@@ -306,7 +317,11 @@ describe("skills filesystem fallback", () => {
 
 	it("skips settings package entries that name a single extension file", () => {
 		fs.mkdirSync(path.join(tempDir, ".pi", "extensions"), { recursive: true });
-		fs.writeFileSync(path.join(tempDir, ".pi", "extensions", "my-extension.ts"), "export default () => {};\n", "utf-8");
+		fs.writeFileSync(
+			path.join(tempDir, ".pi", "extensions", "my-extension.ts"),
+			"export default () => {};\n",
+			"utf-8",
+		);
 		fs.writeFileSync(
 			path.join(tempDir, ".pi", "settings.json"),
 			JSON.stringify({ packages: ["./extensions/my-extension.ts"] }, null, 2),
@@ -363,7 +378,7 @@ describe("skills filesystem fallback", () => {
 		);
 		fs.writeFileSync(
 			path.join(binDir, "npm.cmd"),
-			"@echo off\r\n>>\"%PI_DISCOVERY_MARKER%\" echo npm-root-called\r\nexit /b 1\r\n",
+			'@echo off\r\n>>"%PI_DISCOVERY_MARKER%" echo npm-root-called\r\nexit /b 1\r\n',
 			"utf-8",
 		);
 
@@ -385,7 +400,14 @@ describe("skills filesystem fallback", () => {
 		`;
 		execFileSync(
 			process.execPath,
-			["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script],
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"--eval",
+				script,
+			],
 			{
 				cwd: projectRoot,
 				env: {
@@ -415,22 +437,26 @@ describe("skills filesystem fallback", () => {
 			discoverAvailableSkills(process.cwd());
 			discoverAgents(process.cwd(), "both");
 		`;
-		const result = spawnSync(process.execPath, [
-			"--experimental-strip-types",
-			"--import",
-			"./test/support/isolated-temp-root.mjs",
-			"--input-type=module",
-			"--eval",
-			script,
-		], {
-			cwd: projectRoot,
-			env: {
-				...process.env,
-				PATH: emptyBinDir,
-				EVOHARNESS_OFFLINE: "",
+		const result = spawnSync(
+			process.execPath,
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/isolated-temp-root.mjs",
+				"--input-type=module",
+				"--eval",
+				script,
+			],
+			{
+				cwd: projectRoot,
+				env: {
+					...process.env,
+					PATH: emptyBinDir,
+					EVOHARNESS_OFFLINE: "",
+				},
+				encoding: "utf-8",
 			},
-			encoding: "utf-8",
-		});
+		);
 		assert.equal(result.status, 0, result.stderr);
 		assert.equal(result.stderr, "", `optional global discovery leaked stderr: ${result.stderr}`);
 	});
@@ -441,29 +467,36 @@ describe("skills filesystem fallback", () => {
 		const marker = path.join(tempDir, "npm-called");
 		const binDir = path.join(tempDir, "bin");
 		fs.mkdirSync(binDir, { recursive: true });
-		fs.writeFileSync(
-			path.join(binDir, "npm"),
-			`#!/bin/sh\ntouch "${marker}"\nexit 1\n`,
-			{ encoding: "utf-8", mode: 0o755 },
-		);
+		fs.writeFileSync(path.join(binDir, "npm"), `#!/bin/sh\ntouch "${marker}"\nexit 1\n`, {
+			encoding: "utf-8",
+			mode: 0o755,
+		});
 		writeSkillFile(path.join(packageRoot, "skills", "windows-global-skill"), "Use the Windows global skill.");
 		fs.writeFileSync(
 			path.join(packageRoot, "package.json"),
-			JSON.stringify({
-				name: "windows-global-package",
-				pi: { skills: ["./skills"] },
-				"pi-subagents": { agents: ["./agents"] },
-			}, null, 2),
+			JSON.stringify(
+				{
+					name: "windows-global-package",
+					pi: { skills: ["./skills"] },
+					"pi-subagents": { agents: ["./agents"] },
+				},
+				null,
+				2,
+			),
 			"utf-8",
 		);
 		fs.mkdirSync(path.join(packageRoot, "agents"), { recursive: true });
-		fs.writeFileSync(path.join(packageRoot, "agents", "windows-global-agent.md"), `---
+		fs.writeFileSync(
+			path.join(packageRoot, "agents", "windows-global-agent.md"),
+			`---
 name: windows-global-agent
 description: Loaded from the Windows global npm root.
 ---
 
 Windows global agent.
-`, "utf-8");
+`,
+			"utf-8",
+		);
 
 		const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
 		const previousAppData = process.env.APPDATA;
@@ -477,7 +510,9 @@ Windows global agent.
 			assert.ok(skills.discoverAvailableSkills(tempDir).some((skill) => skill.name === "windows-global-skill"));
 
 			const agents = await importAgentsFresh();
-			assert.ok(agents.discoverAgents(tempDir, "both").agents.some((agent) => agent.name === "windows-global-agent"));
+			assert.ok(
+				agents.discoverAgents(tempDir, "both").agents.some((agent) => agent.name === "windows-global-agent"),
+			);
 			assert.equal(fs.existsSync(marker), false, "npm root -g should not run when APPDATA has a global root");
 		} finally {
 			if (platformDescriptor) Object.defineProperty(process, "platform", platformDescriptor);
@@ -507,29 +542,36 @@ Windows global agent.
 			`@echo off\r\necho called > "%PI_TEST_NPM_MARKER%"\r\necho %PI_TEST_FALLBACK_ROOT%\r\n`,
 			"utf-8",
 		);
-		fs.writeFileSync(
-			path.join(binDir, "cmd.exe"),
-			`#!/bin/sh\nexec sh -c "npm root -g"\n`,
-			{ encoding: "utf-8", mode: 0o755 },
-		);
+		fs.writeFileSync(path.join(binDir, "cmd.exe"), `#!/bin/sh\nexec sh -c "npm root -g"\n`, {
+			encoding: "utf-8",
+			mode: 0o755,
+		});
 		writeSkillFile(path.join(packageRoot, "skills", "fallback-global-skill"), "Use the fallback global skill.");
 		fs.writeFileSync(
 			path.join(packageRoot, "package.json"),
-			JSON.stringify({
-				name: "fallback-global-package",
-				pi: { skills: ["./skills"] },
-				"pi-subagents": { agents: ["./agents"] },
-			}, null, 2),
+			JSON.stringify(
+				{
+					name: "fallback-global-package",
+					pi: { skills: ["./skills"] },
+					"pi-subagents": { agents: ["./agents"] },
+				},
+				null,
+				2,
+			),
 			"utf-8",
 		);
 		fs.mkdirSync(path.join(packageRoot, "agents"), { recursive: true });
-		fs.writeFileSync(path.join(packageRoot, "agents", "fallback-global-agent.md"), `---
+		fs.writeFileSync(
+			path.join(packageRoot, "agents", "fallback-global-agent.md"),
+			`---
 name: fallback-global-agent
 description: Loaded from npm fallback global root.
 ---
 
 Fallback global agent.
-`, "utf-8");
+`,
+			"utf-8",
+		);
 
 		const platformDescriptor = Object.getOwnPropertyDescriptor(process, "platform");
 		const previousAppData = process.env.APPDATA;
@@ -549,7 +591,9 @@ Fallback global agent.
 			assert.ok(skills.discoverAvailableSkills(tempDir).some((skill) => skill.name === "fallback-global-skill"));
 
 			const agents = await importAgentsFresh();
-			assert.ok(agents.discoverAgents(tempDir, "both").agents.some((agent) => agent.name === "fallback-global-agent"));
+			assert.ok(
+				agents.discoverAgents(tempDir, "both").agents.some((agent) => agent.name === "fallback-global-agent"),
+			);
 			assert.equal(fs.existsSync(marker), true, "npm root -g should run when APPDATA root is invalid");
 		} finally {
 			if (platformDescriptor) Object.defineProperty(process, "platform", platformDescriptor);
@@ -684,14 +728,25 @@ Fallback global agent.
 		writeSkillFile(path.join(agentDir, "skills", "shared"), "local shared body");
 		writeSkillFile(path.join(agentDir, "direct"), "local direct body");
 
-		const local = resolveSkills(["shared", "direct", "missing"], tempDir, ["./skills", "./direct/SKILL.md"], agentDir);
-		assert.deepEqual(local.resolved.map((skill) => [skill.name, skill.content]), [
-			["shared", "local shared body"],
-			["direct", "local direct body"],
-		]);
+		const local = resolveSkills(
+			["shared", "direct", "missing"],
+			tempDir,
+			["./skills", "./direct/SKILL.md"],
+			agentDir,
+		);
+		assert.deepEqual(
+			local.resolved.map((skill) => [skill.name, skill.content]),
+			[
+				["shared", "local shared body"],
+				["direct", "local direct body"],
+			],
+		);
 		assert.deepEqual(local.missing, ["missing"]);
 		assert.equal(resolveSkills(["shared"], tempDir).resolved[0]?.content, "global body");
-		assert.equal(discoverAvailableSkills(tempDir).some((skill) => skill.name === "direct"), false);
+		assert.equal(
+			discoverAvailableSkills(tempDir).some((skill) => skill.name === "direct"),
+			false,
+		);
 	});
 
 	it("does not read malformed global settings when every selected local skill resolves", () => {
@@ -723,8 +778,14 @@ Fallback global agent.
 		writeSkillFile(path.join(one, "skills", "private"), "one private");
 		writeSkillFile(path.join(two, "skills", "private"), "two private");
 
-		assert.equal(resolveSkills(["private", "global-only"], tempDir, ["./skills"], one).resolved[0]?.content, "one private");
-		assert.equal(resolveSkills(["private", "global-only"], tempDir, ["./skills"], two).resolved[0]?.content, "two private");
+		assert.equal(
+			resolveSkills(["private", "global-only"], tempDir, ["./skills"], one).resolved[0]?.content,
+			"one private",
+		);
+		assert.equal(
+			resolveSkills(["private", "global-only"], tempDir, ["./skills"], two).resolved[0]?.content,
+			"two private",
+		);
 		assert.equal(resolveSkills(["global-only"], tempDir, ["./skills"], one).resolved[0]?.content, "global fallback");
 	});
 

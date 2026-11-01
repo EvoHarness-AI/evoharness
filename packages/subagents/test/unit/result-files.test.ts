@@ -5,14 +5,34 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 import { encodeIndexSegment, MAX_INDEX_SEGMENT_BYTES } from "../../src/runs/background/index-segment.ts";
+import {
+	acknowledgeMissionObserverSnapshot,
+	cleanupResultIndexes,
+	removeResultIndex,
+	resultCandidateFilesForSession,
+	resultFilesForSession,
+	resultFilesForToolCall,
+	resultPayloadPathForIndexedRun,
+	resultPayloadPathForMissionObserverRun,
+	resultPayloadPathForSessionRun,
+	retireResultSnapshot,
+	withResultRunLease,
+	writeAsyncResultFile,
+	writePendingAsyncResultFile,
+	writeResultIndexForData,
+} from "../../src/runs/background/result-files.ts";
 import { FileLeaseBusyError } from "../../src/shared/file-lease.ts";
-import { acknowledgeMissionObserverSnapshot, cleanupResultIndexes, removeResultIndex, resultCandidateFilesForSession, resultFilesForSession, resultFilesForToolCall, resultPayloadPathForIndexedRun, resultPayloadPathForMissionObserverRun, resultPayloadPathForSessionRun, retireResultSnapshot, withResultRunLease, writeAsyncResultFile, writePendingAsyncResultFile, writeResultIndexForData } from "../../src/runs/background/result-files.ts";
 
 const JSON_EXTENSION = ".json";
 const MAX_JSON_FILE_STEM_BYTES = MAX_INDEX_SEGMENT_BYTES - Buffer.byteLength(JSON_EXTENSION, "utf-8");
 
 function pendingPath(resultsDir: string, sessionId: string, runId: string): string {
-	return path.join(resultsDir, "result-pending", encodeIndexSegment(sessionId), `${encodeIndexSegment(runId, MAX_JSON_FILE_STEM_BYTES)}${JSON_EXTENSION}`);
+	return path.join(
+		resultsDir,
+		"result-pending",
+		encodeIndexSegment(sessionId),
+		`${encodeIndexSegment(runId, MAX_JSON_FILE_STEM_BYTES)}${JSON_EXTENSION}`,
+	);
 }
 
 describe("result file indexes", () => {
@@ -21,8 +41,15 @@ describe("result file indexes", () => {
 		const originalReaddirSync = fsDefault.readdirSync;
 		try {
 			const resultPath = path.join(resultsDir, "direct-run.json");
-			writeAsyncResultFile(resultPath, { id: "direct-run", runId: "direct-run", sessionId: "session-a", success: true });
-			fsDefault.readdirSync = (() => { throw new Error("result index enumerated"); }) as typeof fsDefault.readdirSync;
+			writeAsyncResultFile(resultPath, {
+				id: "direct-run",
+				runId: "direct-run",
+				sessionId: "session-a",
+				success: true,
+			});
+			fsDefault.readdirSync = (() => {
+				throw new Error("result index enumerated");
+			}) as typeof fsDefault.readdirSync;
 			syncBuiltinESMExports();
 
 			assert.equal(resultPayloadPathForIndexedRun(resultsDir, "direct-run"), resultPath);
@@ -37,10 +64,25 @@ describe("result file indexes", () => {
 	it("removes orphan index entries without deleting flat result files", () => {
 		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-index-"));
 		try {
-			writeAsyncResultFile(path.join(resultsDir, "kept.json"), { id: "kept", runId: "kept", sessionId: "session-a", success: true });
-			writeAsyncResultFile(path.join(resultsDir, "missing.json"), { id: "missing", runId: "missing", sessionId: "session-a", toolCallId: "call-missing", success: true });
+			writeAsyncResultFile(path.join(resultsDir, "kept.json"), {
+				id: "kept",
+				runId: "kept",
+				sessionId: "session-a",
+				success: true,
+			});
+			writeAsyncResultFile(path.join(resultsDir, "missing.json"), {
+				id: "missing",
+				runId: "missing",
+				sessionId: "session-a",
+				toolCallId: "call-missing",
+				success: true,
+			});
 			fs.rmSync(path.join(resultsDir, "missing.json"));
-			fs.writeFileSync(path.join(resultsDir, "unindexed.json"), JSON.stringify({ id: "unindexed", sessionId: "session-a" }), "utf-8");
+			fs.writeFileSync(
+				path.join(resultsDir, "unindexed.json"),
+				JSON.stringify({ id: "unindexed", sessionId: "session-a" }),
+				"utf-8",
+			);
 
 			assert.equal(cleanupResultIndexes(resultsDir, Date.now() + 86_400_001, 86_400_000) > 0, true);
 
@@ -60,7 +102,10 @@ describe("result file indexes", () => {
 			const resultPath = path.join(resultsDir, "late.json");
 			fs.mkdirSync(resultPath, { recursive: true });
 
-			assert.deepEqual(writeAsyncResultFile(resultPath, { id: "late", runId: "late", sessionId: "session-a", success: true }), { state: "pending" });
+			assert.deepEqual(
+				writeAsyncResultFile(resultPath, { id: "late", runId: "late", sessionId: "session-a", success: true }),
+				{ state: "pending" },
+			);
 			assert.equal(fs.existsSync(pendingPath(resultsDir, "session-a", "late")), true);
 			fs.rmSync(resultPath, { recursive: true, force: true });
 
@@ -81,13 +126,24 @@ describe("result file indexes", () => {
 			const resultPath = path.join(resultsDir, "pending-only.json");
 			fs.mkdirSync(resultPath, { recursive: true });
 
-			writePendingAsyncResultFile(resultPath, { id: "pending-only", runId: "pending-only", sessionId: "session-a", success: true });
+			writePendingAsyncResultFile(resultPath, {
+				id: "pending-only",
+				runId: "pending-only",
+				sessionId: "session-a",
+				success: true,
+			});
 
 			assert.equal(fs.statSync(resultPath).isDirectory(), true);
 			assert.deepEqual(resultFilesForSession(resultsDir, "session-a"), []);
 			assert.deepEqual(resultCandidateFilesForSession(resultsDir, "session-a"), ["pending-only.json"]);
-			assert.equal(resultPayloadPathForSessionRun(resultsDir, "session-a", "pending-only"), pendingPath(resultsDir, "session-a", "pending-only"));
-			assert.equal(resultPayloadPathForIndexedRun(resultsDir, "pending-only"), pendingPath(resultsDir, "session-a", "pending-only"));
+			assert.equal(
+				resultPayloadPathForSessionRun(resultsDir, "session-a", "pending-only"),
+				pendingPath(resultsDir, "session-a", "pending-only"),
+			);
+			assert.equal(
+				resultPayloadPathForIndexedRun(resultsDir, "pending-only"),
+				pendingPath(resultsDir, "session-a", "pending-only"),
+			);
 		} finally {
 			console.error = originalError;
 			fs.rmSync(resultsDir, { recursive: true, force: true });
@@ -137,7 +193,10 @@ describe("result file indexes", () => {
 				assert.equal(resultPayloadPathForSessionRun(resultsDir, sessionId, runId), payloadPath);
 			}
 			assert.equal(path.basename(pendingPath(resultsDir, sessionId, "x".repeat(250))), `${"x".repeat(250)}.json`);
-			assert.match(path.basename(pendingPath(resultsDir, sessionId, "y".repeat(251))), /^~sha256-[a-f0-9]{64}\.json$/);
+			assert.match(
+				path.basename(pendingPath(resultsDir, sessionId, "y".repeat(251))),
+				/^~sha256-[a-f0-9]{64}\.json$/,
+			);
 		} finally {
 			console.error = originalError;
 			fs.rmSync(resultsDir, { recursive: true, force: true });
@@ -152,7 +211,11 @@ describe("result file indexes", () => {
 
 			assert.deepEqual(resultFilesForSession(resultsDir, "session-a"), []);
 
-			fs.writeFileSync(resultPath, JSON.stringify({ id: "late", runId: "late", sessionId: "session-a", success: true }), "utf-8");
+			fs.writeFileSync(
+				resultPath,
+				JSON.stringify({ id: "late", runId: "late", sessionId: "session-a", success: true }),
+				"utf-8",
+			);
 			assert.deepEqual(resultFilesForSession(resultsDir, "session-a"), ["late.json"]);
 		} finally {
 			fs.rmSync(resultsDir, { recursive: true, force: true });
@@ -165,10 +228,20 @@ describe("result file indexes", () => {
 			fs.writeFileSync(path.join(resultsDir, "result-index"), "not a directory", "utf-8");
 			const resultPath = path.join(resultsDir, "blocked.json");
 
-			assert.throws(() => writeAsyncResultFile(resultPath, { id: "blocked", runId: "blocked", sessionId: "session-a", success: true }));
+			assert.throws(() =>
+				writeAsyncResultFile(resultPath, {
+					id: "blocked",
+					runId: "blocked",
+					sessionId: "session-a",
+					success: true,
+				}),
+			);
 			assert.equal(fs.existsSync(resultPath), false);
 			assert.equal(fs.existsSync(pendingPath(resultsDir, "session-a", "blocked")), true);
-			assert.equal(resultPayloadPathForSessionRun(resultsDir, "session-a", "blocked"), pendingPath(resultsDir, "session-a", "blocked"));
+			assert.equal(
+				resultPayloadPathForSessionRun(resultsDir, "session-a", "blocked"),
+				pendingPath(resultsDir, "session-a", "blocked"),
+			);
 			assert.equal(resultPayloadPathForIndexedRun(resultsDir, "blocked"), undefined);
 			assert.deepEqual(resultCandidateFilesForSession(resultsDir, "session-a"), ["blocked.json"]);
 		} finally {
@@ -182,7 +255,9 @@ describe("result file indexes", () => {
 		const errors: unknown[][] = [];
 		try {
 			fs.writeFileSync(path.join(resultsDir, "result-index"), "not a directory", "utf-8");
-			console.error = (...args: unknown[]) => { errors.push(args); };
+			console.error = (...args: unknown[]) => {
+				errors.push(args);
+			};
 
 			assert.equal(resultPayloadPathForMissionObserverRun(resultsDir, "mission-run"), undefined);
 			assert.deepEqual(errors, []);
@@ -197,7 +272,10 @@ describe("result file indexes", () => {
 		try {
 			const resultPath = path.join(resultsDir, "blocked.json");
 
-			assert.throws(() => writeAsyncResultFile(resultPath, { id: "blocked", runId: "blocked", success: true }), /sessionId/);
+			assert.throws(
+				() => writeAsyncResultFile(resultPath, { id: "blocked", runId: "blocked", success: true }),
+				/sessionId/,
+			);
 			assert.equal(fs.existsSync(resultPath), false);
 		} finally {
 			fs.rmSync(resultsDir, { recursive: true, force: true });
@@ -214,9 +292,21 @@ describe("result file indexes", () => {
 			fs.rmSync(resultPath, { force: true });
 			fs.mkdirSync(resultPath, { recursive: true });
 
-			assert.deepEqual(writeAsyncResultFile(resultPath, { id: "blocked", runId: "blocked", sessionId: "session-a", success: true }), { state: "pending" });
+			assert.deepEqual(
+				writeAsyncResultFile(resultPath, {
+					id: "blocked",
+					runId: "blocked",
+					sessionId: "session-a",
+					success: true,
+				}),
+				{ state: "pending" },
+			);
 			fs.rmSync(resultPath, { recursive: true, force: true });
-			fs.writeFileSync(resultPath, JSON.stringify({ id: "blocked", runId: "blocked", sessionId: "session-a", success: false }), "utf-8");
+			fs.writeFileSync(
+				resultPath,
+				JSON.stringify({ id: "blocked", runId: "blocked", sessionId: "session-a", success: false }),
+				"utf-8",
+			);
 
 			assert.deepEqual(resultFilesForSession(resultsDir, "session-a"), ["blocked.json"]);
 			assert.equal(JSON.parse(fs.readFileSync(resultPath, "utf-8")).success, true);
@@ -231,7 +321,12 @@ describe("result file indexes", () => {
 		try {
 			const resultPath = path.join(resultsDir, "blocked.json");
 			writeAsyncResultFile(resultPath, { id: "blocked", runId: "blocked", sessionId: "session-a", success: false });
-			writePendingAsyncResultFile(resultPath, { id: "blocked", runId: "blocked", sessionId: "session-a", success: true });
+			writePendingAsyncResultFile(resultPath, {
+				id: "blocked",
+				runId: "blocked",
+				sessionId: "session-a",
+				success: true,
+			});
 
 			t.mock.method(fsDefault, "renameSync", () => {
 				const error = new Error("destination exists") as NodeJS.ErrnoException;
@@ -259,7 +354,12 @@ describe("result file indexes", () => {
 			console.error = () => {};
 			const resultPath = path.join(resultsDir, "pending-cleanup.json");
 			fs.mkdirSync(resultPath, { recursive: true });
-			writeAsyncResultFile(resultPath, { id: "pending-cleanup", runId: "pending-cleanup", sessionId: "session-a", success: true });
+			writeAsyncResultFile(resultPath, {
+				id: "pending-cleanup",
+				runId: "pending-cleanup",
+				sessionId: "session-a",
+				success: true,
+			});
 
 			assert.equal(fs.existsSync(pendingPath(resultsDir, "session-a", "pending-cleanup")), true);
 			removeResultIndex(resultsDir, "session-a", "pending-cleanup");
@@ -282,7 +382,9 @@ describe("result file indexes", () => {
 			let inConsumer = false;
 			const consumerStep = (): void => {
 				if (consumed) {
-					const retained = fs.readdirSync(path.join(resultsDir, "result-index"), { recursive: true }).filter((entry) => String(entry).endsWith(".json"));
+					const retained = fs
+						.readdirSync(path.join(resultsDir, "result-index"), { recursive: true })
+						.filter((entry) => String(entry).endsWith(".json"));
 					assert.deepEqual(retained, [], `consumer started at point ${startAt}, checked at point ${point}`);
 					assert.equal(fs.existsSync(resultPath), false);
 					return;
@@ -306,7 +408,14 @@ describe("result file indexes", () => {
 					if (point++ >= startAt) consumerStep();
 				});
 				syncBuiltinESMExports();
-				writeAsyncResultFile(resultPath, { id: "consumed", runId: "consumed", sessionId: "session-a", toolCallId: "call-a", asyncDir: resultsDir, success: true });
+				writeAsyncResultFile(resultPath, {
+					id: "consumed",
+					runId: "consumed",
+					sessionId: "session-a",
+					toolCallId: "call-a",
+					asyncDir: resultsDir,
+					success: true,
+				});
 				points = point;
 				consumerStep();
 				consumerStep();
@@ -343,10 +452,18 @@ describe("result file indexes", () => {
 				lookup();
 			});
 			syncBuiltinESMExports();
-			writePendingAsyncResultFile(resultPath, { id: "paused", runId: "paused", sessionId: "session-a", success: false });
+			writePendingAsyncResultFile(resultPath, {
+				id: "paused",
+				runId: "paused",
+				sessionId: "session-a",
+				success: false,
+			});
 			t.mock.restoreAll();
 			syncBuiltinESMExports();
-			assert.equal(resultPayloadPathForIndexedRun(resultsDir, "paused"), pendingPath(resultsDir, "session-a", "paused"));
+			assert.equal(
+				resultPayloadPathForIndexedRun(resultsDir, "paused"),
+				pendingPath(resultsDir, "session-a", "paused"),
+			);
 		} finally {
 			console.error = originalError;
 			t.mock.restoreAll();
@@ -382,7 +499,13 @@ describe("result file indexes", () => {
 			fs.writeFileSync(path.join(resultsDir, "result-index", "tool-calls"), "not a directory", "utf-8");
 			const resultPath = path.join(resultsDir, "kept.json");
 
-			writeAsyncResultFile(resultPath, { id: "kept", runId: "kept", sessionId: "session-a", toolCallId: "call-a", success: true });
+			writeAsyncResultFile(resultPath, {
+				id: "kept",
+				runId: "kept",
+				sessionId: "session-a",
+				toolCallId: "call-a",
+				success: true,
+			});
 
 			assert.equal(fs.existsSync(resultPath), true);
 			assert.deepEqual(resultFilesForSession(resultsDir, "session-a"), ["kept.json"]);
@@ -439,7 +562,9 @@ describe("result file indexes", () => {
 				if (String(dirPath) === legacyDir) throw nameTooLong;
 				return (originalReaddirSync as (...input: unknown[]) => unknown)(dirPath, ...args);
 			}) as typeof fsDefault.readdirSync;
-			console.error = (...args: unknown[]) => { errors.push(args); };
+			console.error = (...args: unknown[]) => {
+				errors.push(args);
+			};
 			syncBuiltinESMExports();
 
 			assert.deepEqual(resultCandidateFilesForSession(resultsDir, sessionId), [`${runId}.json`]);
@@ -478,7 +603,9 @@ describe("result file indexes", () => {
 				if (String(filePath) === legacyIndexPath) throw nameTooLong;
 				return originalStatSync(filePath);
 			}) as typeof fsDefault.statSync);
-			console.error = (...args: unknown[]) => { errors.push(args); };
+			console.error = (...args: unknown[]) => {
+				errors.push(args);
+			};
 			syncBuiltinESMExports();
 
 			assert.equal(cleanupResultIndexes(resultsDir, Date.now() + 86_400_001, 86_400_000), 0);
@@ -557,11 +684,21 @@ describe("result file indexes", () => {
 		const error = new Error("permission denied") as NodeJS.ErrnoException;
 		error.code = "EACCES";
 		try {
-			writeAsyncResultFile(path.join(resultsDir, "blocked.json"), { id: "blocked", runId: "blocked", sessionId: "session-a", success: true });
-			t.mock.method(fsDefault, "readFileSync", () => { throw error; });
+			writeAsyncResultFile(path.join(resultsDir, "blocked.json"), {
+				id: "blocked",
+				runId: "blocked",
+				sessionId: "session-a",
+				success: true,
+			});
+			t.mock.method(fsDefault, "readFileSync", () => {
+				throw error;
+			});
 			syncBuiltinESMExports();
 
-			assert.throws(() => resultPayloadPathForSessionRun(resultsDir, "session-a", "blocked"), (thrown) => thrown === error);
+			assert.throws(
+				() => resultPayloadPathForSessionRun(resultsDir, "session-a", "blocked"),
+				(thrown) => thrown === error,
+			);
 		} finally {
 			t.mock.restoreAll();
 			syncBuiltinESMExports();
@@ -575,7 +712,9 @@ describe("result file indexes", () => {
 		error.code = "EPERM";
 		const originalReaddirSync = fsDefault.readdirSync;
 		try {
-			fsDefault.readdirSync = (() => { throw error; }) as typeof fsDefault.readdirSync;
+			fsDefault.readdirSync = (() => {
+				throw error;
+			}) as typeof fsDefault.readdirSync;
 			syncBuiltinESMExports();
 			assert.deepEqual(resultCandidateFilesForSession(resultsDir, "session-a"), []);
 		} finally {
@@ -590,16 +729,43 @@ describe("a run's paused result replaced by its final result", () => {
 	const runId = "replaced-run";
 	const sessionId = "session-a";
 	// The runner's paused result has no tool-call id and its final result adds one; state and timestamp can match.
-	const paused = (asyncDir: string) => ({ id: runId, runId, sessionId, asyncDir, state: "paused", timestamp: 1_000, summary: "Paused." });
-	const final = (asyncDir: string) => ({ id: runId, toolCallId: "call-a", sessionId, asyncDir, state: "paused", timestamp: 1_000, summary: "Paused after interrupt. Waiting for explicit next action." });
-	const publishPaused = (publicPath: string): void => withResultRunLease(path.dirname(publicPath), runId, () => writePendingAsyncResultFile(publicPath, paused(path.dirname(publicPath))));
-	const publishFinal = (publicPath: string): void => withResultRunLease(path.dirname(publicPath), runId, () => { writeAsyncResultFile(publicPath, final(path.dirname(publicPath))); });
+	const paused = (asyncDir: string) => ({
+		id: runId,
+		runId,
+		sessionId,
+		asyncDir,
+		state: "paused",
+		timestamp: 1_000,
+		summary: "Paused.",
+	});
+	const final = (asyncDir: string) => ({
+		id: runId,
+		toolCallId: "call-a",
+		sessionId,
+		asyncDir,
+		state: "paused",
+		timestamp: 1_000,
+		summary: "Paused after interrupt. Waiting for explicit next action.",
+	});
+	const publishPaused = (publicPath: string): void =>
+		withResultRunLease(path.dirname(publicPath), runId, () =>
+			writePendingAsyncResultFile(publicPath, paused(path.dirname(publicPath))),
+		);
+	const publishFinal = (publicPath: string): void =>
+		withResultRunLease(path.dirname(publicPath), runId, () => {
+			writeAsyncResultFile(publicPath, final(path.dirname(publicPath)));
+		});
 	const fixture = (fileName = `${runId}.json`) => {
 		const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-replaced-"));
 		fs.writeFileSync(path.join(dir, "mission.json"), "{}", "utf-8");
 		return { dir, publicPath: path.join(dir, fileName) };
 	};
-	const readPublic = (publicPath: string, toolCallId?: string) => ({ runId, sessionId, ...(toolCallId ? { toolCallId } : {}), snapshot: fs.readFileSync(publicPath, "utf-8") });
+	const readPublic = (publicPath: string, toolCallId?: string) => ({
+		runId,
+		sessionId,
+		...(toolCallId ? { toolCallId } : {}),
+		snapshot: fs.readFileSync(publicPath, "utf-8"),
+	});
 	const assertFinalIndexed = (dir: string, publicPath: string): void => {
 		assert.equal(JSON.parse(fs.readFileSync(publicPath, "utf-8")).toolCallId, "call-a");
 		assert.equal(resultPayloadPathForSessionRun(dir, sessionId, runId), publicPath);
@@ -607,9 +773,14 @@ describe("a run's paused result replaced by its final result", () => {
 		assert.equal(resultPayloadPathForMissionObserverRun(dir, runId), publicPath);
 		assert.deepEqual(resultFilesForToolCall(dir, "call-a"), [path.basename(publicPath)]);
 	};
-	const indexAndPendingFiles = (dir: string): string[] => ["result-index", "result-pending"]
-		.flatMap((name) => fs.existsSync(path.join(dir, name)) ? fs.readdirSync(path.join(dir, name), { recursive: true }).map(String) : [])
-		.filter((entry) => entry.endsWith(".json"));
+	const indexAndPendingFiles = (dir: string): string[] =>
+		["result-index", "result-pending"]
+			.flatMap((name) =>
+				fs.existsSync(path.join(dir, name))
+					? fs.readdirSync(path.join(dir, name), { recursive: true }).map(String)
+					: [],
+			)
+			.filter((entry) => entry.endsWith(".json"));
 
 	it("keeps the final result and its indexes when a consumer retires the paused result it read", () => {
 		for (const fileName of [`${runId}.json`, "workflow-result.json"]) {
@@ -618,7 +789,11 @@ describe("a run's paused result replaced by its final result", () => {
 				try {
 					publishPaused(publicPath);
 					if (promoted) resultPayloadPathForIndexedRun(dir, runId);
-					const read = { runId, sessionId, snapshot: fs.readFileSync(promoted ? publicPath : pendingPath(dir, sessionId, runId), "utf-8") };
+					const read = {
+						runId,
+						sessionId,
+						snapshot: fs.readFileSync(promoted ? publicPath : pendingPath(dir, sessionId, runId), "utf-8"),
+					};
 					publishFinal(publicPath);
 
 					assert.equal(retireResultSnapshot(publicPath, read), "replaced", `${fileName} promoted=${promoted}`);
@@ -742,14 +917,22 @@ describe("a run's paused result replaced by its final result", () => {
 				publishFinal(publicPath);
 				t.mock.restoreAll();
 				syncBuiltinESMExports();
-				const read = { runId, sessionId, toolCallId: "call-a", stalePublic, snapshot: fs.readFileSync(pendingPath(dir, sessionId, runId), "utf-8") };
+				const read = {
+					runId,
+					sessionId,
+					toolCallId: "call-a",
+					stalePublic,
+					snapshot: fs.readFileSync(pendingPath(dir, sessionId, runId), "utf-8"),
+				};
 				if (!laterPublished) {
 					assert.equal(acknowledgeMissionObserverSnapshot(publicPath, read), "acknowledged");
 					assert.equal(retireResultSnapshot(publicPath, read), "retired");
 					assert.deepEqual([fs.existsSync(publicPath), ...indexAndPendingFiles(dir)], [false]);
 					continue;
 				}
-				withResultRunLease(dir, runId, () => { writeAsyncResultFile(publicPath, { ...final(dir), summary: "Completed after resume." }); });
+				withResultRunLease(dir, runId, () => {
+					writeAsyncResultFile(publicPath, { ...final(dir), summary: "Completed after resume." });
+				});
 				assert.equal(acknowledgeMissionObserverSnapshot(publicPath, read), "replaced");
 				assert.equal(retireResultSnapshot(publicPath, read), "replaced");
 				assert.equal(JSON.parse(fs.readFileSync(publicPath, "utf-8")).summary, "Completed after resume.");

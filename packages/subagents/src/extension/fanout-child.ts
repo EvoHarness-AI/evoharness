@@ -3,24 +3,39 @@ import * as os from "node:os";
 import * as path from "node:path";
 import type { ExtensionAPI, ToolDefinition } from "@evoharness/coding-agent";
 import { discoverAgents } from "../agents/agents.ts";
-import { getArtifactsDir } from "../shared/artifacts.ts";
-import { createSubagentExecutor } from "../runs/foreground/subagent-executor.ts";
-import { resolveWaitToolConfig } from "../runs/background/wait-config.ts";
-import type { ChildRuntimeConfig } from "../runs/shared/child-runtime-config.ts";
-import { nestedRunNotActiveMessage, readNestedControlRequests, resolveInheritedNestedRoute, type NestedRoute, writeNestedControlResult } from "../runs/shared/nested-events.ts";
-import { deliverSubagentIntercomMessageEvent } from "../intercom/result-intercom.ts";
-import { createNativeSupervisorChannel, NATIVE_SUPERVISOR_TOOL_NAME, resolveSupervisorChannelDir } from "../intercom/native-supervisor-channel.ts";
-import { readStatus } from "../shared/utils.ts";
 import { resolveSubagentIntercomTarget } from "../intercom/intercom-bridge.ts";
-import { createSubagentParamsSchema } from "./schemas.ts";
-import { registerPinnedTool } from "./declaration-pinning.ts";
-import { resolveDisabledFeatureSurface } from "../shared/disabled-features.ts";
-import { finalizeToolResult } from "./tool-result.ts";
-import { flattenSubagentToolOptions } from "./subagent-options.ts";
-import { loadConfig, resolveAsyncByDefault } from "./config.ts";
-import { SUBAGENT_ASYNC_STARTED_EVENT, type AsyncStartedEvent, type Details, type SubagentState } from "../shared/types.ts";
+import {
+	createNativeSupervisorChannel,
+	NATIVE_SUPERVISOR_TOOL_NAME,
+	resolveSupervisorChannelDir,
+} from "../intercom/native-supervisor-channel.ts";
+import { deliverSubagentIntercomMessageEvent } from "../intercom/result-intercom.ts";
+import { resolveWaitToolConfig } from "../runs/background/wait-config.ts";
+import { createSubagentExecutor } from "../runs/foreground/subagent-executor.ts";
+import type { ChildRuntimeConfig } from "../runs/shared/child-runtime-config.ts";
 import { createChildExternalJobBridgeSweeper } from "../runs/shared/external-job-bridge.ts";
+import {
+	type NestedRoute,
+	nestedRunNotActiveMessage,
+	readNestedControlRequests,
+	resolveInheritedNestedRoute,
+	writeNestedControlResult,
+} from "../runs/shared/nested-events.ts";
+import { getArtifactsDir } from "../shared/artifacts.ts";
+import { resolveDisabledFeatureSurface } from "../shared/disabled-features.ts";
 import { MODEL_ONLY_TOOL } from "../shared/extension-context.ts";
+import {
+	type AsyncStartedEvent,
+	type Details,
+	SUBAGENT_ASYNC_STARTED_EVENT,
+	type SubagentState,
+} from "../shared/types.ts";
+import { readStatus } from "../shared/utils.ts";
+import { loadConfig, resolveAsyncByDefault } from "./config.ts";
+import { registerPinnedTool } from "./declaration-pinning.ts";
+import { createSubagentParamsSchema } from "./schemas.ts";
+import { flattenSubagentToolOptions } from "./subagent-options.ts";
+import { finalizeToolResult } from "./tool-result.ts";
 
 function getSubagentSessionRoot(parentSessionFile: string | null): string {
 	if (parentSessionFile) {
@@ -81,7 +96,12 @@ function createNestedControlInboxState(): NestedControlInboxState {
 	return { seen: new Set(), inFlight: new Set(), pendingResults: new Map() };
 }
 
-function startNestedControlInboxListener(pi: ExtensionAPI, state: SubagentState, route: NestedRoute, inboxState: NestedControlInboxState): () => void {
+function startNestedControlInboxListener(
+	pi: ExtensionAPI,
+	state: SubagentState,
+	route: NestedRoute,
+	inboxState: NestedControlInboxState,
+): () => void {
 	const timer = setInterval(() => {
 		try {
 			for (const request of readNestedControlRequests(route)) {
@@ -108,13 +128,22 @@ function startNestedControlInboxListener(pi: ExtensionAPI, state: SubagentState,
 									message = `Nested run ${request.targetRunId} has no active child message route.`;
 								} else {
 									const index = control.currentIndex ?? 0;
-									const target = resolveSubagentIntercomTarget(request.targetRunId, control.currentAgent, index);
+									const target = resolveSubagentIntercomTarget(
+										request.targetRunId,
+										control.currentAgent,
+										index,
+									);
 									ok = await deliverSubagentIntercomMessageEvent(
 										pi.events,
 										target,
 										`Follow-up for nested run ${request.targetRunId} (${control.currentAgent}):\n\n${request.message.trim()}`,
 										500,
-										{ source: "nested-resume", runId: request.targetRunId, agent: control.currentAgent, index },
+										{
+											source: "nested-resume",
+											runId: request.targetRunId,
+											agent: control.currentAgent,
+											index,
+										},
 									);
 									message = ok
 										? `Delivered follow-up to live nested run ${request.targetRunId}.`
@@ -123,25 +152,39 @@ function startNestedControlInboxListener(pi: ExtensionAPI, state: SubagentState,
 							} catch (error) {
 								message = error instanceof Error ? error.message : String(error);
 							}
-							result = { ts: Date.now(), requestId: request.requestId, targetRunId: request.targetRunId, ok, message };
+							result = {
+								ts: Date.now(),
+								requestId: request.requestId,
+								targetRunId: request.targetRunId,
+								ok,
+								message,
+							};
 						}
 						try {
 							writeNestedControlResult(route, result);
 						} catch (error) {
 							inboxState.pendingResults.set(request.requestId, result);
-							console.error(`Failed to write nested control result for request '${request.requestId}' targeting '${request.targetRunId}' via inbox '${route.controlInbox}'; keeping request for retry:`, error);
+							console.error(
+								`Failed to write nested control result for request '${request.requestId}' targeting '${request.targetRunId}' via inbox '${route.controlInbox}'; keeping request for retry:`,
+								error,
+							);
 							return;
 						}
 						inboxState.pendingResults.delete(request.requestId);
 						inboxState.seen.add(request.requestId);
-						try { fs.unlinkSync(request.filePath); } catch {}
+						try {
+							fs.unlinkSync(request.filePath);
+						} catch {}
 					} finally {
 						inboxState.inFlight.delete(request.requestId);
 					}
 				})();
 			}
 		} catch (error) {
-			console.error(`Failed to poll nested control inbox '${route.controlInbox}' for root '${route.rootRunId}':`, error);
+			console.error(
+				`Failed to poll nested control inbox '${route.controlInbox}' for root '${route.rootRunId}':`,
+				error,
+			);
 		}
 	}, 200);
 	timer.unref?.();
@@ -154,9 +197,10 @@ export default function registerFanoutChildSubagentExtension(pi: ExtensionAPI, c
 
 	const globalStore = globalThis as Record<string, unknown>;
 	const registeredKey = "__piSubagentFanoutChildRegisteredApis";
-	const registeredApis = globalStore[registeredKey] instanceof WeakSet
-		? globalStore[registeredKey] as WeakSet<ExtensionAPI>
-		: new WeakSet<ExtensionAPI>();
+	const registeredApis =
+		globalStore[registeredKey] instanceof WeakSet
+			? (globalStore[registeredKey] as WeakSet<ExtensionAPI>)
+			: new WeakSet<ExtensionAPI>();
 	globalStore[registeredKey] = registeredApis;
 	if (registeredApis.has(pi)) return;
 	registeredApis.add(pi);
@@ -170,21 +214,24 @@ export default function registerFanoutChildSubagentExtension(pi: ExtensionAPI, c
 		getChannelDirs: () => {
 			const dirs = new Set<string>();
 			for (const run of state.foregroundControls.values()) {
-				for (const child of run.activeChildren?.values() ?? []) dirs.add(resolveSupervisorChannelDir(run.runId, child.agent, child.index));
+				for (const child of run.activeChildren?.values() ?? [])
+					dirs.add(resolveSupervisorChannelDir(run.runId, child.agent, child.index));
 			}
 			for (const run of state.foregroundRuns?.values() ?? []) {
 				for (const child of run.children) {
-					if (child.status === "detached") dirs.add(resolveSupervisorChannelDir(run.runId, child.agent, child.index));
+					if (child.status === "detached")
+						dirs.add(resolveSupervisorChannelDir(run.runId, child.agent, child.index));
 				}
 			}
-			const retiringForeground = [...foregroundChannels].filter(dir => !dirs.has(dir));
+			const retiringForeground = [...foregroundChannels].filter((dir) => !dirs.has(dir));
 			for (const dir of dirs) foregroundChannels.add(dir);
 			for (const dir of retiringForeground) dirs.add(dir);
 			const retiringAsync: string[] = [];
 			for (const [id, child] of asyncChildren) {
 				const status = readStatus(child.dir);
 				if (status && status.state !== "queued" && status.state !== "running") retiringAsync.push(id);
-				for (const [index, agent] of child.agents.entries()) dirs.add(resolveSupervisorChannelDir(id, agent, index));
+				for (const [index, agent] of child.agents.entries())
+					dirs.add(resolveSupervisorChannelDir(id, agent, index));
 			}
 			return {
 				dirs: [...dirs],
@@ -215,8 +262,20 @@ export default function registerFanoutChildSubagentExtension(pi: ExtensionAPI, c
 	});
 
 	const disabledFeatures = resolveDisabledFeatureSurface(config);
-	const listEnabled = (actions: string[]) => actions.filter((action) => !disabledFeatures.actions.has(action)).join(", ");
-	const blockedActions = listEnabled(["create", "update", "delete", "eject", "disable", "enable", "reset", "grant-spawn-budget", "lane.recordMerge", "lane.recordSupersession"]);
+	const listEnabled = (actions: string[]) =>
+		actions.filter((action) => !disabledFeatures.actions.has(action)).join(", ");
+	const blockedActions = listEnabled([
+		"create",
+		"update",
+		"delete",
+		"eject",
+		"disable",
+		"enable",
+		"reset",
+		"grant-spawn-budget",
+		"lane.recordMerge",
+		"lane.recordSupersession",
+	]);
 	const params = createSubagentParamsSchema(disabledFeatures);
 	const tool: ToolDefinition<typeof params, Details> = {
 		name: "subagent",
@@ -229,7 +288,15 @@ export default function registerFanoutChildSubagentExtension(pi: ExtensionAPI, c
 		].join("\n"),
 		parameters: params,
 		async execute(id, params, signal, onUpdate, ctx) {
-			return finalizeToolResult(await executor.executePublic(id, flattenSubagentToolOptions(params, disabledFeatures), signal ?? new AbortController().signal, onUpdate, ctx));
+			return finalizeToolResult(
+				await executor.executePublic(
+					id,
+					flattenSubagentToolOptions(params, disabledFeatures),
+					signal ?? new AbortController().signal,
+					onUpdate,
+					ctx,
+				),
+			);
 		},
 	};
 
@@ -237,13 +304,14 @@ export default function registerFanoutChildSubagentExtension(pi: ExtensionAPI, c
 	const bridgeSweeper = createChildExternalJobBridgeSweeper();
 	const unsubscribeBridgeStarted = pi.events.on(SUBAGENT_ASYNC_STARTED_EVENT, (payload: unknown) => {
 		const info = payload as AsyncStartedEvent;
-		if (info.id && info.asyncDir && info.sessionId === state.currentSessionId) bridgeSweeper.track(info.id, info.asyncDir);
+		if (info.id && info.asyncDir && info.sessionId === state.currentSessionId)
+			bridgeSweeper.track(info.id, info.asyncDir);
 	});
 	let unsubscribeAsyncStarted: (() => void) | undefined;
 	pi.on("session_start", (_event, ctx) => {
 		supervisorChannel.registerTools();
 		// The host applies the explicit allowlist to dynamic registration too.
-		if (!pi.getAllTools().some(tool => tool.name === NATIVE_SUPERVISOR_TOOL_NAME)) return;
+		if (!pi.getAllTools().some((tool) => tool.name === NATIVE_SUPERVISOR_TOOL_NAME)) return;
 		// Downward asks belong to this coordinator, not its parent or persisted session file.
 		state.supervisorOwnerSessionId = ctx.sessionManager.getSessionId() || null;
 		unsubscribeAsyncStarted = pi.events.on(SUBAGENT_ASYNC_STARTED_EVENT, (payload: unknown) => {
@@ -263,19 +331,24 @@ export default function registerFanoutChildSubagentExtension(pi: ExtensionAPI, c
 		asyncChildren.clear();
 		foregroundChannels.clear();
 		supervisorChannel.dispose();
-		if (childConfig.hasPendingSupervisorRequest === hasPendingSupervisorRequest) childConfig.hasPendingSupervisorRequest = undefined;
+		if (childConfig.hasPendingSupervisorRequest === hasPendingSupervisorRequest)
+			childConfig.hasPendingSupervisorRequest = undefined;
 		state.supervisorOwnerSessionId = null;
 	});
 	const route = resolveNestedControlRoute(childConfig);
 	if (!route) return;
 	const listenerCleanupKey = "__piSubagentFanoutChildNestedControlInboxCleanups";
-	const listenerCleanups = globalStore[listenerCleanupKey] instanceof Map
-		? globalStore[listenerCleanupKey] as Map<string, NestedControlListenerEntry>
-		: new Map<string, NestedControlListenerEntry>();
+	const listenerCleanups =
+		globalStore[listenerCleanupKey] instanceof Map
+			? (globalStore[listenerCleanupKey] as Map<string, NestedControlListenerEntry>)
+			: new Map<string, NestedControlListenerEntry>();
 	globalStore[listenerCleanupKey] = listenerCleanups;
 	const routeKey = nestedControlRouteKey(route);
 	const previous = listenerCleanups.get(routeKey);
 	previous?.cleanup();
 	const inboxState = previous?.state ?? createNestedControlInboxState();
-	listenerCleanups.set(routeKey, { state: inboxState, cleanup: startNestedControlInboxListener(pi, state, route, inboxState) });
+	listenerCleanups.set(routeKey, {
+		state: inboxState,
+		cleanup: startNestedControlInboxListener(pi, state, route, inboxState),
+	});
 }

@@ -3,23 +3,23 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
+import { completionArchivePath, completionReplayPath } from "../../src/runs/background/completion-replay.ts";
 import {
+	buildInspectReply,
 	encodeInspectReply,
 	handleInspectRpcArgs,
 	INSPECT_REPLY_KIND,
 	INSPECT_REPLY_VERSION,
 	INSPECT_WIDGET_PREFIX,
-	MAX_SERIALIZED_BYTES,
-	buildInspectReply,
-	parseInspectRequest,
 	type InspectDeps,
+	MAX_SERIALIZED_BYTES,
+	parseInspectRequest,
 } from "../../src/runs/background/inspect-rpc.ts";
 import { writeAsyncResultFile } from "../../src/runs/background/result-files.ts";
 import { recordWaitCompletion } from "../../src/runs/background/wait-completions.ts";
-import { completionArchivePath, completionReplayPath } from "../../src/runs/background/completion-replay.ts";
 import { formatOutputArtifactContent } from "../../src/shared/artifacts.ts";
-import type { SubagentState } from "../../src/shared/types.ts";
 import { recordSessionReplacement } from "../../src/shared/session-succession.ts";
+import type { SubagentState } from "../../src/shared/types.ts";
 
 const SESSION_ID = "session-current";
 
@@ -54,21 +54,32 @@ function makeRun(root: string, options: FixtureOptions): { asyncDir: string; res
 	const sessionFile = path.join(root, `${options.runId}-session.jsonl`);
 	const records = (options.sessionMessages ?? []).map((message) => JSON.stringify({ message }));
 	fs.writeFileSync(sessionFile, records.length > 0 ? `${records.join("\n")}\n` : "", "utf-8");
-	const steps = (options.steps ?? [{ agent: "worker", status: options.state ?? "complete", startedAt: 100, endedAt: 150, sessionFile }])
-		.map((step) => ({ ...step }));
-	fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-		runId: options.runId,
-		sessionId: options.sessionId ?? SESSION_ID,
-		mode: options.mode ?? "single",
-		state: options.state ?? "complete",
-		...(options.context ? { context: options.context } : {}),
-		startedAt: 100,
-		endedAt: 200,
-		lastUpdate: 200,
-		...(options.error ? { error: options.error } : {}),
-		sessionFile,
-		steps,
-	}, null, 2), "utf-8");
+	const steps = (
+		options.steps ?? [
+			{ agent: "worker", status: options.state ?? "complete", startedAt: 100, endedAt: 150, sessionFile },
+		]
+	).map((step) => ({ ...step }));
+	fs.writeFileSync(
+		path.join(asyncDir, "status.json"),
+		JSON.stringify(
+			{
+				runId: options.runId,
+				sessionId: options.sessionId ?? SESSION_ID,
+				mode: options.mode ?? "single",
+				state: options.state ?? "complete",
+				...(options.context ? { context: options.context } : {}),
+				startedAt: 100,
+				endedAt: 200,
+				lastUpdate: 200,
+				...(options.error ? { error: options.error } : {}),
+				sessionFile,
+				steps,
+			},
+			null,
+			2,
+		),
+		"utf-8",
+	);
 	if (options.resultPayload) {
 		writeAsyncResultFile(path.join(resultsDir, `${options.runId}.json`), {
 			runId: options.runId,
@@ -91,7 +102,10 @@ function makeDeps(root: string, resultsDir: string, state?: SubagentState): Insp
 
 const userMessage = (text: string) => ({ role: "user", content: text });
 const assistantMessage = (text: string) => ({ role: "assistant", content: [{ type: "text", text }] });
-const toolCallMessage = (name: string, args: unknown) => ({ role: "assistant", content: [{ type: "toolCall", name, arguments: args }] });
+const toolCallMessage = (name: string, args: unknown) => ({
+	role: "assistant",
+	content: [{ type: "toolCall", name, arguments: args }],
+});
 
 describe("inspect-rpc request parsing", () => {
 	it("parses positional args and --lines", () => {
@@ -112,7 +126,10 @@ describe("inspect-rpc resolution and ownership", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-malformed-"));
 		const { asyncDir, resultsDir } = makeRun(root, { runId: "run-malformed" });
 		fs.writeFileSync(path.join(asyncDir, "status.json"), "{ not json", "utf-8");
-		const reply = buildInspectReply({ requestId: "r-malformed", asyncId: "run-malformed" }, makeDeps(root, resultsDir));
+		const reply = buildInspectReply(
+			{ requestId: "r-malformed", asyncId: "run-malformed" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(reply.error?.code, "internal");
 		assert.equal(JSON.stringify(reply).includes(root), false);
 	});
@@ -138,9 +155,15 @@ describe("inspect-rpc resolution and ownership", () => {
 			runId: "run-inherited",
 			sessionId: "session-replaced",
 			sessionMessages: [userMessage("Inherited task"), assistantMessage("Done.")],
-			resultPayload: { summary: "Inherited summary", results: [{ agent: "worker", output: "inherited answer", success: true }] },
+			resultPayload: {
+				summary: "Inherited summary",
+				results: [{ agent: "worker", output: "inherited answer", success: true }],
+			},
 		});
-		const reply = buildInspectReply({ requestId: "r-inherited", asyncId: "run-inherited" }, makeDeps(root, resultsDir));
+		const reply = buildInspectReply(
+			{ requestId: "r-inherited", asyncId: "run-inherited" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(reply.error, undefined);
 		assert.equal(reply.task, "Inherited task");
 		assert.equal(reply.finalOutput, "Inherited summary");
@@ -148,14 +171,20 @@ describe("inspect-rpc resolution and ownership", () => {
 	it("returns no_active_session when the request cannot be attributed", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-nosession-"));
 		const { resultsDir } = makeRun(root, { runId: "run-x" });
-		const reply = buildInspectReply({ requestId: "r3", asyncId: "run-x" }, makeDeps(root, resultsDir, makeState(root, null)));
+		const reply = buildInspectReply(
+			{ requestId: "r3", asyncId: "run-x" },
+			makeDeps(root, resultsDir, makeState(root, null)),
+		);
 		assert.equal(reply.error?.code, "no_active_session");
 	});
 	it("does not infer a run from a directory without status or result evidence", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-stale-"));
 		const asyncRoot = path.join(root, "runs");
 		fs.mkdirSync(path.join(asyncRoot, "run-stale"), { recursive: true });
-		const reply = buildInspectReply({ requestId: "r4", asyncId: "run-stale" }, makeDeps(root, path.join(root, "results")));
+		const reply = buildInspectReply(
+			{ requestId: "r4", asyncId: "run-stale" },
+			makeDeps(root, path.join(root, "results")),
+		);
 		assert.equal(reply.error?.code, "not_found");
 	});
 });
@@ -169,11 +198,17 @@ describe("inspect-rpc reply content", () => {
 			const { resultsDir } = makeRun(root, {
 				runId: "run-recorded",
 				sessionMessages: [userMessage("recorded task"), assistantMessage("recorded answer")],
-				resultPayload: { summary: "done", results: [{ agent: "worker", output: "recorded answer", success: true }] },
+				resultPayload: {
+					summary: "done",
+					results: [{ agent: "worker", output: "recorded answer", success: true }],
+				},
 			});
 			const state = makeState(path.join(sessionsBase, "unrelated"));
 			state.trustedSessionFileRoot = sessionsBase;
-			const reply = buildInspectReply({ requestId: "r-recorded", asyncId: "run-recorded" }, makeDeps(root, resultsDir, state));
+			const reply = buildInspectReply(
+				{ requestId: "r-recorded", asyncId: "run-recorded" },
+				makeDeps(root, resultsDir, state),
+			);
 			assert.equal(reply.error, undefined);
 			assert.equal(reply.task, "recorded task");
 			assert.equal(reply.messages?.at(-1)?.text, "recorded answer");
@@ -192,7 +227,10 @@ describe("inspect-rpc reply content", () => {
 				toolCallMessage("bash", { command: "ls" }),
 				assistantMessage("Done."),
 			],
-			resultPayload: { summary: "Run summary", results: [{ agent: "worker", output: "final answer", success: true }] },
+			resultPayload: {
+				summary: "Run summary",
+				results: [{ agent: "worker", output: "final answer", success: true }],
+			},
 		});
 		const reply = buildInspectReply({ requestId: "r5", asyncId: "run-1" }, makeDeps(root, resultsDir));
 		assert.equal(reply.error, undefined);
@@ -212,30 +250,83 @@ describe("inspect-rpc reply content", () => {
 	it("reports the provider and model the child's own reply recorded, and nothing a run-level workflow or historical status cannot attribute", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-model-"));
 		const resolvedModel = { provider: "openai-codex", model: "gpt-6-sol" };
-		const single = makeRun(root, { runId: "run-model", steps: [{ agent: "worker", status: "complete", model: "llama-swap/qwen3.5:9b", resolvedModel }] });
-		assert.deepEqual(buildInspectReply({ requestId: "m1", asyncId: "run-model" }, makeDeps(root, single.resultsDir)).resolvedModel, resolvedModel);
-		const historical = makeRun(root, { runId: "run-model-old", steps: [{ agent: "worker", status: "complete", model: "llama-swap/qwen3.5:9b" }] });
-		assert.equal(buildInspectReply({ requestId: "m4", asyncId: "run-model-old" }, makeDeps(root, historical.resultsDir)).resolvedModel, undefined);
+		const single = makeRun(root, {
+			runId: "run-model",
+			steps: [{ agent: "worker", status: "complete", model: "llama-swap/qwen3.5:9b", resolvedModel }],
+		});
+		assert.deepEqual(
+			buildInspectReply({ requestId: "m1", asyncId: "run-model" }, makeDeps(root, single.resultsDir)).resolvedModel,
+			resolvedModel,
+		);
+		const historical = makeRun(root, {
+			runId: "run-model-old",
+			steps: [{ agent: "worker", status: "complete", model: "llama-swap/qwen3.5:9b" }],
+		});
+		assert.equal(
+			buildInspectReply({ requestId: "m4", asyncId: "run-model-old" }, makeDeps(root, historical.resultsDir))
+				.resolvedModel,
+			undefined,
+		);
 		// A background workflow child records its reply in its own run's status; the workflow's step only names that run.
-		const workflow = makeRun(root, { runId: "run-model-wf", mode: "workflow", steps: [{ agent: "planner", status: "complete", workflowKey: "step-a", runId: "run-model-wf-child" }] });
+		const workflow = makeRun(root, {
+			runId: "run-model-wf",
+			mode: "workflow",
+			steps: [{ agent: "planner", status: "complete", workflowKey: "step-a", runId: "run-model-wf-child" }],
+		});
 		const writeChild = (runId: string, extra: Record<string, unknown>) => {
 			const child = makeRun(root, { runId, steps: [{ agent: "planner", status: "complete", resolvedModel }] });
 			const statusPath = path.join(child.asyncDir, "status.json");
-			fs.writeFileSync(statusPath, JSON.stringify({ ...JSON.parse(fs.readFileSync(statusPath, "utf-8")), ...extra }), "utf-8");
+			fs.writeFileSync(
+				statusPath,
+				JSON.stringify({ ...JSON.parse(fs.readFileSync(statusPath, "utf-8")), ...extra }),
+				"utf-8",
+			);
 		};
 		writeChild("run-model-wf-child", { parentWorkflowRunId: "run-model-wf" });
 		const wfDeps = makeDeps(root, workflow.resultsDir);
 		assert.equal(buildInspectReply({ requestId: "m2", asyncId: "run-model-wf" }, wfDeps).resolvedModel, undefined);
-		assert.deepEqual(buildInspectReply({ requestId: "m3", asyncId: "run-model-wf", childId: "step-a" }, wfDeps).resolvedModel, resolvedModel);
-		assert.deepEqual(buildInspectReply({ requestId: "m3b", asyncId: "run-model-wf", childId: "run-model-wf-child" }, wfDeps).resolvedModel, resolvedModel);
+		assert.deepEqual(
+			buildInspectReply({ requestId: "m3", asyncId: "run-model-wf", childId: "step-a" }, wfDeps).resolvedModel,
+			resolvedModel,
+		);
+		assert.deepEqual(
+			buildInspectReply({ requestId: "m3b", asyncId: "run-model-wf", childId: "run-model-wf-child" }, wfDeps)
+				.resolvedModel,
+			resolvedModel,
+		);
 		// A named run that is not this workflow's child, or belongs to another session, is not attributed.
-		makeRun(root, { runId: "run-model-wf2", mode: "workflow", steps: [{ agent: "planner", status: "complete", workflowKey: "step-b", runId: "run-model-other" }, { agent: "planner", status: "complete", workflowKey: "step-c", runId: "run-model-foreign" }] });
+		makeRun(root, {
+			runId: "run-model-wf2",
+			mode: "workflow",
+			steps: [
+				{ agent: "planner", status: "complete", workflowKey: "step-b", runId: "run-model-other" },
+				{ agent: "planner", status: "complete", workflowKey: "step-c", runId: "run-model-foreign" },
+			],
+		});
 		writeChild("run-model-other", { parentWorkflowRunId: "run-model-wf" });
 		writeChild("run-model-foreign", { parentWorkflowRunId: "run-model-wf2", sessionId: "session-other" });
-		assert.equal(buildInspectReply({ requestId: "m3c", asyncId: "run-model-wf2", childId: "step-b" }, wfDeps).resolvedModel, undefined);
-		assert.equal(buildInspectReply({ requestId: "m3d", asyncId: "run-model-wf2", childId: "step-c" }, wfDeps).resolvedModel, undefined);
-		const long = makeRun(root, { runId: "run-model-long", steps: [{ agent: "worker", status: "complete", resolvedModel: { provider: "p".repeat(500), model: "m".repeat(500) } }] });
-		const capped = buildInspectReply({ requestId: "m5", asyncId: "run-model-long" }, makeDeps(root, long.resultsDir)).resolvedModel;
+		assert.equal(
+			buildInspectReply({ requestId: "m3c", asyncId: "run-model-wf2", childId: "step-b" }, wfDeps).resolvedModel,
+			undefined,
+		);
+		assert.equal(
+			buildInspectReply({ requestId: "m3d", asyncId: "run-model-wf2", childId: "step-c" }, wfDeps).resolvedModel,
+			undefined,
+		);
+		const long = makeRun(root, {
+			runId: "run-model-long",
+			steps: [
+				{
+					agent: "worker",
+					status: "complete",
+					resolvedModel: { provider: "p".repeat(500), model: "m".repeat(500) },
+				},
+			],
+		});
+		const capped = buildInspectReply(
+			{ requestId: "m5", asyncId: "run-model-long" },
+			makeDeps(root, long.resultsDir),
+		).resolvedModel;
 		assert.ok(capped && capped.provider.length <= 64 && capped.model.length <= 160);
 	});
 	it("resolves a direct step child by snapshot node id", () => {
@@ -246,11 +337,22 @@ describe("inspect-rpc reply content", () => {
 			runId: "run-parent",
 			mode: "workflow",
 			steps: [
-				{ agent: "planner", label: "plan", status: "complete", workflowKey: "step-a", startedAt: 100, endedAt: 150, sessionFile: childSession },
+				{
+					agent: "planner",
+					label: "plan",
+					status: "complete",
+					workflowKey: "step-a",
+					startedAt: 100,
+					endedAt: 150,
+					sessionFile: childSession,
+				},
 			],
 			resultPayload: { summary: "parent", results: [{ agent: "planner", output: "child output", success: true }] },
 		});
-		const reply = buildInspectReply({ requestId: "r6", asyncId: "run-parent", childId: "step-a" }, makeDeps(root, resultsDir));
+		const reply = buildInspectReply(
+			{ requestId: "r6", asyncId: "run-parent", childId: "step-a" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(reply.error, undefined);
 		assert.equal(reply.childId, "step-a");
 		assert.equal(reply.label, "plan");
@@ -260,7 +362,10 @@ describe("inspect-rpc reply content", () => {
 	it("returns not_found for an unknown childId", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-nochild-"));
 		const { resultsDir } = makeRun(root, { runId: "run-p2" });
-		const reply = buildInspectReply({ requestId: "r7", asyncId: "run-p2", childId: "step:9" }, makeDeps(root, resultsDir));
+		const reply = buildInspectReply(
+			{ requestId: "r7", asyncId: "run-p2", childId: "step:9" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(reply.error?.code, "not_found");
 	});
 	it("omits task for fork-context children", () => {
@@ -291,11 +396,18 @@ describe("inspect-rpc reply content", () => {
 	it("returns completed output from durable replay after the result payload is consumed", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-"));
 		const { resultsDir } = makeRun(root, { runId: "run-replay" });
-		recordWaitCompletion(makeState(root), "run-replay", {
-			runId: "run-replay",
-			sessionId: SESSION_ID,
-			results: [{ agent: "worker", output: "finished output" }],
-		}, Date.now(), 60_000, { resultsDir, sessionId: SESSION_ID });
+		recordWaitCompletion(
+			makeState(root),
+			"run-replay",
+			{
+				runId: "run-replay",
+				sessionId: SESSION_ID,
+				results: [{ agent: "worker", output: "finished output" }],
+			},
+			Date.now(),
+			60_000,
+			{ resultsDir, sessionId: SESSION_ID },
+		);
 		const reply = buildInspectReply({ requestId: "r-replay", asyncId: "run-replay" }, makeDeps(root, resultsDir));
 		assert.equal(reply.error, undefined);
 		assert.equal(reply.finalOutput, "finished output");
@@ -304,16 +416,26 @@ describe("inspect-rpc reply content", () => {
 	it("returns legacy single-child replay output at run level when resultIndex is absent", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-legacy-single-"));
 		const { resultsDir } = makeRun(root, { runId: "run-replay-legacy-single" });
-		recordWaitCompletion(makeState(root), "run-replay-legacy-single", {
-			runId: "run-replay-legacy-single",
-			sessionId: SESSION_ID,
-			results: [{ agent: "worker", output: "finished output" }],
-		}, Date.now(), 60_000, { resultsDir, sessionId: SESSION_ID });
+		recordWaitCompletion(
+			makeState(root),
+			"run-replay-legacy-single",
+			{
+				runId: "run-replay-legacy-single",
+				sessionId: SESSION_ID,
+				results: [{ agent: "worker", output: "finished output" }],
+			},
+			Date.now(),
+			60_000,
+			{ resultsDir, sessionId: SESSION_ID },
+		);
 		const archivePath = completionArchivePath(resultsDir, "run-replay-legacy-single");
 		const archive = JSON.parse(fs.readFileSync(archivePath, "utf-8"));
 		for (const entry of archive.entries) delete entry.resultIndex;
 		fs.writeFileSync(archivePath, JSON.stringify(archive), "utf-8");
-		const reply = buildInspectReply({ requestId: "r-replay-legacy-single", asyncId: "run-replay-legacy-single" }, makeDeps(root, resultsDir));
+		const reply = buildInspectReply(
+			{ requestId: "r-replay-legacy-single", asyncId: "run-replay-legacy-single" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(reply.error, undefined);
 		assert.equal(reply.finalOutput, "finished output");
 	});
@@ -322,12 +444,22 @@ describe("inspect-rpc reply content", () => {
 		const outputPath = path.join(root, "output.txt");
 		fs.writeFileSync(outputPath, "artifact output", "utf-8");
 		const { resultsDir } = makeRun(root, { runId: "run-replay-artifact" });
-		recordWaitCompletion(makeState(root), "run-replay-artifact", {
-			runId: "run-replay-artifact",
-			sessionId: SESSION_ID,
-			results: [{ artifactPaths: { outputPath }, output: "ignored fallback" }],
-		}, Date.now(), 60_000, { resultsDir, sessionId: SESSION_ID });
-		const reply = buildInspectReply({ requestId: "r-replay-artifact", asyncId: "run-replay-artifact" }, makeDeps(root, resultsDir));
+		recordWaitCompletion(
+			makeState(root),
+			"run-replay-artifact",
+			{
+				runId: "run-replay-artifact",
+				sessionId: SESSION_ID,
+				results: [{ artifactPaths: { outputPath }, output: "ignored fallback" }],
+			},
+			Date.now(),
+			60_000,
+			{ resultsDir, sessionId: SESSION_ID },
+		);
+		const reply = buildInspectReply(
+			{ requestId: "r-replay-artifact", asyncId: "run-replay-artifact" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(reply.error, undefined);
 		assert.equal(reply.finalOutput, "artifact output");
 		assert.equal(JSON.stringify(reply).includes(outputPath), false);
@@ -338,22 +470,37 @@ describe("inspect-rpc reply content", () => {
 		const transcriptPath = path.join(root, "transcript.jsonl");
 		const metadataPath = path.join(root, "metadata.json");
 		const childError = `${"x".repeat(12_000)} child failure tail ${"x".repeat(28_000)}`;
-		fs.writeFileSync(outputPath, formatOutputArtifactContent({ output: "", error: childError, transcriptPath, metadataPath }), "utf-8");
+		fs.writeFileSync(
+			outputPath,
+			formatOutputArtifactContent({ output: "", error: childError, transcriptPath, metadataPath }),
+			"utf-8",
+		);
 		const { resultsDir } = makeRun(root, {
 			runId: "run-replay-failed-artifact",
 			mode: "workflow",
 			steps: [{ agent: "worker", status: "failed", workflowKey: "worker", startedAt: 100, endedAt: 150 }],
 		});
-		recordWaitCompletion(makeState(root), "run-replay-failed-artifact", {
-			runId: "run-replay-failed-artifact",
-			sessionId: SESSION_ID,
-			results: [{ artifactPaths: { outputPath } }],
-		}, Date.now(), 60_000, { resultsDir, sessionId: SESSION_ID });
-		const reply = buildInspectReply({ requestId: "r-replay-failed-artifact", asyncId: "run-replay-failed-artifact", childId: "worker" }, makeDeps(root, resultsDir));
+		recordWaitCompletion(
+			makeState(root),
+			"run-replay-failed-artifact",
+			{
+				runId: "run-replay-failed-artifact",
+				sessionId: SESSION_ID,
+				results: [{ artifactPaths: { outputPath } }],
+			},
+			Date.now(),
+			60_000,
+			{ resultsDir, sessionId: SESSION_ID },
+		);
+		const reply = buildInspectReply(
+			{ requestId: "r-replay-failed-artifact", asyncId: "run-replay-failed-artifact", childId: "worker" },
+			makeDeps(root, resultsDir),
+		);
 		const serialized = JSON.stringify(reply);
 		assert.equal(reply.error, undefined);
 		assert.ok(reply.finalOutput?.includes("child failure tail"));
-		for (const privateText of [root, outputPath, transcriptPath, metadataPath, "Transcript:", "Metadata:"]) assert.equal(serialized.includes(privateText), false);
+		for (const privateText of [root, outputPath, transcriptPath, metadataPath, "Transcript:", "Metadata:"])
+			assert.equal(serialized.includes(privateText), false);
 	});
 	it("returns the selected child output from a multi-step replay artifact archive", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-children-"));
@@ -369,15 +516,25 @@ describe("inspect-rpc reply content", () => {
 				{ agent: "second", status: "complete", workflowKey: "second", startedAt: 100, endedAt: 150 },
 			],
 		});
-		recordWaitCompletion(makeState(root), "run-replay-children", {
-			runId: "run-replay-children",
-			sessionId: SESSION_ID,
-			results: [
-				{ artifactPaths: { outputPath: firstOutputPath } },
-				{ artifactPaths: { outputPath: secondOutputPath } },
-			],
-		}, Date.now(), 60_000, { resultsDir, sessionId: SESSION_ID });
-		const reply = buildInspectReply({ requestId: "r-replay-children", asyncId: "run-replay-children", childId: "second" }, makeDeps(root, resultsDir));
+		recordWaitCompletion(
+			makeState(root),
+			"run-replay-children",
+			{
+				runId: "run-replay-children",
+				sessionId: SESSION_ID,
+				results: [
+					{ artifactPaths: { outputPath: firstOutputPath } },
+					{ artifactPaths: { outputPath: secondOutputPath } },
+				],
+			},
+			Date.now(),
+			60_000,
+			{ resultsDir, sessionId: SESSION_ID },
+		);
+		const reply = buildInspectReply(
+			{ requestId: "r-replay-children", asyncId: "run-replay-children", childId: "second" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(reply.error, undefined);
 		assert.equal(reply.finalOutput, "second output");
 		assert.equal(JSON.stringify(reply).includes(root), false);
@@ -394,21 +551,37 @@ describe("inspect-rpc reply content", () => {
 				{ agent: "second", status: "complete", workflowKey: "second", startedAt: 100, endedAt: 150 },
 			],
 		});
-		recordWaitCompletion(makeState(root), "run-replay-mixed", {
-			runId: "run-replay-mixed",
-			sessionId: SESSION_ID,
-			results: [
-				{ agent: "first", output: "first inline output" },
-				{ agent: "second", artifactPaths: { outputPath: secondOutputPath } },
-			],
-		}, Date.now(), 60_000, { resultsDir, sessionId: SESSION_ID });
-		const first = buildInspectReply({ requestId: "r-replay-mixed-first", asyncId: "run-replay-mixed", childId: "first" }, makeDeps(root, resultsDir));
+		recordWaitCompletion(
+			makeState(root),
+			"run-replay-mixed",
+			{
+				runId: "run-replay-mixed",
+				sessionId: SESSION_ID,
+				results: [
+					{ agent: "first", output: "first inline output" },
+					{ agent: "second", artifactPaths: { outputPath: secondOutputPath } },
+				],
+			},
+			Date.now(),
+			60_000,
+			{ resultsDir, sessionId: SESSION_ID },
+		);
+		const first = buildInspectReply(
+			{ requestId: "r-replay-mixed-first", asyncId: "run-replay-mixed", childId: "first" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(first.error, undefined);
 		assert.equal(first.finalOutput, "first inline output");
-		const second = buildInspectReply({ requestId: "r-replay-mixed", asyncId: "run-replay-mixed", childId: "second" }, makeDeps(root, resultsDir));
+		const second = buildInspectReply(
+			{ requestId: "r-replay-mixed", asyncId: "run-replay-mixed", childId: "second" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(second.error, undefined);
 		assert.equal(second.finalOutput, "second artifact output");
-		const topLevel = buildInspectReply({ requestId: "r-replay-mixed-top", asyncId: "run-replay-mixed" }, makeDeps(root, resultsDir));
+		const topLevel = buildInspectReply(
+			{ requestId: "r-replay-mixed-top", asyncId: "run-replay-mixed" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(topLevel.error, undefined);
 		assert.equal(topLevel.finalOutput, undefined);
 		assert.equal(JSON.stringify(first).includes(root), false);
@@ -416,21 +589,44 @@ describe("inspect-rpc reply content", () => {
 	it("returns session-backed replay output from the child's archived session transcript", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-session-"));
 		const childSession = path.join(root, "child-session.jsonl");
-		fs.writeFileSync(childSession, [
-			JSON.stringify({ message: userMessage("child task") }),
-			JSON.stringify({ message: assistantMessage("session-backed answer") }),
-		].join("\n") + "\n", "utf-8");
+		fs.writeFileSync(
+			childSession,
+			[
+				JSON.stringify({ message: userMessage("child task") }),
+				JSON.stringify({ message: assistantMessage("session-backed answer") }),
+			].join("\n") + "\n",
+			"utf-8",
+		);
 		const { resultsDir } = makeRun(root, {
 			runId: "run-replay-session",
 			mode: "workflow",
-			steps: [{ agent: "worker", status: "complete", workflowKey: "worker", startedAt: 100, endedAt: 150, sessionFile: childSession }],
+			steps: [
+				{
+					agent: "worker",
+					status: "complete",
+					workflowKey: "worker",
+					startedAt: 100,
+					endedAt: 150,
+					sessionFile: childSession,
+				},
+			],
 		});
-		recordWaitCompletion(makeState(root), "run-replay-session", {
-			runId: "run-replay-session",
-			sessionId: SESSION_ID,
-			results: [{ sessionFile: childSession }],
-		}, Date.now(), 60_000, { resultsDir, sessionId: SESSION_ID });
-		const reply = buildInspectReply({ requestId: "r-replay-session", asyncId: "run-replay-session", childId: "worker" }, makeDeps(root, resultsDir));
+		recordWaitCompletion(
+			makeState(root),
+			"run-replay-session",
+			{
+				runId: "run-replay-session",
+				sessionId: SESSION_ID,
+				results: [{ sessionFile: childSession }],
+			},
+			Date.now(),
+			60_000,
+			{ resultsDir, sessionId: SESSION_ID },
+		);
+		const reply = buildInspectReply(
+			{ requestId: "r-replay-session", asyncId: "run-replay-session", childId: "worker" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(reply.error, undefined);
 		assert.equal(reply.finalOutput, "session-backed answer");
 		assert.equal(JSON.stringify(reply).includes(childSession), false);
@@ -449,15 +645,25 @@ describe("inspect-rpc reply content", () => {
 				{ agent: "second", status: "complete", workflowKey: "second", startedAt: 100, endedAt: 150 },
 			],
 		});
-		recordWaitCompletion(makeState(root), "run-replay-toplevel", {
-			runId: "run-replay-toplevel",
-			sessionId: SESSION_ID,
-			results: [
-				{ artifactPaths: { outputPath: firstOutputPath } },
-				{ artifactPaths: { outputPath: secondOutputPath } },
-			],
-		}, Date.now(), 60_000, { resultsDir, sessionId: SESSION_ID });
-		const reply = buildInspectReply({ requestId: "r-replay-toplevel", asyncId: "run-replay-toplevel" }, makeDeps(root, resultsDir));
+		recordWaitCompletion(
+			makeState(root),
+			"run-replay-toplevel",
+			{
+				runId: "run-replay-toplevel",
+				sessionId: SESSION_ID,
+				results: [
+					{ artifactPaths: { outputPath: firstOutputPath } },
+					{ artifactPaths: { outputPath: secondOutputPath } },
+				],
+			},
+			Date.now(),
+			60_000,
+			{ resultsDir, sessionId: SESSION_ID },
+		);
+		const reply = buildInspectReply(
+			{ requestId: "r-replay-toplevel", asyncId: "run-replay-toplevel" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(reply.error, undefined);
 		assert.equal(reply.finalOutput, undefined);
 	});
@@ -475,25 +681,38 @@ describe("inspect-rpc reply content", () => {
 				{ agent: "second", status: "complete", workflowKey: "second", startedAt: 100, endedAt: 150 },
 			],
 		});
-		recordWaitCompletion(makeState(root), "run-replay-legacy", {
-			runId: "run-replay-legacy",
-			sessionId: SESSION_ID,
-			results: [
-				{ agent: "first", artifactPaths: { outputPath: firstOutputPath } },
-				{ agent: "second", artifactPaths: { outputPath: secondOutputPath } },
-			],
-		}, Date.now(), 60_000, { resultsDir, sessionId: SESSION_ID });
+		recordWaitCompletion(
+			makeState(root),
+			"run-replay-legacy",
+			{
+				runId: "run-replay-legacy",
+				sessionId: SESSION_ID,
+				results: [
+					{ agent: "first", artifactPaths: { outputPath: firstOutputPath } },
+					{ agent: "second", artifactPaths: { outputPath: secondOutputPath } },
+				],
+			},
+			Date.now(),
+			60_000,
+			{ resultsDir, sessionId: SESSION_ID },
+		);
 		// Downgrade the archive to the pre-resultIndex legacy shape.
 		const archivePath = completionArchivePath(resultsDir, "run-replay-legacy");
 		const archive = JSON.parse(fs.readFileSync(archivePath, "utf-8"));
 		for (const entry of archive.entries) delete entry.resultIndex;
 		fs.writeFileSync(archivePath, JSON.stringify(archive), "utf-8");
 
-		const child = buildInspectReply({ requestId: "r-legacy-child", asyncId: "run-replay-legacy", childId: "second" }, makeDeps(root, resultsDir));
+		const child = buildInspectReply(
+			{ requestId: "r-legacy-child", asyncId: "run-replay-legacy", childId: "second" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(child.error, undefined);
 		assert.equal(child.finalOutput, "second output");
 
-		const topLevel = buildInspectReply({ requestId: "r-legacy-top", asyncId: "run-replay-legacy" }, makeDeps(root, resultsDir));
+		const topLevel = buildInspectReply(
+			{ requestId: "r-legacy-top", asyncId: "run-replay-legacy" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(topLevel.error, undefined);
 		assert.equal(topLevel.finalOutput, undefined);
 	});
@@ -511,41 +730,82 @@ describe("inspect-rpc reply content", () => {
 				{ agent: "worker", status: "complete", workflowKey: "second", startedAt: 100, endedAt: 150 },
 			],
 		});
-		recordWaitCompletion(makeState(root), "run-replay-legacy-dup", {
-			runId: "run-replay-legacy-dup",
-			sessionId: SESSION_ID,
-			results: [
-				{ agent: "worker", artifactPaths: { outputPath: firstOutputPath } },
-				{ agent: "worker", artifactPaths: { outputPath: secondOutputPath } },
-			],
-		}, Date.now(), 60_000, { resultsDir, sessionId: SESSION_ID });
+		recordWaitCompletion(
+			makeState(root),
+			"run-replay-legacy-dup",
+			{
+				runId: "run-replay-legacy-dup",
+				sessionId: SESSION_ID,
+				results: [
+					{ agent: "worker", artifactPaths: { outputPath: firstOutputPath } },
+					{ agent: "worker", artifactPaths: { outputPath: secondOutputPath } },
+				],
+			},
+			Date.now(),
+			60_000,
+			{ resultsDir, sessionId: SESSION_ID },
+		);
 		const archivePath = completionArchivePath(resultsDir, "run-replay-legacy-dup");
 		const archive = JSON.parse(fs.readFileSync(archivePath, "utf-8"));
 		for (const entry of archive.entries) delete entry.resultIndex;
 		fs.writeFileSync(archivePath, JSON.stringify(archive), "utf-8");
 
-		const second = buildInspectReply({ requestId: "r-legacy-dup", asyncId: "run-replay-legacy-dup", childId: "second" }, makeDeps(root, resultsDir));
+		const second = buildInspectReply(
+			{ requestId: "r-legacy-dup", asyncId: "run-replay-legacy-dup", childId: "second" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(second.error, undefined);
 		assert.equal(second.finalOutput, undefined);
 	});
 	it("joins all text parts of the terminal assistant message for session-backed output", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-multipart-"));
 		const childSession = path.join(root, "multipart-session.jsonl");
-		fs.writeFileSync(childSession, [
-			JSON.stringify({ message: userMessage("child task") }),
-			JSON.stringify({ message: { role: "assistant", content: [{ type: "text", text: "part one" }, { type: "text", text: "part two" }] } }),
-		].join("\n") + "\n", "utf-8");
+		fs.writeFileSync(
+			childSession,
+			[
+				JSON.stringify({ message: userMessage("child task") }),
+				JSON.stringify({
+					message: {
+						role: "assistant",
+						content: [
+							{ type: "text", text: "part one" },
+							{ type: "text", text: "part two" },
+						],
+					},
+				}),
+			].join("\n") + "\n",
+			"utf-8",
+		);
 		const { resultsDir } = makeRun(root, {
 			runId: "run-replay-multipart",
 			mode: "workflow",
-			steps: [{ agent: "worker", status: "complete", workflowKey: "worker", startedAt: 100, endedAt: 150, sessionFile: childSession }],
+			steps: [
+				{
+					agent: "worker",
+					status: "complete",
+					workflowKey: "worker",
+					startedAt: 100,
+					endedAt: 150,
+					sessionFile: childSession,
+				},
+			],
 		});
-		recordWaitCompletion(makeState(root), "run-replay-multipart", {
-			runId: "run-replay-multipart",
-			sessionId: SESSION_ID,
-			results: [{ sessionFile: childSession }],
-		}, Date.now(), 60_000, { resultsDir, sessionId: SESSION_ID });
-		const reply = buildInspectReply({ requestId: "r-multipart", asyncId: "run-replay-multipart", childId: "worker" }, makeDeps(root, resultsDir));
+		recordWaitCompletion(
+			makeState(root),
+			"run-replay-multipart",
+			{
+				runId: "run-replay-multipart",
+				sessionId: SESSION_ID,
+				results: [{ sessionFile: childSession }],
+			},
+			Date.now(),
+			60_000,
+			{ resultsDir, sessionId: SESSION_ID },
+		);
+		const reply = buildInspectReply(
+			{ requestId: "r-multipart", asyncId: "run-replay-multipart", childId: "worker" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(reply.error, undefined);
 		assert.equal(reply.finalOutput, "part one\npart two");
 	});
@@ -553,11 +813,18 @@ describe("inspect-rpc reply content", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-invalid-"));
 		const runId = "run-replay-invalid";
 		const { resultsDir } = makeRun(root, { runId });
-		recordWaitCompletion(makeState(root), runId, {
+		recordWaitCompletion(
+			makeState(root),
 			runId,
-			sessionId: SESSION_ID,
-			results: [{ output: "finished output" }],
-		}, Date.now(), 60_000, { resultsDir, sessionId: SESSION_ID });
+			{
+				runId,
+				sessionId: SESSION_ID,
+				results: [{ output: "finished output" }],
+			},
+			Date.now(),
+			60_000,
+			{ resultsDir, sessionId: SESSION_ID },
+		);
 		// Corrupt the record's archivePath so validation rejects it while the
 		// record still parses and names this run and session.
 		const replayFile = completionReplayPath(resultsDir, runId);
@@ -572,12 +839,23 @@ describe("inspect-rpc reply content", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-replay-malformed-"));
 		const runId = "run-replay-malformed";
 		const { resultsDir } = makeRun(root, { runId });
-		recordWaitCompletion(makeState(root), runId, {
+		recordWaitCompletion(
+			makeState(root),
 			runId,
-			sessionId: SESSION_ID,
-			results: [{ output: "finished output" }],
-		}, Date.now(), 60_000, { resultsDir, sessionId: SESSION_ID });
-		fs.writeFileSync(completionArchivePath(resultsDir, runId), JSON.stringify({ version: 1, runId, createdAt: 1, entries: "not-an-array" }), "utf-8");
+			{
+				runId,
+				sessionId: SESSION_ID,
+				results: [{ output: "finished output" }],
+			},
+			Date.now(),
+			60_000,
+			{ resultsDir, sessionId: SESSION_ID },
+		);
+		fs.writeFileSync(
+			completionArchivePath(resultsDir, runId),
+			JSON.stringify({ version: 1, runId, createdAt: 1, entries: "not-an-array" }),
+			"utf-8",
+		);
 		const reply = buildInspectReply({ requestId: "r-replay-malformed", asyncId: runId }, makeDeps(root, resultsDir));
 		assert.equal(reply.error?.code, "internal");
 		assert.equal(reply.finalOutput, undefined);
@@ -587,15 +865,25 @@ describe("inspect-rpc reply content", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-result-malformed-"));
 		const { resultsDir } = makeRun(root, { runId: "run-result-malformed", resultPayload: { summary: "valid" } });
 		fs.writeFileSync(path.join(resultsDir, "run-result-malformed.json"), "{ invalid", "utf-8");
-		const reply = buildInspectReply({ requestId: "r-result-malformed", asyncId: "run-result-malformed" }, makeDeps(root, resultsDir));
+		const reply = buildInspectReply(
+			{ requestId: "r-result-malformed", asyncId: "run-result-malformed" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(reply.error?.code, "internal");
 		assert.equal(reply.finalOutput, undefined);
 		assert.equal(JSON.stringify(reply).includes(root), false);
 	});
 	it("fails closed instead of returning a private status error", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-status-error-"));
-		const { resultsDir } = makeRun(root, { runId: "run-status-error", state: "failed", error: `Failed to write ${path.join(root, "result.json")}` });
-		const reply = buildInspectReply({ requestId: "r-status-error", asyncId: "run-status-error" }, makeDeps(root, resultsDir));
+		const { resultsDir } = makeRun(root, {
+			runId: "run-status-error",
+			state: "failed",
+			error: `Failed to write ${path.join(root, "result.json")}`,
+		});
+		const reply = buildInspectReply(
+			{ requestId: "r-status-error", asyncId: "run-status-error" },
+			makeDeps(root, resultsDir),
+		);
 		assert.equal(reply.error?.code, "internal");
 		assert.equal(reply.finalOutput, undefined);
 		assert.equal(JSON.stringify(reply).includes(root), false);
@@ -608,7 +896,9 @@ describe("inspect-rpc bounds", () => {
 		const big = "x".repeat(1_000);
 		const { resultsDir } = makeRun(root, {
 			runId: "run-big",
-			steps: [{ agent: "worker", status: "complete", resolvedModel: { provider: "openai-codex", model: "gpt-6-sol" } }],
+			steps: [
+				{ agent: "worker", status: "complete", resolvedModel: { provider: "openai-codex", model: "gpt-6-sol" } },
+			],
 			sessionMessages: Array.from({ length: 300 }, (_, index) => assistantMessage(`${index}:${big}`)),
 			resultPayload: { summary: big.repeat(9), results: [] },
 		});
@@ -617,7 +907,11 @@ describe("inspect-rpc bounds", () => {
 		const bytes = Buffer.byteLength(JSON.stringify(reply), "utf-8");
 		assert.ok(bytes <= MAX_SERIALIZED_BYTES, `reply ${bytes} exceeds ${MAX_SERIALIZED_BYTES}`);
 		assert.ok((reply.truncated?.messages ?? 0) > 0);
-		assert.deepEqual(reply.resolvedModel, { provider: "openai-codex", model: "gpt-6-sol" }, "message trimming must keep the resolved model");
+		assert.deepEqual(
+			reply.resolvedModel,
+			{ provider: "openai-codex", model: "gpt-6-sol" },
+			"message trimming must keep the resolved model",
+		);
 	});
 	it("caps per-field lengths", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-caps-"));
@@ -647,14 +941,18 @@ describe("inspect-rpc bounds", () => {
 
 describe("inspect-rpc command surface", () => {
 	it("answers unparseable args with an invalid_request reply", () => {
-		const reply = handleInspectRpcArgs("not valid at all", { state: makeState(fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-args-"))) });
+		const reply = handleInspectRpcArgs("not valid at all", {
+			state: makeState(fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-args-"))),
+		});
 		assert.equal(reply.error?.code, "invalid_request");
 		assert.equal(reply.requestId, "not");
 	});
 	it("encodes replies with the widget prefix", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspect-encode-"));
 		const { resultsDir } = makeRun(root, { runId: "run-e" });
-		const lines = encodeInspectReply(buildInspectReply({ requestId: "r13", asyncId: "run-e" }, makeDeps(root, resultsDir)));
+		const lines = encodeInspectReply(
+			buildInspectReply({ requestId: "r13", asyncId: "run-e" }, makeDeps(root, resultsDir)),
+		);
 		assert.equal(lines.length, 1);
 		assert.ok(lines[0]!.startsWith(INSPECT_WIDGET_PREFIX));
 		const parsed = JSON.parse(lines[0]!.slice(INSPECT_WIDGET_PREFIX.length));

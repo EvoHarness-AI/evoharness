@@ -33,10 +33,9 @@ export class WatchdogScopeArtifact {
 		return [
 			"Current scope:",
 			"The following real user prompts are the current scope record, newest last. Side questions are additive, not scope drift or cancellation of older objectives; only explicit changes supersede requirements. Use watchdog_warn for evidence-backed reminders of forgotten authorized work, not dependencies still pending or explicit holds. The orchestrator owns task tracking. Flag unauthorized work as category 'scope-drift'.",
-			...this.entries.map((entry, index) => [
-				`Scope prompt ${index + 1} (${entry.createdAt}):`,
-				entry.prompt,
-			].join("\n")),
+			...this.entries.map((entry, index) =>
+				[`Scope prompt ${index + 1} (${entry.createdAt}):`, entry.prompt].join("\n"),
+			),
 		].join("\n\n");
 	}
 

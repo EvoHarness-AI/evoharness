@@ -4,12 +4,20 @@ import { createRequire, syncBuiltinESMExports } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { cleanupCompletionReplay, completionArchivePath, completionReplayPath, readCompletionArchive, readCompletionReplay, writeCompletionReplay, writeCompletionArchive } from "../../src/runs/background/completion-replay.ts";
-import { utf8Tail } from "../../src/shared/utf8.ts";
-import { collectWaitCompletions, recordWaitCompletion } from "../../src/runs/background/wait-completions.ts";
-import { writeAsyncResultFile } from "../../src/runs/background/result-files.ts";
 import type { AsyncRunSummary } from "../../src/runs/background/async-status.ts";
+import {
+	cleanupCompletionReplay,
+	completionArchivePath,
+	completionReplayPath,
+	readCompletionArchive,
+	readCompletionReplay,
+	writeCompletionArchive,
+	writeCompletionReplay,
+} from "../../src/runs/background/completion-replay.ts";
+import { writeAsyncResultFile } from "../../src/runs/background/result-files.ts";
+import { collectWaitCompletions, recordWaitCompletion } from "../../src/runs/background/wait-completions.ts";
 import type { SubagentState } from "../../src/shared/types.ts";
+import { utf8Tail } from "../../src/shared/utf8.ts";
 
 const require = createRequire(import.meta.url);
 const fsCjs = require("node:fs") as typeof fs;
@@ -36,15 +44,30 @@ describe("completion replay", () => {
 		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-completion-replay-"));
 		try {
 			const now = Date.now();
-			recordWaitCompletion(makeState(), "run-a", {
-				runId: "run-a",
-				sessionId: "session-a",
-				agent: "worker",
-				mode: "single",
-				state: "complete",
-				success: true,
-				results: [{ agent: "worker", success: true, outputState: "present", output: "finished output", contextOverflow: true }],
-			}, now, 60_000, { resultsDir, sessionId: "session-a" });
+			recordWaitCompletion(
+				makeState(),
+				"run-a",
+				{
+					runId: "run-a",
+					sessionId: "session-a",
+					agent: "worker",
+					mode: "single",
+					state: "complete",
+					success: true,
+					results: [
+						{
+							agent: "worker",
+							success: true,
+							outputState: "present",
+							output: "finished output",
+							contextOverflow: true,
+						},
+					],
+				},
+				now,
+				60_000,
+				{ resultsDir, sessionId: "session-a" },
+			);
 
 			const replay = readCompletionReplay(resultsDir, "run-a", { sessionId: "session-a", now: now + 1 });
 			assert.equal(replay?.version, 1);
@@ -150,30 +173,38 @@ describe("completion replay", () => {
 			fs.mkdirSync(replayDir, { recursive: true });
 			const victim = path.join(root, "victim.txt");
 			fs.writeFileSync(victim, "keep", "utf-8");
-			fs.writeFileSync(path.join(replayDir, `${encodeURIComponent("run-c")}.json`), JSON.stringify({
-				version: 1,
-				runId: "run-c",
-				sessionId: "session-a",
-				completedAt: 1,
-				expiresAt: 2,
-				archivePath: victim,
-				completion: { runId: "run-c", archivePath: victim },
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(replayDir, `${encodeURIComponent("run-c")}.json`),
+				JSON.stringify({
+					version: 1,
+					runId: "run-c",
+					sessionId: "session-a",
+					completedAt: 1,
+					expiresAt: 2,
+					archivePath: victim,
+					completion: { runId: "run-c", archivePath: victim },
+				}),
+				"utf-8",
+			);
 
 			const replayPath = path.join(replayDir, `${encodeURIComponent("run-c")}.json`);
 			assert.equal(readCompletionReplay(resultsDir, "run-c", { sessionId: "session-a", now: 1 }), undefined);
 			assert.equal(fs.readFileSync(victim, "utf-8"), "keep");
 			assert.equal(fs.existsSync(replayPath), false);
 
-			fs.writeFileSync(replayPath, JSON.stringify({
-				version: 1,
-				runId: "run-c",
-				sessionId: "session-a",
-				completedAt: 1,
-				expiresAt: 2,
-				archivePath: victim,
-				completion: { runId: "run-c", archivePath: victim },
-			}), "utf-8");
+			fs.writeFileSync(
+				replayPath,
+				JSON.stringify({
+					version: 1,
+					runId: "run-c",
+					sessionId: "session-a",
+					completedAt: 1,
+					expiresAt: 2,
+					archivePath: victim,
+					completion: { runId: "run-c", archivePath: victim },
+				}),
+				"utf-8",
+			);
 			cleanupCompletionReplay(resultsDir, 3, 60_000);
 			assert.equal(fs.readFileSync(victim, "utf-8"), "keep");
 			assert.equal(fs.existsSync(replayPath), false);
@@ -181,15 +212,19 @@ describe("completion replay", () => {
 			const victimArchive = completionArchivePath(resultsDir, "run-a");
 			fs.mkdirSync(path.dirname(victimArchive), { recursive: true });
 			fs.writeFileSync(victimArchive, "keep", "utf-8");
-			fs.writeFileSync(replayPath, JSON.stringify({
-				version: 1,
-				runId: "run-a",
-				sessionId: "session-a",
-				completedAt: 1,
-				expiresAt: 2,
-				archivePath: victimArchive,
-				completion: { runId: "run-a", archivePath: victimArchive },
-			}), "utf-8");
+			fs.writeFileSync(
+				replayPath,
+				JSON.stringify({
+					version: 1,
+					runId: "run-a",
+					sessionId: "session-a",
+					completedAt: 1,
+					expiresAt: 2,
+					archivePath: victimArchive,
+					completion: { runId: "run-a", archivePath: victimArchive },
+				}),
+				"utf-8",
+			);
 			cleanupCompletionReplay(resultsDir, 3, 60_000);
 			assert.equal(fs.readFileSync(victimArchive, "utf-8"), "keep");
 			assert.equal(fs.existsSync(replayPath), false);
@@ -209,15 +244,19 @@ describe("completion replay", () => {
 			fs.mkdirSync(replayDir, { recursive: true });
 			fs.mkdirSync(path.dirname(archivePath), { recursive: true });
 			fs.writeFileSync(archivePath, "archive", "utf-8");
-			fs.writeFileSync(replayPath, JSON.stringify({
-				version: 1,
-				runId: "run-d",
-				sessionId: "session-a",
-				completedAt: 1,
-				expiresAt: 2,
-				archivePath,
-				completion: { runId: "run-d", archivePath },
-			}), "utf-8");
+			fs.writeFileSync(
+				replayPath,
+				JSON.stringify({
+					version: 1,
+					runId: "run-d",
+					sessionId: "session-a",
+					completedAt: 1,
+					expiresAt: 2,
+					archivePath,
+					completion: { runId: "run-d", archivePath },
+				}),
+				"utf-8",
+			);
 
 			fsCjs.rmSync = ((target: Parameters<typeof fs.rmSync>[0], options?: Parameters<typeof fs.rmSync>[1]) => {
 				if (String(target) === replayPath || String(target) === archivePath) {
@@ -244,7 +283,10 @@ describe("completion replay", () => {
 		const originalReaddirSync = fsCjs.readdirSync;
 		let cleanupScans = 0;
 		try {
-			fsCjs.readdirSync = ((target: Parameters<typeof fs.readdirSync>[0], options?: Parameters<typeof fs.readdirSync>[1]) => {
+			fsCjs.readdirSync = ((
+				target: Parameters<typeof fs.readdirSync>[0],
+				options?: Parameters<typeof fs.readdirSync>[1],
+			) => {
 				if (String(target).includes(`${path.sep}completion-replay`)) cleanupScans += 1;
 				return originalReaddirSync(target, options as never);
 			}) as typeof fs.readdirSync;
@@ -284,14 +326,24 @@ describe("completion replay", () => {
 		try {
 			const savedOutput = path.join(root, "saved-output.md");
 			fs.writeFileSync(savedOutput, "saved", "utf-8");
-			const archivePath = writeCompletionArchive(root, "run-b", {
-				results: [
-					{ agent: "saved", output: "duplicate text", artifactPaths: { outputPath: savedOutput } },
-					{ agent: "fallback", output: `start-${"x".repeat(70 * 1024)}-tail` },
-				],
-			}, Date.now());
+			const archivePath = writeCompletionArchive(
+				root,
+				"run-b",
+				{
+					results: [
+						{ agent: "saved", output: "duplicate text", artifactPaths: { outputPath: savedOutput } },
+						{ agent: "fallback", output: `start-${"x".repeat(70 * 1024)}-tail` },
+					],
+				},
+				Date.now(),
+			);
 			const archive = readCompletionArchive(archivePath);
-			assert.deepEqual(archive?.entries[0], { agent: "saved", resultIndex: 0, source: "output-artifact", path: savedOutput });
+			assert.deepEqual(archive?.entries[0], {
+				agent: "saved",
+				resultIndex: 0,
+				source: "output-artifact",
+				path: savedOutput,
+			});
 			const fallback = archive?.entries[1];
 			assert.equal(fallback?.source, "result-tail");
 			assert.equal(fallback?.agent, "fallback");

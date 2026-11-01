@@ -23,7 +23,9 @@ process.env.USERPROFILE = homeDir;
 process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 assert.equal(os.homedir(), homeDir, "test isolation must redirect the home directory before the resolver loads");
 
-const { computeMcpServerHash, resolveMcpDirectToolResolution } = await import("../../src/runs/shared/mcp-direct-tool-allowlist.ts");
+const { computeMcpServerHash, resolveMcpDirectToolResolution } = await import(
+	"../../src/runs/shared/mcp-direct-tool-allowlist.ts"
+);
 const { getAgentDir, getProjectConfigDir } = await import("../../src/shared/utils.ts");
 
 const SELECTORS = ["codegraph/codegraph_explore", "codegraph/codegraph_node", "codegraph/codegraph_status"];
@@ -42,16 +44,20 @@ function writeServerConfig(configPath: string, definition: McpServerDefinition):
 function writeMetadataCache(definition: McpServerDefinition): void {
 	const cachePath = path.join(getAgentDir(), "mcp-cache.json");
 	fs.mkdirSync(path.dirname(cachePath), { recursive: true });
-	fs.writeFileSync(cachePath, JSON.stringify({
-		version: 1,
-		servers: {
-			codegraph: {
-				configHash: computeMcpServerHash(definition),
-				tools: SELECTED_NAMES.map((name) => ({ name })),
-				cachedAt: Date.now(),
+	fs.writeFileSync(
+		cachePath,
+		JSON.stringify({
+			version: 1,
+			servers: {
+				codegraph: {
+					configHash: computeMcpServerHash(definition),
+					tools: SELECTED_NAMES.map((name) => ({ name })),
+					cachedAt: Date.now(),
+				},
 			},
-		},
-	}), "utf-8");
+		}),
+		"utf-8",
+	);
 }
 
 after(() => {
@@ -79,14 +85,23 @@ describe("MCP direct-tool resolution config sources", () => {
 
 		const resolution = resolveMcpDirectToolResolution(SELECTORS, projectDir);
 
-		assert.deepEqual(resolution.selections.map((selection) => selection.name), SELECTED_NAMES);
+		assert.deepEqual(
+			resolution.selections.map((selection) => selection.name),
+			SELECTED_NAMES,
+		);
 		assert.deepEqual(resolution.unresolvedSelectors, []);
 	});
 
 	it("computes config hashes identical to pi-mcp-adapter 3.1.0 for stdio servers", () => {
 		// Values reproduced from pi-mcp-adapter 3.1.0's real cache; drift breaks stdio direct-tool resolution.
-		assert.equal(computeMcpServerHash(CURRENT_DEFINITION), "d2b80559f0b1c85ccc625a4c7f875f64e0defc60648f56d2a51cbe5dfa3d967e");
-		assert.equal(computeMcpServerHash({ ...CURRENT_DEFINITION, inheritEnv: false }), "345b359732aa3ece7fdf8b98b9927809243685846c2b375e98a312a80e89e333");
+		assert.equal(
+			computeMcpServerHash(CURRENT_DEFINITION),
+			"d2b80559f0b1c85ccc625a4c7f875f64e0defc60648f56d2a51cbe5dfa3d967e",
+		);
+		assert.equal(
+			computeMcpServerHash({ ...CURRENT_DEFINITION, inheritEnv: false }),
+			"345b359732aa3ece7fdf8b98b9927809243685846c2b375e98a312a80e89e333",
+		);
 	});
 
 	it("ignores Pi's own mcp.json files, which the adapter no longer reads", () => {
@@ -106,7 +121,10 @@ describe("MCP direct-tool resolution config sources", () => {
 
 		const resolution = resolveMcpDirectToolResolution(SELECTORS, projectDir);
 
-		assert.deepEqual(resolution.selections.map((selection) => selection.name), SELECTED_NAMES);
+		assert.deepEqual(
+			resolution.selections.map((selection) => selection.name),
+			SELECTED_NAMES,
+		);
 		assert.deepEqual(resolution.unresolvedSelectors, []);
 	});
 });

@@ -1,12 +1,17 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { writeAtomicJson } from "../../shared/atomic-json.ts";
 import { appendJsonl } from "../../shared/artifacts.ts";
+import { writeAtomicJson } from "../../shared/atomic-json.ts";
+import { deriveChildSessionName } from "../../shared/child-session-name.ts";
 import type { AsyncStatus, WorkflowGraphNode, WorkflowGraphSnapshot } from "../../shared/types.ts";
 import { PROMPT_REDACTED, readStatus } from "../../shared/utils.ts";
-import { deriveChildSessionName } from "../../shared/child-session-name.ts";
-import type { DynamicRunnerGroup, ParallelStepGroup, RunnerStep, RunnerSubagentStep } from "../shared/parallel-utils.ts";
+import type {
+	DynamicRunnerGroup,
+	ParallelStepGroup,
+	RunnerStep,
+	RunnerSubagentStep,
+} from "../shared/parallel-utils.ts";
 import { isDynamicRunnerGroup, isParallelGroup } from "../shared/parallel-utils.ts";
 
 const APPEND_REQUESTS_DIR = "append-requests";
@@ -36,7 +41,8 @@ function appendRequestPath(asyncDir: string, request: ChainAppendRequest): strin
 function listAppendRequestFiles(asyncDir: string): string[] {
 	const dir = appendDir(asyncDir);
 	try {
-		return fs.readdirSync(dir)
+		return fs
+			.readdirSync(dir)
 			.filter((entry) => entry.endsWith(".json"))
 			.map((entry) => path.join(dir, entry))
 			.sort();
@@ -73,11 +79,19 @@ export function enqueueChainAppendRequest(input: {
 }): ChainAppendResult {
 	const status = readStatus(input.asyncDir);
 	if (!status) throw new Error(`No async run status found for '${input.runId}'.`);
-	if (status.runId !== input.runId) throw new Error(`Async run id mismatch: expected '${input.runId}', found '${status.runId}'.`);
-	if (status.mode !== "chain") throw new Error(`Run '${input.runId}' is ${status.mode}; only active chain runs accept appended steps.`);
-	if (status.state !== "running") throw new Error(`Run '${input.runId}' is ${status.state}; only running chain runs accept appended steps.`);
-	const stillInProgress = (status.steps ?? []).some((step) => step.status === "running" || step.status === "pending") || (status.pendingAppends ?? 0) > 0;
-	if (!stillInProgress) throw new Error(`Run '${input.runId}' has no running or pending chain steps left; append-step must target an in-progress chain.`);
+	if (status.runId !== input.runId)
+		throw new Error(`Async run id mismatch: expected '${input.runId}', found '${status.runId}'.`);
+	if (status.mode !== "chain")
+		throw new Error(`Run '${input.runId}' is ${status.mode}; only active chain runs accept appended steps.`);
+	if (status.state !== "running")
+		throw new Error(`Run '${input.runId}' is ${status.state}; only running chain runs accept appended steps.`);
+	const stillInProgress =
+		(status.steps ?? []).some((step) => step.status === "running" || step.status === "pending") ||
+		(status.pendingAppends ?? 0) > 0;
+	if (!stillInProgress)
+		throw new Error(
+			`Run '${input.runId}' has no running or pending chain steps left; append-step must target an in-progress chain.`,
+		);
 	if (input.steps.length === 0) throw new Error("append-step requires one chain step.");
 
 	const request: ChainAppendRequest = {
@@ -104,18 +118,25 @@ export function enqueueChainAppendRequest(input: {
 		bookkeepingErrors.push(`status update failed: ${error instanceof Error ? error.message : String(error)}`);
 	}
 	try {
-		appendJsonl(path.join(input.asyncDir, "events.jsonl"), JSON.stringify({
-			type: "subagent.chain.append.requested",
-			ts: request.createdAt,
-			runId: input.runId,
-			requestId: request.id,
-			stepCount: input.steps.length,
-			pendingAppends: pendingCount,
-		}));
+		appendJsonl(
+			path.join(input.asyncDir, "events.jsonl"),
+			JSON.stringify({
+				type: "subagent.chain.append.requested",
+				ts: request.createdAt,
+				runId: input.runId,
+				requestId: request.id,
+				stepCount: input.steps.length,
+				pendingAppends: pendingCount,
+			}),
+		);
 	} catch (error) {
 		bookkeepingErrors.push(`event append failed: ${error instanceof Error ? error.message : String(error)}`);
 	}
-	return { request, pendingCount, ...(bookkeepingErrors.length > 0 ? { bookkeepingError: bookkeepingErrors.join("; ") } : {}) };
+	return {
+		request,
+		pendingCount,
+		...(bookkeepingErrors.length > 0 ? { bookkeepingError: bookkeepingErrors.join("; ") } : {}),
+	};
 }
 
 function readAppendRequest(filePath: string): ChainAppendRequest | undefined {
@@ -161,7 +182,8 @@ export function statusStepDescription(task: string | undefined): string | undefi
 
 function statusStepForTask(task: RunnerSubagentStep): StatusStep {
 	const description = statusStepDescription(task.task);
-	const sessionName = task.sessionName ?? deriveChildSessionName({ agent: task.agent, task: task.task, label: task.label });
+	const sessionName =
+		task.sessionName ?? deriveChildSessionName({ agent: task.agent, task: task.task, label: task.label });
 	return {
 		agent: task.agent,
 		...(sessionName ? { sessionName } : {}),
@@ -186,18 +208,20 @@ function statusStepForTask(task: RunnerSubagentStep): StatusStep {
 function statusStepsForRunnerStep(step: RunnerStep): StatusStep[] {
 	if (isParallelGroup(step)) return step.parallel.map(statusStepForTask);
 	if (isDynamicRunnerGroup(step)) {
-		return [{
-			agent: `expand:${step.parallel.agent}`,
-			...(step.parallel.context ? { context: step.parallel.context } : {}),
-			phase: step.phase ?? step.parallel.phase,
-			label: step.label ?? step.parallel.label ?? `Dynamic fanout (${step.collect.as})`,
-			outputName: step.collect.as,
-			structured: Boolean(step.collect.outputSchema),
-			...(step.parallel.contextLimit !== undefined ? { contextLimit: step.parallel.contextLimit } : {}),
-			status: "pending",
-			recentTools: [],
-			recentOutput: [],
-		}];
+		return [
+			{
+				agent: `expand:${step.parallel.agent}`,
+				...(step.parallel.context ? { context: step.parallel.context } : {}),
+				phase: step.phase ?? step.parallel.phase,
+				label: step.label ?? step.parallel.label ?? `Dynamic fanout (${step.collect.as})`,
+				outputName: step.collect.as,
+				structured: Boolean(step.collect.outputSchema),
+				...(step.parallel.contextLimit !== undefined ? { contextLimit: step.parallel.contextLimit } : {}),
+				status: "pending",
+				recentTools: [],
+				recentOutput: [],
+			},
+		];
 	}
 	return [statusStepForTask(step)];
 }
@@ -227,7 +251,12 @@ function graphNodeForSequential(step: RunnerSubagentStep, stepIndex: number, fla
 	};
 }
 
-function graphNodeForParallel(step: ParallelStepGroup, stepIndex: number, flatIndex: number, graph: WorkflowGraphSnapshot): WorkflowGraphNode {
+function graphNodeForParallel(
+	step: ParallelStepGroup,
+	stepIndex: number,
+	flatIndex: number,
+	graph: WorkflowGraphSnapshot,
+): WorkflowGraphNode {
 	const children = step.parallel.map((task, taskIndex) => {
 		const childId = `step-${stepIndex}-agent-${taskIndex}`;
 		pushPhase(graph, task.phase, childId);
@@ -274,7 +303,12 @@ function graphNodeForDynamic(step: DynamicRunnerGroup, stepIndex: number): Workf
 	};
 }
 
-function appendWorkflowNode(graph: WorkflowGraphSnapshot | undefined, step: RunnerStep, stepIndex: number, flatIndex: number): void {
+function appendWorkflowNode(
+	graph: WorkflowGraphSnapshot | undefined,
+	step: RunnerStep,
+	stepIndex: number,
+	flatIndex: number,
+): void {
 	if (!graph) return;
 	if (isParallelGroup(step)) {
 		graph.nodes.push(graphNodeForParallel(step, stepIndex, flatIndex, graph));

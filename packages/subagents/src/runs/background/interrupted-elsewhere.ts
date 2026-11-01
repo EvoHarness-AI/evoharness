@@ -1,8 +1,8 @@
 import { resolvePiSessionId } from "../../shared/session-identity.ts";
 import type { AsyncStatus, ForegroundResumeRun } from "../../shared/types.ts";
 import { ownerConfirmedDead } from "../foreground/foreground-history.ts";
-import { ownerSessionIds } from "../shared/run-ownership.ts";
 import type { RawDrainStatusObserver } from "../shared/readonly-drain-observation.ts";
+import { ownerSessionIds } from "../shared/run-ownership.ts";
 import { checkRecordedPidLiveness } from "./stale-run-reconciler.ts";
 
 /** Runs interrupted longer ago than this are not pointed to. */
@@ -30,7 +30,11 @@ interface InterruptedElsewhereCollector {
  * filters run as records arrive; `lines` reads each session file's header once, then probes each
  * candidate's pid once.
  */
-export function createInterruptedElsewhereCollector(input: { currentSessionId: string; cwd: string; now: number }): InterruptedElsewhereCollector {
+export function createInterruptedElsewhereCollector(input: {
+	currentSessionId: string;
+	cwd: string;
+	now: number;
+}): InterruptedElsewhereCollector {
 	const ownSessions = ownerSessionIds(input.currentSessionId);
 	// sessionId -> runId -> whether its owner is dead; a run seen from both sources counts once.
 	const candidates = new Map<string, Map<string, () => boolean>>();
@@ -45,14 +49,30 @@ export function createInterruptedElsewhereCollector(input: { currentSessionId: s
 		observeStatus(observed) {
 			// The listing passes the status.json values it read.
 			const status = observed as Partial<AsyncStatus> | null;
-			if (!status || typeof status.sessionId !== "string" || typeof status.runId !== "string" || (status.state !== "running" && status.state !== "queued")) return;
-			if (status.parentWorkflowRunId !== undefined || status.cwd !== input.cwd || !recent(status.lastUpdate ?? status.startedAt)) return;
+			if (
+				!status ||
+				typeof status.sessionId !== "string" ||
+				typeof status.runId !== "string" ||
+				(status.state !== "running" && status.state !== "queued")
+			)
+				return;
+			if (
+				status.parentWorkflowRunId !== undefined ||
+				status.cwd !== input.cwd ||
+				!recent(status.lastUpdate ?? status.startedAt)
+			)
+				return;
 			const { pid, pidNamespaceScope, bootId } = status;
 			if (typeof pid !== "number") return;
-			add(status.sessionId, status.runId, () => checkRecordedPidLiveness({ pid, pidNamespaceScope, bootId }) === "dead");
+			add(
+				status.sessionId,
+				status.runId,
+				() => checkRecordedPidLiveness({ pid, pidNamespaceScope, bootId }) === "dead",
+			);
 		},
 		observeForegroundRun(run) {
-			if (!run.sessionId || run.parentWorkflowRunId !== undefined || run.cwd !== input.cwd || !recent(run.updatedAt)) return;
+			if (!run.sessionId || run.parentWorkflowRunId !== undefined || run.cwd !== input.cwd || !recent(run.updatedAt))
+				return;
 			add(run.sessionId, run.runId, () => ownerConfirmedDead(run));
 		},
 		lines() {

@@ -11,7 +11,7 @@ export function finalizeToolResult<T>(result: AgentToolResult<T>): AgentToolResu
 	if (result.isError !== true) return result;
 
 	const message = result.content
-		.flatMap((item) => item.type === "text" && typeof item.text === "string" ? [item.text] : [])
+		.flatMap((item) => (item.type === "text" && typeof item.text === "string" ? [item.text] : []))
 		.join("\n")
 		.trim();
 

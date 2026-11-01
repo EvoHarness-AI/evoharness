@@ -1,16 +1,13 @@
 import type { AsyncJobState, SubagentState } from "../../shared/types.ts";
-import { ownerSessionIds } from "../shared/run-ownership.ts";
 import {
-	projectAsyncStatusSnapshot as buildAsyncStatusSnapshot,
-	type AsyncStatusSnapshotOptions,
 	type AsyncStatusSnapshot,
+	type AsyncStatusSnapshotOptions,
+	projectAsyncStatusSnapshot as buildAsyncStatusSnapshot,
 } from "../shared/async-status-projection.ts";
+import { ownerSessionIds } from "../shared/run-ownership.ts";
 
-export {
-	ASYNC_STATUS_SNAPSHOT_KIND,
-	ASYNC_STATUS_SNAPSHOT_VERSION,
-} from "../shared/async-status-projection.ts";
 export type {
+	AsyncStatusSnapshot,
 	AsyncStatusSnapshotActivity,
 	AsyncStatusSnapshotCaps,
 	AsyncStatusSnapshotHostStep,
@@ -19,14 +16,20 @@ export type {
 	AsyncStatusSnapshotOmitted,
 	AsyncStatusSnapshotOptions,
 	AsyncStatusSnapshotState,
-	AsyncStatusSnapshot,
+} from "../shared/async-status-projection.ts";
+export {
+	ASYNC_STATUS_SNAPSHOT_KIND,
+	ASYNC_STATUS_SNAPSHOT_VERSION,
 } from "../shared/async-status-projection.ts";
 
 export const ASYNC_STATUS_SNAPSHOT_WIDGET_PREFIX = "PI_SUBAGENT_ASYNC_JSON:";
 
 export { buildAsyncStatusSnapshot };
 
-export function asyncStatusSnapshotJobsForState(state: SubagentState | undefined, sessionId: string | null | undefined): AsyncJobState[] {
+export function asyncStatusSnapshotJobsForState(
+	state: SubagentState | undefined,
+	sessionId: string | null | undefined,
+): AsyncJobState[] {
 	if (!state || !sessionId || state.currentSessionId !== sessionId) return [];
 	const owners = ownerSessionIds(sessionId);
 	const jobs = new Map<string, AsyncJobState>();
@@ -39,10 +42,17 @@ export function asyncStatusSnapshotJobsForState(state: SubagentState | undefined
 	return [...jobs.values()];
 }
 
-export function buildAsyncStatusSnapshotForState(state: SubagentState | undefined, sessionId: string | null | undefined, options: AsyncStatusSnapshotOptions = {}): AsyncStatusSnapshot {
+export function buildAsyncStatusSnapshotForState(
+	state: SubagentState | undefined,
+	sessionId: string | null | undefined,
+	options: AsyncStatusSnapshotOptions = {},
+): AsyncStatusSnapshot {
 	return buildAsyncStatusSnapshot(asyncStatusSnapshotJobsForState(state, sessionId), options);
 }
 
-export function encodeAsyncStatusSnapshotWidget(jobs: Iterable<AsyncJobState>, options: AsyncStatusSnapshotOptions = {}): string[] {
+export function encodeAsyncStatusSnapshotWidget(
+	jobs: Iterable<AsyncJobState>,
+	options: AsyncStatusSnapshotOptions = {},
+): string[] {
 	return [`${ASYNC_STATUS_SNAPSHOT_WIDGET_PREFIX}${JSON.stringify(buildAsyncStatusSnapshot(jobs, options))}`];
 }

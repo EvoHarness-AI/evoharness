@@ -43,7 +43,7 @@ export function sanitizeDisplayText(value: string): string {
 		pendingSpace = false;
 	};
 
-	for (let index = 0; index < value.length;) {
+	for (let index = 0; index < value.length; ) {
 		const codePoint = value.codePointAt(index)!;
 		const width = codePointWidth(codePoint);
 
@@ -102,20 +102,23 @@ export function previewDisplayText(value: string, maxLength: number): string {
 const BINARY_CONTENT_PLACEHOLDER = "[binary content omitted for safe display]";
 
 function isUnsafeTerminalCodePoint(codePoint: number): boolean {
-	const terminalControl = (codePoint <= 0x1f && codePoint !== 0x09 && codePoint !== 0x0a)
-		|| (codePoint >= 0x7f && codePoint <= 0x9f);
-	const bidiControl = codePoint === 0x061c
-		|| codePoint === 0x200e
-		|| codePoint === 0x200f
-		|| (codePoint >= 0x202a && codePoint <= 0x202e)
-		|| (codePoint >= 0x2066 && codePoint <= 0x2069);
-	const privateUse = (codePoint >= 0xe000 && codePoint <= 0xf8ff)
-		|| (codePoint >= 0xf0000 && codePoint <= 0xffffd)
-		|| (codePoint >= 0x100000 && codePoint <= 0x10fffd);
+	const terminalControl =
+		(codePoint <= 0x1f && codePoint !== 0x09 && codePoint !== 0x0a) || (codePoint >= 0x7f && codePoint <= 0x9f);
+	const bidiControl =
+		codePoint === 0x061c ||
+		codePoint === 0x200e ||
+		codePoint === 0x200f ||
+		(codePoint >= 0x202a && codePoint <= 0x202e) ||
+		(codePoint >= 0x2066 && codePoint <= 0x2069);
+	const privateUse =
+		(codePoint >= 0xe000 && codePoint <= 0xf8ff) ||
+		(codePoint >= 0xf0000 && codePoint <= 0xffffd) ||
+		(codePoint >= 0x100000 && codePoint <= 0x10fffd);
 	const invalidScalar = codePoint >= 0xd800 && codePoint <= 0xdfff;
-	const nonCharacter = (codePoint >= 0xfdd0 && codePoint <= 0xfdef)
-		|| (codePoint & 0xffff) === 0xfffe
-		|| (codePoint & 0xffff) === 0xffff;
+	const nonCharacter =
+		(codePoint >= 0xfdd0 && codePoint <= 0xfdef) ||
+		(codePoint & 0xffff) === 0xfffe ||
+		(codePoint & 0xffff) === 0xffff;
 	return terminalControl || bidiControl || privateUse || invalidScalar || nonCharacter;
 }
 
@@ -127,12 +130,14 @@ function looksLikeBinaryContent(text: string): boolean {
 	for (const character of text) {
 		codePoints++;
 		const codePoint = character.codePointAt(0) ?? 0;
-		if ((codePoint <= 0x08) || (codePoint >= 0x0e && codePoint <= 0x1f)) suspiciousControls++;
+		if (codePoint <= 0x08 || (codePoint >= 0x0e && codePoint <= 0x1f)) suspiciousControls++;
 		if (codePoint === 0xfffd) replacementCharacters++;
 	}
 	if (codePoints === 0) return false;
-	return (suspiciousControls >= 4 && suspiciousControls / codePoints >= 0.1)
-		|| (replacementCharacters >= 3 && replacementCharacters / codePoints >= 0.1);
+	return (
+		(suspiciousControls >= 4 && suspiciousControls / codePoints >= 0.1) ||
+		(replacementCharacters >= 3 && replacementCharacters / codePoints >= 0.1)
+	);
 }
 
 /** Escapes untrusted text before rendering it in a terminal while preserving safe newlines and tabs. */

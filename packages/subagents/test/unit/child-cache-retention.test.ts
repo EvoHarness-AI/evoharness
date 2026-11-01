@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import type { StreamFn } from "@evoharness/agent-core";
-import { childCacheRetention, childCacheRetentionEnv, pinChildCacheRetention } from "../../src/shared/child-cache-retention.ts";
+import {
+	childCacheRetention,
+	childCacheRetentionEnv,
+	pinChildCacheRetention,
+} from "../../src/shared/child-cache-retention.ts";
 
 type StreamOptions = Parameters<StreamFn>[2];
 
@@ -43,14 +47,20 @@ describe("childCacheRetentionEnv", () => {
 	});
 
 	it("overrides the inherited value in a spawned child's launch environment", () => {
-		const launchEnv = { ...{ EVOHARNESS_CACHE_RETENTION: "long" }, ...childCacheRetentionEnv({ PI_SUBAGENT_CACHE_RETENTION: "short" }) };
+		const launchEnv = {
+			...{ EVOHARNESS_CACHE_RETENTION: "long" },
+			...childCacheRetentionEnv({ PI_SUBAGENT_CACHE_RETENTION: "short" }),
+		};
 		assert.equal(launchEnv.EVOHARNESS_CACHE_RETENTION, "short");
 	});
 });
 
 describe("pinChildCacheRetention", () => {
 	it("leaves the stream function untouched when no tier is configured", () => {
-		assert.doesNotThrow(() => { pinChildCacheRetention(undefined, {}); pinChildCacheRetention({ streamFunction: undefined as unknown as StreamFn }, {}); });
+		assert.doesNotThrow(() => {
+			pinChildCacheRetention(undefined, {});
+			pinChildCacheRetention({ streamFunction: undefined as unknown as StreamFn }, {});
+		});
 		const { agent, calls, original } = recordingAgent();
 		pinChildCacheRetention(agent, {});
 		assert.equal(agent.streamFunction, original);

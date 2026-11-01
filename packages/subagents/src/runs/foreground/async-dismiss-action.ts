@@ -2,11 +2,11 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AgentToolResult } from "@evoharness/agent-core";
 import { writeAtomicJson } from "../../shared/atomic-json.ts";
-import { DIRS, type Details, type SubagentState } from "../../shared/types.ts";
+import { type Details, DIRS, type SubagentState } from "../../shared/types.ts";
 import { readStatus } from "../../shared/utils.ts";
 import { updateActiveRunIndex } from "../background/active-run-index.ts";
-import { reconcileAsyncRun } from "../background/stale-run-reconciler.ts";
 import { resultFilePath } from "../background/result-files.ts";
+import { reconcileAsyncRun } from "../background/stale-run-reconciler.ts";
 import { ownsRun } from "../shared/run-ownership.ts";
 
 export function dismissRecoveredWorkflow(
@@ -81,7 +81,12 @@ export function dismissRecoveredWorkflow(
 	state.fleetJobs?.delete(status.runId);
 	state.fleetJobs?.delete(runId);
 	return {
-		content: [{ type: "text", text: `Dismissed recovered workflow ${status.runId} from the display. No running work was terminated.` }],
+		content: [
+			{
+				type: "text",
+				text: `Dismissed recovered workflow ${status.runId} from the display. No running work was terminated.`,
+			},
+		],
 		details: { mode: "management", results: [] },
 	};
 }

@@ -4,9 +4,15 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { DEFAULT_WATCHDOG_CONFIG } from "../../src/watchdog/settings.ts";
 import { MainWatchdogRuntime, type WatchdogReviewFunction } from "../../src/watchdog/runtime.ts";
-import type { ResolvedWatchdogConfig, WatchdogLspResult, WatchdogSettingsResult, WatchdogWarning, WatchdogWarningDetails } from "../../src/watchdog/types.ts";
+import { DEFAULT_WATCHDOG_CONFIG } from "../../src/watchdog/settings.ts";
+import type {
+	ResolvedWatchdogConfig,
+	WatchdogLspResult,
+	WatchdogSettingsResult,
+	WatchdogWarning,
+	WatchdogWarningDetails,
+} from "../../src/watchdog/types.ts";
 
 function cloneConfig(): ResolvedWatchdogConfig {
 	return {
@@ -57,7 +63,8 @@ function tick(): Promise<void> {
 
 function git(cwd: string, args: string[]): string {
 	const result = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf-8" });
-	if (result.status !== 0) throw new Error(result.stderr.trim() || result.stdout.trim() || `git ${args.join(" ")} failed`);
+	if (result.status !== 0)
+		throw new Error(result.stderr.trim() || result.stdout.trim() || `git ${args.join(" ")} failed`);
 	return result.stdout.trim();
 }
 
@@ -75,7 +82,13 @@ function createRepo(): string {
 
 describe("main watchdog runtime", () => {
 	function activityTurn(name: string, args: Record<string, unknown>, text: string, id = "activity-call") {
-		return { type: "turn_end", message: { role: "assistant", content: [{ type: "toolCall", id, name, arguments: args }] }, toolResults: [{ role: "toolResult", toolCallId: id, toolName: name, content: [{ type: "text", text }], isError: false }] };
+		return {
+			type: "turn_end",
+			message: { role: "assistant", content: [{ type: "toolCall", id, name, arguments: args }] },
+			toolResults: [
+				{ role: "toolResult", toolCallId: id, toolName: name, content: [{ type: "text", text }], isError: false },
+			],
+		};
 	}
 
 	it("invalidates an admitted LSP pre-pass on user input, model selection or configured model change", async () => {
@@ -84,15 +97,32 @@ describe("main watchdog runtime", () => {
 			let config = enabledConfig({ clarification: true, lsp: { ...DEFAULT_WATCHDOG_CONFIG.lsp, enabled: true } });
 			let key = "baseline";
 			let started!: () => void;
-			const ready = new Promise<void>((resolve) => { started = resolve; });
+			const ready = new Promise<void>((resolve) => {
+				started = resolve;
+			});
 			let finish!: (result: WatchdogLspResult) => void;
 			let signal: AbortSignal | undefined;
 			let reviews = 0;
 			const notices: string[] = [];
-			const runtime = new MainWatchdogRuntime({ cwd: ctx.cwd, resolveConfig: () => configResult(config), reviewChangesOnly: true,
+			const runtime = new MainWatchdogRuntime({
+				cwd: ctx.cwd,
+				resolveConfig: () => configResult(config),
+				reviewChangesOnly: true,
 				repoChangeSignature: () => ({ root: ctx.cwd, key, changedPaths: ["file.ts"] }),
-				lspDiagnostics: (request) => new Promise((resolve) => { signal = request.signal; finish = resolve; started(); }),
-				displayClarification: (text) => { notices.push(text); }, review: () => { reviews++; return { clarification: { question: "Old scope?", evidence: "Old boundary" } }; } });
+				lspDiagnostics: (request) =>
+					new Promise((resolve) => {
+						signal = request.signal;
+						finish = resolve;
+						started();
+					}),
+				displayClarification: (text) => {
+					notices.push(text);
+				},
+				review: () => {
+					reviews++;
+					return { clarification: { question: "Old scope?", evidence: "Old boundary" } };
+				},
+			});
 			try {
 				runtime.handleBeforeAgentStart({ prompt: "Original task" }, ctx);
 				key = "edited";
@@ -100,36 +130,72 @@ describe("main watchdog runtime", () => {
 				await ready;
 				if (edge === "input") runtime.handleUserInput({ text: "New input", source: "interactive" });
 				else if (edge === "model") runtime.handleModelChange();
-				else { config = { ...config, main: { ...config.main, model: "mock/new-model" } }; runtime.refreshConfig(); }
+				else {
+					config = { ...config, main: { ...config.main, model: "mock/new-model" } };
+					runtime.refreshConfig();
+				}
 				assert.equal(signal?.aborted, true, edge);
 				finish({ status: "ok", checkedPaths: ["file.ts"], skippedPaths: [], diagnostics: [] });
 				await boundary;
 				assert.equal(reviews, 0, edge);
 				assert.deepEqual(notices, [], edge);
-			} finally { runtime.dispose(); }
+			} finally {
+				runtime.dispose();
+			}
 		}
 	});
 
 	it("reviews delivered orchestration outcomes without edits once per prompt and retains evidence through a side ask", async () => {
 		const ctx = { cwd: "/tmp/project" };
 		const requests: Parameters<WatchdogReviewFunction>[0][] = [];
-		const runtime = new MainWatchdogRuntime({ cwd: ctx.cwd, resolveConfig: () => configResult(enabledConfig({ clarification: true })), reviewChangesOnly: true, repoChangeSignature: () => ({ root: ctx.cwd, key: "unchanged", changedPaths: [] }), displayClarification: () => {}, review: (r) => { requests.push(r); return requests.length === 2 ? { warnings: [warning()] } : {}; } });
+		const runtime = new MainWatchdogRuntime({
+			cwd: ctx.cwd,
+			resolveConfig: () => configResult(enabledConfig({ clarification: true })),
+			reviewChangesOnly: true,
+			repoChangeSignature: () => ({ root: ctx.cwd, key: "unchanged", changedPaths: [] }),
+			displayClarification: () => {},
+			review: (r) => {
+				requests.push(r);
+				return requests.length === 2 ? { warnings: [warning()] } : {};
+			},
+		});
 		try {
 			runtime.handleBeforeAgentStart({ prompt: "Finish the original implementation and CI gate" }, ctx);
-			runtime.handleTurnEnd(activityTurn("subagent", { agent: "worker", task: "Implement original objective" }, "Implementation remains active; explicitly held pending CI"), ctx);
+			runtime.handleTurnEnd(
+				activityTurn(
+					"subagent",
+					{ agent: "worker", task: "Implement original objective" },
+					"Implementation remains active; explicitly held pending CI",
+				),
+				ctx,
+			);
 			await runtime.handleAgentEnd({}, ctx);
 			assert.equal(requests.length, 1);
 			assert.match(requests[0]!.delta, /explicitly held pending CI/);
 			assert.match(requests[0]!.delta, /waits\/holds are not evidence of neglect/);
-			assert.equal(runtime.getSnapshot().lastWarning, undefined, "a pending/held outcome is evidence, not an automatic finding");
+			assert.equal(
+				runtime.getSnapshot().lastWarning,
+				undefined,
+				"a pending/held outcome is evidence, not an automatic finding",
+			);
 			runtime.handleTurnEnd(activityTurn("bg_wait", { id: "ci-gate" }, "CI gate completed successfully"), ctx);
 			await runtime.handleAgentEnd({}, ctx);
 			assert.equal(requests.length, 1, "one additional activity review per prompt");
 			runtime.handleBeforeAgentStart({ prompt: "Side question: explain this acronym" }, ctx);
 			await runtime.handleAgentEnd({}, ctx);
 			assert.equal(requests.length, 2, "unreviewed delivered completion survives skipped boundary and new prompt");
-			for (const text of ["original implementation", "Side question", "CI gate completed successfully", "Implementation remains active", "Side questions are additive"]) assert.ok(requests[1]!.delta.includes(text));
-			runtime.handleTurnEnd(activityTurn("subagent", { action: "status", id: "ci-gate" }, "Warning continuation status"), ctx);
+			for (const text of [
+				"original implementation",
+				"Side question",
+				"CI gate completed successfully",
+				"Implementation remains active",
+				"Side questions are additive",
+			])
+				assert.ok(requests[1]!.delta.includes(text));
+			runtime.handleTurnEnd(
+				activityTurn("subagent", { action: "status", id: "ci-gate" }, "Warning continuation status"),
+				ctx,
+			);
 			await runtime.handleAgentEnd({}, ctx);
 			runtime.handleBeforeAgentStart({ prompt: "Continue" }, ctx);
 			await runtime.handleAgentEnd({}, ctx);
@@ -139,14 +205,28 @@ describe("main watchdog runtime", () => {
 			runtime.handleTurnEnd(activityTurn("subagent_supervisor", { action: "pending" }, "No pending requests"), ctx);
 			await runtime.handleAgentEnd({}, ctx);
 			assert.doesNotMatch(requests.at(-1)!.delta, /CI gate completed successfully/);
-		} finally { runtime.dispose(); }
+		} finally {
+			runtime.dispose();
+		}
 	});
 
 	it("bounds activity reviews and excludes unmatched tools and watchdog status calls", async () => {
 		const ctx = { cwd: "/tmp/project" };
 		const config = enabledConfig({ clarification: true });
 		const requests: Parameters<WatchdogReviewFunction>[0][] = [];
-		const runtime = new MainWatchdogRuntime({ cwd: ctx.cwd, resolveConfig: () => configResult(config), reviewChangesOnly: true, repoChangeSignature: () => undefined, displayClarification: () => {}, review: (r) => { requests.push(r); return r.allowClarification ? { clarification: { question: "Is the gate held?", evidence: "Delivered gate status is unclear" } } : {}; } });
+		const runtime = new MainWatchdogRuntime({
+			cwd: ctx.cwd,
+			resolveConfig: () => configResult(config),
+			reviewChangesOnly: true,
+			repoChangeSignature: () => undefined,
+			displayClarification: () => {},
+			review: (r) => {
+				requests.push(r);
+				return r.allowClarification
+					? { clarification: { question: "Is the gate held?", evidence: "Delivered gate status is unclear" } }
+					: {};
+			},
+		});
 		try {
 			runtime.handleBeforeAgentStart({ prompt: "Finish task" }, ctx);
 			const unmatched = activityTurn("subagent", { action: "status" }, "unmatched");
@@ -168,15 +248,27 @@ describe("main watchdog runtime", () => {
 			runtime.handleTurnEnd(activityTurn("bg_wait", {}, "Gate changed again"), ctx);
 			await runtime.handleAgentEnd({}, ctx);
 			assert.equal(requests.length, 2, "one additional activity review per prompt");
-		} finally { runtime.dispose(); }
+		} finally {
+			runtime.dispose();
+		}
 	});
 
 	it("allows a bounded question for observed non-Git edits without an exchange to verify", async () => {
 		const ctx = { cwd: "/tmp/project" };
 		const messages: string[] = [];
-		const runtime = new MainWatchdogRuntime({ cwd: ctx.cwd, resolveConfig: () => configResult(enabledConfig({ clarification: true })), reviewChangesOnly: true,
-			repoChangeSignature: () => undefined, displayClarification: (text) => { messages.push(text); },
-			review: (request) => request.allowClarification ? { clarification: { question: "Which scope?", evidence: "Observed edit" } } : {} });
+		const runtime = new MainWatchdogRuntime({
+			cwd: ctx.cwd,
+			resolveConfig: () => configResult(enabledConfig({ clarification: true })),
+			reviewChangesOnly: true,
+			repoChangeSignature: () => undefined,
+			displayClarification: (text) => {
+				messages.push(text);
+			},
+			review: (request) =>
+				request.allowClarification
+					? { clarification: { question: "Which scope?", evidence: "Observed edit" } }
+					: {},
+		});
 		try {
 			runtime.handleBeforeAgentStart({ prompt: "Update the file" }, ctx);
 			runtime.handleTurnEnd(activityTurn("edit", { path: "file.ts" }, "Edited file"), ctx);
@@ -184,7 +276,9 @@ describe("main watchdog runtime", () => {
 			await runtime.handleAgentEnd({}, ctx);
 			assert.equal(messages.length, 1, "ordinary fallback reviews cannot create a question loop");
 			assert.match(messages[0]!, /Which scope\?[\s\S]*Observed edit/);
-		} finally { runtime.dispose(); }
+		} finally {
+			runtime.dispose();
+		}
 	});
 
 	function clarificationFixture(clarification = true, main = true) {
@@ -195,19 +289,41 @@ describe("main watchdog runtime", () => {
 		const warnings: WatchdogWarningDetails[] = [];
 		const ctx = { cwd: "/tmp/project" };
 		const runtime = new MainWatchdogRuntime({
-			cwd: ctx.cwd, resolveConfig: () => configResult(config), reviewChangesOnly: true,
+			cwd: ctx.cwd,
+			resolveConfig: () => configResult(config),
+			reviewChangesOnly: true,
 			repoChangeSignature: () => ({ root: ctx.cwd, key, changedPaths: ["file.ts"] }),
-			...(main ? { displayClarification: (content: string) => { messages.push(content); } } : {}),
-			displayWarning: (warning) => { warnings.push(warning); },
+			...(main
+				? {
+						displayClarification: (content: string) => {
+							messages.push(content);
+						},
+					}
+				: {}),
+			displayWarning: (warning) => {
+				warnings.push(warning);
+			},
 			review: (request) => {
 				requests.push(request);
-				return request.allowClarification ? { clarification: { question: "Which scope?", evidence: "Original evidence" } } : { warnings: [warning()] };
+				return request.allowClarification
+					? { clarification: { question: "Which scope?", evidence: "Original evidence" } }
+					: { warnings: [warning()] };
 			},
 		});
 		runtime.handleBeforeAgentStart({ prompt: "Original task" }, ctx);
 		key = "edited";
 		runtime.enqueueDelta("Original bounded delta");
-		return { runtime, config, ctx, requests, messages, warnings, change: (value = "changed again") => { key = value; } };
+		return {
+			runtime,
+			config,
+			ctx,
+			requests,
+			messages,
+			warnings,
+			change: (value = "changed again") => {
+				key = value;
+			},
+		};
 	}
 
 	it("asks once, skips unchanged evidence, and leaves later edit and cadence reviews to normal triggers", async () => {
@@ -234,15 +350,24 @@ describe("main watchdog runtime", () => {
 			f.change("next edit");
 			await f.runtime.handleAgentEnd({}, f.ctx);
 			assert.equal(f.messages.length, 2, "new prompt renews the one-question budget");
-		} finally { f.runtime.dispose(); }
+		} finally {
+			f.runtime.dispose();
+		}
 	});
 
 	it("adds no clarification calls or activity collection when off or without main delivery capability", async () => {
-		for (const [enabled, main] of [[false, true], [true, false]]) {
+		for (const [enabled, main] of [
+			[false, true],
+			[true, false],
+		]) {
 			const f = clarificationFixture(enabled, main);
 			try {
 				const disabled = activityTurn("subagent", { action: "status" }, "disabled");
-				Object.defineProperty(disabled.toolResults[0], "toolCallId", { get() { throw new Error("disabled activity must not correlate results"); } });
+				Object.defineProperty(disabled.toolResults[0], "toolCallId", {
+					get() {
+						throw new Error("disabled activity must not correlate results");
+					},
+				});
 				f.runtime.handleTurnEnd(disabled, f.ctx);
 				assert.equal(f.runtime.getSnapshot().failedReviews, 0);
 				await f.runtime.handleAgentEnd({}, f.ctx);
@@ -252,43 +377,61 @@ describe("main watchdog runtime", () => {
 				f.runtime.handleModelChange();
 				f.runtime.handleUserInput({ text: "New input", source: "interactive" });
 				assert.equal(f.runtime.getSnapshot().epoch, epoch, "disabled clarification lifecycle handlers are inert");
-			} finally { f.runtime.dispose(); }
+			} finally {
+				f.runtime.dispose();
+			}
 		}
 	});
 
-	for (const edge of ["clarification disabled", "watchdog model changed", "new user input"]) it(`aborts an active review on ${edge} and suppresses stale questions and warnings`, async () => {
-		let config = enabledConfig({ clarification: true });
-		const ctx = { cwd: "/tmp/project" };
-		let finish: ((value: { clarification: { question: string; evidence: string } }) => void) | undefined;
-		let signal: AbortSignal | undefined;
-		let emitWarning: Parameters<WatchdogReviewFunction>[0]["emitWarning"] | undefined;
-		const delivered: WatchdogWarningDetails[] = [];
-		const messages: string[] = [];
-		const runtime = new MainWatchdogRuntime({ cwd: ctx.cwd, resolveConfig: () => configResult(config), displayClarification: (text) => { messages.push(text); }, displayWarning: (w) => { delivered.push(w); }, review: (request) => {
-			signal = request.signal;
-			emitWarning = request.emitWarning;
-			return new Promise((resolve) => { finish = resolve; });
-		} });
-		try {
-			runtime.enqueueDelta("Original delta");
-			const boundary = runtime.handleAgentEnd({}, ctx);
-			await tick();
-			if (edge === "clarification disabled") config = { ...config, clarification: false };
-			else if (edge === "watchdog model changed") config = { ...config, main: { ...config.main, model: "mock/new" } };
-			else runtime.handleUserInput({ text: "New input", source: "interactive" });
-			runtime.refreshConfig();
-			assert.equal(signal?.aborted, true);
-			const epoch = runtime.getSnapshot().epoch;
-			runtime.refreshConfig();
-			assert.equal(runtime.getSnapshot().epoch, epoch, "terminal invalidation is not repeated on refresh");
-			assert.equal(emitWarning!(warning()), false, "late warning callback is stale");
-			finish!({ clarification: { question: "Old question?", evidence: "Old context" } });
-			await boundary;
-			assert.equal(delivered.length, 0);
-			assert.equal(runtime.getSnapshot().activeReviewId, undefined);
-			assert.deepEqual(messages, []);
-		} finally { runtime.dispose(); }
-	});
+	for (const edge of ["clarification disabled", "watchdog model changed", "new user input"])
+		it(`aborts an active review on ${edge} and suppresses stale questions and warnings`, async () => {
+			let config = enabledConfig({ clarification: true });
+			const ctx = { cwd: "/tmp/project" };
+			let finish: ((value: { clarification: { question: string; evidence: string } }) => void) | undefined;
+			let signal: AbortSignal | undefined;
+			let emitWarning: Parameters<WatchdogReviewFunction>[0]["emitWarning"] | undefined;
+			const delivered: WatchdogWarningDetails[] = [];
+			const messages: string[] = [];
+			const runtime = new MainWatchdogRuntime({
+				cwd: ctx.cwd,
+				resolveConfig: () => configResult(config),
+				displayClarification: (text) => {
+					messages.push(text);
+				},
+				displayWarning: (w) => {
+					delivered.push(w);
+				},
+				review: (request) => {
+					signal = request.signal;
+					emitWarning = request.emitWarning;
+					return new Promise((resolve) => {
+						finish = resolve;
+					});
+				},
+			});
+			try {
+				runtime.enqueueDelta("Original delta");
+				const boundary = runtime.handleAgentEnd({}, ctx);
+				await tick();
+				if (edge === "clarification disabled") config = { ...config, clarification: false };
+				else if (edge === "watchdog model changed")
+					config = { ...config, main: { ...config.main, model: "mock/new" } };
+				else runtime.handleUserInput({ text: "New input", source: "interactive" });
+				runtime.refreshConfig();
+				assert.equal(signal?.aborted, true);
+				const epoch = runtime.getSnapshot().epoch;
+				runtime.refreshConfig();
+				assert.equal(runtime.getSnapshot().epoch, epoch, "terminal invalidation is not repeated on refresh");
+				assert.equal(emitWarning!(warning()), false, "late warning callback is stale");
+				finish!({ clarification: { question: "Old question?", evidence: "Old context" } });
+				await boundary;
+				assert.equal(delivered.length, 0);
+				assert.equal(runtime.getSnapshot().activeReviewId, undefined);
+				assert.deepEqual(messages, []);
+			} finally {
+				runtime.dispose();
+			}
+		});
 
 	it("does not inspect the repository until the watchdog is enabled", () => {
 		let enabled = false;
@@ -344,7 +487,10 @@ describe("main watchdog runtime", () => {
 			},
 		});
 
-		runtime.handleTurnEnd({ type: "turn_end", message: { role: "assistant", content: "Done." }, toolResults: [] }, { cwd: "/tmp/project" });
+		runtime.handleTurnEnd(
+			{ type: "turn_end", message: { role: "assistant", content: "Done." }, toolResults: [] },
+			{ cwd: "/tmp/project" },
+		);
 
 		const snapshot = runtime.getSnapshot();
 		assert.equal(snapshot.enabled, false);
@@ -358,10 +504,14 @@ describe("main watchdog runtime", () => {
 		let releaseReview!: () => void;
 		let started!: () => void;
 		const displayed: unknown[] = [];
-		const reviewStarted = new Promise<void>((resolve) => { started = resolve; });
+		const reviewStarted = new Promise<void>((resolve) => {
+			started = resolve;
+		});
 		const review: WatchdogReviewFunction = async (request) => {
 			started();
-			await new Promise<void>((resolve) => { releaseReview = resolve; });
+			await new Promise<void>((resolve) => {
+				releaseReview = resolve;
+			});
 			assert.equal(request.delta, "Assistant:\nWorking");
 			assert.equal(request.emitWarning(warning()), true);
 			return { stopReason: "stop" };
@@ -414,11 +564,15 @@ describe("main watchdog runtime", () => {
 		let emitWarning!: (candidate: WatchdogWarning) => boolean;
 		let finishReview!: () => void;
 		let started!: () => void;
-		const reviewStarted = new Promise<void>((resolve) => { started = resolve; });
+		const reviewStarted = new Promise<void>((resolve) => {
+			started = resolve;
+		});
 		const review: WatchdogReviewFunction = async (request) => {
 			emitWarning = request.emitWarning;
 			started();
-			await new Promise<void>((resolve) => { finishReview = resolve; });
+			await new Promise<void>((resolve) => {
+				finishReview = resolve;
+			});
 		};
 		const runtime = new MainWatchdogRuntime({ resolveConfig: () => configResult(enabledConfig()), review });
 
@@ -475,7 +629,9 @@ describe("main watchdog runtime", () => {
 
 	it("marks unresolved agent-end review work stale on timeout", async () => {
 		let started!: () => void;
-		const reviewStarted = new Promise<void>((resolve) => { started = resolve; });
+		const reviewStarted = new Promise<void>((resolve) => {
+			started = resolve;
+		});
 		const runtime = new MainWatchdogRuntime({
 			resolveConfig: () => configResult(enabledConfig({ agentEndTimeoutMs: 5 })),
 			review: async () => {
@@ -505,10 +661,14 @@ describe("main watchdog runtime", () => {
 				activeReviews++;
 				maxActiveReviews = Math.max(maxActiveReviews, activeReviews);
 				await new Promise<void>((resolve) => {
-					request.signal?.addEventListener("abort", () => {
-						aborts++;
-						resolve();
-					}, { once: true });
+					request.signal?.addEventListener(
+						"abort",
+						() => {
+							aborts++;
+							resolve();
+						},
+						{ once: true },
+					);
 				});
 				activeReviews--;
 				return { stopReason: "aborted" };
@@ -532,13 +692,17 @@ describe("main watchdog runtime", () => {
 		let emitWarning!: (candidate: WatchdogWarning) => boolean;
 		let finishReview!: () => void;
 		let started!: () => void;
-		const reviewStarted = new Promise<void>((resolve) => { started = resolve; });
+		const reviewStarted = new Promise<void>((resolve) => {
+			started = resolve;
+		});
 		const runtime = new MainWatchdogRuntime({
 			resolveConfig: () => configResult(enabledConfig({ agentEndTimeoutMs: 5 })),
 			review: async (request) => {
 				emitWarning = request.emitWarning;
 				started();
-				await new Promise<void>((resolve) => { finishReview = resolve; });
+				await new Promise<void>((resolve) => {
+					finishReview = resolve;
+				});
 			},
 		});
 
@@ -561,13 +725,17 @@ describe("main watchdog runtime", () => {
 		let emitWarning!: (candidate: WatchdogWarning) => boolean;
 		let finishReview!: () => void;
 		let started!: () => void;
-		const reviewStarted = new Promise<void>((resolve) => { started = resolve; });
+		const reviewStarted = new Promise<void>((resolve) => {
+			started = resolve;
+		});
 		const runtime = new MainWatchdogRuntime({
 			resolveConfig: () => configResult(enabled ? enabledConfig() : cloneConfig()),
 			review: async (request) => {
 				emitWarning = request.emitWarning;
 				started();
-				await new Promise<void>((resolve) => { finishReview = resolve; });
+				await new Promise<void>((resolve) => {
+					finishReview = resolve;
+				});
 			},
 		});
 
@@ -609,14 +777,18 @@ describe("main watchdog runtime", () => {
 		let reviewCalls = 0;
 		let finishFirstReview!: () => void;
 		let firstReviewStarted!: () => void;
-		const firstStarted = new Promise<void>((resolve) => { firstReviewStarted = resolve; });
+		const firstStarted = new Promise<void>((resolve) => {
+			firstReviewStarted = resolve;
+		});
 		const runtime = new MainWatchdogRuntime({
 			resolveConfig: () => configResult(enabledConfig()),
 			review: async () => {
 				reviewCalls++;
 				if (reviewCalls === 1) {
 					firstReviewStarted();
-					await new Promise<void>((resolve) => { finishFirstReview = resolve; });
+					await new Promise<void>((resolve) => {
+						finishFirstReview = resolve;
+					});
 				}
 				return { stopReason: "stop" };
 			},
@@ -699,7 +871,10 @@ describe("main watchdog runtime", () => {
 		await runtime.handleAgentEnd({ type: "agent_end" }, { cwd: repo });
 
 		assert.equal(reviewCalls, 1);
-		assert.match(reviewedDelta, /Changed repo paths: every dirty path in the working tree\. Authorship is not verified/);
+		assert.match(
+			reviewedDelta,
+			/Changed repo paths: every dirty path in the working tree\. Authorship is not verified/,
+		);
 		assert.match(reviewedDelta, /src\/file\.ts/);
 		assert.match(reviewedDelta, /src\/other\.ts/);
 
@@ -775,23 +950,28 @@ describe("main watchdog runtime", () => {
 				provider: "stub-lsp",
 				checkedPaths: ["src/file.ts"],
 				skippedPaths: [],
-				diagnostics: [{
-					path: "src/file.ts",
-					line: 1,
-					column: 14,
-					severity: "error",
-					source: "typescript",
-					code: "TS2322",
-					message: "Type 'string' is not assignable to type 'number'.",
-				}],
+				diagnostics: [
+					{
+						path: "src/file.ts",
+						line: 1,
+						column: 14,
+						severity: "error",
+						source: "typescript",
+						code: "TS2322",
+						message: "Type 'string' is not assignable to type 'number'.",
+					},
+				],
 			}),
 			review: (request) => {
 				reviewedDelta = request.delta;
-				assert.equal(request.emitWarning({
-					...warning(),
-					summary: "Model tried to add a second warning",
-					evidence: "The same boundary already displayed an LSP warning.",
-				}), false);
+				assert.equal(
+					request.emitWarning({
+						...warning(),
+						summary: "Model tried to add a second warning",
+						evidence: "The same boundary already displayed an LSP warning.",
+					}),
+					false,
+				);
 				return { stopReason: "stop" };
 			},
 			displayWarning: (details) => displayed.push(details),
@@ -827,21 +1007,24 @@ describe("main watchdog runtime", () => {
 				provider: "stub-lsp",
 				checkedPaths: ["src/file.ts"],
 				skippedPaths: [],
-				diagnostics: [{
-					path: "src/file.ts",
-					line: 1,
-					column: 14,
-					severity: "info",
-					source: "typescript",
-					message: "Helpful note.",
-				}, {
-					path: "src/file.ts",
-					line: 2,
-					column: 4,
-					severity: "hint",
-					source: "typescript",
-					message: "Suggestion.",
-				}],
+				diagnostics: [
+					{
+						path: "src/file.ts",
+						line: 1,
+						column: 14,
+						severity: "info",
+						source: "typescript",
+						message: "Helpful note.",
+					},
+					{
+						path: "src/file.ts",
+						line: 2,
+						column: 4,
+						severity: "hint",
+						source: "typescript",
+						message: "Suggestion.",
+					},
+				],
 			}),
 			review: (request) => {
 				reviewedDelta = request.delta;
@@ -861,41 +1044,53 @@ describe("main watchdog runtime", () => {
 		const snapshot = runtime.getSnapshot(repo);
 		assert.equal(snapshot.lsp.diagnosticCount, 2);
 		assert.equal(snapshot.lsp.freshDiagnosticCount, 2);
-		assert.deepEqual(snapshot.lsp.diagnostics.map((diagnostic) => diagnostic.severity), ["info", "hint"]);
+		assert.deepEqual(
+			snapshot.lsp.diagnostics.map((diagnostic) => diagnostic.severity),
+			["info", "hint"],
+		);
 	});
 
 	it("aborts and ignores stale LSP diagnostics after reset", async () => {
 		const repo = createRepo();
 		const displayed: unknown[] = [];
 		let lspStarted!: () => void;
-		const lspStartedPromise = new Promise<void>((resolve) => { lspStarted = resolve; });
+		const lspStartedPromise = new Promise<void>((resolve) => {
+			lspStarted = resolve;
+		});
 		let signalAborted = false;
 		let reviewCalls = 0;
 		const runtime = new MainWatchdogRuntime({
 			cwd: repo,
 			reviewChangesOnly: true,
 			resolveConfig: () => configResult(enabledConfig({ lsp: { ...DEFAULT_WATCHDOG_CONFIG.lsp, enabled: true } })),
-			lspDiagnostics: (request) => new Promise((resolve) => {
-				request.signal?.addEventListener("abort", () => {
-					signalAborted = true;
-					resolve({
-						status: "ok",
-						provider: "stub-lsp",
-						checkedPaths: ["src/file.ts"],
-						skippedPaths: [],
-						diagnostics: [{
-							path: "src/file.ts",
-							line: 1,
-							column: 14,
-							severity: "error",
-							source: "typescript",
-							code: "TS2322",
-							message: "Type 'string' is not assignable to type 'number'.",
-						}],
-					});
-				}, { once: true });
-				lspStarted();
-			}),
+			lspDiagnostics: (request) =>
+				new Promise((resolve) => {
+					request.signal?.addEventListener(
+						"abort",
+						() => {
+							signalAborted = true;
+							resolve({
+								status: "ok",
+								provider: "stub-lsp",
+								checkedPaths: ["src/file.ts"],
+								skippedPaths: [],
+								diagnostics: [
+									{
+										path: "src/file.ts",
+										line: 1,
+										column: 14,
+										severity: "error",
+										source: "typescript",
+										code: "TS2322",
+										message: "Type 'string' is not assignable to type 'number'.",
+									},
+								],
+							});
+						},
+						{ once: true },
+					);
+					lspStarted();
+				}),
 			review: () => {
 				reviewCalls++;
 				return { stopReason: "stop" };
@@ -947,20 +1142,28 @@ describe("main watchdog runtime", () => {
 	it("dedupes repeated LSP diagnostic identities until diagnostics clear", async () => {
 		const repo = createRepo();
 		const displayed: unknown[] = [];
-		let diagnostics: WatchdogLspResult["diagnostics"] = [{
-			path: "src/file.ts",
-			line: 1,
-			column: 14,
-			severity: "warning",
-			source: "typescript",
-			code: "TS6133",
-			message: "'value' is declared but its value is never read.",
-		}];
+		let diagnostics: WatchdogLspResult["diagnostics"] = [
+			{
+				path: "src/file.ts",
+				line: 1,
+				column: 14,
+				severity: "warning",
+				source: "typescript",
+				code: "TS6133",
+				message: "'value' is declared but its value is never read.",
+			},
+		];
 		const runtime = new MainWatchdogRuntime({
 			cwd: repo,
 			reviewChangesOnly: true,
 			resolveConfig: () => configResult(enabledConfig({ lsp: { ...DEFAULT_WATCHDOG_CONFIG.lsp, enabled: true } })),
-			lspDiagnostics: () => ({ status: "ok", provider: "stub-lsp", checkedPaths: ["src/file.ts"], skippedPaths: [], diagnostics }),
+			lspDiagnostics: () => ({
+				status: "ok",
+				provider: "stub-lsp",
+				checkedPaths: ["src/file.ts"],
+				skippedPaths: [],
+				diagnostics,
+			}),
 			review: () => ({ stopReason: "stop" }),
 			displayWarning: (details) => displayed.push(details),
 		});
@@ -980,15 +1183,17 @@ describe("main watchdog runtime", () => {
 		runtime.enqueueDelta("Assistant:\nEdited the file.");
 		await runtime.handleAgentEnd({ type: "agent_end" }, { cwd: repo });
 
-		diagnostics = [{
-			path: "src/file.ts",
-			line: 2,
-			column: 1,
-			severity: "warning",
-			source: "typescript",
-			code: "TS6133",
-			message: "'value' is declared but its value is never read.",
-		}];
+		diagnostics = [
+			{
+				path: "src/file.ts",
+				line: 2,
+				column: 1,
+				severity: "warning",
+				source: "typescript",
+				code: "TS6133",
+				message: "'value' is declared but its value is never read.",
+			},
+		];
 		runtime.handleBeforeAgentStart({ prompt: "Reintroduce diagnostics." }, { cwd: repo });
 		fs.writeFileSync(path.join(repo, "src", "file.ts"), "export const value = 5;\n", "utf-8");
 		runtime.enqueueDelta("Assistant:\nEdited the file.");
@@ -1062,11 +1267,14 @@ describe("main watchdog runtime", () => {
 			displayWarning: (details) => displayed.push(details),
 			review: (request) => {
 				assert.equal(request.emitWarning(warning()), true);
-				assert.equal(request.emitWarning({
-					...warning(),
-					summary: "Second runtime concern",
-					evidence: "The same review tried to emit another concern.",
-				}), false);
+				assert.equal(
+					request.emitWarning({
+						...warning(),
+						summary: "Second runtime concern",
+						evidence: "The same review tried to emit another concern.",
+					}),
+					false,
+				);
 				return { stopReason: "stop" };
 			},
 		});
@@ -1099,67 +1307,93 @@ describe("main watchdog runtime", () => {
 		assert.match(reviewedDelta, /category 'scope-drift'/);
 	});
 
-	for (const messageType of ["user", undefined]) it(`records genuine ${messageType ?? "prompt-shaped"} prompts in scope and the turn delta`, async () => {
-		const ctx = { cwd: "/tmp/project" };
-		const requests: Parameters<WatchdogReviewFunction>[0][] = [];
-		const runtime = new MainWatchdogRuntime({
-			cwd: ctx.cwd,
-			resolveConfig: () => configResult(enabledConfig()),
-			repoChangeSignature: () => undefined,
-			review: (request) => { requests.push(request); return {}; },
+	for (const messageType of ["user", undefined])
+		it(`records genuine ${messageType ?? "prompt-shaped"} prompts in scope and the turn delta`, async () => {
+			const ctx = { cwd: "/tmp/project" };
+			const requests: Parameters<WatchdogReviewFunction>[0][] = [];
+			const runtime = new MainWatchdogRuntime({
+				cwd: ctx.cwd,
+				resolveConfig: () => configResult(enabledConfig()),
+				repoChangeSignature: () => undefined,
+				review: (request) => {
+					requests.push(request);
+					return {};
+				},
+			});
+			try {
+				runtime.handleBeforeAgentStart(
+					{ messageType, prompt: "Only update docs.", systemPrompt: "SYSTEM_TEXT" },
+					ctx,
+				);
+				runtime.handleTurnEnd({ message: { role: "assistant", content: "Updated docs." } }, ctx);
+				await runtime.handleAgentEnd({}, ctx);
+				assert.equal(requests.length, 1);
+				assert.equal(requests[0]!.hasScope, true);
+				assert.match(requests[0]!.delta, /^Scope prompt 1 \(.*\):\nOnly update docs\./m);
+				assert.match(requests[0]!.delta, /User prompt:\nOnly update docs\./);
+				assert.doesNotMatch(requests[0]!.delta, /SYSTEM_TEXT/);
+			} finally {
+				runtime.dispose();
+			}
 		});
-		try {
-			runtime.handleBeforeAgentStart({ messageType, prompt: "Only update docs.", systemPrompt: "SYSTEM_TEXT" }, ctx);
-			runtime.handleTurnEnd({ message: { role: "assistant", content: "Updated docs." } }, ctx);
-			await runtime.handleAgentEnd({}, ctx);
-			assert.equal(requests.length, 1);
-			assert.equal(requests[0]!.hasScope, true);
-			assert.match(requests[0]!.delta, /^Scope prompt 1 \(.*\):\nOnly update docs\./m);
-			assert.match(requests[0]!.delta, /User prompt:\nOnly update docs\./);
-			assert.doesNotMatch(requests[0]!.delta, /SYSTEM_TEXT/);
-		} finally { runtime.dispose(); }
-	});
 
 	for (const [name, event] of [
 		["custom wake", { messageType: "custom", systemPrompt: "SYSTEM_TEXT", message: { content: "CUSTOM_WAKE_TEXT" } }],
-		["custom wake with a prompt", { messageType: "custom", prompt: "CUSTOM_PROMPT_TEXT", systemPrompt: "SYSTEM_TEXT", message: { content: "CUSTOM_WAKE_TEXT" } }],
+		[
+			"custom wake with a prompt",
+			{
+				messageType: "custom",
+				prompt: "CUSTOM_PROMPT_TEXT",
+				systemPrompt: "SYSTEM_TEXT",
+				message: { content: "CUSTOM_WAKE_TEXT" },
+			},
+		],
 		["system-only event", { systemPrompt: "SYSTEM_TEXT" }],
 		["non-string prompt", { messageType: "user", prompt: 42, systemPrompt: "SYSTEM_TEXT" }],
 		["message-only event", { messageType: "user", message: { content: "MESSAGE_TEXT" } }],
-	] as const) it(`preserves original scope without adding a user prompt for a ${name}`, async () => {
-		const ctx = { cwd: "/tmp/project" };
-		let key = "baseline";
-		const requests: Parameters<WatchdogReviewFunction>[0][] = [];
-		const runtime = new MainWatchdogRuntime({
-			cwd: ctx.cwd,
-			resolveConfig: () => configResult(enabledConfig()),
-			reviewChangesOnly: true,
-			repoChangeSignature: () => ({ root: ctx.cwd, key, changedPaths: ["file.ts"] }),
-			review: (request) => { requests.push(request); return {}; },
+	] as const)
+		it(`preserves original scope without adding a user prompt for a ${name}`, async () => {
+			const ctx = { cwd: "/tmp/project" };
+			let key = "baseline";
+			const requests: Parameters<WatchdogReviewFunction>[0][] = [];
+			const runtime = new MainWatchdogRuntime({
+				cwd: ctx.cwd,
+				resolveConfig: () => configResult(enabledConfig()),
+				reviewChangesOnly: true,
+				repoChangeSignature: () => ({ root: ctx.cwd, key, changedPaths: ["file.ts"] }),
+				review: (request) => {
+					requests.push(request);
+					return {};
+				},
+			});
+			try {
+				runtime.handleBeforeAgentStart({ prompt: "Only update docs." }, ctx);
+				runtime.handleTurnEnd({ message: { role: "assistant", content: "Old pending turn." } }, ctx);
+				const epoch = runtime.getSnapshot().epoch;
+				runtime.handleBeforeAgentStart(event, ctx);
+				assert.equal(runtime.getSnapshot().epoch, epoch + 1, "ordinary run reset still occurs");
+				assert.equal(runtime.getSnapshot().bufferedDeltas, 0);
+				key = "edited";
+				runtime.handleTurnEnd(activityTurn("edit", { path: "file.ts" }, "Edited docs."), ctx);
+				await runtime.handleAgentEnd({}, ctx);
+				assert.equal(requests.length, 1, "edits during the wake still trigger review");
+				assert.equal(requests[0]!.hasScope, true);
+				const delta = requests[0]!.delta;
+				const prompts = [...delta.matchAll(/^Scope prompt \d+ \(.*\):\n(.*)$/gm)].map((match) => match[1]);
+				assert.deepEqual(prompts, ["Only update docs."]);
+				assert.doesNotMatch(
+					delta,
+					/User prompt:|SYSTEM_TEXT|CUSTOM_WAKE_TEXT|CUSTOM_PROMPT_TEXT|MESSAGE_TEXT|Old pending turn/,
+				);
+				assert.match(delta, /Changed repo paths:[\s\S]*file\.ts/);
+				assert.match(delta, /Edited docs\./);
+				assert.equal(runtime.getSnapshot().status, "idle");
+				await runtime.handleAgentEnd({}, ctx);
+				assert.equal(requests.length, 1, "unchanged edits are still deduplicated");
+			} finally {
+				runtime.dispose();
+			}
 		});
-		try {
-			runtime.handleBeforeAgentStart({ prompt: "Only update docs." }, ctx);
-			runtime.handleTurnEnd({ message: { role: "assistant", content: "Old pending turn." } }, ctx);
-			const epoch = runtime.getSnapshot().epoch;
-			runtime.handleBeforeAgentStart(event, ctx);
-			assert.equal(runtime.getSnapshot().epoch, epoch + 1, "ordinary run reset still occurs");
-			assert.equal(runtime.getSnapshot().bufferedDeltas, 0);
-			key = "edited";
-			runtime.handleTurnEnd(activityTurn("edit", { path: "file.ts" }, "Edited docs."), ctx);
-			await runtime.handleAgentEnd({}, ctx);
-			assert.equal(requests.length, 1, "edits during the wake still trigger review");
-			assert.equal(requests[0]!.hasScope, true);
-			const delta = requests[0]!.delta;
-			const prompts = [...delta.matchAll(/^Scope prompt \d+ \(.*\):\n(.*)$/gm)].map((match) => match[1]);
-			assert.deepEqual(prompts, ["Only update docs."]);
-			assert.doesNotMatch(delta, /User prompt:|SYSTEM_TEXT|CUSTOM_WAKE_TEXT|CUSTOM_PROMPT_TEXT|MESSAGE_TEXT|Old pending turn/);
-			assert.match(delta, /Changed repo paths:[\s\S]*file\.ts/);
-			assert.match(delta, /Edited docs\./);
-			assert.equal(runtime.getSnapshot().status, "idle");
-			await runtime.handleAgentEnd({}, ctx);
-			assert.equal(requests.length, 1, "unchanged edits are still deduplicated");
-		} finally { runtime.dispose(); }
-	});
 
 	it("adds user messages sent while the agent streams to the scope record", async () => {
 		let reviewedDelta = "";
@@ -1195,9 +1429,14 @@ describe("main watchdog runtime", () => {
 				review: async (request) => {
 					reviewCalls++;
 					assert.match(request.delta, /Current scope:/);
-					assert.equal(request.emitWarning({ ...warning(), severity: "blocker", summary: `Cadence blocker ${reviewCalls}` }), true);
+					assert.equal(
+						request.emitWarning({ ...warning(), severity: "blocker", summary: `Cadence blocker ${reviewCalls}` }),
+						true,
+					);
 					resolve();
-					await new Promise<void>((done) => { releaseReview = done; });
+					await new Promise<void>((done) => {
+						releaseReview = done;
+					});
 					return { stopReason: "stop" };
 				},
 			});
@@ -1219,14 +1458,18 @@ describe("main watchdog runtime", () => {
 		let releaseFirstReview!: () => void;
 		let reviewCalls = 0;
 		let markFirstStarted!: () => void;
-		const firstReviewStarted = new Promise<void>((resolve) => { markFirstStarted = resolve; });
+		const firstReviewStarted = new Promise<void>((resolve) => {
+			markFirstStarted = resolve;
+		});
 		const runtime = new MainWatchdogRuntime({
 			resolveConfig: () => configResult(enabledConfig({ cadence: { everyNTools: 5 } })),
 			review: async (request) => {
 				reviewCalls++;
 				if (reviewCalls === 1) {
 					markFirstStarted();
-					await new Promise<void>((done) => { releaseFirstReview = done; });
+					await new Promise<void>((done) => {
+						releaseFirstReview = done;
+					});
 				}
 				return { stopReason: "stop" };
 			},
@@ -1252,7 +1495,9 @@ describe("main watchdog runtime", () => {
 		const delivered: Array<{ warning: WatchdogWarningDetails; options?: unknown }> = [];
 		const runtime = new MainWatchdogRuntime({
 			resolveConfig: () => configResult(enabledConfig({ stalemateRepeats: 3 })),
-			displayWarning: (details, options) => { delivered.push({ warning: details, options }); },
+			displayWarning: (details, options) => {
+				delivered.push({ warning: details, options });
+			},
 			review: (request) => {
 				request.emitWarning({ ...warning(), severity: "blocker", summary: "Same blocker" });
 				return { stopReason: "stop" };

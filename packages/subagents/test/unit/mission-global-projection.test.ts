@@ -5,7 +5,13 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 import { pathToFileURL } from "node:url";
-import { createMission, listGlobalMissions, readMission, resolveMissionStoreLocation, updateMission } from "../../src/missions/store.ts";
+import {
+	createMission,
+	listGlobalMissions,
+	readMission,
+	resolveMissionStoreLocation,
+	updateMission,
+} from "../../src/missions/store.ts";
 
 function fixture() {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-mission-projection-"));
@@ -21,7 +27,8 @@ function fixture() {
 }
 
 function indexPathFor(globalIndexDir: string, missionId: string): string {
-	const filePath = fs.readdirSync(globalIndexDir)
+	const filePath = fs
+		.readdirSync(globalIndexDir)
 		.filter((name) => name.endsWith(".json"))
 		.map((name) => path.join(globalIndexDir, name))
 		.find((candidate) => JSON.parse(fs.readFileSync(candidate, "utf-8")).missionId === missionId);
@@ -30,8 +37,11 @@ function indexPathFor(globalIndexDir: string, missionId: string): string {
 }
 
 describe("mission global projection", () => {
-	it("uses the updated record after the index rename fails, without rewriting the pointer", { timeout: 15_000 }, () => {
-		const harness = String.raw`
+	it(
+		"uses the updated record after the index rename fails, without rewriting the pointer",
+		{ timeout: 15_000 },
+		() => {
+			const harness = String.raw`
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -138,36 +148,83 @@ try {
 	fs.rmSync(root, { recursive: true, force: true });
 }
 `;
-		const storeUrl = pathToFileURL(path.resolve("src/missions/store.ts")).href;
-		const child = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "--eval", harness, storeUrl], {
-			cwd: process.cwd(),
-			encoding: "utf-8",
-			timeout: 10_000,
-		});
-		const observed = child.stdout?.trim() ? JSON.parse(child.stdout.trim()) as Record<string, any> : null;
-		assert.equal(child.status, 0, child.stderr || child.error?.message || "isolated mission projection harness produced no output");
-		assert.ok(observed, child.stderr || "isolated mission projection harness produced no JSON");
-		assert.equal(observed.updateError?.code, "EIO");
-		assert.deepEqual(observed.renameBoundary, { recordRenameCompleted: true, indexRenameAttempted: true, injectedIndexRenameFailure: true });
-		assert.deepEqual(observed.record, { title: "After partial commit", status: "completed", updatedAt: "2026-01-03T00:00:00.000Z", lastRunId: "run-new" });
-		assert.equal(observed.oldPointer.title, "Before partial commit");
-		assert.equal(observed.oldPointer.lastRunId, "run-old");
-		assert.deepEqual(observed.pointerAfterFailure, observed.oldPointer, "the list read must not rewrite the persisted pointer");
-		assert.deepEqual(observed.immediateProjection, { title: "After partial commit", status: "completed", updatedAt: "2026-01-03T00:00:00.000Z", lastRunId: "run-new", stale: false });
-		assert.deepEqual(observed.laterProjection, observed.immediateProjection);
-		assert.deepEqual(observed.order, observed.expectedOrder, "global list sorting uses the authoritative updatedAt");
-		assert.equal(observed.healthyControlMatchesRecord, true);
-	});
+			const storeUrl = pathToFileURL(path.resolve("src/missions/store.ts")).href;
+			const child = spawnSync(
+				process.execPath,
+				["--experimental-strip-types", "--input-type=module", "--eval", harness, storeUrl],
+				{
+					cwd: process.cwd(),
+					encoding: "utf-8",
+					timeout: 10_000,
+				},
+			);
+			const observed = child.stdout?.trim() ? (JSON.parse(child.stdout.trim()) as Record<string, any>) : null;
+			assert.equal(
+				child.status,
+				0,
+				child.stderr || child.error?.message || "isolated mission projection harness produced no output",
+			);
+			assert.ok(observed, child.stderr || "isolated mission projection harness produced no JSON");
+			assert.equal(observed.updateError?.code, "EIO");
+			assert.deepEqual(observed.renameBoundary, {
+				recordRenameCompleted: true,
+				indexRenameAttempted: true,
+				injectedIndexRenameFailure: true,
+			});
+			assert.deepEqual(observed.record, {
+				title: "After partial commit",
+				status: "completed",
+				updatedAt: "2026-01-03T00:00:00.000Z",
+				lastRunId: "run-new",
+			});
+			assert.equal(observed.oldPointer.title, "Before partial commit");
+			assert.equal(observed.oldPointer.lastRunId, "run-old");
+			assert.deepEqual(
+				observed.pointerAfterFailure,
+				observed.oldPointer,
+				"the list read must not rewrite the persisted pointer",
+			);
+			assert.deepEqual(observed.immediateProjection, {
+				title: "After partial commit",
+				status: "completed",
+				updatedAt: "2026-01-03T00:00:00.000Z",
+				lastRunId: "run-new",
+				stale: false,
+			});
+			assert.deepEqual(observed.laterProjection, observed.immediateProjection);
+			assert.deepEqual(
+				observed.order,
+				observed.expectedOrder,
+				"global list sorting uses the authoritative updatedAt",
+			);
+			assert.equal(observed.healthyControlMatchesRecord, true);
+		},
+	);
 
 	it("uses record timestamps for sorting and removes an index lastRunId when runs are empty", () => {
 		const test = fixture();
 		try {
-			const first = createMission(test.location, { title: "First pointer", objective: "Current record should sort first" }, new Date("2026-01-01T00:00:00.000Z"));
-			updateMission(test.location, first.id, { addRuns: [{ runId: "run-stale", mode: "single", status: "running" }] }, new Date("2026-01-01T01:00:00.000Z"));
-			const second = createMission(test.location, { title: "Second pointer", objective: "Current record should sort second" }, new Date("2026-01-02T00:00:00.000Z"));
+			const first = createMission(
+				test.location,
+				{ title: "First pointer", objective: "Current record should sort first" },
+				new Date("2026-01-01T00:00:00.000Z"),
+			);
+			updateMission(
+				test.location,
+				first.id,
+				{ addRuns: [{ runId: "run-stale", mode: "single", status: "running" }] },
+				new Date("2026-01-01T01:00:00.000Z"),
+			);
+			const second = createMission(
+				test.location,
+				{ title: "Second pointer", objective: "Current record should sort second" },
+				new Date("2026-01-02T00:00:00.000Z"),
+			);
 			const firstRecordPath = path.join(test.location.missionDir, `${first.id}.json`);
 			const secondRecordPath = path.join(test.location.missionDir, `${second.id}.json`);
-			const indexedFirst = listGlobalMissions(test.location.globalIndexDir).entries.find((entry) => entry.missionId === first.id);
+			const indexedFirst = listGlobalMissions(test.location.globalIndexDir).entries.find(
+				(entry) => entry.missionId === first.id,
+			);
 			assert.equal(indexedFirst?.lastRunId, "run-stale");
 
 			const firstRecord = readMission(test.location, first.id);
@@ -182,10 +239,17 @@ try {
 			fs.writeFileSync(secondRecordPath, JSON.stringify(secondRecord, null, 2), "utf-8");
 
 			const global = listGlobalMissions(test.location.globalIndexDir);
-			assert.deepEqual(global.entries.map((entry) => entry.missionId), [first.id, second.id]);
+			assert.deepEqual(
+				global.entries.map((entry) => entry.missionId),
+				[first.id, second.id],
+			);
 			assert.equal(global.entries[0]?.title, "First record is newest");
 			assert.equal(global.entries[0]?.updatedAt, "2026-01-04T00:00:00.000Z");
-			assert.equal(Object.hasOwn(global.entries[0] ?? {}, "lastRunId"), false, "a stale pointer run id must not survive when the current record has no runs");
+			assert.equal(
+				Object.hasOwn(global.entries[0] ?? {}, "lastRunId"),
+				false,
+				"a stale pointer run id must not survive when the current record has no runs",
+			);
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
 		}
@@ -194,7 +258,10 @@ try {
 	it("keeps mismatched and unreadable pointers on their existing paths", () => {
 		const test = fixture();
 		try {
-			const mismatch = createMission(test.location, { title: "Mismatched record", objective: "Keep its pointer stale" });
+			const mismatch = createMission(test.location, {
+				title: "Mismatched record",
+				objective: "Keep its pointer stale",
+			});
 			const mismatchPointerPath = indexPathFor(test.location.globalIndexDir, mismatch.id);
 			const mismatchPointer = JSON.parse(fs.readFileSync(mismatchPointerPath, "utf-8")) as Record<string, unknown>;
 			mismatchPointer.missionId = "wrong-record-id";
@@ -203,11 +270,25 @@ try {
 			fs.writeFileSync(corruptPointerPath, "{not json", "utf-8");
 
 			const global = listGlobalMissions(test.location.globalIndexDir);
-			assert.deepEqual(global.entries.map((entry) => entry.missionId), ["wrong-record-id"]);
-			assert.match(global.entries.find((entry) => entry.missionId === "wrong-record-id")?.staleReason ?? "", /does not match index id/);
+			assert.deepEqual(
+				global.entries.map((entry) => entry.missionId),
+				["wrong-record-id"],
+			);
+			assert.match(
+				global.entries.find((entry) => entry.missionId === "wrong-record-id")?.staleReason ?? "",
+				/does not match index id/,
+			);
 			assert.match(global.warnings.join("\n"), /Skipped corrupt global mission index entry/);
-			assert.equal(fs.existsSync(corruptPointerPath), true, "an unreadable index pointer remains available for inspection");
-			assert.equal(fs.existsSync(mismatchPointerPath), true, "an ID-mismatched pointer remains marked stale rather than being rewritten");
+			assert.equal(
+				fs.existsSync(corruptPointerPath),
+				true,
+				"an unreadable index pointer remains available for inspection",
+			);
+			assert.equal(
+				fs.existsSync(mismatchPointerPath),
+				true,
+				"an ID-mismatched pointer remains marked stale rather than being rewritten",
+			);
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
 		}

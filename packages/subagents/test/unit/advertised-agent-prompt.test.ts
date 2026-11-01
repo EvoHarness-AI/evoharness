@@ -19,17 +19,20 @@ function agent(name: string, overrides: Partial<AgentConfig> = {}): AgentConfig 
 
 describe("advertised agent prompt", () => {
 	it("includes only opted-in, capability-permitted agents in stable order", () => {
-		const prompt = buildAdvertisedAgentPrompt([
-			agent("zeta", { advertise: true }),
-			agent("hidden"),
-			agent("disabled", { advertise: true, disabled: true }),
-			agent("alpha", { advertise: true }),
-		], {
-			version: 1,
-			allowedAgents: ["alpha", "hidden", "zeta"],
-			denyExtensions: false,
-			sources: ["test"],
-		});
+		const prompt = buildAdvertisedAgentPrompt(
+			[
+				agent("zeta", { advertise: true }),
+				agent("hidden"),
+				agent("disabled", { advertise: true, disabled: true }),
+				agent("alpha", { advertise: true }),
+			],
+			{
+				version: 1,
+				allowedAgents: ["alpha", "hidden", "zeta"],
+				denyExtensions: false,
+				sources: ["test"],
+			},
+		);
 
 		assert.ok(prompt);
 		assert.match(prompt, /<name>alpha<\/name>/);
@@ -39,10 +42,12 @@ describe("advertised agent prompt", () => {
 	});
 
 	it("escapes agent-owned metadata and bounds the catalog", () => {
-		const agents = Array.from({ length: 18 }, (_, index) => agent(`agent-${String(index).padStart(2, "0")}`, {
-			advertise: true,
-			description: index === 0 ? `<route>&${"x".repeat(700)}` : `agent ${index}`,
-		}));
+		const agents = Array.from({ length: 18 }, (_, index) =>
+			agent(`agent-${String(index).padStart(2, "0")}`, {
+				advertise: true,
+				description: index === 0 ? `<route>&${"x".repeat(700)}` : `agent ${index}`,
+			}),
+		);
 		const prompt = buildAdvertisedAgentPrompt(agents);
 
 		assert.ok(prompt);
@@ -78,10 +83,12 @@ describe("advertised agent prompt", () => {
 	});
 
 	it("bounds the section body by the same wrapped byte budget", () => {
-		const agents = Array.from({ length: 40 }, (_, index) => agent(`agent-${String(index).padStart(2, "0")}`, {
-			advertise: true,
-			description: "🦜界".repeat(200),
-		}));
+		const agents = Array.from({ length: 40 }, (_, index) =>
+			agent(`agent-${String(index).padStart(2, "0")}`, {
+				advertise: true,
+				description: "🦜界".repeat(200),
+			}),
+		);
 		const body = buildAdvertisedAgentCatalog(agents)!;
 		const wrapped = buildAdvertisedAgentPrompt(agents)!;
 		assert.equal(wrapped, `<advertised_subagents>\n${body}\n</advertised_subagents>`);

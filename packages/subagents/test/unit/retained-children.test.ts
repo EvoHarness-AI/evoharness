@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { formatRetainedChildren, listRetainedChildren } from "../../src/runs/background/retained-children.ts";
 import { updateActiveRunIndex } from "../../src/runs/background/active-run-index.ts";
+import { formatRetainedChildren, listRetainedChildren } from "../../src/runs/background/retained-children.ts";
 import { createRunFanoutBudget } from "../../src/runs/shared/run-fanout-budget.ts";
 
 interface WriteRunOptions {
@@ -31,52 +31,99 @@ function writeRetainedRun(root: string, index: number, options: WriteRunOptions 
 	fs.mkdirSync(asyncDir, { recursive: true });
 	const state = options.state ?? "complete";
 	const stepStatus = options.stepStatus ?? state;
-	fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-		runId,
-		sessionId: options.sessionId ?? "parent-a",
-		mode: "single",
-		state,
-		startedAt: index,
-		endedAt: 1_000 + index,
-		lastUpdate: 1_000 + index,
-		cwd: root,
-		...(options.parentWorkflowRunId === null ? {} : { parentWorkflowRunId: options.parentWorkflowRunId ?? "workflow-a", workflowKey: `lane-${index}` }),
-		steps: [{
-			agent: "worker",
-			status: stepStatus,
-			description: `  Task ${index}  with   spacing ${"x".repeat(140)}  `,
+	fs.writeFileSync(
+		path.join(asyncDir, "status.json"),
+		JSON.stringify({
+			runId,
+			sessionId: options.sessionId ?? "parent-a",
+			mode: "single",
+			state,
+			startedAt: index,
 			endedAt: 1_000 + index,
-			...(options.runner === "external-cli" ? { runner: { type: "external-cli", command: "codex", args: [], promptDelivery: "stdin", capabilities: { stop: true, steer: false, resume: false, structuredOutput: false, toolEvents: false } } } : {}),
-			...(options.runner === "external-job" ? { runner: { type: "external-job", provider: "surf-oracle", options: {}, capabilities: { stop: false, steer: false, resume: false, structuredOutput: false, toolEvents: false } } } : {}),
-			...(options.sessionFile === "omitted" ? {} : { sessionFile }),
-			tokens: { input: index, output: index + 1, total: index * 2 + 1 },
-		}],
-	}), "utf-8");
+			lastUpdate: 1_000 + index,
+			cwd: root,
+			...(options.parentWorkflowRunId === null
+				? {}
+				: { parentWorkflowRunId: options.parentWorkflowRunId ?? "workflow-a", workflowKey: `lane-${index}` }),
+			steps: [
+				{
+					agent: "worker",
+					status: stepStatus,
+					description: `  Task ${index}  with   spacing ${"x".repeat(140)}  `,
+					endedAt: 1_000 + index,
+					...(options.runner === "external-cli"
+						? {
+								runner: {
+									type: "external-cli",
+									command: "codex",
+									args: [],
+									promptDelivery: "stdin",
+									capabilities: {
+										stop: true,
+										steer: false,
+										resume: false,
+										structuredOutput: false,
+										toolEvents: false,
+									},
+								},
+							}
+						: {}),
+					...(options.runner === "external-job"
+						? {
+								runner: {
+									type: "external-job",
+									provider: "surf-oracle",
+									options: {},
+									capabilities: {
+										stop: false,
+										steer: false,
+										resume: false,
+										structuredOutput: false,
+										toolEvents: false,
+									},
+								},
+							}
+						: {}),
+					...(options.sessionFile === "omitted" ? {} : { sessionFile }),
+					tokens: { input: index, output: index + 1, total: index * 2 + 1 },
+				},
+			],
+		}),
+		"utf-8",
+	);
 	updateActiveRunIndex(asyncDir, state);
 	if (options.recoveryDescriptor === "invalid") {
-		fs.writeFileSync(path.join(asyncDir, "recovery-descriptor.json"), JSON.stringify({
-			version: 2,
-			sourceRunId: runId,
-			agent: "worker",
-			cwd: options.recoveryCwd ?? root,
-			systemPromptMode: "replace",
-			outputMode: "inline",
-		}), "utf-8");
+		fs.writeFileSync(
+			path.join(asyncDir, "recovery-descriptor.json"),
+			JSON.stringify({
+				version: 2,
+				sourceRunId: runId,
+				agent: "worker",
+				cwd: options.recoveryCwd ?? root,
+				systemPromptMode: "replace",
+				outputMode: "inline",
+			}),
+			"utf-8",
+		);
 	} else if (options.recoveryDescriptor !== "missing") {
-		fs.writeFileSync(path.join(asyncDir, "recovery-descriptor.json"), JSON.stringify({
-			version: 1,
-			runFanoutBudget: createRunFanoutBudget(runId, 64),
-			sourceRunId: options.recoverySourceRunId ?? runId,
-			agent: options.recoveryAgent ?? "worker",
-			cwd: options.recoveryCwd ?? root,
-			systemPromptMode: "replace",
-			inheritGlobalContext: false,
-			inheritProjectContext: false,
-			inheritSkills: false,
-			outputMode: "inline",
-			maxSubagentDepth: 2,
-			share: false,
-		}), "utf-8");
+		fs.writeFileSync(
+			path.join(asyncDir, "recovery-descriptor.json"),
+			JSON.stringify({
+				version: 1,
+				runFanoutBudget: createRunFanoutBudget(runId, 64),
+				sourceRunId: options.recoverySourceRunId ?? runId,
+				agent: options.recoveryAgent ?? "worker",
+				cwd: options.recoveryCwd ?? root,
+				systemPromptMode: "replace",
+				inheritGlobalContext: false,
+				inheritProjectContext: false,
+				inheritSkills: false,
+				outputMode: "inline",
+				maxSubagentDepth: 2,
+				share: false,
+			}),
+			"utf-8",
+		);
 	}
 }
 
@@ -93,7 +140,10 @@ describe("retained child roster", () => {
 			const formatted = formatRetainedChildren(children);
 
 			assert.equal(children.length, 13);
-			assert.deepEqual(children.map((child) => child.runId), ["child-52", ...Array.from({ length: 12 }, (_, offset) => `child-${11 - offset}`)]);
+			assert.deepEqual(
+				children.map((child) => child.runId),
+				["child-52", ...Array.from({ length: 12 }, (_, offset) => `child-${11 - offset}`)],
+			);
 			assert.equal(formatted.match(/^- child-/gm)?.length, 10);
 			assert.doesNotMatch(formatted, /^- child-2 /m);
 			assert.equal(children[0]?.agent, "worker");
@@ -105,8 +155,14 @@ describe("retained child roster", () => {
 			assert.equal(children[0]?.taskSummary.startsWith("Task 52 with spacing"), true);
 			assert.deepEqual(children[0]?.tokenTotals, { input: 52, output: 53, total: 105 });
 			assert.equal(children[0]?.resumability.state, "resumable");
-			assert.match(formatted, /resumability: resumable\n  session: .*child-52\.jsonl\n  resume: subagent\(\{ action: "resume", id: "child-52", message: "\.\.\." \}\)/);
-			assert.equal(children.some((child) => child.runId === "child-50" || child.runId === "child-51"), false);
+			assert.match(
+				formatted,
+				/resumability: resumable\n {2}session: .*child-52\.jsonl\n {2}resume: subagent\(\{ action: "resume", id: "child-52", message: "\.\.\." \}\)/,
+			);
+			assert.equal(
+				children.some((child) => child.runId === "child-50" || child.runId === "child-51"),
+				false,
+			);
 			assert.doesNotMatch(formatted, /Launch a same-role fallback/);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
@@ -122,8 +178,14 @@ describe("retained child roster", () => {
 			const formatted = formatRetainedChildren(children);
 
 			assert.deepEqual(children, []);
-			assert.match(formatted, /children\.list is workflow-only and is not an exhaustive list of direct native children/);
-			assert.match(formatted, /action: "status".*status identifies the candidate.*action: "resume".*authoritatively checks eligibility and may reject it/);
+			assert.match(
+				formatted,
+				/children\.list is workflow-only and is not an exhaustive list of direct native children/,
+			);
+			assert.match(
+				formatted,
+				/action: "status".*status identifies the candidate.*action: "resume".*authoritatively checks eligibility and may reject it/,
+			);
 			assert.match(formatted, /fallback.*only when there is no known candidate or resume rejects eligibility/);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
@@ -140,7 +202,10 @@ describe("retained child roster", () => {
 			const formatted = formatRetainedChildren(children);
 
 			assert.equal(children.length, 11);
-			assert.deepEqual(children.map((child) => child.runId), Array.from({ length: 11 }, (_, offset) => `child-${10 - offset}`));
+			assert.deepEqual(
+				children.map((child) => child.runId),
+				Array.from({ length: 11 }, (_, offset) => `child-${10 - offset}`),
+			);
 			assert.equal(formatted.match(/^- child-/gm)?.length, 10);
 			assert.match(formatted, /resume: subagent\(\{ action: "resume", id: "child-0"/);
 			assert.doesNotMatch(formatted, /No resumable retained child is listed/);
@@ -165,17 +230,32 @@ describe("retained child roster", () => {
 			const children = listRetainedChildren(path.join(root, "runs"), "parent-a");
 			const formatted = formatRetainedChildren(children);
 
-			assert.deepEqual(children.map((child) => [child.runId, child.resumability]), [
-				["child-9", { state: "not-resumable", reason: "external runner" }],
-				["child-8", { state: "not-resumable", reason: "recovery descriptor belongs to agent reviewer" }],
-				["child-7", { state: "not-resumable", reason: "recovery descriptor belongs to run other-run" }],
-				["child-6", { state: "not-resumable", reason: `invalid recovery descriptor: Invalid async recovery descriptor '${path.join(root, "runs", "child-6", "recovery-descriptor.json")}': version must be 1.` }],
-				["child-5", { state: "not-resumable", reason: "missing recovery descriptor" }],
-				["child-4", { state: "not-resumable", reason: "external runner" }],
-				["child-3", { state: "not-resumable", reason: "stopped run" }],
-				["child-2", { state: "not-resumable", reason: `persisted session file is missing: ${path.join(root, "sessions", "child-2.jsonl")}` }],
-				["child-1", { state: "not-resumable", reason: "no persisted session file" }],
-			]);
+			assert.deepEqual(
+				children.map((child) => [child.runId, child.resumability]),
+				[
+					["child-9", { state: "not-resumable", reason: "external runner" }],
+					["child-8", { state: "not-resumable", reason: "recovery descriptor belongs to agent reviewer" }],
+					["child-7", { state: "not-resumable", reason: "recovery descriptor belongs to run other-run" }],
+					[
+						"child-6",
+						{
+							state: "not-resumable",
+							reason: `invalid recovery descriptor: Invalid async recovery descriptor '${path.join(root, "runs", "child-6", "recovery-descriptor.json")}': version must be 1.`,
+						},
+					],
+					["child-5", { state: "not-resumable", reason: "missing recovery descriptor" }],
+					["child-4", { state: "not-resumable", reason: "external runner" }],
+					["child-3", { state: "not-resumable", reason: "stopped run" }],
+					[
+						"child-2",
+						{
+							state: "not-resumable",
+							reason: `persisted session file is missing: ${path.join(root, "sessions", "child-2.jsonl")}`,
+						},
+					],
+					["child-1", { state: "not-resumable", reason: "no persisted session file" }],
+				],
+			);
 			assert.match(formatted, /resumability: not resumable \(recovery descriptor belongs to agent reviewer\)/);
 			assert.match(formatted, /resumability: not resumable \(recovery descriptor belongs to run other-run\)/);
 			assert.match(formatted, /resumability: not resumable \(invalid recovery descriptor:/);
@@ -185,7 +265,10 @@ describe("retained child roster", () => {
 			assert.match(formatted, /resumability: not resumable \(no persisted session file\)/);
 			assert.doesNotMatch(formatted, /resume: subagent/);
 			assert.match(formatted, /No resumable retained workflow child is listed/);
-			assert.match(formatted, /action: "status".*status identifies the candidate.*action: "resume".*authoritatively checks eligibility and may reject it/);
+			assert.match(
+				formatted,
+				/action: "status".*status identifies the candidate.*action: "resume".*authoritatively checks eligibility and may reject it/,
+			);
 			assert.match(formatted, /fallback.*only when there is no known candidate or resume rejects eligibility/);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
@@ -202,7 +285,10 @@ describe("retained child roster", () => {
 			const formatted = formatRetainedChildren(children);
 
 			assert.equal(children[0]?.resumability.state, "not-resumable");
-			assert.match(children[0]?.resumability.state === "not-resumable" ? children[0].resumability.reason : "", /required cwd is missing|resume dependency unavailable/);
+			assert.match(
+				children[0]?.resumability.state === "not-resumable" ? children[0].resumability.reason : "",
+				/required cwd is missing|resume dependency unavailable/,
+			);
 			assert.doesNotMatch(formatted, /resume: subagent/);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });

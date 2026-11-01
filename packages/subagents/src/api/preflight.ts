@@ -1,33 +1,86 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { discoverAgentSnapshot, findBlockingAgentDiagnostic, formatUnknownAgentError, resolveAgentName, unknownAgentDiagnosticContext, type AgentConfig, type AgentDiscoveryAllResult, type AgentScope, type AgentSource } from "../agents/agents.ts";
 import { projectScopeRequiresTrustMessage, resolveExecutionAgentScope } from "../agents/agent-scope.ts";
+import {
+	type AgentConfig,
+	type AgentDiscoveryAllResult,
+	type AgentScope,
+	type AgentSource,
+	discoverAgentSnapshot,
+	findBlockingAgentDiagnostic,
+	formatUnknownAgentError,
+	resolveAgentName,
+	unknownAgentDiagnosticContext,
+} from "../agents/agents.ts";
 import { normalizeSkillInput, resolveSkillsWithFallback } from "../agents/skills.ts";
-import { inheritsParentModel, resolveEffectiveSubagentModel, resolveModelOrigin, resolveModelSelection, type AvailableModelInfo, type ParentModel } from "../runs/shared/model-resolution.ts";
-import { resolveModelScopesForAgent } from "../runs/shared/model-scope.ts";
-import { assertClaudeCodeModelScope, isClaudeCodeAdapterId, resolveClaudeCodeOverride } from "../runs/shared/claude-code-adapter.ts";
-import { applyThinkingSuffix, resolvePiLaunchToolPlan, type PiLaunchToolPlan } from "../runs/shared/child-tool-plan.ts";
-import { buildEffectiveSystemPrompt } from "../runs/shared/effective-system-prompt.ts";
-import { normalizeSingleOutputOverride, resolveSingleOutputPath } from "../runs/shared/single-output.ts";
-import { getArtifactPaths, getArtifactsDir } from "../shared/artifacts.ts";
-import { resolveEffectiveThinking } from "../shared/model-info.ts";
-import { assertThinkingWithinCeiling, intersectThinkingCeilings, type ThinkingLevel } from "../shared/thinking-ceiling.ts";
-import { SUBAGENT_LIFECYCLE_ARTIFACT_VERSION, type ArtifactDirPreference, type ArtifactPaths, type IntercomBridgeConfig, type IntercomBridgeMode, type JsonSchemaObject, type OutputMode } from "../shared/types.ts";
-import { capabilityCeilingAgentRestrictionMessage, intersectSubagentCapabilityCeilings, type ResolvedSubagentCapabilityCeiling, type SubagentCapabilityAudit } from "../runs/shared/capability-ceiling.ts";
-import { resolvePermissionRules } from "../runs/shared/permissions.ts";
-import type { McpRuntimeSnapshotHost, ResolvedMcpDirectToolSelection } from "../runs/shared/mcp-direct-tool-allowlist.ts";
-import { resolveStepBehavior } from "../shared/settings.ts";
-import { canPreferForkFromSnapshot, resolveSubagentLaunchContext } from "../shared/fork-context.ts";
 import { loadConfig } from "../extension/config.ts";
-import { applyIntercomBridgeToAgent, resolveIntercomBridge, validateIntercomBridgeConfig } from "../intercom/intercom-bridge.ts";
-import { AGENT_DEFINITION_PROJECTION_VERSION, resolveLaunchBinding, stableJsonDigest } from "../shared/launch-contract.ts";
-import { DIRS, TEMP_ROOT_DIR } from "../shared/types.ts";
+import {
+	applyIntercomBridgeToAgent,
+	resolveIntercomBridge,
+	validateIntercomBridgeConfig,
+} from "../intercom/intercom-bridge.ts";
 import { processTerminalCandidatePath, processTerminalPath } from "../runs/background/process-terminal.ts";
 import { resultFilePath } from "../runs/background/result-files.ts";
+import {
+	capabilityCeilingAgentRestrictionMessage,
+	intersectSubagentCapabilityCeilings,
+	type ResolvedSubagentCapabilityCeiling,
+	type SubagentCapabilityAudit,
+} from "../runs/shared/capability-ceiling.ts";
+import { applyThinkingSuffix, type PiLaunchToolPlan, resolvePiLaunchToolPlan } from "../runs/shared/child-tool-plan.ts";
+import {
+	assertClaudeCodeModelScope,
+	isClaudeCodeAdapterId,
+	resolveClaudeCodeOverride,
+} from "../runs/shared/claude-code-adapter.ts";
+import { buildEffectiveSystemPrompt } from "../runs/shared/effective-system-prompt.ts";
+import { type ExtensionBindings, normalizeExtensionBindings } from "../runs/shared/extension-bindings.ts";
+import type {
+	McpRuntimeSnapshotHost,
+	ResolvedMcpDirectToolSelection,
+} from "../runs/shared/mcp-direct-tool-allowlist.ts";
+import {
+	type AvailableModelInfo,
+	inheritsParentModel,
+	type ParentModel,
+	resolveEffectiveSubagentModel,
+	resolveModelOrigin,
+	resolveModelSelection,
+} from "../runs/shared/model-resolution.ts";
+import { resolveModelScopesForAgent } from "../runs/shared/model-scope.ts";
 import { nestedResultsPath } from "../runs/shared/nested-events.ts";
-import { normalizeExtensionBindings, type ExtensionBindings } from "../runs/shared/extension-bindings.ts";
-import { assertRequiredChildExtensionsAdmitted, resolveRequiredChildExtensions } from "../shared/required-child-extensions.ts";
+import { resolvePermissionRules } from "../runs/shared/permissions.ts";
+import { normalizeSingleOutputOverride, resolveSingleOutputPath } from "../runs/shared/single-output.ts";
+import { getArtifactPaths, getArtifactsDir } from "../shared/artifacts.ts";
+import { canPreferForkFromSnapshot, resolveSubagentLaunchContext } from "../shared/fork-context.ts";
+import {
+	AGENT_DEFINITION_PROJECTION_VERSION,
+	resolveLaunchBinding,
+	stableJsonDigest,
+} from "../shared/launch-contract.ts";
+import { resolveEffectiveThinking } from "../shared/model-info.ts";
+import {
+	assertRequiredChildExtensionsAdmitted,
+	resolveRequiredChildExtensions,
+} from "../shared/required-child-extensions.ts";
+import { resolveStepBehavior } from "../shared/settings.ts";
+import {
+	assertThinkingWithinCeiling,
+	intersectThinkingCeilings,
+	type ThinkingLevel,
+} from "../shared/thinking-ceiling.ts";
+import {
+	type ArtifactDirPreference,
+	type ArtifactPaths,
+	DIRS,
+	type IntercomBridgeConfig,
+	type IntercomBridgeMode,
+	type JsonSchemaObject,
+	type OutputMode,
+	SUBAGENT_LIFECYCLE_ARTIFACT_VERSION,
+	TEMP_ROOT_DIR,
+} from "../shared/types.ts";
 
 // v3: the contract reports the resolved Intercom bridge state and binds its
 // prompt and tools into launchContractDigest, matching execution (#2127).
@@ -50,7 +103,11 @@ export type SubagentLaunchContractReasonCode =
 	| "invalid_extension_bindings"
 	| "invalid_intercom_bridge";
 
-export type SubagentLaunchContractDiagnosticCode = SubagentLaunchContractReasonCode | "host_required" | "snapshot_warning" | "workspace_scope_authority";
+export type SubagentLaunchContractDiagnosticCode =
+	| SubagentLaunchContractReasonCode
+	| "host_required"
+	| "snapshot_warning"
+	| "workspace_scope_authority";
 
 export interface SubagentLaunchContractDiagnostic {
 	code: SubagentLaunchContractDiagnosticCode;
@@ -74,7 +131,9 @@ export interface SubagentLaunchContractInput {
 	parentModel?: ParentModel;
 	/** Scoped-model snapshot (`provider/id` strings); drives the `scoped` allow token. Omitting it degrades `scoped` to `inherit`, so callers comparing preflight with execution must pass the session snapshot. */
 	scopedModelIds?: readonly string[];
-	availableModels?: ReadonlyArray<AvailableModelInfo | { provider: string; id: string; fullId?: string; reasoning?: boolean }>;
+	availableModels?: ReadonlyArray<
+		AvailableModelInfo | { provider: string; id: string; fullId?: string; reasoning?: boolean }
+	>;
 	preferredProvider?: string;
 	skill?: string | string[] | boolean;
 	output?: string | boolean;
@@ -207,7 +266,12 @@ export interface SubagentLaunchContract {
 
 export type SubagentLaunchContractResult =
 	| { ok: true; contract: SubagentLaunchContract }
-	| { ok: false; code: SubagentLaunchContractReasonCode; message: string; diagnostics: SubagentLaunchContractDiagnostic[] };
+	| {
+			ok: false;
+			code: SubagentLaunchContractReasonCode;
+			message: string;
+			diagnostics: SubagentLaunchContractDiagnostic[];
+	  };
 
 /**
  * Classify a Claude Code override failure for the launch contract. The messages
@@ -253,21 +317,34 @@ function taskWorkspaceScopeAuthorityDiagnostic(task: string | undefined): Subage
 	if (!task) return undefined;
 	const text = task.replace(/\s+/g, " ").trim();
 	if (!text) return undefined;
-	const createsWorkspacePackage = /\b(?:add|create|introduce|make|set up)\b.{0,80}\b(?:new\s+)?(?:workspace\s+)?package\b/i.test(text)
-		|| /\b(?:new\s+)?package\b.{0,80}\b(?:workspace|monorepo)\b/i.test(text);
+	const createsWorkspacePackage =
+		/\b(?:add|create|introduce|make|set up)\b.{0,80}\b(?:new\s+)?(?:workspace\s+)?package\b/i.test(text) ||
+		/\b(?:new\s+)?package\b.{0,80}\b(?:workspace|monorepo)\b/i.test(text);
 	if (!createsWorkspacePackage) return undefined;
-	const packageOnlyAuthority = /\b(?:only|solely)\b.{0,40}\b(?:edit|change|modify|touch|write(?:\s+to)?)\b.{0,80}\b(?:package(?:\s+directory)?|packages\/[\w.-]+)\b/i.test(text)
-		|| /\b(?:do not|don't|must not)\b.{0,40}\b(?:edit|change|modify|touch|write(?:\s+to)?)\b.{0,80}\b(?:root|workspace|lockfile|metadata)\b/i.test(text)
-		|| /\bwithout\b.{0,40}\b(?:root|workspace|lockfile|metadata)\b.{0,40}\b(?:edit|change|modification|write)s?\b/i.test(text);
+	const packageOnlyAuthority =
+		/\b(?:only|solely)\b.{0,40}\b(?:edit|change|modify|touch|write(?:\s+to)?)\b.{0,80}\b(?:package(?:\s+directory)?|packages\/[\w.-]+)\b/i.test(
+			text,
+		) ||
+		/\b(?:do not|don't|must not)\b.{0,40}\b(?:edit|change|modify|touch|write(?:\s+to)?)\b.{0,80}\b(?:root|workspace|lockfile|metadata)\b/i.test(
+			text,
+		) ||
+		/\bwithout\b.{0,40}\b(?:root|workspace|lockfile|metadata)\b.{0,40}\b(?:edit|change|modification|write)s?\b/i.test(
+			text,
+		);
 	if (!packageOnlyAuthority) return undefined;
 	return {
 		code: "workspace_scope_authority",
 		severity: "warning",
-		message: "Task asks for a workspace package change while limiting authority to package-scope edits. New workspace packages often need root workspace metadata or lockfile changes, so confirm that authority before launch.",
+		message:
+			"Task asks for a workspace package change while limiting authority to package-scope edits. New workspace packages often need root workspace metadata or lockfile changes, so confirm that authority before launch.",
 	};
 }
 
-function candidateList(inputAgent: string, selected: AgentConfig | undefined, all: AgentDiscoveryAllResult): SubagentLaunchContractAgentCandidate[] {
+function candidateList(
+	inputAgent: string,
+	selected: AgentConfig | undefined,
+	all: AgentDiscoveryAllResult,
+): SubagentLaunchContractAgentCandidate[] {
 	return [...all.builtin, ...all.package, ...all.user, ...all.project]
 		.filter((agent) => Boolean(resolveAgentName(inputAgent, [agent]).agent))
 		.map((agent) => ({
@@ -281,7 +358,9 @@ function candidateList(inputAgent: string, selected: AgentConfig | undefined, al
 		}));
 }
 
-export async function resolveSubagentLaunchContract(input: SubagentLaunchContractInput): Promise<SubagentLaunchContractResult> {
+export async function resolveSubagentLaunchContract(
+	input: SubagentLaunchContractInput,
+): Promise<SubagentLaunchContractResult> {
 	const diagnostics: SubagentLaunchContractDiagnostic[] = [];
 	const authorityDiagnostic = taskWorkspaceScopeAuthorityDiagnostic(input.task);
 	if (authorityDiagnostic) diagnostics.push(authorityDiagnostic);
@@ -292,30 +371,69 @@ export async function resolveSubagentLaunchContract(input: SubagentLaunchContrac
 		}
 	} catch (error) {
 		const detail = error instanceof Error ? ` ${error.message}` : "";
-		return { ok: false, code: "invalid_cwd", message: `cwd '${effectiveCwd}' is not a directory.${detail}`, diagnostics };
+		return {
+			ok: false,
+			code: "invalid_cwd",
+			message: `cwd '${effectiveCwd}' is not a directory.${detail}`,
+			diagnostics,
+		};
 	}
 	if (input.context !== undefined && input.context !== "fresh" && input.context !== "fork") {
-		return { ok: false, code: "unsupported_mode", message: `Unsupported context '${String(input.context)}'; expected 'fresh' or 'fork'.`, diagnostics };
+		return {
+			ok: false,
+			code: "unsupported_mode",
+			message: `Unsupported context '${String(input.context)}'; expected 'fresh' or 'fork'.`,
+			diagnostics,
+		};
 	}
-	if (input.artifactDir !== undefined && input.artifactDir !== "project" && input.artifactDir !== "session" && input.artifactDir !== "temp") {
-		return { ok: false, code: "invalid_artifact_dir", message: `Unsupported artifactDir '${String(input.artifactDir)}'; expected 'project', 'session', or 'temp'.`, diagnostics };
+	if (
+		input.artifactDir !== undefined &&
+		input.artifactDir !== "project" &&
+		input.artifactDir !== "session" &&
+		input.artifactDir !== "temp"
+	) {
+		return {
+			ok: false,
+			code: "invalid_artifact_dir",
+			message: `Unsupported artifactDir '${String(input.artifactDir)}'; expected 'project', 'session', or 'temp'.`,
+			diagnostics,
+		};
 	}
-	const bridgeOverride = input.intercomBridge === undefined ? undefined : validateIntercomBridgeConfig({ value: input.intercomBridge, label: "intercomBridge" });
+	const bridgeOverride =
+		input.intercomBridge === undefined
+			? undefined
+			: validateIntercomBridgeConfig({ value: input.intercomBridge, label: "intercomBridge" });
 	if (bridgeOverride && !bridgeOverride.ok) {
 		return { ok: false, code: "invalid_intercom_bridge", message: bridgeOverride.error, diagnostics };
 	}
 	// Execution always derives a non-empty target, so an empty one here would
 	// silently deactivate the bridge and break parity instead of proving it.
-	if (input.orchestratorTarget !== undefined && (typeof input.orchestratorTarget !== "string" || !input.orchestratorTarget.trim())) {
-		return { ok: false, code: "invalid_intercom_bridge", message: "orchestratorTarget must be a non-empty string when provided.", diagnostics };
+	if (
+		input.orchestratorTarget !== undefined &&
+		(typeof input.orchestratorTarget !== "string" || !input.orchestratorTarget.trim())
+	) {
+		return {
+			ok: false,
+			code: "invalid_intercom_bridge",
+			message: "orchestratorTarget must be a non-empty string when provided.",
+			diagnostics,
+		};
 	}
 	const scope = resolveExecutionAgentScope(input.agentScope);
 	if (input.projectTrusted === false && scope === "project") {
 		const message = projectScopeRequiresTrustMessage(effectiveCwd);
-		return { ok: false, code: "restricted_agent", message, diagnostics: [...diagnostics, { code: "restricted_agent", severity: "error", message }] };
+		return {
+			ok: false,
+			code: "restricted_agent",
+			message,
+			diagnostics: [...diagnostics, { code: "restricted_agent", severity: "error", message }],
+		};
 	}
 	const parentProvider = input.preferredProvider ?? input.parentModel?.provider;
-	const discovery = discoverAgentSnapshot(effectiveCwd, scope, parentProvider, { includeChains: false, projectTrusted: input.projectTrusted });
+	const discovery = discoverAgentSnapshot(effectiveCwd, scope, parentProvider, {
+		includeChains: false,
+		projectTrusted: input.projectTrusted,
+	});
 	const discovered = discovery.effective;
 	const resolvedAgent = resolveAgentName(input.agent, discovered.agents);
 	const ambiguousCandidates = resolvedAgent.error
@@ -324,27 +442,54 @@ export async function resolveSubagentLaunchContract(input: SubagentLaunchContrac
 	const invalidAgent = findBlockingAgentDiagnostic(input.agent, ambiguousCandidates, discovered.agentDiagnostics);
 	if (invalidAgent) {
 		const message = `Agent '${input.agent}' has invalid configuration: ${invalidAgent.error}`;
-		return { ok: false, code: "missing_agent", message, diagnostics: [{ code: "missing_agent", severity: "error", message }] };
+		return {
+			ok: false,
+			code: "missing_agent",
+			message,
+			diagnostics: [{ code: "missing_agent", severity: "error", message }],
+		};
 	}
 	if (resolvedAgent.error) {
 		return { ok: false, code: "ambiguous_agent", message: resolvedAgent.error, diagnostics };
 	}
 	if (!resolvedAgent.agent) {
-		return { ok: false, code: "missing_agent", message: formatUnknownAgentError(input.agent, unknownAgentDiagnosticContext(discovered)), diagnostics };
+		return {
+			ok: false,
+			code: "missing_agent",
+			message: formatUnknownAgentError(input.agent, unknownAgentDiagnosticContext(discovered)),
+			diagnostics,
+		};
 	}
 	const definitionAgent = resolvedAgent.agent;
 	let extensionBindings: ExtensionBindings | undefined;
 	try {
 		extensionBindings = normalizeExtensionBindings(input.extensionBindings)?.value;
 	} catch (error) {
-		return { ok: false, code: "invalid_extension_bindings", message: error instanceof Error ? error.message : String(error), diagnostics };
+		return {
+			ok: false,
+			code: "invalid_extension_bindings",
+			message: error instanceof Error ? error.message : String(error),
+			diagnostics,
+		};
 	}
-	if (extensionBindings !== undefined && (definitionAgent.runner?.type === "external-cli" || definitionAgent.runner?.type === "external-job")) {
-		return { ok: false, code: "unsupported_mode", message: `extensionBindings is not supported for runner.type='${definitionAgent.runner.type}'.`, diagnostics };
+	if (
+		extensionBindings !== undefined &&
+		(definitionAgent.runner?.type === "external-cli" || definitionAgent.runner?.type === "external-job")
+	) {
+		return {
+			ok: false,
+			code: "unsupported_mode",
+			message: `extensionBindings is not supported for runner.type='${definitionAgent.runner.type}'.`,
+			diagnostics,
+		};
 	}
 	const context = resolveLaunchContractContext(input, definitionAgent);
 	if (context === "fork") {
-		diagnostics.push({ code: "host_required", severity: "host-required", message: "Exact fork session branching requires Pi host session snapshots." });
+		diagnostics.push({
+			code: "host_required",
+			severity: "host-required",
+			message: "Exact fork session branching requires Pi host session snapshots.",
+		});
 	}
 	// Execution rewrites the discovered agent through the bridge before any
 	// other launch resolution, so preflight must hash the same rewritten agent.
@@ -355,10 +500,18 @@ export async function resolveSubagentLaunchContract(input: SubagentLaunchContrac
 		orchestratorTarget: input.orchestratorTarget ?? PREFLIGHT_ORCHESTRATOR_TARGET,
 	});
 	if (bridge.active && bridge.interpolatesOrchestratorTarget && input.orchestratorTarget === undefined) {
-		diagnostics.push({ code: "host_required", severity: "host-required", message: "The intercomBridge instruction file names the supervisor session; supply orchestratorTarget to bind the exact child prompt." });
+		diagnostics.push({
+			code: "host_required",
+			severity: "host-required",
+			message:
+				"The intercomBridge instruction file names the supervisor session; supply orchestratorTarget to bind the exact child prompt.",
+		});
 	}
 	const agent = applyIntercomBridgeToAgent(definitionAgent, bridge);
-	const effectiveCapabilityCeiling = intersectSubagentCapabilityCeilings(input.capabilityCeiling, input.inheritedCapabilityCeiling);
+	const effectiveCapabilityCeiling = intersectSubagentCapabilityCeilings(
+		input.capabilityCeiling,
+		input.inheritedCapabilityCeiling,
+	);
 	const restrictionMessage = capabilityCeilingAgentRestrictionMessage(agent.name, effectiveCapabilityCeiling);
 	if (restrictionMessage) return { ok: false, code: "restricted_agent", message: restrictionMessage, diagnostics };
 	const runId = input.runId ?? "preflight";
@@ -380,45 +533,83 @@ export async function resolveSubagentLaunchContract(input: SubagentLaunchContrac
 		agent.filePath ? path.dirname(agent.filePath) : effectiveCwd,
 	);
 	if (resolvedSkills.missing.includes("pi-subagents")) {
-		return { ok: false, code: "missing_skill", message: "The pi-subagents orchestration skill is not child-injectable.", diagnostics };
+		return {
+			ok: false,
+			code: "missing_skill",
+			message: "The pi-subagents orchestration skill is not child-injectable.",
+			diagnostics,
+		};
 	}
-	if (resolvedSkills.missing.length > 0) diagnostics.push({ code: "missing_skill", severity: "error", message: `Missing skills: ${resolvedSkills.missing.join(", ")}` });
+	if (resolvedSkills.missing.length > 0)
+		diagnostics.push({
+			code: "missing_skill",
+			severity: "error",
+			message: `Missing skills: ${resolvedSkills.missing.join(", ")}`,
+		});
 
 	const externalRunner = agent.runner?.type === "external-cli" || agent.runner?.type === "external-job";
 	// Machine placement has no preflight input; execution enforces it. Preview the runner-type admission here.
 	try {
-		assertRequiredChildExtensionsAdmitted([resolveRequiredChildExtensions(input.parentSessionId)], { agent: agent.name, runnerType: agent.runner?.type });
+		assertRequiredChildExtensionsAdmitted([resolveRequiredChildExtensions(input.parentSessionId)], {
+			agent: agent.name,
+			runnerType: agent.runner?.type,
+		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
 		return { ok: false, code: "unsupported_mode", message, diagnostics };
 	}
 	if (externalRunner && behavior.outputSchema) {
-		return { ok: false, code: "unsupported_mode", message: `Agent '${agent.name}' uses runner.type='${agent.runner?.type}' and does not support: structured output.`, diagnostics };
+		return {
+			ok: false,
+			code: "unsupported_mode",
+			message: `Agent '${agent.name}' uses runner.type='${agent.runner?.type}' and does not support: structured output.`,
+			diagnostics,
+		};
 	}
 	const availableModels = normalizeAvailableModels(input.availableModels);
 	const preferredProvider = agent.modelProvider ?? input.preferredProvider ?? input.parentModel?.provider;
-	const modelScopes = resolveModelScopesForAgent(discovered.modelScope, agent.name, input.parentModel, input.scopedModelIds);
-	const modelOrigin = resolveModelOrigin({ explicitModel: input.model, agentModel: agent.model, parentModel: input.parentModel });
+	const modelScopes = resolveModelScopesForAgent(
+		discovered.modelScope,
+		agent.name,
+		input.parentModel,
+		input.scopedModelIds,
+	);
+	const modelOrigin = resolveModelOrigin({
+		explicitModel: input.model,
+		agentModel: agent.model,
+		parentModel: input.parentModel,
+	});
 	const primaryModel = externalRunner
 		? undefined
 		: resolveEffectiveSubagentModel(input.model, agent.model, input.parentModel, availableModels, preferredProvider, {
-			scope: modelScopes,
-			source: modelOrigin === "explicit" ? "explicit" : "inherited",
-		});
+				scope: modelScopes,
+				source: modelOrigin === "explicit" ? "explicit" : "inherited",
+			});
 	const effectiveThinkingConfig = input.thinking !== undefined ? input.thinking : agent.thinking;
-	const thinkingCeiling = externalRunner ? undefined : intersectThinkingCeilings(
-		discovered.maxThinking,
-		input.thinkingCeiling,
-		input.inheritedThinkingCeiling,
-	);
-	const model = externalRunner ? undefined : applyThinkingSuffix(resolveModelSelection(primaryModel, availableModels, preferredProvider, {
-			scope: modelScopes,
-			primaryModelFromParent: modelOrigin === "inherited" || inheritsParentModel(input.model, agent.model, input.parentModel),
-			origin: modelOrigin,
-		}).model, effectiveThinkingConfig, input.thinking !== undefined);
+	const thinkingCeiling = externalRunner
+		? undefined
+		: intersectThinkingCeilings(discovered.maxThinking, input.thinkingCeiling, input.inheritedThinkingCeiling);
+	const model = externalRunner
+		? undefined
+		: applyThinkingSuffix(
+				resolveModelSelection(primaryModel, availableModels, preferredProvider, {
+					scope: modelScopes,
+					primaryModelFromParent:
+						modelOrigin === "inherited" || inheritsParentModel(input.model, agent.model, input.parentModel),
+					origin: modelOrigin,
+				}).model,
+				effectiveThinkingConfig,
+				input.thinking !== undefined,
+			);
 	if (!externalRunner) {
 		try {
-			assertThinkingWithinCeiling({ model, configThinking: effectiveThinkingConfig, ceiling: thinkingCeiling, agent: agent.name, runId });
+			assertThinkingWithinCeiling({
+				model,
+				configThinking: effectiveThinkingConfig,
+				ceiling: thinkingCeiling,
+				agent: agent.name,
+				runId,
+			});
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
 			diagnostics.push({ code: "thinking_ceiling", severity: "error", message });
@@ -434,7 +625,11 @@ export async function resolveSubagentLaunchContract(input: SubagentLaunchContrac
 				model: typeof input.model === "string" ? input.model : undefined,
 				agent,
 				thinking: typeof effectiveThinkingConfig === "string" ? effectiveThinkingConfig : undefined,
-				thinkingCeiling: intersectThinkingCeilings(discovered.maxThinking, input.thinkingCeiling, input.inheritedThinkingCeiling),
+				thinkingCeiling: intersectThinkingCeilings(
+					discovered.maxThinking,
+					input.thinkingCeiling,
+					input.inheritedThinkingCeiling,
+				),
 				agentName: agent.name,
 				runId,
 			});
@@ -475,13 +670,24 @@ export async function resolveSubagentLaunchContract(input: SubagentLaunchContrac
 		return { ok: false, code: "denied_required_tool", message, diagnostics };
 	}
 	const artifactsEnabled = input.artifacts !== false;
-	const artifactsDir = artifactsEnabled ? getArtifactsDir(input.parentSessionFile ?? null, effectiveCwd, input.artifactDir) : undefined;
+	const artifactsDir = artifactsEnabled
+		? getArtifactsDir(input.parentSessionFile ?? null, effectiveCwd, input.artifactDir)
+		: undefined;
 	const artifactPaths = artifactsDir ? getArtifactPaths(artifactsDir, runId, agent.name, 0) : undefined;
-	const outputPath = resolveSingleOutputPath(behavior.output, effectiveCwd, effectiveCwd, artifactsDir ? path.join(artifactsDir, "outputs", runId) : undefined);
+	const outputPath = resolveSingleOutputPath(
+		behavior.output,
+		effectiveCwd,
+		effectiveCwd,
+		artifactsDir ? path.join(artifactsDir, "outputs", runId) : undefined,
+	);
 	// An explicit sessionDir is a root keyed by the child run id, matching the
 	// sibling sessionRoot derivation; hosts omitting runId get the documented
 	// deterministic "preflight" placeholder.
-	const sessionRoot = input.sessionDir ? path.join(path.resolve(input.sessionDir), runId) : input.sessionRoot ? path.join(path.resolve(input.sessionRoot), runId) : undefined;
+	const sessionRoot = input.sessionDir
+		? path.join(path.resolve(input.sessionDir), runId)
+		: input.sessionRoot
+			? path.join(path.resolve(input.sessionRoot), runId)
+			: undefined;
 	const sessionDir = sessionRoot ? path.join(sessionRoot, "run-0") : undefined;
 	const lifecycleAsyncDir = input.nestedRootRunId
 		? path.join(TEMP_ROOT_DIR, "nested-subagent-runs", input.nestedRootRunId, runId)
@@ -489,12 +695,28 @@ export async function resolveSubagentLaunchContract(input: SubagentLaunchContrac
 	const lifecycleResultPath = input.nestedRootRunId
 		? nestedResultsPath(input.nestedRootRunId, runId)
 		: resultFilePath(DIRS.results, runId);
-	if (!sessionDir) diagnostics.push({ code: "host_required", severity: "host-required", message: "No sessionRoot/sessionDir was supplied; exact child session paths require the Pi host session-root policy." });
+	if (!sessionDir)
+		diagnostics.push({
+			code: "host_required",
+			severity: "host-required",
+			message:
+				"No sessionRoot/sessionDir was supplied; exact child session paths require the Pi host session-root policy.",
+		});
 	if (!externalRunner && input.availableModels === undefined && (input.model || agent.model || input.parentModel)) {
-		diagnostics.push({ code: "host_required", severity: "host-required", message: "No availableModels snapshot was supplied; model resolution may differ from the active Pi host registry." });
+		diagnostics.push({
+			code: "host_required",
+			severity: "host-required",
+			message:
+				"No availableModels snapshot was supplied; model resolution may differ from the active Pi host registry.",
+		});
 	}
 	if (resolvedSkills.missing.length > 0) {
-		return { ok: false, code: "missing_skill", message: `Missing skills: ${resolvedSkills.missing.join(", ")}`, diagnostics };
+		return {
+			ok: false,
+			code: "missing_skill",
+			message: `Missing skills: ${resolvedSkills.missing.join(", ")}`,
+			diagnostics,
+		};
 	}
 	const effectiveThinking = resolveEffectiveThinking(model, effectiveThinkingConfig);
 	const binding = resolveLaunchBinding({
@@ -536,7 +758,11 @@ export async function resolveSubagentLaunchContract(input: SubagentLaunchContrac
 		inheritSkills: agent.inheritSkills,
 		skills: {
 			requested: requestedSkills,
-			resolved: resolvedSkills.resolved.map((skill) => ({ name: skill.name, path: skill.path, source: skill.source })),
+			resolved: resolvedSkills.resolved.map((skill) => ({
+				name: skill.name,
+				path: skill.path,
+				source: skill.source,
+			})),
 			missing: resolvedSkills.missing,
 		},
 		tools: {
@@ -554,13 +780,18 @@ export async function resolveSubagentLaunchContract(input: SubagentLaunchContrac
 			configuredExtensions: toolPlan.configuredExtensions,
 			requiredExtensionIds: toolPlan.requiredExtensions.map(({ id }) => id),
 			// Required paths are private launch authority; preflight exposes their safe IDs above.
-			extensionArgs: toolPlan.extensionArgs.filter((extensionPath) => !requiredExtensions.some(({ path }) => path === extensionPath)),
+			extensionArgs: toolPlan.extensionArgs.filter(
+				(extensionPath) => !requiredExtensions.some(({ path }) => path === extensionPath),
+			),
 			disableAmbientExtensions: toolPlan.disableAmbientExtensions,
 			fanoutAuthorized: toolPlan.fanoutAuthorized,
 			...(toolPlan.capabilityCeiling ? { capabilityCeiling: toolPlan.capabilityCeiling } : {}),
 			...(toolPlan.capabilityAudit ? { capabilityAudit: toolPlan.capabilityAudit } : {}),
 		},
-		intercomBridge: bridge.active && bridge.mode !== "off" ? { active: true, mode: bridge.mode } : { active: false, mode: bridge.mode },
+		intercomBridge:
+			bridge.active && bridge.mode !== "off"
+				? { active: true, mode: bridge.mode }
+				: { active: false, mode: bridge.mode },
 		roots: {
 			cwd: effectiveCwd,
 			...(sessionRoot ? { sessionRoot } : {}),

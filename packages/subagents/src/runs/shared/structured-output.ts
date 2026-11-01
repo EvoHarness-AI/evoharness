@@ -4,17 +4,22 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
 import type { Message } from "@evoharness/ai";
-import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../shared/utils.ts";
-import { resolveInstalledPiPackageRoot, resolvePiPackageRoot } from "./pi-spawn.ts";
 import type { JsonSchemaObject } from "../../shared/types.ts";
+import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../shared/utils.ts";
 import type { ResolvedAcceptanceReportMode } from "./acceptance.ts";
+import { resolveInstalledPiPackageRoot, resolvePiPackageRoot } from "./pi-spawn.ts";
 
-export const MISSING_STRUCTURED_OUTPUT_CALL_ERROR = "Missing structured_output call; this step has outputSchema and must finish by calling structured_output.";
-export const STRUCTURED_OUTPUT_FOLLOW_UP = "You ended without calling `structured_output`. Call it now with your result. Do not repeat the work.";
-export const MISSING_STRUCTURED_ACCEPTANCE_REPORT_ERROR = "Missing acceptanceReport in structured_output call; acceptance.report is \"on\".";
+export const MISSING_STRUCTURED_OUTPUT_CALL_ERROR =
+	"Missing structured_output call; this step has outputSchema and must finish by calling structured_output.";
+export const STRUCTURED_OUTPUT_FOLLOW_UP =
+	"You ended without calling `structured_output`. Call it now with your result. Do not repeat the work.";
+export const MISSING_STRUCTURED_ACCEPTANCE_REPORT_ERROR =
+	'Missing acceptanceReport in structured_output call; acceptance.report is "on".';
 export const STRUCTURED_OUTPUT_REJECTION_ERROR = "structured_output was invoked but no valid output was captured.";
-export const INVALID_STRUCTURED_OUTPUT_SCHEMA_ERROR = "Structured output invocation was rejected: invalid outputSchema.";
-export const STRUCTURED_OUTPUT_VALIDATOR_UNAVAILABLE_ERROR = "Structured output invocation was rejected: validator unavailable.";
+export const INVALID_STRUCTURED_OUTPUT_SCHEMA_ERROR =
+	"Structured output invocation was rejected: invalid outputSchema.";
+export const STRUCTURED_OUTPUT_VALIDATOR_UNAVAILABLE_ERROR =
+	"Structured output invocation was rejected: validator unavailable.";
 export const MAX_STRUCTURED_OUTPUT_REJECTION_ERROR_BYTES = 4096;
 const MAX_LISTED_ALLOWED_VALUES = 20;
 
@@ -37,26 +42,41 @@ function messageText(content: unknown): string {
 	if (typeof content === "string") return content;
 	if (!Array.isArray(content)) return "";
 	return content
-		.filter((part): part is { type: "text"; text: string } => Boolean(part) && typeof part === "object" && (part as { type?: unknown }).type === "text" && typeof (part as { text?: unknown }).text === "string")
+		.filter(
+			(part): part is { type: "text"; text: string } =>
+				Boolean(part) &&
+				typeof part === "object" &&
+				(part as { type?: unknown }).type === "text" &&
+				typeof (part as { text?: unknown }).text === "string",
+		)
 		.map((part) => part.text)
 		.join("\n");
 }
 
 function sanitizeStructuredOutputRejection(text: string): string {
-	const withoutControls = text.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "").replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "");
+	const withoutControls = text
+		.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "")
+		.replace(/[\u0000-\u0008\u000b\u000c\u000e-\u001f\u007f]/g, "");
 	if (/invalid outputSchema(?:\s*:|$)/i.test(withoutControls)) return INVALID_STRUCTURED_OUTPUT_SCHEMA_ERROR;
-	if (/failed to validate structured output:|cannot load typebox\/compile/i.test(withoutControls)) return STRUCTURED_OUTPUT_VALIDATOR_UNAVAILABLE_ERROR;
+	if (/failed to validate structured output:|cannot load typebox\/compile/i.test(withoutControls))
+		return STRUCTURED_OUTPUT_VALIDATOR_UNAVAILABLE_ERROR;
 	const validationMarker = "Structured output validation failed:";
 	const markerIndex = withoutControls.indexOf(validationMarker);
 	const diagnostic = markerIndex >= 0 ? withoutControls.slice(markerIndex) : withoutControls;
 	const lines = diagnostic.split(/\r?\n/).filter((line) => {
 		const trimmed = line.trim();
-		return trimmed.length > 0
-			&& !/^at\s/.test(trimmed)
-			&& !/^(?:arguments?|parameters?|submitted value|input|outputSchema|schema|stack)\s*:/i.test(trimmed);
+		return (
+			trimmed.length > 0 &&
+			!/^at\s/.test(trimmed) &&
+			!/^(?:arguments?|parameters?|submitted value|input|outputSchema|schema|stack)\s*:/i.test(trimmed)
+		);
 	});
-	const sanitized = lines.join("\n")
-		.replace(/\b(received|actual|got)(?:\s+value)?\s*[:=]\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\{[^\n]*\}|\[[^\n]*\]|\S+)/gi, "$1: [redacted]")
+	const sanitized = lines
+		.join("\n")
+		.replace(
+			/\b(received|actual|got)(?:\s+value)?\s*[:=]\s*(?:"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'|\{[^\n]*\}|\[[^\n]*\]|\S+)/gi,
+			"$1: [redacted]",
+		)
 		.trim();
 	return sanitized || STRUCTURED_OUTPUT_REJECTION_ERROR;
 }
@@ -68,7 +88,8 @@ export function formatStructuredOutputRejectionError(messages: readonly Message[
 		if (message.role !== "assistant" || !Array.isArray(message.content)) continue;
 		for (const part of message.content) {
 			const call = part as { type?: unknown; id?: unknown; name?: unknown };
-			if (call.type === "toolCall" && call.name === "structured_output" && typeof call.id === "string") toolCallIds.add(call.id);
+			if (call.type === "toolCall" && call.name === "structured_output" && typeof call.id === "string")
+				toolCallIds.add(call.id);
 		}
 	}
 	for (let index = messages.length - 1; index >= 0; index--) {
@@ -77,7 +98,10 @@ export function formatStructuredOutputRejectionError(messages: readonly Message[
 		const matchingName = message.toolName === "structured_output";
 		const matchingId = typeof message.toolCallId === "string" && toolCallIds.has(message.toolCallId);
 		if (!matchingName && !matchingId) continue;
-		return utf8Prefix(sanitizeStructuredOutputRejection(messageText(message.content)), MAX_STRUCTURED_OUTPUT_REJECTION_ERROR_BYTES);
+		return utf8Prefix(
+			sanitizeStructuredOutputRejection(messageText(message.content)),
+			MAX_STRUCTURED_OUTPUT_REJECTION_ERROR_BYTES,
+		);
 	}
 	return STRUCTURED_OUTPUT_REJECTION_ERROR;
 }
@@ -91,7 +115,19 @@ export interface StructuredOutputRuntime {
 }
 
 const SCHEMA_MAP_KEYWORDS = ["properties", "patternProperties", "$defs", "definitions", "dependentSchemas"] as const;
-const SCHEMA_SINGLE_KEYWORDS = ["additionalItems", "additionalProperties", "contains", "not", "propertyNames", "if", "then", "else", "unevaluatedItems", "unevaluatedProperties", "contentSchema"] as const;
+const SCHEMA_SINGLE_KEYWORDS = [
+	"additionalItems",
+	"additionalProperties",
+	"contains",
+	"not",
+	"propertyNames",
+	"if",
+	"then",
+	"else",
+	"unevaluatedItems",
+	"unevaluatedProperties",
+	"contentSchema",
+] as const;
 const SCHEMA_ARRAY_KEYWORDS = ["allOf", "anyOf", "oneOf", "prefixItems"] as const;
 
 function rewriteLocalJsonPointerRefs(schema: unknown, pointerPrefix: string, inheritsWrapperResource = true): unknown {
@@ -103,37 +139,53 @@ function rewriteLocalJsonPointerRefs(schema: unknown, pointerPrefix: string, inh
 		for (const keyword of ["$ref", "$dynamicRef", "$recursiveRef"] as const) {
 			const ref = source[keyword];
 			if (ref === "#") rewritten[keyword] = pointerPrefix;
-			else if (typeof ref === "string" && ref.startsWith("#/")) rewritten[keyword] = `${pointerPrefix}${ref.slice(1)}`;
+			else if (typeof ref === "string" && ref.startsWith("#/"))
+				rewritten[keyword] = `${pointerPrefix}${ref.slice(1)}`;
 		}
 	}
 	for (const keyword of SCHEMA_MAP_KEYWORDS) {
 		const entries = source[keyword];
 		if (!entries || typeof entries !== "object" || Array.isArray(entries)) continue;
-		rewritten[keyword] = Object.fromEntries(Object.entries(entries).map(([name, nested]) => [
-			name,
-			rewriteLocalJsonPointerRefs(nested, pointerPrefix, sharesWrapperResource),
-		]));
+		rewritten[keyword] = Object.fromEntries(
+			Object.entries(entries).map(([name, nested]) => [
+				name,
+				rewriteLocalJsonPointerRefs(nested, pointerPrefix, sharesWrapperResource),
+			]),
+		);
 	}
 	const items = source.items;
-	if (Array.isArray(items)) rewritten.items = items.map((nested) => rewriteLocalJsonPointerRefs(nested, pointerPrefix, sharesWrapperResource));
-	else if (items !== undefined) rewritten.items = rewriteLocalJsonPointerRefs(items, pointerPrefix, sharesWrapperResource);
+	if (Array.isArray(items))
+		rewritten.items = items.map((nested) =>
+			rewriteLocalJsonPointerRefs(nested, pointerPrefix, sharesWrapperResource),
+		);
+	else if (items !== undefined)
+		rewritten.items = rewriteLocalJsonPointerRefs(items, pointerPrefix, sharesWrapperResource);
 	for (const keyword of SCHEMA_SINGLE_KEYWORDS) {
-		if (source[keyword] !== undefined) rewritten[keyword] = rewriteLocalJsonPointerRefs(source[keyword], pointerPrefix, sharesWrapperResource);
+		if (source[keyword] !== undefined)
+			rewritten[keyword] = rewriteLocalJsonPointerRefs(source[keyword], pointerPrefix, sharesWrapperResource);
 	}
 	for (const keyword of SCHEMA_ARRAY_KEYWORDS) {
-		if (Array.isArray(source[keyword])) rewritten[keyword] = source[keyword].map((nested) => rewriteLocalJsonPointerRefs(nested, pointerPrefix, sharesWrapperResource));
+		if (Array.isArray(source[keyword]))
+			rewritten[keyword] = source[keyword].map((nested) =>
+				rewriteLocalJsonPointerRefs(nested, pointerPrefix, sharesWrapperResource),
+			);
 	}
 	const dependencies = source.dependencies;
 	if (dependencies && typeof dependencies === "object" && !Array.isArray(dependencies)) {
-		rewritten.dependencies = Object.fromEntries(Object.entries(dependencies).map(([name, nested]) => [
-			name,
-			Array.isArray(nested) ? nested : rewriteLocalJsonPointerRefs(nested, pointerPrefix, sharesWrapperResource),
-		]));
+		rewritten.dependencies = Object.fromEntries(
+			Object.entries(dependencies).map(([name, nested]) => [
+				name,
+				Array.isArray(nested) ? nested : rewriteLocalJsonPointerRefs(nested, pointerPrefix, sharesWrapperResource),
+			]),
+		);
 	}
 	return rewritten;
 }
 
-export function createStructuredOutputToolParameters(schema: JsonSchemaObject, options: { acceptanceReport?: "optional" | "required" } = {}): JsonSchemaObject {
+export function createStructuredOutputToolParameters(
+	schema: JsonSchemaObject,
+	options: { acceptanceReport?: "optional" | "required" } = {},
+): JsonSchemaObject {
 	return {
 		type: "object",
 		properties: {
@@ -154,7 +206,12 @@ interface JsonSchemaValidationError {
 	keyword?: string;
 	schemaPath?: string;
 	instancePath?: string;
-	params?: { failingKeyword?: string; requiredProperties?: string[]; allowedValues?: unknown[]; allowedValue?: unknown };
+	params?: {
+		failingKeyword?: string;
+		requiredProperties?: string[];
+		allowedValues?: unknown[];
+		allowedValue?: unknown;
+	};
 	message?: string;
 }
 
@@ -183,7 +240,11 @@ async function importCompile(): Promise<CompileJsonSchema> {
 	const envRoot = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV]?.trim() || undefined;
 	if (!envRoot) failures.push(`${PI_CODING_AGENT_PACKAGE_ROOT_ENV} is not set`);
 	const roots = new Map<string, string>();
-	for (const [label, root] of [[PI_CODING_AGENT_PACKAGE_ROOT_ENV, envRoot], ["running Pi package root", resolvePiPackageRoot()], ["installed Pi package root", resolveInstalledPiPackageRoot()]] as const) {
+	for (const [label, root] of [
+		[PI_CODING_AGENT_PACKAGE_ROOT_ENV, envRoot],
+		["running Pi package root", resolvePiPackageRoot()],
+		["installed Pi package root", resolveInstalledPiPackageRoot()],
+	] as const) {
 		if (root && !roots.has(root)) roots.set(root, label);
 	}
 	if (roots.size === 0) failures.push("no Pi package root found");
@@ -234,7 +295,10 @@ function resolveLocalRefs(root: unknown, node: unknown): Record<string, unknown>
 
 type InstanceSchemaStep = { kind: "property"; key: string } | { kind: "index"; index: number };
 
-function traverseInstanceSchema(root: unknown, instancePath: string | undefined): { node: Record<string, unknown>; steps: InstanceSchemaStep[] } | undefined {
+function traverseInstanceSchema(
+	root: unknown,
+	instancePath: string | undefined,
+): { node: Record<string, unknown>; steps: InstanceSchemaStep[] } | undefined {
 	let node = resolveLocalRefs(root, root);
 	const steps: InstanceSchemaStep[] = [];
 	for (const encoded of instancePath?.replace(/^\//, "").split("/") ?? []) {
@@ -261,7 +325,11 @@ function traverseInstanceSchema(root: unknown, instancePath: string | undefined)
 	return node ? { node, steps } : undefined;
 }
 
-function conditionalTarget(root: unknown, schemaPath: string, instancePath: string | undefined): { node: Record<string, unknown>; steps: InstanceSchemaStep[] } | undefined {
+function conditionalTarget(
+	root: unknown,
+	schemaPath: string,
+	instancePath: string | undefined,
+): { node: Record<string, unknown>; steps: InstanceSchemaStep[] } | undefined {
 	const traversed = traverseInstanceSchema(root, instancePath);
 	if (!traversed) return undefined;
 	let pointer = schemaPath;
@@ -282,7 +350,11 @@ function errorKey(error: JsonSchemaValidationError): string {
 	return JSON.stringify([error.keyword, error.instancePath, error.params, error.message]);
 }
 
-function branchDiagnosticSchema(schema: JsonSchemaObject, steps: InstanceSchemaStep[], branch: unknown): JsonSchemaObject {
+function branchDiagnosticSchema(
+	schema: JsonSchemaObject,
+	steps: InstanceSchemaStep[],
+	branch: unknown,
+): JsonSchemaObject {
 	const diagnostic: Record<string, unknown> = {};
 	for (const keyword of ["$schema", "$id", "$defs", "definitions"] as const) {
 		if (schema[keyword] !== undefined) diagnostic[keyword] = schema[keyword];
@@ -307,7 +379,12 @@ function branchDiagnosticSchema(schema: JsonSchemaObject, steps: InstanceSchemaS
 	return diagnostic as JsonSchemaObject;
 }
 
-function expandConditionalError(compile: CompileJsonSchema, schema: JsonSchemaObject, value: unknown, error: JsonSchemaValidationError): { schema: JsonSchemaObject; errors: JsonSchemaValidationError[] } | undefined {
+function expandConditionalError(
+	compile: CompileJsonSchema,
+	schema: JsonSchemaObject,
+	value: unknown,
+	error: JsonSchemaValidationError,
+): { schema: JsonSchemaObject; errors: JsonSchemaValidationError[] } | undefined {
 	const branch = error.params?.failingKeyword;
 	if (error.keyword !== "if" || (branch !== "then" && branch !== "else") || !error.schemaPath) return undefined;
 	try {
@@ -325,12 +402,19 @@ function expandConditionalError(compile: CompileJsonSchema, schema: JsonSchemaOb
 function formatValidationError(error: JsonSchemaValidationError): string[] {
 	const pathText = error.instancePath ? error.instancePath.replace(/^\//, "").replace(/\//g, ".") : "root";
 	if (error.keyword === "required" && error.params?.requiredProperties?.length) {
-		return error.params.requiredProperties.map((property) => `${pathText === "root" ? property : `${pathText}.${property}`}: is required`);
+		return error.params.requiredProperties.map(
+			(property) => `${pathText === "root" ? property : `${pathText}.${property}`}: is required`,
+		);
 	}
 	if (error.keyword === "enum" && error.params?.allowedValues?.length) {
 		const values = error.params.allowedValues;
 		const extra = values.length - MAX_LISTED_ALLOWED_VALUES;
-		return [`${pathText}: must be one of ${values.slice(0, MAX_LISTED_ALLOWED_VALUES).map((value) => JSON.stringify(value)).join(", ")}${extra > 0 ? `, and ${extra} more` : ""}`];
+		return [
+			`${pathText}: must be one of ${values
+				.slice(0, MAX_LISTED_ALLOWED_VALUES)
+				.map((value) => JSON.stringify(value))
+				.join(", ")}${extra > 0 ? `, and ${extra} more` : ""}`,
+		];
 	}
 	if (error.keyword === "const" && error.params && "allowedValue" in error.params) {
 		return [`${pathText}: must be ${JSON.stringify(error.params.allowedValue)}`];
@@ -338,7 +422,14 @@ function formatValidationError(error: JsonSchemaValidationError): string[] {
 	return [`${pathText}: ${error.message}`];
 }
 
-function expandedErrorMessages(compile: CompileJsonSchema, schema: JsonSchemaObject, value: unknown, error: JsonSchemaValidationError, limit: number, seen: Set<string>): string[] {
+function expandedErrorMessages(
+	compile: CompileJsonSchema,
+	schema: JsonSchemaObject,
+	value: unknown,
+	error: JsonSchemaValidationError,
+	limit: number,
+	seen: Set<string>,
+): string[] {
 	if (limit <= 0) return [];
 	const state = `${errorKey(error)}\0${JSON.stringify(schema)}`;
 	if (seen.has(state)) return formatValidationError(error).slice(0, limit);
@@ -347,7 +438,9 @@ function expandedErrorMessages(compile: CompileJsonSchema, schema: JsonSchemaObj
 	if (!expanded) return formatValidationError(error).slice(0, limit);
 	const messages: string[] = [];
 	for (const candidate of expanded.errors) {
-		messages.push(...expandedErrorMessages(compile, expanded.schema, value, candidate, limit - messages.length, seen));
+		messages.push(
+			...expandedErrorMessages(compile, expanded.schema, value, candidate, limit - messages.length, seen),
+		);
 		if (messages.length >= limit) break;
 	}
 	return messages;
@@ -359,7 +452,11 @@ export function assertJsonSchemaObject(schema: unknown, label = "outputSchema"):
 	}
 }
 
-export function createStructuredOutputRuntime(schema: JsonSchemaObject, baseDir?: string, options: { acceptanceReport?: ResolvedAcceptanceReportMode } = {}): StructuredOutputRuntime {
+export function createStructuredOutputRuntime(
+	schema: JsonSchemaObject,
+	baseDir?: string,
+	options: { acceptanceReport?: ResolvedAcceptanceReportMode } = {},
+): StructuredOutputRuntime {
 	assertJsonSchemaObject(schema);
 	const rootDir = baseDir ?? os.tmpdir();
 	fs.mkdirSync(rootDir, { recursive: true });
@@ -372,18 +469,27 @@ export function createStructuredOutputRuntime(schema: JsonSchemaObject, baseDir?
 		schemaPath,
 		outputPath,
 		...(options.acceptanceReport && options.acceptanceReport !== "off"
-			? { acceptanceReportPath: path.join(dir, "acceptance-report.json"), acceptanceReportRequired: options.acceptanceReport === "required" }
+			? {
+					acceptanceReportPath: path.join(dir, "acceptance-report.json"),
+					acceptanceReportRequired: options.acceptanceReport === "required",
+				}
 			: {}),
 	};
 }
 
-export async function validateStructuredOutputValue(schema: JsonSchemaObject, value: unknown): Promise<{ status: "valid" } | { status: "invalid"; message: string }> {
+export async function validateStructuredOutputValue(
+	schema: JsonSchemaObject,
+	value: unknown,
+): Promise<{ status: "valid" } | { status: "invalid"; message: string }> {
 	const compile = await loadCompile();
 	let validator: CompiledJsonSchema;
 	try {
 		validator = compile(schema);
 	} catch (error) {
-		return { status: "invalid", message: `invalid outputSchema: ${error instanceof Error ? error.message : String(error)}` };
+		return {
+			status: "invalid",
+			message: `invalid outputSchema: ${error instanceof Error ? error.message : String(error)}`,
+		};
 	}
 	if (validator.Check(value)) return { status: "valid" };
 	const originalErrors = [...validator.Errors(value)];
@@ -402,7 +508,9 @@ export async function validateStructuredOutputValue(schema: JsonSchemaObject, va
 	return { status: "invalid", message: errors.join("; ") || "schema validation failed" };
 }
 
-export async function readStructuredOutput(runtime: StructuredOutputRuntime): Promise<{ value?: unknown; error?: string }> {
+export async function readStructuredOutput(
+	runtime: StructuredOutputRuntime,
+): Promise<{ value?: unknown; error?: string }> {
 	if (!fs.existsSync(runtime.outputPath)) {
 		return { error: MISSING_STRUCTURED_OUTPUT_CALL_ERROR };
 	}
@@ -414,14 +522,20 @@ export async function readStructuredOutput(runtime: StructuredOutputRuntime): Pr
 	}
 	try {
 		const validation = await validateStructuredOutputValue(runtime.schema, value);
-		if (validation.status === "invalid") return { error: `Structured output validation failed: ${validation.message}` };
+		if (validation.status === "invalid")
+			return { error: `Structured output validation failed: ${validation.message}` };
 	} catch (error) {
-		return { error: `Failed to validate structured output: ${error instanceof Error ? error.message : String(error)}` };
+		return {
+			error: `Failed to validate structured output: ${error instanceof Error ? error.message : String(error)}`,
+		};
 	}
 	return { value };
 }
 
-export function readStructuredOutputAcceptanceReport(runtime: StructuredOutputRuntime): { value?: unknown; error?: string } {
+export function readStructuredOutputAcceptanceReport(runtime: StructuredOutputRuntime): {
+	value?: unknown;
+	error?: string;
+} {
 	if (!runtime.acceptanceReportPath) return {};
 	if (!fs.existsSync(runtime.acceptanceReportPath)) {
 		return runtime.acceptanceReportRequired ? { error: MISSING_STRUCTURED_ACCEPTANCE_REPORT_ERROR } : {};
@@ -429,7 +543,9 @@ export function readStructuredOutputAcceptanceReport(runtime: StructuredOutputRu
 	try {
 		return { value: JSON.parse(fs.readFileSync(runtime.acceptanceReportPath, "utf-8")) as unknown };
 	} catch (error) {
-		return { error: `Failed to read structured output acceptance report: ${error instanceof Error ? error.message : String(error)}` };
+		return {
+			error: `Failed to read structured output acceptance report: ${error instanceof Error ? error.message : String(error)}`,
+		};
 	}
 }
 
@@ -437,7 +553,9 @@ export function readStructuredOutputAcceptanceReport(runtime: StructuredOutputRu
  * Capture callback that persists the structured output (and acceptance report)
  * to the runtime's files, for hosts that read the value back from disk.
  */
-export function createStructuredOutputFileCapture(runtime: StructuredOutputRuntime): (value: unknown, acceptanceReport: unknown | undefined) => void {
+export function createStructuredOutputFileCapture(
+	runtime: StructuredOutputRuntime,
+): (value: unknown, acceptanceReport: unknown | undefined) => void {
 	return (value, acceptanceReport) => {
 		fs.mkdirSync(path.dirname(runtime.outputPath), { recursive: true });
 		if (runtime.acceptanceReportPath && acceptanceReport !== undefined) {

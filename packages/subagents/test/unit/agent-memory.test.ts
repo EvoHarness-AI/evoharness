@@ -4,6 +4,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
+import { handleManagementAction } from "../../src/agents/agent-management.ts";
 import {
 	AGENT_MEMORY_DIR_NAME,
 	AGENT_MEMORY_FILE,
@@ -14,8 +15,12 @@ import {
 	resolveMemoryDir,
 } from "../../src/agents/agent-memory.ts";
 import { serializeAgent } from "../../src/agents/agent-serializer.ts";
-import { discoverAgents, findNearestProjectRoot, type AgentConfig, type AgentMemoryConfig } from "../../src/agents/agents.ts";
-import { handleManagementAction } from "../../src/agents/agent-management.ts";
+import {
+	type AgentConfig,
+	type AgentMemoryConfig,
+	discoverAgents,
+	findNearestProjectRoot,
+} from "../../src/agents/agents.ts";
 
 const tempDirs: string[] = [];
 
@@ -213,10 +218,14 @@ describe("readMemoryFile", () => {
 		const moduleUrl = new URL("../../src/agents/agent-memory.ts", import.meta.url).href;
 		const source = `import { readMemoryFile } from ${JSON.stringify(moduleUrl)};
 console.log(readMemoryFile(process.argv[1]));`;
-		const output = execFileSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "--eval", source, dir], {
-			encoding: "utf8",
-			timeout: 5_000,
-		});
+		const output = execFileSync(
+			process.execPath,
+			["--experimental-strip-types", "--input-type=module", "--eval", source, dir],
+			{
+				encoding: "utf8",
+				timeout: 5_000,
+			},
+		);
 		assert.equal(output.trim(), "null");
 	});
 
@@ -300,7 +309,13 @@ describe("buildAgentMemoryInjection", () => {
 		fs.writeFileSync(path.join(project, ".pi", "agents", "probe.md"), "probe\n");
 		commitFixture(project, ".pi/agents/probe.md");
 		execFileSync("git", ["worktree", "add", "-qb", "probe", worktree], { cwd: project });
-		const expectedFile = path.join(fs.realpathSync.native(project), ".pi", AGENT_MEMORY_DIR_NAME, "probe", AGENT_MEMORY_FILE);
+		const expectedFile = path.join(
+			fs.realpathSync.native(project),
+			".pi",
+			AGENT_MEMORY_DIR_NAME,
+			"probe",
+			AGENT_MEMORY_FILE,
+		);
 		writeMemoryFile(path.dirname(expectedFile), "marker: shared-main-memory\n");
 		const agent = makeAgent({ memory: { scope: "project", path: "probe" }, tools: ["read", "write"] });
 		const previousGitTrace = process.env.GIT_TRACE;
@@ -322,7 +337,10 @@ describe("buildAgentMemoryInjection", () => {
 		const markerFd = fs.openSync(marker, "r+");
 		try {
 			fs.ftruncateSync(markerFd, 0);
-			fs.writeFileSync(markerFd, `gitdir: ${path.relative(fs.realpathSync(worktree), path.resolve(worktree, absoluteGitDir))}\n`);
+			fs.writeFileSync(
+				markerFd,
+				`gitdir: ${path.relative(fs.realpathSync(worktree), path.resolve(worktree, absoluteGitDir))}\n`,
+			);
 		} finally {
 			fs.closeSync(markerFd);
 		}
@@ -340,7 +358,14 @@ describe("buildAgentMemoryInjection", () => {
 		fs.writeFileSync(path.join(project, nested, ".pi", "agents", "probe.md"), "probe\n");
 		commitFixture(project, `${nested}/.pi/agents/probe.md`);
 		execFileSync("git", ["worktree", "add", "-qb", "nested", worktree], { cwd: project });
-		const expectedFile = path.join(fs.realpathSync.native(project), nested, ".pi", AGENT_MEMORY_DIR_NAME, "probe", AGENT_MEMORY_FILE);
+		const expectedFile = path.join(
+			fs.realpathSync.native(project),
+			nested,
+			".pi",
+			AGENT_MEMORY_DIR_NAME,
+			"probe",
+			AGENT_MEMORY_FILE,
+		);
 		writeMemoryFile(path.dirname(expectedFile), "marker: nested-main-memory\n");
 		const agent = makeAgent({ memory: { scope: "project", path: "probe" }, tools: ["read", "write"] });
 		const injection = buildAgentMemoryInjection(agent, path.join(worktree, nested));
@@ -361,7 +386,10 @@ describe("buildAgentMemoryInjection", () => {
 		fs.writeFileSync(path.join(project, ".git"), `gitdir: ${otherGitDir}\n`);
 		writeMemoryFile(path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "probe"), "marker: checkout-local\n");
 		writeMemoryFile(path.join(other, ".pi", AGENT_MEMORY_DIR_NAME, "probe"), "marker: other-repository\n");
-		const injection = buildAgentMemoryInjection(makeAgent({ memory: { scope: "project", path: "probe" }, tools: ["read"] }), project);
+		const injection = buildAgentMemoryInjection(
+			makeAgent({ memory: { scope: "project", path: "probe" }, tools: ["read"] }),
+			project,
+		);
 		assert.match(injection, /marker: checkout-local/);
 		assert.doesNotMatch(injection, /marker: other-repository/);
 	});
@@ -375,7 +403,10 @@ describe("buildAgentMemoryInjection", () => {
 		fs.writeFileSync(path.join(fakeWorktreeGitDir, "gitdir"), `${path.join(project, ".git")}\n`);
 		writeMemoryFile(path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "probe"), "marker: checkout-local\n");
 		writeMemoryFile(path.join(fakeMain, ".pi", AGENT_MEMORY_DIR_NAME, "probe"), "marker: forged-main\n");
-		const injection = buildAgentMemoryInjection(makeAgent({ memory: { scope: "project", path: "probe" }, tools: ["read"] }), project);
+		const injection = buildAgentMemoryInjection(
+			makeAgent({ memory: { scope: "project", path: "probe" }, tools: ["read"] }),
+			project,
+		);
 		assert.match(injection, /marker: checkout-local/);
 		assert.doesNotMatch(injection, /marker: forged-main/);
 	});
@@ -402,10 +433,18 @@ describe("buildAgentMemoryInjection", () => {
 		execFileSync("git", ["init", "-q", `--separate-git-dir=${gitDir}`, project]);
 		writeMemoryFile(path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "probe"), "marker: checkout-local\n");
 		writeMemoryFile(path.join(root, ".pi", AGENT_MEMORY_DIR_NAME, "probe"), "marker: unsupported-remap\n");
-		const injection = buildAgentMemoryInjection(makeAgent({ memory: { scope: "project", path: "probe" }, tools: ["read"] }), project);
+		const injection = buildAgentMemoryInjection(
+			makeAgent({ memory: { scope: "project", path: "probe" }, tools: ["read"] }),
+			project,
+		);
 		assert.match(injection, /marker: checkout-local/);
 		assert.doesNotMatch(injection, /marker: unsupported-remap/);
-		assert.match(injection, new RegExp(`Memory file: ${escapeRegex(path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "probe", AGENT_MEMORY_FILE))}`));
+		assert.match(
+			injection,
+			new RegExp(
+				`Memory file: ${escapeRegex(path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "probe", AGENT_MEMORY_FILE))}`,
+			),
+		);
 	});
 
 	it("injects a read-only block for agents without write tools", () => {
@@ -488,7 +527,9 @@ describe("buildAgentMemoryInjection", () => {
 describe("agent memory frontmatter round-trip", () => {
 	it("parses memory frontmatter during discovery and keeps it out of extraFields", () => {
 		const project = mkProject();
-		fs.writeFileSync(path.join(project, ".pi", "agents", "security-reviewer.md"), `---
+		fs.writeFileSync(
+			path.join(project, ".pi", "agents", "security-reviewer.md"),
+			`---
 name: security-reviewer
 description: Recurring security reviewer
 tools: read, grep, bash, edit
@@ -496,7 +537,9 @@ memory: { scope: project, path: security-reviewer }
 ---
 
 Review for threats.
-`, "utf-8");
+`,
+			"utf-8",
+		);
 
 		const agent = discoverAgents(project, "project").agents.find((a) => a.name === "security-reviewer");
 		assert.ok(agent, "agent should be discovered");
@@ -508,13 +551,15 @@ Review for threats.
 		const agent = makeAgent({ memory: { scope: "user", path: "release-agent" } });
 		const serialized = serializeAgent(agent);
 		assert.match(serialized, /^memory:$/m);
-		assert.match(serialized, /^  scope: user$/m);
-		assert.match(serialized, /^  path: release-agent$/m);
+		assert.match(serialized, /^ {2}scope: user$/m);
+		assert.match(serialized, /^ {2}path: release-agent$/m);
 	});
 
 	it("ignores a malformed memory block without dropping the agent", () => {
 		const project = mkProject();
-		fs.writeFileSync(path.join(project, ".pi", "agents", "bad-memory.md"), `---
+		fs.writeFileSync(
+			path.join(project, ".pi", "agents", "bad-memory.md"),
+			`---
 name: bad-memory
 description: Bad memory config
 memory:
@@ -523,7 +568,9 @@ memory:
 ---
 
 Still loads.
-`, "utf-8");
+`,
+			"utf-8",
+		);
 
 		const agent = discoverAgents(project, "project").agents.find((a) => a.name === "bad-memory");
 		assert.ok(agent, "agent should still be discovered");
@@ -534,7 +581,9 @@ Still loads.
 describe("agent memory in management detail", () => {
 	it("surfaces the memory scope in the get action", () => {
 		const project = mkProject();
-		fs.writeFileSync(path.join(project, ".pi", "agents", "security-reviewer.md"), `---
+		fs.writeFileSync(
+			path.join(project, ".pi", "agents", "security-reviewer.md"),
+			`---
 name: security-reviewer
 description: Recurring security reviewer
 memory:
@@ -543,12 +592,18 @@ memory:
 ---
 
 Review for threats.
-`, "utf-8");
+`,
+			"utf-8",
+		);
 
-		const res = handleManagementAction("get", { agent: "security-reviewer" }, {
-			cwd: project,
-			modelRegistry: { getAvailable: () => [] },
-		});
+		const res = handleManagementAction(
+			"get",
+			{ agent: "security-reviewer" },
+			{
+				cwd: project,
+				modelRegistry: { getAvailable: () => [] },
+			},
+		);
 		assert.equal(res.isError, false);
 		assert.match(res.content[0]?.text ?? "", /Memory: project scope, path: security-reviewer/);
 	});

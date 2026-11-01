@@ -8,7 +8,7 @@ export const MISSION_STATUSES = [
 	"cancelled",
 ] as const;
 
-export type MissionStatus = typeof MISSION_STATUSES[number];
+export type MissionStatus = (typeof MISSION_STATUSES)[number];
 export type MissionRunMode = "single" | "parallel" | "chain" | "workflow" | "scheduled" | "external";
 export type MissionArtifactKind = "status" | "output" | "patch" | "manifest" | "review" | "note" | "other";
 export type MissionReceiptKind = "pull_request" | "ci" | "deployment" | "release";
@@ -77,11 +77,17 @@ export interface MissionWorkflowChild {
 	acceptanceStatus?: string;
 }
 
-export type MissionWorkflowChildUpdate = Pick<MissionWorkflowChild, "workflowRunId" | "key" | "status"> & Partial<Omit<MissionWorkflowChild, "workflowRunId" | "key" | "status" | "startedAt" | "updatedAt" | "artifactPaths" | "heartbeat">> & {
-	startedAt?: string;
-	artifactPaths?: string[];
-	heartbeat?: Omit<MissionChildHeartbeat, "updatedAt"> & { updatedAt?: string };
-};
+export type MissionWorkflowChildUpdate = Pick<MissionWorkflowChild, "workflowRunId" | "key" | "status"> &
+	Partial<
+		Omit<
+			MissionWorkflowChild,
+			"workflowRunId" | "key" | "status" | "startedAt" | "updatedAt" | "artifactPaths" | "heartbeat"
+		>
+	> & {
+		startedAt?: string;
+		artifactPaths?: string[];
+		heartbeat?: Omit<MissionChildHeartbeat, "updatedAt"> & { updatedAt?: string };
+	};
 
 export interface MissionArtifact {
 	kind: MissionArtifactKind;

@@ -9,19 +9,13 @@ describe("fast mode provider request", () => {
 			input: [{ role: "user", content: "test" }],
 		};
 
-		assert.deepEqual(
-			rewriteFastModeProviderRequest({ type: "before_provider_request", payload }),
-			{
-				...payload,
-				service_tier: "priority",
-			},
-		);
+		assert.deepEqual(rewriteFastModeProviderRequest({ type: "before_provider_request", payload }), {
+			...payload,
+			service_tier: "priority",
+		});
 	});
 
 	it("preserves a non-object provider payload", () => {
-		assert.equal(
-			rewriteFastModeProviderRequest({ type: "before_provider_request", payload: "request" }),
-			"request",
-		);
+		assert.equal(rewriteFastModeProviderRequest({ type: "before_provider_request", payload: "request" }), "request");
 	});
 });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { renderWidget } from "../../src/tui/render.ts";
 import type { AsyncJobState, AsyncWidgetLayout } from "../../src/shared/types.ts";
+import { renderWidget } from "../../src/tui/render.ts";
 
 const theme = { fg: (_color: string, text: string) => text, bold: (text: string) => text };
 const click = { type: "click", button: "left", y: 0, shift: false, alt: false, ctrl: false };
@@ -10,7 +10,12 @@ type WidgetFactory = (tui: { requestRender(): void }, widgetTheme: typeof theme)
 
 const agents = ["scout", "reviewer", "worker", "tester"];
 const jobs: AsyncJobState[] = agents.map((agent) => ({
-	asyncId: `run-${agent}`, asyncDir: `/tmp/run-${agent}`, status: "running", mode: "single", agents: [agent], currentTool: "read",
+	asyncId: `run-${agent}`,
+	asyncDir: `/tmp/run-${agent}`,
+	status: "running",
+	mode: "single",
+	agents: [agent],
+	currentTool: "read",
 }));
 
 function detailRows(lines: string[]): string[] {
@@ -22,10 +27,13 @@ function mountWidget(layout: AsyncWidgetLayout, initiallyCollapsed = false) {
 	let widget: Widget | undefined;
 	let expanded = false;
 	const ctx = {
-		hasUI: true, mode: "tui",
+		hasUI: true,
+		mode: "tui",
 		ui: {
 			getToolsExpanded: () => expanded,
-			setWidget: (_key: string, factory: WidgetFactory | undefined) => { widget = factory?.({ requestRender() {} }, theme); },
+			setWidget: (_key: string, factory: WidgetFactory | undefined) => {
+				widget = factory?.({ requestRender() {} }, theme);
+			},
 		},
 	};
 	// SAFETY: the TUI path only reads hasUI, mode, and the supplied widget/expansion methods.
@@ -35,7 +43,9 @@ function mountWidget(layout: AsyncWidgetLayout, initiallyCollapsed = false) {
 	return {
 		lines: () => widget!.render(120).map((line) => line.trimEnd()),
 		click: () => assert.deepEqual(widget!.handleMouse(click), { handled: true }),
-		setExpanded: (value: boolean) => { expanded = value; },
+		setExpanded: (value: boolean) => {
+			expanded = value;
+		},
 	};
 }
 
@@ -62,7 +72,8 @@ describe("async widget layout", () => {
 		const lines = mountWidget("rows").lines();
 		assert.equal(lines.length, 1 + jobs.length, lines.join("\n"));
 		assert.match(lines[0]!, /^ \S Async agents · 4 agents running$/);
-		for (const [index, agent] of agents.entries()) assert.match(lines[index + 1]!, new RegExp(`^ {3}\\S ${agent} · running · read$`));
+		for (const [index, agent] of agents.entries())
+			assert.match(lines[index + 1]!, new RegExp(`^ {3}\\S ${agent} · running · read$`));
 	});
 
 	it("folds to the count line on a header click or when configured folded, in both layouts", () => {
@@ -103,10 +114,26 @@ describe("async widget layout", () => {
 			clock = 1_000_000;
 			Date.now = () => clock;
 		});
-		const job = (asyncId: string, status: AsyncJobState["status"], startedAt?: number): AsyncJobState => ({ asyncId, asyncDir: `/tmp/${asyncId}`, status, mode: "single", agents: ["scout"], startedAt });
+		const job = (asyncId: string, status: AsyncJobState["status"], startedAt?: number): AsyncJobState => ({
+			asyncId,
+			asyncDir: `/tmp/${asyncId}`,
+			status,
+			mode: "single",
+			agents: ["scout"],
+			startedAt,
+		});
 		function foldedWidget() {
 			let widget: Widget | undefined;
-			const ctx = { hasUI: true, mode: "tui", ui: { getToolsExpanded: () => false, setWidget: (_key: string, factory: WidgetFactory | undefined) => { widget = factory?.({ requestRender() {} }, theme); } } };
+			const ctx = {
+				hasUI: true,
+				mode: "tui",
+				ui: {
+					getToolsExpanded: () => false,
+					setWidget: (_key: string, factory: WidgetFactory | undefined) => {
+						widget = factory?.({ requestRender() {} }, theme);
+					},
+				},
+			};
 			// SAFETY: the TUI path only reads hasUI, mode, and the supplied widget/expansion methods.
 			return (shown: AsyncJobState[]) => {
 				renderWidget(ctx as never, shown, true);

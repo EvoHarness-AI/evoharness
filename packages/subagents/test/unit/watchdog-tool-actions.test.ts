@@ -58,7 +58,12 @@ describe("watchdog tool actions", () => {
 
 	it("configures the recommended model for the current session without writing settings", () => {
 		const runtime = new MainWatchdogRuntime({ cwd: tempProject });
-		const result = handleWatchdogToolAction("watchdog.configure", { model: "recommended" }, createCtx({ provider: "openai-codex", id: "gpt-5.5" }), runtime);
+		const result = handleWatchdogToolAction(
+			"watchdog.configure",
+			{ model: "recommended" },
+			createCtx({ provider: "openai-codex", id: "gpt-5.5" }),
+			runtime,
+		);
 
 		assert.equal(result.isError, undefined);
 		assert.match(text(result), /session model configured: anthropic\/claude-opus-4-8:high/);
@@ -90,7 +95,12 @@ describe("watchdog tool actions", () => {
 		const runtime = new MainWatchdogRuntime({ cwd: tempProject });
 		const ctx = createCtx({ provider: "openai-codex", id: "gpt-5.5" });
 		runtime.setSessionModel({ model: "custom/unavailable", thinking: "low" }, tempProject);
-		const result = handleWatchdogToolAction("watchdog.configure", { model: "recommended", scope: "user" }, ctx, runtime);
+		const result = handleWatchdogToolAction(
+			"watchdog.configure",
+			{ model: "recommended", scope: "user" },
+			ctx,
+			runtime,
+		);
 		assert.equal(result.isError, true);
 		assert.match(text(result), /was not found/);
 		assert.equal(runtime.getSnapshot(tempProject).config.main.model, "custom/unavailable");
@@ -118,7 +128,12 @@ describe("watchdog tool actions", () => {
 		const before = runtime.getSnapshot(tempProject).config.main;
 		for (const scope of ["session", "user"]) {
 			// SAFETY: Deliberately pass invalid tool JSON to prove the false-only runtime contract.
-			const result = handleWatchdogToolAction("watchdog.configure", { scope, thinking: true as never }, ctx, runtime);
+			const result = handleWatchdogToolAction(
+				"watchdog.configure",
+				{ scope, thinking: true as never },
+				ctx,
+				runtime,
+			);
 			assert.equal(result.isError, true);
 			assert.match(text(result), /Unsupported watchdog thinking 'true'/);
 			assert.deepEqual(runtime.getSnapshot(tempProject).config.main, before);
@@ -129,7 +144,12 @@ describe("watchdog tool actions", () => {
 
 	it("persists the recommended model when user scope is explicit", () => {
 		const runtime = new MainWatchdogRuntime({ cwd: tempProject });
-		const result = handleWatchdogToolAction("watchdog.configure", { scope: "user", model: "recommended" }, createCtx({ provider: "anthropic", id: "claude-opus-4-8" }), runtime);
+		const result = handleWatchdogToolAction(
+			"watchdog.configure",
+			{ scope: "user", model: "recommended" },
+			createCtx({ provider: "anthropic", id: "claude-opus-4-8" }),
+			runtime,
+		);
 
 		assert.equal(result.isError, undefined);
 		const settings = JSON.parse(fs.readFileSync(path.join(tempHome, ".pi", "agent", "settings.json"), "utf-8"));

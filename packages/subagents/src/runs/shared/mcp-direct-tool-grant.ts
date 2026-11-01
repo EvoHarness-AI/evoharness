@@ -98,7 +98,8 @@ export function planMcpDirectToolGrant(input: McpDirectToolGrantInput): McpDirec
 
 		if (server.exposeResources === false) continue;
 		for (const resource of Array.isArray(metadata.resources) ? metadata.resources : []) {
-			if (typeof resource?.name !== "string" || !resource.name || typeof resource.uri !== "string" || !resource.uri) continue;
+			if (typeof resource?.name !== "string" || !resource.name || typeof resource.uri !== "string" || !resource.uri)
+				continue;
 			const baseName = `get_${resourceNameToToolName(resource.name)}`;
 			if (toolFilter !== true && !toolFilter.has(baseName)) continue;
 			if (!isToolAllowed(baseName, serverName, prefix, server.includeTools, server.excludeTools)) continue;
@@ -134,7 +135,9 @@ function getServerPrefix(serverName: string, mode: McpToolPrefix): string {
 
 /** Adapter parity: characters outside [A-Za-z0-9_-] become `_<code point in hex>_`. */
 function sanitizeServerPrefix(serverName: string): string {
-	return Array.from(serverName, (char) => /^[A-Za-z0-9_-]$/.test(char) ? char : `_${char.codePointAt(0)!.toString(16)}_`).join("");
+	return Array.from(serverName, (char) =>
+		/^[A-Za-z0-9_-]$/.test(char) ? char : `_${char.codePointAt(0)!.toString(16)}_`,
+	).join("");
 }
 
 function formatToolName(toolName: string, serverName: string, prefix: McpToolPrefix): string {
@@ -157,8 +160,10 @@ function isToolAllowed(
 	excludeTools: readonly unknown[] | undefined,
 ): boolean {
 	const candidates = toolNameCandidates(toolName, serverName, prefix);
-	return (!Array.isArray(includeTools) || includeTools.length === 0 || matchesToolPatterns(candidates, includeTools))
-		&& !matchesToolPatterns(candidates, excludeTools);
+	return (
+		(!Array.isArray(includeTools) || includeTools.length === 0 || matchesToolPatterns(candidates, includeTools)) &&
+		!matchesToolPatterns(candidates, excludeTools)
+	);
 }
 
 function toolNameCandidates(toolName: string, serverName: string, prefix: McpToolPrefix): Set<string> {
@@ -178,9 +183,10 @@ function matchesToolPatterns(candidates: ReadonlySet<string>, patterns: readonly
 	for (const pattern of patterns) {
 		if (typeof pattern !== "string") continue;
 		const normalizedPattern = normalizeToolName(pattern);
-		const matcher = normalizedPattern.includes("*") || normalizedPattern.includes("?")
-			? globToRegExp(normalizedPattern)
-			: undefined;
+		const matcher =
+			normalizedPattern.includes("*") || normalizedPattern.includes("?")
+				? globToRegExp(normalizedPattern)
+				: undefined;
 		for (const candidate of candidates) {
 			const normalizedCandidate = normalizeToolName(candidate);
 			if (matcher ? matcher.test(normalizedCandidate) : normalizedCandidate === normalizedPattern) return true;
@@ -190,7 +196,10 @@ function matchesToolPatterns(candidates: ReadonlySet<string>, patterns: readonly
 }
 
 function globToRegExp(pattern: string): RegExp {
-	const escaped = pattern.replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*").replace(/\?/g, ".");
+	const escaped = pattern
+		.replace(/[.+^${}()|[\]\\]/g, "\\$&")
+		.replace(/\*/g, ".*")
+		.replace(/\?/g, ".");
 	return new RegExp(`^${escaped}$`);
 }
 

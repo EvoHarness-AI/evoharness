@@ -5,7 +5,12 @@ import { recommendStrongWatchdogModel, resolveWatchdogModelInput } from "../../s
 function createCtx(
 	current: { provider: string; id: string },
 	authenticated: string[] = ["openai-codex/gpt-5.5", "anthropic/claude-opus-4-8"],
-	models: Array<{ provider: string; id: string; reasoning: boolean; thinkingLevelMap?: Record<string, string | null> }> = [
+	models: Array<{
+		provider: string;
+		id: string;
+		reasoning: boolean;
+		thinkingLevelMap?: Record<string, string | null>;
+	}> = [
 		{ provider: "openai-codex", id: "gpt-5.5", reasoning: true },
 		{ provider: "anthropic", id: "claude-opus-4-8", reasoning: true },
 	],
@@ -16,7 +21,8 @@ function createCtx(
 		modelRegistry: {
 			getAvailable: () => models,
 			find: (provider: string, id: string) => models.find((model) => model.provider === provider && model.id === id),
-			hasConfiguredAuth: (model: { provider: string; id: string }) => authenticated.includes(`${model.provider}/${model.id}`),
+			hasConfiguredAuth: (model: { provider: string; id: string }) =>
+				authenticated.includes(`${model.provider}/${model.id}`),
 		},
 	} as never;
 }
@@ -38,7 +44,10 @@ describe("watchdog model selection", () => {
 
 	it("requires the complementary strong model to be authenticated", () => {
 		assert.throws(
-			() => recommendStrongWatchdogModel(createCtx({ provider: "openai-codex", id: "gpt-5.5" }, ["openai-codex/gpt-5.5"])),
+			() =>
+				recommendStrongWatchdogModel(
+					createCtx({ provider: "openai-codex", id: "gpt-5.5" }, ["openai-codex/gpt-5.5"]),
+				),
 			/No authenticated strong complementary watchdog model/,
 		);
 	});
@@ -53,15 +62,15 @@ describe("watchdog model selection", () => {
 			model: { provider: "anthropic", id: "claude-opus-4-8" },
 			modelRegistry: {
 				getAvailable: () => models,
-				find: (provider: string, id: string) => models.find((model) => model.provider === provider && model.id === id),
-				hasConfiguredAuth: (model: { provider: string; id: string }) => `${model.provider}/${model.id}` === "openai-codex/gpt-5.5-mini" || `${model.provider}/${model.id}` === "openai-codex/gpt-5.5-20250101-mini",
+				find: (provider: string, id: string) =>
+					models.find((model) => model.provider === provider && model.id === id),
+				hasConfiguredAuth: (model: { provider: string; id: string }) =>
+					`${model.provider}/${model.id}` === "openai-codex/gpt-5.5-mini" ||
+					`${model.provider}/${model.id}` === "openai-codex/gpt-5.5-20250101-mini",
 			},
 		} as never;
 
-		assert.throws(
-			() => recommendStrongWatchdogModel(ctx),
-			/No authenticated strong complementary watchdog model/,
-		);
+		assert.throws(() => recommendStrongWatchdogModel(ctx), /No authenticated strong complementary watchdog model/);
 	});
 
 	it("does not treat dated Opus mini variants as the strong Opus 4.8 watchdog", () => {
@@ -71,15 +80,14 @@ describe("watchdog model selection", () => {
 			model: { provider: "openai-codex", id: "gpt-5.5" },
 			modelRegistry: {
 				getAvailable: () => models,
-				find: (provider: string, id: string) => models.find((model) => model.provider === provider && model.id === id),
-				hasConfiguredAuth: (model: { provider: string; id: string }) => `${model.provider}/${model.id}` === "anthropic/claude-opus-4-8-20250101-mini",
+				find: (provider: string, id: string) =>
+					models.find((model) => model.provider === provider && model.id === id),
+				hasConfiguredAuth: (model: { provider: string; id: string }) =>
+					`${model.provider}/${model.id}` === "anthropic/claude-opus-4-8-20250101-mini",
 			},
 		} as never;
 
-		assert.throws(
-			() => recommendStrongWatchdogModel(ctx),
-			/No authenticated strong complementary watchdog model/,
-		);
+		assert.throws(() => recommendStrongWatchdogModel(ctx), /No authenticated strong complementary watchdog model/);
 	});
 
 	it("does not treat cheap-prefixed variants as strong watchdog families", () => {
@@ -92,19 +100,22 @@ describe("watchdog model selection", () => {
 			model: { provider: "anthropic", id: "claude-opus-4-8" },
 			modelRegistry: {
 				getAvailable: () => models,
-				find: (provider: string, id: string) => models.find((model) => model.provider === provider && model.id === id),
-				hasConfiguredAuth: (model: { provider: string; id: string }) => `${model.provider}/${model.id}` === "openai-codex/cheap-gpt-5.5" || `${model.provider}/${model.id}` === "anthropic/cheap-claude-opus-4-8",
+				find: (provider: string, id: string) =>
+					models.find((model) => model.provider === provider && model.id === id),
+				hasConfiguredAuth: (model: { provider: string; id: string }) =>
+					`${model.provider}/${model.id}` === "openai-codex/cheap-gpt-5.5" ||
+					`${model.provider}/${model.id}` === "anthropic/cheap-claude-opus-4-8",
 			},
 		} as never;
 
-		assert.throws(
-			() => recommendStrongWatchdogModel(ctx),
-			/No authenticated strong complementary watchdog model/,
-		);
+		assert.throws(() => recommendStrongWatchdogModel(ctx), /No authenticated strong complementary watchdog model/);
 	});
 
 	it("canonicalizes explicit models and preserves thinking suffixes", () => {
-		const resolved = resolveWatchdogModelInput(createCtx({ provider: "anthropic", id: "claude-opus-4-8" }), "openai-codex/gpt-5-5:high");
+		const resolved = resolveWatchdogModelInput(
+			createCtx({ provider: "anthropic", id: "claude-opus-4-8" }),
+			"openai-codex/gpt-5-5:high",
+		);
 
 		assert.equal(resolved.model, "openai-codex/gpt-5.5");
 		assert.equal(resolved.thinking, "high");

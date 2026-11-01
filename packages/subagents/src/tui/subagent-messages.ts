@@ -1,12 +1,22 @@
 import { getMarkdownTheme, keyText, type Theme, type ThemeColor } from "@evoharness/coding-agent";
-import { Box, Container, Markdown, MouseRegion, Spacer, truncateToWidth, type Component } from "@evoharness/tui";
+import { Box, type Component, Container, Markdown, MouseRegion, Spacer, truncateToWidth } from "@evoharness/tui";
 import { SUBAGENT_CONTROL_MESSAGE_TYPE } from "../extension/control-notices.ts";
 import { SUBAGENT_STEERING_MESSAGE_TYPE } from "../extension/steering-notices.ts";
-import { parseSupervisorReplyData, parseSupervisorRequestDetails, SUPERVISOR_REPLY_ENTRY_TYPE, SUPERVISOR_REQUEST_MESSAGE_TYPE } from "../intercom/supervisor-ui.ts";
+import {
+	parseSupervisorReplyData,
+	parseSupervisorRequestDetails,
+	SUPERVISOR_REPLY_ENTRY_TYPE,
+	SUPERVISOR_REQUEST_MESSAGE_TYPE,
+} from "../intercom/supervisor-ui.ts";
 import { parseSubagentNotifyContent } from "../runs/background/notify.ts";
 import { safeTerminalText } from "../shared/display-text.ts";
 import { formatWatchdogWarningRenderText, stateLabels } from "../watchdog/render.ts";
-import { SUBAGENT_WATCHDOG_WARNING_TYPE, WATCHDOG_WARNING_IMPORTANCES, WATCHDOG_WARNING_SEVERITIES, type WatchdogWarning } from "../watchdog/types.ts";
+import {
+	SUBAGENT_WATCHDOG_WARNING_TYPE,
+	WATCHDOG_WARNING_IMPORTANCES,
+	WATCHDOG_WARNING_SEVERITIES,
+	type WatchdogWarning,
+} from "../watchdog/types.ts";
 import { normalizeWatchdogWarningDetails } from "../watchdog/warning-format.ts";
 
 interface SubagentMessage {
@@ -78,11 +88,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function contentText(content: unknown): string {
 	if (typeof content === "string") return content;
 	if (!Array.isArray(content)) return "";
-	return content.flatMap((part: unknown) => isRecord(part) && typeof part.text === "string" ? [part.text] : []).join("\n");
+	return content
+		.flatMap((part: unknown) => (isRecord(part) && typeof part.text === "string" ? [part.text] : []))
+		.join("\n");
 }
 
 /** A message that expands to the text the main agent read. */
-function readsContent(kind: MessageKind, headline: (message: SubagentMessage) => Headline): (message: SubagentMessage) => BlockView {
+function readsContent(
+	kind: MessageKind,
+	headline: (message: SubagentMessage) => Headline,
+): (message: SubagentMessage) => BlockView {
 	return (message) => ({ kind, headline: headline(message), body: contentText(message.content) });
 }
 
@@ -96,7 +111,8 @@ function supervisorRequestHeadline(details: unknown): Headline {
 
 function controlNoticeHeadline(details: unknown): Headline {
 	const event = isRecord(details) ? details.event : undefined;
-	if (!isRecord(event) || typeof event.agent !== "string" || typeof event.type !== "string") return ["subagent notice"];
+	if (!isRecord(event) || typeof event.agent !== "string" || typeof event.type !== "string")
+		return ["subagent notice"];
 	if (event.type === "needs_attention") return [`${event.agent} `, { status: "needs attention" }];
 	return [`${event.agent} ${event.type.replaceAll("_", " ")}`];
 }
@@ -109,7 +125,7 @@ function steeringNoticeHeadline(details: unknown): Headline {
 }
 
 const RUN_STATUSES = ["completed", "failed", "paused", "stopped"] as const;
-type RunStatus = typeof RUN_STATUSES[number];
+type RunStatus = (typeof RUN_STATUSES)[number];
 
 function isRunStatus(value: unknown): value is RunStatus {
 	return RUN_STATUSES.some((status) => status === value);
@@ -119,7 +135,11 @@ function isRunStatus(value: unknown): value is RunStatus {
 function completionRuns(message: SubagentMessage): Array<{ agent: string; status: RunStatus }> | undefined {
 	const runs = isRecord(message.details) ? message.details.runs : undefined;
 	if (Array.isArray(runs)) {
-		const parsed = runs.flatMap((run: unknown) => isRecord(run) && typeof run.agent === "string" && isRunStatus(run.status) ? [{ agent: run.agent, status: run.status }] : []);
+		const parsed = runs.flatMap((run: unknown) =>
+			isRecord(run) && typeof run.agent === "string" && isRunStatus(run.status)
+				? [{ agent: run.agent, status: run.status }]
+				: [],
+		);
 		if (parsed.length === runs.length && parsed.length > 0) return parsed;
 	}
 	const saved = parseSubagentNotifyContent(contentText(message.content));
@@ -130,7 +150,8 @@ function completionHeadline(message: SubagentMessage): Headline {
 	const runs = completionRuns(message);
 	if (runs?.length === 1) return [`${runs[0]!.agent} `, { status: runs[0]!.status }];
 	if (runs) {
-		if (runs.every((run) => run.status === "completed")) return [`${runs.length} background runs `, { status: "completed" }];
+		if (runs.every((run) => run.status === "completed"))
+			return [`${runs.length} background runs `, { status: "completed" }];
 		const counts = (["failed", "paused", "stopped"] as const).flatMap((status) => {
 			const count = runs.filter((run) => run.status === status).length;
 			return count ? [` · ${count} `, { status }] : [];
@@ -148,7 +169,8 @@ function supervisorReminderHeadline(details: unknown, status: "unanswered" | "bl
 }
 
 function waitSubscriptionHeadline(details: unknown): Headline {
-	if (!isRecord(details) || typeof details.runId !== "string" || typeof details.outcome !== "string") return ["bg_wait fired"];
+	if (!isRecord(details) || typeof details.runId !== "string" || typeof details.outcome !== "string")
+		return ["bg_wait fired"];
 	return [`bg_wait: run ${details.runId} `, { status: details.outcome }];
 }
 
@@ -158,18 +180,22 @@ function workflowChildHeadline(message: SubagentMessage): Headline {
 	if (isRecord(details) && typeof details.childKey === "string" && isRunStatus(details.outcome)) {
 		return [`workflow child ${details.childKey} `, { status: details.outcome }];
 	}
-	const saved = /^Workflow child (completed|failed|paused|stopped)(?: \(needs attention\))?: \*\*(.+)\*\*$/m.exec(contentText(message.content));
+	const saved = /^Workflow child (completed|failed|paused|stopped)(?: \(needs attention\))?: \*\*(.+)\*\*$/m.exec(
+		contentText(message.content),
+	);
 	return saved ? [`workflow child ${saved[2]} `, { status: saved[1]! }] : ["workflow child update"];
 }
 
 function isWatchdogWarning(value: unknown): value is WatchdogWarning {
 	if (!isRecord(value)) return false;
-	return WATCHDOG_WARNING_SEVERITIES.some((known) => known === value.severity)
-		&& WATCHDOG_WARNING_IMPORTANCES.some((known) => known === value.importance)
-		&& (value.category === undefined || typeof value.category === "string")
-		&& typeof value.summary === "string"
-		&& typeof value.evidence === "string"
-		&& typeof value.recommendedAction === "string";
+	return (
+		WATCHDOG_WARNING_SEVERITIES.some((known) => known === value.severity) &&
+		WATCHDOG_WARNING_IMPORTANCES.some((known) => known === value.importance) &&
+		(value.category === undefined || typeof value.category === "string") &&
+		typeof value.summary === "string" &&
+		typeof value.evidence === "string" &&
+		typeof value.recommendedAction === "string"
+	);
 }
 
 /** The model reads watchdog warnings as XML; people get the watchdog's readable text. */
@@ -203,19 +229,31 @@ function supervisorReplyView(data: unknown): BlockView {
 
 const MESSAGE_VIEWS = new Map<string, (message: SubagentMessage) => BlockView>([
 	[SUPERVISOR_REQUEST_MESSAGE_TYPE, readsContent("ask", (message) => supervisorRequestHeadline(message.details))],
-	["subagent-supervisor-unanswered", readsContent("ask", (message) => supervisorReminderHeadline(message.details, "unanswered"))],
-	["subagent-supervisor-blocked", readsContent("ask", (message) => supervisorReminderHeadline(message.details, "blocked"))],
+	[
+		"subagent-supervisor-unanswered",
+		readsContent("ask", (message) => supervisorReminderHeadline(message.details, "unanswered")),
+	],
+	[
+		"subagent-supervisor-blocked",
+		readsContent("ask", (message) => supervisorReminderHeadline(message.details, "blocked")),
+	],
 	["subagent-notify", readsContent("result", completionHeadline)],
 	["subagent-completion-unanswered", readsContent("result", () => ["completion results ", { status: "unanswered" }])],
 	["subagent-completion-unhandled", readsContent("result", () => ["completion results ", { status: "unhandled" }])],
 	["subagent-wait-subscription", readsContent("result", (message) => waitSubscriptionHeadline(message.details))],
 	["subagent-incremental-child-notify", readsContent("result", workflowChildHeadline)],
-	["subagent-workflow-result-write-failed", readsContent("result", () => ["workflow result ", { status: "save failed" }])],
+	[
+		"subagent-workflow-result-write-failed",
+		readsContent("result", () => ["workflow result ", { status: "save failed" }]),
+	],
 	["subagent-auto-resume", readsContent("result", () => ["workflow auto-resume ", { status: "failed" }])],
 	[SUBAGENT_CONTROL_MESSAGE_TYPE, readsContent("attention", (message) => controlNoticeHeadline(message.details))],
 	[SUBAGENT_STEERING_MESSAGE_TYPE, readsContent("attention", (message) => steeringNoticeHeadline(message.details))],
 	[SUBAGENT_WATCHDOG_WARNING_TYPE, (message) => watchdogWarningView(message.details, contentText(message.content))],
-	["subagent_watchdog_clarification", readsContent("watchdog", () => ["watchdog ", { status: "needs clarification" }])],
+	[
+		"subagent_watchdog_clarification",
+		readsContent("watchdog", () => ["watchdog ", { status: "needs clarification" }]),
+	],
 ]);
 
 const ENTRY_VIEWS = new Map<string, (entry: SubagentEntry) => BlockView>([
@@ -279,28 +317,44 @@ class SubagentMessageBlock extends Box {
 		const content = new Container();
 		const title = `${theme.fg(KIND_LABEL_COLORS[view.kind], theme.bold("[subagent]"))} ${headlineText(view.headline, theme)}`;
 		const expanded = this.isExpanded();
-		const line = expanded ? title : `${title} ${theme.fg("dim", `(${keyText("app.tools.expand") || "click"} to expand)`)}`;
+		const line = expanded
+			? title
+			: `${title} ${theme.fg("dim", `(${keyText("app.tools.expand") || "click"} to expand)`)}`;
 		content.addChild({ render: (width) => [truncateToWidth(line, width, "…")], invalidate() {} });
 		if (expanded && view.body.trim()) {
 			content.addChild(new Spacer(1));
-			content.addChild(new Markdown(safeTerminalText(view.body), 0, 0, getMarkdownTheme(), { color: (text) => theme.fg("customMessageText", text) }));
+			content.addChild(
+				new Markdown(safeTerminalText(view.body), 0, 0, getMarkdownTheme(), {
+					color: (text) => theme.fg("customMessageText", text),
+				}),
+			);
 		}
 		this.clear();
-		this.addChild(new MouseRegion(content, (event) => {
-			if (event.type !== "click" || event.button !== "left") return undefined;
-			clickedBlocks.set(this.source, { expandedByPi: this.expandedByPi, expanded: !this.isExpanded() });
-			this.rebuild();
-			return { handled: true };
-		}));
+		this.addChild(
+			new MouseRegion(content, (event) => {
+				if (event.type !== "click" || event.button !== "left") return undefined;
+				clickedBlocks.set(this.source, { expandedByPi: this.expandedByPi, expanded: !this.isExpanded() });
+				this.rebuild();
+				return { handled: true };
+			}),
+		);
 	}
 }
 
-export function renderSubagentMessage(message: SubagentMessage, options: { expanded: boolean }, theme: Theme): Component | undefined {
+export function renderSubagentMessage(
+	message: SubagentMessage,
+	options: { expanded: boolean },
+	theme: Theme,
+): Component | undefined {
 	const view = MESSAGE_VIEWS.get(message.customType)?.(message);
 	return view ? new SubagentMessageBlock(message, view, options.expanded, theme) : undefined;
 }
 
-export function renderSubagentEntry(entry: SubagentEntry, options: { expanded: boolean }, theme: Theme): Component | undefined {
+export function renderSubagentEntry(
+	entry: SubagentEntry,
+	options: { expanded: boolean },
+	theme: Theme,
+): Component | undefined {
 	const view = ENTRY_VIEWS.get(entry.customType)?.(entry);
 	return view ? new SubagentMessageBlock(entry, view, options.expanded, theme) : undefined;
 }

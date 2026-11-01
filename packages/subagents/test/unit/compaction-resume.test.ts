@@ -1,14 +1,25 @@
 import { execFileSync } from "node:child_process";
-import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 function runScript(script: string): void {
 	const env = { ...process.env };
 	delete env.PI_SUBAGENT_CHILD;
-	execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: projectRoot, env, stdio: "pipe" });
+	execFileSync(
+		process.execPath,
+		[
+			"--experimental-strip-types",
+			"--import",
+			"./test/support/register-loader.mjs",
+			"--input-type=module",
+			"--eval",
+			script,
+		],
+		{ cwd: projectRoot, env, stdio: "pipe" },
+	);
 }
 
 describe("async compaction resume", () => {

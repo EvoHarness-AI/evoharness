@@ -4,8 +4,8 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { handleManagementAction } from "../../src/agents/agent-management.ts";
-import { clearSkillCache } from "../../src/agents/skills.ts";
 import { discoverAgents, discoverAgentsAll } from "../../src/agents/agents.ts";
+import { clearSkillCache } from "../../src/agents/skills.ts";
 
 let tempDir = "";
 let oldAgentDir: string | undefined;
@@ -53,7 +53,11 @@ function writePackageAgent(name: string): void {
 		pi: { subagents: { agents: ["./packaged-agents"] } },
 	});
 	fs.mkdirSync(path.dirname(packageAgentPath(name)), { recursive: true });
-	fs.writeFileSync(packageAgentPath(name), `---\nname: ${name}\ndescription: Packaged agent\n---\n\nPackaged.\n`, "utf-8");
+	fs.writeFileSync(
+		packageAgentPath(name),
+		`---\nname: ${name}\ndescription: Packaged agent\n---\n\nPackaged.\n`,
+		"utf-8",
+	);
 }
 
 describe("agent eject/disable/enable/reset management actions", () => {
@@ -109,7 +113,10 @@ describe("agent eject/disable/enable/reset management actions", () => {
 			const ejected = handleManagementAction("eject", { agent: "reviewer" }, ctx);
 			assert.equal(ejected.isError, false);
 			assert.match(readText(ejected), /from package to user scope/);
-			assert.equal(fs.readFileSync(userAgentPath("reviewer"), "utf-8"), fs.readFileSync(packageAgentPath("reviewer"), "utf-8"));
+			assert.equal(
+				fs.readFileSync(userAgentPath("reviewer"), "utf-8"),
+				fs.readFileSync(packageAgentPath("reviewer"), "utf-8"),
+			);
 		});
 
 		it("refuses invalid management scopes without writing user files", () => {
@@ -145,13 +152,18 @@ describe("agent eject/disable/enable/reset management actions", () => {
 			assert.equal(disabled.isError, false);
 			assert.match(readText(disabled), /Disabled agent 'reviewer' via user settings override/);
 
-			assert.equal(discoverAgents(tempDir, "both").agents.find((a) => a.name === "reviewer"), undefined);
+			assert.equal(
+				discoverAgents(tempDir, "both").agents.find((a) => a.name === "reviewer"),
+				undefined,
+			);
 			const all = discoverAgentsAll(tempDir).builtin.find((a) => a.name === "reviewer");
 			assert.ok(all);
 			assert.equal(all.disabled, true);
 			assert.equal(all.override?.scope, "user");
 
-			const settings = readJson(userSettingsPath()) as { subagents: { agentOverrides: { reviewer: { disabled: boolean } } } };
+			const settings = readJson(userSettingsPath()) as {
+				subagents: { agentOverrides: { reviewer: { disabled: boolean } } };
+			};
 			assert.equal(settings.subagents.agentOverrides.reviewer.disabled, true);
 		});
 
@@ -163,7 +175,9 @@ describe("agent eject/disable/enable/reset management actions", () => {
 
 			handleManagementAction("disable", { agent: "reviewer" }, ctx);
 
-			const settings = readJson(userSettingsPath()) as { subagents: { agentOverrides: { reviewer: { model: string; disabled: boolean } } } };
+			const settings = readJson(userSettingsPath()) as {
+				subagents: { agentOverrides: { reviewer: { model: string; disabled: boolean } } };
+			};
 			assert.deepEqual(settings.subagents.agentOverrides.reviewer, { model: "openai/gpt-5.4", disabled: true });
 		});
 
@@ -201,17 +215,26 @@ describe("agent eject/disable/enable/reset management actions", () => {
 
 			const disabled = handleManagementAction("disable", { agent: "helper" }, ctx);
 			assert.equal(disabled.isError, false);
-			assert.equal(discoverAgents(tempDir, "both").agents.find((a) => a.name === "helper"), undefined);
+			assert.equal(
+				discoverAgents(tempDir, "both").agents.find((a) => a.name === "helper"),
+				undefined,
+			);
 		});
 
 		it("also disables a package agent via a settings override", () => {
 			const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
 			writePackageAgent("packaged-reviewer");
-			assert.equal(discoverAgents(tempDir, "both").agents.find((a) => a.name === "packaged-reviewer")?.source, "package");
+			assert.equal(
+				discoverAgents(tempDir, "both").agents.find((a) => a.name === "packaged-reviewer")?.source,
+				"package",
+			);
 
 			const disabled = handleManagementAction("disable", { agent: "packaged-reviewer" }, ctx);
 			assert.equal(disabled.isError, false);
-			assert.equal(discoverAgents(tempDir, "both").agents.find((a) => a.name === "packaged-reviewer"), undefined);
+			assert.equal(
+				discoverAgents(tempDir, "both").agents.find((a) => a.name === "packaged-reviewer"),
+				undefined,
+			);
 
 			const all = discoverAgentsAll(tempDir).package.find((a) => a.name === "packaged-reviewer");
 			assert.equal(all?.disabled, true);
@@ -223,7 +246,10 @@ describe("agent eject/disable/enable/reset management actions", () => {
 		it("restores a previously disabled builtin to runtime discovery", () => {
 			const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
 			handleManagementAction("disable", { agent: "reviewer" }, ctx);
-			assert.equal(discoverAgents(tempDir, "both").agents.find((a) => a.name === "reviewer"), undefined);
+			assert.equal(
+				discoverAgents(tempDir, "both").agents.find((a) => a.name === "reviewer"),
+				undefined,
+			);
 
 			const enabled = handleManagementAction("enable", { agent: "reviewer" }, ctx);
 			assert.equal(enabled.isError, false);
@@ -242,7 +268,9 @@ describe("agent eject/disable/enable/reset management actions", () => {
 
 			handleManagementAction("enable", { agent: "reviewer" }, ctx);
 
-			const settings = readJson(userSettingsPath()) as { subagents: { agentOverrides: { reviewer: { model: string; disabled?: boolean } } } };
+			const settings = readJson(userSettingsPath()) as {
+				subagents: { agentOverrides: { reviewer: { model: string; disabled?: boolean } } };
+			};
 			assert.deepEqual(settings.subagents.agentOverrides.reviewer, { model: "openai/gpt-5.4" });
 			assert.ok(discoverAgents(tempDir, "both").agents.find((a) => a.name === "reviewer"));
 		});
@@ -288,22 +316,27 @@ describe("agent eject/disable/enable/reset management actions", () => {
 			assert.equal(discoverAgents(tempDir, "both").agents.find((a) => a.name === "reviewer")?.source, "builtin");
 		});
 
-	it("removes a settings override and restores the pristine builtin", () => {
+		it("removes a settings override and restores the pristine builtin", () => {
 			const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
 			handleManagementAction("disable", { agent: "reviewer" }, ctx);
-			assert.equal(discoverAgents(tempDir, "both").agents.find((a) => a.name === "reviewer"), undefined);
+			assert.equal(
+				discoverAgents(tempDir, "both").agents.find((a) => a.name === "reviewer"),
+				undefined,
+			);
 
 			const reset = handleManagementAction("reset", { agent: "reviewer" }, ctx);
 			assert.equal(reset.isError, false);
 			assert.match(readText(reset), /Removed user settings override/);
 			assert.ok(discoverAgents(tempDir, "both").agents.find((a) => a.name === "reviewer"));
 			assert.equal((readJson(userSettingsPath()) as { subagents?: unknown }).subagents, undefined);
-	});
+		});
 
 		it("retains machine placement while clearing other settings customization", () => {
 			const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
 			writeJson(userSettingsPath(), {
-				subagents: { agentOverrides: { reviewer: { machine: "workmac", model: "openai/gpt-5.4", thinking: "high" } } },
+				subagents: {
+					agentOverrides: { reviewer: { machine: "workmac", model: "openai/gpt-5.4", thinking: "high" } },
+				},
 			});
 
 			const reset = handleManagementAction("reset", { agent: "reviewer" }, ctx);
@@ -311,7 +344,10 @@ describe("agent eject/disable/enable/reset management actions", () => {
 			assert.match(readText(reset), /Retained machine placement/);
 			const settings = readJson(userSettingsPath()) as { subagents: { agentOverrides: { reviewer: unknown } } };
 			assert.deepEqual(settings.subagents.agentOverrides.reviewer, { machine: "workmac" });
-			assert.equal(discoverAgentsAll(tempDir).builtin.find((agent) => agent.name === "reviewer")?.machine, "workmac");
+			assert.equal(
+				discoverAgentsAll(tempDir).builtin.find((agent) => agent.name === "reviewer")?.machine,
+				"workmac",
+			);
 		});
 
 		it("retains a false machine clear so an inherited placement does not reactivate", () => {
@@ -325,12 +361,17 @@ describe("agent eject/disable/enable/reset management actions", () => {
 
 			const reset = handleManagementAction("reset", { agent: "claude-code", agentScope: "project" }, ctx);
 			assert.equal(reset.isError, false);
-			const settings = readJson(projectSettingsPath()) as { subagents: { agentOverrides: { "claude-code": unknown } } };
+			const settings = readJson(projectSettingsPath()) as {
+				subagents: { agentOverrides: { "claude-code": unknown } };
+			};
 			assert.deepEqual(settings.subagents.agentOverrides["claude-code"], { machine: false });
-			assert.equal(discoverAgentsAll(tempDir).builtin.find((agent) => agent.name === "claude-code")?.machine, undefined);
+			assert.equal(
+				discoverAgentsAll(tempDir).builtin.find((agent) => agent.name === "claude-code")?.machine,
+				undefined,
+			);
 		});
 
-	it("removes both a custom file and a settings override in one reset", () => {
+		it("removes both a custom file and a settings override in one reset", () => {
 			const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
 			handleManagementAction("eject", { agent: "reviewer" }, ctx);
 			handleManagementAction("disable", { agent: "reviewer" }, ctx);
@@ -354,7 +395,11 @@ describe("agent eject/disable/enable/reset management actions", () => {
 		it("points to delete for a custom agent with no bundled default", () => {
 			const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
 			fs.mkdirSync(path.dirname(userAgentPath("solo-helper")), { recursive: true });
-			fs.writeFileSync(userAgentPath("solo-helper"), "---\nname: solo-helper\ndescription: Solo\n---\n\nSolo.\n", "utf-8");
+			fs.writeFileSync(
+				userAgentPath("solo-helper"),
+				"---\nname: solo-helper\ndescription: Solo\n---\n\nSolo.\n",
+				"utf-8",
+			);
 
 			const reset = handleManagementAction("reset", { agent: "solo-helper" }, ctx);
 			assert.equal(reset.isError, true);

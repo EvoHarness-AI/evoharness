@@ -23,9 +23,7 @@ export function findPiPackageRootFromEntry(entryPoint: string): string | undefin
 
 export function resolveInstalledPiPackageRoot(): string | undefined {
 	try {
-		return findPiPackageRootFromEntry(
-			fileURLToPath(import.meta.resolve(PI_CODING_AGENT_PACKAGE)),
-		);
+		return findPiPackageRootFromEntry(fileURLToPath(import.meta.resolve(PI_CODING_AGENT_PACKAGE)));
 	} catch {
 		return undefined;
 	}
@@ -33,9 +31,7 @@ export function resolveInstalledPiPackageRoot(): string | undefined {
 
 export function resolvePiPackageRoot(entry = process.argv[1]): string | undefined {
 	try {
-		return entry
-			? findPiPackageRootFromEntry(fs.realpathSync(entry))
-			: undefined;
+		return entry ? findPiPackageRootFromEntry(fs.realpathSync(entry)) : undefined;
 	} catch {
 		// process.argv[1] probing is best-effort; callers can fall back to PATH/package resolution.
 		return undefined;
@@ -114,10 +110,7 @@ function isNodeScriptPath(filePath: string): boolean {
 	return /\.(?:mjs|cjs|js)$/i.test(filePath);
 }
 
-function isRunnableNodeScript(
-	filePath: string,
-	existsSync: (filePath: string) => boolean,
-): boolean {
+function isRunnableNodeScript(filePath: string, existsSync: (filePath: string) => boolean): boolean {
 	if (!existsSync(filePath)) return false;
 	return isNodeScriptPath(filePath);
 }
@@ -133,7 +126,8 @@ function isStandalonePiExecutable(execPath: string): boolean {
 
 function readPiPackageJson(
 	packageJsonPath: string,
-	readFileSync: (filePath: string, encoding: "utf-8") => string = (filePath, encoding) => fs.readFileSync(filePath, encoding),
+	readFileSync: (filePath: string, encoding: "utf-8") => string = (filePath, encoding) =>
+		fs.readFileSync(filePath, encoding),
 ): PiPackageJson {
 	const source = readFileSync(packageJsonPath, "utf-8");
 	let pkg: unknown;
@@ -168,7 +162,8 @@ function selectPiPackage(deps: PiSpawnDeps): PiPackageSelection | undefined {
 			try {
 				const canonicalArgvPath = realpathSync(argvPath);
 				const root = isRunnableNodeScript(canonicalArgvPath, existsSync)
-					? findPiPackageRootFromEntry(canonicalArgvPath) : undefined;
+					? findPiPackageRootFromEntry(canonicalArgvPath)
+					: undefined;
 				if (root) return { root, cliScript: canonicalArgvPath };
 			} catch {
 				// Ownership probing is best-effort; an unverified host entry is not a Pi CLI.
@@ -176,11 +171,17 @@ function selectPiPackage(deps: PiSpawnDeps): PiPackageSelection | undefined {
 		}
 	}
 
-	const root = (deps.piPackageRoot?.trim() || undefined)
-		?? (env[PI_CODING_AGENT_PACKAGE_ROOT_ENV]?.trim() || undefined)
-		?? resolvePiPackageRoot(argv1)
-		?? resolveHostDependencyPiPackageRoot(argv1);
-	if (root) return { root, packageJson: readPiPackageJson(path.join(root, "package.json"), deps.readFileSync), authoritative: true };
+	const root =
+		(deps.piPackageRoot?.trim() || undefined) ??
+		(env[PI_CODING_AGENT_PACKAGE_ROOT_ENV]?.trim() || undefined) ??
+		resolvePiPackageRoot(argv1) ??
+		resolveHostDependencyPiPackageRoot(argv1);
+	if (root)
+		return {
+			root,
+			packageJson: readPiPackageJson(path.join(root, "package.json"), deps.readFileSync),
+			authoritative: true,
+		};
 
 	// Only extension-relative discovery is best-effort, for both SDK and CLI consumers.
 	const packageJsonCandidates: Array<() => string | undefined> = [];
@@ -195,7 +196,11 @@ function selectPiPackage(deps: PiSpawnDeps): PiPackageSelection | undefined {
 		try {
 			const packageJsonPath = candidatePackageJson();
 			if (!packageJsonPath) continue;
-			return { root: path.dirname(packageJsonPath), packageJson: readPiPackageJson(packageJsonPath, deps.readFileSync), authoritative: false };
+			return {
+				root: path.dirname(packageJsonPath),
+				packageJson: readPiPackageJson(packageJsonPath, deps.readFileSync),
+				authoritative: false,
+			};
 		} catch {
 			// No authoritative host root was found; keep probing the extension install.
 		}
@@ -215,10 +220,7 @@ export function resolvePiCliScript(deps: PiSpawnDeps = {}): string | undefined {
 	return undefined;
 }
 
-export function getPiSpawnCommand(
-	args: string[],
-	deps: PiSpawnDeps = {},
-): PiSpawnCommand {
+export function getPiSpawnCommand(args: string[], deps: PiSpawnDeps = {}): PiSpawnCommand {
 	const platform = deps.platform ?? process.platform;
 	const env = deps.env ?? process.env;
 	const piBinary = env[PI_SUBAGENT_PI_BINARY_ENV]?.trim();

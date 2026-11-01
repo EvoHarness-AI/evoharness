@@ -5,18 +5,25 @@ import type { AgentToolResult } from "@evoharness/agent-core";
 import { readMissionBinding } from "../missions/lifecycle.ts";
 import { listMissions, missionRecordPath, resolveMissionStoreLocation } from "../missions/store.ts";
 import type { MissionStoreConfig } from "../missions/types.ts";
-import { resolveAuthorityDecision, type AuthorityPolicyConfig } from "../policy/authority.ts";
-import { DIRS, type Details, type SubagentState } from "../shared/types.ts";
-import { tryLease } from "../shared/file-lease.ts";
-import { readStatus } from "../shared/utils.ts";
+import { type AuthorityPolicyConfig, resolveAuthorityDecision } from "../policy/authority.ts";
 import { resolveSubagentRunId } from "../runs/background/run-id-resolver.ts";
+import { tryLease } from "../shared/file-lease.ts";
 import { resolveNodeExecutable } from "../shared/node-executable.ts";
+import { type Details, DIRS, type SubagentState } from "../shared/types.ts";
+import { readStatus } from "../shared/utils.ts";
 import { encodeSessionRoots } from "./session-roots-codec.ts";
 import { formatShellCommand } from "./shell-command.ts";
-import type { InspectorAction, InspectorContext, InspectorLaunch, InspectorParams, InspectorPlugin, InspectorTarget } from "./types.ts";
+import type {
+	InspectorAction,
+	InspectorContext,
+	InspectorLaunch,
+	InspectorParams,
+	InspectorPlugin,
+	InspectorTarget,
+} from "./types.ts";
 
-export { INSPECTOR_ACTIONS } from "./types.ts";
 export type { InspectorAction, InspectorParams, InspectorPlugin } from "./types.ts";
+export { INSPECTOR_ACTIONS } from "./types.ts";
 
 // Covers a provider's slowest normal open (a 15 s split or launch plus its follow-up commands).
 const INSPECTOR_LEASE_WAIT_MS = 30_000;
@@ -39,16 +46,21 @@ function trustedDir(dir: string, deps: InspectorDispatcherDeps): boolean {
 	try {
 		if (fs.lstatSync(dir).isSymbolicLink() || !fs.statSync(dir).isDirectory()) return false;
 		const real = fs.realpathSync(dir);
-		if ([...(deps.state?.asyncJobs.values() ?? []), ...(deps.state?.fleetJobs?.values() ?? [])].some((job) => {
-			try {
-				return fs.realpathSync(job.asyncDir) === real;
-			} catch {
-				return false;
-			}
-		})) return true;
+		if (
+			[...(deps.state?.asyncJobs.values() ?? []), ...(deps.state?.fleetJobs?.values() ?? [])].some((job) => {
+				try {
+					return fs.realpathSync(job.asyncDir) === real;
+				} catch {
+					return false;
+				}
+			})
+		)
+			return true;
 		const root = deps.asyncDirRoot ?? DIRS.async;
 		return fs.existsSync(root) && pathWithin(root, dir) && pathWithin(fs.realpathSync(root), real);
-	} catch { return false; }
+	} catch {
+		return false;
+	}
 }
 function resolveTarget(params: InspectorParams, deps: InspectorDispatcherDeps): InspectorTarget | { error: string } {
 	const requested = params.id ?? params.runId;
@@ -56,17 +68,24 @@ function resolveTarget(params: InspectorParams, deps: InspectorDispatcherDeps): 
 	let asyncDir: string;
 	if (params.dir) {
 		asyncDir = path.resolve(params.dir);
-		if (!trustedDir(asyncDir, deps)) return { error: `Async run directory '${asyncDir}' is outside trusted run roots.` };
+		if (!trustedDir(asyncDir, deps))
+			return { error: `Async run directory '${asyncDir}' is outside trusted run roots.` };
 		const status = readStatus(asyncDir);
 		if (!status) return { error: `No async run status found in '${asyncDir}'.` };
-		if (requested && requested !== status.runId && !status.runId.startsWith(requested)) return { error: `Run '${requested}' does not match status run '${status.runId}'.` };
+		if (requested && requested !== status.runId && !status.runId.startsWith(requested))
+			return { error: `Run '${requested}' does not match status run '${status.runId}'.` };
 		runId = status.runId;
 	} else {
 		if (!requested) return { error: "Inspector actions require id or dir." };
 		try {
-			const found = resolveSubagentRunId(requested, { state: deps.state, asyncDirRoot: deps.asyncDirRoot ?? DIRS.async, resultsDir: deps.resultsDir ?? DIRS.results });
+			const found = resolveSubagentRunId(requested, {
+				state: deps.state,
+				asyncDirRoot: deps.asyncDirRoot ?? DIRS.async,
+				resultsDir: deps.resultsDir ?? DIRS.results,
+			});
 			if (!found) return { error: `No subagent run found for '${requested}'.` };
-			if (found.kind !== "async" || !found.location.asyncDir) return { error: `Run '${found.id}' is not an inspectable async run with lifecycle artifacts.` };
+			if (found.kind !== "async" || !found.location.asyncDir)
+				return { error: `Run '${found.id}' is not an inspectable async run with lifecycle artifacts.` };
 			runId = found.id;
 			asyncDir = found.location.asyncDir;
 		} catch (cause) {
@@ -75,8 +94,15 @@ function resolveTarget(params: InspectorParams, deps: InspectorDispatcherDeps): 
 	}
 	const status = readStatus(asyncDir);
 	if (!status) return { error: `No lifecycle status exists for async run '${runId}'.` };
-	if (params.index !== undefined && (params.index < 0 || params.index >= (status.steps?.length ?? 0))) return { error: `Async run '${runId}' has ${status.steps?.length ?? 0} children. Index ${params.index} is out of range.` };
-	const target: InspectorTarget = { runId, asyncDir, status: { cwd: status.cwd, state: status.state, steps: status.steps } };
+	if (params.index !== undefined && (params.index < 0 || params.index >= (status.steps?.length ?? 0)))
+		return {
+			error: `Async run '${runId}' has ${status.steps?.length ?? 0} children. Index ${params.index} is out of range.`,
+		};
+	const target: InspectorTarget = {
+		runId,
+		asyncDir,
+		status: { cwd: status.cwd, state: status.state, steps: status.steps },
+	};
 	if (params.index !== undefined) target.index = params.index;
 	return target;
 }
@@ -84,8 +110,12 @@ function missionFor(target: InspectorTarget, deps: InspectorDispatcherDeps): { i
 	try {
 		const binding = readMissionBinding(target.asyncDir);
 		if (binding) return { id: binding.missionId, path: missionRecordPath(binding.location, binding.missionId) };
-		const location = resolveMissionStoreLocation(deps.missions ? { projectRoot: deps.cwd, config: deps.missions } : { projectRoot: deps.cwd });
-		const mission = listMissions(location).records.find((record) => record.runs.some((run) => run.runId === target.runId));
+		const location = resolveMissionStoreLocation(
+			deps.missions ? { projectRoot: deps.cwd, config: deps.missions } : { projectRoot: deps.cwd },
+		);
+		const mission = listMissions(location).records.find((record) =>
+			record.runs.some((run) => run.runId === target.runId),
+		);
 		return mission ? { id: mission.id, path: missionRecordPath(location, mission.id) } : undefined;
 	} catch {
 		return undefined;
@@ -95,14 +125,38 @@ function launchFor(target: InspectorTarget, deps: InspectorDispatcherDeps): Insp
 	const mission = missionFor(target, deps);
 	const runnerPath = deps.runnerPath ?? fileURLToPath(new URL("../../inspector-runner.mjs", import.meta.url));
 	const job = deps.state?.asyncJobs.get(target.runId) ?? deps.state?.fleetJobs?.get(target.runId);
-	const sessionRoots = [...new Set([...(deps.sessionRoots ?? deps.state?.trustedSessionRoots ?? []), ...(job?.sessionRoot ? [job.sessionRoot] : [])])];
+	const sessionRoots = [
+		...new Set([
+			...(deps.sessionRoots ?? deps.state?.trustedSessionRoots ?? []),
+			...(job?.sessionRoot ? [job.sessionRoot] : []),
+		]),
+	];
 	const allowSteer = resolveAuthorityDecision({ action: "steerRun", policy: deps.authorityPolicy }) === "auto";
 	const allowStop = resolveAuthorityDecision({ action: "stopRun", policy: deps.authorityPolicy }) === "auto";
-	const argv = [runnerPath, "--async-dir", target.asyncDir, "--run-id", target.runId, "--allow-steer", String(allowSteer), "--allow-stop", String(allowStop), "--session-roots", encodeSessionRoots(sessionRoots)];
+	const argv = [
+		runnerPath,
+		"--async-dir",
+		target.asyncDir,
+		"--run-id",
+		target.runId,
+		"--allow-steer",
+		String(allowSteer),
+		"--allow-stop",
+		String(allowStop),
+		"--session-roots",
+		encodeSessionRoots(sessionRoots),
+	];
 	if (target.index !== undefined) argv.push("--index", String(target.index));
 	if (mission) argv.push("--mission-path", mission.path);
 	const executable = resolveNodeExecutable();
-	const launch: InspectorLaunch = { executable, argv, displayCommand: formatShellCommand(executable, argv), allowSteer, allowStop, sessionRoots };
+	const launch: InspectorLaunch = {
+		executable,
+		argv,
+		displayCommand: formatShellCommand(executable, argv),
+		allowSteer,
+		allowStop,
+		sessionRoots,
+	};
 	if (mission) launch.mission = mission;
 	return launch;
 }
@@ -123,7 +177,11 @@ export interface InspectorDispatcherDeps {
 	/** How long open and close wait for another open or close of the same target. */
 	leaseWaitMs?: number;
 }
-export async function handleInspectorAction(action: InspectorAction, params: InspectorParams, deps: InspectorDispatcherDeps): Promise<AgentToolResult<Details>> {
+export async function handleInspectorAction(
+	action: InspectorAction,
+	params: InspectorParams,
+	deps: InspectorDispatcherDeps,
+): Promise<AgentToolResult<Details>> {
 	const target = resolveTarget(params, deps);
 	if ("error" in target) return result(target.error, true);
 	const context: InspectorContext = {
@@ -149,19 +207,34 @@ export async function handleInspectorAction(action: InspectorAction, params: Ins
 	const deadline = Date.now() + (deps.leaseWaitMs ?? INSPECTOR_LEASE_WAIT_MS);
 	let release = tryLease(lockPath);
 	while (!release) {
-		if (deps.signal?.aborted) return result(`Inspector ${action} for async run ${target.runId}${label} was cancelled while waiting for another inspector open or close to finish.`, true);
-		if (Date.now() >= deadline) return result(`Another inspector open or close for async run ${target.runId}${label} is still in progress. Try again when it finishes.`, true);
+		if (deps.signal?.aborted)
+			return result(
+				`Inspector ${action} for async run ${target.runId}${label} was cancelled while waiting for another inspector open or close to finish.`,
+				true,
+			);
+		if (Date.now() >= deadline)
+			return result(
+				`Another inspector open or close for async run ${target.runId}${label} is still in progress. Try again when it finishes.`,
+				true,
+			);
 		await new Promise((resolve) => setTimeout(resolve, 50));
 		release = tryLease(lockPath);
 	}
 	try {
 		// The wait may end with the lease in the same tick the caller cancelled; never act for a cancelled caller.
-		if (deps.signal?.aborted) return result(`Inspector ${action} for async run ${target.runId}${label} was cancelled while waiting for another inspector open or close to finish.`, true);
+		if (deps.signal?.aborted)
+			return result(
+				`Inspector ${action} for async run ${target.runId}${label} was cancelled while waiting for another inspector open or close to finish.`,
+				true,
+			);
 		if (action === "inspector.open") {
 			for (const plugin of plugins) {
 				if (await plugin.available(context)) return await plugin.open(context, launchFor(target, deps), params);
 			}
-			return result("No inspector plugin is available. Start a supported inspector host, or use inspector.command for a standalone command.", true);
+			return result(
+				"No inspector plugin is available. Start a supported inspector host, or use inspector.command for a standalone command.",
+				true,
+			);
 		}
 		const owner = plugins.find((plugin) => plugin.owns(context));
 		if (!owner) return result(`No inspector plugin owns this binding for async run ${target.runId}.`);

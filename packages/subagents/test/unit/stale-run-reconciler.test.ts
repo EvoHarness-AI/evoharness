@@ -5,10 +5,18 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { writeAsyncResultFile, writePendingAsyncResultFile } from "../../src/runs/background/result-files.ts";
-import { finalizeProcessTerminal, initializeProcessTerminal, readProcessTerminal } from "../../src/runs/background/process-terminal.ts";
-import { checkPidLiveness, checkRecordedPidLiveness, reconcileAsyncRun } from "../../src/runs/background/stale-run-reconciler.ts";
 import { summarizeAsyncStatus } from "../../src/runs/background/async-status.ts";
+import {
+	finalizeProcessTerminal,
+	initializeProcessTerminal,
+	readProcessTerminal,
+} from "../../src/runs/background/process-terminal.ts";
+import { writeAsyncResultFile, writePendingAsyncResultFile } from "../../src/runs/background/result-files.ts";
+import {
+	checkPidLiveness,
+	checkRecordedPidLiveness,
+	reconcileAsyncRun,
+} from "../../src/runs/background/stale-run-reconciler.ts";
 
 function tempRoot(prefix: string): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -28,26 +36,97 @@ function errno(code: string): NodeJS.ErrnoException {
 describe("async stale-run reconciliation", () => {
 	it("classifies pid liveness without treating EPERM as dead", () => {
 		assert.equal(checkPidLiveness(process.pid), "alive");
-		assert.equal(checkPidLiveness(2_147_483_647, () => true), "alive");
-		assert.equal(checkPidLiveness(123, () => { throw errno("ESRCH"); }), "dead");
-		assert.equal(checkPidLiveness(123, () => { throw errno("EPERM"); }), "unknown");
-		assert.equal(checkPidLiveness(123, () => { throw new Error("boom"); }), "unknown");
+		assert.equal(
+			checkPidLiveness(2_147_483_647, () => true),
+			"alive",
+		);
+		assert.equal(
+			checkPidLiveness(123, () => {
+				throw errno("ESRCH");
+			}),
+			"dead",
+		);
+		assert.equal(
+			checkPidLiveness(123, () => {
+				throw errno("EPERM");
+			}),
+			"unknown",
+		);
+		assert.equal(
+			checkPidLiveness(123, () => {
+				throw new Error("boom");
+			}),
+			"unknown",
+		);
 	});
 
 	it("treats a pid saved under another boot as dead without probing, only when the pid namespaces are comparable", () => {
-		const noProbe = () => { throw new Error("the pid must not be probed"); };
+		const noProbe = () => {
+			throw new Error("the pid must not be probed");
+		};
 		const alive = () => true;
 		const cases = [
-			{ name: "other boot, same scope", recorded: { pidNamespaceScope: "pid:[1]", bootId: "boot-a" }, observed: { observedScope: "pid:[1]", observedBootId: "boot-b" }, kill: noProbe, expected: "dead" },
-			{ name: "other boot, neither has a scope", recorded: { bootId: "boot-a" }, observed: { observedScope: undefined, observedBootId: "boot-b" }, kill: noProbe, expected: "dead" },
-			{ name: "other boot, record scope differs", recorded: { pidNamespaceScope: "pid:[1]", bootId: "boot-a" }, observed: { observedScope: "pid:[2]", observedBootId: "boot-b" }, kill: () => { throw errno("ESRCH"); }, expected: "unknown" },
-			{ name: "other boot, only the observer has a scope", recorded: { bootId: "boot-a" }, observed: { observedScope: "pid:[1]", observedBootId: "boot-b" }, kill: alive, expected: "alive" },
-			{ name: "same boot, live pid", recorded: { pidNamespaceScope: "pid:[1]", bootId: "boot-a" }, observed: { observedScope: "pid:[1]", observedBootId: "boot-a" }, kill: alive, expected: "alive" },
-			{ name: "record has no boot id", recorded: { pidNamespaceScope: "pid:[1]" }, observed: { observedScope: "pid:[1]", observedBootId: "boot-b" }, kill: alive, expected: "alive" },
-			{ name: "observer has no boot id", recorded: { pidNamespaceScope: "pid:[1]", bootId: "boot-a" }, observed: { observedScope: "pid:[1]", observedBootId: undefined }, kill: alive, expected: "alive" },
+			{
+				name: "other boot, same scope",
+				recorded: { pidNamespaceScope: "pid:[1]", bootId: "boot-a" },
+				observed: { observedScope: "pid:[1]", observedBootId: "boot-b" },
+				kill: noProbe,
+				expected: "dead",
+			},
+			{
+				name: "other boot, neither has a scope",
+				recorded: { bootId: "boot-a" },
+				observed: { observedScope: undefined, observedBootId: "boot-b" },
+				kill: noProbe,
+				expected: "dead",
+			},
+			{
+				name: "other boot, record scope differs",
+				recorded: { pidNamespaceScope: "pid:[1]", bootId: "boot-a" },
+				observed: { observedScope: "pid:[2]", observedBootId: "boot-b" },
+				kill: () => {
+					throw errno("ESRCH");
+				},
+				expected: "unknown",
+			},
+			{
+				name: "other boot, only the observer has a scope",
+				recorded: { bootId: "boot-a" },
+				observed: { observedScope: "pid:[1]", observedBootId: "boot-b" },
+				kill: alive,
+				expected: "alive",
+			},
+			{
+				name: "same boot, live pid",
+				recorded: { pidNamespaceScope: "pid:[1]", bootId: "boot-a" },
+				observed: { observedScope: "pid:[1]", observedBootId: "boot-a" },
+				kill: alive,
+				expected: "alive",
+			},
+			{
+				name: "record has no boot id",
+				recorded: { pidNamespaceScope: "pid:[1]" },
+				observed: { observedScope: "pid:[1]", observedBootId: "boot-b" },
+				kill: alive,
+				expected: "alive",
+			},
+			{
+				name: "observer has no boot id",
+				recorded: { pidNamespaceScope: "pid:[1]", bootId: "boot-a" },
+				observed: { observedScope: "pid:[1]", observedBootId: undefined },
+				kill: alive,
+				expected: "alive",
+			},
 		];
 		for (const testCase of cases) {
-			assert.equal(checkRecordedPidLiveness({ pid: 4242, ...testCase.recorded }, { ...testCase.observed, kill: testCase.kill }), testCase.expected, testCase.name);
+			assert.equal(
+				checkRecordedPidLiveness(
+					{ pid: 4242, ...testCase.recorded },
+					{ ...testCase.observed, kill: testCase.kill },
+				),
+				testCase.expected,
+				testCase.name,
+			);
 		}
 	});
 
@@ -69,15 +148,30 @@ describe("async stale-run reconciliation", () => {
 				workflow: { trace: [], emits: [], console: [], scriptDigest: "digest" },
 				...extra,
 			});
-			const reconcile = (runId: string, status: Record<string, unknown>, options: Parameters<typeof reconcileAsyncRun>[1]) => {
+			const reconcile = (
+				runId: string,
+				status: Record<string, unknown>,
+				options: Parameters<typeof reconcileAsyncRun>[1],
+			) => {
 				const asyncDir = path.join(root, runId);
 				writeStatus(asyncDir, status);
-				const result = reconcileAsyncRun(asyncDir, { resultsDir, pidNamespaceScope: () => "pid:[same]", bootId: () => "boot-now", now: () => 2000, ...options });
+				const result = reconcileAsyncRun(asyncDir, {
+					resultsDir,
+					pidNamespaceScope: () => "pid:[same]",
+					bootId: () => "boot-now",
+					now: () => 2000,
+					...options,
+				});
 				return { result, status: JSON.parse(fs.readFileSync(path.join(asyncDir, "status.json"), "utf-8")) };
 			};
-			const ownerExitedMessage = (runId: string) => `The Pi process (PID 4242) that ran workflow ${runId} exited before the workflow finished. Marked run failed by stale-run reconciliation. Its finished children are kept.`;
+			const ownerExitedMessage = (runId: string) =>
+				`The Pi process (PID 4242) that ran workflow ${runId} exited before the workflow finished. Marked run failed by stale-run reconciliation. Its finished children are kept.`;
 
-			const dead = reconcile("wf-dead", workflowStatus("wf-dead"), { kill: () => { throw errno("ESRCH"); } });
+			const dead = reconcile("wf-dead", workflowStatus("wf-dead"), {
+				kill: () => {
+					throw errno("ESRCH");
+				},
+			});
 			assert.equal(dead.result.repaired, true);
 			assert.equal(dead.status.state, "failed");
 			assert.equal(dead.status.workflow.stopCause, "owner-exited");
@@ -85,44 +179,94 @@ describe("async stale-run reconciliation", () => {
 			// When the dead owner last updated it, not the repair time, and the stop cause in the result.
 			assert.equal(dead.status.workflow.ownerExitedAt, 1000);
 			assert.equal(dead.status.endedAt, 2000);
-			assert.deepEqual(JSON.parse(fs.readFileSync(path.join(resultsDir, "wf-dead.json"), "utf-8")).workflow, { stopCause: "owner-exited" });
-			const neverUpdated = reconcile("wf-never-updated", workflowStatus("wf-never-updated", { lastUpdate: undefined, startedAt: 900 }), { kill: () => { throw errno("ESRCH"); } });
+			assert.deepEqual(JSON.parse(fs.readFileSync(path.join(resultsDir, "wf-dead.json"), "utf-8")).workflow, {
+				stopCause: "owner-exited",
+			});
+			const neverUpdated = reconcile(
+				"wf-never-updated",
+				workflowStatus("wf-never-updated", { lastUpdate: undefined, startedAt: 900 }),
+				{
+					kill: () => {
+						throw errno("ESRCH");
+					},
+				},
+			);
 			assert.equal(neverUpdated.status.workflow.ownerExitedAt, 900);
-			assert.equal(JSON.parse(fs.readFileSync(path.join(resultsDir, "wf-dead.json"), "utf-8")).summary, ownerExitedMessage("wf-dead"));
+			assert.equal(
+				JSON.parse(fs.readFileSync(path.join(resultsDir, "wf-dead.json"), "utf-8")).summary,
+				ownerExitedMessage("wf-dead"),
+			);
 
-			const rebooted = reconcile("wf-rebooted", workflowStatus("wf-rebooted", { bootId: "boot-before" }), { kill: () => { throw new Error("the pid must not be probed"); } });
+			const rebooted = reconcile("wf-rebooted", workflowStatus("wf-rebooted", { bootId: "boot-before" }), {
+				kill: () => {
+					throw new Error("the pid must not be probed");
+				},
+			});
 			assert.equal(rebooted.status.workflow.stopCause, "owner-exited");
 
 			const alive = reconcile("wf-alive", workflowStatus("wf-alive"), { kill: () => true });
 			assert.equal(alive.result.repaired, false);
 			assert.equal(alive.status.workflow.stopCause, undefined);
 
-			const staleAlive = reconcile("wf-stale-alive", workflowStatus("wf-stale-alive"), { kill: () => true, staleAlivePidMs: 500 });
+			const staleAlive = reconcile("wf-stale-alive", workflowStatus("wf-stale-alive"), {
+				kill: () => true,
+				staleAlivePidMs: 500,
+			});
 			assert.equal(staleAlive.status.state, "failed");
 			assert.equal(staleAlive.status.workflow.stopCause, undefined);
 			assert.match(staleAlive.result.message ?? "", /^Async runner PID 4242 is still live; status has not updated/);
 
-			const staleUnknown = reconcile("wf-stale-unknown", workflowStatus("wf-stale-unknown", { pidNamespaceScope: "pid:[container]" }), { kill: () => { throw errno("ESRCH"); }, staleAlivePidMs: 500 });
+			const staleUnknown = reconcile(
+				"wf-stale-unknown",
+				workflowStatus("wf-stale-unknown", { pidNamespaceScope: "pid:[container]" }),
+				{
+					kill: () => {
+						throw errno("ESRCH");
+					},
+					staleAlivePidMs: 500,
+				},
+			);
 			assert.equal(staleUnknown.status.state, "failed");
 			assert.equal(staleUnknown.status.workflow.stopCause, undefined);
 			assert.match(staleUnknown.result.message ?? "", /cannot be probed from this process/);
 
 			const { workflow: _workflow, ...singleStatus } = workflowStatus("single-dead", { mode: "single" });
-			const single = reconcile("single-dead", singleStatus, { kill: () => { throw errno("ESRCH"); } });
+			const single = reconcile("single-dead", singleStatus, {
+				kill: () => {
+					throw errno("ESRCH");
+				},
+			});
 			assert.equal(single.status.workflow, undefined);
-			assert.equal(single.result.message, "Async runner process 4242 exited or disappeared before writing a result. Marked run failed by stale-run reconciliation.");
+			assert.equal(
+				single.result.message,
+				"Async runner process 4242 exited or disappeared before writing a result. Marked run failed by stale-run reconciliation.",
+			);
 
 			// An owning session's repair adopts its completion owner, so it can deliver the notice; only an owner-exited workflow does.
-			const deadPid = () => { throw errno("ESRCH"); };
-			const resultOwner = (runId: string) => JSON.parse(fs.readFileSync(path.join(resultsDir, `${runId}.json`), "utf-8")).completionOwnerId;
-			const adopted = reconcile("wf-adopted", workflowStatus("wf-adopted", { completionOwnerId: "dead-process" }), { kill: deadPid, adoptCompletionOwnerId: "this-process" });
+			const deadPid = () => {
+				throw errno("ESRCH");
+			};
+			const resultOwner = (runId: string) =>
+				JSON.parse(fs.readFileSync(path.join(resultsDir, `${runId}.json`), "utf-8")).completionOwnerId;
+			const adopted = reconcile("wf-adopted", workflowStatus("wf-adopted", { completionOwnerId: "dead-process" }), {
+				kill: deadPid,
+				adoptCompletionOwnerId: "this-process",
+			});
 			assert.equal(adopted.status.completionOwnerId, "this-process");
 			assert.equal(resultOwner("wf-adopted"), "this-process");
 			// A repair where no owning session adopts it leaves its notice to whichever session owns the run.
-			const elsewhere = reconcile("wf-elsewhere", workflowStatus("wf-elsewhere", { completionOwnerId: "dead-process" }), { kill: deadPid });
+			const elsewhere = reconcile(
+				"wf-elsewhere",
+				workflowStatus("wf-elsewhere", { completionOwnerId: "dead-process" }),
+				{ kill: deadPid },
+			);
 			assert.equal(elsewhere.status.completionOwnerId, "owning-session");
 			assert.equal(resultOwner("wf-elsewhere"), "owning-session");
-			const singleKept = reconcile("single-kept", { ...singleStatus, runId: "single-kept", completionOwnerId: "dead-process" }, { kill: deadPid, adoptCompletionOwnerId: "this-process" });
+			const singleKept = reconcile(
+				"single-kept",
+				{ ...singleStatus, runId: "single-kept", completionOwnerId: "dead-process" },
+				{ kill: deadPid, adoptCompletionOwnerId: "this-process" },
+			);
 			assert.equal(singleKept.status.completionOwnerId, "dead-process");
 			assert.equal(resultOwner("single-kept"), "dead-process");
 		} finally {
@@ -130,9 +274,12 @@ describe("async stale-run reconciliation", () => {
 		}
 	});
 
-	it("repairs a recent Linux zombie only with a verified PID namespace", { skip: process.platform !== "linux", timeout: 10_000 }, async () => {
-		const root = tempRoot("pi-stale-run-zombie-");
-		const script = String.raw`
+	it(
+		"repairs a recent Linux zombie only with a verified PID namespace",
+		{ skip: process.platform !== "linux", timeout: 10_000 },
+		async () => {
+			const root = tempRoot("pi-stale-run-zombie-");
+			const script = String.raw`
 			const { spawn } = require("node:child_process");
 			const fs = require("node:fs");
 			const child = spawn(process.execPath, ["-e", 'process.title = "pi) zombie"; process.exit(0);'], { stdio: "ignore" });
@@ -140,65 +287,75 @@ describe("async stale-run reconciliation", () => {
 			// Keep libuv from reaping the child until the test releases stdin.
 			fs.readSync(0, Buffer.alloc(1), 0, 1, null);
 		`;
-		const parent = spawn(process.execPath, ["--eval", script], { stdio: ["pipe", "pipe", "pipe"] });
-		const closed = once(parent, "close");
-		parent.stdin.on("error", () => {});
-		try {
-			const [output] = await once(parent.stdout, "data", { signal: AbortSignal.timeout(5_000) });
-			const pid = Number(String(output).trim());
-			assert.ok(Number.isSafeInteger(pid) && pid > 0);
-			let stat = "";
-			const deadline = Date.now() + 5_000;
-			while (Date.now() < deadline) {
-				stat = fs.readFileSync(`/proc/${pid}/stat`, "utf-8");
-				if (stat[stat.lastIndexOf(") ") + 2] === "Z") break;
-				await new Promise((resolve) => setTimeout(resolve, 10));
-			}
-			assert.match(stat, /\(pi\) zombie\) Z /);
-			assert.equal(process.kill(pid, 0), true);
-			assert.equal(checkPidLiveness(pid, process.kill, true), "dead");
-			const scope = fs.readlinkSync("/proc/self/ns/pid", "utf-8").trim();
-			const now = Date.now();
-			const resultsDir = path.join(root, "results");
-			for (const scenario of [
-				{ name: "matching", recorded: scope, observed: scope, immediate: true },
-				{ name: "missing-recorded", recorded: undefined, observed: scope, immediate: false },
-				{ name: "different", recorded: "pid:[other]", observed: scope, immediate: false },
-				{ name: "missing-observed", recorded: scope, observed: undefined, immediate: false },
-				{ name: "both-missing", recorded: undefined, observed: undefined, immediate: false },
-			]) {
-				const runId = `run-zombie-${scenario.name}`;
-				const asyncDir = path.join(root, runId);
-				writeStatus(asyncDir, {
-					runId, sessionId: "zombie-session", mode: "single", state: "running", pid,
-					...(scenario.recorded !== undefined ? { pidNamespaceScope: scenario.recorded } : {}),
-					startedAt: now - 100, lastUpdate: now - 100,
-					steps: [{ agent: "worker", status: "running", startedAt: now - 100 }],
-				});
-				const options = { resultsDir, pidNamespaceScope: () => scenario.observed, now: () => now };
-				const repaired = reconcileAsyncRun(asyncDir, options);
-				assert.equal(repaired.repaired, scenario.immediate, scenario.name);
-				assert.equal(repaired.status?.state, scenario.immediate ? "failed" : "running", scenario.name);
-				const resultPath = path.join(resultsDir, `${runId}.json`);
-				assert.equal(fs.existsSync(resultPath), scenario.immediate, scenario.name);
-				if (!scenario.immediate) {
-					const stale = reconcileAsyncRun(asyncDir, { ...options, staleAlivePidMs: 1000, now: () => now + 2000 });
-					assert.equal(stale.repaired, true, scenario.name);
-					assert.equal(stale.status?.state, "failed", scenario.name);
-					assert.match(stale.message ?? "", /status has not updated for 2100ms.*PID ownership is unverified/);
+			const parent = spawn(process.execPath, ["--eval", script], { stdio: ["pipe", "pipe", "pipe"] });
+			const closed = once(parent, "close");
+			parent.stdin.on("error", () => {});
+			try {
+				const [output] = await once(parent.stdout, "data", { signal: AbortSignal.timeout(5_000) });
+				const pid = Number(String(output).trim());
+				assert.ok(Number.isSafeInteger(pid) && pid > 0);
+				let stat = "";
+				const deadline = Date.now() + 5_000;
+				while (Date.now() < deadline) {
+					stat = fs.readFileSync(`/proc/${pid}/stat`, "utf-8");
+					if (stat[stat.lastIndexOf(") ") + 2] === "Z") break;
+					await new Promise((resolve) => setTimeout(resolve, 10));
 				}
-				const receipt = fs.readFileSync(resultPath, "utf-8");
-				assert.equal(JSON.parse(receipt).state, "failed");
-				assert.equal(reconcileAsyncRun(asyncDir, options).repaired, false);
-				assert.equal(fs.readFileSync(resultPath, "utf-8"), receipt);
+				assert.match(stat, /\(pi\) zombie\) Z /);
+				assert.equal(process.kill(pid, 0), true);
+				assert.equal(checkPidLiveness(pid, process.kill, true), "dead");
+				const scope = fs.readlinkSync("/proc/self/ns/pid", "utf-8").trim();
+				const now = Date.now();
+				const resultsDir = path.join(root, "results");
+				for (const scenario of [
+					{ name: "matching", recorded: scope, observed: scope, immediate: true },
+					{ name: "missing-recorded", recorded: undefined, observed: scope, immediate: false },
+					{ name: "different", recorded: "pid:[other]", observed: scope, immediate: false },
+					{ name: "missing-observed", recorded: scope, observed: undefined, immediate: false },
+					{ name: "both-missing", recorded: undefined, observed: undefined, immediate: false },
+				]) {
+					const runId = `run-zombie-${scenario.name}`;
+					const asyncDir = path.join(root, runId);
+					writeStatus(asyncDir, {
+						runId,
+						sessionId: "zombie-session",
+						mode: "single",
+						state: "running",
+						pid,
+						...(scenario.recorded !== undefined ? { pidNamespaceScope: scenario.recorded } : {}),
+						startedAt: now - 100,
+						lastUpdate: now - 100,
+						steps: [{ agent: "worker", status: "running", startedAt: now - 100 }],
+					});
+					const options = { resultsDir, pidNamespaceScope: () => scenario.observed, now: () => now };
+					const repaired = reconcileAsyncRun(asyncDir, options);
+					assert.equal(repaired.repaired, scenario.immediate, scenario.name);
+					assert.equal(repaired.status?.state, scenario.immediate ? "failed" : "running", scenario.name);
+					const resultPath = path.join(resultsDir, `${runId}.json`);
+					assert.equal(fs.existsSync(resultPath), scenario.immediate, scenario.name);
+					if (!scenario.immediate) {
+						const stale = reconcileAsyncRun(asyncDir, {
+							...options,
+							staleAlivePidMs: 1000,
+							now: () => now + 2000,
+						});
+						assert.equal(stale.repaired, true, scenario.name);
+						assert.equal(stale.status?.state, "failed", scenario.name);
+						assert.match(stale.message ?? "", /status has not updated for 2100ms.*PID ownership is unverified/);
+					}
+					const receipt = fs.readFileSync(resultPath, "utf-8");
+					assert.equal(JSON.parse(receipt).state, "failed");
+					assert.equal(reconcileAsyncRun(asyncDir, options).repaired, false);
+					assert.equal(fs.readFileSync(resultPath, "utf-8"), receipt);
+				}
+				assert.equal(checkPidLiveness(pid), "alive", "unscoped callers retain signal-only probing");
+			} finally {
+				parent.stdin.end("reap");
+				await closed;
+				fs.rmSync(root, { recursive: true, force: true });
 			}
-			assert.equal(checkPidLiveness(pid), "alive", "unscoped callers retain signal-only probing");
-		} finally {
-			parent.stdin.end("reap");
-			await closed;
-			fs.rmSync(root, { recursive: true, force: true });
-		}
-	});
+		},
+	);
 
 	it("repairs a run whose PID belongs to another namespace only after status goes stale", () => {
 		const root = tempRoot("pi-stale-run-pid-namespace-");
@@ -216,7 +373,9 @@ describe("async stale-run reconciliation", () => {
 			});
 
 			const result = reconcileAsyncRun(asyncDir, {
-				kill: () => { throw errno("ESRCH"); },
+				kill: () => {
+					throw errno("ESRCH");
+				},
 				pidNamespaceScope: () => "pid:[observer]",
 				now: () => 2000,
 			});
@@ -226,7 +385,9 @@ describe("async stale-run reconciliation", () => {
 			assert.equal(JSON.parse(fs.readFileSync(path.join(asyncDir, "status.json"), "utf-8")).state, "running");
 
 			const stale = reconcileAsyncRun(asyncDir, {
-				kill: () => { throw errno("ESRCH"); },
+				kill: () => {
+					throw errno("ESRCH");
+				},
 				pidNamespaceScope: () => "pid:[observer]",
 				staleAlivePidMs: 5000,
 				now: () => 7000,
@@ -234,7 +395,10 @@ describe("async stale-run reconciliation", () => {
 
 			assert.equal(stale.repaired, true);
 			assert.equal(stale.status?.state, "failed");
-			assert.match(stale.message ?? "", /PID 1404 cannot be probed from this process; status has not updated for 6000ms/);
+			assert.match(
+				stale.message ?? "",
+				/PID 1404 cannot be probed from this process; status has not updated for 6000ms/,
+			);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -256,7 +420,9 @@ describe("async stale-run reconciliation", () => {
 			});
 
 			const result = reconcileAsyncRun(asyncDir, {
-				kill: () => { throw errno("ESRCH"); },
+				kill: () => {
+					throw errno("ESRCH");
+				},
 				pidNamespaceScope: () => undefined,
 				now: () => 2000,
 			});
@@ -283,7 +449,12 @@ describe("async stale-run reconciliation", () => {
 				state: "running",
 				pid: 12345,
 				pidNamespaceScope: "pid:[same]",
-				processTerminal: { version: 1, state: "pending", runId: "run-dead", runnerProcessInstanceId: "runner-dead" },
+				processTerminal: {
+					version: 1,
+					state: "pending",
+					runId: "run-dead",
+					runnerProcessInstanceId: "runner-dead",
+				},
 				startedAt: 1000,
 				lastUpdate: 1000,
 				currentStep: 0,
@@ -292,7 +463,9 @@ describe("async stale-run reconciliation", () => {
 
 			const result = reconcileAsyncRun(asyncDir, {
 				resultsDir,
-				kill: () => { throw errno("ESRCH"); },
+				kill: () => {
+					throw errno("ESRCH");
+				},
 				pidNamespaceScope: () => "pid:[same]",
 				now: () => 2000,
 			});
@@ -320,7 +493,9 @@ describe("async stale-run reconciliation", () => {
 			const resultText = fs.readFileSync(path.join(resultsDir, "run-dead.json"), "utf-8");
 			const second = reconcileAsyncRun(asyncDir, {
 				resultsDir,
-				kill: () => { throw errno("ESRCH"); },
+				kill: () => {
+					throw errno("ESRCH");
+				},
 				now: () => 3000,
 			});
 			assert.equal(second.repaired, false);
@@ -348,7 +523,13 @@ describe("async stale-run reconciliation", () => {
 				steps: [{ agent: "worker", status: "running", startedAt: 1000 }],
 			});
 
-			reconcileAsyncRun(asyncDir, { resultsDir, kill: () => { throw errno("ESRCH"); }, now: () => 2000 });
+			reconcileAsyncRun(asyncDir, {
+				resultsDir,
+				kill: () => {
+					throw errno("ESRCH");
+				},
+				now: () => 2000,
+			});
 
 			const resultJson = JSON.parse(fs.readFileSync(path.join(resultsDir, "run-child.json"), "utf-8"));
 			assert.equal(resultJson.state, "failed");
@@ -377,14 +558,28 @@ describe("async stale-run reconciliation", () => {
 				steps: [{ agent: "worker", status: "running", startedAt: 1000 }],
 			});
 			initializeProcessTerminal(asyncDir, "run-killed", "runner-killed");
-			const proof = finalizeProcessTerminal(asyncDir, "run-killed", { processInstanceId: "runner-killed", closeObservedAt: 1500, exitCode: null, signal: "SIGKILL" });
+			const proof = finalizeProcessTerminal(asyncDir, "run-killed", {
+				processInstanceId: "runner-killed",
+				closeObservedAt: 1500,
+				exitCode: null,
+				signal: "SIGKILL",
+			});
 			assert.equal(proof.state, "unknown");
 
-			reconcileAsyncRun(asyncDir, { resultsDir, kill: () => { throw errno("ESRCH"); }, now: () => 2000 });
+			reconcileAsyncRun(asyncDir, {
+				resultsDir,
+				kill: () => {
+					throw errno("ESRCH");
+				},
+				now: () => 2000,
+			});
 
 			const resultJson = JSON.parse(fs.readFileSync(path.join(resultsDir, "run-killed.json"), "utf-8"));
 			assert.equal(resultJson.state, "failed");
-			assert.match(resultJson.summary, /Async runner process 4242 exited with code none \(signal SIGKILL\) before writing a result/);
+			assert.match(
+				resultJson.summary,
+				/Async runner process 4242 exited with code none \(signal SIGKILL\) before writing a result/,
+			);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -408,7 +603,9 @@ describe("async stale-run reconciliation", () => {
 
 			const result = reconcileAsyncRun(asyncDir, {
 				resultsDir,
-				kill: () => { throw errno("ESRCH"); },
+				kill: () => {
+					throw errno("ESRCH");
+				},
 				now: () => 2000,
 			});
 
@@ -441,7 +638,9 @@ describe("async stale-run reconciliation", () => {
 
 			const result = reconcileAsyncRun(asyncDir, {
 				resultsDir,
-				kill: () => { throw errno("ESRCH"); },
+				kill: () => {
+					throw errno("ESRCH");
+				},
 				now: () => 2000,
 			});
 
@@ -477,14 +676,19 @@ describe("async stale-run reconciliation", () => {
 
 			const result = reconcileAsyncRun(asyncDir, {
 				resultsDir,
-				kill: () => { throw errno("ESRCH"); },
+				kill: () => {
+					throw errno("ESRCH");
+				},
 				now: () => 2000,
 			});
 
 			assert.equal(result.repaired, true);
 			assert.equal(result.status?.state, "failed");
 			assert.equal(JSON.parse(fs.readFileSync(path.join(asyncDir, "status.json"), "utf-8")).state, "failed");
-			assert.equal(JSON.parse(fs.readFileSync(path.join(resultsDir, "run-dead-events-dir.json"), "utf-8")).success, false);
+			assert.equal(
+				JSON.parse(fs.readFileSync(path.join(resultsDir, "run-dead-events-dir.json"), "utf-8")).success,
+				false,
+			);
 			assert.equal(fs.statSync(path.join(asyncDir, "events.jsonl")).isDirectory(), true);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
@@ -511,19 +715,36 @@ describe("async stale-run reconciliation", () => {
 			});
 			const scoutSession = path.join(root, "scout.jsonl");
 			const workerSession = path.join(root, "worker.jsonl");
-			fs.writeFileSync(path.join(resultsDir, "run-mixed.json"), JSON.stringify({
-				id: "run-mixed",
-				success: false,
-				state: "failed",
-				results: [
-					{ agent: "scout", success: true, sessionFile: scoutSession, model: "fast" },
-					{ agent: "worker", success: false, error: "boom", sessionFile: workerSession, model: "careful", contextOverflow: true },
-				],
-			}, null, 2), "utf-8");
+			fs.writeFileSync(
+				path.join(resultsDir, "run-mixed.json"),
+				JSON.stringify(
+					{
+						id: "run-mixed",
+						success: false,
+						state: "failed",
+						results: [
+							{ agent: "scout", success: true, sessionFile: scoutSession, model: "fast" },
+							{
+								agent: "worker",
+								success: false,
+								error: "boom",
+								sessionFile: workerSession,
+								model: "careful",
+								contextOverflow: true,
+							},
+						],
+					},
+					null,
+					2,
+				),
+				"utf-8",
+			);
 
 			const result = reconcileAsyncRun(asyncDir, {
 				resultsDir,
-				kill: () => { throw errno("ESRCH"); },
+				kill: () => {
+					throw errno("ESRCH");
+				},
 				now: () => 2000,
 			});
 
@@ -549,7 +770,15 @@ describe("async stale-run reconciliation", () => {
 		const root = tempRoot("pi-stale-workflow-children-");
 		try {
 			const asyncDir = path.join(root, "wf");
-			const step = (key: string, runId: string) => ({ agent: "worker", status: "running", startedAt: 1000, workflowKey: key, parentWorkflowRunId: "wf", runId, async: true });
+			const step = (key: string, runId: string) => ({
+				agent: "worker",
+				status: "running",
+				startedAt: 1000,
+				workflowKey: key,
+				parentWorkflowRunId: "wf",
+				runId,
+				async: true,
+			});
 			writeStatus(asyncDir, {
 				runId: "wf",
 				mode: "workflow",
@@ -568,21 +797,49 @@ describe("async stale-run reconciliation", () => {
 					step("foreign", "child-foreign"),
 				],
 			});
-			const child = (runId: string, key: string, state: string, endedAt: number | undefined, childStep: Record<string, unknown>, parentWorkflowRunId = "wf") =>
-				writeStatus(path.join(root, runId), { runId, mode: "single", state, startedAt: 1000, ...(endedAt !== undefined ? { endedAt } : {}), parentWorkflowRunId, workflowKey: key, steps: [{ agent: "worker", ...childStep }] });
+			const child = (
+				runId: string,
+				key: string,
+				state: string,
+				endedAt: number | undefined,
+				childStep: Record<string, unknown>,
+				parentWorkflowRunId = "wf",
+			) =>
+				writeStatus(path.join(root, runId), {
+					runId,
+					mode: "single",
+					state,
+					startedAt: 1000,
+					...(endedAt !== undefined ? { endedAt } : {}),
+					parentWorkflowRunId,
+					workflowKey: key,
+					steps: [{ agent: "worker", ...childStep }],
+				});
 			child("child-done", "done", "complete", 1500, { status: "complete", exitCode: 0 });
 			child("child-bad", "bad", "failed", 1600, { status: "failed", exitCode: 1, error: "child boom" });
-			child("child-halted", "halted", "stopped", undefined, { status: "stopped", exitCode: 1, error: "stopped by bg_stop" });
+			child("child-halted", "halted", "stopped", undefined, {
+				status: "stopped",
+				exitCode: 1,
+				error: "stopped by bg_stop",
+			});
 			child("child-cut", "cut", "partial", 1700, { status: "partial", exitCode: 1, error: "turn budget exhausted" });
 			// Owned by another workflow: its outcome must not be borrowed.
 			child("child-foreign", "foreign", "complete", 1500, { status: "complete", exitCode: 0 }, "other-wf");
 			fs.mkdirSync(path.join(root, "child-corrupt"), { recursive: true });
 			fs.writeFileSync(path.join(root, "child-corrupt", "status.json"), "{not json", "utf-8");
-			writeStatus(path.join(root, "child-live"), { runId: "child-live", mode: "single", state: "running", startedAt: 1000, steps: [{ agent: "worker", status: "running" }] });
+			writeStatus(path.join(root, "child-live"), {
+				runId: "child-live",
+				mode: "single",
+				state: "running",
+				startedAt: 1000,
+				steps: [{ agent: "worker", status: "running" }],
+			});
 
 			const result = reconcileAsyncRun(asyncDir, {
 				resultsDir: path.join(root, "results"),
-				kill: () => { throw errno("ESRCH"); },
+				kill: () => {
+					throw errno("ESRCH");
+				},
 				now: () => 2000,
 			});
 
@@ -634,24 +891,64 @@ describe("async stale-run reconciliation", () => {
 				pid: 12345,
 				startedAt: 1000,
 				lastUpdate: 1500,
-				processTerminal: { version: 1, state: "pending", runId, runnerProcessInstanceId: staleRunnerProcessInstanceId },
+				processTerminal: {
+					version: 1,
+					state: "pending",
+					runId,
+					runnerProcessInstanceId: staleRunnerProcessInstanceId,
+				},
 				steps: [
-					{ agent: "scout", status: "complete", startedAt: 1000, endedAt: 1200, exitCode: 0, processTerminal: { version: 1, state: "pending", runId, childIndex: 0, runnerProcessInstanceId: "runner-stale-step-0" } },
-					{ agent: "worker", status: "failed", startedAt: 1000, endedAt: 1400, exitCode: 1, error: "child diagnostic", processTerminal: { version: 1, state: "not-started", runId, childIndex: 1, runnerProcessInstanceId: "runner-stale-step-1" } },
+					{
+						agent: "scout",
+						status: "complete",
+						startedAt: 1000,
+						endedAt: 1200,
+						exitCode: 0,
+						processTerminal: {
+							version: 1,
+							state: "pending",
+							runId,
+							childIndex: 0,
+							runnerProcessInstanceId: "runner-stale-step-0",
+						},
+					},
+					{
+						agent: "worker",
+						status: "failed",
+						startedAt: 1000,
+						endedAt: 1400,
+						exitCode: 1,
+						error: "child diagnostic",
+						processTerminal: {
+							version: 1,
+							state: "not-started",
+							runId,
+							childIndex: 1,
+							runnerProcessInstanceId: "runner-stale-step-1",
+						},
+					},
 				],
 			};
 			writeStatus(asyncDir, staleStatus);
 			fs.mkdirSync(resultsDir, { recursive: true });
 			const resultPath = path.join(resultsDir, `${runId}.json`);
-			fs.writeFileSync(resultPath, JSON.stringify({
-				id: runId,
-				success: false,
-				state: "failed",
-				results: [
-					{ agent: "scout", success: true },
-					{ agent: "worker", success: false, error: "child diagnostic" },
-				],
-			}, null, 2), "utf-8");
+			fs.writeFileSync(
+				resultPath,
+				JSON.stringify(
+					{
+						id: runId,
+						success: false,
+						state: "failed",
+						results: [
+							{ agent: "scout", success: true },
+							{ agent: "worker", success: false, error: "child diagnostic" },
+						],
+					},
+					null,
+					2,
+				),
+				"utf-8",
+			);
 
 			const observedTerminal = {
 				version: 1,
@@ -659,18 +956,42 @@ describe("async stale-run reconciliation", () => {
 				runId,
 				runnerProcessInstanceId: finalRunnerProcessInstanceId,
 				observedAt: 1900,
-				instances: [{ kind: "runner", processInstanceId: finalRunnerProcessInstanceId, closeObservedAt: 1900, exitCode: 0, signal: null }],
+				instances: [
+					{
+						kind: "runner",
+						processInstanceId: finalRunnerProcessInstanceId,
+						closeObservedAt: 1900,
+						exitCode: 0,
+						signal: null,
+					},
+				],
 			} as const;
 			const observedStepTerminal = {
-				version: 1, state: "observed", runId, childIndex: 0,
+				version: 1,
+				state: "observed",
+				runId,
+				childIndex: 0,
 				runnerProcessInstanceId: "runner-current-step-0",
-				observedAt: 1901, resumeDisposition: "non-resumable",
-				instances: [{ kind: "runner", processInstanceId: "runner-current-step-0", closeObservedAt: 1901, exitCode: 0, signal: null }],
+				observedAt: 1901,
+				resumeDisposition: "non-resumable",
+				instances: [
+					{
+						kind: "runner",
+						processInstanceId: "runner-current-step-0",
+						closeObservedAt: 1901,
+						exitCode: 0,
+						signal: null,
+					},
+				],
 			} as const;
 			const unknownStepTerminal = {
-				version: 1, state: "unknown", runId, childIndex: 1,
+				version: 1,
+				state: "unknown",
+				runId,
+				childIndex: 1,
 				runnerProcessInstanceId: "runner-current-step-1",
-				reason: "process-tree-unverified", resumeDisposition: "non-resumable",
+				reason: "process-tree-unverified",
+				resumeDisposition: "non-resumable",
 			} as const;
 			const repaired = reconcileAsyncRun(asyncDir, { resultsDir, now: () => 2000 }, () => {
 				fs.writeFileSync(path.join(asyncDir, "process-terminal.json"), JSON.stringify(observedTerminal), "utf-8");
@@ -706,8 +1027,14 @@ describe("async stale-run reconciliation", () => {
 			assert.deepEqual(publicStatus.processTerminal, observedTerminal);
 			assert.deepEqual(publicStatus.steps[0]?.processTerminal, observedStepTerminal);
 			assert.deepEqual(publicStatus.steps[1]?.processTerminal, unknownStepTerminal);
-			assert.deepEqual(readProcessTerminal(asyncDir, { runId, runnerProcessInstanceId: finalRunnerProcessInstanceId }), observedTerminal);
-			const staleLookup = readProcessTerminal(asyncDir, { runId, runnerProcessInstanceId: staleRunnerProcessInstanceId });
+			assert.deepEqual(
+				readProcessTerminal(asyncDir, { runId, runnerProcessInstanceId: finalRunnerProcessInstanceId }),
+				observedTerminal,
+			);
+			const staleLookup = readProcessTerminal(asyncDir, {
+				runId,
+				runnerProcessInstanceId: staleRunnerProcessInstanceId,
+			});
 			assert.equal(staleLookup?.state, "unknown");
 			assert.equal(staleLookup?.reason, "proof-write-failed");
 
@@ -751,13 +1078,17 @@ describe("async stale-run reconciliation", () => {
 					...(fixture.statusError ? { error: fixture.statusError } : {}),
 					steps: [{ agent: "worker", status: "running", startedAt: 1000 }],
 				});
-				fs.writeFileSync(path.join(resultsDir, `${runId}.json`), JSON.stringify({
-					id: runId,
-					success: false,
-					state: "failed",
-					error: fixture.resultError,
-					results: [{ agent: "worker", success: false, error: "child failure" }],
-				}), "utf-8");
+				fs.writeFileSync(
+					path.join(resultsDir, `${runId}.json`),
+					JSON.stringify({
+						id: runId,
+						success: false,
+						state: "failed",
+						error: fixture.resultError,
+						results: [{ agent: "worker", success: false, error: "child failure" }],
+					}),
+					"utf-8",
+				);
 
 				const repaired = reconcileAsyncRun(asyncDir, { resultsDir, now: () => 2000 });
 				assert.equal(repaired.status?.error, fixture.expected);
@@ -787,18 +1118,23 @@ describe("async stale-run reconciliation", () => {
 			});
 			const publicResultPath = path.join(resultsDir, "run-pending-result.json");
 			fs.mkdirSync(publicResultPath, { recursive: true });
-			assert.deepEqual(writeAsyncResultFile(publicResultPath, {
-				id: "run-pending-result",
-				runId: "run-pending-result",
-				sessionId: "session-current",
-				success: true,
-				state: "complete",
-				summary: "already done",
-			}), { state: "pending" });
+			assert.deepEqual(
+				writeAsyncResultFile(publicResultPath, {
+					id: "run-pending-result",
+					runId: "run-pending-result",
+					sessionId: "session-current",
+					success: true,
+					state: "complete",
+					summary: "already done",
+				}),
+				{ state: "pending" },
+			);
 
 			const result = reconcileAsyncRun(asyncDir, {
 				resultsDir,
-				kill: () => { throw errno("ESRCH"); },
+				kill: () => {
+					throw errno("ESRCH");
+				},
 				now: () => 2000,
 			});
 
@@ -846,7 +1182,9 @@ describe("async stale-run reconciliation", () => {
 
 			const result = reconcileAsyncRun(asyncDir, {
 				resultsDir,
-				kill: () => { throw errno("ESRCH"); },
+				kill: () => {
+					throw errno("ESRCH");
+				},
 				now: () => 2000,
 			});
 
@@ -906,11 +1244,17 @@ describe("async stale-run reconciliation", () => {
 				steps: [{ agent: "worker", status: "running", startedAt: 1000 }],
 			});
 			const resultPath = path.join(resultsDir, "run-result.json");
-			fs.writeFileSync(resultPath, JSON.stringify({ id: "run-result", success: true, state: "complete", summary: "already done" }, null, 2), "utf-8");
+			fs.writeFileSync(
+				resultPath,
+				JSON.stringify({ id: "run-result", success: true, state: "complete", summary: "already done" }, null, 2),
+				"utf-8",
+			);
 
 			const result = reconcileAsyncRun(asyncDir, {
 				resultsDir,
-				kill: () => { throw errno("ESRCH"); },
+				kill: () => {
+					throw errno("ESRCH");
+				},
 				now: () => 2000,
 			});
 

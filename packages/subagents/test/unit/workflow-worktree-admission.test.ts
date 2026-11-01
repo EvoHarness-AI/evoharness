@@ -15,14 +15,28 @@ it("rechecks effective relative sources after changes without applying fresh def
 	fs.mkdirSync(path.join(repo, ".pi", "subagents"), { recursive: true });
 	fs.writeFileSync(path.join(repo, ".pi", "subagents", "runtime.json"), "{}");
 	const signal = new AbortController().signal;
-	const calls = [{ key: "a", params: { agent: "worker", task: "Inspect" } }, { key: "b", params: { agent: "worker", task: "Inspect", cwd: "./repo" } }];
+	const calls = [
+		{ key: "a", params: { agent: "worker", task: "Inspect" } },
+		{ key: "b", params: { agent: "worker", task: "Inspect", cwd: "./repo" } },
+	];
 	try {
-		await preflightWorkflowWorktrees({ ctxCwd: root, workflowDefaults: { cwd: "repo", worktree: true }, calls, signal });
+		await preflightWorkflowWorktrees({
+			ctxCwd: root,
+			workflowDefaults: { cwd: "repo", worktree: true },
+			calls,
+			signal,
+		});
 		fs.writeFileSync(path.join(repo, "untracked.txt"), "dirty");
-		await assert.rejects(preflightWorkflowWorktrees({ ctxCwd: root, workflowDefaults: { cwd: "repo", worktree: true }, calls, signal }), /a.*b.*clean git working tree/);
-		await preflightWorkflowWorktrees({ ctxCwd: root, workflowDefaults: { worktree: true }, calls: [
-			{ key: "retained", params: { resume: "original-run", task: "Continue" } },
-		], signal });
+		await assert.rejects(
+			preflightWorkflowWorktrees({ ctxCwd: root, workflowDefaults: { cwd: "repo", worktree: true }, calls, signal }),
+			/a.*b.*clean git working tree/,
+		);
+		await preflightWorkflowWorktrees({
+			ctxCwd: root,
+			workflowDefaults: { worktree: true },
+			calls: [{ key: "retained", params: { resume: "original-run", task: "Continue" } }],
+			signal,
+		});
 	} finally {
 		fs.rmSync(root, { recursive: true, force: true });
 	}

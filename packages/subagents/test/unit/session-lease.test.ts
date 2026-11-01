@@ -1,11 +1,16 @@
 import assert from "node:assert/strict";
-import { spawn, type ChildProcess } from "node:child_process";
+import { type ChildProcess, spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
-import { acquireSessionLease, canonicalSessionFilePath, SessionLeaseConflictError, sessionLeaseDir } from "../../src/runs/shared/session-lease.ts";
+import { fileURLToPath } from "node:url";
+import {
+	acquireSessionLease,
+	canonicalSessionFilePath,
+	SessionLeaseConflictError,
+	sessionLeaseDir,
+} from "../../src/runs/shared/session-lease.ts";
 
 function fixture(prefix: string): { root: string; leases: string; sessionFile: string } {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -21,7 +26,10 @@ function request(sessionFile: string, runId: string) {
 function waitForLine(child: ChildProcess, timeoutMs = 10_000): Promise<string> {
 	return new Promise((resolve, reject) => {
 		let stdout = "";
-		const timer = setTimeout(() => reject(new Error(`Timed out waiting for child output. stderr: ${String(child.stderr?.read() ?? "")}`)), timeoutMs);
+		const timer = setTimeout(
+			() => reject(new Error(`Timed out waiting for child output. stderr: ${String(child.stderr?.read() ?? "")}`)),
+			timeoutMs,
+		);
 		child.stdout?.setEncoding("utf-8");
 		child.stdout?.on("data", (chunk: string) => {
 			stdout += chunk;
@@ -92,54 +100,73 @@ describe("session revival leases", () => {
 				now: () => 1000,
 			});
 			assert.throws(
-				() => acquireSessionLease(request(sessionFile, "revive-b"), {
-					rootDir: leases,
-					pid: 202,
-					hostname: "host-a",
-					processStartIdentity: "start-b",
-					isProcessAlive: () => true,
-					getProcessStartIdentity: () => "start-a",
-					token: () => "token-b",
-				}),
-				(error: unknown) => error instanceof SessionLeaseConflictError
-					&& error.owner?.runId === "revive-a"
-					&& /already owned by run 'revive-a'/.test(error.message),
+				() =>
+					acquireSessionLease(request(sessionFile, "revive-b"), {
+						rootDir: leases,
+						pid: 202,
+						hostname: "host-a",
+						processStartIdentity: "start-b",
+						isProcessAlive: () => true,
+						getProcessStartIdentity: () => "start-a",
+						token: () => "token-b",
+					}),
+				(error: unknown) =>
+					error instanceof SessionLeaseConflictError &&
+					error.owner?.runId === "revive-a" &&
+					/already owned by run 'revive-a'/.test(error.message),
 			);
 			assert.equal(first.release(), true);
-			const second = acquireSessionLease(request(sessionFile, "revive-b"), { rootDir: leases, token: () => "token-b" });
+			const second = acquireSessionLease(request(sessionFile, "revive-b"), {
+				rootDir: leases,
+				token: () => "token-b",
+			});
 			assert.equal(second.release(), true);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});
 
-	it("acquires a lease without a ps start probe when the platform has none", {
-		skip: process.platform === "linux" || process.platform === "win32" ? "platform has a native start probe" : undefined,
-	}, () => {
-		const { root, leases, sessionFile } = fixture("pi-session-lease-no-ps-");
-		try {
-			const lease = acquireSessionLease(request(sessionFile, "no-ps"), { rootDir: leases });
-			assert.match(lease.owner.processStartIdentity ?? "", /^runtime:/);
-			lease.release();
-		} finally {
-			fs.rmSync(root, { recursive: true, force: true });
-		}
-	});
+	it(
+		"acquires a lease without a ps start probe when the platform has none",
+		{
+			skip:
+				process.platform === "linux" || process.platform === "win32"
+					? "platform has a native start probe"
+					: undefined,
+		},
+		() => {
+			const { root, leases, sessionFile } = fixture("pi-session-lease-no-ps-");
+			try {
+				const lease = acquireSessionLease(request(sessionFile, "no-ps"), { rootDir: leases });
+				assert.match(lease.owner.processStartIdentity ?? "", /^runtime:/);
+				lease.release();
+			} finally {
+				fs.rmSync(root, { recursive: true, force: true });
+			}
+		},
+	);
 
-	it("keys aliases by the canonical session path", { skip: process.platform === "win32" ? "symlink creation is not portable on Windows CI" : undefined }, () => {
-		const { root, leases, sessionFile } = fixture("pi-session-lease-canonical-");
-		try {
-			const alias = path.join(root, "alias.jsonl");
-			fs.symlinkSync(sessionFile, alias);
-			assert.equal(canonicalSessionFilePath(alias), canonicalSessionFilePath(sessionFile));
-			assert.equal(sessionLeaseDir(alias, leases), sessionLeaseDir(sessionFile, leases));
-			const lease = acquireSessionLease(request(alias, "alias-owner"), { rootDir: leases });
-			assert.throws(() => acquireSessionLease(request(sessionFile, "direct-owner"), { rootDir: leases }), /already owned by run 'alias-owner'/);
-			lease.release();
-		} finally {
-			fs.rmSync(root, { recursive: true, force: true });
-		}
-	});
+	it(
+		"keys aliases by the canonical session path",
+		{ skip: process.platform === "win32" ? "symlink creation is not portable on Windows CI" : undefined },
+		() => {
+			const { root, leases, sessionFile } = fixture("pi-session-lease-canonical-");
+			try {
+				const alias = path.join(root, "alias.jsonl");
+				fs.symlinkSync(sessionFile, alias);
+				assert.equal(canonicalSessionFilePath(alias), canonicalSessionFilePath(sessionFile));
+				assert.equal(sessionLeaseDir(alias, leases), sessionLeaseDir(sessionFile, leases));
+				const lease = acquireSessionLease(request(alias, "alias-owner"), { rootDir: leases });
+				assert.throws(
+					() => acquireSessionLease(request(sessionFile, "direct-owner"), { rootDir: leases }),
+					/already owned by run 'alias-owner'/,
+				);
+				lease.release();
+			} finally {
+				fs.rmSync(root, { recursive: true, force: true });
+			}
+		},
+	);
 
 	it("allows different canonical session files concurrently", () => {
 		const { root, leases, sessionFile } = fixture("pi-session-lease-distinct-");
@@ -170,7 +197,7 @@ describe("session revival leases", () => {
 				pid: 202,
 				hostname: "host-a",
 				processStartIdentity: "start-recovered",
-				isProcessAlive: (pid) => pid === 101 ? false : true,
+				isProcessAlive: (pid) => (pid === 101 ? false : true),
 				token: () => "recovered-token",
 			});
 			assert.equal(recovered.owner.runId, "recovered");
@@ -190,7 +217,7 @@ describe("session revival leases", () => {
 				hostname: "host-a",
 				processStartIdentity: "new-owner-start",
 				isProcessAlive: () => true,
-				getProcessStartIdentity: (pid) => pid === 303 ? "new-start" : "new-owner-start",
+				getProcessStartIdentity: (pid) => (pid === 303 ? "new-start" : "new-owner-start"),
 				token: () => "after-reuse-token",
 			});
 			assert.equal(afterReuse.owner.runId, "after-reuse");
@@ -209,30 +236,32 @@ describe("session revival leases", () => {
 				pid: 101,
 				hostname: "host-a",
 				processStartIdentity: "runner-start",
-				getProcessStartIdentity: (pid) => pid === 202 ? "writer-start" : undefined,
+				getProcessStartIdentity: (pid) => (pid === 202 ? "writer-start" : undefined),
 			});
 			lease.updateWriter({ state: "spawning" });
 			assert.throws(
-				() => acquireSessionLease(request(sessionFile, "spawning-contender"), {
-					rootDir: leases,
-					pid: 303,
-					hostname: "host-a",
-					processStartIdentity: "contender-start",
-					isProcessAlive: () => false,
-				}),
+				() =>
+					acquireSessionLease(request(sessionFile, "spawning-contender"), {
+						rootDir: leases,
+						pid: 303,
+						hostname: "host-a",
+						processStartIdentity: "contender-start",
+						isProcessAlive: () => false,
+					}),
 				/already owned by run 'runner-owner'/,
 			);
 
 			lease.updateWriter({ state: "running", pid: 202 });
 			assert.throws(
-				() => acquireSessionLease(request(sessionFile, "writer-contender"), {
-					rootDir: leases,
-					pid: 303,
-					hostname: "host-a",
-					processStartIdentity: "contender-start",
-					isProcessAlive: (pid) => pid === 202,
-					getProcessStartIdentity: (pid) => pid === 202 ? "writer-start" : undefined,
-				}),
+				() =>
+					acquireSessionLease(request(sessionFile, "writer-contender"), {
+						rootDir: leases,
+						pid: 303,
+						hostname: "host-a",
+						processStartIdentity: "contender-start",
+						isProcessAlive: (pid) => pid === 202,
+						getProcessStartIdentity: (pid) => (pid === 202 ? "writer-start" : undefined),
+					}),
 				/already owned by run 'runner-owner'/,
 			);
 			lease.release();
@@ -251,13 +280,14 @@ describe("session revival leases", () => {
 				processStartIdentity: "start-a",
 			});
 			assert.throws(
-				() => acquireSessionLease(request(sessionFile, "local-owner"), {
-					rootDir: leases,
-					pid: 202,
-					hostname: "host-b",
-					processStartIdentity: "start-b",
-					isProcessAlive: () => false,
-				}),
+				() =>
+					acquireSessionLease(request(sessionFile, "local-owner"), {
+						rootDir: leases,
+						pid: 202,
+						hostname: "host-b",
+						processStartIdentity: "start-b",
+						isProcessAlive: () => false,
+					}),
 				/already owned by run 'remote-owner'/,
 			);
 			lease.release();
@@ -272,16 +302,23 @@ describe("session revival leases", () => {
 		const releaseSignal = path.join(root, "unused-release");
 		let writerPid: number | undefined;
 		try {
-			const owner = spawn(process.execPath, ["--experimental-strip-types", helper, sessionFile, leases, releaseSignal, "abandon-with-writer"], {
-				stdio: ["ignore", "pipe", "pipe"],
-			});
+			const owner = spawn(
+				process.execPath,
+				["--experimental-strip-types", helper, sessionFile, leases, releaseSignal, "abandon-with-writer"],
+				{
+					stdio: ["ignore", "pipe", "pipe"],
+				},
+			);
 			const started = JSON.parse(await waitForLine(owner)) as { acquired?: boolean; writerPid?: number };
 			assert.equal(started.acquired, true);
 			assert.equal(typeof started.writerPid, "number");
 			writerPid = started.writerPid;
 			await waitForExit(owner);
 			assert.ok(writerPid && pidIsAlive(writerPid));
-			assert.throws(() => acquireSessionLease(request(sessionFile, "blocked-by-writer"), { rootDir: leases }), /already owned by run 'child-/);
+			assert.throws(
+				() => acquireSessionLease(request(sessionFile, "blocked-by-writer"), { rootDir: leases }),
+				/already owned by run 'child-/,
+			);
 
 			process.kill(writerPid, "SIGTERM");
 			await waitForPidExit(writerPid);
@@ -300,29 +337,48 @@ describe("session revival leases", () => {
 		const releaseSignal = path.join(root, "release");
 		let child: ChildProcess | undefined;
 		try {
-			child = spawn(process.execPath, ["--experimental-strip-types", helper, sessionFile, leases, releaseSignal, "hold"], {
-				stdio: ["ignore", "pipe", "pipe"],
-			});
+			child = spawn(
+				process.execPath,
+				["--experimental-strip-types", helper, sessionFile, leases, releaseSignal, "hold"],
+				{
+					stdio: ["ignore", "pipe", "pipe"],
+				},
+			);
 			const line = await waitForLine(child);
 			const started = JSON.parse(line) as { owner?: { pid?: number; runId?: string } };
 			assert.equal(started.owner?.pid, child.pid);
-			assert.throws(() => acquireSessionLease(request(sessionFile, "parent-contender"), { rootDir: leases }), /already owned by run 'child-/);
+			assert.throws(
+				() => acquireSessionLease(request(sessionFile, "parent-contender"), { rootDir: leases }),
+				/already owned by run 'child-/,
+			);
 			fs.writeFileSync(releaseSignal, "release", "utf-8");
 			await waitForExit(child);
 			const afterRelease = acquireSessionLease(request(sessionFile, "parent-after-release"), { rootDir: leases });
 			afterRelease.release();
 
 			fs.rmSync(releaseSignal, { force: true });
-			const abandoned = spawn(process.execPath, ["--experimental-strip-types", helper, sessionFile, leases, releaseSignal, "abandon"], {
-				stdio: ["ignore", "pipe", "pipe"],
-			});
+			const abandoned = spawn(
+				process.execPath,
+				["--experimental-strip-types", helper, sessionFile, leases, releaseSignal, "abandon"],
+				{
+					stdio: ["ignore", "pipe", "pipe"],
+				},
+			);
 			await waitForLine(abandoned);
 			await waitForExit(abandoned);
 
 			const releaseA = path.join(root, "release-a");
 			const releaseB = path.join(root, "release-b");
-			const contenderA = spawn(process.execPath, ["--experimental-strip-types", helper, sessionFile, leases, releaseA, "hold"], { stdio: ["ignore", "pipe", "pipe"] });
-			const contenderB = spawn(process.execPath, ["--experimental-strip-types", helper, sessionFile, leases, releaseB, "hold"], { stdio: ["ignore", "pipe", "pipe"] });
+			const contenderA = spawn(
+				process.execPath,
+				["--experimental-strip-types", helper, sessionFile, leases, releaseA, "hold"],
+				{ stdio: ["ignore", "pipe", "pipe"] },
+			);
+			const contenderB = spawn(
+				process.execPath,
+				["--experimental-strip-types", helper, sessionFile, leases, releaseB, "hold"],
+				{ stdio: ["ignore", "pipe", "pipe"] },
+			);
 			const [lineA, lineB] = await Promise.all([waitForLine(contenderA), waitForLine(contenderB)]);
 			const stateA = JSON.parse(lineA) as { acquired?: boolean };
 			const stateB = JSON.parse(lineB) as { acquired?: boolean };

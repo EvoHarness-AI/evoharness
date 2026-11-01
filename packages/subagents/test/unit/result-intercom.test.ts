@@ -15,10 +15,16 @@ describe("result intercom formatter", () => {
 	it("does not promote running children to grouped completion", () => {
 		assert.equal(resolveSubagentResultStatus({ state: "running" }), "running");
 		assert.equal(resolveSubagentResultStatus({ state: "running", success: true }), "running");
-		const payload = buildSubagentResultIntercomPayload({ to: "parent", runId: "workflow", mode: "workflow", source: "async", children: [
-			{ agent: "finished", status: "completed", summary: "done", outputState: "present" },
-			{ agent: "launched", status: "running", summary: "", outputState: "absent" },
-		] });
+		const payload = buildSubagentResultIntercomPayload({
+			to: "parent",
+			runId: "workflow",
+			mode: "workflow",
+			source: "async",
+			children: [
+				{ agent: "finished", status: "completed", summary: "done", outputState: "present" },
+				{ agent: "launched", status: "running", summary: "", outputState: "absent" },
+			],
+		});
 		assert.equal(payload.status, "running");
 		assert.equal(payload.summary, "1 running, 1 completed");
 	});
@@ -79,7 +85,10 @@ describe("result intercom formatter", () => {
 				children: [{ agent: "worker", status: "completed", summary: "done", sessionPath }],
 			});
 
-			assert.match(payload.message, /Revive: subagent\(\{ action: "resume", id: "run-single", message: "\.\.\." \}\)/);
+			assert.match(
+				payload.message,
+				/Revive: subagent\(\{ action: "resume", id: "run-single", message: "\.\.\." \}\)/,
+			);
 			assert.doesNotMatch(payload.message, /unsupported for multi-child/);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
@@ -105,7 +114,10 @@ describe("result intercom formatter", () => {
 				],
 			});
 
-			assert.match(payload.message, /Revive child: subagent\(\{ action: "resume", id: "run-multi", message: "\.\.\.", options: \{ index: 0 \} \}\)/);
+			assert.match(
+				payload.message,
+				/Revive child: subagent\(\{ action: "resume", id: "run-multi", message: "\.\.\.", options: \{ index: 0 \} \}\)/,
+			);
 			assert.doesNotMatch(payload.message, /unsupported for multi-child/);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
@@ -119,7 +131,14 @@ describe("result intercom formatter", () => {
 			mode: "single",
 			source: "async",
 			asyncId: "run-missing-session",
-			children: [{ agent: "worker", status: "failed", summary: "failed", sessionPath: path.join(os.tmpdir(), "missing-pi-session.jsonl") }],
+			children: [
+				{
+					agent: "worker",
+					status: "failed",
+					summary: "failed",
+					sessionPath: path.join(os.tmpdir(), "missing-pi-session.jsonl"),
+				},
+			],
 		});
 
 		assert.match(payload.message, /Resume: unavailable; no child session file was persisted/);
@@ -132,34 +151,42 @@ describe("result intercom formatter", () => {
 			runId: "root-run",
 			mode: "parallel",
 			source: "foreground",
-			children: attachNestedChildrenToResultChildren("root-run", [
-				{ agent: "owner-a", status: "completed", summary: "done", index: 0 },
-				{ agent: "owner-b", status: "completed", summary: "done", index: 1 },
-			], [{
-				id: "nested-a",
-				parentRunId: "root-run",
-				parentStepIndex: 1,
-				depth: 1,
-				path: [{ runId: "root-run", stepIndex: 1 }],
-				state: "complete",
-				agent: "reviewer",
-				model: "provider/gpt-5.6-luna:medium",
-				thinking: "medium",
-				sessionFile: path.join(os.tmpdir(), "nested-a.jsonl"),
-				steps: [{ agent: "leaf", status: "complete", model: "provider/leaf", thinking: "low" }],
-				controlInbox: "/tmp/should-not-leak",
-				capabilityToken: "secret-token",
-				children: [{
-					id: "nested-grandchild",
-					parentRunId: "nested-a",
-					depth: 2,
-					path: [{ runId: "root-run", stepIndex: 1 }, { runId: "nested-a" }],
-					state: "complete",
-					agent: "auditor",
-					controlInbox: "/tmp/grandchild-should-not-leak",
-					capabilityToken: "grandchild-secret",
-				}],
-			}]),
+			children: attachNestedChildrenToResultChildren(
+				"root-run",
+				[
+					{ agent: "owner-a", status: "completed", summary: "done", index: 0 },
+					{ agent: "owner-b", status: "completed", summary: "done", index: 1 },
+				],
+				[
+					{
+						id: "nested-a",
+						parentRunId: "root-run",
+						parentStepIndex: 1,
+						depth: 1,
+						path: [{ runId: "root-run", stepIndex: 1 }],
+						state: "complete",
+						agent: "reviewer",
+						model: "provider/gpt-5.6-luna:medium",
+						thinking: "medium",
+						sessionFile: path.join(os.tmpdir(), "nested-a.jsonl"),
+						steps: [{ agent: "leaf", status: "complete", model: "provider/leaf", thinking: "low" }],
+						controlInbox: "/tmp/should-not-leak",
+						capabilityToken: "secret-token",
+						children: [
+							{
+								id: "nested-grandchild",
+								parentRunId: "nested-a",
+								depth: 2,
+								path: [{ runId: "root-run", stepIndex: 1 }, { runId: "nested-a" }],
+								state: "complete",
+								agent: "auditor",
+								controlInbox: "/tmp/grandchild-should-not-leak",
+								capabilityToken: "grandchild-secret",
+							},
+						],
+					},
+				],
+			),
 		});
 
 		const nested = payload.children[1]?.children?.[0];
@@ -220,7 +247,13 @@ describe("result intercom formatter", () => {
 			mode: "parallel",
 			source: "foreground",
 			children: [
-				{ agent: "a", status: "completed", summary: "done", artifactPath: "/tmp/a.md", intercomTarget: "subagent-a-run-abc-1" },
+				{
+					agent: "a",
+					status: "completed",
+					summary: "done",
+					artifactPath: "/tmp/a.md",
+					intercomTarget: "subagent-a-run-abc-1",
+				},
 				{ agent: "b", status: "failed", summary: "failed", sessionPath: "/tmp/b.jsonl" },
 			],
 		});
@@ -233,7 +266,10 @@ describe("result intercom formatter", () => {
 		assert.match(receipt, /Delivered parallel subagent results via intercom\./);
 		assert.match(receipt, /Children: 1 completed, 1 failed/);
 		assert.match(receipt, /Artifacts:\n- a \[completed\]: \/tmp\/a\.md/);
-		assert.match(receipt, /Run intercom targets \(may be inactive after completion\):\n- a \[completed\]: subagent-a-run-abc-1/);
+		assert.match(
+			receipt,
+			/Run intercom targets \(may be inactive after completion\):\n- a \[completed\]: subagent-a-run-abc-1/,
+		);
 		assert.match(receipt, /Sessions:\n- b \[failed\]: \/tmp\/b\.jsonl/);
 		assert.match(receipt, /Full grouped output was sent over intercom\./);
 	});
@@ -241,15 +277,17 @@ describe("result intercom formatter", () => {
 	it("strips heavy output fields from receipt details", () => {
 		const stripped = stripDetailsOutputsForIntercomReceipt({
 			mode: "single",
-			results: [{
-				agent: "worker",
-				task: "Task",
-				exitCode: 0,
-				messages: [{ role: "assistant", content: [{ type: "text", text: "full" }] } as never],
-				usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 1 },
-				finalOutput: "full output",
-				truncation: { text: "truncated", truncated: true },
-			}],
+			results: [
+				{
+					agent: "worker",
+					task: "Task",
+					exitCode: 0,
+					messages: [{ role: "assistant", content: [{ type: "text", text: "full" }] } as never],
+					usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 1 },
+					finalOutput: "full output",
+					truncation: { text: "truncated", truncated: true },
+				},
+			],
 		});
 		assert.equal(stripped.results[0]?.messages, undefined);
 		assert.equal(stripped.results[0]?.finalOutput, undefined);

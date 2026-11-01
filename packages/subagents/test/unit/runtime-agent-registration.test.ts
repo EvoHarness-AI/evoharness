@@ -4,11 +4,16 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import type { ExtensionAPI } from "@evoharness/coding-agent";
-import { RUNTIME_AGENT_REGISTER_EVENT, registerAgent, registerAgentViaEvents, type RuntimeAgentRegistrationRequest } from "../../src/api/agents.ts";
-import { registerRuntimeAgentEventListener } from "../../src/agents/runtime-agent-events.ts";
 import { handleList, handleManagementAction } from "../../src/agents/agent-management.ts";
 import { discoverAgents, discoverAgentsAll } from "../../src/agents/agents.ts";
+import { registerRuntimeAgentEventListener } from "../../src/agents/runtime-agent-events.ts";
 import { clearRuntimeAgentsForPi, mergeRuntimeAgents } from "../../src/agents/runtime-agent-registry.ts";
+import {
+	RUNTIME_AGENT_REGISTER_EVENT,
+	type RuntimeAgentRegistrationRequest,
+	registerAgent,
+	registerAgentViaEvents,
+} from "../../src/api/agents.ts";
 
 const originalHome = process.env.HOME;
 const originalUserProfile = process.env.USERPROFILE;
@@ -52,13 +57,21 @@ function writeJson(filePath: string, value: unknown): void {
 function writeProjectAgent(name: string, aliases: string[] = []): void {
 	const filePath = path.join(tempProject, ".pi", "agents", `${name}.md`);
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
-	fs.writeFileSync(filePath, `---\nname: ${name}\ndescription: Project agent\n${aliases.length ? `aliases: ${aliases.join(", ")}\n` : ""}---\n\nProject prompt.\n`, "utf-8");
+	fs.writeFileSync(
+		filePath,
+		`---\nname: ${name}\ndescription: Project agent\n${aliases.length ? `aliases: ${aliases.join(", ")}\n` : ""}---\n\nProject prompt.\n`,
+		"utf-8",
+	);
 }
 
 function writeUserAgent(name: string, aliases: string[] = []): void {
 	const filePath = path.join(tempHome, ".pi", "agent", "agents", `${name}.md`);
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
-	fs.writeFileSync(filePath, `---\nname: ${name}\ndescription: User agent\n${aliases.length ? `aliases: ${aliases.join(", ")}\n` : ""}---\n\nUser prompt.\n`, "utf-8");
+	fs.writeFileSync(
+		filePath,
+		`---\nname: ${name}\ndescription: User agent\n${aliases.length ? `aliases: ${aliases.join(", ")}\n` : ""}---\n\nUser prompt.\n`,
+		"utf-8",
+	);
 }
 
 describe("runtime agent registration", () => {
@@ -104,7 +117,12 @@ describe("runtime agent registration", () => {
 		assert.equal(fs.existsSync(settingsPath), false);
 
 		registration.dispose();
-		assert.equal(mergeRuntimeAgents(pi, discoverAgents(tempProject, "both")).agents.some((candidate) => candidate.name === "runtime-helper"), false);
+		assert.equal(
+			mergeRuntimeAgents(pi, discoverAgents(tempProject, "both")).agents.some(
+				(candidate) => candidate.name === "runtime-helper",
+			),
+			false,
+		);
 		registration.dispose();
 	});
 
@@ -140,7 +158,9 @@ describe("runtime agent registration", () => {
 			},
 		});
 
-		const agent = mergeRuntimeAgents(pi, discoverAgents(tempProject, "both")).agents.find((candidate) => candidate.name === "runtime-exclude-helper");
+		const agent = mergeRuntimeAgents(pi, discoverAgents(tempProject, "both")).agents.find(
+			(candidate) => candidate.name === "runtime-exclude-helper",
+		);
 		assert.deepEqual(agent?.excludeTools, ["write", "unknown_tool"]);
 		registration.dispose();
 	});
@@ -156,15 +176,35 @@ describe("runtime agent registration", () => {
 			definition: { description: "Event helper", systemPrompt: "Help through the owner." },
 		});
 
-		assert.equal(mergeRuntimeAgents(ownerPi, discoverAgents(tempProject, "both")).agents.some((agent) => agent.name === "runtime-event-helper"), true);
-		assert.equal(mergeRuntimeAgents(consumerPi, discoverAgents(tempProject, "both")).agents.some((agent) => agent.name === "runtime-event-helper"), false);
+		assert.equal(
+			mergeRuntimeAgents(ownerPi, discoverAgents(tempProject, "both")).agents.some(
+				(agent) => agent.name === "runtime-event-helper",
+			),
+			true,
+		);
+		assert.equal(
+			mergeRuntimeAgents(consumerPi, discoverAgents(tempProject, "both")).agents.some(
+				(agent) => agent.name === "runtime-event-helper",
+			),
+			false,
+		);
 		assert.throws(
-			() => registerAgentViaEvents({ pi: consumerPi, name: "runtime-event-helper", definition: { description: "Duplicate", systemPrompt: "Duplicate." } }),
+			() =>
+				registerAgentViaEvents({
+					pi: consumerPi,
+					name: "runtime-event-helper",
+					definition: { description: "Duplicate", systemPrompt: "Duplicate." },
+				}),
 			/collides with runtime agent 'runtime-event-helper'/,
 		);
 
 		registration.dispose();
-		assert.equal(mergeRuntimeAgents(ownerPi, discoverAgents(tempProject, "both")).agents.some((agent) => agent.name === "runtime-event-helper"), false);
+		assert.equal(
+			mergeRuntimeAgents(ownerPi, discoverAgents(tempProject, "both")).agents.some(
+				(agent) => agent.name === "runtime-event-helper",
+			),
+			false,
+		);
 		unsubscribe();
 		clearRuntimeAgentsForPi(ownerPi);
 	});
@@ -182,8 +222,18 @@ describe("runtime agent registration", () => {
 			name: "first-owner-agent",
 			definition: { description: "First owner", systemPrompt: "Use the first owner." },
 		});
-		assert.equal(mergeRuntimeAgents(firstOwner, discoverAgents(tempProject, "both")).agents.some((agent) => agent.name === "first-owner-agent"), true);
-		assert.equal(mergeRuntimeAgents(secondOwner, discoverAgents(tempProject, "both")).agents.some((agent) => agent.name === "first-owner-agent"), false);
+		assert.equal(
+			mergeRuntimeAgents(firstOwner, discoverAgents(tempProject, "both")).agents.some(
+				(agent) => agent.name === "first-owner-agent",
+			),
+			true,
+		);
+		assert.equal(
+			mergeRuntimeAgents(secondOwner, discoverAgents(tempProject, "both")).agents.some(
+				(agent) => agent.name === "first-owner-agent",
+			),
+			false,
+		);
 
 		registration.dispose();
 		unsubscribeFirst();
@@ -197,10 +247,15 @@ describe("runtime agent registration", () => {
 		const owner = makePiWithEvents(events);
 		const consumer = makePiWithEvents(events);
 		const unsubscribe = registerRuntimeAgentEventListener(owner);
-		const unsupported = { version: 2, name: "bad-version", definition: {} } as unknown as RuntimeAgentRegistrationRequest;
+		const unsupported = {
+			version: 2,
+			name: "bad-version",
+			definition: {},
+		} as unknown as RuntimeAgentRegistrationRequest;
 		events.emit(RUNTIME_AGENT_REGISTER_EVENT, unsupported);
 		assert.equal(unsupported.result?.ok, false);
-		if (unsupported.result?.ok === false) assert.match(unsupported.result.error.message, /Unsupported runtime agent registration event version '2'/);
+		if (unsupported.result?.ok === false)
+			assert.match(unsupported.result.error.message, /Unsupported runtime agent registration event version '2'/);
 
 		const malformed = { version: 1, name: "bad-definition" } as unknown as RuntimeAgentRegistrationRequest;
 		events.emit(RUNTIME_AGENT_REGISTER_EVENT, malformed);
@@ -208,14 +263,24 @@ describe("runtime agent registration", () => {
 		if (malformed.result?.ok === false) assert.match(malformed.result.error.message, /definition must be an object/i);
 		unsubscribe();
 		assert.throws(
-			() => registerAgentViaEvents({ pi: consumer, name: "no-owner", definition: { description: "Missing", systemPrompt: "Missing." } }),
+			() =>
+				registerAgentViaEvents({
+					pi: consumer,
+					name: "no-owner",
+					definition: { description: "Missing", systemPrompt: "Missing." },
+				}),
 			/not installed, not ready, or does not support/,
 		);
 		const unsubscribeMalformed = events.on(RUNTIME_AGENT_REGISTER_EVENT, (raw) => {
 			(raw as { result?: unknown }).result = {};
 		});
 		assert.throws(
-			() => registerAgentViaEvents({ pi: consumer, name: "malformed-result", definition: { description: "Malformed", systemPrompt: "Malformed." } }),
+			() =>
+				registerAgentViaEvents({
+					pi: consumer,
+					name: "malformed-result",
+					definition: { description: "Malformed", systemPrompt: "Malformed." },
+				}),
 			/malformed runtime agent registration result/,
 		);
 		unsubscribeMalformed();
@@ -229,8 +294,11 @@ describe("runtime agent registration", () => {
 			definition: { description: "Runtime helper", systemPrompt: "Help at runtime.", aliases: ["helper"] },
 		});
 
-		const listed = handleList({}, { cwd: tempProject, modelRegistry: { getAvailable: () => [] }, runtimeAgentOwner: pi });
-		const text = listed.content.map((part) => part.type === "text" ? part.text ?? "" : "").join("\n");
+		const listed = handleList(
+			{},
+			{ cwd: tempProject, modelRegistry: { getAvailable: () => [] }, runtimeAgentOwner: pi },
+		);
+		const text = listed.content.map((part) => (part.type === "text" ? (part.text ?? "") : "")).join("\n");
 		assert.match(text, /- runtime-helper \(runtime, aliases: helper\): Runtime helper/);
 	});
 
@@ -259,15 +327,20 @@ describe("runtime agent registration", () => {
 				runtimeAgentOwner: pi,
 			};
 			const all = handleManagementAction("models", {}, ctx);
-			const allText = all.content.map((part) => part.type === "text" ? part.text ?? "" : "").join("\n");
+			const allText = all.content.map((part) => (part.type === "text" ? (part.text ?? "") : "")).join("\n");
 			assert.equal(all.isError, false);
-			assert.match(allText, /runtime-model-helper\n  model:\n    openai\/gpt-5-mini\n  source: runtime agent config\n  thinking: high/);
+			assert.match(
+				allText,
+				/runtime-model-helper\n {2}model:\n {4}openai\/gpt-5-mini\n {2}source: runtime agent config\n {2}thinking: high/,
+			);
 
 			const filtered = handleManagementAction("models", { agent: "model-helper" }, ctx);
-			const filteredText = filtered.content.map((part) => part.type === "text" ? part.text ?? "" : "").join("\n");
+			const filteredText = filtered.content
+				.map((part) => (part.type === "text" ? (part.text ?? "") : ""))
+				.join("\n");
 			assert.equal(filtered.isError, false);
 			assert.match(filteredText, /Agent: model-helper/);
-			assert.match(filteredText, /Effective model:\n  openai\/gpt-5-mini/);
+			assert.match(filteredText, /Effective model:\n {2}openai\/gpt-5-mini/);
 			assert.match(filteredText, /Source: runtime agent config/);
 		} finally {
 			registration.dispose();
@@ -286,7 +359,11 @@ describe("runtime agent registration", () => {
 		const pinned = registerAgent({
 			pi,
 			name: "runtime-pinned-helper",
-			definition: { description: "Runtime pinned helper", systemPrompt: "Help.", model: "anthropic/claude-sonnet-4" },
+			definition: {
+				description: "Runtime pinned helper",
+				systemPrompt: "Help.",
+				model: "anthropic/claude-sonnet-4",
+			},
 		});
 		try {
 			const settings = { cwd: tempProject, scope: "both" as const };
@@ -304,8 +381,9 @@ describe("runtime agent registration", () => {
 			assert.equal(kept?.modelSource, undefined);
 			assert.equal(kept?.thinking, "low");
 
-			const bare = mergeRuntimeAgents(pi, discoverAgents(tempProject, "both")).agents
-				.find((candidate) => candidate.name === "runtime-default-helper");
+			const bare = mergeRuntimeAgents(pi, discoverAgents(tempProject, "both")).agents.find(
+				(candidate) => candidate.name === "runtime-default-helper",
+			);
 			assert.equal(bare?.model, undefined, "without a settings context the registered definition is returned as-is");
 		} finally {
 			unpinned.dispose();
@@ -348,7 +426,10 @@ describe("runtime agent registration", () => {
 			definition: { description: "Runtime cleared helper", systemPrompt: "Help.", model: "openai/gpt-5-mini" },
 		});
 		try {
-			const merged = mergeRuntimeAgents(pi, discoverAgents(tempProject, "both"), undefined, { cwd: tempProject, scope: "both" }).agents;
+			const merged = mergeRuntimeAgents(pi, discoverAgents(tempProject, "both"), undefined, {
+				cwd: tempProject,
+				scope: "both",
+			}).agents;
 			const agent = merged.find((candidate) => candidate.name === "runtime-override-helper");
 			assert.equal(agent?.model, "anthropic/claude-sonnet-4", "user override model wins over defaultModel");
 			assert.equal(agent?.thinking, "medium", "project override thinking wins over user override thinking");
@@ -357,7 +438,11 @@ describe("runtime agent registration", () => {
 			assert.notEqual(agent?.disabled, true, "disabled is not honored for runtime agents");
 
 			const back = merged.find((candidate) => candidate.name === "runtime-cleared-helper");
-			assert.equal(back?.model, undefined, "model: false clears the definition model so the agent inherits the session model");
+			assert.equal(
+				back?.model,
+				undefined,
+				"model: false clears the definition model so the agent inherits the session model",
+			);
 			assert.equal(back?.thinking, "high");
 		} finally {
 			overridden.dispose();
@@ -382,9 +467,9 @@ describe("runtime agent registration", () => {
 				runtimeAgentOwner: pi,
 			};
 			const filtered = handleManagementAction("models", { agent: "runtime-default-source-helper" }, ctx);
-			const text = filtered.content.map((part) => part.type === "text" ? part.text ?? "" : "").join("\n");
+			const text = filtered.content.map((part) => (part.type === "text" ? (part.text ?? "") : "")).join("\n");
 			assert.equal(filtered.isError, false);
-			assert.match(text, /Effective model:\n  openai\/gpt-5-mini/);
+			assert.match(text, /Effective model:\n {2}openai\/gpt-5-mini/);
 			assert.match(text, /Source: user defaultModel/);
 		} finally {
 			registration.dispose();
@@ -407,15 +492,19 @@ describe("runtime agent registration", () => {
 			definition: { description: "Runtime provider helper", systemPrompt: "Help." },
 		});
 		try {
-			const managed = handleManagementAction("models", { agent: "runtime-provider-helper" }, {
-				cwd: tempProject,
-				modelRegistry: { getAvailable: () => [{ provider: "anthropic", id: "claude-sonnet-4" }] },
-				model: { provider: "anthropic", id: "claude-sonnet-4" },
-				runtimeAgentOwner: pi,
-			});
-			const text = managed.content.map((part) => part.type === "text" ? part.text ?? "" : "").join("\n");
+			const managed = handleManagementAction(
+				"models",
+				{ agent: "runtime-provider-helper" },
+				{
+					cwd: tempProject,
+					modelRegistry: { getAvailable: () => [{ provider: "anthropic", id: "claude-sonnet-4" }] },
+					model: { provider: "anthropic", id: "claude-sonnet-4" },
+					runtimeAgentOwner: pi,
+				},
+			);
+			const text = managed.content.map((part) => (part.type === "text" ? (part.text ?? "") : "")).join("\n");
 			assert.equal(managed.isError, false);
-			assert.match(text, /Effective model:\n  anthropic\/claude-sonnet-4/);
+			assert.match(text, /Effective model:\n {2}anthropic\/claude-sonnet-4/);
 			assert.match(text, /Thinking: high/);
 		} finally {
 			registration.dispose();
@@ -424,20 +513,61 @@ describe("runtime agent registration", () => {
 
 	it("fails closed for builtin and duplicate runtime identities", () => {
 		assert.throws(
-			() => registerAgent({ pi, name: "claude-code", definition: { description: "Unsafe", systemPrompt: "Write.", runner: { type: "external-cli", adapter: "claude-code-writer", command: "claude" } } }),
+			() =>
+				registerAgent({
+					pi,
+					name: "claude-code",
+					definition: {
+						description: "Unsafe",
+						systemPrompt: "Write.",
+						runner: { type: "external-cli", adapter: "claude-code-writer", command: "claude" },
+					},
+				}),
 			/reserved for the read-only 'claude-code' adapter/,
 		);
 		assert.throws(
-			() => registerAgent({ pi, name: "runtime-writer", definition: { description: "Unsafe alias", systemPrompt: "Write.", aliases: ["claude-code"], runner: { type: "external-cli", adapter: "claude-code-writer", command: "claude" } } }),
+			() =>
+				registerAgent({
+					pi,
+					name: "runtime-writer",
+					definition: {
+						description: "Unsafe alias",
+						systemPrompt: "Write.",
+						aliases: ["claude-code"],
+						runner: { type: "external-cli", adapter: "claude-code-writer", command: "claude" },
+					},
+				}),
 			/Selection name 'claude-code' is reserved/,
 		);
-		for (const [readOnly, writer, command] of [["codex-exec", "codex-exec-writer", "codex"], ["cursor-agent", "cursor-agent-writer", "cursor-agent"]] as const) {
+		for (const [readOnly, writer, command] of [
+			["codex-exec", "codex-exec-writer", "codex"],
+			["cursor-agent", "cursor-agent-writer", "cursor-agent"],
+		] as const) {
 			assert.throws(
-				() => registerAgent({ pi, name: readOnly, definition: { description: "Unsafe", systemPrompt: "Write.", runner: { type: "external-cli", adapter: writer, command } } }),
+				() =>
+					registerAgent({
+						pi,
+						name: readOnly,
+						definition: {
+							description: "Unsafe",
+							systemPrompt: "Write.",
+							runner: { type: "external-cli", adapter: writer, command },
+						},
+					}),
 				/reserved for the read-only/,
 			);
 			assert.throws(
-				() => registerAgent({ pi, name: `runtime-${writer}`, definition: { description: "Unsafe alias", systemPrompt: "Write.", aliases: [readOnly], runner: { type: "external-cli", adapter: writer, command } } }),
+				() =>
+					registerAgent({
+						pi,
+						name: `runtime-${writer}`,
+						definition: {
+							description: "Unsafe alias",
+							systemPrompt: "Write.",
+							aliases: [readOnly],
+							runner: { type: "external-cli", adapter: writer, command },
+						},
+					}),
 				/Selection name .* is reserved/,
 			);
 		}
@@ -446,16 +576,29 @@ describe("runtime agent registration", () => {
 			/Worker|builtin agent 'worker'|collides with builtin agent 'worker'/i,
 		);
 
-		registerAgent({ pi, name: "runtime-a", definition: { description: "A", systemPrompt: "A.", aliases: ["shared"] } });
+		registerAgent({
+			pi,
+			name: "runtime-a",
+			definition: { description: "A", systemPrompt: "A.", aliases: ["shared"] },
+		});
 		assert.throws(
-			() => registerAgent({ pi, name: "runtime-b", definition: { description: "B", systemPrompt: "B.", aliases: ["shared"] } }),
+			() =>
+				registerAgent({
+					pi,
+					name: "runtime-b",
+					definition: { description: "B", systemPrompt: "B.", aliases: ["shared"] },
+				}),
 			/collides with runtime agent 'runtime-a' on name or alias 'shared'/,
 		);
 	});
 
 	it("rejects malformed nested runtime definition fields at registration", () => {
 		const cases: Array<[string, Record<string, unknown>, RegExp]> = [
-			["defaultAcceptance", { defaultAcceptance: { level: "verified" } }, /defaultAcceptance\.verify must contain at least one runtime command/],
+			[
+				"defaultAcceptance",
+				{ defaultAcceptance: { level: "verified" } },
+				/defaultAcceptance\.verify must contain at least one runtime command/,
+			],
 			["runner", { runner: { type: "external-cli" } }, /external-cli runner requires a non-empty command string/],
 			["toolBudget", { toolBudget: { hard: 0 } }, /toolBudget\.hard must be an integer >= 1/],
 			["permissions", { permissions: { bash: "deny" } }, /permissions\.bash is unsupported/],
@@ -463,14 +606,23 @@ describe("runtime agent registration", () => {
 
 		for (const [name, extra, pattern] of cases) {
 			assert.throws(
-				() => registerAgent({ pi, name: `runtime-${name}`, definition: { description: "Bad", systemPrompt: "Bad.", ...extra } }),
+				() =>
+					registerAgent({
+						pi,
+						name: `runtime-${name}`,
+						definition: { description: "Bad", systemPrompt: "Bad.", ...extra },
+					}),
 				pattern,
 			);
 		}
 	});
 
 	it("fails closed when cwd discovery introduces a configured collision", () => {
-		registerAgent({ pi, name: "runtime-helper", definition: { description: "Runtime helper", systemPrompt: "Help.", aliases: ["helper"] } });
+		registerAgent({
+			pi,
+			name: "runtime-helper",
+			definition: { description: "Runtime helper", systemPrompt: "Help.", aliases: ["helper"] },
+		});
 		writeProjectAgent("project-helper", ["helper"]);
 
 		assert.throws(
@@ -499,9 +651,18 @@ describe("runtime agent registration", () => {
 		writeUserAgent("hidden-user");
 		const projectScoped = discoverAgents(tempProject, "project");
 		const allProject = discoverAgentsAll(tempProject);
-		assert.equal(projectScoped.agents.some((agent) => agent.name === "hidden-user"), false);
+		assert.equal(
+			projectScoped.agents.some((agent) => agent.name === "hidden-user"),
+			false,
+		);
 		assert.throws(
-			() => mergeRuntimeAgents(pi, projectScoped, [...allProject.builtin, ...allProject.package, ...allProject.user, ...allProject.project]),
+			() =>
+				mergeRuntimeAgents(pi, projectScoped, [
+					...allProject.builtin,
+					...allProject.package,
+					...allProject.user,
+					...allProject.project,
+				]),
 			/collides with configured agent 'hidden-user' on name or alias 'hidden-user'/,
 		);
 	});
@@ -511,7 +672,11 @@ describe("runtime agent registration", () => {
 		writeUserAgent("hidden-user");
 
 		assert.throws(
-			() => handleList({ agentScope: "project" }, { cwd: tempProject, modelRegistry: { getAvailable: () => [] }, runtimeAgentOwner: pi }),
+			() =>
+				handleList(
+					{ agentScope: "project" },
+					{ cwd: tempProject, modelRegistry: { getAvailable: () => [] }, runtimeAgentOwner: pi },
+				),
 			/collides with configured agent 'hidden-user' on name or alias 'hidden-user'/,
 		);
 	});

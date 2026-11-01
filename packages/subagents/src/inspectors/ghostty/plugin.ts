@@ -1,5 +1,5 @@
-import { openGhosttyInspector, type GhosttyRunner } from "./actions.ts";
 import type { InspectorPlugin } from "../types.ts";
+import { type GhosttyRunner, openGhosttyInspector } from "./actions.ts";
 
 /** 独立 Ghostty.app 的 bundle id (作者 Mitchell Hashimoto)。 */
 const GHOSTTY_BUNDLE_ID = "com.mitchellh.ghostty";

@@ -3,7 +3,7 @@ import * as path from "node:path";
 import type { ExtensionContext } from "@evoharness/coding-agent";
 import { getArtifactPaths, getArtifactsDir } from "../shared/artifacts.ts";
 import { formatTokens } from "../shared/formatters.ts";
-import { DIRS, SLASH_RESULT_TYPE, type Details, type SubagentState, type Usage } from "../shared/types.ts";
+import { type Details, DIRS, SLASH_RESULT_TYPE, type SubagentState, type Usage } from "../shared/types.ts";
 import { readStatus } from "../shared/utils.ts";
 import { readWorkflowReceipt } from "../workflows/workflow-receipt.ts";
 import { resolveSlashMessageDetails } from "./slash-live-state.ts";
@@ -43,7 +43,14 @@ function addUsage(target: Usage, source: Usage): void {
 }
 
 function usageHasValue(usage: Usage): boolean {
-	return usage.input !== 0 || usage.output !== 0 || usage.cacheRead !== 0 || usage.cacheWrite !== 0 || usage.cost !== 0 || usage.turns !== 0;
+	return (
+		usage.input !== 0 ||
+		usage.output !== 0 ||
+		usage.cacheRead !== 0 ||
+		usage.cacheWrite !== 0 ||
+		usage.cost !== 0 ||
+		usage.turns !== 0
+	);
 }
 
 function nonNegativeNumber(value: unknown): number | undefined {
@@ -53,9 +60,10 @@ function nonNegativeNumber(value: unknown): number | undefined {
 function usageFromValue(value: unknown, turnsOverride?: number): Usage | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const record = value as Record<string, unknown>;
-	const costValue = typeof record.cost === "object" && record.cost !== null && !Array.isArray(record.cost)
-		? (record.cost as Record<string, unknown>).total
-		: record.cost;
+	const costValue =
+		typeof record.cost === "object" && record.cost !== null && !Array.isArray(record.cost)
+			? (record.cost as Record<string, unknown>).total
+			: record.cost;
 	const turnsValue = turnsOverride ?? record.turns;
 	const usage = {
 		input: nonNegativeNumber(record.input) ?? 0,
@@ -96,7 +104,9 @@ function readUsageMetadata(metadataPath: string): Record<string, unknown> | unde
 			offset += bytesRead;
 		}
 		const value: unknown = JSON.parse(buffer.toString("utf-8"));
-		return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : undefined;
+		return value && typeof value === "object" && !Array.isArray(value)
+			? (value as Record<string, unknown>)
+			: undefined;
 	} finally {
 		if (fd !== undefined) fs.closeSync(fd);
 	}
@@ -117,7 +127,8 @@ function detailsFromSessionEntry(entry: unknown): Details | undefined {
 	}
 	if (record.type !== "message" || !record.message || typeof record.message !== "object") return undefined;
 	const message = record.message as { role?: unknown; toolName?: unknown; details?: unknown };
-	if (message.role !== "toolResult" || (message.toolName !== "subagent" && message.toolName !== "bg_wait")) return undefined;
+	if (message.role !== "toolResult" || (message.toolName !== "subagent" && message.toolName !== "bg_wait"))
+		return undefined;
 	return isSubagentDetails(message.details) ? message.details : undefined;
 }
 
@@ -130,7 +141,10 @@ function notifiedAsyncRuns(entry: unknown): Array<{ runId: string; workflow: boo
 	if (!Array.isArray(runs)) return [];
 	return runs.flatMap((run: { runId?: unknown; workflowRunId?: unknown; source?: unknown }) =>
 		// A detached foreground task keeps no async status directory to read usage from.
-		run && typeof run.runId === "string" && run.source !== "foreground" ? [{ runId: run.runId, workflow: run.workflowRunId === run.runId }] : []);
+		run && typeof run.runId === "string" && run.source !== "foreground"
+			? [{ runId: run.runId, workflow: run.workflowRunId === run.runId }]
+			: [],
+	);
 }
 
 function metadataUsage(
@@ -149,7 +163,8 @@ function metadataUsage(
 				const usage = usageFromValue(metadata.usage);
 				if (usage && usageHasValue(usage)) return usage;
 			} catch (error) {
-				if ((error as NodeJS.ErrnoException).code !== "ENOENT") console.error(`Failed to read subagent usage metadata '${metadataPath}':`, error);
+				if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+					console.error(`Failed to read subagent usage metadata '${metadataPath}':`, error);
 			}
 		}
 	}
@@ -177,9 +192,17 @@ export function collectSubagentCost(
 	const completedRunIds = new Set<string>();
 	let unresolvedAsyncChildren = 0;
 
-	const addChild = (input: { agent?: string; runId?: string; identity?: string; usage?: Usage; sessionFile?: string }): boolean => {
+	const addChild = (input: {
+		agent?: string;
+		runId?: string;
+		identity?: string;
+		usage?: Usage;
+		sessionFile?: string;
+	}): boolean => {
 		if (!input.usage || !usageHasValue(input.usage)) return false;
-		const identity = input.identity ?? (input.runId ? `run:${input.runId}` : input.sessionFile ? `session:${input.sessionFile}` : undefined);
+		const identity =
+			input.identity ??
+			(input.runId ? `run:${input.runId}` : input.sessionFile ? `session:${input.sessionFile}` : undefined);
 		if (identity && seenChildren.has(identity)) return true;
 		if (identity) seenChildren.add(identity);
 		const usage = { ...input.usage };
@@ -206,13 +229,23 @@ export function collectSubagentCost(
 		// An async launch result has no child results; its usage lands in run artifacts.
 		else if (details.asyncId && details.results.length === 0) asyncRunIds.add(details.asyncId);
 		for (const result of details.results) {
-			addChild({ agent: result.agent, runId: typeof result.runId === "string" ? result.runId : undefined, usage: usageFromValue(result.usage), sessionFile: result.sessionFile });
+			addChild({
+				agent: result.agent,
+				runId: typeof result.runId === "string" ? result.runId : undefined,
+				usage: usageFromValue(result.usage),
+				sessionFile: result.sessionFile,
+			});
 		}
 		for (const completion of details.completions ?? []) {
 			if (completion.mode === "workflow") workflowRunIds.add(completion.runId);
 			completedRunIds.add(completion.runId);
 			for (const result of completion.results ?? []) {
-				addChild({ agent: result.agent, runId: result.runId, usage: usageFromValue(result.usage), sessionFile: result.sessionFile });
+				addChild({
+					agent: result.agent,
+					runId: result.runId,
+					usage: usageFromValue(result.usage),
+					sessionFile: result.sessionFile,
+				});
 			}
 		}
 	}
@@ -220,12 +253,16 @@ export function collectSubagentCost(
 	let sessionFile: string | null = null;
 	try {
 		sessionFile = ctx.sessionManager.getSessionFile() ?? null;
-	} catch { /* an unpersisted session can still report direct child usage */ }
+	} catch {
+		/* an unpersisted session can still report direct child usage */
+	}
 	const artifactsDirs = new Set<string>();
 	const addArtifactsDir = (cwd: string | undefined): void => {
 		try {
 			artifactsDirs.add(getArtifactsDir(sessionFile, cwd, state.artifactDirPreference));
-		} catch { /* invalid or unavailable project roots are ignored */ }
+		} catch {
+			/* invalid or unavailable project roots are ignored */
+		}
 	};
 	addArtifactsDir(ctx.cwd);
 	addArtifactsDir(state.baseCwd);
@@ -235,7 +272,9 @@ export function collectSubagentCost(
 			const status = readStatus(path.join(DIRS.async, workflowRunId));
 			addArtifactsDir(status?.cwd);
 			const receipt = readWorkflowReceipt(DIRS.async, workflowRunId);
-			const summaryChildren = new Map((receipt.workflowChildren?.children ?? []).map((child) => [child.childId, child]));
+			const summaryChildren = new Map(
+				(receipt.workflowChildren?.children ?? []).map((child) => [child.childId, child]),
+			);
 			const refsByRunId = new Map<string, { runId: string; agent?: string }>();
 			const addRef = (runId: string | undefined, agent: string | undefined): void => {
 				if (!runId) return;
@@ -246,7 +285,11 @@ export function collectSubagentCost(
 				const summaryChild = summaryChildren.get(key);
 				const runIds = entry.continuation?.runIds?.length
 					? entry.continuation.runIds
-					: entry.latestRunId ? [entry.latestRunId] : summaryChild?.runId ? [summaryChild.runId] : [];
+					: entry.latestRunId
+						? [entry.latestRunId]
+						: summaryChild?.runId
+							? [summaryChild.runId]
+							: [];
 				for (const runId of runIds) addRef(runId, entry.agent ?? summaryChild?.agent);
 			}
 			for (const child of receipt.workflowChildren?.children ?? []) {
@@ -265,7 +308,9 @@ export function collectSubagentCost(
 			// Without a receipt, a bg_wait completion cannot prove it reported every child (a stopped workflow may omit one).
 			unresolvedAsyncChildren += 1;
 			// A running workflow has no receipt yet; readWorkflowReceipt keeps the ENOENT as its cause.
-			const missing = (error as NodeJS.ErrnoException).code === "ENOENT" || ((error as Error).cause as NodeJS.ErrnoException | undefined)?.code === "ENOENT";
+			const missing =
+				(error as NodeJS.ErrnoException).code === "ENOENT" ||
+				((error as Error).cause as NodeJS.ErrnoException | undefined)?.code === "ENOENT";
 			if (!missing) console.error(`Failed to resolve async subagent usage for '${workflowRunId}':`, error);
 		}
 	}
@@ -284,15 +329,21 @@ export function collectSubagentCost(
 			// The runner suffixes artifact names with the flat step index only for multi-step runs.
 			steps.forEach((step, index) => {
 				const flatIndex = steps.length > 1 ? index : undefined;
-				const usage = metadataUsage([...artifactsDirs], { runId: asyncRunId, agent: step.agent }, flatIndex === undefined ? [undefined, 0] : [flatIndex]);
+				const usage = metadataUsage(
+					[...artifactsDirs],
+					{ runId: asyncRunId, agent: step.agent },
+					flatIndex === undefined ? [undefined, 0] : [flatIndex],
+				);
 				const identity = flatIndex === undefined ? `run:${asyncRunId}` : `run:${asyncRunId}:${flatIndex}`;
 				// Pending and running steps have not finalized their metadata yet.
 				const settled = step.status !== "pending" && step.status !== "running";
-				if (!addChild({ agent: step.agent, runId: asyncRunId, identity, usage }) && settled) unresolvedAsyncChildren += 1;
+				if (!addChild({ agent: step.agent, runId: asyncRunId, identity, usage }) && settled)
+					unresolvedAsyncChildren += 1;
 			});
 		} catch (error) {
 			unresolvedAsyncChildren += 1;
-			if ((error as NodeJS.ErrnoException).code !== "ENOENT") console.error(`Failed to resolve async subagent usage for '${asyncRunId}':`, error);
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+				console.error(`Failed to resolve async subagent usage for '${asyncRunId}':`, error);
 		}
 	}
 
@@ -312,11 +363,7 @@ function formatCostUsage(label: string, usage: Usage): string {
 
 /** The `/subagent-cost` text rendering of a collected report. */
 export function formatSubagentCostReport(report: SubagentCostReport): string {
-	const lines = [
-		"Subagent cost",
-		"",
-		formatCostUsage("Parent", report.parent),
-	];
+	const lines = ["Subagent cost", "", formatCostUsage("Parent", report.parent)];
 	if (report.children.length === 0) {
 		lines.push("No subagent child usage found in this session.");
 	} else {
@@ -325,7 +372,12 @@ export function formatSubagentCostReport(report: SubagentCostReport): string {
 			if (child.sessionFile) lines.push(`  Session: ${child.sessionFile}`);
 		}
 	}
-	if (report.unresolvedAsyncChildren > 0) lines.push(`Async child usage unavailable: ${report.unresolvedAsyncChildren}.`);
-	lines.push("────────────────────────────", formatCostUsage("Children", report.childTotal), formatCostUsage("Total", report.total));
+	if (report.unresolvedAsyncChildren > 0)
+		lines.push(`Async child usage unavailable: ${report.unresolvedAsyncChildren}.`);
+	lines.push(
+		"────────────────────────────",
+		formatCostUsage("Children", report.childTotal),
+		formatCostUsage("Total", report.total),
+	);
 	return lines.join("\n");
 }

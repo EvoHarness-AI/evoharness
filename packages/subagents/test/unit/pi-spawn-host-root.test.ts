@@ -57,20 +57,24 @@ describe("resolvePiPackageRoot host discovery", () => {
 		fs.rmSync(tmp, { recursive: true, force: true });
 	});
 
-	it("finds the package through a bin script whose realpath lives inside it", { skip: process.platform === "win32" ? "file symlinks require elevated privileges on Windows" : undefined }, () => {
-		const root = path.join(tmp, "install", PACKAGE_DIR);
-		writePackageRoot(root);
-		fs.mkdirSync(path.join(root, "dist", "bundle"), { recursive: true });
-		fs.writeFileSync(path.join(root, "dist", "bundle", "cli.js"), "");
-		const binDir = path.join(tmp, "prefix", "bin");
-		fs.mkdirSync(binDir, { recursive: true });
-		const bin = path.join(binDir, "pi");
-		fs.symlinkSync(path.join(root, "dist", "bundle", "cli.js"), bin);
-		process.argv[1] = bin;
-		const resolved = resolvePiPackageRoot();
-		assert.ok(resolved);
-		assert.equal(fs.realpathSync(resolved), fs.realpathSync(root));
-	});
+	it(
+		"finds the package through a bin script whose realpath lives inside it",
+		{ skip: process.platform === "win32" ? "file symlinks require elevated privileges on Windows" : undefined },
+		() => {
+			const root = path.join(tmp, "install", PACKAGE_DIR);
+			writePackageRoot(root);
+			fs.mkdirSync(path.join(root, "dist", "bundle"), { recursive: true });
+			fs.writeFileSync(path.join(root, "dist", "bundle", "cli.js"), "");
+			const binDir = path.join(tmp, "prefix", "bin");
+			fs.mkdirSync(binDir, { recursive: true });
+			const bin = path.join(binDir, "pi");
+			fs.symlinkSync(path.join(root, "dist", "bundle", "cli.js"), bin);
+			process.argv[1] = bin;
+			const resolved = resolvePiPackageRoot();
+			assert.ok(resolved);
+			assert.equal(fs.realpathSync(resolved), fs.realpathSync(root));
+		},
+	);
 
 	it("ignores unrelated packages higher up the tree", () => {
 		const unrelated = path.join(tmp, "unrelated");

@@ -2,11 +2,21 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { Message, Usage as PiUsage } from "@evoharness/ai";
-import { previewDisplayText, sanitizeDisplayText, truncateDisplayText } from "./display-text.ts";
-import { formatToolCall } from "./formatters.ts";
-import type { AgentProgress, AsyncStatus, Details, DisplayItem, ErrorInfo, NestedRunSummary, SingleResult, ToolCallSummary, Usage } from "./types.ts";
 import { validateAsyncStatusLaneMetadata } from "../runs/shared/lane-metadata.ts";
 import { ERROR_REPLY_TEXT_SEPARATOR } from "../runs/shared/model-resolution.ts";
+import { previewDisplayText, sanitizeDisplayText, truncateDisplayText } from "./display-text.ts";
+import { formatToolCall } from "./formatters.ts";
+import type {
+	AgentProgress,
+	AsyncStatus,
+	Details,
+	DisplayItem,
+	ErrorInfo,
+	NestedRunSummary,
+	SingleResult,
+	ToolCallSummary,
+	Usage,
+} from "./types.ts";
 
 const DEFAULT_CONFIG_DIR_NAME = ".evoharness";
 const PI_CODING_AGENT_PACKAGE_NAME = "@evoharness/coding-agent";
@@ -45,7 +55,10 @@ function readConfigDirNameFromPackageRoot(packageRoot: string | undefined): stri
 	}
 }
 
-function resolveConfigDirNameFromPackageJson(entryPoint = process.argv[1], packageRoot = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV]): string | undefined {
+function resolveConfigDirNameFromPackageJson(
+	entryPoint = process.argv[1],
+	packageRoot = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV],
+): string | undefined {
 	const packageRootValue = readConfigDirNameFromPackageRoot(packageRoot);
 	if (packageRootValue) return packageRootValue;
 	if (!entryPoint) return undefined;
@@ -63,12 +76,11 @@ function resolveConfigDirNameFromPackageJson(entryPoint = process.argv[1], packa
 }
 
 export function resolveConfigDirName(codingAgentModule?: unknown, entryPoint?: string, packageRoot?: string): string {
-	const moduleValue = codingAgentModule && typeof codingAgentModule === "object"
-		? validConfigDirName((codingAgentModule as { CONFIG_DIR_NAME?: unknown }).CONFIG_DIR_NAME)
-		: undefined;
-	return moduleValue
-		?? resolveConfigDirNameFromPackageJson(entryPoint, packageRoot)
-		?? DEFAULT_CONFIG_DIR_NAME;
+	const moduleValue =
+		codingAgentModule && typeof codingAgentModule === "object"
+			? validConfigDirName((codingAgentModule as { CONFIG_DIR_NAME?: unknown }).CONFIG_DIR_NAME)
+			: undefined;
+	return moduleValue ?? resolveConfigDirNameFromPackageJson(entryPoint, packageRoot) ?? DEFAULT_CONFIG_DIR_NAME;
 }
 
 let cachedConfigDirName: { entryPoint: string | undefined; packageRoot: string | undefined; value: string } | undefined;
@@ -76,9 +88,11 @@ let cachedConfigDirName: { entryPoint: string | undefined; packageRoot: string |
 export function getConfigDirName(): string {
 	const entryPoint = process.argv[1];
 	const packageRoot = process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
-	if (cachedConfigDirName
-		&& cachedConfigDirName.entryPoint === entryPoint
-		&& cachedConfigDirName.packageRoot === packageRoot) {
+	if (
+		cachedConfigDirName &&
+		cachedConfigDirName.entryPoint === entryPoint &&
+		cachedConfigDirName.packageRoot === packageRoot
+	) {
 		return cachedConfigDirName.value;
 	}
 	const value = resolveConfigDirName(undefined, entryPoint, packageRoot);
@@ -103,9 +117,7 @@ const MAX_STATUS_CACHE_ENTRIES = 512;
 
 export function pruneStatusCacheForAsyncRoot(asyncDirRoot: string, runIds: Iterable<string>): number {
 	const root = path.resolve(asyncDirRoot);
-	const currentStatusPaths = new Set(
-		Array.from(runIds, (runId) => path.resolve(root, runId, "status.json")),
-	);
+	const currentStatusPaths = new Set(Array.from(runIds, (runId) => path.resolve(root, runId, "status.json")));
 	let removed = 0;
 	for (const statusPath of statusCache.keys()) {
 		const resolved = path.resolve(statusPath);
@@ -128,10 +140,12 @@ export function resolveChildCwd(baseCwd: string, childCwd: string | undefined): 
 }
 
 function isNotFoundError(error: unknown): boolean {
-	return typeof error === "object"
-		&& error !== null
-		&& "code" in error
-		&& (error as NodeJS.ErrnoException).code === "ENOENT";
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"code" in error &&
+		(error as NodeJS.ErrnoException).code === "ENOENT"
+	);
 }
 
 /**
@@ -158,11 +172,11 @@ export function readStatus(asyncDir: string): AsyncStatus | null {
 
 	const cached = statusCache.get(statusPath);
 	if (
-		cached
-		&& cached.mtime === stat.mtimeMs
-		&& cached.ctime === stat.ctimeMs
-		&& cached.size === stat.size
-		&& cached.ino === stat.ino
+		cached &&
+		cached.mtime === stat.mtimeMs &&
+		cached.ctime === stat.ctimeMs &&
+		cached.size === stat.size &&
+		cached.ino === stat.ino
 	) {
 		statusCache.delete(statusPath);
 		statusCache.set(statusPath, cached);
@@ -229,7 +243,8 @@ export function getLastActivity(outputFile: string | undefined): string {
 
 export function findLatestSessionFile(sessionDir: string): string | null {
 	if (!fs.existsSync(sessionDir)) return null;
-	const files = fs.readdirSync(sessionDir)
+	const files = fs
+		.readdirSync(sessionDir)
 		.filter((f) => f.endsWith(".jsonl"))
 		.map((f) => {
 			const filePath = path.join(sessionDir, f);
@@ -243,7 +258,8 @@ export function findLatestSessionFile(sessionDir: string): string | null {
 	return latest ? latest.path : null;
 }
 
-const PI_TURN_TIMING_FOOTER = /(?:\r?\n)*\x1b\[38;2;136;136;136m✻ Turn took [^()\r\n]+ \(Total time [^·\r\n]+ · \d+ turns?\)\x1b\[0m[ \t]*$/u;
+const PI_TURN_TIMING_FOOTER =
+	/(?:\r?\n)*\x1b\[38;2;136;136;136m✻ Turn took [^()\r\n]+ \(Total time [^·\r\n]+ · \d+ turns?\)\x1b\[0m[ \t]*$/u;
 
 function stripPiTurnTimingFooter(text: string): string {
 	return text.replace(PI_TURN_TIMING_FOOTER, "");
@@ -257,7 +273,11 @@ const PROVIDER_STOP_TEXT_MAX = 500;
  * policy refusal usually puts its explanation there. The text may also be the model's own partial reply,
  * so it is labelled as reply text, not as the provider's message.
  */
-export function assistantMessageError(message: { errorMessage?: string; rawStopReason?: string; content?: unknown }): string | undefined {
+export function assistantMessageError(message: {
+	errorMessage?: string;
+	rawStopReason?: string;
+	content?: unknown;
+}): string | undefined {
 	const error = message.errorMessage;
 	if (!error || typeof message.rawStopReason !== "string") return error;
 	const text = extractTextFromContent(message.content).trim();
@@ -270,8 +290,9 @@ export function getFinalOutput(messages: Message[]): string {
 	for (let i = messages.length - 1; i >= 0; i--) {
 		const msg = messages[i];
 		if (!msg || msg.role !== "assistant") continue;
-		const hasAssistantError = ("errorMessage" in msg && typeof msg.errorMessage === "string" && msg.errorMessage.length > 0)
-			|| ("stopReason" in msg && msg.stopReason === "error");
+		const hasAssistantError =
+			("errorMessage" in msg && typeof msg.errorMessage === "string" && msg.errorMessage.length > 0) ||
+			("stopReason" in msg && msg.stopReason === "error");
 		if (hasAssistantError) continue;
 		const messageText = msg.content
 			.flatMap((part) => {
@@ -289,7 +310,12 @@ export function getFinalOutput(messages: Message[]): string {
 			if (/```acceptance[-_]report\s*\n[\s\S]*?```/i.test(text)) return messageText;
 			for (const match of text.matchAll(/```(?:json|jsonc|json5)\s*\n([\s\S]*?)```/gi)) {
 				const body = match[1] ?? "";
-				if (/"(?:criteriaSatisfied|criteria_satisfied)"/.test(body) && /"(?:changedFiles|changed_files|testsAddedOrUpdated|tests_added_or_updated|commandsRun|commands_run|validationOutput|validation_output|residualRisks|residual_risks|noStagedFiles|no_staged_files|diffSummary|diff_summary|reviewFindings|review_findings|manualNotes|manual_notes)"/.test(body)) {
+				if (
+					/"(?:criteriaSatisfied|criteria_satisfied)"/.test(body) &&
+					/"(?:changedFiles|changed_files|testsAddedOrUpdated|tests_added_or_updated|commandsRun|commands_run|validationOutput|validation_output|residualRisks|residual_risks|noStagedFiles|no_staged_files|diffSummary|diff_summary|reviewFindings|review_findings|manualNotes|manual_notes)"/.test(
+						body,
+					)
+				) {
 					return messageText;
 				}
 			}
@@ -349,9 +375,10 @@ function extractToolCallSummaries(messages: Message[] | undefined, limit = Infin
 		for (let j = msg.content.length - 1; j >= 0 && summaries.length < limit; j--) {
 			const part = msg.content[j]!;
 			if (part.type !== "toolCall") continue;
-			const args = typeof part.arguments === "object" && part.arguments !== null && !Array.isArray(part.arguments)
-				? part.arguments
-				: {};
+			const args =
+				typeof part.arguments === "object" && part.arguments !== null && !Array.isArray(part.arguments)
+					? part.arguments
+					: {};
 			summaries.push({
 				text: formatToolCall(part.name, args),
 				expandedText: formatToolCall(part.name, args, true),
@@ -426,9 +453,7 @@ export function compactForegroundDetails(details: Details): Details {
 	return {
 		...details,
 		results: details.results.map(compactForegroundResult),
-		progress: details.progress
-			? details.progress.map(compactCompletedProgress)
-			: undefined,
+		progress: details.progress ? details.progress.map(compactCompletedProgress) : undefined,
 	};
 }
 
@@ -468,34 +493,48 @@ export function boundStreamedRecentOutput(recentOutput: string[]): string[] {
  * unbounded `messages` transcript. Prefers an existing `toolCalls` summary, else
  * derives one from `messages`; bounded to the most recent calls.
  */
-export function boundStreamedToolCalls(result: Pick<SingleResult, "toolCalls" | "messages">): ToolCallSummary[] | undefined {
-	const summaries = result.toolCalls?.length ? result.toolCalls : extractToolCallSummaries(result.messages, MAX_STREAMED_TOOL_CALLS);
+export function boundStreamedToolCalls(
+	result: Pick<SingleResult, "toolCalls" | "messages">,
+): ToolCallSummary[] | undefined {
+	const summaries = result.toolCalls?.length
+		? result.toolCalls
+		: extractToolCallSummaries(result.messages, MAX_STREAMED_TOOL_CALLS);
 	if (!summaries.length) return undefined;
 	return summaries.slice(-MAX_STREAMED_TOOL_CALLS).map((summary) => ({ ...summary }));
 }
 
 export function hasEmptyTerminalAssistantResponse(messages: Message[]): boolean {
 	const lastAssistant = messages.findLast((message) => message.role === "assistant");
-	return lastAssistant?.role === "assistant"
-		&& Array.isArray(lastAssistant.content)
-		&& ((lastAssistant.content.length === 0 && lastAssistant.usage.output === 0)
-			|| (messages.at(-1) === lastAssistant
-				&& lastAssistant.stopReason === "stop"
-				&& !lastAssistant.errorMessage
-				&& lastAssistant.content.length > 0
+	return (
+		lastAssistant?.role === "assistant" &&
+		Array.isArray(lastAssistant.content) &&
+		((lastAssistant.content.length === 0 && lastAssistant.usage.output === 0) ||
+			(messages.at(-1) === lastAssistant &&
+				lastAssistant.stopReason === "stop" &&
+				!lastAssistant.errorMessage &&
+				lastAssistant.content.length > 0 &&
 				// Token accounting can be nonzero even when no response text was emitted.
-				&& lastAssistant.content.every((part) => part.type === "text" && part.text === "")));
+				lastAssistant.content.every((part) => part.type === "text" && part.text === "")))
+	);
 }
 
 export function formatEmptyTerminalAssistantResponseError(messages: Message[]): string {
 	const lastAssistant = messages.findLast((message) => message.role === "assistant");
-	const errorMessage = lastAssistant && "errorMessage" in lastAssistant && typeof lastAssistant.errorMessage === "string" && lastAssistant.errorMessage.trim()
-		? lastAssistant.errorMessage.trim()
-		: undefined;
+	const errorMessage =
+		lastAssistant &&
+		"errorMessage" in lastAssistant &&
+		typeof lastAssistant.errorMessage === "string" &&
+		lastAssistant.errorMessage.trim()
+			? lastAssistant.errorMessage.trim()
+			: undefined;
 	if (errorMessage) return errorMessage;
-	const stopReason = lastAssistant && "stopReason" in lastAssistant && typeof lastAssistant.stopReason === "string" && lastAssistant.stopReason.trim()
-		? lastAssistant.stopReason.trim()
-		: undefined;
+	const stopReason =
+		lastAssistant &&
+		"stopReason" in lastAssistant &&
+		typeof lastAssistant.stopReason === "string" &&
+		lastAssistant.stopReason.trim()
+			? lastAssistant.stopReason.trim()
+			: undefined;
 	return stopReason && stopReason !== "stop"
 		? `Subagent produced no output after terminal assistant stopReason "${stopReason}".`
 		: "Subagent produced no output (possible model cold-start or empty response).";
@@ -509,9 +548,11 @@ export function detectSubagentError(messages: Message[]): ErrorInfo {
 	for (let i = messages.length - 1; i >= 0; i--) {
 		const msg = messages[i];
 		if (msg?.role === "assistant") {
-			const hasText = Array.isArray(msg.content) && msg.content.some(
-				(c) => c.type === "text" && "text" in c && typeof c.text === "string" && c.text.trim().length > 0,
-			);
+			const hasText =
+				Array.isArray(msg.content) &&
+				msg.content.some(
+					(c) => c.type === "text" && "text" in c && typeof c.text === "string" && c.text.trim().length > 0,
+				);
 			if (hasText) {
 				lastAssistantTextIndex = i;
 				break;
@@ -564,14 +605,16 @@ export function extractToolArgsPreview(args: Record<string, unknown>): string {
 
 	if (typeof args.tool === "string") {
 		const server = typeof args.server === "string" ? `${sanitizeDisplayText(args.server)}/` : "";
-		const toolArgs = typeof args.args === "string" ? ` ${truncateDisplayText(sanitizeDisplayText(args.args), 40)}` : "";
+		const toolArgs =
+			typeof args.args === "string" ? ` ${truncateDisplayText(sanitizeDisplayText(args.args), 40)}` : "";
 		return sanitizeDisplayText(`${server}${args.tool}${toolArgs}`);
 	}
 
 	const queriesPreview = previewArray(args.queries);
 	if (queriesPreview) return previewDisplayText(queriesPreview, 60);
 	if (typeof args.query === "string" && args.query.trim().length > 0) return previewDisplayText(args.query, 60);
-	if (typeof args.workflow === "string" && args.workflow.trim().length > 0) return `workflow=${previewDisplayText(args.workflow, 48)}`;
+	if (typeof args.workflow === "string" && args.workflow.trim().length > 0)
+		return `workflow=${previewDisplayText(args.workflow, 48)}`;
 
 	if (typeof args.url === "string" && args.url.trim().length > 0) return previewDisplayText(args.url, 60);
 	const urlsPreview = previewArray(args.urls);

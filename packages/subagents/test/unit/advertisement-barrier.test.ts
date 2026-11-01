@@ -23,15 +23,23 @@ it("session startup yields to the event loop and both first advertisements await
 		fs.mkdirSync(path.join(packageDir, "agents"), { recursive: true });
 		fs.mkdirSync(path.join(newerPackage, "agents"), { recursive: true });
 		fs.mkdirSync(localDir, { recursive: true });
-		fs.writeFileSync(path.join(packageDir, "package.json"), JSON.stringify({ name: "example", "pi-subagents": { agents: ["agents"] } }));
-		fs.writeFileSync(path.join(newerPackage, "package.json"), JSON.stringify({ name: "example", "pi-subagents": { agents: ["agents"] } }));
+		fs.writeFileSync(
+			path.join(packageDir, "package.json"),
+			JSON.stringify({ name: "example", "pi-subagents": { agents: ["agents"] } }),
+		);
+		fs.writeFileSync(
+			path.join(newerPackage, "package.json"),
+			JSON.stringify({ name: "example", "pi-subagents": { agents: ["agents"] } }),
+		);
 		const agent = (name: string) => `---\nname: ${name}\ndescription: ${name}\nadvertise: true\n---\nWork.\n`;
 		fs.writeFileSync(path.join(packageDir, "agents", "global-specialist.md"), agent("global-specialist"));
 		fs.writeFileSync(path.join(newerPackage, "agents", "new-specialist.md"), agent("new-specialist"));
 		fs.writeFileSync(path.join(localDir, "local-specialist.md"), agent("local-specialist"));
 		const oldDone = path.join(temp, "old-lookup-finished");
 		const oldRelease = path.join(temp, "old-lookup-release");
-		fs.writeFileSync(path.join(bin, "fake-npm.cjs"), `
+		fs.writeFileSync(
+			path.join(bin, "fake-npm.cjs"),
+			`
 const fs = require("node:fs");
 const phase = process.env.TEST_NPM_PHASE;
 if (phase === "failure") { console.error("private npm failure"); process.exit(1); }
@@ -42,16 +50,39 @@ if (phase === "old") {
 	const cap = Date.now() + 30000;
 	const poll = setInterval(() => { if (fs.existsSync(${JSON.stringify(oldRelease)}) || Date.now() > cap) { clearInterval(poll); print(); } }, 25);
 } else setTimeout(print, phase === "timeout" ? 6000 : phase === "seed" || phase === "latest" ? 150 : 300);
-`);
+`,
+		);
 		const npm = path.join(bin, process.platform === "win32" ? "npm.cmd" : "npm");
-		fs.writeFileSync(npm, process.platform === "win32"
-			? `@echo off\r\n"${process.execPath}" "%~dp0fake-npm.cjs" %*\r\n`
-			: `#!/bin/sh\nexec "${process.execPath}" "$(dirname "$0")/fake-npm.cjs" "$@"\n`);
+		fs.writeFileSync(
+			npm,
+			process.platform === "win32"
+				? `@echo off\r\n"${process.execPath}" "%~dp0fake-npm.cjs" %*\r\n`
+				: `#!/bin/sh\nexec "${process.execPath}" "$(dirname "$0")/fake-npm.cjs" "$@"\n`,
+		);
 		if (process.platform !== "win32") fs.chmodSync(npm, 0o755);
-		const env = { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}`, HOME: path.join(temp, "home"), USERPROFILE: path.join(temp, "home"), EVOHARNESS_CODING_AGENT_DIR: path.join(temp, "home"), TEST_PROJECT: path.join(fixtureRoot, "project"), TEST_OLD_DONE: oldDone, TEST_OLD_RELEASE: oldRelease, TEST_NPM_PHASE: "initial", APPDATA: path.join(temp, "missing-appdata") };
+		const env = {
+			...process.env,
+			PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}`,
+			HOME: path.join(temp, "home"),
+			USERPROFILE: path.join(temp, "home"),
+			EVOHARNESS_CODING_AGENT_DIR: path.join(temp, "home"),
+			TEST_PROJECT: path.join(fixtureRoot, "project"),
+			TEST_OLD_DONE: oldDone,
+			TEST_OLD_RELEASE: oldRelease,
+			TEST_NPM_PHASE: "initial",
+			APPDATA: path.join(temp, "missing-appdata"),
+		};
 		delete env.EVOHARNESS_OFFLINE;
 		delete env[SUBAGENT_CHILD_ENV];
-		const output = execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", String.raw`
+		const output = execFileSync(
+			process.execPath,
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"--eval",
+				String.raw`
 			import assert from "node:assert/strict";
 			import fs from "node:fs";
 			import path from "node:path";
@@ -159,7 +190,10 @@ if (phase === "old") {
 			start({ reason: "reload" }, ctx);
 			await assert.rejects(tools.get("subagent").execute("invalid", { action: "list" }, new AbortController().signal, undefined, ctx), /Failed to parse settings file/);
 			console.log("responsive session_start; complete first prompt and loader");
-		`], { cwd: repo, env, encoding: "utf8", timeout: 30_000 });
+		`,
+			],
+			{ cwd: repo, env, encoding: "utf8", timeout: 30_000 },
+		);
 		assert.match(output, /responsive session_start; complete first prompt and loader/);
 	} finally {
 		fs.rmSync(temp, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });

@@ -3,8 +3,8 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -38,7 +38,9 @@ const expectedHostDevVersions = {
 test("the root entrypoint exposes the runtime error flag to TypeScript consumers", () => {
 	const consumerRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-types-"));
 	try {
-		fs.writeFileSync(path.join(consumerRoot, "consumer.ts"), `
+		fs.writeFileSync(
+			path.join(consumerRoot, "consumer.ts"),
+			`
 import "@evoharness/subagents";
 import type { AgentToolResult } from "@evoharness/agent-core";
 import { registerWorkflowResource, type RegisterWorkflowResourceInput, type WorkflowResourceDefinition, type WorkflowResourceRegistration } from "@evoharness/subagents/workflow-resources";
@@ -60,32 +62,54 @@ const result: AgentToolResult<undefined> = {
 };
 
 void result.isError;
-`, "utf-8");
-		fs.writeFileSync(path.join(consumerRoot, "tsconfig.json"), JSON.stringify({
-			compilerOptions: {
-				target: "ES2023",
-				module: "NodeNext",
-				moduleResolution: "NodeNext",
-				strict: true,
-				noEmit: true,
-				types: ["node"],
-				typeRoots: [path.join(projectRoot, "node_modules", "@types")],
-				skipLibCheck: true,
-				allowImportingTsExtensions: true,
-				baseUrl: consumerRoot,
-				paths: {
-					"@evoharness/subagents": [path.join(projectRoot, "index.ts")],
-					"@evoharness/subagents/workflow-resources": [path.join(projectRoot, "src/api/workflow-resources.ts")],
-				"@evoharness/agent-core": [path.join(projectRoot, "node_modules", "@evoharness", "agent-core", "dist", "index.d.ts")],
+`,
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(consumerRoot, "tsconfig.json"),
+			JSON.stringify(
+				{
+					compilerOptions: {
+						target: "ES2023",
+						module: "NodeNext",
+						moduleResolution: "NodeNext",
+						strict: true,
+						noEmit: true,
+						types: ["node"],
+						typeRoots: [path.join(projectRoot, "node_modules", "@types")],
+						skipLibCheck: true,
+						allowImportingTsExtensions: true,
+						baseUrl: consumerRoot,
+						paths: {
+							"@evoharness/subagents": [path.join(projectRoot, "index.ts")],
+							"@evoharness/subagents/workflow-resources": [
+								path.join(projectRoot, "src/api/workflow-resources.ts"),
+							],
+							"@evoharness/agent-core": [
+								path.join(projectRoot, "node_modules", "@evoharness", "agent-core", "dist", "index.d.ts"),
+							],
+						},
+					},
+					files: [path.join(consumerRoot, "consumer.ts")],
 				},
-			},
-			files: [path.join(consumerRoot, "consumer.ts")],
-		}, null, 2), "utf-8");
+				null,
+				2,
+			),
+			"utf-8",
+		);
 
-		execFileSync(process.execPath, [path.join(projectRoot, "node_modules", "typescript", "bin", "tsc"), "--project", path.join(consumerRoot, "tsconfig.json")], {
-			cwd: consumerRoot,
-			stdio: "pipe",
-		});
+		execFileSync(
+			process.execPath,
+			[
+				path.join(projectRoot, "node_modules", "typescript", "bin", "tsc"),
+				"--project",
+				path.join(consumerRoot, "tsconfig.json"),
+			],
+			{
+				cwd: consumerRoot,
+				stdio: "pipe",
+			},
+		);
 	} finally {
 		fs.rmSync(consumerRoot, { recursive: true, force: true });
 	}
@@ -192,7 +216,10 @@ test("direct @evoharness runtime imports are declared for CI installs", () => {
 	]);
 	const imported = new Set<string>();
 
-	for (const file of [...collectSourceFiles(path.join(projectRoot, "src")), ...collectSourceFiles(path.join(projectRoot, "test"))]) {
+	for (const file of [
+		...collectSourceFiles(path.join(projectRoot, "src")),
+		...collectSourceFiles(path.join(projectRoot, "test")),
+	]) {
 		const source = fs.readFileSync(file, "utf-8");
 		for (const match of source.matchAll(sourceImportPattern)) {
 			const specifier = match[1] ?? match[2]!;
@@ -218,9 +245,17 @@ test("host-owned packages are optional peers with supported ranges, not producti
 	const packageJson = JSON.parse(fs.readFileSync(path.join(projectRoot, "package.json"), "utf-8"));
 
 	for (const name of hostPeerPackages) {
-		assert.equal(packageJson.peerDependencies?.[name], expectedHostPeerRanges[name], `${name} should use its supported peer range`);
+		assert.equal(
+			packageJson.peerDependencies?.[name],
+			expectedHostPeerRanges[name],
+			`${name} should use its supported peer range`,
+		);
 		assert.equal(packageJson.dependencies?.[name], undefined, `${name} should not be a production dependency`);
-		assert.deepEqual(packageJson.peerDependenciesMeta?.[name], { optional: true }, `${name} should be an optional peer`);
+		assert.deepEqual(
+			packageJson.peerDependenciesMeta?.[name],
+			{ optional: true },
+			`${name} should be an optional peer`,
+		);
 	}
 });
 test("host-owned development packages use the supported SDK baseline", () => {
@@ -232,16 +267,30 @@ test("host-owned development packages use the supported SDK baseline", () => {
 });
 
 test("old pi package scope is not used by source or tests", () => {
-	for (const file of [...collectSourceFiles(path.join(projectRoot, "src")), ...collectSourceFiles(path.join(projectRoot, "test"))]) {
+	for (const file of [
+		...collectSourceFiles(path.join(projectRoot, "src")),
+		...collectSourceFiles(path.join(projectRoot, "test")),
+	]) {
 		const source = fs.readFileSync(file, "utf-8");
 		assert.equal(oldPiScopePattern.test(source), false, file);
 	}
 });
 
 test("Pi package resolution stays export-map safe", () => {
-	for (const file of [...collectSourceFiles(path.join(projectRoot, "src")), ...collectSourceFiles(path.join(projectRoot, "test"))]) {
+	for (const file of [
+		...collectSourceFiles(path.join(projectRoot, "src")),
+		...collectSourceFiles(path.join(projectRoot, "test")),
+	]) {
 		const source = fs.readFileSync(file, "utf-8");
-		assert.equal(piPackageJsonSubpathPattern.test(source), false, `${file} should not resolve unexported package.json subpaths`);
-		assert.equal(cjsPiPackageResolutionPattern.test(source), false, `${file} should not use CommonJS resolution for ESM-only Pi packages`);
+		assert.equal(
+			piPackageJsonSubpathPattern.test(source),
+			false,
+			`${file} should not resolve unexported package.json subpaths`,
+		);
+		assert.equal(
+			cjsPiPackageResolutionPattern.test(source),
+			false,
+			`${file} should not use CommonJS resolution for ESM-only Pi packages`,
+		);
 	}
 });

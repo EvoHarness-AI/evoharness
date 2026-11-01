@@ -86,11 +86,15 @@ function registry(): ExternalJobProviderRegistry {
 		return created;
 	}
 	if (!existing || typeof existing !== "object" || Array.isArray(existing)) {
-		throw new Error(`Malformed external-job provider registry at Symbol.for("${EXTERNAL_JOB_PROVIDER_REGISTRY_KEY}").`);
+		throw new Error(
+			`Malformed external-job provider registry at Symbol.for("${EXTERNAL_JOB_PROVIDER_REGISTRY_KEY}").`,
+		);
 	}
 	const candidate = existing as Partial<ExternalJobProviderRegistry>;
 	if (candidate.version !== EXTERNAL_JOB_PROVIDER_PROTOCOL_VERSION || !(candidate.providers instanceof Map)) {
-		throw new Error(`Unsupported external-job provider registry at Symbol.for("${EXTERNAL_JOB_PROVIDER_REGISTRY_KEY}").`);
+		throw new Error(
+			`Unsupported external-job provider registry at Symbol.for("${EXTERNAL_JOB_PROVIDER_REGISTRY_KEY}").`,
+		);
 	}
 	return candidate as ExternalJobProviderRegistry;
 }
@@ -110,20 +114,48 @@ function validateOptionalString(value: unknown, field: string, maxLength: number
 }
 
 function validateState(value: unknown, field: string): ExternalJobState {
-	if (value === "queued" || value === "running" || value === "completed" || value === "failed" || value === "stopped" || value === "blocked") return value;
+	if (
+		value === "queued" ||
+		value === "running" ||
+		value === "completed" ||
+		value === "failed" ||
+		value === "stopped" ||
+		value === "blocked"
+	)
+		return value;
 	throw new Error(`${field} must be queued, running, completed, failed, stopped, or blocked.`);
 }
 
-function validateHandle(provider: string, value: unknown, field: string, extraFields: readonly string[] = []): ExternalJobHandle {
-	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${field} from external-job provider '${provider}' must be an object.`);
+function validateHandle(
+	provider: string,
+	value: unknown,
+	field: string,
+	extraFields: readonly string[] = [],
+): ExternalJobHandle {
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw new Error(`${field} from external-job provider '${provider}' must be an object.`);
 	const handle = value as Record<string, unknown>;
-	const supported = new Set(["providerJobId", "state", "handleUrl", "conversationUrl", "failureCode", "failureMessage", "blockingJobId", ...extraFields]);
+	const supported = new Set([
+		"providerJobId",
+		"state",
+		"handleUrl",
+		"conversationUrl",
+		"failureCode",
+		"failureMessage",
+		"blockingJobId",
+		...extraFields,
+	]);
 	const unknown = Object.keys(handle).filter((key) => !supported.has(key));
-	if (unknown.length > 0) throw new Error(`${field} from external-job provider '${provider}' has unknown fields: ${unknown.join(", ")}.`);
+	if (unknown.length > 0)
+		throw new Error(`${field} from external-job provider '${provider}' has unknown fields: ${unknown.join(", ")}.`);
 	const handleUrl = validateOptionalString(handle.handleUrl, `${field}.handleUrl`, MAX_URL_LENGTH);
 	const conversationUrl = validateOptionalString(handle.conversationUrl, `${field}.conversationUrl`, MAX_URL_LENGTH);
 	const failureCode = validateOptionalString(handle.failureCode, `${field}.failureCode`, MAX_FAILURE_CODE_LENGTH);
-	const failureMessage = validateOptionalString(handle.failureMessage, `${field}.failureMessage`, MAX_FAILURE_MESSAGE_LENGTH);
+	const failureMessage = validateOptionalString(
+		handle.failureMessage,
+		`${field}.failureMessage`,
+		MAX_FAILURE_MESSAGE_LENGTH,
+	);
 	const blockingJobId = validateOptionalString(handle.blockingJobId, `${field}.blockingJobId`, MAX_JOB_ID_LENGTH);
 	return {
 		providerJobId: validateString(handle.providerJobId, `${field}.providerJobId`, MAX_JOB_ID_LENGTH),
@@ -136,11 +168,19 @@ function validateHandle(provider: string, value: unknown, field: string, extraFi
 	};
 }
 
-export function validateExternalJobHandle(provider: string, value: unknown, field = "External-job handle"): ExternalJobHandle {
+export function validateExternalJobHandle(
+	provider: string,
+	value: unknown,
+	field = "External-job handle",
+): ExternalJobHandle {
 	return validateHandle(provider, value, field);
 }
 
-export function validateExternalJobResult(provider: string, value: unknown, field = "External-job result"): ExternalJobResult {
+export function validateExternalJobResult(
+	provider: string,
+	value: unknown,
+	field = "External-job result",
+): ExternalJobResult {
 	const result = validateHandle(provider, value, field, ["output", "artifactPath"]) as ExternalJobResult;
 	const record = value as Record<string, unknown>;
 	const output = validateOptionalString(record.output, `${field}.output`, 1024 * 1024);
@@ -153,7 +193,8 @@ export function validateExternalJobResult(provider: string, value: unknown, fiel
 }
 
 function validateProvider(value: unknown): ExternalJobProvider {
-	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("External-job provider must be an object.");
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw new Error("External-job provider must be an object.");
 	const provider = value as Record<string, unknown>;
 	// Tolerate extra provider fields (for example kind, wakeChannels, or future
 	// operations) so one evolving provider cannot poison registry reads for all
@@ -179,11 +220,15 @@ export function registerExternalJobProvider(provider: ExternalJobProvider): () =
 
 export function listExternalJobProviders(): readonly ExternalJobProvider[] {
 	const current = registry();
-	if (current.providers.size > MAX_PROVIDERS) throw new Error(`External-job provider registry contains more than ${MAX_PROVIDERS} providers.`);
+	if (current.providers.size > MAX_PROVIDERS)
+		throw new Error(`External-job provider registry contains more than ${MAX_PROVIDERS} providers.`);
 	const providers: ExternalJobProvider[] = [];
 	for (const [key, value] of current.providers) {
 		const provider = validateProvider(value);
-		if (key !== provider.name) throw new Error(`External-job provider registry key '${key}' does not match provider name '${provider.name}'.`);
+		if (key !== provider.name)
+			throw new Error(
+				`External-job provider registry key '${key}' does not match provider name '${provider.name}'.`,
+			);
 		providers.push(provider);
 	}
 	return providers;

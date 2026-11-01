@@ -1,11 +1,10 @@
-import { createHash, randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { writeAtomicJson } from "../../shared/atomic-json.ts";
 import { PROJECT_SUBAGENTS_RELATIVE_DIR } from "../../shared/artifacts.ts";
-import { DEFAULT_STALE_TERMINAL_ACTIVE_MARKER_MS, activeRunMarkerAgeMs } from "../background/active-run-index.ts";
+import { writeAtomicJson } from "../../shared/atomic-json.ts";
 import type {
 	AsyncStatus,
 	ParallelHandoffChild,
@@ -14,6 +13,7 @@ import type {
 	ParallelHandoffManifest,
 } from "../../shared/types.ts";
 import { getAgentDir } from "../../shared/utils.ts";
+import { activeRunMarkerAgeMs, DEFAULT_STALE_TERMINAL_ACTIVE_MARKER_MS } from "../background/active-run-index.ts";
 import { isTerminalParallelHandoffChildStatus, readParallelHandoffManifest } from "./parallel-handoff.ts";
 import { MACHINE_DIFF_OPTIONS, validateWorktreePatchRepresentsCurrentWorktree } from "./worktree.ts";
 
@@ -206,7 +206,9 @@ export function samePath(left: string, right: string): boolean {
 	try {
 		const leftStat = fs.statSync(left, { bigint: true });
 		const rightStat = fs.statSync(right, { bigint: true });
-		return leftStat.dev !== 0n && leftStat.ino !== 0n && leftStat.dev === rightStat.dev && leftStat.ino === rightStat.ino;
+		return (
+			leftStat.dev !== 0n && leftStat.ino !== 0n && leftStat.dev === rightStat.dev && leftStat.ino === rightStat.ino
+		);
 	} catch {
 		return false;
 	}
@@ -225,10 +227,7 @@ function pathInside(root: string, candidate: string, strict = false): boolean {
 	const normalizedCandidate = comparablePath(candidate);
 	if (!strict && normalizedRoot === normalizedCandidate) return true;
 	const relative = path.relative(normalizedRoot, normalizedCandidate);
-	return relative !== ""
-		&& relative !== ".."
-		&& !relative.startsWith(`..${path.sep}`)
-		&& !path.isAbsolute(relative);
+	return relative !== "" && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
 }
 
 function sha256(value: string): string {
@@ -264,9 +263,9 @@ function resolveCleanupBaseDir(repoRoot: string, configuredBaseDir: string | und
 
 function cleanupContainmentInvalid(repoRoot: string, projectDir: string): boolean {
 	const extensionsDir = path.join(getAgentDir(), "extensions");
-	return samePath(projectDir, repoRoot)
-		|| pathInside(repoRoot, projectDir, true)
-		|| pathInside(extensionsDir, projectDir);
+	return (
+		samePath(projectDir, repoRoot) || pathInside(repoRoot, projectDir, true) || pathInside(extensionsDir, projectDir)
+	);
 }
 
 export function parseGitWorktreeList(raw: string): GitWorktreeRecord[] {
@@ -319,21 +318,31 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 function readManifest(manifestPath: string): ManifestReadResult {
 	try {
 		const stat = fs.lstatSync(manifestPath);
-		if (stat.isSymbolicLink() || !stat.isFile()) return { error: `parallel handoff manifest is not a regular file: ${manifestPath}` };
-		if (stat.size > MAX_METADATA_FILE_BYTES) return { error: `parallel handoff manifest exceeds the ${MAX_METADATA_FILE_BYTES}-byte limit: ${manifestPath}` };
+		if (stat.isSymbolicLink() || !stat.isFile())
+			return { error: `parallel handoff manifest is not a regular file: ${manifestPath}` };
+		if (stat.size > MAX_METADATA_FILE_BYTES)
+			return {
+				error: `parallel handoff manifest exceeds the ${MAX_METADATA_FILE_BYTES}-byte limit: ${manifestPath}`,
+			};
 		const parsed = readParallelHandoffManifest(manifestPath);
 		if (!parsed) {
 			return { error: `invalid parallel handoff manifest version or groups: ${manifestPath}` };
 		}
 		return { manifest: parsed };
 	} catch (error) {
-		const code = error && typeof error === "object" && "code" in error ? (error as NodeJS.ErrnoException).code : undefined;
+		const code =
+			error && typeof error === "object" && "code" in error ? (error as NodeJS.ErrnoException).code : undefined;
 		if (code === "ENOENT") return { error: `parallel handoff manifest not found: ${manifestPath}` };
-		return { error: `failed to read parallel handoff manifest ${manifestPath}: ${error instanceof Error ? error.message : String(error)}` };
+		return {
+			error: `failed to read parallel handoff manifest ${manifestPath}: ${error instanceof Error ? error.message : String(error)}`,
+		};
 	}
 }
 
-function discoverHandoffPaths(repoRoot: string, input: BuildWorktreeCleanupPlanInput): { paths: string[]; warnings: string[] } {
+function discoverHandoffPaths(
+	repoRoot: string,
+	input: BuildWorktreeCleanupPlanInput,
+): { paths: string[]; warnings: string[] } {
 	const paths: string[] = [];
 	const warnings: string[] = [];
 	const add = (candidate: string): void => {
@@ -356,44 +365,64 @@ function discoverHandoffPaths(repoRoot: string, input: BuildWorktreeCleanupPlanI
 		if (stat.isSymbolicLink() || !stat.isDirectory()) {
 			warnings.push(`ignored non-directory handoff metadata root: ${handoffsDir}`);
 		} else {
-			const entries = fs.readdirSync(handoffsDir, { withFileTypes: true })
+			const entries = fs
+				.readdirSync(handoffsDir, { withFileTypes: true })
 				.filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
 				.map((entry) => entry.name)
 				.sort()
 				.slice(0, MAX_DISCOVERED_HANDOFFS);
 			for (const entry of entries) add(path.join(handoffsDir, entry));
-			if (entries.length === MAX_DISCOVERED_HANDOFFS) warnings.push(`handoff metadata discovery capped at ${MAX_DISCOVERED_HANDOFFS} files`);
+			if (entries.length === MAX_DISCOVERED_HANDOFFS)
+				warnings.push(`handoff metadata discovery capped at ${MAX_DISCOVERED_HANDOFFS} files`);
 		}
 	} catch (error) {
-		const code = error && typeof error === "object" && "code" in error ? (error as NodeJS.ErrnoException).code : undefined;
-		if (code !== "ENOENT") warnings.push(`failed to inspect handoff metadata root ${handoffsDir}: ${error instanceof Error ? error.message : String(error)}`);
+		const code =
+			error && typeof error === "object" && "code" in error ? (error as NodeJS.ErrnoException).code : undefined;
+		if (code !== "ENOENT")
+			warnings.push(
+				`failed to inspect handoff metadata root ${handoffsDir}: ${error instanceof Error ? error.message : String(error)}`,
+			);
 	}
 
-	return { paths: paths.sort((left, right) => comparablePath(left).localeCompare(comparablePath(right))), warnings: [...new Set(warnings)].sort() };
+	return {
+		paths: paths.sort((left, right) => comparablePath(left).localeCompare(comparablePath(right))),
+		warnings: [...new Set(warnings)].sort(),
+	};
 }
 
 function readStatusBesideManifest(manifestPath: string): { status?: AsyncStatus; statusPath: string; error?: string } {
 	const statusPath = path.join(path.dirname(manifestPath), "status.json");
 	try {
 		const stat = fs.lstatSync(statusPath);
-		if (stat.isSymbolicLink() || !stat.isFile()) return { statusPath, error: `async status is not a regular file: ${statusPath}` };
-		if (stat.size > MAX_METADATA_FILE_BYTES) return { statusPath, error: `async status exceeds the ${MAX_METADATA_FILE_BYTES}-byte limit: ${statusPath}` };
+		if (stat.isSymbolicLink() || !stat.isFile())
+			return { statusPath, error: `async status is not a regular file: ${statusPath}` };
+		if (stat.size > MAX_METADATA_FILE_BYTES)
+			return { statusPath, error: `async status exceeds the ${MAX_METADATA_FILE_BYTES}-byte limit: ${statusPath}` };
 		const parsed = readJsonFile(statusPath);
 		if (!isRecord(parsed) || typeof parsed.state !== "string" || typeof parsed.runId !== "string") {
 			return { statusPath, error: `invalid async status beside manifest: ${statusPath}` };
 		}
 		return { status: parsed as unknown as AsyncStatus, statusPath };
 	} catch (error) {
-		const code = error && typeof error === "object" && "code" in error ? (error as NodeJS.ErrnoException).code : undefined;
+		const code =
+			error && typeof error === "object" && "code" in error ? (error as NodeJS.ErrnoException).code : undefined;
 		if (code === "ENOENT") return { statusPath };
-		return { statusPath, error: `failed to read async status ${statusPath}: ${error instanceof Error ? error.message : String(error)}` };
+		return {
+			statusPath,
+			error: `failed to read async status ${statusPath}: ${error instanceof Error ? error.message : String(error)}`,
+		};
 	}
 }
 
-function manifestMetadata(manifestPath: string, manifest: ParallelHandoffManifest, warnings: string[]): ManifestMetadataRecord[] {
+function manifestMetadata(
+	manifestPath: string,
+	manifest: ParallelHandoffManifest,
+	warnings: string[],
+): ManifestMetadataRecord[] {
 	const records: ManifestMetadataRecord[] = [];
 	const groups = manifest.groups.slice(0, MAX_PLAN_ENTRIES);
-	if (manifest.groups.length > groups.length) warnings.push(`handoff group discovery capped at ${MAX_PLAN_ENTRIES} groups in ${manifestPath}`);
+	if (manifest.groups.length > groups.length)
+		warnings.push(`handoff group discovery capped at ${MAX_PLAN_ENTRIES} groups in ${manifestPath}`);
 	for (const group of groups) {
 		if (!isRecord(group) || !Array.isArray(group.cleanup?.tasks) || !Array.isArray(group.children)) {
 			warnings.push(`ignored malformed handoff group in ${manifestPath}`);
@@ -401,15 +430,33 @@ function manifestMetadata(manifestPath: string, manifest: ParallelHandoffManifes
 		}
 		const statusInfo = readStatusBesideManifest(manifestPath);
 		const tasks = group.cleanup.tasks.slice(0, MAX_PLAN_ENTRIES);
-		if (group.cleanup.tasks.length > tasks.length) warnings.push(`cleanup task discovery capped at ${MAX_PLAN_ENTRIES} tasks in ${manifestPath}`);
+		if (group.cleanup.tasks.length > tasks.length)
+			warnings.push(`cleanup task discovery capped at ${MAX_PLAN_ENTRIES} tasks in ${manifestPath}`);
 		for (const task of tasks) {
-			if (!isRecord(task) || typeof task.path !== "string" || !task.path.trim() || typeof task.branch !== "string" || !task.branch.trim() || typeof task.index !== "number" || !Number.isInteger(task.index) || task.index < 0) {
+			if (
+				!isRecord(task) ||
+				typeof task.path !== "string" ||
+				!task.path.trim() ||
+				typeof task.branch !== "string" ||
+				!task.branch.trim() ||
+				typeof task.index !== "number" ||
+				!Number.isInteger(task.index) ||
+				task.index < 0
+			) {
 				warnings.push(`ignored malformed cleanup task in ${manifestPath}`);
 				continue;
 			}
-			const matchingChildren = group.children.filter((candidate) => isRecord(candidate) && candidate.taskIndex === task.index);
-			if (matchingChildren.length !== 1 || !isRecord(matchingChildren[0]) || typeof matchingChildren[0].status !== "string") {
-				warnings.push(`cleanup task ${task.index} does not have exactly one valid child metadata record in ${manifestPath}`);
+			const matchingChildren = group.children.filter(
+				(candidate) => isRecord(candidate) && candidate.taskIndex === task.index,
+			);
+			if (
+				matchingChildren.length !== 1 ||
+				!isRecord(matchingChildren[0]) ||
+				typeof matchingChildren[0].status !== "string"
+			) {
+				warnings.push(
+					`cleanup task ${task.index} does not have exactly one valid child metadata record in ${manifestPath}`,
+				);
 				continue;
 			}
 			records.push({
@@ -427,7 +474,10 @@ function manifestMetadata(manifestPath: string, manifest: ParallelHandoffManifes
 	return records;
 }
 
-function loadMetadata(input: BuildWorktreeCleanupPlanInput, repoRoot: string): { records: ManifestMetadataRecord[]; paths: string[]; warnings: string[] } {
+function loadMetadata(
+	input: BuildWorktreeCleanupPlanInput,
+	repoRoot: string,
+): { records: ManifestMetadataRecord[]; paths: string[]; warnings: string[] } {
 	const discovered = discoverHandoffPaths(repoRoot, input);
 	const records: ManifestMetadataRecord[] = [];
 	const warnings = [...discovered.warnings];
@@ -452,11 +502,24 @@ function inspectPath(candidate: string): PathInspection {
 	try {
 		const stat = fs.lstatSync(resolved);
 		if (stat.isSymbolicLink()) return { resolved, missing: false, symlink: true, directory: false };
-		return { resolved, realpath: realpathExisting(resolved), missing: false, symlink: false, directory: stat.isDirectory() };
+		return {
+			resolved,
+			realpath: realpathExisting(resolved),
+			missing: false,
+			symlink: false,
+			directory: stat.isDirectory(),
+		};
 	} catch (error) {
-		const code = error && typeof error === "object" && "code" in error ? (error as NodeJS.ErrnoException).code : undefined;
+		const code =
+			error && typeof error === "object" && "code" in error ? (error as NodeJS.ErrnoException).code : undefined;
 		if (code === "ENOENT") return { resolved, missing: true, symlink: false, directory: false };
-		return { resolved, missing: false, symlink: false, directory: false, error: error instanceof Error ? error.message : String(error) };
+		return {
+			resolved,
+			missing: false,
+			symlink: false,
+			directory: false,
+			error: error instanceof Error ? error.message : String(error),
+		};
 	}
 }
 
@@ -474,7 +537,12 @@ function metadataPatchPath(record: ManifestMetadataRecord): string | undefined {
 }
 
 function metadataOutputPaths(record: ManifestMetadataRecord): string[] {
-	return [record.child.outputPath, record.child.structuredOutputPath, record.child.sessionPath, record.child.patch?.path]
+	return [
+		record.child.outputPath,
+		record.child.structuredOutputPath,
+		record.child.sessionPath,
+		record.child.patch?.path,
+	]
 		.filter((candidate): candidate is string => typeof candidate === "string" && candidate.trim().length > 0)
 		.map((candidate) => metadataPath(record.manifestPath, candidate));
 }
@@ -486,41 +554,69 @@ function metadataReportPaths(record: ManifestMetadataRecord): string[] {
 }
 
 function terminalRunState(status: AsyncStatus["state"]): boolean {
-	return status === "complete" || status === "failed" || status === "partial" || status === "paused" || status === "stopped" || status === "rejected";
+	return (
+		status === "complete" ||
+		status === "failed" ||
+		status === "partial" ||
+		status === "paused" ||
+		status === "stopped" ||
+		status === "rejected"
+	);
 }
 
-function inspectRunState(record: ManifestMetadataRecord, now: number, foregroundRunOwnership?: (runId: string) => ForegroundRunOwnership): RunStateInspection {
+function inspectRunState(
+	record: ManifestMetadataRecord,
+	now: number,
+	foregroundRunOwnership?: (runId: string) => ForegroundRunOwnership,
+): RunStateInspection {
 	if (record.statusError) return { kind: "unknown", reason: record.statusError };
 	if (record.status) {
-		if (record.status.runId !== record.manifest.runId) return { kind: "unknown", reason: `status run id '${record.status.runId}' does not match manifest run '${record.manifest.runId}'` };
-		if (record.status.state === "queued" || record.status.state === "running") return { kind: "active", reason: `owning run is ${record.status.state}` };
-		if (!terminalRunState(record.status.state)) return { kind: "unknown", reason: `owning run has unknown state '${record.status.state}'` };
+		if (record.status.runId !== record.manifest.runId)
+			return {
+				kind: "unknown",
+				reason: `status run id '${record.status.runId}' does not match manifest run '${record.manifest.runId}'`,
+			};
+		if (record.status.state === "queued" || record.status.state === "running")
+			return { kind: "active", reason: `owning run is ${record.status.state}` };
+		if (!terminalRunState(record.status.state))
+			return { kind: "unknown", reason: `owning run has unknown state '${record.status.state}'` };
 	} else if (record.manifest.source === "async") {
 		return { kind: "unknown", reason: `async status is missing beside ${record.manifestPath}` };
 	}
 
-	if (record.group.children.length === 0 || !record.group.children.every((child) => isTerminalParallelHandoffChildStatus(child.status))) {
+	if (
+		record.group.children.length === 0 ||
+		!record.group.children.every((child) => isTerminalParallelHandoffChildStatus(child.status))
+	) {
 		return { kind: "active", reason: "owning handoff still has a non-terminal child" };
 	}
 	if (record.manifest.source === "foreground") {
 		try {
 			const ownership = foregroundRunOwnership?.(record.manifest.runId) ?? "unknown";
 			if (ownership === "active") return { kind: "active", reason: "owning foreground run is still active" };
-			if (ownership !== "terminal") return { kind: "unknown", reason: "foreground owning-run state is not provably terminal" };
+			if (ownership !== "terminal")
+				return { kind: "unknown", reason: "foreground owning-run state is not provably terminal" };
 			return { kind: "terminal" };
 		} catch (error) {
-			return { kind: "unknown", reason: `failed to inspect foreground owning run: ${error instanceof Error ? error.message : String(error)}` };
+			return {
+				kind: "unknown",
+				reason: `failed to inspect foreground owning run: ${error instanceof Error ? error.message : String(error)}`,
+			};
 		}
 	}
 
 	try {
 		const markerAge = activeRunMarkerAgeMs(path.dirname(record.statusPath), now);
 		if (markerAge !== undefined) {
-			if (markerAge <= DEFAULT_STALE_TERMINAL_ACTIVE_MARKER_MS) return { kind: "active", reason: "owning run still has a recent active marker" };
+			if (markerAge <= DEFAULT_STALE_TERMINAL_ACTIVE_MARKER_MS)
+				return { kind: "active", reason: "owning run still has a recent active marker" };
 			return { kind: "stale", reason: `terminal active marker is stale (${Math.floor(markerAge / 1000)}s old)` };
 		}
 	} catch (error) {
-		return { kind: "unknown", reason: `failed to inspect active-run marker: ${error instanceof Error ? error.message : String(error)}` };
+		return {
+			kind: "unknown",
+			reason: `failed to inspect active-run marker: ${error instanceof Error ? error.message : String(error)}`,
+		};
 	}
 	return { kind: "terminal" };
 }
@@ -542,7 +638,13 @@ function buildEntryBase(input: {
 		state: "unknown",
 		reasons: [],
 		source: input.source,
-		...(input.metadata ? { runId: input.metadata.manifest.runId, handoffPath: input.metadata.manifestPath, taskIndex: input.metadata.task.index } : {}),
+		...(input.metadata
+			? {
+					runId: input.metadata.manifest.runId,
+					handoffPath: input.metadata.manifestPath,
+					taskIndex: input.metadata.task.index,
+				}
+			: {}),
 		...(input.metadata?.group.baseCommit ? { baseCommit: input.metadata.group.baseCommit } : {}),
 		...(patchPath ? { patchPath } : {}),
 		targetRef: input.targetHead,
@@ -557,7 +659,12 @@ function buildEntryBase(input: {
 	};
 }
 
-function blockedEntry(entry: WorktreeCleanupPlanEntry, state: WorktreeCleanupPlanState, decision: WorktreeCleanupPlanDecision, reason: string): WorktreeCleanupPlanEntry {
+function blockedEntry(
+	entry: WorktreeCleanupPlanEntry,
+	state: WorktreeCleanupPlanState,
+	decision: WorktreeCleanupPlanDecision,
+	reason: string,
+): WorktreeCleanupPlanEntry {
 	return { ...entry, state, decision, reasons: [...entry.reasons, reason] };
 }
 
@@ -580,7 +687,11 @@ function resolveBranchTip(repoRoot: string, branch: string): { value?: string; e
 	return { value: result.stdout.trim() };
 }
 
-function isPatchCaptured(record: ManifestMetadataRecord, worktreePath: string, baseCommit: string): { path?: string; error?: string } {
+function isPatchCaptured(
+	record: ManifestMetadataRecord,
+	worktreePath: string,
+	baseCommit: string,
+): { path?: string; error?: string } {
 	const patchPath = metadataPatchPath(record);
 	if (!patchPath || record.child.patch?.error !== undefined || record.child.patch?.changed !== true) return {};
 	const inspection = inspectPath(patchPath);
@@ -593,7 +704,8 @@ function isPatchCaptured(record: ManifestMetadataRecord, worktreePath: string, b
 		return { error: `captured patch cannot be inspected: ${error instanceof Error ? error.message : String(error)}` };
 	}
 	if (!patchStat.isFile()) return { error: "captured handoff patch is not a file" };
-	if (pathInside(worktreePath, inspection.realpath)) return { error: "durable handoff patch lives inside the worktree" };
+	if (pathInside(worktreePath, inspection.realpath))
+		return { error: "durable handoff patch lives inside the worktree" };
 	if (patchStat.size <= 0) return { error: "captured handoff patch is empty" };
 	const validationError = validateWorktreePatchRepresentsCurrentWorktree(worktreePath, baseCommit, patchPath);
 	if (validationError) return { error: `captured handoff patch failed validation: ${validationError}` };
@@ -616,82 +728,207 @@ function buildManagedEntry(input: {
 	const gitWorktreePath = path.resolve(git.path);
 	const metadataWorktreePath = metadataRecordPath(record);
 	const worktreePath = resolveExistingPath(metadataWorktreePath);
-	const entry = buildEntryBase({ path: worktreePath, branch: git.branch ?? "", source: "both", git, metadata: record, targetHead });
-	if (typeof record.manifest.runId !== "string" || !record.manifest.runId.trim()) return blockedEntry(entry, "unknown", "unknown", "handoff metadata has no valid owning run id");
-	if (record.manifest.source !== "foreground" && record.manifest.source !== "async") return blockedEntry(entry, "unknown", "unknown", "handoff metadata has an unknown source");
-	if (typeof record.group.repoRoot !== "string" || !record.group.repoRoot.trim()) return blockedEntry(entry, "unknown", "unknown", "handoff metadata has no repository root");
-	if (!samePath(metadataWorktreePath, gitWorktreePath)) return blockedEntry(entry, "unknown", "unknown", "metadata worktree path does not identify the Git worktree");
+	const entry = buildEntryBase({
+		path: worktreePath,
+		branch: git.branch ?? "",
+		source: "both",
+		git,
+		metadata: record,
+		targetHead,
+	});
+	if (typeof record.manifest.runId !== "string" || !record.manifest.runId.trim())
+		return blockedEntry(entry, "unknown", "unknown", "handoff metadata has no valid owning run id");
+	if (record.manifest.source !== "foreground" && record.manifest.source !== "async")
+		return blockedEntry(entry, "unknown", "unknown", "handoff metadata has an unknown source");
+	if (typeof record.group.repoRoot !== "string" || !record.group.repoRoot.trim())
+		return blockedEntry(entry, "unknown", "unknown", "handoff metadata has no repository root");
+	if (!samePath(metadataWorktreePath, gitWorktreePath))
+		return blockedEntry(entry, "unknown", "unknown", "metadata worktree path does not identify the Git worktree");
 	const gitPathInspection = inspectPath(gitWorktreePath);
-	if (gitPathInspection.error) return blockedEntry(entry, "unknown", "unknown", `Git worktree path could not be inspected: ${gitPathInspection.error}`);
-	if (gitPathInspection.missing) return blockedEntry(entry, "stale", "unknown", "Git worktree path is missing from disk");
-	if (gitPathInspection.symlink) return blockedEntry(entry, "unknown", "unknown", "Git worktree path is a symlink; cleanup requires a real directory");
+	if (gitPathInspection.error)
+		return blockedEntry(
+			entry,
+			"unknown",
+			"unknown",
+			`Git worktree path could not be inspected: ${gitPathInspection.error}`,
+		);
+	if (gitPathInspection.missing)
+		return blockedEntry(entry, "stale", "unknown", "Git worktree path is missing from disk");
+	if (gitPathInspection.symlink)
+		return blockedEntry(
+			entry,
+			"unknown",
+			"unknown",
+			"Git worktree path is a symlink; cleanup requires a real directory",
+		);
 	const pathInspection = inspectPath(worktreePath);
-	if (pathInspection.error) return blockedEntry(entry, "unknown", "unknown", `worktree path could not be inspected: ${pathInspection.error}`);
+	if (pathInspection.error)
+		return blockedEntry(entry, "unknown", "unknown", `worktree path could not be inspected: ${pathInspection.error}`);
 	if (pathInspection.missing) return blockedEntry(entry, "stale", "unknown", "worktree path is missing from disk");
-	if (pathInspection.symlink) return blockedEntry(entry, "unknown", "unknown", "worktree path is a symlink; cleanup requires a real directory");
-	if (!pathInspection.directory || !pathInspection.realpath) return blockedEntry(entry, "unknown", "unknown", "worktree path is not a directory");
+	if (pathInspection.symlink)
+		return blockedEntry(entry, "unknown", "unknown", "worktree path is a symlink; cleanup requires a real directory");
+	if (!pathInspection.directory || !pathInspection.realpath)
+		return blockedEntry(entry, "unknown", "unknown", "worktree path is not a directory");
 	const extensionsDir = path.join(getAgentDir(), "extensions");
-	if (pathInside(extensionsDir, pathInspection.realpath)) return blockedEntry(entry, "ineligible", "keep", `worktree real path is inside Pi extensions directory '${extensionsDir}'`);
-	if (input.containmentInvalid || !pathInside(baseDir, pathInspection.realpath, true)) return blockedEntry(entry, "ineligible", "keep", `worktree real path is outside configured base directory '${baseDir}'`);
+	if (pathInside(extensionsDir, pathInspection.realpath))
+		return blockedEntry(
+			entry,
+			"ineligible",
+			"keep",
+			`worktree real path is inside Pi extensions directory '${extensionsDir}'`,
+		);
+	if (input.containmentInvalid || !pathInside(baseDir, pathInspection.realpath, true))
+		return blockedEntry(
+			entry,
+			"ineligible",
+			"keep",
+			`worktree real path is outside configured base directory '${baseDir}'`,
+		);
 	const recordedBaseDir = record.task.recordedBaseDir;
-	if (typeof recordedBaseDir !== "string" || !path.isAbsolute(recordedBaseDir)) return blockedEntry(entry, "unknown", "keep", "handoff metadata has no creation-time base directory proof");
+	if (typeof recordedBaseDir !== "string" || !path.isAbsolute(recordedBaseDir))
+		return blockedEntry(entry, "unknown", "keep", "handoff metadata has no creation-time base directory proof");
 	// Compare the saved canonical string, without following a newly replaced ancestor.
 	const creationRelative = path.relative(recordedBaseDir, pathInspection.realpath);
-	if (!creationRelative || creationRelative === ".." || creationRelative.startsWith(`..${path.sep}`) || path.isAbsolute(creationRelative)) return blockedEntry(entry, "ineligible", "keep", `worktree real path is outside its creation-time recorded base directory '${recordedBaseDir}'`);
+	if (
+		!creationRelative ||
+		creationRelative === ".." ||
+		creationRelative.startsWith(`..${path.sep}`) ||
+		path.isAbsolute(creationRelative)
+	)
+		return blockedEntry(
+			entry,
+			"ineligible",
+			"keep",
+			`worktree real path is outside its creation-time recorded base directory '${recordedBaseDir}'`,
+		);
 
-	if (rootPath === comparablePath(pathInspection.realpath)) return blockedEntry(entry, "ineligible", "keep", "worktree is the repository root");
+	if (rootPath === comparablePath(pathInspection.realpath))
+		return blockedEntry(entry, "ineligible", "keep", "worktree is the repository root");
 	if (git.locked) return blockedEntry(entry, "ineligible", "keep", "Git worktree is locked");
-	if (!git.branch) return blockedEntry(entry, "unknown", "unknown", "detached worktrees have no metadata-recorded branch");
-	if (record.task.branch !== git.branch) return blockedEntry(entry, "unknown", "unknown", `metadata branch '${record.task.branch}' does not match Git branch '${git.branch}'`);
-	if (record.task.worktreeRemoved) return blockedEntry(entry, "stale", "unknown", "handoff metadata already records this worktree as removed");
-	if (record.task.preserved !== true) return blockedEntry(entry, "unknown", "unknown", "handoff metadata does not mark this worktree as preserved");
-	if (record.group.cleanup.state !== "partial") return blockedEntry(entry, "unknown", "unknown", "handoff cleanup state does not indicate a preserved worktree pending cleanup");
+	if (!git.branch)
+		return blockedEntry(entry, "unknown", "unknown", "detached worktrees have no metadata-recorded branch");
+	if (record.task.branch !== git.branch)
+		return blockedEntry(
+			entry,
+			"unknown",
+			"unknown",
+			`metadata branch '${record.task.branch}' does not match Git branch '${git.branch}'`,
+		);
+	if (record.task.worktreeRemoved)
+		return blockedEntry(entry, "stale", "unknown", "handoff metadata already records this worktree as removed");
+	if (record.task.preserved !== true)
+		return blockedEntry(entry, "unknown", "unknown", "handoff metadata does not mark this worktree as preserved");
+	if (record.group.cleanup.state !== "partial")
+		return blockedEntry(
+			entry,
+			"unknown",
+			"unknown",
+			"handoff cleanup state does not indicate a preserved worktree pending cleanup",
+		);
 	const cleanupReason = typeof record.task.reason === "string" ? record.task.reason.toLowerCase() : "";
-	if (cleanupReason.includes("retained child resume")) return blockedEntry(entry, "ineligible", "keep", "retained child resume still requires this worktree cwd");
-	if (cleanupReason.includes("cleanup pending durable handoff capture")) return blockedEntry(entry, "ineligible", "keep", "durable handoff capture is still pending for this worktree");
-	if (record.group.repoRoot && comparablePath(resolveExistingPath(record.group.repoRoot)) !== comparablePath(repoRoot)) {
-		return blockedEntry(entry, "unknown", "unknown", "handoff repository root does not match the requested repository");
+	if (cleanupReason.includes("retained child resume"))
+		return blockedEntry(entry, "ineligible", "keep", "retained child resume still requires this worktree cwd");
+	if (cleanupReason.includes("cleanup pending durable handoff capture"))
+		return blockedEntry(entry, "ineligible", "keep", "durable handoff capture is still pending for this worktree");
+	if (
+		record.group.repoRoot &&
+		comparablePath(resolveExistingPath(record.group.repoRoot)) !== comparablePath(repoRoot)
+	) {
+		return blockedEntry(
+			entry,
+			"unknown",
+			"unknown",
+			"handoff repository root does not match the requested repository",
+		);
 	}
-	if (input.otherGitRecords.some((candidate) => candidate.branch === git.branch && comparablePath(candidate.path) !== comparablePath(git.path))) {
-		return blockedEntry(entry, "unknown", "unknown", "metadata-recorded branch is checked out in another Git worktree");
+	if (
+		input.otherGitRecords.some(
+			(candidate) => candidate.branch === git.branch && comparablePath(candidate.path) !== comparablePath(git.path),
+		)
+	) {
+		return blockedEntry(
+			entry,
+			"unknown",
+			"unknown",
+			"metadata-recorded branch is checked out in another Git worktree",
+		);
 	}
 	if (git.branch === input.otherGitRecords.find((candidate) => comparablePath(candidate.path) === rootPath)?.branch) {
-		return blockedEntry(entry, "ineligible", "keep", "metadata-recorded branch is checked out at the repository root");
+		return blockedEntry(
+			entry,
+			"ineligible",
+			"keep",
+			"metadata-recorded branch is checked out at the repository root",
+		);
 	}
 
-	const retainedSession = record.child.sessionPath ?? record.status?.steps?.[record.child.index]?.sessionFile ?? record.status?.sessionFile;
-	if (typeof retainedSession === "string" && retainedSession.trim()) return blockedEntry(entry, "ineligible", "keep", "retained child resume still has a recorded session dependency");
+	const retainedSession =
+		record.child.sessionPath ?? record.status?.steps?.[record.child.index]?.sessionFile ?? record.status?.sessionFile;
+	if (typeof retainedSession === "string" && retainedSession.trim())
+		return blockedEntry(entry, "ineligible", "keep", "retained child resume still has a recorded session dependency");
 
 	const runState = inspectRunState(record, input.now, foregroundRunOwnership);
-	if (runState.kind === "unknown") return blockedEntry(entry, "unknown", "unknown", runState.reason ?? "owning run state is unknown");
-	if (runState.kind === "active") return blockedEntry(entry, "active", "keep", runState.reason ?? "owning run is active");
-	if (runState.kind === "stale") return blockedEntry(entry, "stale", "unknown", runState.reason ?? "terminal active marker is stale");
+	if (runState.kind === "unknown")
+		return blockedEntry(entry, "unknown", "unknown", runState.reason ?? "owning run state is unknown");
+	if (runState.kind === "active")
+		return blockedEntry(entry, "active", "keep", runState.reason ?? "owning run is active");
+	if (runState.kind === "stale")
+		return blockedEntry(entry, "stale", "unknown", runState.reason ?? "terminal active marker is stale");
 
 	const baseCommit = record.group.baseCommit;
-	if (typeof baseCommit !== "string" || !baseCommit.trim()) return blockedEntry(entry, "unknown", "unknown", "handoff metadata has no base commit");
+	if (typeof baseCommit !== "string" || !baseCommit.trim())
+		return blockedEntry(entry, "unknown", "unknown", "handoff metadata has no base commit");
 	const resolvedBase = resolveCommit(repoRoot, baseCommit);
-	if (!resolvedBase.value) return blockedEntry(entry, "unknown", "unknown", `handoff base commit is not a valid local commit: ${resolvedBase.error ?? "unknown error"}`);
+	if (!resolvedBase.value)
+		return blockedEntry(
+			entry,
+			"unknown",
+			"unknown",
+			`handoff base commit is not a valid local commit: ${resolvedBase.error ?? "unknown error"}`,
+		);
 	entry.baseCommit = resolvedBase.value;
 	entry.preconditions.baseCommit = resolvedBase.value;
 	const branchTip = resolveBranchTip(repoRoot, git.branch);
-	if (!branchTip.value) return blockedEntry(entry, "unknown", "unknown", `branch tip could not be resolved: ${branchTip.error ?? "unknown error"}`);
+	if (!branchTip.value)
+		return blockedEntry(
+			entry,
+			"unknown",
+			"unknown",
+			`branch tip could not be resolved: ${branchTip.error ?? "unknown error"}`,
+		);
 	entry.preconditions.branchTip = branchTip.value;
 	entry.preconditions.worktreeHead = git.head;
-	if (branchTip.value !== git.head) return blockedEntry(entry, "unknown", "unknown", "branch tip and worktree HEAD do not match");
+	if (branchTip.value !== git.head)
+		return blockedEntry(entry, "unknown", "unknown", "branch tip and worktree HEAD do not match");
 
 	const status = inspectStatus(worktreePath);
 	if (status.error) return blockedEntry(entry, "unknown", "unknown", `git status failed: ${status.error}`);
 	entry.preconditions.statusDigest = status.digest;
-	if (status.output && status.output.trim()) return blockedEntry(entry, "dirty", "keep", "worktree has uncommitted or untracked changes");
+	if (status.output && status.output.trim())
+		return blockedEntry(entry, "dirty", "keep", "worktree has uncommitted or untracked changes");
 
 	const ignored = runGit(worktreePath, ["ls-files", "--others", "--ignored", "--exclude-standard", "-z"]);
-	if (ignored.status !== 0) return blockedEntry(entry, "unknown", "unknown", `ignored-file inspection failed: ${gitFailure(ignored, "git ls-files")}`);
-	if (ignored.stdout) return blockedEntry(entry, "ineligible", "keep", "worktree contains ignored files; cleanup preserves them");
+	if (ignored.status !== 0)
+		return blockedEntry(
+			entry,
+			"unknown",
+			"unknown",
+			`ignored-file inspection failed: ${gitFailure(ignored, "git ls-files")}`,
+		);
+	if (ignored.stdout)
+		return blockedEntry(entry, "ineligible", "keep", "worktree contains ignored files; cleanup preserves them");
 
 	const diff = runGit(worktreePath, ["diff", "--quiet", ...MACHINE_DIFF_OPTIONS, resolvedBase.value, "--"]);
-	if (diff.status !== 0 && diff.status !== 1) return blockedEntry(entry, "unknown", "unknown", `git diff safety check failed: ${gitFailure(diff, "git diff")}`);
+	if (diff.status !== 0 && diff.status !== 1)
+		return blockedEntry(entry, "unknown", "unknown", `git diff safety check failed: ${gitFailure(diff, "git diff")}`);
 	const ancestor = runGit(repoRoot, ["merge-base", "--is-ancestor", git.head, targetHead]);
-	if (ancestor.status !== 0 && ancestor.status !== 1) return blockedEntry(entry, "unknown", "unknown", `local merge safety check failed: ${gitFailure(ancestor, "git merge-base --is-ancestor")}`);
+	if (ancestor.status !== 0 && ancestor.status !== 1)
+		return blockedEntry(
+			entry,
+			"unknown",
+			"unknown",
+			`local merge safety check failed: ${gitFailure(ancestor, "git merge-base --is-ancestor")}`,
+		);
 	const branchTipIsAncestor = ancestor.status === 0;
 	let divergenceSafe = diff.status === 0;
 	if (!divergenceSafe) {
@@ -702,48 +939,97 @@ function buildManagedEntry(input: {
 			divergenceSafe = true;
 		} else {
 			if (branchTipIsAncestor) divergenceSafe = true;
-			else return blockedEntry(entry, "ineligible", "keep", "committed divergence is neither preserved by a handoff patch nor merged into the local target HEAD");
+			else
+				return blockedEntry(
+					entry,
+					"ineligible",
+					"keep",
+					"committed divergence is neither preserved by a handoff patch nor merged into the local target HEAD",
+				);
 		}
 	}
-	if (!divergenceSafe) return blockedEntry(entry, "unknown", "unknown", "worktree divergence safety could not be established");
+	if (!divergenceSafe)
+		return blockedEntry(entry, "unknown", "unknown", "worktree divergence safety could not be established");
 
 	for (const reportPath of [record.manifestPath, ...metadataReportPaths(record)]) {
 		const inspection = inspectPath(reportPath);
-		if (inspection.error) return blockedEntry(entry, "unknown", "unknown", `durable handoff path could not be inspected: ${inspection.error}`);
-		const comparable = inspection.realpath ?? (inspection.symlink ? resolveExistingPath(reportPath) : inspection.resolved);
-		if (pathInside(pathInspection.realpath, comparable)) return blockedEntry(entry, "ineligible", "keep", `durable handoff path is inside the worktree: ${reportPath}`);
-		if (inspection.missing) return blockedEntry(entry, "unknown", "unknown", `durable handoff path is missing: ${reportPath}`);
-		if (inspection.symlink) return blockedEntry(entry, "unknown", "unknown", `durable handoff path is a symlink: ${reportPath}`);
+		if (inspection.error)
+			return blockedEntry(
+				entry,
+				"unknown",
+				"unknown",
+				`durable handoff path could not be inspected: ${inspection.error}`,
+			);
+		const comparable =
+			inspection.realpath ?? (inspection.symlink ? resolveExistingPath(reportPath) : inspection.resolved);
+		if (pathInside(pathInspection.realpath, comparable))
+			return blockedEntry(entry, "ineligible", "keep", `durable handoff path is inside the worktree: ${reportPath}`);
+		if (inspection.missing)
+			return blockedEntry(entry, "unknown", "unknown", `durable handoff path is missing: ${reportPath}`);
+		if (inspection.symlink)
+			return blockedEntry(entry, "unknown", "unknown", `durable handoff path is a symlink: ${reportPath}`);
 	}
 
 	for (const durablePath of metadataOutputPaths(record)) {
 		const inspection = inspectPath(durablePath);
-		const comparable = inspection.realpath ?? (inspection.symlink ? resolveExistingPath(durablePath) : inspection.resolved);
-		if (pathInside(pathInspection.realpath, comparable)) return blockedEntry(entry, "ineligible", "keep", `durable report or patch path is inside the worktree: ${durablePath}`);
+		const comparable =
+			inspection.realpath ?? (inspection.symlink ? resolveExistingPath(durablePath) : inspection.resolved);
+		if (pathInside(pathInspection.realpath, comparable))
+			return blockedEntry(
+				entry,
+				"ineligible",
+				"keep",
+				`durable report or patch path is inside the worktree: ${durablePath}`,
+			);
 	}
 
 	entry.state = "safe";
 	entry.decision = "remove";
 	entry.willDeleteBranch = false;
-	entry.reasons.push("extension-owned metadata, terminal run, contained clean worktree, and local divergence checks passed");
-	if (!branchTipIsAncestor) entry.reasons.push("local branch tip is not an ancestor of target HEAD; future apply must retain the branch");
+	entry.reasons.push(
+		"extension-owned metadata, terminal run, contained clean worktree, and local divergence checks passed",
+	);
+	if (!branchTipIsAncestor)
+		entry.reasons.push("local branch tip is not an ancestor of target HEAD; future apply must retain the branch");
 	return entry;
 }
 
 function buildUnknownGitEntry(input: { git: GitWorktreeRecord; targetHead: string }): WorktreeCleanupPlanEntry {
 	const pathValue = resolveExistingPath(input.git.path);
-	const entry = buildEntryBase({ path: pathValue, branch: input.git.branch ?? "", source: "git", git: input.git, targetHead: input.targetHead });
+	const entry = buildEntryBase({
+		path: pathValue,
+		branch: input.git.branch ?? "",
+		source: "git",
+		git: input.git,
+		targetHead: input.targetHead,
+	});
 	return blockedEntry(entry, "unknown", "unknown", "no matching extension-owned handoff metadata was found");
 }
 
-function buildMissingMetadataEntry(input: { record: ManifestMetadataRecord; targetHead: string }): WorktreeCleanupPlanEntry | undefined {
+function buildMissingMetadataEntry(input: {
+	record: ManifestMetadataRecord;
+	targetHead: string;
+}): WorktreeCleanupPlanEntry | undefined {
 	if (input.record.task.worktreeRemoved && input.record.task.branchRemoved) return undefined;
 	const pathValue = metadataRecordPath(input.record);
-	const entry = buildEntryBase({ path: pathValue, branch: input.record.task.branch, source: "metadata", metadata: input.record, targetHead: input.targetHead });
-	return blockedEntry(entry, "stale", "unknown", "handoff metadata records a worktree that is not present in Git worktree state");
+	const entry = buildEntryBase({
+		path: pathValue,
+		branch: input.record.task.branch,
+		source: "metadata",
+		metadata: input.record,
+		targetHead: input.targetHead,
+	});
+	return blockedEntry(
+		entry,
+		"stale",
+		"unknown",
+		"handoff metadata records a worktree that is not present in Git worktree state",
+	);
 }
 
-export function worktreeCleanupContentPayload(plan: Omit<WorktreeCleanupPlan, "contentHash" | "planId" | "createdAt" | "expiresAt">): unknown {
+export function worktreeCleanupContentPayload(
+	plan: Omit<WorktreeCleanupPlan, "contentHash" | "planId" | "createdAt" | "expiresAt">,
+): unknown {
 	return {
 		version: plan.version,
 		repoRoot: plan.repoRoot,
@@ -756,11 +1042,14 @@ export function worktreeCleanupContentPayload(plan: Omit<WorktreeCleanupPlan, "c
 }
 
 function stableEntrySort(left: WorktreeCleanupPlanEntry, right: WorktreeCleanupPlanEntry): number {
-	return comparablePath(left.path).localeCompare(comparablePath(right.path)) || left.branch.localeCompare(right.branch);
+	return (
+		comparablePath(left.path).localeCompare(comparablePath(right.path)) || left.branch.localeCompare(right.branch)
+	);
 }
 
 export function buildWorktreeCleanupPlan(input: BuildWorktreeCleanupPlanInput): WorktreeCleanupPlan {
-	if (typeof input.repo !== "string" || !input.repo.trim()) throw new Error("worktree cleanup plan requires a repository path");
+	if (typeof input.repo !== "string" || !input.repo.trim())
+		throw new Error("worktree cleanup plan requires a repository path");
 	const repoRoot = resolveCleanupRepoRoot(input.repo);
 	const now = input.now ?? Date.now();
 	if (!Number.isFinite(now)) throw new Error("worktree cleanup plan timestamp must be finite");
@@ -783,23 +1072,30 @@ export function buildWorktreeCleanupPlan(input: BuildWorktreeCleanupPlanInput): 
 	const matchedMetadataRecords = new Set<ManifestMetadataRecord>();
 	for (const git of linkedGit) {
 		if (input.candidatePaths && !input.candidatePaths.some((candidate) => samePath(candidate, git.path))) continue;
-		const records = metadataByPath.get(comparablePath(git.path)) ?? (git.branch
-			? metadata.records.filter((record) => record.task.branch === git.branch && samePath(metadataRecordPath(record), git.path))
-			: []);
+		const records =
+			metadataByPath.get(comparablePath(git.path)) ??
+			(git.branch
+				? metadata.records.filter(
+						(record) => record.task.branch === git.branch && samePath(metadataRecordPath(record), git.path),
+					)
+				: []);
 		if (records.length === 1) matchedMetadataRecords.add(records[0]!);
 		if (records.length !== 1) entries.push(buildUnknownGitEntry({ git, targetHead }));
-		else entries.push(buildManagedEntry({
-			repoRoot,
-			baseDir,
-			containmentInvalid,
-			targetHead,
-			rootPath,
-			git,
-			record: records[0]!,
-			otherGitRecords: gitRecords,
-			now,
-			foregroundRunOwnership: input.foregroundRunOwnership,
-		}));
+		else
+			entries.push(
+				buildManagedEntry({
+					repoRoot,
+					baseDir,
+					containmentInvalid,
+					targetHead,
+					rootPath,
+					git,
+					record: records[0]!,
+					otherGitRecords: gitRecords,
+					now,
+					foregroundRunOwnership: input.foregroundRunOwnership,
+				}),
+			);
 	}
 
 	const gitPathKeys = new Set(linkedGit.map((record) => comparablePath(record.path)));
@@ -816,7 +1112,12 @@ export function buildWorktreeCleanupPlan(input: BuildWorktreeCleanupPlanInput): 
 		entries.splice(MAX_PLAN_ENTRIES);
 	}
 	const pruneCandidates = entries
-		.filter((entry) => entry.decision === "unknown" && entry.state === "stale" && gitRecords.some((record) => record.prunable && comparablePath(record.path) === comparablePath(entry.path)))
+		.filter(
+			(entry) =>
+				entry.decision === "unknown" &&
+				entry.state === "stale" &&
+				gitRecords.some((record) => record.prunable && comparablePath(record.path) === comparablePath(entry.path)),
+		)
 		.map((entry) => entry.path)
 		.sort((left, right) => comparablePath(left).localeCompare(comparablePath(right)));
 	const basePlan = {
@@ -880,7 +1181,9 @@ export function formatWorktreeCleanupPlan(created: CreatedWorktreeCleanupPlan): 
 		...section("Unknown, needs manual review", unknown, "none"),
 		"",
 		"Prune candidates",
-		...(plan.pruneCandidates.length ? plan.pruneCandidates.map((candidate) => `- ${candidate}`) : ["- none (plan-only mode does not prune Git metadata)"]),
+		...(plan.pruneCandidates.length
+			? plan.pruneCandidates.map((candidate) => `- ${candidate}`)
+			: ["- none (plan-only mode does not prune Git metadata)"]),
 		...(plan.warnings?.length ? ["", "Warnings", ...plan.warnings.map((warning) => `- ${warning}`)] : []),
 		"",
 		`Plan saved: ${planPath}`,

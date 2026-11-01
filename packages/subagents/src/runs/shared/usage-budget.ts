@@ -5,13 +5,19 @@ function validateLimit(value: unknown, label: string): { limit?: UsageBudgetLimi
 	const raw = value as Record<string, unknown>;
 	const unknown = Object.keys(raw).find((key) => key !== "soft" && key !== "hard");
 	if (unknown) return { error: `${label}.${unknown} is not supported.` };
-	if (typeof raw.hard !== "number" || !Number.isFinite(raw.hard) || raw.hard <= 0) return { error: `${label}.hard must be a positive number.` };
-	if (raw.soft !== undefined && (typeof raw.soft !== "number" || !Number.isFinite(raw.soft) || raw.soft <= 0)) return { error: `${label}.soft must be a positive number.` };
-	if (typeof raw.soft === "number" && raw.soft > raw.hard) return { error: `${label}.soft must be less than or equal to ${label}.hard.` };
+	if (typeof raw.hard !== "number" || !Number.isFinite(raw.hard) || raw.hard <= 0)
+		return { error: `${label}.hard must be a positive number.` };
+	if (raw.soft !== undefined && (typeof raw.soft !== "number" || !Number.isFinite(raw.soft) || raw.soft <= 0))
+		return { error: `${label}.soft must be a positive number.` };
+	if (typeof raw.soft === "number" && raw.soft > raw.hard)
+		return { error: `${label}.soft must be less than or equal to ${label}.hard.` };
 	return { limit: { ...(typeof raw.soft === "number" ? { soft: raw.soft } : {}), hard: raw.hard } };
 }
 
-export function validateUsageBudgetConfig(value: unknown, label = "usageBudget"): { budget?: UsageBudgetConfig; error?: string } {
+export function validateUsageBudgetConfig(
+	value: unknown,
+	label = "usageBudget",
+): { budget?: UsageBudgetConfig; error?: string } {
 	if (value === undefined) return {};
 	if (!value || typeof value !== "object" || Array.isArray(value)) return { error: `${label} must be an object.` };
 	const raw = value as Record<string, unknown>;
@@ -37,17 +43,26 @@ function metricState(limit: UsageBudgetLimitConfig | undefined, used: number): U
 	return {
 		...limit,
 		used,
-		outcome: used >= limit.hard ? "hard-exceeded" : limit.soft !== undefined && used >= limit.soft ? "soft-exceeded" : "within-budget",
+		outcome:
+			used >= limit.hard
+				? "hard-exceeded"
+				: limit.soft !== undefined && used >= limit.soft
+					? "soft-exceeded"
+					: "within-budget",
 	};
 }
 
-export function usageBudgetState(config: UsageBudgetConfig | undefined, totals: CostSummary | undefined): UsageBudgetState | undefined {
+export function usageBudgetState(
+	config: UsageBudgetConfig | undefined,
+	totals: CostSummary | undefined,
+): UsageBudgetState | undefined {
 	if (!config) return undefined;
 	const inputTokens = totals?.inputTokens ?? 0;
 	const outputTokens = totals?.outputTokens ?? 0;
 	const tokens = metricState(config.tokens, inputTokens + outputTokens);
 	const costUsd = metricState(config.costUsd, totals?.costUsd ?? 0);
-	const reason = tokens?.outcome === "hard-exceeded" ? "tokens" : costUsd?.outcome === "hard-exceeded" ? "costUsd" : undefined;
+	const reason =
+		tokens?.outcome === "hard-exceeded" ? "tokens" : costUsd?.outcome === "hard-exceeded" ? "costUsd" : undefined;
 	return {
 		version: 1,
 		source: "reported",
@@ -59,7 +74,9 @@ export function usageBudgetState(config: UsageBudgetConfig | undefined, totals: 
 }
 
 export function usageBudgetExceededMessage(state: UsageBudgetState): string {
-	if (state.reason === "tokens" && state.tokens) return `Usage budget exhausted: reported tokens ${state.tokens.used} reached hard limit ${state.tokens.hard}.`;
-	if (state.reason === "costUsd" && state.costUsd) return `Usage budget exhausted: reported cost $${state.costUsd.used.toFixed(6)} reached hard limit $${state.costUsd.hard.toFixed(6)}.`;
+	if (state.reason === "tokens" && state.tokens)
+		return `Usage budget exhausted: reported tokens ${state.tokens.used} reached hard limit ${state.tokens.hard}.`;
+	if (state.reason === "costUsd" && state.costUsd)
+		return `Usage budget exhausted: reported cost $${state.costUsd.used.toFixed(6)} reached hard limit $${state.costUsd.hard.toFixed(6)}.`;
 	return "Usage budget exhausted.";
 }

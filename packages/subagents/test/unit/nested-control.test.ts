@@ -4,22 +4,41 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
+import {
+	EXTERNAL_JOB_PROVIDER_REGISTRY_KEY,
+	ExternalJobProviderError,
+	registerExternalJobProvider,
+} from "../../src/api/external-job-provider.ts";
 import registerFanoutChildSubagentExtension from "../../src/extension/fanout-child.ts";
+import { isActiveAsyncState } from "../../src/runs/background/active-run-index.ts";
+import { interruptRequestPath } from "../../src/runs/background/control-channel.ts";
+import { readProcessTerminal } from "../../src/runs/background/process-terminal.ts";
 import { createSubagentExecutor, readNestedRecoveryDescriptor } from "../../src/runs/foreground/subagent-executor.ts";
-import { createNestedRoute, findNestedControlResult, nestedResultsPath, nestedRunNotActiveMessage, projectNestedEvents, readNestedControlRequests, readNestedControlResults, snapshotNestedEventFiles, writeNestedControlRequest, writeNestedControlResult, writeNestedEvent } from "../../src/runs/shared/nested-events.ts";
 import type { ChildRuntimeConfig } from "../../src/runs/shared/child-runtime-config.ts";
-import { ASYNC_DIR, RESULTS_DIR, TEMP_ROOT_DIR, type SubagentState } from "../../src/shared/types.ts";
+import {
+	requestExternalJobOperation,
+	serviceExternalJobBridgeRequests,
+} from "../../src/runs/shared/external-job-bridge.ts";
+import { externalJobPromptDigest, runExternalJob } from "../../src/runs/shared/external-job-runner.ts";
+import {
+	createNestedRoute,
+	findNestedControlResult,
+	nestedResultsPath,
+	nestedRunNotActiveMessage,
+	projectNestedEvents,
+	readNestedControlRequests,
+	readNestedControlResults,
+	snapshotNestedEventFiles,
+	writeNestedControlRequest,
+	writeNestedControlResult,
+	writeNestedEvent,
+} from "../../src/runs/shared/nested-events.ts";
 import { createRunFanoutBudget } from "../../src/runs/shared/run-fanout-budget.ts";
 import { getArtifactPaths, getArtifactsDir } from "../../src/shared/artifacts.ts";
-import { EXTERNAL_JOB_PROVIDER_REGISTRY_KEY, ExternalJobProviderError, registerExternalJobProvider } from "../../src/api/external-job-provider.ts";
-import { makeAgent } from "../support/helpers.ts";
-import { externalJobPromptDigest, runExternalJob } from "../../src/runs/shared/external-job-runner.ts";
-import { requestExternalJobOperation, serviceExternalJobBridgeRequests } from "../../src/runs/shared/external-job-bridge.ts";
-import { isActiveAsyncState } from "../../src/runs/background/active-run-index.ts";
-import { readProcessTerminal } from "../../src/runs/background/process-terminal.ts";
-import { readStatus } from "../../src/shared/utils.ts";
-import { interruptRequestPath } from "../../src/runs/background/control-channel.ts";
 import { recordSessionReplacement } from "../../src/shared/session-succession.ts";
+import { ASYNC_DIR, RESULTS_DIR, type SubagentState, TEMP_ROOT_DIR } from "../../src/shared/types.ts";
+import { readStatus } from "../../src/shared/utils.ts";
+import { makeAgent } from "../support/helpers.ts";
 
 const routeRoots: string[] = [];
 const fanoutListenerCleanupKey = "__piSubagentFanoutChildNestedControlInboxCleanups";
@@ -30,7 +49,8 @@ afterEach(() => {
 	if (listenerCleanups instanceof Map) {
 		for (const entry of listenerCleanups.values()) {
 			if (typeof entry === "function") entry();
-			else if (entry && typeof entry === "object" && typeof (entry as { cleanup?: unknown }).cleanup === "function") (entry as { cleanup: () => void }).cleanup();
+			else if (entry && typeof entry === "object" && typeof (entry as { cleanup?: unknown }).cleanup === "function")
+				(entry as { cleanup: () => void }).cleanup();
 		}
 	}
 	delete globalStore[fanoutListenerCleanupKey];
@@ -56,14 +76,33 @@ function createState(): SubagentState {
 	};
 }
 
-function createExecutor(state = createState(), agents: Array<Record<string, unknown>> = [], allowMutatingManagementActions = true, events: any = { emit() {}, on() { return () => {}; } }, childRuntime?: ChildRuntimeConfig) {
+function createExecutor(
+	state = createState(),
+	agents: Array<Record<string, unknown>> = [],
+	allowMutatingManagementActions = true,
+	events: any = {
+		emit() {},
+		on() {
+			return () => {};
+		},
+	},
+	childRuntime?: ChildRuntimeConfig,
+) {
 	return createSubagentExecutor({
-		pi: { events, getSessionName() { return "parent"; } } as any,
+		pi: {
+			events,
+			getSessionName() {
+				return "parent";
+			},
+		} as any,
 		state,
 		config: { maxSubagentDepth: 2, control: {}, intercomBridge: {} } as any,
 		asyncByDefault: false,
 		tempArtifactsDir: os.tmpdir(),
-		getSubagentSessionRoot: (parentSessionFile) => parentSessionFile ? path.join(path.dirname(parentSessionFile), path.basename(parentSessionFile, ".jsonl")) : os.tmpdir(),
+		getSubagentSessionRoot: (parentSessionFile) =>
+			parentSessionFile
+				? path.join(path.dirname(parentSessionFile), path.basename(parentSessionFile, ".jsonl"))
+				: os.tmpdir(),
 		expandTilde: (value) => value,
 		discoverAgents: () => ({ agents: agents as any }),
 		allowMutatingManagementActions,
@@ -75,12 +114,27 @@ function ctx(root: string, sessionFile: string | null = null) {
 	return {
 		cwd: root,
 		hasUI: false,
-		sessionManager: { getSessionId() { return "session"; }, getSessionFile() { return sessionFile; } },
-		modelRegistry: { getAvailable() { return []; } },
+		sessionManager: {
+			getSessionId() {
+				return "session";
+			},
+			getSessionFile() {
+				return sessionFile;
+			},
+		},
+		modelRegistry: {
+			getAvailable() {
+				return [];
+			},
+		},
 	} as any;
 }
 
-function createNestedRun(id = "nested-live", state: "running" | "complete" | "failed" | "paused" = "running", extras: Record<string, unknown> = {}) {
+function createNestedRun(
+	id = "nested-live",
+	state: "running" | "complete" | "failed" | "paused" = "running",
+	extras: Record<string, unknown> = {},
+) {
 	const route = createNestedRoute("root-control");
 	routeRoots.push(path.dirname(route.eventSink));
 	writeNestedEvent(route, {
@@ -88,7 +142,17 @@ function createNestedRun(id = "nested-live", state: "running" | "complete" | "fa
 		ts: 100,
 		parentRunId: "root-control",
 		parentStepIndex: 0,
-		child: { id, parentRunId: "root-control", parentStepIndex: 0, depth: 1, path: [{ runId: "root-control", stepIndex: 0 }], state, agent: "worker", ownerState: state === "running" ? "live" : "gone", ...extras },
+		child: {
+			id,
+			parentRunId: "root-control",
+			parentStepIndex: 0,
+			depth: 1,
+			path: [{ runId: "root-control", stepIndex: 0 }],
+			state,
+			agent: "worker",
+			ownerState: state === "running" ? "live" : "gone",
+			...extras,
+		},
 	});
 	return route;
 }
@@ -107,7 +171,10 @@ function stateWithNestedRoute(route: ReturnType<typeof createNestedRoute>): Suba
 }
 
 /** The child runtime config of a fanout child launched under `route` by `parentRunId`. */
-function fanoutChildRuntime(route: ReturnType<typeof createNestedRoute>, parentRunId = route.rootRunId): ChildRuntimeConfig {
+function fanoutChildRuntime(
+	route: ReturnType<typeof createNestedRoute>,
+	parentRunId = route.rootRunId,
+): ChildRuntimeConfig {
 	return {
 		fanoutChild: true,
 		depth: 1,
@@ -136,7 +203,13 @@ describe("nested control routing", () => {
 		const route = createNestedRoute("root-targeted-result");
 		routeRoots.push(path.dirname(route.eventSink));
 		const requestedAt = Date.now();
-		writeNestedControlResult(route, { ts: requestedAt, requestId: "older", targetRunId: "child", ok: true, message: "older result" });
+		writeNestedControlResult(route, {
+			ts: requestedAt,
+			requestId: "older",
+			targetRunId: "child",
+			ok: true,
+			message: "older result",
+		});
 		writeNestedEvent(route, {
 			type: "subagent.nested.updated",
 			ts: requestedAt + 1,
@@ -144,7 +217,13 @@ describe("nested control routing", () => {
 			child: { id: "child", parentRunId: route.rootRunId, depth: 1, path: [], state: "running" },
 		});
 		const ignoredFiles = snapshotNestedEventFiles(route);
-		writeNestedControlResult(route, { ts: requestedAt - 1, requestId: "target", targetRunId: "child", ok: true, message: "target result" });
+		writeNestedControlResult(route, {
+			ts: requestedAt - 1,
+			requestId: "target",
+			targetRunId: "child",
+			ok: true,
+			message: "target result",
+		});
 
 		assert.equal(findNestedControlResult(route, "target", "child", ignoredFiles)?.message, "target result");
 		assert.equal(findNestedControlResult(route, "older", "child", ignoredFiles), undefined);
@@ -159,10 +238,22 @@ describe("nested control routing", () => {
 			setTimeout(() => {
 				const request = readNestedControlRequests(route)[0];
 				assert.ok(request, "expected a nested control request");
-				writeNestedControlResult(route, { ts: Date.now(), requestId: request.requestId, targetRunId: request.targetRunId, ok: true, message: "nested interrupt accepted" });
+				writeNestedControlResult(route, {
+					ts: Date.now(),
+					requestId: request.requestId,
+					targetRunId: request.targetRunId,
+					ok: true,
+					message: "nested interrupt accepted",
+				});
 			}, 50);
 
-			const result = await executor.execute("interrupt", { action: "interrupt", id: "nested-live" }, new AbortController().signal, undefined, ctx(root));
+			const result = await executor.execute(
+				"interrupt",
+				{ action: "interrupt", id: "nested-live" },
+				new AbortController().signal,
+				undefined,
+				ctx(root),
+			);
 			assert.equal(result.isError, undefined);
 			assert.match(text(result), /nested interrupt accepted/);
 		} finally {
@@ -170,34 +261,59 @@ describe("nested control routing", () => {
 		}
 	});
 
-	for (const missingRoute of [true, false]) it(missingRoute
-		? "interrupts an authorized nested async child when its owner has no foreground route"
-		: "preserves an owner refusal instead of interrupting its nested async child", async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-async-interrupt-"));
-		const runId = `nested-background-${randomUUID()}`;
-		const asyncDir = path.join(TEMP_ROOT_DIR, "nested-subagent-runs", "root-control", runId);
-		try {
-			const route = createNestedRun(runId, "running", { mode: "single", asyncDir, pid: process.pid });
-			fs.mkdirSync(asyncDir, { recursive: true });
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-				runId, state: "running", mode: "single", pid: process.pid, lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}));
-			const executor = createExecutor(stateWithNestedRoute(route));
-			const pending = executor.execute("interrupt", { action: "interrupt", id: runId }, new AbortController().signal, undefined, ctx(root));
-			await waitFor(() => readNestedControlRequests(route).length > 0);
-			const request = readNestedControlRequests(route)[0]!;
-			writeNestedControlResult(route, { ts: Date.now(), requestId: request.requestId, targetRunId: runId,
-				ok: false, message: missingRoute ? nestedRunNotActiveMessage(runId) : "Owner refuses this interrupt." });
-			const result = await pending;
-			assert.equal(result.isError, missingRoute ? undefined : true);
-			assert.equal(fs.existsSync(interruptRequestPath(asyncDir)), missingRoute);
-			assert.match(text(result), missingRoute ? /Interrupt requested for nested async run/ : /Owner refuses this interrupt/);
-		} finally {
-			fs.rmSync(root, { recursive: true, force: true });
-			fs.rmSync(asyncDir, { recursive: true, force: true });
-		}
-	});
+	for (const missingRoute of [true, false])
+		it(
+			missingRoute
+				? "interrupts an authorized nested async child when its owner has no foreground route"
+				: "preserves an owner refusal instead of interrupting its nested async child",
+			async () => {
+				const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-async-interrupt-"));
+				const runId = `nested-background-${randomUUID()}`;
+				const asyncDir = path.join(TEMP_ROOT_DIR, "nested-subagent-runs", "root-control", runId);
+				try {
+					const route = createNestedRun(runId, "running", { mode: "single", asyncDir, pid: process.pid });
+					fs.mkdirSync(asyncDir, { recursive: true });
+					fs.writeFileSync(
+						path.join(asyncDir, "status.json"),
+						JSON.stringify({
+							runId,
+							state: "running",
+							mode: "single",
+							pid: process.pid,
+							lastUpdate: Date.now(),
+							steps: [{ agent: "worker", status: "running" }],
+						}),
+					);
+					const executor = createExecutor(stateWithNestedRoute(route));
+					const pending = executor.execute(
+						"interrupt",
+						{ action: "interrupt", id: runId },
+						new AbortController().signal,
+						undefined,
+						ctx(root),
+					);
+					await waitFor(() => readNestedControlRequests(route).length > 0);
+					const request = readNestedControlRequests(route)[0]!;
+					writeNestedControlResult(route, {
+						ts: Date.now(),
+						requestId: request.requestId,
+						targetRunId: runId,
+						ok: false,
+						message: missingRoute ? nestedRunNotActiveMessage(runId) : "Owner refuses this interrupt.",
+					});
+					const result = await pending;
+					assert.equal(result.isError, missingRoute ? undefined : true);
+					assert.equal(fs.existsSync(interruptRequestPath(asyncDir)), missingRoute);
+					assert.match(
+						text(result),
+						missingRoute ? /Interrupt requested for nested async run/ : /Owner refuses this interrupt/,
+					);
+				} finally {
+					fs.rmSync(root, { recursive: true, force: true });
+					fs.rmSync(asyncDir, { recursive: true, force: true });
+				}
+			},
+		);
 
 	it("reports the owner's missing-route answer for a nested foreground run that has no async inbox", async () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-foreground-interrupt-"));
@@ -205,10 +321,22 @@ describe("nested control routing", () => {
 		try {
 			const route = createNestedRun(runId);
 			const executor = createExecutor(stateWithNestedRoute(route));
-			const pending = executor.execute("interrupt", { action: "interrupt", id: runId }, new AbortController().signal, undefined, ctx(root));
+			const pending = executor.execute(
+				"interrupt",
+				{ action: "interrupt", id: runId },
+				new AbortController().signal,
+				undefined,
+				ctx(root),
+			);
 			await waitFor(() => readNestedControlRequests(route).length > 0);
 			const request = readNestedControlRequests(route)[0]!;
-			writeNestedControlResult(route, { ts: Date.now(), requestId: request.requestId, targetRunId: runId, ok: false, message: nestedRunNotActiveMessage(runId) });
+			writeNestedControlResult(route, {
+				ts: Date.now(),
+				requestId: request.requestId,
+				targetRunId: runId,
+				ok: false,
+				message: nestedRunNotActiveMessage(runId),
+			});
 			const result = await pending;
 			assert.equal(result.isError, true);
 			assert.equal(text(result), nestedRunNotActiveMessage(runId));
@@ -225,8 +353,10 @@ describe("nested control routing", () => {
 			state.artifactDirPreference = "project";
 			const artifactRoot = getArtifactsDir(null, root, "project");
 			fs.mkdirSync(artifactRoot, { recursive: true });
-			fs.writeFileSync(getArtifactPaths(artifactRoot, "root-control", "orchestrator", 0).transcriptPath,
-				`${JSON.stringify({ recordType: "message", role: "assistant", text: "LIVE_FOREGROUND_ACTIVITY" })}\n`);
+			fs.writeFileSync(
+				getArtifactPaths(artifactRoot, "root-control", "orchestrator", 0).transcriptPath,
+				`${JSON.stringify({ recordType: "message", role: "assistant", text: "LIVE_FOREGROUND_ACTIVITY" })}\n`,
+			);
 			state.foregroundControls.set("root-control", {
 				runId: "root-control",
 				sessionId: "session",
@@ -240,7 +370,13 @@ describe("nested control routing", () => {
 			});
 			state.lastForegroundControlId = "root-control";
 
-			const result = await createExecutor(state).execute("status", { action: "status", id: "root-control" }, new AbortController().signal, undefined, ctx(root));
+			const result = await createExecutor(state).execute(
+				"status",
+				{ action: "status", id: "root-control" },
+				new AbortController().signal,
+				undefined,
+				ctx(root),
+			);
 
 			assert.equal(result.isError, undefined);
 			assert.match(text(result), /^Status target: run root-control\nSpawn budget:/);
@@ -248,12 +384,24 @@ describe("nested control routing", () => {
 			assert.match(text(result), /↳ worker \[nested-foreground\] running/);
 			assert.match(text(result), /Status: subagent\(\{ action: "status", id: "nested-foreground" \}\)/);
 
-			const transcript = await createExecutor(state).execute("transcript", { action: "status", id: "root-control", index: 0, view: "transcript" }, new AbortController().signal, undefined, ctx(root));
+			const transcript = await createExecutor(state).execute(
+				"transcript",
+				{ action: "status", id: "root-control", index: 0, view: "transcript" },
+				new AbortController().signal,
+				undefined,
+				ctx(root),
+			);
 			assert.equal(transcript.isError, undefined);
 			assert.match(text(transcript), /^Transcript target: run root-control · child 0\nSpawn budget:/);
 			assert.match(text(transcript), /LIVE_FOREGROUND_ACTIVITY/);
 			for (const hasUI of [false, true]) {
-				const implicit = await createExecutor(state).execute("implicit-transcript", { action: "status", view: "transcript" }, new AbortController().signal, undefined, { ...ctx(root), hasUI });
+				const implicit = await createExecutor(state).execute(
+					"implicit-transcript",
+					{ action: "status", view: "transcript" },
+					new AbortController().signal,
+					undefined,
+					{ ...ctx(root), hasUI },
+				);
 				assert.equal(implicit.isError, undefined);
 				assert.match(text(implicit), /LIVE_FOREGROUND_ACTIVITY/);
 			}
@@ -268,28 +416,51 @@ describe("nested control routing", () => {
 		const asyncDir = path.join(ASYNC_DIR, runId);
 		try {
 			fs.mkdirSync(asyncDir, { recursive: true });
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-				runId,
-				mode: "single",
-				state: "running",
-				startedAt: 1,
-				lastUpdate: 1,
-				cwd: root,
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify({
+					runId,
+					mode: "single",
+					state: "running",
+					startedAt: 1,
+					lastUpdate: 1,
+					cwd: root,
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 
 			const state = createState();
-			state.foregroundControls.set("foreground-live", { runId: "foreground-live", mode: "single", startedAt: 1, updatedAt: 1, currentAgent: "worker", currentIndex: 0 });
+			state.foregroundControls.set("foreground-live", {
+				runId: "foreground-live",
+				mode: "single",
+				startedAt: 1,
+				updatedAt: 1,
+				currentAgent: "worker",
+				currentIndex: 0,
+			});
 			state.lastForegroundControlId = "foreground-live";
 			const executor = createExecutor(state);
-			const result = await executor.execute("status-dir", { action: "status", dir: asyncDir }, new AbortController().signal, undefined, ctx(root));
+			const result = await executor.execute(
+				"status-dir",
+				{ action: "status", dir: asyncDir },
+				new AbortController().signal,
+				undefined,
+				ctx(root),
+			);
 
 			assert.equal(result.isError, undefined);
 			assert.ok(text(result).startsWith(`Status target: dir ${asyncDir}\nSpawn budget:`), text(result));
 			assert.match(text(result), new RegExp(`Run: ${runId}`));
 			assert.doesNotMatch(text(result), /foreground-live/);
 
-			const transcript = await executor.execute("transcript-dir", { action: "status", dir: asyncDir, view: "transcript" }, new AbortController().signal, undefined, ctx(root));
+			const transcript = await executor.execute(
+				"transcript-dir",
+				{ action: "status", dir: asyncDir, view: "transcript" },
+				new AbortController().signal,
+				undefined,
+				ctx(root),
+			);
 			assert.ok(text(transcript).startsWith(`Transcript target: dir ${asyncDir}\nSpawn budget:`), text(transcript));
 			assert.doesNotMatch(text(transcript), /Live foreground transcript/);
 		} finally {
@@ -309,10 +480,30 @@ describe("nested control routing", () => {
 				ts: 100,
 				parentRunId: "root-outside",
 				parentStepIndex: 0,
-				child: { id: "shared-nested", parentRunId: "root-outside", parentStepIndex: 0, depth: 1, path: [{ runId: "root-outside", stepIndex: 0 }], state: "running", agent: "outside" },
+				child: {
+					id: "shared-nested",
+					parentRunId: "root-outside",
+					parentStepIndex: 0,
+					depth: 1,
+					path: [{ runId: "root-outside", stepIndex: 0 }],
+					state: "running",
+					agent: "outside",
+				},
 			});
 
-			const result = await createExecutor(createState(), [], false, undefined, fanoutChildRuntime(allowedRoute, "root-control")).execute("status", { action: "status", id: "shared-nested" }, new AbortController().signal, undefined, ctx(root));
+			const result = await createExecutor(
+				createState(),
+				[],
+				false,
+				undefined,
+				fanoutChildRuntime(allowedRoute, "root-control"),
+			).execute(
+				"status",
+				{ action: "status", id: "shared-nested" },
+				new AbortController().signal,
+				undefined,
+				ctx(root),
+			);
 
 			assert.equal(result.isError, undefined);
 			assert.match(text(result), /Nested run: shared-nested/);
@@ -329,17 +520,31 @@ describe("nested control routing", () => {
 		const asyncDir = path.join(ASYNC_DIR, runId);
 		try {
 			fs.mkdirSync(asyncDir, { recursive: true });
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-				runId,
-				mode: "single",
-				state: "running",
-				pid: 12345,
-				startedAt: 100,
-				lastUpdate: 100,
-				steps: [{ agent: "outside", status: "running", startedAt: 100 }],
-			}, null, 2), "utf-8");
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify(
+					{
+						runId,
+						mode: "single",
+						state: "running",
+						pid: 12345,
+						startedAt: 100,
+						lastUpdate: 100,
+						steps: [{ agent: "outside", status: "running", startedAt: 100 }],
+					},
+					null,
+					2,
+				),
+				"utf-8",
+			);
 
-			const result = await createExecutor(createState(), [], false).execute("status", { action: "status" }, new AbortController().signal, undefined, ctx(root));
+			const result = await createExecutor(createState(), [], false).execute(
+				"status",
+				{ action: "status" },
+				new AbortController().signal,
+				undefined,
+				ctx(root),
+			);
 
 			assert.equal(result.isError, true);
 			assert.match(text(result), /requires an id/);
@@ -364,9 +569,21 @@ describe("nested control routing", () => {
 				}
 				assert.ok(request, "expected a nested control request");
 				await new Promise((resolve) => setTimeout(resolve, 1_200));
-				writeNestedControlResult(route, { ts: Date.now(), requestId: request.requestId, targetRunId: request.targetRunId, ok: true, message: "late success" });
+				writeNestedControlResult(route, {
+					ts: Date.now(),
+					requestId: request.requestId,
+					targetRunId: request.targetRunId,
+					ok: true,
+					message: "late success",
+				});
 			})();
-			const result = await executor.execute("interrupt", { action: "interrupt", id: "nested-timeout" }, new AbortController().signal, undefined, ctx(root));
+			const result = await executor.execute(
+				"interrupt",
+				{ action: "interrupt", id: "nested-timeout" },
+				new AbortController().signal,
+				undefined,
+				ctx(root),
+			);
 			await lateResponder;
 			assert.equal(result.isError, true);
 			assert.match(text(result), /owner is not reachable/);
@@ -376,52 +593,92 @@ describe("nested control routing", () => {
 		}
 	});
 
-	for (const workflow of [false, true]) it(`routes ${workflow ? "workflow string" : "action"} resume for live nested runs through the control inbox`, async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-live-resume-"));
-		try {
-			const emitted: Array<{ name: string; payload: unknown }> = [];
-			const events = { emit(name: string, payload: unknown) { emitted.push({ name, payload }); }, on() { return () => {}; } };
-			const route = createNestedRun("nested-live-resume", "running", { intercomTarget: "attacker-target", leafIntercomTarget: "attacker-leaf" });
-			const executor = createExecutor(stateWithNestedRoute(route), [], true, events);
-			const responder = (async () => {
-				const deadline = Date.now() + 2_000;
-				let request = readNestedControlRequests(route)[0];
-				while (!request && Date.now() < deadline) {
-					await new Promise((resolve) => setTimeout(resolve, 10));
-					request = readNestedControlRequests(route)[0];
-				}
-				assert.ok(request, "expected a nested resume request");
-				assert.equal(request.action, "resume");
-				assert.equal(request.message, "continue please");
-				writeNestedControlResult(route, { ts: Date.now(), requestId: request.requestId, targetRunId: request.targetRunId, ok: true, message: "nested resume accepted" });
-			})();
+	for (const workflow of [false, true])
+		it(`routes ${workflow ? "workflow string" : "action"} resume for live nested runs through the control inbox`, async () => {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-live-resume-"));
+			try {
+				const emitted: Array<{ name: string; payload: unknown }> = [];
+				const events = {
+					emit(name: string, payload: unknown) {
+						emitted.push({ name, payload });
+					},
+					on() {
+						return () => {};
+					},
+				};
+				const route = createNestedRun("nested-live-resume", "running", {
+					intercomTarget: "attacker-target",
+					leafIntercomTarget: "attacker-leaf",
+				});
+				const executor = createExecutor(stateWithNestedRoute(route), [], true, events);
+				const responder = (async () => {
+					const deadline = Date.now() + 2_000;
+					let request = readNestedControlRequests(route)[0];
+					while (!request && Date.now() < deadline) {
+						await new Promise((resolve) => setTimeout(resolve, 10));
+						request = readNestedControlRequests(route)[0];
+					}
+					assert.ok(request, "expected a nested resume request");
+					assert.equal(request.action, "resume");
+					assert.equal(request.message, "continue please");
+					writeNestedControlResult(route, {
+						ts: Date.now(),
+						requestId: request.requestId,
+						targetRunId: request.targetRunId,
+						ok: true,
+						message: "nested resume accepted",
+					});
+				})();
 
-			const execution = Promise.resolve().then(() => executor.execute("resume", workflow
-				? { async: false, workflowScript: `return runs.run("live", { resume: "nested-live-resume", task: "continue please", output: false });` }
-				: { action: "resume", id: "nested-live-resume", message: "continue please" }, new AbortController().signal, undefined, ctx(root)));
-			const [response, executed] = await Promise.allSettled([responder, execution]);
-			if (response.status === "rejected") throw response.reason;
-			if (executed.status === "rejected") throw executed.reason;
-			const result = executed.value;
+				const execution = Promise.resolve().then(() =>
+					executor.execute(
+						"resume",
+						workflow
+							? {
+									async: false,
+									workflowScript: `return runs.run("live", { resume: "nested-live-resume", task: "continue please", output: false });`,
+								}
+							: { action: "resume", id: "nested-live-resume", message: "continue please" },
+						new AbortController().signal,
+						undefined,
+						ctx(root),
+					),
+				);
+				const [response, executed] = await Promise.allSettled([responder, execution]);
+				if (response.status === "rejected") throw response.reason;
+				if (executed.status === "rejected") throw executed.reason;
+				const result = executed.value;
 
-			assert.equal(result.isError, undefined);
-			assert.match(text(result), /nested resume accepted/);
-			assert.equal(emitted.some((event) => {
-				const payload = event.payload as { to?: unknown };
-				return payload.to === "attacker-target" || payload.to === "attacker-leaf";
-			}), false);
-		} finally {
-			fs.rmSync(root, { recursive: true, force: true });
-		}
-	});
+				assert.equal(result.isError, undefined);
+				assert.match(text(result), /nested resume accepted/);
+				assert.equal(
+					emitted.some((event) => {
+						const payload = event.payload as { to?: unknown };
+						return payload.to === "attacker-target" || payload.to === "attacker-leaf";
+					}),
+					false,
+				);
+			} finally {
+				fs.rmSync(root, { recursive: true, force: true });
+			}
+		});
 
 	it("validates terminal nested resume session files before revive", async () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-terminal-resume-"));
 		try {
-			const route = createNestedRun("nested-terminal-resume", "complete", { sessionFile: path.join(root, "missing-session.jsonl") });
+			const route = createNestedRun("nested-terminal-resume", "complete", {
+				sessionFile: path.join(root, "missing-session.jsonl"),
+			});
 
-			const result = await createExecutor(stateWithNestedRoute(route), [{ name: "worker", description: "Worker", prompt: "Do work" }])
-				.execute("resume", { action: "resume", id: "nested-terminal-resume", message: "continue" }, new AbortController().signal, undefined, ctx(root));
+			const result = await createExecutor(stateWithNestedRoute(route), [
+				{ name: "worker", description: "Worker", prompt: "Do work" },
+			]).execute(
+				"resume",
+				{ action: "resume", id: "nested-terminal-resume", message: "continue" },
+				new AbortController().signal,
+				undefined,
+				ctx(root),
+			);
 
 			assert.equal(result.isError, true);
 			assert.match(text(result), /session file does not exist/);
@@ -441,8 +698,15 @@ describe("nested control routing", () => {
 			fs.writeFileSync(sessionFile, "");
 			const route = createNestedRun(runId, "complete", { sessionFile });
 
-			const result = await createExecutor(stateWithNestedRoute(route), [{ name: "worker", description: "Worker", prompt: "Do work" }])
-				.execute("resume", { action: "resume", id: runId, message: "continue" }, new AbortController().signal, undefined, ctx(root, parentSessionFile));
+			const result = await createExecutor(stateWithNestedRoute(route), [
+				{ name: "worker", description: "Worker", prompt: "Do work" },
+			]).execute(
+				"resume",
+				{ action: "resume", id: runId, message: "continue" },
+				new AbortController().signal,
+				undefined,
+				ctx(root, parentSessionFile),
+			);
 
 			assert.equal(result.isError, true);
 			assert.match(text(result), /missing its required recovery identity/);
@@ -470,7 +734,10 @@ describe("nested control routing", () => {
 				extensionBindings: { "shepherd.dispatch/1": { role: "coder" } },
 			};
 			fs.writeFileSync(path.join(root, "recovery-descriptor.json"), JSON.stringify(descriptor));
-			assert.deepEqual(readNestedRecoveryDescriptor(root, "nested-bound", "worker")?.extensionBindings, descriptor.extensionBindings);
+			assert.deepEqual(
+				readNestedRecoveryDescriptor(root, "nested-bound", "worker")?.extensionBindings,
+				descriptor.extensionBindings,
+			);
 			assert.throws(() => readNestedRecoveryDescriptor(root, "other-run", "worker"), /different source run/);
 			assert.throws(() => readNestedRecoveryDescriptor(root, "nested-bound", "reviewer"), /different agent/);
 		} finally {
@@ -478,23 +745,36 @@ describe("nested control routing", () => {
 		}
 	});
 
-	for (const workflow of [false, true]) it(`rejects stopped nested runs before ${workflow ? "workflow string resume" : "action revival"}`, async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-stopped-resume-"));
-		try {
-			const route = createNestedRun("nested-stopped-resume", "stopped", { sessionFile: path.join(root, "missing-session.jsonl") });
+	for (const workflow of [false, true])
+		it(`rejects stopped nested runs before ${workflow ? "workflow string resume" : "action revival"}`, async () => {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-stopped-resume-"));
+			try {
+				const route = createNestedRun("nested-stopped-resume", "stopped", {
+					sessionFile: path.join(root, "missing-session.jsonl"),
+				});
 
-			const result = await createExecutor(stateWithNestedRoute(route), [{ name: "worker", description: "Worker", prompt: "Do work" }])
-				.execute("resume", workflow
-					? { async: false, workflowScript: `return runs.run("stopped", { resume: "nested-stopped-resume", task: "continue", output: false });` }
-					: { action: "resume", id: "nested-stopped-resume", message: "continue" }, new AbortController().signal, undefined, ctx(root));
+				const result = await createExecutor(stateWithNestedRoute(route), [
+					{ name: "worker", description: "Worker", prompt: "Do work" },
+				]).execute(
+					"resume",
+					workflow
+						? {
+								async: false,
+								workflowScript: `return runs.run("stopped", { resume: "nested-stopped-resume", task: "continue", output: false });`,
+							}
+						: { action: "resume", id: "nested-stopped-resume", message: "continue" },
+					new AbortController().signal,
+					undefined,
+					ctx(root),
+				);
 
-			assert.equal(result.isError, true);
-			assert.match(text(result), /was stopped and cannot be resumed/);
-			assert.doesNotMatch(text(result), /session file/);
-		} finally {
-			fs.rmSync(root, { recursive: true, force: true });
-		}
-	});
+				assert.equal(result.isError, true);
+				assert.match(text(result), /was stopped and cannot be resumed/);
+				assert.doesNotMatch(text(result), /session file/);
+			} finally {
+				fs.rmSync(root, { recursive: true, force: true });
+			}
+		});
 
 	it("rejects terminal nested resume session files outside trusted roots", async () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-terminal-untrusted-"));
@@ -506,8 +786,15 @@ describe("nested control routing", () => {
 			fs.writeFileSync(attackerSessionFile, "");
 			const route = createNestedRun("nested-untrusted-resume", "complete", { sessionFile: attackerSessionFile });
 
-			const result = await createExecutor(stateWithNestedRoute(route), [{ name: "worker", description: "Worker", prompt: "Do work" }])
-				.execute("resume", { action: "resume", id: "nested-untrusted-resume", message: "continue" }, new AbortController().signal, undefined, ctx(root, parentSessionFile));
+			const result = await createExecutor(stateWithNestedRoute(route), [
+				{ name: "worker", description: "Worker", prompt: "Do work" },
+			]).execute(
+				"resume",
+				{ action: "resume", id: "nested-untrusted-resume", message: "continue" },
+				new AbortController().signal,
+				undefined,
+				ctx(root, parentSessionFile),
+			);
 
 			assert.equal(result.isError, true);
 			assert.match(text(result), /outside trusted nested session roots/);
@@ -525,13 +812,33 @@ describe("nested control routing", () => {
 			recordSessionReplacement(successorSessionFile, replacedSessionFile);
 			const sessionFile = path.join(root, "replaced", runId, "run-0", "session.jsonl");
 			fs.mkdirSync(path.dirname(sessionFile), { recursive: true });
-			fs.writeFileSync(sessionFile, `${JSON.stringify({ message: { role: "assistant", content: "INHERITED_SESSION_LINE" } })}\n`);
+			fs.writeFileSync(
+				sessionFile,
+				`${JSON.stringify({ message: { role: "assistant", content: "INHERITED_SESSION_LINE" } })}\n`,
+			);
 			fs.mkdirSync(path.join(ASYNC_DIR, runId), { recursive: true });
-			fs.writeFileSync(path.join(ASYNC_DIR, runId, "status.json"), JSON.stringify({ runId, sessionId: replacedSessionFile, mode: "single", state: "complete", startedAt: 100, lastUpdate: 200, steps: [{ agent: "worker", status: "complete", sessionFile }] }));
+			fs.writeFileSync(
+				path.join(ASYNC_DIR, runId, "status.json"),
+				JSON.stringify({
+					runId,
+					sessionId: replacedSessionFile,
+					mode: "single",
+					state: "complete",
+					startedAt: 100,
+					lastUpdate: 200,
+					steps: [{ agent: "worker", status: "complete", sessionFile }],
+				}),
+			);
 			const state = createState();
 			state.currentSessionId = successorSessionFile;
 
-			const result = await createExecutor(state).execute("transcript", { action: "status", id: runId, index: 0, view: "transcript" }, new AbortController().signal, undefined, ctx(root, successorSessionFile));
+			const result = await createExecutor(state).execute(
+				"transcript",
+				{ action: "status", id: runId, index: 0, view: "transcript" },
+				new AbortController().signal,
+				undefined,
+				ctx(root, successorSessionFile),
+			);
 
 			assert.match(text(result), /INHERITED_SESSION_LINE/);
 		} finally {
@@ -551,8 +858,15 @@ describe("nested control routing", () => {
 				fs.mkdirSync(path.dirname(sessionFile), { recursive: true });
 				fs.writeFileSync(sessionFile, "");
 				const route = createNestedRun(runId, "complete", { sessionFile });
-				return createExecutor(stateWithNestedRoute(route), [{ name: "worker", description: "Worker", prompt: "Do work" }])
-					.execute("resume", { action: "resume", id: runId, message: "continue" }, new AbortController().signal, undefined, ctx(root, successorSessionFile));
+				return createExecutor(stateWithNestedRoute(route), [
+					{ name: "worker", description: "Worker", prompt: "Do work" },
+				]).execute(
+					"resume",
+					{ action: "resume", id: runId, message: "continue" },
+					new AbortController().signal,
+					undefined,
+					ctx(root, successorSessionFile),
+				);
 			};
 
 			// Past the trust check, revival stops at the missing recovery descriptor.
@@ -573,8 +887,15 @@ describe("nested control routing", () => {
 			fs.writeFileSync(siblingSessionFile, "");
 			const route = createNestedRun("nested-sibling-resume", "complete", { sessionFile: siblingSessionFile });
 
-			const result = await createExecutor(stateWithNestedRoute(route), [{ name: "worker", description: "Worker", prompt: "Do work" }])
-				.execute("resume", { action: "resume", id: "nested-sibling-resume", message: "continue" }, new AbortController().signal, undefined, ctx(root, parentSessionFile));
+			const result = await createExecutor(stateWithNestedRoute(route), [
+				{ name: "worker", description: "Worker", prompt: "Do work" },
+			]).execute(
+				"resume",
+				{ action: "resume", id: "nested-sibling-resume", message: "continue" },
+				new AbortController().signal,
+				undefined,
+				ctx(root, parentSessionFile),
+			);
 
 			assert.equal(result.isError, true);
 			assert.match(text(result), /not under that nested run's session directory/);
@@ -586,7 +907,12 @@ describe("nested control routing", () => {
 	describe("resume of a run that a resume replaced", () => {
 		const accepted = /missing its required recovery identity/;
 		const refused = /not under that nested run's session directory/;
-		type RunSpec = { id: string; sessionFile: string; revivedFrom?: string; state?: "running" | "complete" | "stopped" };
+		type RunSpec = {
+			id: string;
+			sessionFile: string;
+			revivedFrom?: string;
+			state?: "running" | "complete" | "stopped";
+		};
 		const sessionFileIn = (root: string, ...dirs: string[]) => {
 			const sessionFile = path.join(root, ...dirs, "run-0", "session.jsonl");
 			fs.mkdirSync(path.dirname(sessionFile), { recursive: true });
@@ -600,7 +926,18 @@ describe("nested control routing", () => {
 				ts: 100,
 				parentRunId: route.rootRunId,
 				parentStepIndex: 0,
-				child: { id: run.id, parentRunId: route.rootRunId, parentStepIndex: 0, depth: 1, path: [{ runId: route.rootRunId, stepIndex: 0 }], state, agent: "worker", ownerState: state === "running" ? "live" : "gone", sessionFile: run.sessionFile, ...(run.revivedFrom ? { revivedFrom: run.revivedFrom } : {}) },
+				child: {
+					id: run.id,
+					parentRunId: route.rootRunId,
+					parentStepIndex: 0,
+					depth: 1,
+					path: [{ runId: route.rootRunId, stepIndex: 0 }],
+					state,
+					agent: "worker",
+					ownerState: state === "running" ? "live" : "gone",
+					sessionFile: run.sessionFile,
+					...(run.revivedFrom ? { revivedFrom: run.revivedFrom } : {}),
+				},
 			});
 		};
 		const resume = async (root: string, target: string, runs: RunSpec[], outOfScope: RunSpec[] = []) => {
@@ -612,8 +949,15 @@ describe("nested control routing", () => {
 			const other = createNestedRoute("root-other");
 			routeRoots.push(path.dirname(other.eventSink));
 			for (const run of outOfScope) addRun(other, run);
-			const result = await createExecutor(stateWithNestedRoute(route), [{ name: "worker", description: "Worker", prompt: "Do work" }])
-				.execute("resume", { action: "resume", id: target, message: "continue" }, new AbortController().signal, undefined, ctx(root, parentSessionFile));
+			const result = await createExecutor(stateWithNestedRoute(route), [
+				{ name: "worker", description: "Worker", prompt: "Do work" },
+			]).execute(
+				"resume",
+				{ action: "resume", id: target, message: "continue" },
+				new AbortController().signal,
+				undefined,
+				ctx(root, parentSessionFile),
+			);
 			return text(result);
 		};
 		const withRoot = async (body: (root: string) => Promise<void>) => {
@@ -625,54 +969,95 @@ describe("nested control routing", () => {
 			}
 		};
 
-		it("accepts the session its in-scope source owns, through a chain of up to 8 replacements", () => withRoot(async (root) => {
-			const sessionFile = sessionFileIn(root, "parent", "source");
-			assert.match(await resume(root, "replacement", [
-				{ id: "source", sessionFile },
-				{ id: "replacement", sessionFile, revivedFrom: "source" },
-			]), accepted);
-			const chain = (hops: number): RunSpec[] => [
-				{ id: "source", sessionFile },
-				...Array.from({ length: hops }, (_, index) => ({ id: `r${index + 1}`, sessionFile, revivedFrom: index === 0 ? "source" : `r${index}` })),
-			];
-			assert.match(await resume(root, "r2", chain(2)), accepted);
-			assert.match(await resume(root, "r8", chain(8)), accepted);
-			assert.match(await resume(root, "r9", chain(9)), refused);
-		}));
+		it("accepts the session its in-scope source owns, through a chain of up to 8 replacements", () =>
+			withRoot(async (root) => {
+				const sessionFile = sessionFileIn(root, "parent", "source");
+				assert.match(
+					await resume(root, "replacement", [
+						{ id: "source", sessionFile },
+						{ id: "replacement", sessionFile, revivedFrom: "source" },
+					]),
+					accepted,
+				);
+				const chain = (hops: number): RunSpec[] => [
+					{ id: "source", sessionFile },
+					...Array.from({ length: hops }, (_, index) => ({
+						id: `r${index + 1}`,
+						sessionFile,
+						revivedFrom: index === 0 ? "source" : `r${index}`,
+					})),
+				];
+				assert.match(await resume(root, "r2", chain(2)), accepted);
+				assert.match(await resume(root, "r8", chain(8)), accepted);
+				assert.match(await resume(root, "r9", chain(9)), refused);
+			}));
 
-		it("refuses when the source is missing, out of scope, live, stopped, owns another file, or forms a cycle", () => withRoot(async (root) => {
-			const sessionFile = sessionFileIn(root, "parent", "source");
-			const replacement = { id: "replacement", sessionFile, revivedFrom: "source" };
-			assert.match(await resume(root, "replacement", [replacement]), refused);
-			assert.match(await resume(root, "replacement", [replacement], [{ id: "source", sessionFile }]), refused);
-			assert.match(await resume(root, "replacement", [{ id: "source", sessionFile, state: "running" }, replacement]), refused);
-			assert.match(await resume(root, "replacement", [{ id: "source", sessionFile, state: "stopped" }, replacement]), refused);
-			assert.match(await resume(root, "replacement", [{ id: "source", sessionFile: sessionFileIn(root, "parent", "source", "other") }, { ...replacement, sessionFile: sessionFileIn(root, "parent", "sibling") }]), refused);
-			const shared = sessionFileIn(root, "parent", "neither");
-			assert.match(await resume(root, "a", [{ id: "a", sessionFile: shared, revivedFrom: "b" }, { id: "b", sessionFile: shared, revivedFrom: "a" }]), refused);
-		}));
+		it("refuses when the source is missing, out of scope, live, stopped, owns another file, or forms a cycle", () =>
+			withRoot(async (root) => {
+				const sessionFile = sessionFileIn(root, "parent", "source");
+				const replacement = { id: "replacement", sessionFile, revivedFrom: "source" };
+				assert.match(await resume(root, "replacement", [replacement]), refused);
+				assert.match(await resume(root, "replacement", [replacement], [{ id: "source", sessionFile }]), refused);
+				assert.match(
+					await resume(root, "replacement", [{ id: "source", sessionFile, state: "running" }, replacement]),
+					refused,
+				);
+				assert.match(
+					await resume(root, "replacement", [{ id: "source", sessionFile, state: "stopped" }, replacement]),
+					refused,
+				);
+				assert.match(
+					await resume(root, "replacement", [
+						{ id: "source", sessionFile: sessionFileIn(root, "parent", "source", "other") },
+						{ ...replacement, sessionFile: sessionFileIn(root, "parent", "sibling") },
+					]),
+					refused,
+				);
+				const shared = sessionFileIn(root, "parent", "neither");
+				assert.match(
+					await resume(root, "a", [
+						{ id: "a", sessionFile: shared, revivedFrom: "b" },
+						{ id: "b", sessionFile: shared, revivedFrom: "a" },
+					]),
+					refused,
+				);
+			}));
 
-		it("refuses when the source's own session file fails its checks", () => withRoot(async (root) => {
-			const siblingFile = sessionFileIn(root, "parent", "sibling");
-			assert.match(await resume(root, "replacement", [{ id: "source", sessionFile: siblingFile }, { id: "replacement", sessionFile: siblingFile, revivedFrom: "source" }]), refused);
-		}));
+		it("refuses when the source's own session file fails its checks", () =>
+			withRoot(async (root) => {
+				const siblingFile = sessionFileIn(root, "parent", "sibling");
+				assert.match(
+					await resume(root, "replacement", [
+						{ id: "source", sessionFile: siblingFile },
+						{ id: "replacement", sessionFile: siblingFile, revivedFrom: "source" },
+					]),
+					refused,
+				);
+			}));
 
-		it("refuses when the source's own session file is a symlink", (context) => withRoot(async (root) => {
-			const siblingFile = sessionFileIn(root, "parent", "sibling");
-			const link = path.join(root, "parent", "source", "run-0", "session.jsonl");
-			fs.mkdirSync(path.dirname(link), { recursive: true });
-			try {
-				fs.symlinkSync(siblingFile, link);
-			} catch (error) {
-				const code = (error as NodeJS.ErrnoException).code;
-				if (code === "EPERM" || code === "EACCES") {
-					context.skip("file symlink creation is unavailable");
-					return;
+		it("refuses when the source's own session file is a symlink", (context) =>
+			withRoot(async (root) => {
+				const siblingFile = sessionFileIn(root, "parent", "sibling");
+				const link = path.join(root, "parent", "source", "run-0", "session.jsonl");
+				fs.mkdirSync(path.dirname(link), { recursive: true });
+				try {
+					fs.symlinkSync(siblingFile, link);
+				} catch (error) {
+					const code = (error as NodeJS.ErrnoException).code;
+					if (code === "EPERM" || code === "EACCES") {
+						context.skip("file symlink creation is unavailable");
+						return;
+					}
+					throw error;
 				}
-				throw error;
-			}
-			assert.match(await resume(root, "replacement", [{ id: "source", sessionFile: link }, { id: "replacement", sessionFile: siblingFile, revivedFrom: "source" }]), refused);
-		}));
+				assert.match(
+					await resume(root, "replacement", [
+						{ id: "source", sessionFile: link },
+						{ id: "replacement", sessionFile: siblingFile, revivedFrom: "source" },
+					]),
+					refused,
+				);
+			}));
 	});
 
 	it("emits a failed completed nested event when foreground execution throws after start", async () => {
@@ -682,11 +1067,20 @@ describe("nested control routing", () => {
 			routeRoots.push(path.dirname(route.eventSink));
 			const throwingCtx = {
 				...ctx(root),
-				modelRegistry: { getAvailable() { throw new Error("model registry exploded"); } },
+				modelRegistry: {
+					getAvailable() {
+						throw new Error("model registry exploded");
+					},
+				},
 			};
 
-			const result = await createExecutor(createState(), [{ name: "worker", description: "Worker", prompt: "Do work" }], true, undefined, fanoutChildRuntime(route, "root-parent"))
-				.execute("run", { agent: "worker", task: "go" }, new AbortController().signal, undefined, throwingCtx);
+			const result = await createExecutor(
+				createState(),
+				[{ name: "worker", description: "Worker", prompt: "Do work" }],
+				true,
+				undefined,
+				fanoutChildRuntime(route, "root-parent"),
+			).execute("run", { agent: "worker", task: "go" }, new AbortController().signal, undefined, throwingCtx);
 
 			assert.equal(result.isError, true);
 			assert.match(text(result), /model registry exploded/);
@@ -706,24 +1100,41 @@ describe("nested control routing", () => {
 		routeRoots.push(asyncDir);
 		const foreignDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-nested-foreign-job-"));
 		routeRoots.push(foreignDir);
-		const writeStatus = (dir: string, state: string) => fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify({ state, steps: [{ runner: { type: "external-job" } }] }));
+		const writeStatus = (dir: string, state: string) =>
+			fs.writeFileSync(
+				path.join(dir, "status.json"),
+				JSON.stringify({ state, steps: [{ runner: { type: "external-job" } }] }),
+			);
 		writeStatus(asyncDir, "running");
 		writeStatus(foreignDir, "running");
 		const statusCalls: string[] = [];
 		registerExternalJobProvider({
 			name: "surf-oracle",
 			start: () => ({ providerJobId: "job-1", state: "completed" }),
-			status: (providerJobId) => { statusCalls.push(providerJobId); return { providerJobId, state: "completed" }; },
+			status: (providerJobId) => {
+				statusCalls.push(providerJobId);
+				return { providerJobId, state: "completed" };
+			},
 			reattach: () => ({ providerJobId: "job-1", state: "completed" }),
 			result: () => ({ providerJobId: "job-1", state: "completed", output: "advisor result" }),
 		});
 		const listeners = new Map<string, (payload: unknown) => void>();
 		const lifecycle = new Map<string, () => void>();
 		const pi = {
-			on(event: string, handler: () => void) { lifecycle.set(event, handler); },
-			events: { emit() {}, on(event: string, handler: (payload: unknown) => void) { listeners.set(event, handler); return () => listeners.delete(event); } },
+			on(event: string, handler: () => void) {
+				lifecycle.set(event, handler);
+			},
+			events: {
+				emit() {},
+				on(event: string, handler: (payload: unknown) => void) {
+					listeners.set(event, handler);
+					return () => listeners.delete(event);
+				},
+			},
 			registerTool() {},
-			getSessionName() { return "child"; },
+			getSessionName() {
+				return "child";
+			},
 		} as any;
 		let stop: (() => void) | undefined;
 		let cancelForeign = false;
@@ -733,19 +1144,47 @@ describe("nested control routing", () => {
 			runtime.runtimeState = createState();
 			runtime.runtimeState.currentSessionId = "session";
 			registerFanoutChildSubagentExtension(pi, runtime);
-			foreignRequest = requestExternalJobOperation(foreignDir, { operation: "status", provider: "surf-oracle", providerJobId: "foreign-job" }, 30_000,
-				() => cancelForeign ? new ExternalJobProviderError("Foreign request canceled", { code: "canceled" }) : undefined);
+			foreignRequest = requestExternalJobOperation(
+				foreignDir,
+				{ operation: "status", provider: "surf-oracle", providerJobId: "foreign-job" },
+				30_000,
+				() =>
+					cancelForeign
+						? new ExternalJobProviderError("Foreign request canceled", { code: "canceled" })
+						: undefined,
+			);
 			void foreignRequest.catch(() => {});
-			listeners.get("subagent:async-started")?.({ id: "foreign-run", asyncDir: foreignDir, sessionId: "other-session" });
-			const pending = requestExternalJobOperation(asyncDir, { operation: "status", provider: "surf-oracle", providerJobId: "owner-job" }, 30_000);
+			listeners.get("subagent:async-started")?.({
+				id: "foreign-run",
+				asyncDir: foreignDir,
+				sessionId: "other-session",
+			});
+			const pending = requestExternalJobOperation(
+				asyncDir,
+				{ operation: "status", provider: "surf-oracle", providerJobId: "owner-job" },
+				30_000,
+			);
 			listeners.get("subagent:async-started")?.({ id: "run-1", asyncDir, sessionId: "session" });
 			assert.deepEqual(await pending, { providerJobId: "owner-job", state: "completed" });
 			assert.deepEqual(statusCalls, ["owner-job"], "foreign session must not service provider requests");
 			cancelForeign = true;
 			await assert.rejects(foreignRequest, { code: "canceled" });
 			let output: string | undefined;
-			void runExternalJob({ provider: "surf-oracle", options: {}, cwd: asyncDir, prompt: "prompt text", asyncDir, stepIndex: 0, runId: "run-1", agent: "gpt-pro", registerStop: (handler) => { stop = handler; } })
-				.then((result) => { output = result.output; });
+			void runExternalJob({
+				provider: "surf-oracle",
+				options: {},
+				cwd: asyncDir,
+				prompt: "prompt text",
+				asyncDir,
+				stepIndex: 0,
+				runId: "run-1",
+				agent: "gpt-pro",
+				registerStop: (handler) => {
+					stop = handler;
+				},
+			}).then((result) => {
+				output = result.output;
+			});
 			await waitFor(() => output !== undefined, 5_000);
 			assert.equal(output, "advisor result");
 		} finally {
@@ -764,9 +1203,16 @@ describe("nested control routing", () => {
 		const childRuntime = fanoutChildRuntime(route, "root-poll-error");
 		const pi = {
 			on() {},
-			events: { emit() {}, on() { return () => {}; } },
+			events: {
+				emit() {},
+				on() {
+					return () => {};
+				},
+			},
 			registerTool() {},
-			getSessionName() { return "child"; },
+			getSessionName() {
+				return "child";
+			},
 		} as any;
 		fs.rmSync(route.controlInbox, { recursive: true, force: true });
 		fs.writeFileSync(route.controlInbox, "not a directory", "utf-8");
@@ -777,7 +1223,13 @@ describe("nested control routing", () => {
 		};
 		try {
 			registerFanoutChildSubagentExtension(pi, childRuntime);
-			await waitFor(() => logged.some((entry) => String(entry[0] ?? "").includes(route.controlInbox) && String(entry[0] ?? "").includes("root-poll-error")));
+			await waitFor(() =>
+				logged.some(
+					(entry) =>
+						String(entry[0] ?? "").includes(route.controlInbox) &&
+						String(entry[0] ?? "").includes("root-poll-error"),
+				),
+			);
 
 			fs.rmSync(route.controlInbox, { force: true });
 			fs.mkdirSync(route.controlInbox, { recursive: true });
@@ -788,7 +1240,11 @@ describe("nested control routing", () => {
 				action: "interrupt",
 			});
 
-			await waitFor(() => readNestedControlResults(route).some((result) => result.requestId === "poll-error-recovers" && result.ok === false));
+			await waitFor(() =>
+				readNestedControlResults(route).some(
+					(result) => result.requestId === "poll-error-recovers" && result.ok === false,
+				),
+			);
 			assert.equal(fs.existsSync(requestPath), false);
 		} finally {
 			console.error = originalError;
@@ -801,9 +1257,16 @@ describe("nested control routing", () => {
 		const childRuntime = fanoutChildRuntime(route, "root-result-write-fails");
 		const pi = {
 			on() {},
-			events: { emit() {}, on() { return () => {}; } },
+			events: {
+				emit() {},
+				on() {
+					return () => {};
+				},
+			},
 			registerTool() {},
-			getSessionName() { return "child"; },
+			getSessionName() {
+				return "child";
+			},
 		} as any;
 		fs.rmSync(route.eventSink, { recursive: true, force: true });
 		fs.writeFileSync(route.eventSink, "not a directory", "utf-8");
@@ -820,12 +1283,22 @@ describe("nested control routing", () => {
 		};
 		try {
 			registerFanoutChildSubagentExtension(pi, childRuntime);
-			await waitFor(() => logged.some((entry) => String(entry[0] ?? "").includes("result-write-fails") && /keeping request for retry/.test(String(entry[0] ?? ""))));
+			await waitFor(() =>
+				logged.some(
+					(entry) =>
+						String(entry[0] ?? "").includes("result-write-fails") &&
+						/keeping request for retry/.test(String(entry[0] ?? "")),
+				),
+			);
 			assert.equal(fs.existsSync(requestPath), true);
 
 			fs.rmSync(route.eventSink, { force: true });
 			fs.mkdirSync(route.eventSink, { recursive: true });
-			await waitFor(() => readNestedControlResults(route).some((result) => result.requestId === "result-write-fails" && result.ok === false));
+			await waitFor(() =>
+				readNestedControlResults(route).some(
+					(result) => result.requestId === "result-write-fails" && result.ok === false,
+				),
+			);
 			assert.equal(fs.existsSync(requestPath), false);
 		} finally {
 			console.error = originalError;
@@ -850,12 +1323,22 @@ describe("nested control routing", () => {
 			return originalClearInterval(interval);
 		}) as typeof clearInterval;
 		try {
-			const makePi = () => ({
-				on() {},
-				events: { emit() {}, on() { return () => {}; } },
-				registerTool() { registrations.push("subagent"); },
-				getSessionName() { return "child"; },
-			}) as any;
+			const makePi = () =>
+				({
+					on() {},
+					events: {
+						emit() {},
+						on() {
+							return () => {};
+						},
+					},
+					registerTool() {
+						registrations.push("subagent");
+					},
+					getSessionName() {
+						return "child";
+					},
+				}) as any;
 			const firstPi = makePi();
 
 			registerFanoutChildSubagentExtension(firstPi, childRuntime);
@@ -894,9 +1377,16 @@ describe("nested control routing", () => {
 		const childRuntime = fanoutChildRuntime(route, "root-ownerless");
 		const pi = {
 			on() {},
-			events: { emit() {}, on() { return () => {}; } },
+			events: {
+				emit() {},
+				on() {
+					return () => {};
+				},
+			},
 			registerTool() {},
-			getSessionName() { return "child"; },
+			getSessionName() {
+				return "child";
+			},
 		} as any;
 		const requestPath = writeNestedControlRequest(route, {
 			ts: Date.now(),
@@ -906,7 +1396,11 @@ describe("nested control routing", () => {
 		});
 
 		registerFanoutChildSubagentExtension(pi, childRuntime);
-		await waitFor(() => readNestedControlResults(route).some((result) => result.requestId === "ownerless-request" && result.ok === false));
+		await waitFor(() =>
+			readNestedControlResults(route).some(
+				(result) => result.requestId === "ownerless-request" && result.ok === false,
+			),
+		);
 
 		assert.equal(fs.existsSync(requestPath), false);
 		const result = readNestedControlResults(route).find((item) => item.requestId === "ownerless-request");
@@ -915,17 +1409,33 @@ describe("nested control routing", () => {
 });
 
 const NESTED_ADVISOR = "nested-advisor";
-const EXTERNAL_JOB_RUNNER = { type: "external-job", provider: NESTED_ADVISOR, options: {}, capabilities: { stop: false, steer: false, resume: false, structuredOutput: false, toolEvents: false } };
-const AGENTS = [makeAgent("advisor", { runner: { type: "external-job", provider: NESTED_ADVISOR, options: {} } }), makeAgent("worker")];
+const EXTERNAL_JOB_RUNNER = {
+	type: "external-job",
+	provider: NESTED_ADVISOR,
+	options: {},
+	capabilities: { stop: false, steer: false, resume: false, structuredOutput: false, toolEvents: false },
+};
+const AGENTS = [
+	makeAgent("advisor", { runner: { type: "external-job", provider: NESTED_ADVISOR, options: {} } }),
+	makeAgent("worker"),
+];
 
 function externalJobStep(overrides: { providerJobId?: string; state?: string; externalJob?: false } = {}) {
 	return {
 		agent: "advisor",
 		status: "complete",
 		runner: EXTERNAL_JOB_RUNNER,
-		...(overrides.externalJob === false ? {} : {
-			externalJob: { provider: NESTED_ADVISOR, providerJobId: overrides.providerJobId ?? "job-parent", promptDigest: externalJobPromptDigest("original prompt"), options: {}, state: overrides.state ?? "completed" },
-		}),
+		...(overrides.externalJob === false
+			? {}
+			: {
+					externalJob: {
+						provider: NESTED_ADVISOR,
+						providerJobId: overrides.providerJobId ?? "job-parent",
+						promptDigest: externalJobPromptDigest("original prompt"),
+						options: {},
+						state: overrides.state ?? "completed",
+					},
+				}),
 	};
 }
 
@@ -937,14 +1447,27 @@ interface NestedRunOptions {
 	summary?: Record<string, unknown>;
 }
 
-function writeNestedRun(route: ReturnType<typeof createNestedRoute>, runId: string, options: NestedRunOptions = {}): string {
+function writeNestedRun(
+	route: ReturnType<typeof createNestedRoute>,
+	runId: string,
+	options: NestedRunOptions = {},
+): string {
 	// A follow-up runner starts in the source run's cwd, so record one that per-test teardown never removes.
 	const cwd = os.tmpdir();
 	const asyncDir = path.join(TEMP_ROOT_DIR, "nested-subagent-runs", route.rootRunId, runId);
 	fs.mkdirSync(asyncDir, { recursive: true });
 	if (options.statusText !== null) {
 		const steps = options.steps ?? [externalJobStep()];
-		const status = { runId, mode: steps.length > 1 ? "parallel" : "single", state: "complete", startedAt: 100, lastUpdate: 200, cwd, steps, ...options.status };
+		const status = {
+			runId,
+			mode: steps.length > 1 ? "parallel" : "single",
+			state: "complete",
+			startedAt: 100,
+			lastUpdate: 200,
+			cwd,
+			steps,
+			...options.status,
+		};
 		fs.writeFileSync(path.join(asyncDir, "status.json"), options.statusText ?? JSON.stringify(status), "utf-8");
 	}
 	writeNestedEvent(route, {
@@ -952,7 +1475,18 @@ function writeNestedRun(route: ReturnType<typeof createNestedRoute>, runId: stri
 		ts: 100,
 		parentRunId: route.rootRunId,
 		parentStepIndex: 0,
-		child: { id: runId, parentRunId: route.rootRunId, parentStepIndex: 0, depth: 1, path: [{ runId: route.rootRunId, stepIndex: 0 }], state: "complete", agent: "advisor", ownerState: "gone", asyncDir, ...options.summary },
+		child: {
+			id: runId,
+			parentRunId: route.rootRunId,
+			parentStepIndex: 0,
+			depth: 1,
+			path: [{ runId: route.rootRunId, stepIndex: 0 }],
+			state: "complete",
+			agent: "advisor",
+			ownerState: "gone",
+			asyncDir,
+			...options.summary,
+		},
 	});
 	return asyncDir;
 }
@@ -968,13 +1502,20 @@ describe("nested external-job follow-up", () => {
 	function registerAdvisor(options: { followUp?: boolean } = {}): void {
 		disposeProvider = registerExternalJobProvider({
 			name: NESTED_ADVISOR,
-			start: () => { throw new Error("start must not be called"); },
-			...(options.followUp === false ? {} : {
-				followUp: (input: { parentProviderJobId: string; sourceStepIndex: number }) => {
-					followUps.push({ parentProviderJobId: input.parentProviderJobId, sourceStepIndex: input.sourceStepIndex });
-					return { providerJobId: "job-child", state: "completed" as const };
-				},
-			}),
+			start: () => {
+				throw new Error("start must not be called");
+			},
+			...(options.followUp === false
+				? {}
+				: {
+						followUp: (input: { parentProviderJobId: string; sourceStepIndex: number }) => {
+							followUps.push({
+								parentProviderJobId: input.parentProviderJobId,
+								sourceStepIndex: input.sourceStepIndex,
+							});
+							return { providerJobId: "job-child", state: "completed" as const };
+						},
+					}),
 			status: (providerJobId) => ({ providerJobId, state: "completed" }),
 			reattach: (providerJobId) => ({ providerJobId, state: "completed" }),
 			result: (providerJobId) => ({ providerJobId, state: "completed", output: "follow-up answer" }),
@@ -982,27 +1523,51 @@ describe("nested external-job follow-up", () => {
 	}
 
 	function resume(params: Record<string, unknown> = {}, from: "child" | "root" = "child") {
-		const executor = from === "child"
-			? createExecutor(createState(), AGENTS, false, undefined, fanoutChildRuntime(route))
-			: createExecutor(stateWithNestedRoute(route), AGENTS);
-		return executor.execute("resume", { action: "resume", id: runId, message: "The QA failure was a missing test.", ...params }, new AbortController().signal, undefined, ctx(root));
+		const executor =
+			from === "child"
+				? createExecutor(createState(), AGENTS, false, undefined, fanoutChildRuntime(route))
+				: createExecutor(stateWithNestedRoute(route), AGENTS);
+		return executor.execute(
+			"resume",
+			{ action: "resume", id: runId, message: "The QA failure was a missing test.", ...params },
+			new AbortController().signal,
+			undefined,
+			ctx(root),
+		);
 	}
 
 	/** Services the follow-up run's bridge until its runner has finished and exited, so teardown never races its writes. */
 	async function runFollowUp(followUpDir: string): Promise<void> {
 		const followUpId = path.basename(followUpDir);
-		cleanup.push(followUpDir, path.join(RESULTS_DIR, `${followUpId}.json`), nestedResultsPath(route.rootRunId, followUpId));
+		cleanup.push(
+			followUpDir,
+			path.join(RESULTS_DIR, `${followUpId}.json`),
+			nestedResultsPath(route.rootRunId, followUpId),
+		);
 		const deadline = Date.now() + 10_000;
 		for (;;) {
 			serviceExternalJobBridgeRequests(followUpDir);
 			const status = readStatus(followUpDir);
 			const runnerId = status?.processTerminal?.runnerProcessInstanceId;
-			const terminal = runnerId ? readProcessTerminal(followUpDir, { runId: followUpId, runnerProcessInstanceId: runnerId }) : undefined;
-			if (followUps.length > 0 && status && !isActiveAsyncState(status.state) && terminal?.state === "observed"
-				&& terminal.instances?.some((instance) => instance.kind === "runner" && instance.processInstanceId === runnerId && instance.exitCode === 0)) return;
+			const terminal = runnerId
+				? readProcessTerminal(followUpDir, { runId: followUpId, runnerProcessInstanceId: runnerId })
+				: undefined;
+			if (
+				followUps.length > 0 &&
+				status &&
+				!isActiveAsyncState(status.state) &&
+				terminal?.state === "observed" &&
+				terminal.instances?.some(
+					(instance) =>
+						instance.kind === "runner" && instance.processInstanceId === runnerId && instance.exitCode === 0,
+				)
+			)
+				return;
 			if (Date.now() >= deadline) {
 				const stderrPath = path.join(followUpDir, "runner.stderr.log");
-				assert.fail(`Timed out waiting for the external-job follow-up to finish; status=${JSON.stringify(status)}; terminal=${JSON.stringify(terminal)}; stderr=${fs.existsSync(stderrPath) ? fs.readFileSync(stderrPath, "utf-8") : "missing"}`);
+				assert.fail(
+					`Timed out waiting for the external-job follow-up to finish; status=${JSON.stringify(status)}; terminal=${JSON.stringify(terminal)}; stderr=${fs.existsSync(stderrPath) ? fs.readFileSync(stderrPath, "utf-8") : "missing"}`,
+				);
 			}
 			await new Promise((resolve) => setTimeout(resolve, 25));
 		}
@@ -1020,7 +1585,8 @@ describe("nested external-job follow-up", () => {
 	afterEach(() => {
 		disposeProvider();
 		disposeProvider = () => {};
-		for (const target of cleanup.splice(0)) fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
+		for (const target of cleanup.splice(0))
+			fs.rmSync(target, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
 	});
 
 	it("follows up a completed external-job run that the child launched", async () => {
@@ -1053,7 +1619,9 @@ describe("nested external-job follow-up", () => {
 
 	it("follows up the indexed external-job step of a multi-step nested run", async () => {
 		registerAdvisor();
-		writeNestedRun(route, runId, { steps: [{ agent: "worker", status: "complete" }, externalJobStep({ providerJobId: "job-second" })] });
+		writeNestedRun(route, runId, {
+			steps: [{ agent: "worker", status: "complete" }, externalJobStep({ providerJobId: "job-second" })],
+		});
 
 		const result = await resume({ index: 1 });
 
@@ -1073,18 +1641,63 @@ describe("nested external-job follow-up", () => {
 		assert.deepEqual(followUps, [{ parentProviderJobId: "job-parent", sourceStepIndex: 0 }]);
 	});
 
-	const refusals: Array<{ name: string; run?: NestedRunOptions; params?: Record<string, unknown>; provider?: { followUp?: boolean }; expected: RegExp; absent?: RegExp }> = [
-		{ name: "a nested Pi run keeps needing its session file", run: { steps: [{ agent: "worker", status: "complete" }], summary: { agent: "worker" } }, expected: /does not have a persisted session file to resume from/ },
-		{ name: "a provider state that is not completed", run: { steps: [externalJobStep({ state: "failed" })] }, expected: /provider state is failed/ },
+	const refusals: Array<{
+		name: string;
+		run?: NestedRunOptions;
+		params?: Record<string, unknown>;
+		provider?: { followUp?: boolean };
+		expected: RegExp;
+		absent?: RegExp;
+	}> = [
+		{
+			name: "a nested Pi run keeps needing its session file",
+			run: { steps: [{ agent: "worker", status: "complete" }], summary: { agent: "worker" } },
+			expected: /does not have a persisted session file to resume from/,
+		},
+		{
+			name: "a provider state that is not completed",
+			run: { steps: [externalJobStep({ state: "failed" })] },
+			expected: /provider state is failed/,
+		},
 		{ name: "a stopped run", run: { summary: { state: "stopped" } }, expected: /was stopped and cannot be resumed/ },
 		{ name: "a provider without followUp", provider: { followUp: false }, expected: /does not support follow-up/ },
-		{ name: "an external-job step without provider metadata", run: { steps: [externalJobStep({ externalJob: false })] }, expected: /has no persisted provider metadata/ },
-		{ name: "a launch status that has no runner yet", run: { steps: [{ agent: "advisor", status: "failed" }], status: { state: "failed" } }, expected: /has no persisted provider metadata/, absent: /session file/ },
+		{
+			name: "an external-job step without provider metadata",
+			run: { steps: [externalJobStep({ externalJob: false })] },
+			expected: /has no persisted provider metadata/,
+		},
+		{
+			name: "a launch status that has no runner yet",
+			run: { steps: [{ agent: "advisor", status: "failed" }], status: { state: "failed" } },
+			expected: /has no persisted provider metadata/,
+			absent: /session file/,
+		},
 		{ name: "an index out of range", params: { index: 5 }, expected: /out of range/ },
-		{ name: "a missing status file", run: { statusText: null }, expected: /does not have a persisted session file to resume from/ },
-		{ name: "a malformed status file without a Pi session", run: { statusText: "{not json" }, expected: /Failed to parse async status file/ },
-		{ name: "a malformed status file of a Pi run with a session file", run: { statusText: "{not json", summary: { agent: "worker", sessionFile: "/missing/session.jsonl" } }, expected: /session file/, absent: /Failed to parse/ },
-		{ name: "a live status file", run: { steps: [{ ...externalJobStep(), status: "running" }], status: { state: "running", pid: process.pid, lastUpdate: Date.now() } }, expected: /is still running\. Wait for completion/, absent: /steer/ },
+		{
+			name: "a missing status file",
+			run: { statusText: null },
+			expected: /does not have a persisted session file to resume from/,
+		},
+		{
+			name: "a malformed status file without a Pi session",
+			run: { statusText: "{not json" },
+			expected: /Failed to parse async status file/,
+		},
+		{
+			name: "a malformed status file of a Pi run with a session file",
+			run: { statusText: "{not json", summary: { agent: "worker", sessionFile: "/missing/session.jsonl" } },
+			expected: /session file/,
+			absent: /Failed to parse/,
+		},
+		{
+			name: "a live status file",
+			run: {
+				steps: [{ ...externalJobStep(), status: "running" }],
+				status: { state: "running", pid: process.pid, lastUpdate: Date.now() },
+			},
+			expected: /is still running\. Wait for completion/,
+			absent: /steer/,
+		},
 	];
 	for (const refusal of refusals) {
 		it(`fails closed without a follow-up for ${refusal.name}`, async () => {
@@ -1105,7 +1718,19 @@ describe("nested external-job follow-up", () => {
 		const outside = path.join(ASYNC_DIR, `outside-${randomUUID()}`);
 		cleanup.push(outside);
 		fs.mkdirSync(outside, { recursive: true });
-		fs.writeFileSync(path.join(outside, "status.json"), JSON.stringify({ runId, mode: "single", state: "complete", startedAt: 100, lastUpdate: 200, cwd: root, steps: [externalJobStep({ providerJobId: "job-foreign" })] }), "utf-8");
+		fs.writeFileSync(
+			path.join(outside, "status.json"),
+			JSON.stringify({
+				runId,
+				mode: "single",
+				state: "complete",
+				startedAt: 100,
+				lastUpdate: 200,
+				cwd: root,
+				steps: [externalJobStep({ providerJobId: "job-foreign" })],
+			}),
+			"utf-8",
+		);
 		writeNestedRun(route, runId, { statusText: null, summary: { asyncDir: outside } });
 
 		const result = await resume();

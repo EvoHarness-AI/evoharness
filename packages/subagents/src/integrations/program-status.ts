@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
-import type { AsyncJobState } from "../shared/types.ts";
 import { sanitizeDisplayText } from "../shared/display-text.ts";
+import type { AsyncJobState } from "../shared/types.ts";
 
 /**
  * Reports each subagent run to the terminal with OSC 7501, the Program Status Protocol
@@ -119,7 +119,13 @@ function encodeText(text: string, maxBytes: number): string {
 	return bytes.toString("base64");
 }
 
-function programStatusReport(fields: { state: ProgramState | "clear"; id: string; kind?: "question"; title?: string; msg?: string }): string {
+function programStatusReport(fields: {
+	state: ProgramState | "clear";
+	id: string;
+	kind?: "question";
+	title?: string;
+	msg?: string;
+}): string {
 	const pairs = [`state=${fields.state}`, `id=${fields.id}`];
 	if (fields.state !== "clear") pairs.push("app=pi-subagents");
 	if (fields.kind) pairs.push(`kind=${fields.kind}`);
@@ -129,7 +135,11 @@ function programStatusReport(fields: { state: ProgramState | "clear"; id: string
 }
 
 export function registerProgramStatusReporter(options: ProgramStatusReporterOptions): ProgramStatusReporter {
-	const write = options.write ?? ((data: string) => { process.stdout.write(data); });
+	const write =
+		options.write ??
+		((data: string) => {
+			process.stdout.write(data);
+		});
 	const env = options.env ?? process.env;
 	const isTTY = options.isTTY ?? process.stdout.isTTY === true;
 	const sent = new Map<string, string>();
@@ -160,10 +170,26 @@ export function registerProgramStatusReporter(options: ProgramStatusReporterOpti
 			const id = recordId(job);
 			if (!id) continue;
 			const state = programState(job, blockedRuns.has(job.asyncId));
-			const report = programStatusReport({ state, id, ...(state === "blocked" ? { kind: "question" as const } : {}), title: jobLabel(job), msg: message(job, state) });
-			candidates.push({ id, report, active: state === "working" || state === "blocked", updatedAt: job.updatedAt ?? job.startedAt ?? 0 });
+			const report = programStatusReport({
+				state,
+				id,
+				...(state === "blocked" ? { kind: "question" as const } : {}),
+				title: jobLabel(job),
+				msg: message(job, state),
+			});
+			candidates.push({
+				id,
+				report,
+				active: state === "working" || state === "blocked",
+				updatedAt: job.updatedAt ?? job.startedAt ?? 0,
+			});
 		}
-		candidates.sort((left, right) => Number(right.active) - Number(left.active) || right.updatedAt - left.updatedAt || (left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
+		candidates.sort(
+			(left, right) =>
+				Number(right.active) - Number(left.active) ||
+				right.updatedAt - left.updatedAt ||
+				(left.id < right.id ? -1 : left.id > right.id ? 1 : 0),
+		);
 		const desired = new Map<string, string>();
 		for (const candidate of candidates) {
 			if (desired.size === MAX_RECORDS) break;
@@ -183,7 +209,13 @@ export function registerProgramStatusReporter(options: ProgramStatusReporterOpti
 
 	return {
 		sessionStarted({ hasUI, mode }) {
-			active = options.enabled && hasUI && mode === "tui" && isTTY && env.TERM !== "dumb" && env.EVOHARNESS_PROGRAM_STATUS !== "0";
+			active =
+				options.enabled &&
+				hasUI &&
+				mode === "tui" &&
+				isTTY &&
+				env.TERM !== "dumb" &&
+				env.EVOHARNESS_PROGRAM_STATUS !== "0";
 			if (active && !listeningForResume && process.platform !== "win32") {
 				process.on("SIGCONT", resend);
 				listeningForResume = true;

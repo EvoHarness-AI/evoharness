@@ -1,13 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-
+import { projectActiveHerdrRuns } from "../../src/extension/index.ts";
 import {
 	HERDR_FOREGROUND_CONTROL_CHANGED_EVENT,
-	registerHerdrStatusBridge,
 	type HerdrStatusBridgeEvents,
 	type HerdrStatusRun,
+	registerHerdrStatusBridge,
 } from "../../src/integrations/herdr-status.ts";
-import { projectActiveHerdrRuns } from "../../src/extension/index.ts";
 import { beginForegroundChild, finishForegroundChild } from "../../src/runs/foreground/foreground-control.ts";
 import type { SubagentState } from "../../src/shared/types.ts";
 import {
@@ -48,7 +47,10 @@ class FakeEvents implements HerdrStatusBridgeEvents {
 		this.handlers.set(event, handlers);
 		return () => {
 			const current = this.handlers.get(event) ?? [];
-			this.handlers.set(event, current.filter((candidate) => candidate !== handler));
+			this.handlers.set(
+				event,
+				current.filter((candidate) => candidate !== handler),
+			);
 		};
 	}
 
@@ -94,22 +96,29 @@ describe("Herdr status bridge", () => {
 			mode: "single",
 			startedAt: 10,
 			updatedAt: 20,
-			activeChildren: new Map([[0, {
-				index: 0,
-				agent: "reviewer",
-				startedAt: 10,
-				updatedAt: 20,
-				currentActivityState: "needs_attention",
-			}]]),
+			activeChildren: new Map([
+				[
+					0,
+					{
+						index: 0,
+						agent: "reviewer",
+						startedAt: 10,
+						updatedAt: 20,
+						currentActivityState: "needs_attention",
+					},
+				],
+			]),
 		});
 
-		assert.deepEqual(projectActiveHerdrRuns(state), [{
-			id: "workflow-1",
-			coordinator: true,
-			agents: ["reviewer"],
-			taskLabel: "Review auth",
-			needsAttention: true,
-		}]);
+		assert.deepEqual(projectActiveHerdrRuns(state), [
+			{
+				id: "workflow-1",
+				coordinator: true,
+				agents: ["reviewer"],
+				taskLabel: "Review auth",
+				needsAttention: true,
+			},
+		]);
 	});
 
 	it("counts a workflow async child once instead of also counting the coordinator", () => {
@@ -141,8 +150,11 @@ describe("Herdr status bridge", () => {
 		// Covers the bridge subscription only; the event is emitted by hand here.
 		const state = stateForTest();
 		state.asyncJobs.set("workflow-1", {
-			asyncId: "workflow-1", asyncDir: "/tmp/workflow-1", status: "running",
-			mode: "workflow", agents: ["workflow"],
+			asyncId: "workflow-1",
+			asyncDir: "/tmp/workflow-1",
+			status: "running",
+			mode: "workflow",
+			agents: ["workflow"],
 		});
 		const events = new FakeEvents();
 		const commands: string[][] = [];
@@ -158,11 +170,20 @@ describe("Herdr status bridge", () => {
 		assert.ok(commands.at(-1)?.includes("summary=⏳ 0 subagents"));
 
 		state.foregroundControls.set("child-1", {
-			runId: "child-1", parentWorkflowRunId: "workflow-1", mode: "single",
-			startedAt: 10, updatedAt: 10,
+			runId: "child-1",
+			parentWorkflowRunId: "workflow-1",
+			mode: "single",
+			startedAt: 10,
+			updatedAt: 10,
 		});
 		const control = state.foregroundControls.get("child-1")!;
-		beginForegroundChild(control, { index: 0, agent: "reviewer", authoredTask: "review", effectivePrompt: "review", interrupt: () => true });
+		beginForegroundChild(control, {
+			index: 0,
+			agent: "reviewer",
+			authoredTask: "review",
+			effectivePrompt: "review",
+			interrupt: () => true,
+		});
 		events.emit(HERDR_FOREGROUND_CONTROL_CHANGED_EVENT, { runId: "workflow-1" });
 		await bridge.flush();
 		assert.ok(commands.at(-1)?.includes("summary=⏳ 1 subagent (reviewer)"));
@@ -193,7 +214,8 @@ describe("Herdr status bridge", () => {
 		await bridge.flush();
 		assert.ok(commands.at(-1)?.includes("summary=⏳ 1 subagent (reviewer)"));
 		events.emit(SUBAGENT_CONTROL_EVENT, {
-			source: "async", noticeText: "reviewer needs attention",
+			source: "async",
+			noticeText: "reviewer needs attention",
 			event: { type: "needs_attention", runId: "child-1" },
 		});
 		await bridge.flush();
@@ -280,10 +302,12 @@ describe("Herdr status bridge", () => {
 		});
 		await bridge.flush();
 
-		assert.deepEqual(busyEvents, [{
-			active: true,
-			label: "⏳ 1 subagent (worker)",
-		}]);
+		assert.deepEqual(busyEvents, [
+			{
+				active: true,
+				label: "⏳ 1 subagent (worker)",
+			},
+		]);
 		assert.equal(commands.length, 1);
 		assert.deepEqual(commands[0]?.slice(0, 8), [
 			"pane",
@@ -487,18 +511,22 @@ describe("Herdr status bridge", () => {
 
 		bridge.sessionStarted({
 			hasUI: true,
-			runs: [{
-				id: "run-restored",
-				agents: ["worker", "reviewer"],
-				needsAttention: true,
-			}],
+			runs: [
+				{
+					id: "run-restored",
+					agents: ["worker", "reviewer"],
+					needsAttention: true,
+				},
+			],
 		});
 		await bridge.flush();
 
-		assert.deepEqual(busyEvents, [{
-			active: true,
-			label: "⏳ 2 subagents (worker, reviewer)",
-		}]);
+		assert.deepEqual(busyEvents, [
+			{
+				active: true,
+				label: "⏳ 2 subagents (worker, reviewer)",
+			},
+		]);
 		assert.ok(commands[0]?.includes("summary=⏳ 2 subagents (worker, reviewer) ⚠"));
 
 		bridge.dispose();
@@ -584,7 +612,9 @@ describe("Herdr status bridge", () => {
 
 		assert.ok(commands[0]?.includes("summary=⏳ 1 subagent (worker) · Build auth flow"));
 		assert.ok(commands[0]?.includes("title-suffix=⏳Build auth flow"));
-		assert.ok(commands[1]?.some((argument) => argument.startsWith("summary=⏳ 2 subagents") && argument.length < 180));
+		assert.ok(
+			commands[1]?.some((argument) => argument.startsWith("summary=⏳ 2 subagents") && argument.length < 180),
+		);
 		assert.ok(commands[1]?.some((argument) => argument.startsWith("title-suffix=⏳Review ") && argument.length < 70));
 		assert.ok(commands[2]?.includes("title-suffix=⏳Build auth flow"));
 		assert.ok(commands[3]?.includes("--clear-state-labels"));
@@ -695,10 +725,7 @@ describe("Herdr status bridge", () => {
 		intervals.fireAll();
 		await bridge.flush();
 
-		assert.deepEqual(busyEvents, [
-			{ active: true, label: "⏳ 1 subagent (worker)" },
-			{ active: false },
-		]);
+		assert.deepEqual(busyEvents, [{ active: true, label: "⏳ 1 subagent (worker)" }, { active: false }]);
 		assert.equal(intervals.pendingCount(), 0);
 		assert.ok(commands.at(-1)?.includes("--clear-state-labels"));
 

@@ -18,7 +18,13 @@ export function asyncStatusChildIdentity(step: AsyncStatusStep, index: number): 
 }
 
 export function asyncStatusChildIdentityCandidates(step: AsyncStatusStep, index: number): string[] {
-	return [...new Set([step.childId, step.workflowKey, step.runId, `step:${index}`].filter((value): value is string => typeof value === "string" && value.length > 0))];
+	return [
+		...new Set(
+			[step.childId, step.workflowKey, step.runId, `step:${index}`].filter(
+				(value): value is string => typeof value === "string" && value.length > 0,
+			),
+		),
+	];
 }
 
 export function resolveAsyncStatusChild(
@@ -42,8 +48,17 @@ export function resolveAsyncStatusChild(
 		}
 	}
 	if (matches.length === 1) return { ok: true, child: matches[0]! };
-	if (matches.length > 1) return { ok: false, code: "ambiguous", message: `Child '${childId}' is ambiguous under async run '${status.runId}'.` };
-	return { ok: false, code: "not_found", message: `Child '${childId}' was not found under async run '${status.runId}'.` };
+	if (matches.length > 1)
+		return {
+			ok: false,
+			code: "ambiguous",
+			message: `Child '${childId}' is ambiguous under async run '${status.runId}'.`,
+		};
+	return {
+		ok: false,
+		code: "not_found",
+		message: `Child '${childId}' was not found under async run '${status.runId}'.`,
+	};
 }
 
 export function isStoppableAsyncStatusStep(step: AsyncStatusStep): boolean {

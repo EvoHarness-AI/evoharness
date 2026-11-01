@@ -26,10 +26,7 @@ const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "
 
 // /council must work under `pi --no-skills`, which drops the package skills from context,
 // so this topic serves the council skill together with the reference it tells the model to read.
-const COUNCIL_FILES = [
-	"skills/council-mode/SKILL.md",
-	"skills/council-mode/references/pass-contracts.md",
-];
+const COUNCIL_FILES = ["skills/council-mode/SKILL.md", "skills/council-mode/references/pass-contracts.md"];
 
 interface GuideSection {
 	address: string;
@@ -45,7 +42,11 @@ function isGuideTopic(value: string): value is SubagentGuideTopic {
 }
 
 function headingSlug(title: string): string {
-	return title.toLowerCase().replace(/[^\p{L}\p{N}\s_-]/gu, "").trim().replace(/\s/g, "-");
+	return title
+		.toLowerCase()
+		.replace(/[^\p{L}\p{N}\s_-]/gu, "")
+		.trim()
+		.replace(/\s/g, "-");
 }
 
 function parseSections(topic: string, lines: string[]): GuideSection[] {
@@ -59,7 +60,15 @@ function parseSections(topic: string, lines: string[]): GuideSection[] {
 			return;
 		}
 		const heading = fence ? undefined : /^(#{2,6})\s+(.+?)\s*#*\s*$/.exec(line);
-		if (heading) sections.push({ address: "", title: heading[2]!, level: heading[1]!.length, start: index, end: lines.length, children: [] });
+		if (heading)
+			sections.push({
+				address: "",
+				title: heading[2]!,
+				level: heading[1]!.length,
+				start: index,
+				end: lines.length,
+				children: [],
+			});
 	});
 	const used = new Set<string>();
 	const parents: GuideSection[] = [];
@@ -97,7 +106,9 @@ function readGuideFiles(topic: string, files: string[], root: string): string[] 
 		return files.map((file) => fs.readFileSync(path.join(root, file), "utf-8").replace(/\r\n/g, "\n"));
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		throw new Error(`Failed to read packaged subagents guide '${topic}': ${message}`, { cause: error instanceof Error ? error : undefined });
+		throw new Error(`Failed to read packaged subagents guide '${topic}': ${message}`, {
+			cause: error instanceof Error ? error : undefined,
+		});
 	}
 }
 
@@ -112,12 +123,17 @@ export function readSubagentGuide(topic = "overview", root = packageRoot): strin
 	if (!sectioned) {
 		const files = name === "overview" ? ["README.md"] : COUNCIL_FILES;
 		const contents = readGuideFiles(name, files, root);
-		return files.length === 1 ? contents[0]! : contents.map((content, index) => `<!-- ${files[index]} -->\n\n${content}`).join("\n\n");
+		return files.length === 1
+			? contents[0]!
+			: contents.map((content, index) => `<!-- ${files[index]} -->\n\n${content}`).join("\n\n");
 	}
 	const lines = readGuideFiles(name, [path.join("docs", `${name}.md`)], root)[0]!.split("\n");
 	const sections = parseSections(name, lines);
 	if (separator === -1) {
-		const intro = lines.slice(0, sections[0]?.start ?? lines.length).join("\n").trim();
+		const intro = lines
+			.slice(0, sections[0]?.start ?? lines.length)
+			.join("\n")
+			.trim();
 		return `${intro}\n\n${tableOfContents(name, sections)}`;
 	}
 	const section = sections.find((candidate) => candidate.address === topic);

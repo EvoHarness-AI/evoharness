@@ -4,17 +4,29 @@ import * as fs from "node:fs";
 import { createRequire, syncBuiltinESMExports } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
-import { test, type TestContext } from "node:test";
-import { loadHostPiCodingAgent } from "../../src/runs/shared/child-session.ts";
+import { type TestContext, test } from "node:test";
 import { HOST_PEER_ALIASES } from "../../src/runs/background/runner-aliases.ts";
-import { getPiSpawnCommand, PI_CODING_AGENT_PACKAGE, resolveHostDependencyPiPackageRoot, resolveHostPiPackageRoot, resolveInstalledPiPackageRoot } from "../../src/runs/shared/pi-spawn.ts";
+import { loadHostPiCodingAgent } from "../../src/runs/shared/child-session.ts";
+import {
+	getPiSpawnCommand,
+	PI_CODING_AGENT_PACKAGE,
+	resolveHostDependencyPiPackageRoot,
+	resolveHostPiPackageRoot,
+	resolveInstalledPiPackageRoot,
+} from "../../src/runs/shared/pi-spawn.ts";
 import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
 
 function writePackage(root: string, name = PI_CODING_AGENT_PACKAGE, owner = "host"): void {
 	fs.mkdirSync(root, { recursive: true });
-	fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({
-		name, type: "module", exports: { ".": { import: "./index.mjs" } }, bin: { pi: "./cli.mjs" },
-	}));
+	fs.writeFileSync(
+		path.join(root, "package.json"),
+		JSON.stringify({
+			name,
+			type: "module",
+			exports: { ".": { import: "./index.mjs" } },
+			bin: { pi: "./cli.mjs" },
+		}),
+	);
 	fs.writeFileSync(path.join(root, "index.mjs"), `export const owner = ${JSON.stringify(owner)};\n`);
 	fs.writeFileSync(path.join(root, "cli.mjs"), "export {};\n");
 }
@@ -35,14 +47,16 @@ function fixture(t: TestContext, layout: "npm" | "pnpm" = "npm") {
 		fs.rmSync(tmp, { recursive: true, force: true });
 	});
 	delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
-	const host = layout === "npm" ? path.join(tmp, "host app")
-		: path.join(tmp, "store", "links", "host", "node_modules", "@jmfederico", "pi-web");
+	const host =
+		layout === "npm"
+			? path.join(tmp, "host app")
+			: path.join(tmp, "store", "links", "host", "node_modules", "@jmfederico", "pi-web");
 	writePackage(host, "@jmfederico/pi-web", "not-pi");
 	fs.mkdirSync(path.join(host, "dist"));
 	fs.writeFileSync(path.join(host, "dist", "sessiond.mjs"), "throw new Error('host must not execute');\n");
 	const dependency = path.join(host, "node_modules", PI_CODING_AGENT_PACKAGE);
-	const pi = layout === "npm" ? dependency
-		: path.join(tmp, "store", "links", "pi", "node_modules", PI_CODING_AGENT_PACKAGE);
+	const pi =
+		layout === "npm" ? dependency : path.join(tmp, "store", "links", "pi", "node_modules", PI_CODING_AGENT_PACKAGE);
 	writePackage(pi);
 	let entry = path.join(host, "dist", "sessiond.mjs");
 	if (layout === "pnpm") {
@@ -52,7 +66,11 @@ function fixture(t: TestContext, layout: "npm" | "pnpm" = "npm") {
 		link(host, launcherHost);
 		entry = path.join(launcherHost, "dist", "sessiond.mjs");
 		// The launcher's logical tree must not win over the canonical host's own dependency.
-		writePackage(path.join(tmp, "global", "node_modules", PI_CODING_AGENT_PACKAGE), PI_CODING_AGENT_PACKAGE, "launcher-decoy");
+		writePackage(
+			path.join(tmp, "global", "node_modules", PI_CODING_AGENT_PACKAGE),
+			PI_CODING_AGENT_PACKAGE,
+			"launcher-decoy",
+		);
 	}
 	process.argv[1] = entry;
 	return { tmp, host, pi, entry };
@@ -76,7 +94,9 @@ function writePeers(pi: string): void {
 
 let launchId = 0;
 async function captureBackground(t: TestContext, tmp: string) {
-	const spawn = t.mock.method(childProcess, "spawn", () => { throw new Error("spawn boundary captured"); });
+	const spawn = t.mock.method(childProcess, "spawn", () => {
+		throw new Error("spawn boundary captured");
+	});
 	syncBuiltinESMExports();
 	try {
 		const { makeAgent } = await import("../support/helpers.ts");
@@ -84,10 +104,22 @@ async function captureBackground(t: TestContext, tmp: string) {
 		await assert.doesNotReject(modulePromise, "background module import must not require a working SDK");
 		const { executeAsyncSingle } = await modulePromise;
 		const result = await executeAsyncSingle(`host-dependency-${launchId}`, {
-			agent: "worker", task: "Check discovery", agentConfig: makeAgent("worker"),
+			agent: "worker",
+			task: "Check discovery",
+			agentConfig: makeAgent("worker"),
 			ctx: { pi: { events: { emit() {} } }, cwd: tmp, currentSessionId: "host-dependency" },
-			artifactConfig: { enabled: false, includeInput: false, includeOutput: false, includeJsonl: false, includeMetadata: false, cleanupDays: 7 },
-			shareEnabled: false, sessionRoot: path.join(tmp, "sessions"), maxSubagentDepth: 1, acceptance: false,
+			artifactConfig: {
+				enabled: false,
+				includeInput: false,
+				includeOutput: false,
+				includeJsonl: false,
+				includeMetadata: false,
+				cleanupDays: 7,
+			},
+			shareEnabled: false,
+			sessionRoot: path.join(tmp, "sessions"),
+			maxSubagentDepth: 1,
+			acceptance: false,
 		});
 		return { result, calls: [...spawn.mock.calls] };
 	} finally {
@@ -107,15 +139,18 @@ for (const layout of ["npm", "pnpm"] as const) {
 	test(`host-relative ${layout} import-only SDK agrees across foreground, CLI and detached peer preload`, async (t) => {
 		const { tmp, pi, entry } = fixture(t, layout);
 		writePeers(pi);
-		assert.throws(() => createRequire(fs.realpathSync(entry)).resolve(PI_CODING_AGENT_PACKAGE), { code: "ERR_PACKAGE_PATH_NOT_EXPORTED" });
+		assert.throws(() => createRequire(fs.realpathSync(entry)).resolve(PI_CODING_AGENT_PACKAGE), {
+			code: "ERR_PACKAGE_PATH_NOT_EXPORTED",
+		});
 		assert.notEqual(resolveInstalledPiPackageRoot(), pi, "the extension has a competing installed SDK");
 		assert.equal(resolveHostDependencyPiPackageRoot(), pi);
 		assert.equal(resolveHostPiPackageRoot(), pi);
-		const sdk = await loadHostPiCodingAgent() as { owner?: string };
+		const sdk = (await loadHostPiCodingAgent()) as { owner?: string };
 		assert.equal(sdk.owner, "host");
 		for (const platform of ["win32", "linux", "darwin"] as const) {
 			assert.deepEqual(getPiSpawnCommand(["--version"], { platform, env: {} }), {
-				command: process.execPath, args: [path.join(pi, "cli.mjs"), "--version"],
+				command: process.execPath,
+				args: [path.join(pi, "cli.mjs"), "--version"],
 			});
 		}
 		const { result, calls } = await captureBackground(t, tmp);
@@ -127,10 +162,17 @@ for (const layout of ["npm", "pnpm"] as const) {
 		const aliases = JSON.parse(options.env.JITI_ALIAS);
 		assert.equal(aliases[PI_CODING_AGENT_PACKAGE], path.join(pi, "index.mjs"));
 		// Execute only the peer preload in an isolated process, not a real agent or daemon.
-		const loaded = childProcess.spawnSync(process.execPath, [
-			"--import", new URL("../../runner-peer-preload.mjs", import.meta.url).href,
-			"--input-type=module", "-e", `import { owner } from '${PI_CODING_AGENT_PACKAGE}'; console.log(owner);`,
-		], { cwd: tmp, env: options.env, encoding: "utf8" });
+		const loaded = childProcess.spawnSync(
+			process.execPath,
+			[
+				"--import",
+				new URL("../../runner-peer-preload.mjs", import.meta.url).href,
+				"--input-type=module",
+				"-e",
+				`import { owner } from '${PI_CODING_AGENT_PACKAGE}'; console.log(owner);`,
+			],
+			{ cwd: tmp, env: options.env, encoding: "utf8" },
+		);
 		assert.equal(loaded.status, 0, loaded.stderr);
 		assert.equal(loaded.stdout.trim(), "host");
 	});
@@ -155,7 +197,7 @@ test("an extensionless .bin/pi symlink honors the override across SDK, CLI and b
 	writePeers(override);
 	process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = override;
 	assert.equal(resolveHostPiPackageRoot(), override);
-	assert.equal((await loadHostPiCodingAgent() as { owner?: string }).owner, "override");
+	assert.equal(((await loadHostPiCodingAgent()) as { owner?: string }).owner, "override");
 	assert.equal(resolveHostPiPackageRoot({ piPackageRoot: pi }), pi);
 	assert.equal(getPiSpawnCommand([], { piPackageRoot: pi }).args[0], path.join(pi, "cli.mjs"));
 	for (const platform of ["linux", "darwin", "win32"] as const) {
@@ -173,7 +215,7 @@ test("an extensionless .bin/pi symlink honors the override across SDK, CLI and b
 
 	delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
 	assert.equal(resolveHostPiPackageRoot(), pi);
-	assert.equal((await loadHostPiCodingAgent() as { owner?: string }).owner, "host");
+	assert.equal(((await loadHostPiCodingAgent()) as { owner?: string }).owner, "host");
 	assert.equal(getPiSpawnCommand([]).args[0], path.join(pi, "cli.mjs"));
 });
 
@@ -188,7 +230,10 @@ test("injected roots share SDK and CLI precedence and fail closed without instal
 		argv1: entry,
 		piPackageRoot: ` ${injected} `,
 		env: { [PI_CODING_AGENT_PACKAGE_ROOT_ENV]: override },
-		resolvePackageJson: () => { fallbackCalls++; return path.join(pi, "package.json"); },
+		resolvePackageJson: () => {
+			fallbackCalls++;
+			return path.join(pi, "package.json");
+		},
 	};
 	assert.equal(resolveHostPiPackageRoot(deps), injected);
 	assert.equal(getPiSpawnCommand([], deps).args[0], path.join(injected, "cli.mjs"));
@@ -205,7 +250,8 @@ test("SDK and CLI share the extension-relative fallback when the host is unavail
 	const installed = path.join(tmp, "extension-install");
 	writePackage(installed);
 	const deps = {
-		argv1: path.join(tmp, "missing-host.mjs"), env: {},
+		argv1: path.join(tmp, "missing-host.mjs"),
+		env: {},
 		resolvePackageJson: () => path.join(installed, "package.json"),
 	};
 	assert.equal(resolveHostPiPackageRoot(deps), installed);
@@ -232,7 +278,10 @@ test("selected host SDK missing entry, blocked export and import errors never lo
 	let background = await captureBackground(t, tmp);
 	assert.equal(background.calls.length, 0);
 	assert.match(background.result.content[0]!.text, /does not provide @evoharness\/pi-coding-agent/);
-	fs.writeFileSync(path.join(pi, "package.json"), JSON.stringify({ name: PI_CODING_AGENT_PACKAGE, exports: { ".": null } }));
+	fs.writeFileSync(
+		path.join(pi, "package.json"),
+		JSON.stringify({ name: PI_CODING_AGENT_PACKAGE, exports: { ".": null } }),
+	);
 	await assert.rejects(loadHostPiCodingAgent(), /no resolvable root export/);
 	background = await captureBackground(t, tmp);
 	assert.equal(background.calls.length, 0);
@@ -282,6 +331,6 @@ test("a Pi-owned entry reached through a directory junction still outranks a bro
 	process.argv[1] = path.join(launcher, "cli.mjs");
 	process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = path.join(tmp, "absent-override");
 	assert.equal(resolveHostPiPackageRoot(), pi);
-	assert.equal((await loadHostPiCodingAgent() as { owner?: string }).owner, "host");
+	assert.equal(((await loadHostPiCodingAgent()) as { owner?: string }).owner, "host");
 	assert.equal(getPiSpawnCommand([]).args[0], path.join(pi, "cli.mjs"));
 });

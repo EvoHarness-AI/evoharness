@@ -73,7 +73,17 @@ export class SelectorComponent extends Container {
 		this.addChild(this.listContainer);
 		this.addChild(new Spacer(1));
 
-		this.addChild(new Text(rawKeyHint("↑↓", "navigate") + "  " + keyHint("tui.select.confirm", "select") + "  " + keyHint("tui.select.cancel", "cancel"), 0, 0));
+		this.addChild(
+			new Text(
+				rawKeyHint("↑↓", "navigate") +
+					"  " +
+					keyHint("tui.select.confirm", "select") +
+					"  " +
+					keyHint("tui.select.cancel", "cancel"),
+				0,
+				0,
+			),
+		);
 		this.addChild(new Spacer(1));
 		this.addChild(border());
 
@@ -88,14 +98,18 @@ export class SelectorComponent extends Container {
 			? fuzzyFilter(this.items, query, (item) => `${item.label} ${item.value} ${item.badge ?? ""}`)
 			: [...this.items];
 		const keepIndex = this.filtered.findIndex((item) => item.value === previous);
-		this.selectedIndex = keepIndex >= 0 ? keepIndex : Math.min(this.selectedIndex, Math.max(0, this.filtered.length - 1));
+		this.selectedIndex =
+			keepIndex >= 0 ? keepIndex : Math.min(this.selectedIndex, Math.max(0, this.filtered.length - 1));
 		this.updateList();
 	}
 
 	private updateList(): void {
 		const th = this.theme;
 		this.listContainer.clear();
-		const startIndex = Math.max(0, Math.min(this.selectedIndex - Math.floor(MAX_VISIBLE / 2), this.filtered.length - MAX_VISIBLE));
+		const startIndex = Math.max(
+			0,
+			Math.min(this.selectedIndex - Math.floor(MAX_VISIBLE / 2), this.filtered.length - MAX_VISIBLE),
+		);
 		const endIndex = Math.min(startIndex + MAX_VISIBLE, this.filtered.length);
 
 		for (let i = startIndex; i < endIndex; i++) {
@@ -110,7 +124,9 @@ export class SelectorComponent extends Container {
 		}
 
 		if (startIndex > 0 || endIndex < this.filtered.length) {
-			this.listContainer.addChild(new Text(th.fg("muted", `  (${this.selectedIndex + 1}/${this.filtered.length})`), 0, 0));
+			this.listContainer.addChild(
+				new Text(th.fg("muted", `  (${this.selectedIndex + 1}/${this.filtered.length})`), 0, 0),
+			);
 		}
 		if (this.filtered.length === 0) {
 			this.listContainer.addChild(new Text(th.fg("muted", "  No matching entries"), 0, 0));

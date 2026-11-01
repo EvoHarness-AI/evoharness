@@ -57,17 +57,17 @@ describe("proactive skill subagent recommendations", () => {
 
 	it("does not recommend hidden skills (disable-model-invocation: true)", () => {
 		const recommendations = recommendProactiveSkillSubagents({
-			agents: [
-				agent("one", ["hidden-skill", "visible-skill"]),
-				agent("two", ["hidden-skill", "visible-skill"]),
-			],
+			agents: [agent("one", ["hidden-skill", "visible-skill"]), agent("two", ["hidden-skill", "visible-skill"])],
 			availableSkills: [
 				{ name: "hidden-skill", description: "User-only.", disableModelInvocation: true },
 				{ name: "visible-skill", description: "Model-invocable." },
 			],
 		});
 
-		assert.deepEqual(recommendations.map((entry) => entry.skill), ["visible-skill"]);
+		assert.deepEqual(
+			recommendations.map((entry) => entry.skill),
+			["visible-skill"],
+		);
 	});
 
 	it("filters unavailable orchestration skills and honors config bounds", () => {
@@ -82,17 +82,23 @@ describe("proactive skill subagent recommendations", () => {
 			config: { preferredAgent: "delegate", maxRecommendations: 2 },
 		});
 
-		assert.deepEqual(recommendations.map((entry) => entry.skill), ["alpha", "beta"]);
+		assert.deepEqual(
+			recommendations.map((entry) => entry.skill),
+			["alpha", "beta"],
+		);
 		assert.ok(recommendations.every((entry) => entry.agent === "delegate"));
 	});
 
 	it("can be disabled and formats guardrails for visible suggestions", () => {
 		assert.equal(resolveProactiveSkillSubagentsConfig(false).enabled, false);
-		assert.deepEqual(recommendProactiveSkillSubagents({
-			agents: [agent("reviewer", ["deslop"]), agent("cleanup", ["deslop"])],
-			availableSkills: [{ name: "deslop" }],
-			config: false,
-		}), []);
+		assert.deepEqual(
+			recommendProactiveSkillSubagents({
+				agents: [agent("reviewer", ["deslop"]), agent("cleanup", ["deslop"])],
+				availableSkills: [{ name: "deslop" }],
+				config: false,
+			}),
+			[],
+		);
 
 		const lines = formatProactiveSkillSubagentRecommendations([
 			{

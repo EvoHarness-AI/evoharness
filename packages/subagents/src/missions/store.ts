@@ -5,9 +5,9 @@ import * as path from "node:path";
 import { writePrivateAtomicJson } from "../shared/atomic-json.ts";
 import { getAgentDir } from "../shared/utils.ts";
 import {
-	MISSION_STATUSES,
 	type GlobalMissionIndexRecord,
 	type GlobalMissionListResult,
+	MISSION_STATUSES,
 	type MissionArtifact,
 	type MissionArtifactKind,
 	type MissionCreateInput,
@@ -32,7 +32,15 @@ import {
 
 const MISSION_ID_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const MISSION_RUN_MODES = new Set<MissionRunMode>(["single", "parallel", "chain", "workflow", "scheduled", "external"]);
-const MISSION_ARTIFACT_KINDS = new Set<MissionArtifactKind>(["status", "output", "patch", "manifest", "review", "note", "other"]);
+const MISSION_ARTIFACT_KINDS = new Set<MissionArtifactKind>([
+	"status",
+	"output",
+	"patch",
+	"manifest",
+	"review",
+	"note",
+	"other",
+]);
 const MISSION_RECEIPT_KINDS = new Set<MissionReceiptKind>(["pull_request", "ci", "deployment", "release"]);
 const MISSION_RECEIPT_STATUSES = new Set<MissionReceiptStatus>(["pending", "ready", "succeeded", "failed"]);
 const MISSION_STATUS_SET = new Set<MissionStatus>(MISSION_STATUSES);
@@ -73,13 +81,15 @@ function positiveTokenCount(value: unknown, label: string): number {
 }
 
 function nonNegativeTokenCount(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || (value as number) < 0) throw new Error(`${label} must be a non-negative integer`);
+	if (!Number.isSafeInteger(value) || (value as number) < 0)
+		throw new Error(`${label} must be a non-negative integer`);
 	return value as number;
 }
 
 function parseGoal(value: unknown, label: string): MissionGoal {
 	const input = asObject(value, label);
-	if (input.status !== "active" && input.status !== "paused" && input.status !== "budget-exhausted") throw new Error(`${label}.status is invalid`);
+	if (input.status !== "active" && input.status !== "paused" && input.status !== "budget-exhausted")
+		throw new Error(`${label}.status is invalid`);
 	return { status: input.status };
 }
 
@@ -139,7 +149,9 @@ function parseDecision(value: unknown, label: string): MissionDecision {
 		createdAt: timestamp(input.createdAt, `${label}.createdAt`),
 		...(optionalString(input.prompt, `${label}.prompt`) ? { prompt: input.prompt as string } : {}),
 		...(input.options !== undefined ? { options: stringArray(input.options, `${label}.options`) } : {}),
-		...(optionalString(input.recommendation, `${label}.recommendation`) ? { recommendation: input.recommendation as string } : {}),
+		...(optionalString(input.recommendation, `${label}.recommendation`)
+			? { recommendation: input.recommendation as string }
+			: {}),
 		...(input.resolvedAt !== undefined ? { resolvedAt: timestamp(input.resolvedAt, `${label}.resolvedAt`) } : {}),
 		...(optionalString(input.resolution, `${label}.resolution`) ? { resolution: input.resolution as string } : {}),
 	};
@@ -147,7 +159,8 @@ function parseDecision(value: unknown, label: string): MissionDecision {
 
 function parseWorkflowChild(value: unknown, label: string): MissionWorkflowChild {
 	const input = asObject(value, label);
-	const artifactPaths = input.artifactPaths === undefined ? [] : stringArray(input.artifactPaths, `${label}.artifactPaths`);
+	const artifactPaths =
+		input.artifactPaths === undefined ? [] : stringArray(input.artifactPaths, `${label}.artifactPaths`);
 	const heartbeat = input.heartbeat === undefined ? undefined : asObject(input.heartbeat, `${label}.heartbeat`);
 	return {
 		workflowRunId: requiredString(input.workflowRunId, `${label}.workflowRunId`),
@@ -162,14 +175,28 @@ function parseWorkflowChild(value: unknown, label: string): MissionWorkflowChild
 		...(optionalString(input.label, `${label}.label`) ? { label: input.label as string } : {}),
 		...(optionalString(input.phase, `${label}.phase`) ? { phase: input.phase as string } : {}),
 		...(input.completedAt !== undefined ? { completedAt: timestamp(input.completedAt, `${label}.completedAt`) } : {}),
-		...(optionalString(input.sessionPath, `${label}.sessionPath`) ? { sessionPath: input.sessionPath as string } : {}),
-		...(optionalString(input.acceptanceStatus, `${label}.acceptanceStatus`) ? { acceptanceStatus: input.acceptanceStatus as string } : {}),
-		...(heartbeat ? { heartbeat: {
-			updatedAt: timestamp(heartbeat.updatedAt, `${label}.heartbeat.updatedAt`),
-			...(optionalString(heartbeat.status, `${label}.heartbeat.status`) ? { status: heartbeat.status as string } : {}),
-			...(optionalString(heartbeat.phase, `${label}.heartbeat.phase`) ? { phase: heartbeat.phase as string } : {}),
-			...(optionalString(heartbeat.message, `${label}.heartbeat.message`) ? { message: heartbeat.message as string } : {}),
-		} } : {}),
+		...(optionalString(input.sessionPath, `${label}.sessionPath`)
+			? { sessionPath: input.sessionPath as string }
+			: {}),
+		...(optionalString(input.acceptanceStatus, `${label}.acceptanceStatus`)
+			? { acceptanceStatus: input.acceptanceStatus as string }
+			: {}),
+		...(heartbeat
+			? {
+					heartbeat: {
+						updatedAt: timestamp(heartbeat.updatedAt, `${label}.heartbeat.updatedAt`),
+						...(optionalString(heartbeat.status, `${label}.heartbeat.status`)
+							? { status: heartbeat.status as string }
+							: {}),
+						...(optionalString(heartbeat.phase, `${label}.heartbeat.phase`)
+							? { phase: heartbeat.phase as string }
+							: {}),
+						...(optionalString(heartbeat.message, `${label}.heartbeat.message`)
+							? { message: heartbeat.message as string }
+							: {}),
+					},
+				}
+			: {}),
 	};
 }
 
@@ -180,7 +207,9 @@ function parseArtifact(value: unknown, label: string): MissionArtifact {
 	return {
 		kind,
 		path: requiredString(input.path, `${label}.path`),
-		...(optionalString(input.description, `${label}.description`) ? { description: input.description as string } : {}),
+		...(optionalString(input.description, `${label}.description`)
+			? { description: input.description as string }
+			: {}),
 	};
 }
 
@@ -202,7 +231,9 @@ function parseReceipt(value: unknown, label: string): MissionReceipt {
 		title: requiredString(input.title, `${label}.title`),
 		url,
 		createdAt: timestamp(input.createdAt, `${label}.createdAt`),
-		...(optionalString(input.description, `${label}.description`) ? { description: input.description as string } : {}),
+		...(optionalString(input.description, `${label}.description`)
+			? { description: input.description as string }
+			: {}),
 	};
 }
 
@@ -210,10 +241,12 @@ export function parseMissionRecord(value: unknown, source = "mission record"): M
 	const input = asObject(value, source);
 	if (input.schemaVersion !== 1) throw new Error(`${source}.schemaVersion must be 1`);
 	if (!Array.isArray(input.runs)) throw new Error(`${source}.runs must be an array`);
-	if (input.workflowChildren !== undefined && !Array.isArray(input.workflowChildren)) throw new Error(`${source}.workflowChildren must be an array`);
+	if (input.workflowChildren !== undefined && !Array.isArray(input.workflowChildren))
+		throw new Error(`${source}.workflowChildren must be an array`);
 	if (!Array.isArray(input.decisions)) throw new Error(`${source}.decisions must be an array`);
 	if (!Array.isArray(input.artifacts)) throw new Error(`${source}.artifacts must be an array`);
-	if (input.receipts !== undefined && !Array.isArray(input.receipts)) throw new Error(`${source}.receipts must be an array`);
+	if (input.receipts !== undefined && !Array.isArray(input.receipts))
+		throw new Error(`${source}.receipts must be an array`);
 	const runs = input.runs as unknown[];
 	const workflowChildren = (input.workflowChildren ?? []) as unknown[];
 	const decisions = input.decisions as unknown[];
@@ -237,12 +270,16 @@ export function parseMissionRecord(value: unknown, source = "mission record"): M
 		createdAt: timestamp(input.createdAt, `${source}.createdAt`),
 		updatedAt: timestamp(input.updatedAt, `${source}.updatedAt`),
 		runs: runs.map((item, index) => parseRunLink(item, `${source}.runs[${index}]`)),
-		workflowChildren: workflowChildren.map((item, index) => parseWorkflowChild(item, `${source}.workflowChildren[${index}]`)),
+		workflowChildren: workflowChildren.map((item, index) =>
+			parseWorkflowChild(item, `${source}.workflowChildren[${index}]`),
+		),
 		decisions: decisions.map((item, index) => parseDecision(item, `${source}.decisions[${index}]`)),
 		artifacts: artifacts.map((item, index) => parseArtifact(item, `${source}.artifacts[${index}]`)),
 		receipts: receipts.map((item, index) => parseReceipt(item, `${source}.receipts[${index}]`)),
 		...(optionalString(input.cwd, `${source}.cwd`) ? { cwd: input.cwd as string } : {}),
-		...(optionalString(input.ownerSessionId, `${source}.ownerSessionId`) ? { ownerSessionId: input.ownerSessionId as string } : {}),
+		...(optionalString(input.ownerSessionId, `${source}.ownerSessionId`)
+			? { ownerSessionId: input.ownerSessionId as string }
+			: {}),
 		...(optionalString(input.summary, `${source}.summary`) ? { summary: input.summary as string } : {}),
 		...(input.acceptance !== undefined ? { acceptance: input.acceptance } : {}),
 		...(input.labels !== undefined ? { labels: stringArray(input.labels, `${source}.labels`) } : {}),
@@ -263,13 +300,24 @@ export function validateMissionStoreConfig(value: unknown, label = "config.missi
 	if (value === undefined) return undefined;
 	const input = asObject(value, label);
 	for (const key of Object.keys(input)) {
-		if (key !== "enabled" && key !== "directory" && key !== "globalIndex" && key !== "globalIndexDir" && key !== "retainTerminal") {
+		if (
+			key !== "enabled" &&
+			key !== "directory" &&
+			key !== "globalIndex" &&
+			key !== "globalIndexDir" &&
+			key !== "retainTerminal"
+		) {
 			throw new Error(`${label}.${key} is unknown`);
 		}
 	}
-	if (input.enabled !== undefined && typeof input.enabled !== "boolean") throw new Error(`${label}.enabled must be boolean`);
-	if (input.globalIndex !== undefined && typeof input.globalIndex !== "boolean") throw new Error(`${label}.globalIndex must be boolean`);
-	if (input.retainTerminal !== undefined && (!Number.isInteger(input.retainTerminal) || (input.retainTerminal as number) < 1)) {
+	if (input.enabled !== undefined && typeof input.enabled !== "boolean")
+		throw new Error(`${label}.enabled must be boolean`);
+	if (input.globalIndex !== undefined && typeof input.globalIndex !== "boolean")
+		throw new Error(`${label}.globalIndex must be boolean`);
+	if (
+		input.retainTerminal !== undefined &&
+		(!Number.isInteger(input.retainTerminal) || (input.retainTerminal as number) < 1)
+	) {
 		throw new Error(`${label}.retainTerminal must be a positive integer`);
 	}
 	const directory = optionalString(input.directory, `${label}.directory`);
@@ -312,7 +360,9 @@ export function resolveMissionStoreLocation(input: {
 	// must hash the same. Configured paths keep expanding against the root as given.
 	const projectRoot = configuredDir ? givenRoot : canonicalProjectRoot(givenRoot);
 	const agentDir = input.agentDir ?? getAgentDir();
-	const missionDir = configuredDir ? expandConfiguredPath(configuredDir, givenRoot) : projectMissionDirectory(agentDir, projectRoot);
+	const missionDir = configuredDir
+		? expandConfiguredPath(configuredDir, givenRoot)
+		: projectMissionDirectory(agentDir, projectRoot);
 	const globalIndexDir = input.config?.globalIndexDir
 		? expandConfiguredPath(input.config.globalIndexDir, givenRoot)
 		: path.join(agentDir, "missions", "index");
@@ -370,8 +420,8 @@ function writeMission(location: MissionStoreLocation, record: MissionRecord): Mi
 }
 
 function pruneTerminalMissions(location: MissionStoreLocation, maxTerminal: number): void {
-	const terminal = listMissions(location).records
-		.filter((record) => TERMINAL_MISSION_STATUSES.has(record.status))
+	const terminal = listMissions(location)
+		.records.filter((record) => TERMINAL_MISSION_STATUSES.has(record.status))
 		.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 	for (const record of terminal.slice(maxTerminal)) {
 		try {
@@ -384,7 +434,12 @@ function pruneTerminalMissions(location: MissionStoreLocation, maxTerminal: numb
 	}
 }
 
-export function createMission(location: MissionStoreLocation, input: MissionCreateInput, now = new Date(), retainTerminal = location.retainTerminal ?? DEFAULT_TERMINAL_MISSION_RETENTION): MissionRecord {
+export function createMission(
+	location: MissionStoreLocation,
+	input: MissionCreateInput,
+	now = new Date(),
+	retainTerminal = location.retainTerminal ?? DEFAULT_TERMINAL_MISSION_RETENTION,
+): MissionRecord {
 	const createdAt = now.toISOString();
 	const record: MissionRecord = {
 		schemaVersion: 1,
@@ -403,7 +458,9 @@ export function createMission(location: MissionStoreLocation, input: MissionCrea
 		decisions: [],
 		artifacts: [],
 		receipts: [],
-		...(input.ownerSessionId ? { ownerSessionId: requiredString(input.ownerSessionId, "mission.ownerSessionId") } : {}),
+		...(input.ownerSessionId
+			? { ownerSessionId: requiredString(input.ownerSessionId, "mission.ownerSessionId") }
+			: {}),
 		...(input.labels ? { labels: stringArray(input.labels, "mission.labels") } : {}),
 	};
 	if (input.goal === true && !input.budget) throw new Error("mission.budget is required when mission.goal is true");
@@ -418,7 +475,9 @@ export class MissionNotFoundError extends Error {
 	readonly missionDir: string;
 
 	constructor(missionId: string, location: MissionStoreLocation) {
-		super(`Mission '${missionId}' was not found in mission directory '${location.missionDir}' for project root '${location.projectRoot}'. If it was created in another worktree, run the request from that worktree.`);
+		super(
+			`Mission '${missionId}' was not found in mission directory '${location.missionDir}' for project root '${location.projectRoot}'. If it was created in another worktree, run the request from that worktree.`,
+		);
 		this.name = "MissionNotFoundError";
 		this.missionId = missionId;
 		this.missionDir = location.missionDir;
@@ -445,19 +504,30 @@ export function listMissions(location: MissionStoreLocation): MissionListResult 
 	if (!fs.existsSync(location.missionDir)) return { records: [], warnings: [] };
 	const records: MissionRecord[] = [];
 	const warnings: string[] = [];
-	for (const name of fs.readdirSync(location.missionDir).filter((item) => item.endsWith(".json")).sort()) {
+	for (const name of fs
+		.readdirSync(location.missionDir)
+		.filter((item) => item.endsWith(".json"))
+		.sort()) {
 		const filePath = path.join(location.missionDir, name);
 		try {
 			records.push(parseMissionRecord(JSON.parse(fs.readFileSync(filePath, "utf-8")), filePath));
 		} catch (error) {
-			warnings.push(`Skipped corrupt mission '${filePath}': ${error instanceof Error ? error.message : String(error)}`);
+			warnings.push(
+				`Skipped corrupt mission '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
+			);
 		}
 	}
 	records.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));
 	return { records, warnings };
 }
 
-export function updateMission(location: MissionStoreLocation, missionId: string, update: MissionUpdateInput, now = new Date(), retainTerminal = location.retainTerminal ?? DEFAULT_TERMINAL_MISSION_RETENTION): MissionRecord {
+export function updateMission(
+	location: MissionStoreLocation,
+	missionId: string,
+	update: MissionUpdateInput,
+	now = new Date(),
+	retainTerminal = location.retainTerminal ?? DEFAULT_TERMINAL_MISSION_RETENTION,
+): MissionRecord {
 	const current = readMission(location, missionId);
 	const runs = [...current.runs];
 	for (const candidate of update.addRuns ?? []) {
@@ -469,29 +539,39 @@ export function updateMission(location: MissionStoreLocation, missionId: string,
 	const workflowChildren = [...current.workflowChildren];
 	for (const candidate of update.upsertWorkflowChildren ?? []) {
 		const nowIso = now.toISOString();
-		const parsed = parseWorkflowChild({
-			...candidate,
-			startedAt: candidate.startedAt ?? nowIso,
-			updatedAt: nowIso,
-			artifactPaths: candidate.artifactPaths ?? [],
-			...(candidate.heartbeat ? { heartbeat: { ...candidate.heartbeat, updatedAt: nowIso } } : {}),
-		}, "mission.update.upsertWorkflowChildren[]");
-		const existingIndex = workflowChildren.findIndex((child) => child.workflowRunId === parsed.workflowRunId && child.key === parsed.key);
+		const parsed = parseWorkflowChild(
+			{
+				...candidate,
+				startedAt: candidate.startedAt ?? nowIso,
+				updatedAt: nowIso,
+				artifactPaths: candidate.artifactPaths ?? [],
+				...(candidate.heartbeat ? { heartbeat: { ...candidate.heartbeat, updatedAt: nowIso } } : {}),
+			},
+			"mission.update.upsertWorkflowChildren[]",
+		);
+		const existingIndex = workflowChildren.findIndex(
+			(child) => child.workflowRunId === parsed.workflowRunId && child.key === parsed.key,
+		);
 		if (existingIndex === -1) workflowChildren.push(parsed);
 		else {
 			const existing = workflowChildren[existingIndex]!;
-			workflowChildren[existingIndex] = parseWorkflowChild({
-				...existing,
-				...parsed,
-				startedAt: existing.startedAt,
-				artifactPaths: [...new Set([...existing.artifactPaths, ...parsed.artifactPaths])],
-			}, "mission.update.upsertWorkflowChildren[]");
+			workflowChildren[existingIndex] = parseWorkflowChild(
+				{
+					...existing,
+					...parsed,
+					startedAt: existing.startedAt,
+					artifactPaths: [...new Set([...existing.artifactPaths, ...parsed.artifactPaths])],
+				},
+				"mission.update.upsertWorkflowChildren[]",
+			);
 		}
 	}
 	const artifacts = [...current.artifacts];
 	for (const candidate of update.addArtifacts ?? []) {
 		const artifact = parseArtifact(candidate, "mission.update.addArtifacts[]");
-		const existingIndex = artifacts.findIndex((item) => item.kind === artifact.kind && path.resolve(item.path) === path.resolve(artifact.path));
+		const existingIndex = artifacts.findIndex(
+			(item) => item.kind === artifact.kind && path.resolve(item.path) === path.resolve(artifact.path),
+		);
 		if (existingIndex === -1) artifacts.push(artifact);
 		else artifacts[existingIndex] = { ...artifacts[existingIndex]!, ...artifact };
 	}
@@ -505,50 +585,79 @@ export function updateMission(location: MissionStoreLocation, missionId: string,
 	}
 	const decisions = [
 		...current.decisions,
-		...(update.addDecisions ?? []).map((decision): MissionDecision => ({
-			id: randomUUID(),
-			status: "open",
-			title: requiredString(decision.title, "mission.update.addDecisions[].title"),
-			createdAt,
-			...(decision.prompt ? { prompt: requiredString(decision.prompt, "mission.update.addDecisions[].prompt") } : {}),
-			...(decision.options ? { options: stringArray(decision.options, "mission.update.addDecisions[].options") } : {}),
-			...(decision.recommendation ? { recommendation: requiredString(decision.recommendation, "mission.update.addDecisions[].recommendation") } : {}),
-		})),
+		...(update.addDecisions ?? []).map(
+			(decision): MissionDecision => ({
+				id: randomUUID(),
+				status: "open",
+				title: requiredString(decision.title, "mission.update.addDecisions[].title"),
+				createdAt,
+				...(decision.prompt
+					? { prompt: requiredString(decision.prompt, "mission.update.addDecisions[].prompt") }
+					: {}),
+				...(decision.options
+					? { options: stringArray(decision.options, "mission.update.addDecisions[].options") }
+					: {}),
+				...(decision.recommendation
+					? {
+							recommendation: requiredString(
+								decision.recommendation,
+								"mission.update.addDecisions[].recommendation",
+							),
+						}
+					: {}),
+			}),
+		),
 	];
 	if (update.resolveDecision) {
 		const decisionId = validateMissionId(update.resolveDecision.id, "mission.update.resolveDecision.id");
 		const decisionIndex = decisions.findIndex((decision) => decision.id === decisionId);
 		if (decisionIndex === -1) throw new Error(`Decision '${decisionId}' was not found in mission '${missionId}'`);
-		if (decisions[decisionIndex]!.status === "resolved") throw new Error(`Decision '${decisionId}' is already resolved`);
+		if (decisions[decisionIndex]!.status === "resolved")
+			throw new Error(`Decision '${decisionId}' is already resolved`);
 		decisions[decisionIndex] = {
 			...decisions[decisionIndex]!,
 			status: "resolved",
 			resolvedAt: createdAt,
-			resolution: requiredString(update.resolveDecision.resolution, "mission.update.resolveDecision.resolution").trim(),
+			resolution: requiredString(
+				update.resolveDecision.resolution,
+				"mission.update.resolveDecision.resolution",
+			).trim(),
 		};
 	}
 	const budget = update.budget !== undefined ? parseBudget(update.budget, "mission.update.budget") : current.budget;
-	const usage = update.usage !== undefined
-		? parseUsage(update.usage, "mission.update.usage")
-		: { tokens: runs.reduce((total, run) => total + (run.usage?.tokens ?? 0), 0) };
-	let goal = update.goal === false ? undefined : update.goal !== undefined ? parseGoal(update.goal, "mission.update.goal") : current.goal;
+	const usage =
+		update.usage !== undefined
+			? parseUsage(update.usage, "mission.update.usage")
+			: { tokens: runs.reduce((total, run) => total + (run.usage?.tokens ?? 0), 0) };
+	let goal =
+		update.goal === false
+			? undefined
+			: update.goal !== undefined
+				? parseGoal(update.goal, "mission.update.goal")
+				: current.goal;
 	if (goal && !budget) throw new Error("mission.update.budget is required when enabling a goal mission");
 	if (goal && budget) {
-		goal = usage.tokens >= budget.tokens
-			? { status: "budget-exhausted" }
-			: goal.status === "budget-exhausted"
-				? { status: "active" }
-				: goal;
+		goal =
+			usage.tokens >= budget.tokens
+				? { status: "budget-exhausted" }
+				: goal.status === "budget-exhausted"
+					? { status: "active" }
+					: goal;
 	}
 	const hasOpenDecisions = decisions.some((decision) => decision.status === "open");
-	const requestedStatus = update.status !== undefined ? missionStatus(update.status, "mission.update.status") : undefined;
-	const candidateStatus = requestedStatus
-		?? (update.addDecisions?.length && current.status === "active"
+	const requestedStatus =
+		update.status !== undefined ? missionStatus(update.status, "mission.update.status") : undefined;
+	const candidateStatus =
+		requestedStatus ??
+		(update.addDecisions?.length && current.status === "active"
 			? "needs_decision"
 			: update.resolveDecision && current.status === "needs_decision" && !hasOpenDecisions
 				? "active"
 				: current.status);
-	const decisionStatus = hasOpenDecisions && (candidateStatus === "active" || candidateStatus === "completed") ? "needs_decision" : candidateStatus;
+	const decisionStatus =
+		hasOpenDecisions && (candidateStatus === "active" || candidateStatus === "completed")
+			? "needs_decision"
+			: candidateStatus;
 	const next: MissionRecord = {
 		...current,
 		updatedAt: createdAt,
@@ -558,7 +667,9 @@ export function updateMission(location: MissionStoreLocation, missionId: string,
 		receipts,
 		decisions,
 		...(update.title !== undefined ? { title: requiredString(update.title, "mission.update.title").trim() } : {}),
-		...(update.objective !== undefined ? { objective: requiredString(update.objective, "mission.update.objective").trim() } : {}),
+		...(update.objective !== undefined
+			? { objective: requiredString(update.objective, "mission.update.objective").trim() }
+			: {}),
 		...(budget ? { budget } : {}),
 		...(goal ? { goal, usage } : {}),
 		status: decisionStatus,
@@ -576,13 +687,17 @@ export function listGlobalMissions(globalIndexDir: string): GlobalMissionListRes
 	if (!fs.existsSync(globalIndexDir)) return { entries: [], warnings: [] };
 	const entries: GlobalMissionIndexRecord[] = [];
 	const warnings: string[] = [];
-	for (const name of fs.readdirSync(globalIndexDir).filter((item) => item.endsWith(".json")).sort()) {
+	for (const name of fs
+		.readdirSync(globalIndexDir)
+		.filter((item) => item.endsWith(".json"))
+		.sort()) {
 		const filePath = path.join(globalIndexDir, name);
 		try {
 			const entry = parseIndexEntry(JSON.parse(fs.readFileSync(filePath, "utf-8")), filePath);
 			try {
 				const record = parseMissionRecord(JSON.parse(fs.readFileSync(entry.recordPath, "utf-8")), entry.recordPath);
-				if (record.id !== entry.missionId) throw new Error(`record id '${record.id}' does not match index id '${entry.missionId}'`);
+				if (record.id !== entry.missionId)
+					throw new Error(`record id '${record.id}' does not match index id '${entry.missionId}'`);
 				const projection: MissionIndexEntry = {
 					...entry,
 					title: record.title,
@@ -597,16 +712,26 @@ export function listGlobalMissions(globalIndexDir: string): GlobalMissionListRes
 				if ((error as NodeJS.ErrnoException).code === "ENOENT") {
 					try {
 						fs.rmSync(filePath, { force: true });
-						warnings.push(`Removed stale global mission pointer '${filePath}' because '${entry.recordPath}' no longer exists.`);
+						warnings.push(
+							`Removed stale global mission pointer '${filePath}' because '${entry.recordPath}' no longer exists.`,
+						);
 					} catch (removeError) {
-						warnings.push(`Failed to remove stale global mission pointer '${filePath}': ${removeError instanceof Error ? removeError.message : String(removeError)}`);
+						warnings.push(
+							`Failed to remove stale global mission pointer '${filePath}': ${removeError instanceof Error ? removeError.message : String(removeError)}`,
+						);
 					}
 					continue;
 				}
-				entries.push({ ...entry, stale: true, staleReason: error instanceof Error ? error.message : String(error) });
+				entries.push({
+					...entry,
+					stale: true,
+					staleReason: error instanceof Error ? error.message : String(error),
+				});
 			}
 		} catch (error) {
-			warnings.push(`Skipped corrupt global mission index entry '${filePath}': ${error instanceof Error ? error.message : String(error)}`);
+			warnings.push(
+				`Skipped corrupt global mission index entry '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
+			);
 		}
 	}
 	entries.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt));

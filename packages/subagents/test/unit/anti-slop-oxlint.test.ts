@@ -29,10 +29,18 @@ function lintFixture(source: string): string {
 			lintResult = JSON.parse(stdout);
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			assert.fail(`Oxlint setup/configuration failed before producing a JSON lint result: ${message}\n${processOutput}`);
+			assert.fail(
+				`Oxlint setup/configuration failed before producing a JSON lint result: ${message}\n${processOutput}`,
+			);
 		}
-		const diagnostics = lintResult !== null && typeof lintResult === "object" && "diagnostics" in lintResult ? lintResult.diagnostics : undefined;
-		assert.ok(Array.isArray(diagnostics), `Oxlint setup/configuration did not produce a JSON lint result with diagnostics:\n${processOutput}`);
+		const diagnostics =
+			lintResult !== null && typeof lintResult === "object" && "diagnostics" in lintResult
+				? lintResult.diagnostics
+				: undefined;
+		assert.ok(
+			Array.isArray(diagnostics),
+			`Oxlint setup/configuration did not produce a JSON lint result with diagnostics:\n${processOutput}`,
+		);
 		assert.notEqual(result.status, 0, result.stderr);
 		return stdout;
 	} finally {

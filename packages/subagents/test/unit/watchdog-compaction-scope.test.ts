@@ -24,9 +24,19 @@ function activityTurn(text: string) {
 		type: "turn_end",
 		message: {
 			role: "assistant",
-			content: [{ type: "toolCall", id: "activity-call", name: "subagent", arguments: { action: "status", id: "run" } }],
+			content: [
+				{ type: "toolCall", id: "activity-call", name: "subagent", arguments: { action: "status", id: "run" } },
+			],
 		},
-		toolResults: [{ role: "toolResult", toolCallId: "activity-call", toolName: "subagent", content: [{ type: "text", text }], isError: false }],
+		toolResults: [
+			{
+				role: "toolResult",
+				toolCallId: "activity-call",
+				toolName: "subagent",
+				content: [{ type: "text", text }],
+				isError: false,
+			},
+		],
 	};
 }
 
@@ -43,7 +53,9 @@ function createHarness(review: WatchdogReviewFunction) {
 		registerEntryRenderer() {},
 		sendMessage() {},
 		appendEntry() {},
-		getThinkingLevel() { return "off"; },
+		getThinkingLevel() {
+			return "off";
+		},
 	};
 	const runtime = new MainWatchdogRuntime({
 		cwd: process.cwd(),
@@ -74,7 +86,11 @@ describe("watchdog compaction scope", () => {
 			await emit("turn_end", activityTurn("Old transient activity"));
 			await emit("session_compact", { reason: "threshold" });
 			await emit("before_agent_start", { prompt: "Continue the implementation." });
-			await emit("turn_end", { type: "turn_end", message: { role: "assistant", content: [{ type: "text", text: "Updated code." }] }, toolResults: [] });
+			await emit("turn_end", {
+				type: "turn_end",
+				message: { role: "assistant", content: [{ type: "text", text: "Updated code." }] },
+				toolResults: [],
+			});
 			await emit("agent_end");
 
 			assert.equal(requests.length, 1);
@@ -84,7 +100,11 @@ describe("watchdog compaction scope", () => {
 
 			await emit("session_before_switch", { reason: "new" });
 			await emit("before_agent_start", { prompt: "Start unrelated work." });
-			await emit("turn_end", { type: "turn_end", message: { role: "assistant", content: [{ type: "text", text: "New work." }] }, toolResults: [] });
+			await emit("turn_end", {
+				type: "turn_end",
+				message: { role: "assistant", content: [{ type: "text", text: "New work." }] },
+				toolResults: [],
+			});
 			await emit("agent_end");
 			assert.doesNotMatch(requests[1]!.delta, /authorized routing change/);
 		} finally {

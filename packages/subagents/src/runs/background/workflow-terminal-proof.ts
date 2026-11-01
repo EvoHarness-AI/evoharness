@@ -6,7 +6,9 @@ import { readProcessTerminal } from "./process-terminal.ts";
 
 const TERMINAL_WORKFLOW_STATES = new Set<WorkflowChildSummary["workflowState"]>(["completed", "failed", "stopped"]);
 
-export function isTerminalAsyncState(state: AsyncStatus["state"]): state is Exclude<AsyncStatus["state"], "queued" | "running" | "paused"> {
+export function isTerminalAsyncState(
+	state: AsyncStatus["state"],
+): state is Exclude<AsyncStatus["state"], "queued" | "running" | "paused"> {
 	return state !== "queued" && state !== "running" && state !== "paused";
 }
 
@@ -18,7 +20,8 @@ export function readWorkflowChildRunModel(
 	workflowAsyncDir: string,
 	step: { async?: boolean; runId?: string },
 ): { model?: string; thinking?: string } | undefined {
-	if (step.async !== true || typeof step.runId !== "string" || path.basename(step.runId) !== step.runId) return undefined;
+	if (step.async !== true || typeof step.runId !== "string" || path.basename(step.runId) !== step.runId)
+		return undefined;
 	try {
 		const child = readStatus(path.join(path.dirname(workflowAsyncDir), step.runId));
 		const first = Array.isArray(child?.steps) ? child.steps[0] : undefined;
@@ -31,7 +34,10 @@ export function readWorkflowChildRunModel(
 }
 
 /** Fill a workflow child roster row from the child's own reported model. */
-export function withWorkflowChildRunModel<T extends { runId?: string; model?: string; thinking?: string }>(workflowAsyncDir: string, child: T): T {
+export function withWorkflowChildRunModel<T extends { runId?: string; model?: string; thinking?: string }>(
+	workflowAsyncDir: string,
+	child: T,
+): T {
 	if (child.model && child.thinking) return child;
 	const reported = readWorkflowChildRunModel(workflowAsyncDir, { async: true, runId: child.runId });
 	const model = child.model ?? reported?.model;
@@ -52,7 +58,10 @@ export type WorkflowChildEvidence =
  * Process evidence for a workflow's async children. Status proofs and capacity
  * release both use this so they cannot disagree about the same workflow.
  */
-export function readWorkflowChildProcessEvidence(workflowAsyncDir: string, steps: AsyncStatus["steps"]): WorkflowChildProcessEvidence {
+export function readWorkflowChildProcessEvidence(
+	workflowAsyncDir: string,
+	steps: AsyncStatus["steps"],
+): WorkflowChildProcessEvidence {
 	if (!steps) return { state: "unknown", reason: "workflow child roster is missing" };
 	const children: ProcessTerminal[] = [];
 	for (const step of steps) {
@@ -70,27 +79,51 @@ export function readWorkflowChildProcessEvidence(workflowAsyncDir: string, steps
  */
 function launchFailedBeforeRunner(step: NonNullable<AsyncStatus["steps"]>[number], childDir?: string): boolean {
 	if (step.status !== "failed" || !step.error) return false;
-	return !childDir || !["process-terminal.json", "runner-startup.json"].some((file) => fs.existsSync(path.join(childDir, file)));
+	return (
+		!childDir ||
+		!["process-terminal.json", "runner-startup.json"].some((file) => fs.existsSync(path.join(childDir, file)))
+	);
 }
 
 /** Evidence for one roster entry; undefined for synchronous children, which run inside the workflow host and have no process of their own, and for async children whose launch failed before a runner existed. */
-export function readWorkflowChildEvidence(workflowAsyncDir: string, step: NonNullable<AsyncStatus["steps"]>[number]): WorkflowChildEvidence | undefined {
+export function readWorkflowChildEvidence(
+	workflowAsyncDir: string,
+	step: NonNullable<AsyncStatus["steps"]>[number],
+): WorkflowChildEvidence | undefined {
 	const label = step.workflowKey ?? step.agent;
-	if (typeof step.async !== "boolean") return { state: "unknown", reason: `workflow child ${label} is missing async classification` };
+	if (typeof step.async !== "boolean")
+		return { state: "unknown", reason: `workflow child ${label} is missing async classification` };
 	if (!step.async) return undefined;
-	if (!step.runId || path.basename(step.runId) !== step.runId) return { state: "unknown", reason: `async workflow child ${label} is missing run id` };
+	if (!step.runId || path.basename(step.runId) !== step.runId)
+		return { state: "unknown", reason: `async workflow child ${label} is missing run id` };
 	const childDir = path.join(path.dirname(workflowAsyncDir), step.runId);
-	if (!fs.existsSync(childDir)) return launchFailedBeforeRunner(step) ? undefined : { state: "unknown", reason: `async workflow child ${label} directory is missing` };
+	if (!fs.existsSync(childDir))
+		return launchFailedBeforeRunner(step)
+			? undefined
+			: { state: "unknown", reason: `async workflow child ${label} directory is missing` };
 	const childStatus = readStatus(childDir);
-	if (!childStatus) return launchFailedBeforeRunner(step, childDir) ? undefined : { state: "unknown", reason: `async workflow child ${label} status is missing or unreadable` };
-	if (!isTerminalAsyncState(childStatus.state)) return { state: "pending", reason: `async workflow child ${label} is still ${childStatus.state}` };
+	if (!childStatus)
+		return launchFailedBeforeRunner(step, childDir)
+			? undefined
+			: { state: "unknown", reason: `async workflow child ${label} status is missing or unreadable` };
+	if (!isTerminalAsyncState(childStatus.state))
+		return { state: "pending", reason: `async workflow child ${label} is still ${childStatus.state}` };
 	const recorded = childStatus.processTerminal;
-	if (!recorded?.runnerProcessInstanceId) return { state: "unknown", reason: `async workflow child ${label} has no runner process identity` };
+	if (!recorded?.runnerProcessInstanceId)
+		return { state: "unknown", reason: `async workflow child ${label} has no runner process identity` };
 	// A runner startup failure records `not-started` in status and never writes a process-terminal sidecar.
-	if (recorded.state === "not-started" && recorded.runId === step.runId && typeof childStatus.error === "string" && childStatus.error) {
+	if (
+		recorded.state === "not-started" &&
+		recorded.runId === step.runId &&
+		typeof childStatus.error === "string" &&
+		childStatus.error
+	) {
 		return { state: "resolved", proof: recorded };
 	}
-	const proof = readProcessTerminal(childDir, { runId: step.runId, runnerProcessInstanceId: recorded.runnerProcessInstanceId });
+	const proof = readProcessTerminal(childDir, {
+		runId: step.runId,
+		runnerProcessInstanceId: recorded.runnerProcessInstanceId,
+	});
 	if (proof?.state !== "observed" || proof.runId !== step.runId) {
 		const proofState = proof?.state ?? "missing";
 		const bound = childStatus.runId === step.runId && typeof recorded.runnerProcessInstanceId === "string";
@@ -103,12 +136,23 @@ export function readWorkflowChildEvidence(workflowAsyncDir: string, step: NonNul
 	return { state: "resolved", proof };
 }
 
-function unresolved(runId: string, state: "pending" | "unknown", dispatchClosed: boolean, reason: string): WorkflowTerminalProof {
+function unresolved(
+	runId: string,
+	state: "pending" | "unknown",
+	dispatchClosed: boolean,
+	reason: string,
+): WorkflowTerminalProof {
 	return { version: 1, kind: "workflow", runId, state, dispatchClosed, reason };
 }
 
 /** A persistent workflow host is terminal only after dispatch closes and every async child has process evidence. */
-export function readWorkflowTerminalProof(asyncDir: string, steps: AsyncStatus["steps"], summary: WorkflowChildSummary, hostCommandCount: number, closedAt: number): WorkflowTerminalProof {
+export function readWorkflowTerminalProof(
+	asyncDir: string,
+	steps: AsyncStatus["steps"],
+	summary: WorkflowChildSummary,
+	hostCommandCount: number,
+	closedAt: number,
+): WorkflowTerminalProof {
 	const runId = summary.workflowRunId;
 	if (!summary.inventoryComplete || !TERMINAL_WORKFLOW_STATES.has(summary.workflowState)) {
 		return unresolved(runId, "pending", false, "Workflow dispatch is still open.");
@@ -118,6 +162,17 @@ export function readWorkflowTerminalProof(asyncDir: string, steps: AsyncStatus["
 	}
 	const evidence = readWorkflowChildProcessEvidence(asyncDir, steps);
 	if (evidence.state !== "observed") return unresolved(runId, evidence.state, true, evidence.reason);
-	const observedAt = Math.max(closedAt, ...evidence.children.map((child) => child.state === "observed" ? child.observedAt : 0));
-	return { version: 1, kind: "workflow", runId, state: "observed", dispatchClosed: true, observedAt, children: evidence.children };
+	const observedAt = Math.max(
+		closedAt,
+		...evidence.children.map((child) => (child.state === "observed" ? child.observedAt : 0)),
+	);
+	return {
+		version: 1,
+		kind: "workflow",
+		runId,
+		state: "observed",
+		dispatchClosed: true,
+		observedAt,
+		children: evidence.children,
+	};
 }

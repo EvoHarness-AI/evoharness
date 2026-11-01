@@ -63,6 +63,7 @@
 | `@earendil-works/pi-agent-core` | `@evoharness/agent-core` | 85 |
 | `@earendil-works/pi-ai` | `@evoharness/ai` | 77 + `/compat` 7(子路径保留,F6) |
 | `@earendil-works/pi-tui` | `@evoharness/tui` | 66 |
+| `@earendil-works/chord` | `@evoharness/chord` | runner-aliases.ts 别名表(v2 执行期补:peerDeps 未列但运行时引用)+ 夹具/测试 |
 | 残余 `@earendil-works/*` | 逐一人工审(注释/别名表/测试) | 目标:源码内 0 处 |
 
 ### 2.2 `packages/subagents/package.json` 结构改动

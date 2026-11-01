@@ -1,10 +1,15 @@
 import * as fs from "node:fs";
 import type { ArtifactPaths, SubagentState, Usage, WaitCompletion, WaitCompletionChild } from "../../shared/types.ts";
-import type { AsyncRunSummary } from "./async-status.ts";
-import { readCompletionReplay, writeCompletionReplay } from "./completion-replay.ts";
-import { fallbackResultPayloadPathForSessionRun, resultFilePath, resultPayloadMatchesSessionRun, resultPayloadPathForSessionRun } from "./result-files.ts";
 import { parseWorkflowChildSummary } from "../../workflows/workflow-child-summary.ts";
 import { projectTimeoutRecovery } from "../shared/mutation-evidence.ts";
+import type { AsyncRunSummary } from "./async-status.ts";
+import { readCompletionReplay, writeCompletionReplay } from "./completion-replay.ts";
+import {
+	fallbackResultPayloadPathForSessionRun,
+	resultFilePath,
+	resultPayloadMatchesSessionRun,
+	resultPayloadPathForSessionRun,
+} from "./result-files.ts";
 
 function asNonEmptyString(value: unknown): string | undefined {
 	return typeof value === "string" && value ? value : undefined;
@@ -23,7 +28,16 @@ function projectedUsage(value: unknown): Usage | undefined {
 	const cacheWrite = nonNegativeNumber(record.cacheWrite);
 	const cost = nonNegativeNumber(record.cost);
 	const turns = nonNegativeNumber(record.turns);
-	if (input === undefined || output === undefined || cacheRead === undefined || cacheWrite === undefined || cost === undefined || turns === undefined || !Number.isSafeInteger(turns)) return undefined;
+	if (
+		input === undefined ||
+		output === undefined ||
+		cacheRead === undefined ||
+		cacheWrite === undefined ||
+		cost === undefined ||
+		turns === undefined ||
+		!Number.isSafeInteger(turns)
+	)
+		return undefined;
 	return { input, output, cacheRead, cacheWrite, cost, turns };
 }
 
@@ -69,7 +83,9 @@ export function projectStructuredOutput(value: unknown): unknown {
 	if (value === undefined) return undefined;
 	const serialized = JSON.stringify(value);
 	if (typeof serialized !== "string") throw new Error("Structured output must be JSON-serializable");
-	return Buffer.byteLength(serialized, "utf8") <= STRUCTURED_OUTPUT_INLINE_LIMIT_BYTES ? JSON.parse(serialized) : undefined;
+	return Buffer.byteLength(serialized, "utf8") <= STRUCTURED_OUTPUT_INLINE_LIMIT_BYTES
+		? JSON.parse(serialized)
+		: undefined;
 }
 
 /**
@@ -81,50 +97,57 @@ export function projectStructuredOutput(value: unknown): unknown {
 export function toWaitCompletion(data: Record<string, unknown>, runId: string): WaitCompletion {
 	const results = Array.isArray(data.results)
 		? data.results.flatMap((entry): WaitCompletionChild[] => {
-			if (entry === null || typeof entry !== "object") return [];
-			const child = entry as Record<string, unknown>;
-			const outputState = child.outputState === "present" || child.outputState === "absent" || child.outputState === "unknown"
-				? child.outputState
-				: undefined;
-			const artifactPaths = child.artifactPaths !== null && typeof child.artifactPaths === "object"
-				? (child.artifactPaths as Partial<ArtifactPaths>)
-				: undefined;
-			const agent = asNonEmptyString(child.agent);
-			const childRunId = asNonEmptyString(child.runId);
-			const usage = projectedUsage(child.usage);
-			const sessionFile = asNonEmptyString(child.sessionFile);
-			const error = asNonEmptyString(child.error);
-			const model = asNonEmptyString(child.model);
-			const structuredOutput = projectStructuredOutput(child.structuredOutput);
-			const structuredOutputPath = asNonEmptyString(child.structuredOutputPath);
-			const contextOverflow = child.contextOverflow === true;
-			const timeoutRecovery = projectTimeoutRecovery(child.timeoutRecovery);
-			return [{
-				...(agent ? { agent } : {}),
-				...(childRunId ? { runId: childRunId } : {}),
-				...(usage ? { usage } : {}),
-				...(sessionFile ? { sessionFile } : {}),
-				...(typeof child.success === "boolean" ? { success: child.success } : {}),
-				...(outputState ? { outputState } : {}),
-				...(child.outputPartial === true ? { outputPartial: true } : {}),
-				...(structuredOutput !== undefined ? { structuredOutput } : {}),
-				...(structuredOutputPath ? { structuredOutputPath } : {}),
-				...(error ? { error } : {}),
-				...(model ? { model } : {}),
-				...(contextOverflow ? { contextOverflow: true } : {}),
-				...(artifactPaths ? { artifactPaths } : {}),
-				...(timeoutRecovery ? { timeoutRecovery } : {}),
-			}];
-		})
+				if (entry === null || typeof entry !== "object") return [];
+				const child = entry as Record<string, unknown>;
+				const outputState =
+					child.outputState === "present" || child.outputState === "absent" || child.outputState === "unknown"
+						? child.outputState
+						: undefined;
+				const artifactPaths =
+					child.artifactPaths !== null && typeof child.artifactPaths === "object"
+						? (child.artifactPaths as Partial<ArtifactPaths>)
+						: undefined;
+				const agent = asNonEmptyString(child.agent);
+				const childRunId = asNonEmptyString(child.runId);
+				const usage = projectedUsage(child.usage);
+				const sessionFile = asNonEmptyString(child.sessionFile);
+				const error = asNonEmptyString(child.error);
+				const model = asNonEmptyString(child.model);
+				const structuredOutput = projectStructuredOutput(child.structuredOutput);
+				const structuredOutputPath = asNonEmptyString(child.structuredOutputPath);
+				const contextOverflow = child.contextOverflow === true;
+				const timeoutRecovery = projectTimeoutRecovery(child.timeoutRecovery);
+				return [
+					{
+						...(agent ? { agent } : {}),
+						...(childRunId ? { runId: childRunId } : {}),
+						...(usage ? { usage } : {}),
+						...(sessionFile ? { sessionFile } : {}),
+						...(typeof child.success === "boolean" ? { success: child.success } : {}),
+						...(outputState ? { outputState } : {}),
+						...(child.outputPartial === true ? { outputPartial: true } : {}),
+						...(structuredOutput !== undefined ? { structuredOutput } : {}),
+						...(structuredOutputPath ? { structuredOutputPath } : {}),
+						...(error ? { error } : {}),
+						...(model ? { model } : {}),
+						...(contextOverflow ? { contextOverflow: true } : {}),
+						...(artifactPaths ? { artifactPaths } : {}),
+						...(timeoutRecovery ? { timeoutRecovery } : {}),
+					},
+				];
+			})
 		: undefined;
 	const agent = asNonEmptyString(data.agent);
 	const receipt = data.workflowReceipt;
-	const workflowReceiptPath = receipt && typeof receipt === "object" && !Array.isArray(receipt)
-		? asNonEmptyString((receipt as Record<string, unknown>).path) : undefined;
+	const workflowReceiptPath =
+		receipt && typeof receipt === "object" && !Array.isArray(receipt)
+			? asNonEmptyString((receipt as Record<string, unknown>).path)
+			: undefined;
 	const mode = asNonEmptyString(data.mode);
 	const state = asNonEmptyString(data.state);
 	const workflowChildren = parseWorkflowChildSummary(data.workflowChildren);
-	if (workflowChildren && workflowChildren.workflowRunId !== runId) throw new Error("workflowChildren.workflowRunId does not match its completion run id.");
+	if (workflowChildren && workflowChildren.workflowRunId !== runId)
+		throw new Error("workflowChildren.workflowRunId does not match its completion run id.");
 	return {
 		runId,
 		...(agent ? { agent } : {}),
@@ -155,7 +178,7 @@ export function recordWaitCompletion(
 	const sessionId = asNonEmptyString(data.sessionId);
 	if (!sessionId || !resultPayloadMatchesSessionRun(data, sessionId, runId)) return false;
 	if (persistence && persistence.sessionId !== sessionId) return false;
-	const store = state.completedResults ??= new Map();
+	const store = (state.completedResults ??= new Map());
 	for (const [key, entry] of store) {
 		if (now - entry.seenAt > ttlMs) store.delete(key);
 	}
@@ -184,7 +207,12 @@ export function recordWaitCompletion(
  * so a direct read never observes a torn write; the read is deliberately read-only —
  * the watcher owns notification and cleanup.
  */
-export function collectWaitCompletions(terminal: AsyncRunSummary[], state: SubagentState, resultsDir: string, onReference?: (text: string) => void): WaitCompletion[] | undefined {
+export function collectWaitCompletions(
+	terminal: AsyncRunSummary[],
+	state: SubagentState,
+	resultsDir: string,
+	onReference?: (text: string) => void,
+): WaitCompletion[] | undefined {
 	if (terminal.length === 0) return undefined;
 	const completions: WaitCompletion[] = [];
 	const add = (completion: WaitCompletion, resultPath?: string): void => {

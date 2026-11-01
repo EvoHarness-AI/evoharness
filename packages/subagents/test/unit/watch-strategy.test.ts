@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { shouldUseNativeFsWatch, type FileWatchPurpose } from "../../src/shared/watch-strategy.ts";
+import { type FileWatchPurpose, shouldUseNativeFsWatch } from "../../src/shared/watch-strategy.ts";
 
 const purposes: FileWatchPurpose[] = [
 	"result-delivery",

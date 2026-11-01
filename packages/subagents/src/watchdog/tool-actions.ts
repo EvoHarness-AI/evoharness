@@ -2,10 +2,21 @@ import type { AgentToolResult } from "@evoharness/agent-core";
 import type { ExtensionContext } from "@evoharness/coding-agent";
 import { THINKING_LEVELS, type ThinkingLevel } from "../shared/model-info.ts";
 import type { Details } from "../shared/types.ts";
+import {
+	formatWatchdogRecommendation,
+	parseWatchdogThinkingInput,
+	recommendStrongWatchdogModel,
+	recommendWatchdogModel,
+	resolveWatchdogModelInput,
+} from "./model-selection.ts";
 import { buildWatchdogStatus } from "./register-main.ts";
 import type { MainWatchdogRuntime } from "./runtime.ts";
-import { formatWatchdogRecommendation, parseWatchdogThinkingInput, recommendStrongWatchdogModel, recommendWatchdogModel, resolveWatchdogModelInput } from "./model-selection.ts";
-import { resolveWatchdogConfig, writeWatchdogModelSettings, type WatchdogModelSettingsTarget, type WatchdogSettingsWriteScope } from "./settings.ts";
+import {
+	resolveWatchdogConfig,
+	type WatchdogModelSettingsTarget,
+	type WatchdogSettingsWriteScope,
+	writeWatchdogModelSettings,
+} from "./settings.ts";
 
 interface WatchdogToolParams {
 	action?: string;
@@ -52,18 +63,29 @@ function parseThinking(raw: string | false | undefined): ThinkingLevel | false |
 	return parseWatchdogThinkingInput(raw, "watchdog.configure thinking") ?? undefined;
 }
 
-function resolveConfiguredValue(ctx: ExtensionContext, params: WatchdogToolParams, runtime?: MainWatchdogRuntime): { model?: string | null; thinking?: ThinkingLevel | false | null; description: string } {
+function resolveConfiguredValue(
+	ctx: ExtensionContext,
+	params: WatchdogToolParams,
+	runtime?: MainWatchdogRuntime,
+): { model?: string | null; thinking?: ThinkingLevel | false | null; description: string } {
 	const thinking = parseThinking(params.thinking);
 	const rawModel = params.model?.trim();
 	if (!rawModel) {
 		if (thinking === undefined) throw new Error("watchdog.configure requires model, thinking, or both.");
-		return { thinking, description: `thinking ${thinking === null ? "inherit" : thinking === false ? "off" : thinking}` };
+		return {
+			thinking,
+			description: `thinking ${thinking === null ? "inherit" : thinking === false ? "off" : thinking}`,
+		};
 	}
 	if (rawModel === "inherit") return { model: null, thinking: thinking ?? null, description: "inherit" };
 	if (rawModel === "recommended") {
-		const recommendation = (params.target ?? "main") === "main"
-			? recommendWatchdogModel(ctx, (runtime?.getSnapshot(ctx.cwd).config ?? resolveWatchdogConfig(ctx.cwd).config).main)
-			: recommendStrongWatchdogModel(ctx);
+		const recommendation =
+			(params.target ?? "main") === "main"
+				? recommendWatchdogModel(
+						ctx,
+						(runtime?.getSnapshot(ctx.cwd).config ?? resolveWatchdogConfig(ctx.cwd).config).main,
+					)
+				: recommendStrongWatchdogModel(ctx);
 		return {
 			model: recommendation.model,
 			thinking: recommendation.thinking,
@@ -74,25 +96,35 @@ function resolveConfiguredValue(ctx: ExtensionContext, params: WatchdogToolParam
 	return {
 		model: resolved.model,
 		thinking: resolved.thinking ?? thinking,
-		description: `${resolved.model}${resolved.thinking ?? thinking ? `:${resolved.thinking ?? thinking}` : ""}`,
+		description: `${resolved.model}${(resolved.thinking ?? thinking) ? `:${resolved.thinking ?? thinking}` : ""}`,
 	};
 }
 
 function buildRecommendationText(ctx: ExtensionContext, runtime?: MainWatchdogRuntime): string {
-	const recommendation = recommendWatchdogModel(ctx, (runtime?.getSnapshot(ctx.cwd).config ?? resolveWatchdogConfig(ctx.cwd).config).main);
+	const recommendation = recommendWatchdogModel(
+		ctx,
+		(runtime?.getSnapshot(ctx.cwd).config ?? resolveWatchdogConfig(ctx.cwd).config).main,
+	);
 	return [
 		"Subagent watchdog recommended model",
-		recommendation.source === "configured" ? formatWatchdogRecommendation(recommendation) : `Recommended: ${recommendation.model}:${recommendation.thinking}`,
+		recommendation.source === "configured"
+			? formatWatchdogRecommendation(recommendation)
+			: `Recommended: ${recommendation.model}:${recommendation.thinking}`,
 		`Reason: ${recommendation.reason}`,
-		"Apply temporarily with subagent({ action: \"watchdog.configure\", model: \"recommended\", options: { scope: \"session\" } }).",
-		"Persist with options.scope \"project\" or \"user\" only when the user asks for that scope.",
+		'Apply temporarily with subagent({ action: "watchdog.configure", model: "recommended", options: { scope: "session" } }).',
+		'Persist with options.scope "project" or "user" only when the user asks for that scope.',
 	].join("\n");
 }
 
 function buildCheckText(runtime: MainWatchdogRuntime | undefined, ctx: ExtensionContext): string {
 	if (!runtime) return "Subagent watchdog runtime is unavailable.";
 	const snapshot = runtime.getSnapshot(ctx.cwd);
-	if (!snapshot.configOk) return ["Subagent watchdog config check", "Config errors:", ...snapshot.errors.map((error) => `- ${error.message}`)].join("\n");
+	if (!snapshot.configOk)
+		return [
+			"Subagent watchdog config check",
+			"Config errors:",
+			...snapshot.errors.map((error) => `- ${error.message}`),
+		].join("\n");
 	const lines = ["Subagent watchdog config check", "Config: ok"];
 	if (snapshot.config.main.model) {
 		const resolved = resolveWatchdogModelInput(ctx, snapshot.config.main.model);
@@ -109,7 +141,12 @@ function buildCheckText(runtime: MainWatchdogRuntime | undefined, ctx: Extension
 	return lines.join("\n");
 }
 
-export function handleWatchdogToolAction(action: string, params: WatchdogToolParams, ctx: ExtensionContext, runtime?: MainWatchdogRuntime): AgentToolResult<Details> {
+export function handleWatchdogToolAction(
+	action: string,
+	params: WatchdogToolParams,
+	ctx: ExtensionContext,
+	runtime?: MainWatchdogRuntime,
+): AgentToolResult<Details> {
 	try {
 		if (action === "watchdog.status") {
 			if (!runtime) return result("Subagent watchdog runtime is unavailable.", true);
@@ -124,14 +161,17 @@ export function handleWatchdogToolAction(action: string, params: WatchdogToolPar
 		const value = resolveConfiguredValue(ctx, params, runtime);
 		if (scope === "session") {
 			if (!runtime) return result("Subagent watchdog runtime is unavailable.", true);
-			if (target.kind !== "main") return result("Session-scoped watchdog.configure currently supports target='main' only.", true);
+			if (target.kind !== "main")
+				return result("Session-scoped watchdog.configure currently supports target='main' only.", true);
 			runtime.setSessionModel({ model: value.model, thinking: value.thinking }, ctx.cwd);
-			return result([
-				`Subagent watchdog session model configured: ${value.description}.`,
-				"No settings files were changed.",
-				"",
-				buildWatchdogStatus(runtime.getSnapshot(ctx.cwd), ctx),
-			].join("\n"));
+			return result(
+				[
+					`Subagent watchdog session model configured: ${value.description}.`,
+					"No settings files were changed.",
+					"",
+					buildWatchdogStatus(runtime.getSnapshot(ctx.cwd), ctx),
+				].join("\n"),
+			);
 		}
 
 		const settingsPath = writeWatchdogModelSettings({
@@ -143,14 +183,20 @@ export function handleWatchdogToolAction(action: string, params: WatchdogToolPar
 		});
 		runtime?.refreshConfig(ctx.cwd);
 		const targetLabel = target.kind === "child" ? `child ${target.agent}` : target.kind;
-		return result([
-			`Subagent watchdog ${targetLabel} model configured: ${value.description}.`,
-			`Updated: ${settingsPath}`,
-		].join("\n"));
+		return result(
+			[`Subagent watchdog ${targetLabel} model configured: ${value.description}.`, `Updated: ${settingsPath}`].join(
+				"\n",
+			),
+		);
 	} catch (error) {
 		return result(`Subagent watchdog action failed: ${messageFromError(error)}`, true);
 	}
 }
 
-export const WATCHDOG_TOOL_ACTIONS = ["watchdog.status", "watchdog.check", "watchdog.configure", "watchdog.recommend-model"] as const;
+export const WATCHDOG_TOOL_ACTIONS = [
+	"watchdog.status",
+	"watchdog.check",
+	"watchdog.configure",
+	"watchdog.recommend-model",
+] as const;
 export const WATCHDOG_THINKING_VALUES = ["inherit", ...THINKING_LEVELS] as const;

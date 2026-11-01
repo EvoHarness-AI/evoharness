@@ -1,4 +1,4 @@
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -17,7 +17,9 @@ export interface WatchdogLspRequest {
 	config: WatchdogLspConfig;
 	signal?: AbortSignal;
 }
-export type WatchdogLspDiagnosticsFunction = (request: WatchdogLspRequest) => Promise<WatchdogLspResult> | WatchdogLspResult;
+export type WatchdogLspDiagnosticsFunction = (
+	request: WatchdogLspRequest,
+) => Promise<WatchdogLspResult> | WatchdogLspResult;
 interface TargetFile {
 	relPath: string;
 	absPath: string;
@@ -99,7 +101,11 @@ function pathExecutable(filePath: string): boolean {
 function pathExecutableNames(name: string): string[] {
 	if (process.platform !== "win32") return [name];
 	const extensions = (process.env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";").filter(Boolean);
-	return [name, ...extensions.map((ext) => `${name}${ext.toLowerCase()}`), ...extensions.map((ext) => `${name}${ext.toUpperCase()}`)];
+	return [
+		name,
+		...extensions.map((ext) => `${name}${ext.toLowerCase()}`),
+		...extensions.map((ext) => `${name}${ext.toUpperCase()}`),
+	];
 }
 
 function resolveTypeScriptLanguageServer(root: string): LspCommand | undefined {
@@ -116,7 +122,11 @@ function resolveTypeScriptLanguageServer(root: string): LspCommand | undefined {
 	return undefined;
 }
 
-function collectTargetFiles(root: string, changedPaths: string[], maxFiles: number): { targets: TargetFile[]; skippedPaths: string[] } {
+function collectTargetFiles(
+	root: string,
+	changedPaths: string[],
+	maxFiles: number,
+): { targets: TargetFile[]; skippedPaths: string[] } {
 	const targets: TargetFile[] = [];
 	const skippedPaths: string[] = [];
 	for (const changedPath of changedPaths) {
@@ -152,13 +162,11 @@ function collectTargetFiles(root: string, changedPaths: string[], maxFiles: numb
 
 function diagnosticIdentity(diagnostic: WatchdogLspDiagnostic): string {
 	return createHash("sha256")
-		.update([
-			diagnostic.path,
-			diagnostic.severity,
-			diagnostic.source,
-			diagnostic.code ?? "",
-			diagnostic.message,
-		].join("\n"))
+		.update(
+			[diagnostic.path, diagnostic.severity, diagnostic.source, diagnostic.code ?? "", diagnostic.message].join(
+				"\n",
+			),
+		)
 		.digest("hex");
 }
 
@@ -196,16 +204,17 @@ function formatDiagnostic(diagnostic: WatchdogLspDiagnostic): string {
 }
 
 export function formatWatchdogLspDiagnosticsBlock(result: WatchdogLspResult): string {
-	const actionable = result.diagnostics.filter((diagnostic) => diagnostic.severity === "error" || diagnostic.severity === "warning");
+	const actionable = result.diagnostics.filter(
+		(diagnostic) => diagnostic.severity === "error" || diagnostic.severity === "warning",
+	);
 	if (!actionable.length) return "";
-	return [
-		"LSP diagnostics:",
-		...actionable.map((diagnostic) => `- ${formatDiagnostic(diagnostic)}`),
-	].join("\n");
+	return ["LSP diagnostics:", ...actionable.map((diagnostic) => `- ${formatDiagnostic(diagnostic)}`)].join("\n");
 }
 
 export function watchdogWarningFromLspDiagnostics(result: WatchdogLspResult): WatchdogWarning | undefined {
-	const actionable = result.diagnostics.filter((diagnostic) => diagnostic.severity === "error" || diagnostic.severity === "warning");
+	const actionable = result.diagnostics.filter(
+		(diagnostic) => diagnostic.severity === "error" || diagnostic.severity === "warning",
+	);
 	if (!actionable.length) return undefined;
 	const errors = actionable.filter((diagnostic) => diagnostic.severity === "error");
 	const severity = errors.length ? "blocker" : "concern";
@@ -276,7 +285,11 @@ class JsonRpcLspClient {
 		});
 		child.on("exit", (code, signal) => {
 			this.exited = true;
-			this.rejectPending(new Error(`language server exited${code === null ? "" : ` with code ${code}`}${signal ? ` signal ${signal}` : ""}`));
+			this.rejectPending(
+				new Error(
+					`language server exited${code === null ? "" : ` with code ${code}`}${signal ? ` signal ${signal}` : ""}`,
+				),
+			);
 			this.resolveExitWaiters();
 		});
 	}
@@ -425,11 +438,18 @@ function initializeParams(root: string): unknown {
 	};
 }
 
-async function waitForDiagnostics(client: JsonRpcLspClient, targets: TargetFile[], timeoutMs: number, signal?: AbortSignal): Promise<boolean> {
+async function waitForDiagnostics(
+	client: JsonRpcLspClient,
+	targets: TargetFile[],
+	timeoutMs: number,
+	signal?: AbortSignal,
+): Promise<boolean> {
 	const started = Date.now();
 	while (!signal?.aborted && Date.now() - started < timeoutMs) {
 		if (targets.every((target) => client.diagnostics.has(target.uri))) return true;
-		await new Promise((resolve) => setTimeout(resolve, Math.min(50, Math.max(1, timeoutMs - (Date.now() - started)))));
+		await new Promise((resolve) =>
+			setTimeout(resolve, Math.min(50, Math.max(1, timeoutMs - (Date.now() - started)))),
+		);
 	}
 	return targets.every((target) => client.diagnostics.has(target.uri));
 }
@@ -524,7 +544,14 @@ export async function collectWatchdogLspDiagnostics(request: WatchdogLspRequest)
 		};
 	}
 	try {
-		return await collectWithTypeScriptLanguageServer({ root, targets, skippedPaths, command, config: request.config, signal: request.signal });
+		return await collectWithTypeScriptLanguageServer({
+			root,
+			targets,
+			skippedPaths,
+			command,
+			config: request.config,
+			signal: request.signal,
+		});
 	} catch (error) {
 		return {
 			status: "failed",

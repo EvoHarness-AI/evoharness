@@ -1,17 +1,17 @@
 import type { ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
-import { startWatchdogDiffBaselineCapture, type WatchdogDiffBaseline } from "./diff-tool.ts";
-import { MainWatchdogRuntime } from "./runtime.ts";
-import { createMainWatchdogReview } from "./review.ts";
-import { DEFAULT_WATCHDOG_CONFIG } from "./settings.ts";
-import { createWatchdogWarningMessage } from "./warning-format.ts";
+import type { ChildWatchdogWarningSummary } from "../shared/types.ts";
 import {
 	CHILD_WATCHDOG_STATUS_EVENT,
 	type ChildWatchdogConfig,
 	type ChildWatchdogPhase,
 	type ChildWatchdogStatusEvent,
 } from "./child-status.ts";
-import type { ChildWatchdogWarningSummary } from "../shared/types.ts";
-import { SUBAGENT_WATCHDOG_WARNING_TYPE, type ResolvedWatchdogConfig, type WatchdogWarningDetails } from "./types.ts";
+import { startWatchdogDiffBaselineCapture, type WatchdogDiffBaseline } from "./diff-tool.ts";
+import { createMainWatchdogReview } from "./review.ts";
+import { MainWatchdogRuntime } from "./runtime.ts";
+import { DEFAULT_WATCHDOG_CONFIG } from "./settings.ts";
+import { type ResolvedWatchdogConfig, SUBAGENT_WATCHDOG_WARNING_TYPE, type WatchdogWarningDetails } from "./types.ts";
+import { createWatchdogWarningMessage } from "./warning-format.ts";
 
 export function childResolvedConfig(config: ChildWatchdogConfig): ResolvedWatchdogConfig {
 	return {
@@ -55,7 +55,8 @@ export function registerChildWatchdog(
 	structuredTerminal?: { captured: boolean },
 ): MainWatchdogRuntime | undefined {
 	if (!childConfig) return undefined;
-	if (!writeStatus) throw new Error("Child watchdog status sink is missing; the host must pass ChildRuntimeConfig.watchdogStatus.");
+	if (!writeStatus)
+		throw new Error("Child watchdog status sink is missing; the host must pass ChildRuntimeConfig.watchdogStatus.");
 	let currentContext: ExtensionContext | undefined;
 	let diffBaseline: Promise<WatchdogDiffBaseline | undefined> | undefined;
 	let agentSettled = false;
@@ -65,7 +66,9 @@ export function registerChildWatchdog(
 			type: CHILD_WATCHDOG_STATUS_EVENT,
 			...(childConfig.runId ? { runId: childConfig.runId } : {}),
 			...(childConfig.agent ? { agent: childConfig.agent } : {}),
-			...(childConfig.childIndex !== undefined ? { childIndex: childConfig.childIndex, stepIndex: childConfig.childIndex } : {}),
+			...(childConfig.childIndex !== undefined
+				? { childIndex: childConfig.childIndex, stepIndex: childConfig.childIndex }
+				: {}),
 			seq: ++seq,
 			phase,
 			ts: Date.now(),
@@ -76,26 +79,52 @@ export function registerChildWatchdog(
 	const resolved = childResolvedConfig(childConfig);
 	const runtime = new MainWatchdogRuntime({
 		resolveConfig: () => ({ ok: true, config: resolved, errors: [], sources: [{ scope: "session", exists: true }] }),
-		review: createMainWatchdogReview(() => currentContext, { getThinkingLevel: () => pi.getThinkingLevel(), diffBaseline: () => diffBaseline }),
+		review: createMainWatchdogReview(() => currentContext, {
+			getThinkingLevel: () => pi.getThinkingLevel(),
+			diffBaseline: () => diffBaseline,
+		}),
 		reviewDescription: "child model review",
 		reviewChangesOnly: true,
 		displayWarning: (details, options) => {
 			const childDetails = childWarningDetails(details, childConfig);
-			emitStatus("reviewing", undefined, { severity: childDetails.severity, importance: childDetails.importance, category: childDetails.category, summary: childDetails.summary, evidence: childDetails.evidence, recommendedAction: childDetails.recommendedAction, ...(childDetails.displayedAt ? { displayedAt: childDetails.displayedAt } : {}), addressed: false, stalemate: childDetails.state === "stalemate" });
+			emitStatus("reviewing", undefined, {
+				severity: childDetails.severity,
+				importance: childDetails.importance,
+				category: childDetails.category,
+				summary: childDetails.summary,
+				evidence: childDetails.evidence,
+				recommendedAction: childDetails.recommendedAction,
+				...(childDetails.displayedAt ? { displayedAt: childDetails.displayedAt } : {}),
+				addressed: false,
+				stalemate: childDetails.state === "stalemate",
+			});
 			const message = createWatchdogWarningMessage(childDetails, { display: true, details: childDetails });
 			if (agentSettled) pi.appendEntry(SUBAGENT_WATCHDOG_WARNING_TYPE, childDetails);
 			else pi.sendMessage(message, options);
 		},
 		displayUserWarning: (details) => {
 			const childDetails = childWarningDetails(details, childConfig);
-			emitStatus("reviewing", undefined, { severity: childDetails.severity, importance: childDetails.importance, category: childDetails.category, summary: childDetails.summary, evidence: childDetails.evidence, recommendedAction: childDetails.recommendedAction, ...(childDetails.displayedAt ? { displayedAt: childDetails.displayedAt } : {}), addressed: false, stalemate: childDetails.state === "stalemate" });
+			emitStatus("reviewing", undefined, {
+				severity: childDetails.severity,
+				importance: childDetails.importance,
+				category: childDetails.category,
+				summary: childDetails.summary,
+				evidence: childDetails.evidence,
+				recommendedAction: childDetails.recommendedAction,
+				...(childDetails.displayedAt ? { displayedAt: childDetails.displayedAt } : {}),
+				addressed: false,
+				stalemate: childDetails.state === "stalemate",
+			});
 			pi.appendEntry(SUBAGENT_WATCHDOG_WARNING_TYPE, childDetails);
 		},
 	});
 	const rememberContext = (ctx: ExtensionContext) => {
 		currentContext = ctx;
 	};
-	const onRuntimeEvent = pi.on as unknown as (event: string, handler: (event: unknown, ctx: ExtensionContext) => unknown) => void;
+	const onRuntimeEvent = pi.on as unknown as (
+		event: string,
+		handler: (event: unknown, ctx: ExtensionContext) => unknown,
+	) => void;
 	onRuntimeEvent("session_start", (_event, ctx) => {
 		rememberContext(ctx);
 		diffBaseline = startWatchdogDiffBaselineCapture(ctx.cwd);

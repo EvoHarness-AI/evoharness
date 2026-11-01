@@ -3,14 +3,19 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { createChildTranscriptWriter, CHILD_TRANSCRIPT_ARTIFACT_VERSION } from "../../src/shared/child-transcript.ts";
+import { CHILD_TRANSCRIPT_ARTIFACT_VERSION, createChildTranscriptWriter } from "../../src/shared/child-transcript.ts";
 
 function tmpDir(): string {
 	return fs.mkdtempSync(path.join(os.tmpdir(), "child-transcript-test-"));
 }
 
 function readRecords(file: string): Record<string, unknown>[] {
-	return fs.readFileSync(file, "utf-8").trim().split("\n").filter(Boolean).map((line) => JSON.parse(line) as Record<string, unknown>);
+	return fs
+		.readFileSync(file, "utf-8")
+		.trim()
+		.split("\n")
+		.filter(Boolean)
+		.map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
 describe("createChildTranscriptWriter", () => {
@@ -57,7 +62,7 @@ describe("createChildTranscriptWriter", () => {
 		});
 		writer.writeInitialUserMessage("review it");
 		const record = readRecords(transcriptPath)[0]!;
-		assert.equal(Object.prototype.hasOwnProperty.call(record, "childIndex"), false);
+		assert.equal(Object.hasOwn(record, "childIndex"), false);
 		assert.equal(record.source, "async");
 	});
 
@@ -84,7 +89,13 @@ describe("createChildTranscriptWriter", () => {
 		});
 		writer.writeChildEvent({
 			type: "message_end",
-			message: { role: "toolResult", toolCallId: "call-1", toolName: "bash", content: [{ type: "text", text: "ok" }], isError: false },
+			message: {
+				role: "toolResult",
+				toolCallId: "call-1",
+				toolName: "bash",
+				content: [{ type: "text", text: "ok" }],
+				isError: false,
+			},
 		});
 
 		const records = readRecords(transcriptPath);
@@ -122,7 +133,12 @@ describe("createChildTranscriptWriter", () => {
 			agent: "worker",
 			cwd: "/repo",
 		});
-		writer.writeChildEvent({ type: "tool_execution_start", toolCallId: "call-1", toolName: "bash", args: { command: "ls" } });
+		writer.writeChildEvent({
+			type: "tool_execution_start",
+			toolCallId: "call-1",
+			toolName: "bash",
+			args: { command: "ls" },
+		});
 		writer.writeChildEvent({ type: "tool_execution_start", toolCallId: "call-2", toolName: "read" });
 		writer.writeChildEvent({ type: "tool_execution_end", toolCallId: "call-1", toolName: "bash", isError: false });
 		writer.writeChildEvent({ type: "some_unhandled_event" });
@@ -138,7 +154,7 @@ describe("createChildTranscriptWriter", () => {
 		assert.equal(records[0]!.argsPayload, JSON.stringify({ command: "ls" }, null, 2));
 		assert.equal(records[1]!.recordType, "tool_start");
 		assert.equal(records[1]!.toolCallId, "call-2");
-		assert.equal(Object.prototype.hasOwnProperty.call(records[1]!, "argsPreview"), false);
+		assert.equal(Object.hasOwn(records[1]!, "argsPreview"), false);
 		assert.equal(records[2]!.recordType, "tool_end");
 		assert.equal(records[2]!.toolCallId, "call-1");
 		assert.equal(records[2]!.toolName, "bash");
@@ -155,10 +171,21 @@ describe("createChildTranscriptWriter", () => {
 			agent: "worker",
 			cwd: "/repo",
 		});
-		writer.writeChildEvent({ type: "tool_execution_start", toolCallId: "large", toolName: "bash", args: { command: "🧪".repeat(10_000) } });
+		writer.writeChildEvent({
+			type: "tool_execution_start",
+			toolCallId: "large",
+			toolName: "bash",
+			args: { command: "🧪".repeat(10_000) },
+		});
 		writer.writeChildEvent({
 			type: "message_end",
-			message: { role: "toolResult", toolCallId: "large", toolName: "bash", content: [{ type: "text", text: "🧪".repeat(10_000) }], isError: false },
+			message: {
+				role: "toolResult",
+				toolCallId: "large",
+				toolName: "bash",
+				content: [{ type: "text", text: "🧪".repeat(10_000) }],
+				isError: false,
+			},
 		});
 
 		const records = readRecords(transcriptPath);
@@ -237,7 +264,10 @@ describe("createChildTranscriptWriter", () => {
 
 		assert.equal(writer.getError(), undefined);
 		const records = readRecords(transcriptPath);
-		assert.deepEqual(records.map((record) => record.recordType), ["stdout", "truncated"]);
+		assert.deepEqual(
+			records.map((record) => record.recordType),
+			["stdout", "truncated"],
+		);
 		assert.equal(records[0]!.text, "a");
 		assert.equal(records[1]!.maxBytes, 420);
 		assert.ok(fs.statSync(transcriptPath).size <= 420);
@@ -261,7 +291,10 @@ describe("createChildTranscriptWriter", () => {
 
 		const error = writer.getError();
 		assert.ok(typeof error === "string" && error.length > 0, "an init error should be reported");
-		assert.ok(error.includes(transcriptPath) || error.includes("blocker-file"), "error should reference the transcript path");
+		assert.ok(
+			error.includes(transcriptPath) || error.includes("blocker-file"),
+			"error should reference the transcript path",
+		);
 		assert.equal(fs.existsSync(transcriptPath), false);
 	});
 });

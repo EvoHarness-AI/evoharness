@@ -13,7 +13,8 @@ it("loads the executor and Fleet within seconds of a session starting, not at se
 			return nextLoad(url, context);
 		},
 	});
-	const isLoaded = (suffix: string[]) => [...loaded].some((file) => file.endsWith(`${path.sep}${suffix.join(path.sep)}`));
+	const isLoaded = (suffix: string[]) =>
+		[...loaded].some((file) => file.endsWith(`${path.sep}${suffix.join(path.sep)}`));
 	const executorLoaded = () => isLoaded(["runs", "foreground", "subagent-executor.ts"]);
 	const fleetLoaded = () => isLoaded(["tui", "fleet.ts"]);
 
@@ -22,15 +23,30 @@ it("loads the executor and Fleet within seconds of a session starting, not at se
 	const { default: registerSubagentExtension } = await import("../../src/extension/index.ts");
 	const { createEventBus } = await import("@evoharness/coding-agent");
 	const handlers = new Map<string, Array<(event: unknown, ctx: unknown) => unknown>>();
-	const pi = new Proxy({
-		events: createEventBus(),
-		on(name: string, handler: (event: unknown, ctx: unknown) => unknown) {
-			handlers.set(name, [...(handlers.get(name) ?? []), handler]);
+	const pi = new Proxy(
+		{
+			events: createEventBus(),
+			on(name: string, handler: (event: unknown, ctx: unknown) => unknown) {
+				handlers.set(name, [...(handlers.get(name) ?? []), handler]);
+			},
 		},
-	}, { get: (target, property) => property in target ? target[property as keyof typeof target] : () => undefined });
+		{ get: (target, property) => (property in target ? target[property as keyof typeof target] : () => undefined) },
+	);
 	const ctx = {
-		cwd: process.cwd(), isIdle() { return false; }, hasUI: false, model: undefined,
-		ui: { setWidget() {}, theme: { fg: (_name: string, text: string) => text, bg: (_name: string, text: string) => text, bold: (text: string) => text } },
+		cwd: process.cwd(),
+		isIdle() {
+			return false;
+		},
+		hasUI: false,
+		model: undefined,
+		ui: {
+			setWidget() {},
+			theme: {
+				fg: (_name: string, text: string) => text,
+				bg: (_name: string, text: string) => text,
+				bold: (text: string) => text,
+			},
+		},
 		sessionManager: { getSessionId: () => "preload-session", getSessionFile: () => null, getEntries: () => [] },
 		modelRegistry: { getAvailable: () => [] },
 	};

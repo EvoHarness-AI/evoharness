@@ -18,9 +18,24 @@ export async function verifySharedRun(
 	// Public workflows create independent runs. Use the existing private execution
 	// seam to exercise two real SDK sessions inside ONE configured runner.
 	const launch = executeAsyncChain(randomUUID(), {
-		chain: [{ parallel: ["LEFT", "RIGHT"].map((task) => ({ agent: "binary-smoke", task, output: false, acceptance: false })) }],
+		chain: [
+			{
+				parallel: ["LEFT", "RIGHT"].map((task) => ({
+					agent: "binary-smoke",
+					task,
+					output: false,
+					acceptance: false,
+				})),
+			},
+		],
 		agents: discoverAgents(ctx.cwd, "project").agents,
-		ctx: { pi, cwd: ctx.cwd, currentSessionId: ctx.sessionManager.getSessionId(), parentSessionId: ctx.sessionManager.getSessionId(), currentModel: ctx.model },
+		ctx: {
+			pi,
+			cwd: ctx.cwd,
+			currentSessionId: ctx.sessionManager.getSessionId(),
+			parentSessionId: ctx.sessionManager.getSessionId(),
+			currentModel: ctx.model,
+		},
 		artifactConfig: DEFAULT_ARTIFACT_CONFIG,
 		artifactsDir: "/stage/shared-artifacts",
 		shareEnabled: false,
@@ -34,16 +49,38 @@ export async function verifySharedRun(
 	fs.writeFileSync("/stage/launch.json", JSON.stringify(launch, null, 2));
 	const { asyncId, asyncDir } = launch.details;
 	assert.ok(asyncId && asyncDir);
-	await waitForFile("/stage/lifecycle.jsonl", (text) => text.trim().split("\n").map((line) => JSON.parse(line)).filter((event) => event.event === "request").length === 2);
+	await waitForFile(
+		"/stage/lifecycle.jsonl",
+		(text) =>
+			text
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line))
+				.filter((event) => event.event === "request").length === 2,
+	);
 	const active = JSON.parse(fs.readFileSync(`${asyncDir}/status.json`, "utf8"));
 	assert.equal(active.steps.length, 2);
 	assert.equal(active.state, "running");
 	// Held requests witness execution even if status projection lags them.
-	const held = fs.readFileSync("/stage/lifecycle.jsonl", "utf8").trim().split("\n").map((line) => JSON.parse(line)).filter((event) => event.pid === active.pid);
+	const held = fs
+		.readFileSync("/stage/lifecycle.jsonl", "utf8")
+		.trim()
+		.split("\n")
+		.map((line) => JSON.parse(line))
+		.filter((event) => event.pid === active.pid);
 	assert.equal(held.filter((event) => event.event === "request").length, 2);
 	assert.equal(held.filter((event) => event.event === "shutdown").length, 0);
-	fs.writeFileSync("/stage/shared-active-witness.json", JSON.stringify({ pid: active.pid, heldRequests: 2, shutdowns: 0, projectedSteps: active.steps.map((step: { status: string }) => step.status) }));
-	if (mode === "parallel-stop") fs.writeFileSync("/stage/parallel-control.json", JSON.stringify(requestAsyncStop(asyncDir)));
+	fs.writeFileSync(
+		"/stage/shared-active-witness.json",
+		JSON.stringify({
+			pid: active.pid,
+			heldRequests: 2,
+			shutdowns: 0,
+			projectedSteps: active.steps.map((step: { status: string }) => step.status),
+		}),
+	);
+	if (mode === "parallel-stop")
+		fs.writeFileSync("/stage/parallel-control.json", JSON.stringify(requestAsyncStop(asyncDir)));
 	else fs.writeFileSync("/stage/release", "go");
 	await completed;
 	await waitForFile(`${asyncDir}/process-terminal.json`, (text) => JSON.parse(text).state !== "pending");
@@ -56,7 +93,12 @@ export async function verifySharedRun(
 	assert.equal(terminal.instances.length, 1, "one host process, no per-session CLI writers");
 	assert.equal(terminal.instances[0].exitCode, 0);
 	assert.throws(() => process.kill(status.pid, 0), { code: "ESRCH" });
-	const lifecycle = fs.readFileSync("/stage/lifecycle.jsonl", "utf8").trim().split("\n").map((line) => JSON.parse(line)).filter((event) => event.pid !== process.pid);
+	const lifecycle = fs
+		.readFileSync("/stage/lifecycle.jsonl", "utf8")
+		.trim()
+		.split("\n")
+		.map((line) => JSON.parse(line))
+		.filter((event) => event.pid !== process.pid);
 	assert.ok(lifecycle.every((event) => event.pid === status.pid));
 	const starts = lifecycle.filter((event) => event.event === "start");
 	const shutdowns = lifecycle.filter((event) => event.event === "shutdown");
@@ -64,16 +106,27 @@ export async function verifySharedRun(
 	assert.equal(shutdowns.length, 2);
 	assert.equal(new Set(starts.map((event) => event.sessionId)).size, 2);
 	assert.deepEqual(shutdowns.map((event) => event.sessionId).sort(), starts.map((event) => event.sessionId).sort());
-	assert.ok(starts.every((event) => event.sdkIdentity && event.provider === "standalone-smoke" && event.model === "local"));
+	assert.ok(
+		starts.every((event) => event.sdkIdentity && event.provider === "standalone-smoke" && event.model === "local"),
+	);
 	if (mode === "shared-run") {
-		const transcripts = status.steps.map((step: { transcriptPath: string }) => fs.readFileSync(step.transcriptPath, "utf8"));
+		const transcripts = status.steps.map((step: { transcriptPath: string }) =>
+			fs.readFileSync(step.transcriptPath, "utf8"),
+		);
 		assert.ok(transcripts[0].includes("standalone child response verified LEFT"));
 		assert.ok(transcripts[1].includes("standalone child response verified RIGHT"));
 		const sessions = shutdowns.map((event) => fs.readFileSync(event.sessionFile, "utf8"));
 		assert.equal(new Set(shutdowns.map((event) => event.sessionFile)).size, 2);
-		for (const label of ["LEFT", "RIGHT"]) assert.equal(sessions.filter((text) => text.includes(`standalone child response verified ${label}`)).length, 1);
+		for (const label of ["LEFT", "RIGHT"])
+			assert.equal(
+				sessions.filter((text) => text.includes(`standalone child response verified ${label}`)).length,
+				1,
+			);
 	} else {
 		assert.ok(status.steps.every((step: { status: string }) => step.status === "stopped"));
 	}
-	fs.writeFileSync("/stage/shared-result.json", JSON.stringify({ asyncId, asyncDir, mode, sessions: starts.map((event) => event.sessionId), terminal }, null, 2));
+	fs.writeFileSync(
+		"/stage/shared-result.json",
+		JSON.stringify({ asyncId, asyncDir, mode, sessions: starts.map((event) => event.sessionId), terminal }, null, 2),
+	);
 }

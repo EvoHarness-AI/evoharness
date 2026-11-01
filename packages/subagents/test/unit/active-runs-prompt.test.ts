@@ -3,8 +3,8 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 import { it } from "node:test";
+import { fileURLToPath } from "node:url";
 import { SUBAGENT_CHILD_ENV } from "../../src/runs/shared/child-runtime-config.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -55,7 +55,18 @@ function promptSections(config: Record<string, unknown>): Record<string, string 
 		fs.writeFileSync(path.join(home, "extensions", "subagent", "config.json"), JSON.stringify(config));
 		const env = { ...process.env, EVOHARNESS_CODING_AGENT_DIR: home };
 		delete env[SUBAGENT_CHILD_ENV];
-		const output = execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: root, env, encoding: "utf-8" });
+		const output = execFileSync(
+			process.execPath,
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"--eval",
+				script,
+			],
+			{ cwd: root, env, encoding: "utf-8" },
+		);
 		const line = output.split("\n").find((entry) => entry.startsWith("RESULT "));
 		assert.ok(line, output);
 		return JSON.parse(line.slice("RESULT ".length));

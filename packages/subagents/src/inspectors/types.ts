@@ -1,8 +1,13 @@
 import type { AgentToolResult } from "@evoharness/agent-core";
 import type { Details } from "../shared/types.ts";
 
-export const INSPECTOR_ACTIONS = ["inspector.open", "inspector.command", "inspector.status", "inspector.close"] as const;
-export type InspectorAction = typeof INSPECTOR_ACTIONS[number];
+export const INSPECTOR_ACTIONS = [
+	"inspector.open",
+	"inspector.command",
+	"inspector.status",
+	"inspector.close",
+] as const;
+export type InspectorAction = (typeof INSPECTOR_ACTIONS)[number];
 
 export interface InspectorParams {
 	id?: string;

@@ -40,12 +40,24 @@ function baseConfig(root: string, id: string, steps: SubagentRunConfig["steps"])
 type StepModels = { model?: string; launchModel?: string; resolvedModel?: { provider: string; model: string } };
 
 function stepModels(config: SubagentRunConfig): StepModels[] {
-	const status = JSON.parse(fs.readFileSync(path.join(config.asyncDir!, "status.json"), "utf-8")) as { steps: StepModels[] };
+	const status = JSON.parse(fs.readFileSync(path.join(config.asyncDir!, "status.json"), "utf-8")) as {
+		steps: StepModels[];
+	};
 	return status.steps.map(({ model, launchModel, resolvedModel }) => ({ model, launchModel, resolvedModel }));
 }
 
 function assistantReply(provider: string, model: string): unknown {
-	return { type: "message_end", message: { role: "assistant", content: [{ type: "text", text: "done" }], provider, model, stopReason: "stop", usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } } } };
+	return {
+		type: "message_end",
+		message: {
+			role: "assistant",
+			content: [{ type: "text", text: "done" }],
+			provider,
+			model,
+			stopReason: "stop",
+			usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } },
+		},
+	};
 }
 
 describe("async step reports the observed child model", () => {
@@ -53,10 +65,13 @@ describe("async step reports the observed child model", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-observed-model-switch-"));
 		const queue = path.join(root, "queue");
 		fs.mkdirSync(queue, { recursive: true });
-		fs.writeFileSync(path.join(queue, "default-response.json"), JSON.stringify({
-			output: "done on the rerouted model",
-			reportedModel: "openai-codex/gpt-6-sol",
-		}));
+		fs.writeFileSync(
+			path.join(queue, "default-response.json"),
+			JSON.stringify({
+				output: "done on the rerouted model",
+				reportedModel: "openai-codex/gpt-6-sol",
+			}),
+		);
 		const fake = createFakeChildSessions(() => queue);
 		const config = baseConfig(root, "observed-switch", [
 			{ agent: "qwen_worker", task: "do the work", model: "llama-swap/qwen3.5:9b" },
@@ -79,10 +94,13 @@ describe("async step reports the observed child model", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-observed-model-same-"));
 		const queue = path.join(root, "queue");
 		fs.mkdirSync(queue, { recursive: true });
-		fs.writeFileSync(path.join(queue, "default-response.json"), JSON.stringify({
-			output: "done on the launch model",
-			reportedModel: "llama-swap/qwen3.5:9b",
-		}));
+		fs.writeFileSync(
+			path.join(queue, "default-response.json"),
+			JSON.stringify({
+				output: "done on the launch model",
+				reportedModel: "llama-swap/qwen3.5:9b",
+			}),
+		);
 		const fake = createFakeChildSessions(() => queue);
 		const config = baseConfig(root, "observed-same", [
 			{ agent: "qwen_worker", task: "do the work", model: "llama-swap/qwen3.5:9b" },
@@ -90,7 +108,11 @@ describe("async step reports the observed child model", () => {
 		try {
 			await runSubagent(config, fake.factory);
 			const models = stepModels(config);
-			assert.deepEqual(models, [{ model: "llama-swap/qwen3.5:9b", launchModel: undefined, resolvedModel: undefined }], "a stable model must be reported unchanged; a reply without a provider records no resolved model");
+			assert.deepEqual(
+				models,
+				[{ model: "llama-swap/qwen3.5:9b", launchModel: undefined, resolvedModel: undefined }],
+				"a stable model must be reported unchanged; a reply without a provider records no resolved model",
+			);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -100,12 +122,29 @@ describe("async step reports the observed child model", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-observed-model-resolved-"));
 		const queue = path.join(root, "queue");
 		fs.mkdirSync(queue, { recursive: true });
-		fs.writeFileSync(path.join(queue, "default-response.json"), JSON.stringify({ jsonl: [assistantReply("openai-codex", "gpt-6-sol")] }));
+		fs.writeFileSync(
+			path.join(queue, "default-response.json"),
+			JSON.stringify({ jsonl: [assistantReply("openai-codex", "gpt-6-sol")] }),
+		);
 		const sessionFile = path.join(root, "fork.jsonl");
-		fs.writeFileSync(sessionFile, [
-			{ type: "session", id: "parent", cwd: root, timestamp: new Date(0).toISOString() },
-			{ type: "message", id: "m1", message: { role: "assistant", content: [{ type: "text", text: "parent" }], provider: "anthropic", model: "claude-parent" } },
-		].map((entry) => JSON.stringify(entry)).join("\n") + "\n");
+		fs.writeFileSync(
+			sessionFile,
+			[
+				{ type: "session", id: "parent", cwd: root, timestamp: new Date(0).toISOString() },
+				{
+					type: "message",
+					id: "m1",
+					message: {
+						role: "assistant",
+						content: [{ type: "text", text: "parent" }],
+						provider: "anthropic",
+						model: "claude-parent",
+					},
+				},
+			]
+				.map((entry) => JSON.stringify(entry))
+				.join("\n") + "\n",
+		);
 		const fake = createFakeChildSessions(() => queue);
 		const config = baseConfig(root, "observed-resolved", [
 			{ agent: "worker", task: "do the work", model: "llama-swap/qwen3.5:9b", context: "fork", sessionFile },

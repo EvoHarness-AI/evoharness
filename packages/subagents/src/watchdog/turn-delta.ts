@@ -28,17 +28,31 @@ export interface WatchdogTurnDeltaInput {
 function textFromContent(content: unknown): string {
 	if (typeof content === "string") return content;
 	if (Array.isArray(content)) {
-		return content.map((block) => {
-			if (typeof block === "string") return block;
-			if (block && typeof block === "object") {
-				const item = block as { type?: string; text?: unknown; thinking?: unknown; content?: unknown; name?: unknown; input?: unknown; args?: unknown; arguments?: unknown };
-				if (item.type === "text" && typeof item.text === "string") return item.text;
-				if (item.type === "thinking" && typeof item.thinking === "string") return ["Thinking:", item.thinking].join("\n");
-				if (item.type === "toolCall") return formatToolCall(item.name, item.input ?? item.args ?? item.arguments);
-				if (typeof item.content === "string") return item.content;
-			}
-			return "";
-		}).filter(Boolean).join("\n");
+		return content
+			.map((block) => {
+				if (typeof block === "string") return block;
+				if (block && typeof block === "object") {
+					const item = block as {
+						type?: string;
+						text?: unknown;
+						thinking?: unknown;
+						content?: unknown;
+						name?: unknown;
+						input?: unknown;
+						args?: unknown;
+						arguments?: unknown;
+					};
+					if (item.type === "text" && typeof item.text === "string") return item.text;
+					if (item.type === "thinking" && typeof item.thinking === "string")
+						return ["Thinking:", item.thinking].join("\n");
+					if (item.type === "toolCall")
+						return formatToolCall(item.name, item.input ?? item.args ?? item.arguments);
+					if (typeof item.content === "string") return item.content;
+				}
+				return "";
+			})
+			.filter(Boolean)
+			.join("\n");
 	}
 	if (content === undefined || content === null) return "";
 	return formatValue(content);
@@ -67,9 +81,10 @@ function redactEditWriteInput(input: unknown): unknown {
 	if (!input || typeof input !== "object") return input;
 	const sanitized: Record<string, unknown> = {};
 	for (const [key, value] of Object.entries(input as Record<string, unknown>)) {
-		sanitized[key] = ["oldText", "newText", "content"].includes(key) && typeof value === "string"
-			? `[omitted ${value.length} chars; use tool result diff]`
-			: redactEditWriteInput(value);
+		sanitized[key] =
+			["oldText", "newText", "content"].includes(key) && typeof value === "string"
+				? `[omitted ${value.length} chars; use tool result diff]`
+				: redactEditWriteInput(value);
 	}
 	return sanitized;
 }
@@ -84,11 +99,26 @@ function formatToolCall(name: unknown, input: unknown): string {
 	return [`Tool call: ${toolName}`, "Arguments:", formatToolArguments(toolName, input ?? {})].join("\n");
 }
 
-function formatToolResult(name: string, content: unknown, details: unknown, error: unknown, isError: boolean | undefined): string {
+function formatToolResult(
+	name: string,
+	content: unknown,
+	details: unknown,
+	error: unknown,
+	isError: boolean | undefined,
+): string {
 	const failed = isError === true || Boolean(error);
 	const lines = [`Tool result: ${name}`];
-	if (failed) lines.push(`Error: ${error ? (typeof error === "string" ? error : formatValue(error)) : "tool reported an error"}`);
-	if (!failed && details && typeof details === "object" && "diff" in details && typeof (details as { diff?: unknown }).diff === "string") {
+	if (failed)
+		lines.push(
+			`Error: ${error ? (typeof error === "string" ? error : formatValue(error)) : "tool reported an error"}`,
+		);
+	if (
+		!failed &&
+		details &&
+		typeof details === "object" &&
+		"diff" in details &&
+		typeof (details as { diff?: unknown }).diff === "string"
+	) {
 		lines.push("Diff:", (details as { diff: string }).diff);
 	} else {
 		const body = textFromContent(content);
@@ -108,23 +138,40 @@ function messagesFromEvent(event: unknown): unknown[] {
 		return [{ role: "toolCall", name: input.toolName ?? input.name, input: input.args ?? input.input }];
 	}
 	if (input.type === "tool_execution_end" || input.event === "tool_execution_end") {
-		const result = input.result && typeof input.result === "object" && !Array.isArray(input.result) ? input.result as Record<string, unknown> : undefined;
-		return [{
-			role: "toolResult",
-			toolName: input.toolName ?? input.name,
-			content: result?.content ?? input.content ?? input.result,
-			details: result?.details ?? input.details,
-			error: input.error,
-			isError: input.isError,
-		}];
+		const result =
+			input.result && typeof input.result === "object" && !Array.isArray(input.result)
+				? (input.result as Record<string, unknown>)
+				: undefined;
+		return [
+			{
+				role: "toolResult",
+				toolName: input.toolName ?? input.name,
+				content: result?.content ?? input.content ?? input.result,
+				details: result?.details ?? input.details,
+				error: input.error,
+				isError: input.isError,
+			},
+		];
 	}
 	if (input.type === "tool_result" || input.event === "tool_result") {
-		return [{ role: "toolResult", toolName: input.toolName ?? input.name, content: input.content, details: input.details, error: input.error, isError: input.isError }];
+		return [
+			{
+				role: "toolResult",
+				toolName: input.toolName ?? input.name,
+				content: input.content,
+				details: input.details,
+				error: input.error,
+				isError: input.isError,
+			},
+		];
 	}
 	return [];
 }
 
-export function formatWatchdogReviewMessage(message: unknown, options: { structuredTerminal?: boolean } = {}): string | undefined {
+export function formatWatchdogReviewMessage(
+	message: unknown,
+	options: { structuredTerminal?: boolean } = {},
+): string | undefined {
 	if (!message || typeof message !== "object") return undefined;
 	const input = message as MessageLike;
 	if (input.role === "custom" && input.customType === SUBAGENT_WATCHDOG_WARNING_TYPE) return undefined;
@@ -132,13 +179,24 @@ export function formatWatchdogReviewMessage(message: unknown, options: { structu
 		const text = textFromContent(input.content);
 		const lines = text
 			? ["Assistant:", text]
-			: [options.structuredTerminal ? "Assistant: (validated structured output is the terminal response; no prose is required)" : "Assistant: (no text)"];
+			: [
+					options.structuredTerminal
+						? "Assistant: (validated structured output is the terminal response; no prose is required)"
+						: "Assistant: (no text)",
+				];
 		if (input.stopReason === "stop") lines.push("Assistant stop: stop");
 		return lines.join("\n");
 	}
-	if (input.role === "toolCall") return formatToolCall(input.name ?? input.toolName, input.input ?? input.args ?? input.arguments);
+	if (input.role === "toolCall")
+		return formatToolCall(input.name ?? input.toolName, input.input ?? input.args ?? input.arguments);
 	if (input.role === "toolResult" || input.role === "tool") {
-		return formatToolResult(input.toolName ?? input.name ?? "tool", input.content, input.details, input.error, input.isError);
+		return formatToolResult(
+			input.toolName ?? input.name ?? "tool",
+			input.content,
+			input.details,
+			input.error,
+			input.isError,
+		);
 	}
 	if (input.role === "user") {
 		const text = textFromContent(input.content);
@@ -149,7 +207,8 @@ export function formatWatchdogReviewMessage(message: unknown, options: { structu
 
 export function formatWatchdogTurnDelta(input: WatchdogTurnDeltaInput): string {
 	const sections: string[] = [];
-	if (input.includeUserPrompt && input.userPrompt?.trim()) sections.push(["User prompt:", input.userPrompt].join("\n"));
+	if (input.includeUserPrompt && input.userPrompt?.trim())
+		sections.push(["User prompt:", input.userPrompt].join("\n"));
 	for (const message of input.messages ?? []) {
 		const section = formatWatchdogReviewMessage(message, { structuredTerminal: input.structuredTerminal });
 		if (section) sections.push(section);
@@ -160,25 +219,31 @@ export function formatWatchdogTurnDelta(input: WatchdogTurnDeltaInput): string {
 			if (section) sections.push(section);
 		}
 	}
-	if (input.finalAssistantStop) sections.push(input.structuredTerminal
-		? "Final assistant stop: validated structured output completed the response"
-		: "Final assistant stop: stop without tool call");
+	if (input.finalAssistantStop)
+		sections.push(
+			input.structuredTerminal
+				? "Final assistant stop: validated structured output completed the response"
+				: "Final assistant stop: stop without tool call",
+		);
 	return sections.join("\n\n---\n\n");
 }
 
 /** Only completed, exactly paired native orchestration calls are activity evidence. */
 export function formatWatchdogOrchestrationActivity(event: unknown): string {
 	const turn = event as { type?: string; message?: { content?: unknown }; toolResults?: unknown[] } | undefined;
-	if (turn?.type !== "turn_end" || !Array.isArray(turn.message?.content) || !Array.isArray(turn.toolResults)) return "";
+	if (turn?.type !== "turn_end" || !Array.isArray(turn.message?.content) || !Array.isArray(turn.toolResults))
+		return "";
 	const sections: string[] = [];
 	for (const call of turn.message.content) {
 		if (call?.type !== "toolCall" || typeof call.id !== "string") continue;
 		const args = call.arguments;
 		if (!args || typeof args !== "object") continue;
-		const eligible = call.name === "bg_wait"
-			|| (call.name === "subagent_supervisor" && ["pending", "list", "reply"].includes(args.action))
-			|| (call.name === "subagent" && (["status", "resume", "interrupt", "steer", "stop"].includes(args.action)
-				|| (args.action === undefined && (typeof args.agent === "string" || args.workflow !== undefined))));
+		const eligible =
+			call.name === "bg_wait" ||
+			(call.name === "subagent_supervisor" && ["pending", "list", "reply"].includes(args.action)) ||
+			(call.name === "subagent" &&
+				(["status", "resume", "interrupt", "steer", "stop"].includes(args.action) ||
+					(args.action === undefined && (typeof args.agent === "string" || args.workflow !== undefined))));
 		if (!eligible) continue;
 		const result = turn.toolResults.find((value) => {
 			const result = value as { role?: string; toolCallId?: string; toolName?: string };

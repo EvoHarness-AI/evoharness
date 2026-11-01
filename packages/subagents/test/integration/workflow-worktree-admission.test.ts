@@ -2,13 +2,28 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import { describe, it } from "node:test";
+import {
+	ASYNC_DIR,
+	available,
+	createRepo,
+	createSubagentExecutor,
+	installAsyncExecutionHooks,
+	mockPi,
+	readAsyncPayload,
+	tempDir,
+} from "../support/async-execution-fixture.ts";
 import { createEventBus, makeAgent, makeMinimalCtx } from "../support/helpers.ts";
-import { installAsyncExecutionHooks, available, createSubagentExecutor, mockPi, tempDir, createRepo, readAsyncPayload, ASYNC_DIR } from "../support/async-execution-fixture.ts";
 
 function makeAdmissionExecutor(config: Record<string, unknown> = {}) {
 	return createSubagentExecutor!({
 		pi: { events: createEventBus(), getSessionName: () => undefined, sendMessage() {} },
-		state: { baseCwd: tempDir, currentSessionId: null, asyncJobs: new Map(), foregroundControls: new Map(), lastForegroundControlId: null },
+		state: {
+			baseCwd: tempDir,
+			currentSessionId: null,
+			asyncJobs: new Map(),
+			foregroundControls: new Map(),
+			lastForegroundControlId: null,
+		},
 		config,
 		asyncByDefault: false,
 		tempArtifactsDir: tempDir,
@@ -31,12 +46,26 @@ describe("public workflow worktree admission", { skip: !available }, () => {
 		const asyncEntriesBefore = new Set(asyncDirExistedBefore ? fs.readdirSync(ASYNC_DIR) : []);
 		try {
 			const executor = makeAdmissionExecutor();
-			const result = await executor.executePublic("direct-admission-dirty", {
-				agent: "worker", task: "Inspect", async: true, worktree: true, cwd: repo, output: false,
-			}, new AbortController().signal, undefined, makeMinimalCtx(tempDir));
+			const result = await executor.executePublic(
+				"direct-admission-dirty",
+				{
+					agent: "worker",
+					task: "Inspect",
+					async: true,
+					worktree: true,
+					cwd: repo,
+					output: false,
+				},
+				new AbortController().signal,
+				undefined,
+				makeMinimalCtx(tempDir),
+			);
 
 			assert.equal(result.isError, true);
-			assert.match(result.content.map((item) => item.text).join("\n"), /worktree isolation requires a clean git working tree\. Commit or stash changes first\./);
+			assert.match(
+				result.content.map((item) => item.text).join("\n"),
+				/worktree isolation requires a clean git working tree\. Commit or stash changes first\./,
+			);
 			assert.equal(result.details?.asyncId, undefined);
 			assert.equal(callCount(), 0);
 			assert.equal(fs.existsSync(ASYNC_DIR), asyncDirExistedBefore);
@@ -55,19 +84,36 @@ describe("public workflow worktree admission", { skip: !available }, () => {
 					const executor = makeAdmissionExecutor(source === "dirty" ? { worktree: true } : {});
 					const output = path.join(tempDir, "child-output.md");
 					const script = `const results = await runs.all([${JSON.stringify(repo)}, ${JSON.stringify(invalid)}].map((cwd, i) => ({ key: 'child-' + i, agent: 'worker', task: 'Inspect', cwd, output: i === 0 ? ${JSON.stringify(output)} : false }))); if (results.some(r => !r.ok)) throw new Error(results.map(r => r.error).join('; ')); return results;`;
-					const result = await executor.executePublic(`admission-${source}-${async}`, { workflowScript: script, async, ...(source === "nonrepo" ? { isolation: "worktree" } : {}), maxSubagentSpawnsPerRun: 2, output: false }, new AbortController().signal, undefined, makeMinimalCtx(tempDir));
+					const result = await executor.executePublic(
+						`admission-${source}-${async}`,
+						{
+							workflowScript: script,
+							async,
+							...(source === "nonrepo" ? { isolation: "worktree" } : {}),
+							maxSubagentSpawnsPerRun: 2,
+							output: false,
+						},
+						new AbortController().signal,
+						undefined,
+						makeMinimalCtx(tempDir),
+					);
 					let budget: unknown;
 					if (async) {
 						assert.ok(result.details?.asyncId);
 						const payload = await readAsyncPayload(result.details.asyncId);
 						assert.equal(payload.success, false);
 						assert.match(payload.error ?? "", /Worktree admission failed.*child-1/);
-						const status = JSON.parse(fs.readFileSync(path.join(ASYNC_DIR, result.details.asyncId, "status.json"), "utf8"));
+						const status = JSON.parse(
+							fs.readFileSync(path.join(ASYNC_DIR, result.details.asyncId, "status.json"), "utf8"),
+						);
 						budget = status.runFanoutBudget;
 						assert.ok(status.steps.every((step: { runId?: string }) => !step.runId));
 					} else {
 						assert.equal(result.isError, true);
-						assert.match(result.content.map((item) => item.text).join("\n"), /Worktree admission failed.*child-1/);
+						assert.match(
+							result.content.map((item) => item.text).join("\n"),
+							/Worktree admission failed.*child-1/,
+						);
 						budget = (result.details as { runFanoutBudget?: unknown }).runFanoutBudget;
 					}
 					assert.deepEqual(budget, { used: 0, limit: 2, remaining: 2 });
@@ -86,10 +132,18 @@ describe("public workflow worktree admission", { skip: !available }, () => {
 		mockPi.onCall({ output: "Shared cwd inspected" });
 		try {
 			const executor = makeAdmissionExecutor({ worktreeProvider: "native", worktree: true });
-			const result = await executor.executePublic("admission-clean", {
-				workflowScript: `const results = await runs.all([{ key: 'isolated', agent: 'worker', task: 'Inspect', cwd: ${JSON.stringify(repo)}, async: false }, { key: 'shared', agent: 'worker', task: 'Inspect shared', worktree: false, async: false }]); return results.map(r => r.ok);`,
-				async: false, worktree: true, output: false,
-			}, new AbortController().signal, undefined, makeMinimalCtx(tempDir));
+			const result = await executor.executePublic(
+				"admission-clean",
+				{
+					workflowScript: `const results = await runs.all([{ key: 'isolated', agent: 'worker', task: 'Inspect', cwd: ${JSON.stringify(repo)}, async: false }, { key: 'shared', agent: 'worker', task: 'Inspect shared', worktree: false, async: false }]); return results.map(r => r.ok);`,
+					async: false,
+					worktree: true,
+					output: false,
+				},
+				new AbortController().signal,
+				undefined,
+				makeMinimalCtx(tempDir),
+			);
 			assert.notEqual(result.isError, true, JSON.stringify(result));
 			assert.equal(callCount(), 2);
 			assert.deepEqual((result.details as { workflow?: { value?: unknown } }).workflow?.value, [true, true]);

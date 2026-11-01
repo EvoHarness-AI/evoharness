@@ -5,8 +5,8 @@ import * as path from "node:path";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { handleInspectorAction } from "../../src/inspectors/actions.ts";
-import { createHerdrInspectorPlugin } from "../../src/inspectors/herdr/plugin.ts";
 import type { HerdrClient } from "../../src/inspectors/herdr/client.ts";
+import { createHerdrInspectorPlugin } from "../../src/inspectors/herdr/plugin.ts";
 import type { AsyncStatus } from "../../src/shared/types.ts";
 
 function writeCompletedRun(root: string): { asyncDir: string; status: AsyncStatus } {
@@ -34,17 +34,22 @@ describe("Herdr inspector bootstrap", () => {
 				run: async <T>(args: string[]) => {
 					calls.push(args);
 					if (args[0] === "--version") return { ok: true, data: "herdr 0.7.5" as T };
-					if (args[0] === "pane" && args[1] === "split") return { ok: true, data: { pane: { pane_id: "w1:p9" } } as T };
+					if (args[0] === "pane" && args[1] === "split")
+						return { ok: true, data: { pane: { pane_id: "w1:p9" } } as T };
 					return { ok: true, data: {} as T };
 				},
 			};
-			const opened = await handleInspectorAction("inspector.open", { id: "run-123" }, {
-				cwd: root,
-				asyncDirRoot: root,
-				resultsDir: path.join(root, "results"),
-				plugins: [createHerdrInspectorPlugin({ client })],
-				env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
-			});
+			const opened = await handleInspectorAction(
+				"inspector.open",
+				{ id: "run-123" },
+				{
+					cwd: root,
+					asyncDirRoot: root,
+					resultsDir: path.join(root, "results"),
+					plugins: [createHerdrInspectorPlugin({ client })],
+					env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
+				},
+			);
 			assert.equal(opened.isError, undefined);
 			const command = calls.find((args) => args[0] === "pane" && args[1] === "run")?.[3] ?? "";
 			const expectedRunner = fileURLToPath(new URL("../../inspector-runner.mjs", import.meta.url));
@@ -67,17 +72,22 @@ describe("Herdr inspector bootstrap", () => {
 				run: async <T>(args: string[]) => {
 					calls.push(args);
 					if (args[0] === "--version") return { ok: true, data: "herdr 0.7.5" as T };
-					if (args[0] === "pane" && args[1] === "split") return { ok: true, data: { pane: { pane_id: "w1:p9" } } as T };
+					if (args[0] === "pane" && args[1] === "split")
+						return { ok: true, data: { pane: { pane_id: "w1:p9" } } as T };
 					return { ok: true, data: {} as T };
 				},
 			};
-			const opened = await handleInspectorAction("inspector.open", { id: "run-123" }, {
-				cwd: root,
-				asyncDirRoot: root,
-				resultsDir: path.join(root, "results"),
-				plugins: [createHerdrInspectorPlugin({ client })],
-				env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
-			});
+			const opened = await handleInspectorAction(
+				"inspector.open",
+				{ id: "run-123" },
+				{
+					cwd: root,
+					asyncDirRoot: root,
+					resultsDir: path.join(root, "results"),
+					plugins: [createHerdrInspectorPlugin({ client })],
+					env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
+				},
+			);
 			assert.equal(opened.isError, undefined);
 			const command = calls.find((args) => args[0] === "pane" && args[1] === "run")?.[3] ?? "";
 			assert.equal(command.startsWith("& "), process.platform === "win32");
@@ -88,5 +98,4 @@ describe("Herdr inspector bootstrap", () => {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});
-
 });

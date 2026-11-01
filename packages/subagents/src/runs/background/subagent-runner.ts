@@ -4,106 +4,139 @@ import * as path from "node:path";
 import { performance } from "node:perf_hooks";
 import { pathToFileURL } from "node:url";
 import type { Message } from "@evoharness/ai";
-import { installRunnerHttpDispatcher } from "./runner-http-dispatcher.ts";
+import { resolveSubagentIntercomTarget } from "../../intercom/intercom-bridge.ts";
+import {
+	appendJsonl as appendRawJsonl,
+	formatOutputArtifactContent,
+	getArtifactPaths,
+	writeArtifact,
+	writeMetadata,
+} from "../../shared/artifacts.ts";
 import { writeAtomicJson } from "../../shared/atomic-json.ts";
-import { withResultRunLease, writeAsyncResultFile, writePendingAsyncResultFile } from "./result-files.ts";
-import { createFileCoalescer } from "../../shared/file-coalescer.ts";
 import { createCapacityResilientJsonWriter } from "../../shared/capacity-resilient-json.ts";
+import { deriveChildSessionName } from "../../shared/child-session-name.ts";
+import { type ChildTranscriptWriter, createChildTranscriptWriter } from "../../shared/child-transcript.ts";
+import { createFileCoalescer } from "../../shared/file-coalescer.ts";
 import { isStorageCapacityError } from "../../shared/file-system-retry.ts";
-import { updateActiveRunIndex } from "./active-run-index.ts";
-import { createChildTranscriptWriter, type ChildTranscriptWriter } from "../../shared/child-transcript.ts";
-import { closeSteerInbox, closeStopInbox, consumeInterruptRequest, consumeSteerRequests, consumeStopRequestPayloads, deliverInterruptRequest, deliverStopRequest, deliverTimeoutRequest, watchAsyncControlInbox, type SteerRequest, type StopRequest } from "./control-channel.ts";
-import { appendJsonl as appendRawJsonl, formatOutputArtifactContent, getArtifactPaths, writeArtifact, writeMetadata } from "../../shared/artifacts.ts";
-import { PI_CODING_AGENT_PACKAGE, resolveInstalledPiPackageRoot } from "../shared/pi-spawn.ts";
-import { preflightLaunchCwd } from "../shared/launch-cwd.ts";
-import { captureSingleOutputSnapshot, extractChildWrittenOutput, finalizeSingleOutput, formatSavedOutputReference, injectSingleOutputInstruction, isSettlementFatalOutputError, resolveSingleOutput, type SingleOutputSnapshot } from "../shared/single-output.ts";
-import { timedOutRunSummary } from "../shared/partial-output.ts";
-import { runSetupCommand } from "../shared/worktree-setup-command.ts";
+import { alignForkedSessionCwd } from "../../shared/fork-session-cwd.ts";
+import { resolveLaunchBinding } from "../../shared/launch-contract.ts";
+import {
+	findModelInfo,
+	qualifyModelWithProvider,
+	resolveEffectiveThinking,
+	splitKnownThinkingSuffix,
+} from "../../shared/model-info.ts";
+import { parseSessionTokens } from "../../shared/session-tokens.ts";
+import { writeInitialProgressFile } from "../../shared/settings.ts";
+import { assertThinkingWithinCeiling } from "../../shared/thinking-ceiling.ts";
+import type { TokenUsage } from "../../shared/types.ts";
 import {
 	type ActivityState,
 	type ArtifactConfig,
-	type ExternalCliRunnerStatus,
-	type ExternalJobRunnerStatus,
-	type ExternalJobStatus,
-	type ExternalProcessStatus,
 	type ArtifactPaths,
 	type AsyncParallelGroupStatus,
 	type AsyncStatus,
 	type ChainOutputMap,
 	type CostSummary,
+	DEFAULT_MAX_OUTPUT,
+	type ExternalCliRunnerStatus,
+	type ExternalJobRunnerStatus,
+	type ExternalJobStatus,
+	type ExternalProcessStatus,
+	type HerdrMachineReference,
 	type LaunchResolvedChildExtensions,
-	type RuntimeAcknowledgedChildExtensions,
-	type PiWriterProcessInstanceExit,
+	type MaxOutputConfig,
 	type NestedRouteInfo,
 	type NestedRunSummary,
+	type PiWriterProcessInstanceExit,
 	type ResolvedControlConfig,
 	type ResolvedToolBudget,
 	type RunFanoutBudgetDescriptor,
-	type SubagentRunMode,
-	type SubagentOutputState,
-	type UsageBudgetConfig,
-	type ToolBudgetState,
-	type Usage,
-	type WorkflowGraphSnapshot,
+	type RunnerLauncher,
+	type RuntimeAcknowledgedChildExtensions,
 	type SteeringTargetState,
 	type SteeringTargetStatus,
-	type SubagentChildStatusEvent,
-	type WorkflowLaneMetadata,
-	type HerdrMachineReference,
-	type RunnerLauncher,
-	DEFAULT_MAX_OUTPUT,
-	type MaxOutputConfig,
 	SUBAGENT_LIFECYCLE_ARTIFACT_VERSION,
+	type SubagentChildStatusEvent,
+	type SubagentOutputState,
+	type SubagentRunMode,
+	type ToolBudgetState,
 	truncateOutput,
+	type Usage,
+	type UsageBudgetConfig,
+	type WorkflowGraphSnapshot,
+	type WorkflowLaneMetadata,
 } from "../../shared/types.ts";
 import {
-	DEFAULT_CONTROL_CONFIG,
-	buildControlEvent,
-	deriveActivityState,
-	claimControlNotification,
-	formatControlIntercomMessage,
-	formatControlNoticeMessage,
-	shouldEmitOpenToolAttention,
-} from "../shared/subagent-control.ts";
+	detectSubagentError,
+	extractTextFromContent,
+	extractToolArgsPreview,
+	formatEmptyTerminalAssistantResponseError,
+	getAgentDir,
+	getFinalOutput,
+	hasEmptyTerminalAssistantResponse,
+	PROMPT_REDACTED,
+	readStatus,
+	SUBAGENT_STOPPED_MESSAGE,
+	SUBAGENT_TIMED_OUT_MESSAGE,
+} from "../../shared/utils.ts";
 import {
-	type RunnerSubagentStep as SubagentStep,
-	type RunnerStep,
-	isDynamicRunnerGroup,
-	isParallelGroup,
-	flattenSteps,
-	mapConcurrent,
-	aggregateParallelOutputs,
-	MAX_PARALLEL_CONCURRENCY,
-	DEFAULT_GLOBAL_CONCURRENCY_LIMIT,
-	Semaphore,
-} from "../shared/parallel-utils.ts";
-import { applyThinkingSuffix, projectLaunchResolvedChildExtensions, resolvePiLaunchToolPlan, supervisorChannelDir } from "../shared/child-tool-plan.ts";
-import { retainsChildCommand } from "../shared/child-commands.ts";
-import type { InheritedChildRuntime } from "../shared/child-launch.ts";
-import { buildRunnerChildLaunch } from "./runner-child-launch.ts";
-import { normalizeExtensionBindings } from "../shared/extension-bindings.ts";
-import type { ChildSessionFactory, DefaultChildSessionFactoryOptions } from "../shared/child-session.ts";
-import { runChildSession, type ChildEvent, type RunChildSessionInput, type RunChildSessionResult, type SteerDelivery, type StepSteerHandler } from "./run-child-session.ts";
-import { loadRunnerChildSessionFactory } from "./runner-child-sessions.ts";
-import { SUBAGENT_CHILD_ENV, SUBAGENT_RUNNER_PID_ENV } from "../shared/child-runtime-config.ts";
-import { deriveChildSessionName } from "../../shared/child-session-name.ts";
-import { alignForkedSessionCwd } from "../../shared/fork-session-cwd.ts";
-import { outputEntryFromAsyncResult, resolveOutputReferences } from "../shared/chain-outputs.ts";
-import { clearStructuredOutputCaptures, createStructuredOutputFileCapture, createStructuredOutputRuntime, formatStructuredOutputRejectionError, MISSING_STRUCTURED_OUTPUT_CALL_ERROR, readStructuredOutput, readStructuredOutputAcceptanceReport } from "../shared/structured-output.ts";
-import { formatMidToolExitError, isOrdinaryToolForMidToolExit, isUnexplainedProcessSignal } from "../shared/process-signal.ts";
-import { formatChildToolDiagnostic } from "../shared/tool-availability.ts";
-import { buildTimeoutRecoverySummary, collectTrackedMutationEvidence, snapshotTrackedMutations } from "../shared/mutation-evidence.ts";
-import { collectDynamicResults, DynamicFanoutError, materializeDynamicParallelStep, validateDynamicCollection } from "../shared/dynamic-fanout.ts";
-import { claimRunFanoutBatch, getRunFanoutBudgetSnapshot } from "../shared/run-fanout-budget.ts";
-import { nestedSummaryFromAsyncStatus, projectNestedEvents, resolveNestedAsyncDir, writeNestedEvent } from "../shared/nested-events.ts";
-import { formatSubagentModelVerificationError, isContextOverflow } from "../shared/model-resolution.ts";
-import { processTerminalPath, writeProcessTerminalCandidate, type ProcessTerminalCandidate } from "./process-terminal.ts";
-import { persistRunnerStartupFailure } from "./runner-startup-failure.ts";
-import { currentRecordedPid } from "./boot-id.ts";
-import type { RecordedPid } from "./stale-run-reconciler.ts";
-import { createSteeringStatus, recordSteeringRequest, steeringStatus, terminalSteeringNoticeState, unconsumedSteerReason, updateSteeringTarget } from "./steering.ts";
-import { PROMPT_REDACTED, SUBAGENT_STOPPED_MESSAGE, SUBAGENT_TIMED_OUT_MESSAGE, detectSubagentError, extractTextFromContent, extractToolArgsPreview, formatEmptyTerminalAssistantResponseError, getAgentDir, getFinalOutput, hasEmptyTerminalAssistantResponse, readStatus } from "../../shared/utils.ts";
+	acceptChildWatchdogEvent,
+	applyChildWatchdogMessage,
+	type ChildWatchdogStatusEvent,
+	isChildWatchdogStatusEvent,
+	resolveChildWatchdogConfig,
+} from "../../watchdog/child-status.ts";
+import { resolveWatchdogConfig } from "../../watchdog/settings.ts";
 import { planAbortRecovery } from "../shared/abort-recovery.ts";
+import {
+	acceptanceFailureMessage,
+	aggregateAcceptanceReport,
+	buildSkippedAcceptanceLedger,
+	captureStagedIndexBaseline,
+	evaluateAcceptance,
+	formatAcceptancePrompt,
+	resolveAcceptanceReportMode,
+	resolveEffectiveAcceptance,
+	stripAcceptanceReport,
+	typedVerifyOutput,
+} from "../shared/acceptance.ts";
+import { attachContractProjections, isAgentContract } from "../shared/agent-contract.ts";
+import type { ResolvedSubagentCapabilityCeiling } from "../shared/capability-ceiling.ts";
+import { outputEntryFromAsyncResult, resolveOutputReferences } from "../shared/chain-outputs.ts";
+import { retainsChildCommand } from "../shared/child-commands.ts";
+import { asyncStatusChildIdentity } from "../shared/child-identity.ts";
+import type { InheritedChildRuntime } from "../shared/child-launch.ts";
+import { SUBAGENT_CHILD_ENV, SUBAGENT_RUNNER_PID_ENV } from "../shared/child-runtime-config.ts";
+import type { ChildSessionFactory, DefaultChildSessionFactoryOptions } from "../shared/child-session.ts";
+import {
+	applyThinkingSuffix,
+	projectLaunchResolvedChildExtensions,
+	resolvePiLaunchToolPlan,
+	supervisorChannelDir,
+} from "../shared/child-tool-plan.ts";
+import { resolveClaudeCodeLaunch } from "../shared/claude-code-adapter.ts";
+import { resolveCodexExecLaunch } from "../shared/codex-exec-adapter.ts";
+import { resolveCursorAgentLaunch } from "../shared/cursor-agent-adapter.ts";
+import {
+	collectDynamicResults,
+	DynamicFanoutError,
+	materializeDynamicParallelStep,
+	validateDynamicCollection,
+} from "../shared/dynamic-fanout.ts";
+import { normalizeExtensionBindings } from "../shared/extension-bindings.ts";
+import { resolveExternalCliRunnerStatus } from "../shared/external-cli-contract.ts";
+import { buildExternalCliPrompt, runExternalCli } from "../shared/external-cli-runner.ts";
+import { runExternalJob } from "../shared/external-job-runner.ts";
+import {
+	createHerdrExternalAdapter,
+	type HerdrExternalAdapterId,
+	HerdrExternalNeedsAttentionError,
+	type HerdrExternalResult,
+	prepareInternalHerdrExternalAdapter,
+} from "../shared/herdr-external-adapters.ts";
+import { formatHerdrMachineHint, prepareHerdrMachineExternalCliRun } from "../shared/herdr-machine.ts";
+import { preflightLaunchCwd } from "../shared/launch-cwd.ts";
 import {
 	createMutatingFailureState,
 	didMutatingToolFail,
@@ -115,55 +148,143 @@ import {
 	shouldEscalateMutatingFailures,
 	summarizeRecentMutatingFailures,
 } from "../shared/long-running-guard.ts";
-import { parseSessionTokens } from "../../shared/session-tokens.ts";
-import type { TokenUsage } from "../../shared/types.ts";
+import { formatSubagentModelVerificationError, isContextOverflow } from "../shared/model-resolution.ts";
+import {
+	buildTimeoutRecoverySummary,
+	collectTrackedMutationEvidence,
+	snapshotTrackedMutations,
+} from "../shared/mutation-evidence.ts";
+import {
+	nestedSummaryFromAsyncStatus,
+	projectNestedEvents,
+	resolveNestedAsyncDir,
+	writeNestedEvent,
+} from "../shared/nested-events.ts";
+import { createOrcaProgressTab, type OrcaProgressTab } from "../shared/orca-progress-tabs.ts";
+import {
+	formatParallelHandoffError,
+	formatParallelHandoffReference,
+	parallelHandoffPath,
+	writeParallelHandoffGroup,
+	writeWorktreeSetupHandoff,
+} from "../shared/parallel-handoff.ts";
+import {
+	aggregateParallelOutputs,
+	DEFAULT_GLOBAL_CONCURRENCY_LIMIT,
+	flattenSteps,
+	isDynamicRunnerGroup,
+	isParallelGroup,
+	MAX_PARALLEL_CONCURRENCY,
+	mapConcurrent,
+	type RunnerStep,
+	Semaphore,
+	type RunnerSubagentStep as SubagentStep,
+} from "../shared/parallel-utils.ts";
+import { timedOutRunSummary } from "../shared/partial-output.ts";
+import { PI_CODING_AGENT_PACKAGE, resolveInstalledPiPackageRoot } from "../shared/pi-spawn.ts";
+import {
+	formatMidToolExitError,
+	isOrdinaryToolForMidToolExit,
+	isUnexplainedProcessSignal,
+} from "../shared/process-signal.ts";
+import { isRexLocalMachine } from "../shared/rex-machine.ts";
+import { claimRunFanoutBatch, getRunFanoutBudgetSnapshot } from "../shared/run-fanout-budget.ts";
+import type { SessionLeaseRequest } from "../shared/session-lease.ts";
+import {
+	captureSingleOutputSnapshot,
+	extractChildWrittenOutput,
+	finalizeSingleOutput,
+	formatSavedOutputReference,
+	injectSingleOutputInstruction,
+	isSettlementFatalOutputError,
+	resolveSingleOutput,
+	type SingleOutputSnapshot,
+} from "../shared/single-output.ts";
+import {
+	clearStructuredOutputCaptures,
+	createStructuredOutputFileCapture,
+	createStructuredOutputRuntime,
+	formatStructuredOutputRejectionError,
+	MISSING_STRUCTURED_OUTPUT_CALL_ERROR,
+	readStructuredOutput,
+	readStructuredOutputAcceptanceReport,
+} from "../shared/structured-output.ts";
+import {
+	buildControlEvent,
+	claimControlNotification,
+	DEFAULT_CONTROL_CONFIG,
+	deriveActivityState,
+	formatControlIntercomMessage,
+	formatControlNoticeMessage,
+	shouldEmitOpenToolAttention,
+} from "../shared/subagent-control.ts";
+import { formatChildToolDiagnostic } from "../shared/tool-availability.ts";
+import { initialToolBudgetState, isToolBudgetBlockedMessage, toolBudgetState } from "../shared/tool-budget.ts";
+import { effectiveToolTimeoutMs, formatToolTimeoutMessage, toolTimeoutCallKey } from "../shared/tool-timeout.ts";
+import { usageBudgetExceededMessage, usageBudgetState } from "../shared/usage-budget.ts";
 import {
 	cleanupWorktrees,
 	createWorktrees,
-	withWorktreeTransaction,
-	WorktreeSetupError,
-	type WorktreeSetupProgress,
 	diffWorktrees,
 	findWorktreeTaskCwdConflict,
 	formatWorktreeDiffSummary,
 	formatWorktreeTaskCwdConflict,
 	WORKTREE_AGENT_CWD_PLACEHOLDER,
 	type WorktreeSetup,
+	WorktreeSetupError,
+	type WorktreeSetupProgress,
+	withWorktreeTransaction,
 } from "../shared/worktree.ts";
-import { findModelInfo, qualifyModelWithProvider, resolveEffectiveThinking, splitKnownThinkingSuffix } from "../../shared/model-info.ts";
-import { assertThinkingWithinCeiling } from "../../shared/thinking-ceiling.ts";
-import { resolveLaunchBinding } from "../../shared/launch-contract.ts";
-import { writeInitialProgressFile } from "../../shared/settings.ts";
-import { resolveSubagentIntercomTarget } from "../../intercom/intercom-bridge.ts";
-import { acceptanceFailureMessage, aggregateAcceptanceReport, buildSkippedAcceptanceLedger, captureStagedIndexBaseline, evaluateAcceptance, formatAcceptancePrompt, resolveAcceptanceReportMode, resolveEffectiveAcceptance, stripAcceptanceReport, typedVerifyOutput } from "../shared/acceptance.ts";
-import { attachContractProjections, isAgentContract } from "../shared/agent-contract.ts";
-import { waitForImportedAsyncRoot } from "./chain-root-attachment.ts";
-import { appendRunnerStepsToStatus, consumeChainAppendRequests, countPendingChainAppendRequests, statusStepDescription } from "./chain-append.ts";
-import { asyncStatusChildIdentity } from "../shared/child-identity.ts";
-import { initialToolBudgetState, isToolBudgetBlockedMessage, toolBudgetState } from "../shared/tool-budget.ts";
-import { effectiveToolTimeoutMs, formatToolTimeoutMessage, toolTimeoutCallKey } from "../shared/tool-timeout.ts";
-import { usageBudgetExceededMessage, usageBudgetState } from "../shared/usage-budget.ts";
-import { formatParallelHandoffError, formatParallelHandoffReference, parallelHandoffPath, writeParallelHandoffGroup, writeWorktreeSetupHandoff } from "../shared/parallel-handoff.ts";
-import { resolveWatchdogConfig } from "../../watchdog/settings.ts";
-import type { SessionLeaseRequest } from "../shared/session-lease.ts";
-import { buildExternalCliPrompt, runExternalCli } from "../shared/external-cli-runner.ts";
-import { resolveClaudeCodeLaunch } from "../shared/claude-code-adapter.ts";
-import { resolveCodexExecLaunch } from "../shared/codex-exec-adapter.ts";
-import { resolveCursorAgentLaunch } from "../shared/cursor-agent-adapter.ts";
-import { resolveExternalCliRunnerStatus } from "../shared/external-cli-contract.ts";
-import { formatHerdrMachineHint, prepareHerdrMachineExternalCliRun } from "../shared/herdr-machine.ts";
-import { isRexLocalMachine } from "../shared/rex-machine.ts";
-import { HerdrExternalNeedsAttentionError, createHerdrExternalAdapter, prepareInternalHerdrExternalAdapter, type HerdrExternalAdapterId, type HerdrExternalResult } from "../shared/herdr-external-adapters.ts";
-import { runExternalJob } from "../shared/external-job-runner.ts";
-import { createOrcaProgressTab, type OrcaProgressTab } from "../shared/orca-progress-tabs.ts";
-import type { ResolvedSubagentCapabilityCeiling } from "../shared/capability-ceiling.ts";
+import { runSetupCommand } from "../shared/worktree-setup-command.ts";
+import { updateActiveRunIndex } from "./active-run-index.ts";
+import { currentRecordedPid } from "./boot-id.ts";
 import {
-	acceptChildWatchdogEvent,
-	applyChildWatchdogMessage,
-	isChildWatchdogStatusEvent,
-	resolveChildWatchdogConfig,
-	type ChildWatchdogStatusEvent,
-} from "../../watchdog/child-status.ts";
+	appendRunnerStepsToStatus,
+	consumeChainAppendRequests,
+	countPendingChainAppendRequests,
+	statusStepDescription,
+} from "./chain-append.ts";
+import { waitForImportedAsyncRoot } from "./chain-root-attachment.ts";
+import {
+	closeSteerInbox,
+	closeStopInbox,
+	consumeInterruptRequest,
+	consumeSteerRequests,
+	consumeStopRequestPayloads,
+	deliverInterruptRequest,
+	deliverStopRequest,
+	deliverTimeoutRequest,
+	type SteerRequest,
+	type StopRequest,
+	watchAsyncControlInbox,
+} from "./control-channel.ts";
+import {
+	type ProcessTerminalCandidate,
+	processTerminalPath,
+	writeProcessTerminalCandidate,
+} from "./process-terminal.ts";
+import { withResultRunLease, writeAsyncResultFile, writePendingAsyncResultFile } from "./result-files.ts";
+import {
+	type ChildEvent,
+	type RunChildSessionInput,
+	type RunChildSessionResult,
+	runChildSession,
+	type SteerDelivery,
+	type StepSteerHandler,
+} from "./run-child-session.ts";
+import { buildRunnerChildLaunch } from "./runner-child-launch.ts";
+import { loadRunnerChildSessionFactory } from "./runner-child-sessions.ts";
+import { installRunnerHttpDispatcher } from "./runner-http-dispatcher.ts";
+import { persistRunnerStartupFailure } from "./runner-startup-failure.ts";
+import type { RecordedPid } from "./stale-run-reconciler.ts";
+import {
+	createSteeringStatus,
+	recordSteeringRequest,
+	steeringStatus,
+	terminalSteeringNoticeState,
+	unconsumedSteerReason,
+	updateSteeringTarget,
+} from "./steering.ts";
 
 const INTERCOM_DETACH_RECEIPT = "Detached for intercom coordination before task completion.";
 
@@ -212,7 +333,12 @@ export interface SubagentRunConfig {
 	dynamicFanoutMaxItems?: number;
 	workflowGraph?: WorkflowGraphSnapshot;
 	nestedRoute?: NestedRouteInfo;
-	nestedSelf?: { parentRunId: string; parentStepIndex?: number; depth: number; path?: Array<{ runId: string; stepIndex?: number; agent?: string }> };
+	nestedSelf?: {
+		parentRunId: string;
+		parentStepIndex?: number;
+		depth: number;
+		path?: Array<{ runId: string; stepIndex?: number; agent?: string }>;
+	};
 	timeoutMs?: number;
 	deadlineAt?: number;
 	/** Resolved configured hard per-tool-call timeout (ms); fast tools still have a default when undefined. */
@@ -433,9 +559,7 @@ function costSummaryFromUsage(usage: Usage | undefined): CostSummary | undefined
 	const inputTokens = usage?.input ?? 0;
 	const outputTokens = usage?.output ?? 0;
 	const costUsd = usage?.cost ?? 0;
-	return inputTokens > 0 || outputTokens > 0 || costUsd > 0
-		? { inputTokens, outputTokens, costUsd }
-		: undefined;
+	return inputTokens > 0 || outputTokens > 0 || costUsd > 0 ? { inputTokens, outputTokens, costUsd } : undefined;
 }
 
 function appendRecentStepOutput(step: RunnerStatusStep, lines: string[]): void {
@@ -492,11 +616,15 @@ function resetStepLiveDetail(step: RunnerStatusStep): void {
 
 const MAX_CHILD_FAILURE_DIAGNOSTIC_CHARS = 8_192;
 
-function formatRequiredOutputError(requiredOutput: {
-	kind: "file-only" | "structured";
-	path: string;
-	missing: boolean;
-} | undefined): string | undefined {
+function formatRequiredOutputError(
+	requiredOutput:
+		| {
+				kind: "file-only" | "structured";
+				path: string;
+				missing: boolean;
+		  }
+		| undefined,
+): string | undefined {
 	if (!requiredOutput?.missing) return undefined;
 	return `Required ${requiredOutput.kind} output was not produced: ${requiredOutput.path.slice(0, 2_048)}`;
 }
@@ -598,7 +726,8 @@ function writeRunLog(
 		shareUrl?: string;
 		shareError?: string;
 	},
-	write: (filePath: string, content: string) => void = (filePath, content) => fs.writeFileSync(filePath, content, "utf-8"),
+	write: (filePath: string, content: string) => void = (filePath, content) =>
+		fs.writeFileSync(filePath, content, "utf-8"),
 ): void {
 	const lines: string[] = [];
 	lines.push(`# Subagent run ${input.id}`);
@@ -638,16 +767,26 @@ function expectedMissingGitEvidence(error: unknown): boolean {
 	return /not a git repository|Needed a single revision/i.test(detail);
 }
 
-async function readGitFingerprint(cwd: string, signal: AbortSignal, onError: (error: unknown) => void): Promise<string | undefined> {
+async function readGitFingerprint(
+	cwd: string,
+	signal: AbortSignal,
+	onError: (error: unknown) => void,
+): Promise<string | undefined> {
 	try {
 		const runGit = async (args: string[]) => {
 			const result = await runSetupCommand("git", args, {
-				cwd, signal, maxBuffer: 16 * 1024 * 1024, deadlineAt: Date.now() + 30_000,
+				cwd,
+				signal,
+				maxBuffer: 16 * 1024 * 1024,
+				deadlineAt: Date.now() + 30_000,
 				acceptedExitCodes: Array.from({ length: 256 }, (_, code) => code),
 			});
 			if (result.error) throw result.error;
 			if (result.status !== 0) {
-				throw Object.assign(new Error(result.stderr || `git exited with ${result.status}`), { code: result.status, stderr: result.stderr });
+				throw Object.assign(new Error(result.stderr || `git exited with ${result.status}`), {
+					code: result.status,
+					stderr: result.stderr,
+				});
 			}
 			return result.stdoutBuffer;
 		};
@@ -719,29 +858,43 @@ interface SingleStepContext {
 }
 
 /** Machine runs: a one-line hint for predictable remote failures, and a note that writer changes live on the machine. */
-function decorateHerdrMachineResult<T extends { output: string; exitCode: number | null; error?: string; externalProcess: { stderrPath: string } }>(result: T, machine: HerdrMachineReference, adapter: string | undefined): T {
+function decorateHerdrMachineResult<
+	T extends { output: string; exitCode: number | null; error?: string; externalProcess: { stderrPath: string } },
+>(result: T, machine: HerdrMachineReference, adapter: string | undefined): T {
 	let stderrTail = "";
 	try {
 		const stderr = fs.readFileSync(result.externalProcess.stderrPath, "utf-8");
 		stderrTail = stderr.slice(-4096);
-	} catch { /* stderr log is best-effort evidence. */ }
-	const hint = result.exitCode === 0 ? undefined : formatHerdrMachineHint(machine, `${result.error ?? ""}\n${stderrTail}\nexit code ${result.exitCode}`);
-	const error = hint ? `${result.error ?? `Remote command exited with code ${result.exitCode}.`}\n${hint}` : result.error;
-	const note = result.exitCode === 0 && adapter?.endsWith("-writer") ? `Changes made by this run live on ${machine.label ?? machine.id} at ${machine.cwd}; the local checkout is unchanged.` : undefined;
+	} catch {
+		/* stderr log is best-effort evidence. */
+	}
+	const hint =
+		result.exitCode === 0
+			? undefined
+			: formatHerdrMachineHint(machine, `${result.error ?? ""}\n${stderrTail}\nexit code ${result.exitCode}`);
+	const error = hint
+		? `${result.error ?? `Remote command exited with code ${result.exitCode}.`}\n${hint}`
+		: result.error;
+	const note =
+		result.exitCode === 0 && adapter?.endsWith("-writer")
+			? `Changes made by this run live on ${machine.label ?? machine.id} at ${machine.cwd}; the local checkout is unchanged.`
+			: undefined;
 	const output = note ? (result.output.trim() ? `${result.output.trimEnd()}\n\n${note}` : note) : result.output;
 	return { ...result, output, ...(error !== undefined ? { error } : {}) };
 }
 
-export async function settleHerdrExternalRunnerError(error: unknown, adapter: HerdrExternalAdapterId, evidence: Parameters<ReturnType<typeof createHerdrExternalAdapter>["normalize"]>[0], retain: () => Promise<void>): Promise<HerdrExternalResult> {
+export async function settleHerdrExternalRunnerError(
+	error: unknown,
+	adapter: HerdrExternalAdapterId,
+	evidence: Parameters<ReturnType<typeof createHerdrExternalAdapter>["normalize"]>[0],
+	retain: () => Promise<void>,
+): Promise<HerdrExternalResult> {
 	await retain();
 	if (!(error instanceof HerdrExternalNeedsAttentionError)) throw error;
 	return createHerdrExternalAdapter(adapter).normalize(evidence, error.message);
 }
 
-export async function runSingleStepInner(
-	step: SubagentStep,
-	ctx: SingleStepContext,
-): Promise<StepResult> {
+export async function runSingleStepInner(step: SubagentStep, ctx: SingleStepContext): Promise<StepResult> {
 	if (step.importAsyncRoot) {
 		let importTimedOut = false;
 		let importStopped = false;
@@ -754,7 +907,9 @@ export async function runSingleStepInner(
 				pid = undefined;
 			}
 			try {
-				deliverTimeoutRequest(omitUndefinedProperties({ asyncDir: step.importAsyncRoot!.asyncDir, pid, source: "ancestor-timeout" }));
+				deliverTimeoutRequest(
+					omitUndefinedProperties({ asyncDir: step.importAsyncRoot!.asyncDir, pid, source: "ancestor-timeout" }),
+				);
 			} catch {
 				// The parent runner's own timeout result is authoritative for the attached step.
 			}
@@ -768,24 +923,41 @@ export async function runSingleStepInner(
 				pid = undefined;
 			}
 			try {
-				deliverStopRequest(omitUndefinedProperties({ asyncDir: step.importAsyncRoot!.asyncDir, pid, source: "ancestor-stop" }));
+				deliverStopRequest(
+					omitUndefinedProperties({ asyncDir: step.importAsyncRoot!.asyncDir, pid, source: "ancestor-stop" }),
+				);
 			} catch {
 				// The parent runner's own stopped result is authoritative for the attached step.
 			}
 		});
 		try {
-			const imported = await waitForImportedAsyncRoot(step.importAsyncRoot, omitUndefinedProperties({
-				shouldAbort: () => importTimedOut || importStopped || ctx.timeoutSignal?.aborted === true || ctx.stopSignal?.aborted === true || ctx.skipAcceptance?.() === true,
-				timeoutMessage: importStopped || ctx.stopSignal?.aborted === true ? ctx.stopMessage : ctx.timeoutMessage,
-			}));
+			const imported = await waitForImportedAsyncRoot(
+				step.importAsyncRoot,
+				omitUndefinedProperties({
+					shouldAbort: () =>
+						importTimedOut ||
+						importStopped ||
+						ctx.timeoutSignal?.aborted === true ||
+						ctx.stopSignal?.aborted === true ||
+						ctx.skipAcceptance?.() === true,
+					timeoutMessage: importStopped || ctx.stopSignal?.aborted === true ? ctx.stopMessage : ctx.timeoutMessage,
+				}),
+			);
 			try {
 				fs.writeFileSync(ctx.outputFile, imported.output, "utf-8");
 			} catch {
 				// Output files are observability only for imported roots.
 			}
 			const stopped = importStopped || imported.stopped === true || ctx.stopSignal?.aborted === true;
-			const timedOut = !stopped && (importTimedOut || imported.timedOut === true || ctx.timeoutSignal?.aborted === true || ctx.skipAcceptance?.() === true);
-			const message = stopped ? ctx.stopMessage ?? SUBAGENT_STOPPED_MESSAGE : ctx.timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE;
+			const timedOut =
+				!stopped &&
+				(importTimedOut ||
+					imported.timedOut === true ||
+					ctx.timeoutSignal?.aborted === true ||
+					ctx.skipAcceptance?.() === true);
+			const message = stopped
+				? (ctx.stopMessage ?? SUBAGENT_STOPPED_MESSAGE)
+				: (ctx.timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE);
 			return omitUndefinedProperties({
 				agent: imported.agent,
 				output: timedOut || stopped ? message : imported.output,
@@ -813,39 +985,50 @@ export async function runSingleStepInner(
 		}
 	}
 
-	const effectiveStructuredOutput = step.structuredOutput ?? (step.structuredOutputSchema
-		? createStructuredOutputRuntime(step.structuredOutputSchema, path.join(path.dirname(ctx.outputFile), "structured-output"), { acceptanceReport: resolveAcceptanceReportMode(step.acceptanceInput) })
-		: undefined);
+	const effectiveStructuredOutput =
+		step.structuredOutput ??
+		(step.structuredOutputSchema
+			? createStructuredOutputRuntime(
+					step.structuredOutputSchema,
+					path.join(path.dirname(ctx.outputFile), "structured-output"),
+					{ acceptanceReport: resolveAcceptanceReportMode(step.acceptanceInput) },
+				)
+			: undefined);
 	const placeholderRegex = new RegExp(ctx.placeholder.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "g");
 	let task = step.task.replace(placeholderRegex, () => ctx.previousOutput);
 	if (ctx.outputs) task = resolveOutputReferences(task, ctx.outputs);
 	let resolvedTaskToolPlan: ReturnType<typeof resolvePiLaunchToolPlan> | undefined;
 	if (!step.runner) {
-		resolvedTaskToolPlan = resolvePiLaunchToolPlan(omitUndefinedProperties({
-			tools: step.tools,
-			excludeTools: step.excludeTools,
-			allowNestedSubagents: step.allowNestedSubagents,
-			extensions: step.extensions,
-			subagentOnlyExtensions: step.subagentOnlyExtensions,
-			fast: step.fast,
-			model: step.model,
-			mcpDirectTools: step.mcpDirectTools,
-			builtinMcpTools: step.builtinMcpTools,
-			cwd: step.cwd ?? ctx.cwd,
-			requireReadTool: Boolean(step.skills?.length),
-			structuredOutput: Boolean(effectiveStructuredOutput),
-			capabilityCeiling: step.capabilityCeiling ?? ctx.capabilityCeiling,
-			inheritedCapabilityCeiling: ctx.inheritedChildRuntime?.capabilityCeiling,
-			requiredExtensions: step.requiredExtensions ?? ctx.inheritedChildRuntime?.requiredExtensions,
-			agentName: step.agent,
-			permissionRules: step.permissionRules,
-		}));
+		resolvedTaskToolPlan = resolvePiLaunchToolPlan(
+			omitUndefinedProperties({
+				tools: step.tools,
+				excludeTools: step.excludeTools,
+				allowNestedSubagents: step.allowNestedSubagents,
+				extensions: step.extensions,
+				subagentOnlyExtensions: step.subagentOnlyExtensions,
+				fast: step.fast,
+				model: step.model,
+				mcpDirectTools: step.mcpDirectTools,
+				builtinMcpTools: step.builtinMcpTools,
+				cwd: step.cwd ?? ctx.cwd,
+				requireReadTool: Boolean(step.skills?.length),
+				structuredOutput: Boolean(effectiveStructuredOutput),
+				capabilityCeiling: step.capabilityCeiling ?? ctx.capabilityCeiling,
+				inheritedCapabilityCeiling: ctx.inheritedChildRuntime?.capabilityCeiling,
+				requiredExtensions: step.requiredExtensions ?? ctx.inheritedChildRuntime?.requiredExtensions,
+				agentName: step.agent,
+				permissionRules: step.permissionRules,
+			}),
+		);
 	}
 	// Derive from the pre-acceptance task so internal acceptance/recovery
 	// instructions never leak into the display name.
 	const childSessionName = step.sessionName ?? deriveChildSessionName({ agent: step.agent, task, label: step.label });
 	if (step.effectiveAcceptance && (step.runner?.type === "external-cli" || step.runner?.type === "external-job")) {
-		const acceptancePrompt = formatAcceptancePrompt(step.effectiveAcceptance, { reportOptional: isAgentContract(step.agentContract), structuredOutput: Boolean(step.structuredOutput?.acceptanceReportPath) });
+		const acceptancePrompt = formatAcceptancePrompt(step.effectiveAcceptance, {
+			reportOptional: isAgentContract(step.agentContract),
+			structuredOutput: Boolean(step.structuredOutput?.acceptanceReportPath),
+		});
 		if (acceptancePrompt) task = `${task}\n${acceptancePrompt}`;
 	}
 	const sessionEnabled = Boolean(step.sessionFile) || ctx.sessionEnabled;
@@ -858,7 +1041,11 @@ export async function runSingleStepInner(
 		artifactPaths = getArtifactPaths(ctx.artifactsDir, ctx.id, step.agent, index);
 		fs.mkdirSync(ctx.artifactsDir, { recursive: true });
 		if (ctx.artifactConfig?.includeInput !== false) {
-			fs.writeFileSync(artifactPaths.inputPath, `# Task for ${step.agent}\n\n${PROMPT_REDACTED}; live Prompt Audit only.\n`, "utf-8");
+			fs.writeFileSync(
+				artifactPaths.inputPath,
+				`# Task for ${step.agent}\n\n${PROMPT_REDACTED}; live Prompt Audit only.\n`,
+				"utf-8",
+			);
 		}
 		if (ctx.artifactConfig?.includeTranscript !== false) {
 			transcriptWriter = createChildTranscriptWriter({
@@ -883,39 +1070,69 @@ export async function runSingleStepInner(
 			externalJob?: ExternalJobStatus;
 		},
 	) => {
-		try { fs.writeFileSync(ctx.outputFile, external.output, "utf-8"); } catch { /* Observability output is best-effort. */ }
-		const resolvedOutput = step.outputPath && external.exitCode === 0
-			? resolveSingleOutput(step.outputPath, external.output, outputSnapshot, step.outputClaimPath)
-			: { fullOutput: external.output };
-		const outputReference = resolvedOutput.savedPath ? formatSavedOutputReference(resolvedOutput.savedPath, resolvedOutput.fullOutput) : undefined;
+		try {
+			fs.writeFileSync(ctx.outputFile, external.output, "utf-8");
+		} catch {
+			/* Observability output is best-effort. */
+		}
+		const resolvedOutput =
+			step.outputPath && external.exitCode === 0
+				? resolveSingleOutput(step.outputPath, external.output, outputSnapshot, step.outputClaimPath)
+				: { fullOutput: external.output };
+		const outputReference = resolvedOutput.savedPath
+			? formatSavedOutputReference(resolvedOutput.savedPath, resolvedOutput.fullOutput)
+			: undefined;
 		const settlementFatalOutputError = isSettlementFatalOutputError(resolvedOutput, step.outputMode);
 		const exitCode = settlementFatalOutputError ? 1 : external.exitCode;
-		const error = settlementFatalOutputError && resolvedOutput.saveError
-			? external.error ? `${external.error}\n${resolvedOutput.saveError}` : resolvedOutput.saveError
-			: external.error;
-		const finalizedOutput = finalizeSingleOutput(omitUndefinedProperties({
-			fullOutput: resolvedOutput.fullOutput,
-			outputPath: step.outputPath,
-			outputMode: step.outputMode,
-			exitCode: exitCode ?? 1,
-			savedPath: resolvedOutput.savedPath,
-			outputReference,
-			saveError: resolvedOutput.saveError,
-		}));
-		const artifactErrors = artifactPaths && ctx.artifactConfig?.enabled !== false
-			? persistStepArtifacts({
-				artifactPaths,
-				artifactConfig: ctx.artifactConfig,
-				output: formatOutputArtifactContent(omitUndefinedProperties({ output: resolvedOutput.fullOutput, error: error, metadataPath: ctx.artifactConfig?.includeMetadata === false ? undefined : artifactPaths.metadataPath })),
-				metadata: { runId: ctx.id, parentSessionId: step.parentSessionId, agent: step.agent, task: PROMPT_REDACTED, ...runnerMetadata, exitCode: exitCode, error: error, timestamp: Date.now() },
-			})
-			: {};
+		const error =
+			settlementFatalOutputError && resolvedOutput.saveError
+				? external.error
+					? `${external.error}\n${resolvedOutput.saveError}`
+					: resolvedOutput.saveError
+				: external.error;
+		const finalizedOutput = finalizeSingleOutput(
+			omitUndefinedProperties({
+				fullOutput: resolvedOutput.fullOutput,
+				outputPath: step.outputPath,
+				outputMode: step.outputMode,
+				exitCode: exitCode ?? 1,
+				savedPath: resolvedOutput.savedPath,
+				outputReference,
+				saveError: resolvedOutput.saveError,
+			}),
+		);
+		const artifactErrors =
+			artifactPaths && ctx.artifactConfig?.enabled !== false
+				? persistStepArtifacts({
+						artifactPaths,
+						artifactConfig: ctx.artifactConfig,
+						output: formatOutputArtifactContent(
+							omitUndefinedProperties({
+								output: resolvedOutput.fullOutput,
+								error: error,
+								metadataPath:
+									ctx.artifactConfig?.includeMetadata === false ? undefined : artifactPaths.metadataPath,
+							}),
+						),
+						metadata: {
+							runId: ctx.id,
+							parentSessionId: step.parentSessionId,
+							agent: step.agent,
+							task: PROMPT_REDACTED,
+							...runnerMetadata,
+							exitCode: exitCode,
+							error: error,
+							timestamp: Date.now(),
+						},
+					})
+				: {};
 		return {
 			output: finalizedOutput.displayOutput,
 			exitCode,
 			error,
-			outputSaveError: [resolvedOutput.saveError, artifactErrors.outputSaveError].filter(Boolean).join("\n") || undefined,
-			artifactOutputSaveFailed: artifactErrors.outputSaveError ? true as const : undefined,
+			outputSaveError:
+				[resolvedOutput.saveError, artifactErrors.outputSaveError].filter(Boolean).join("\n") || undefined,
+			artifactOutputSaveFailed: artifactErrors.outputSaveError ? (true as const) : undefined,
 			metadataSaveError: artifactErrors.metadataSaveError,
 		};
 	};
@@ -926,57 +1143,193 @@ export async function runSingleStepInner(
 		if (!step.machine && externalAbortSignal) await ctx.prepareExternalActivity?.(externalCwd, externalAbortSignal);
 		if (externalAbortSignal?.aborted) {
 			const stopped = ctx.stopSignal?.aborted === true;
-			const message = stopped ? ctx.stopMessage ?? SUBAGENT_STOPPED_MESSAGE : ctx.timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE;
-			return omitUndefinedProperties({ agent: step.agent, context: step.context, output: message, error: message, exitCode: 1, stopped: stopped || undefined, timedOut: stopped ? undefined : true });
+			const message = stopped
+				? (ctx.stopMessage ?? SUBAGENT_STOPPED_MESSAGE)
+				: (ctx.timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE);
+			return omitUndefinedProperties({
+				agent: step.agent,
+				context: step.context,
+				output: message,
+				error: message,
+				exitCode: 1,
+				stopped: stopped || undefined,
+				timedOut: stopped ? undefined : true,
+			});
 		}
 		if (step.machine) {
 			if (step.machine.provider !== "herdr") throw new Error("Rex supports native Pi children only.");
 			const runner = resolveExternalCliRunnerStatus({ ...step.runner, machine: step.machine });
 			const outputSnapshot = captureSingleOutputSnapshot(step.outputPath);
 			const placedRunId = `${ctx.id}-${ctx.flatIndex}`;
-			const session = await prepareInternalHerdrExternalAdapter({ adapter: step.runner.adapter as HerdrExternalAdapterId, machine: step.machine, runId: placedRunId }, {});
-			let timedOut = false, stopped = false, retain = false;
-			const evidenceInput = { runId: placedRunId, requestId: `prompt-${ctx.flatIndex}`, task: buildExternalCliPrompt(step.systemPrompt ?? "", task), cwd: externalCwd, nativeSessionId: session.launch.nativeSessionId };
+			const session = await prepareInternalHerdrExternalAdapter(
+				{ adapter: step.runner.adapter as HerdrExternalAdapterId, machine: step.machine, runId: placedRunId },
+				{},
+			);
+			let timedOut = false,
+				stopped = false,
+				retain = false;
+			const evidenceInput = {
+				runId: placedRunId,
+				requestId: `prompt-${ctx.flatIndex}`,
+				task: buildExternalCliPrompt(step.systemPrompt ?? "", task),
+				cwd: externalCwd,
+				nativeSessionId: session.launch.nativeSessionId,
+			};
 			let resolveInterruption!: (value: "timeout" | "stop") => void, rejectInterruption!: (error: unknown) => void;
-			const interruption = new Promise<"timeout" | "stop">((resolve, reject) => { resolveInterruption = resolve; rejectInterruption = reject; });
-			ctx.registerTimeout?.(() => { timedOut = true; retain = true; resolveInterruption("timeout"); });
-			ctx.registerStop?.(() => { stopped = true; void session.abort().then(() => resolveInterruption("stop"), rejectInterruption); });
+			const interruption = new Promise<"timeout" | "stop">((resolve, reject) => {
+				resolveInterruption = resolve;
+				rejectInterruption = reject;
+			});
+			ctx.registerTimeout?.(() => {
+				timedOut = true;
+				retain = true;
+				resolveInterruption("timeout");
+			});
+			ctx.registerStop?.(() => {
+				stopped = true;
+				void session.abort().then(() => resolveInterruption("stop"), rejectInterruption);
+			});
 			try {
 				let settled: HerdrExternalResult;
 				try {
-					const raced = await Promise.race([session.promptAndSettle(evidenceInput).then((value) => ({ kind: "settled" as const, value })), interruption.then((kind) => ({ kind }))]);
+					const raced = await Promise.race([
+						session.promptAndSettle(evidenceInput).then((value) => ({ kind: "settled" as const, value })),
+						interruption.then((kind) => ({ kind })),
+					]);
 					if (raced.kind === "settled") settled = raced.value;
-					else if (raced.kind === "timeout") settled = createHerdrExternalAdapter(step.runner.adapter as HerdrExternalAdapterId).normalize(evidenceInput, "Placed external run timed out; truthful pane retained for inspection.");
-					else return { agent: step.agent, context: step.context, output: "Placed external run stopped.", outputState: "present", exitCode: 1, stopped: true, runner, execution: { status: "stopped", success: false, exitCode: 1, stopped: true } };
+					else if (raced.kind === "timeout")
+						settled = createHerdrExternalAdapter(step.runner.adapter as HerdrExternalAdapterId).normalize(
+							evidenceInput,
+							"Placed external run timed out; truthful pane retained for inspection.",
+						);
+					else
+						return {
+							agent: step.agent,
+							context: step.context,
+							output: "Placed external run stopped.",
+							outputState: "present",
+							exitCode: 1,
+							stopped: true,
+							runner,
+							execution: { status: "stopped", success: false, exitCode: 1, stopped: true },
+						};
 				} catch (error) {
 					retain = true;
-					settled = await settleHerdrExternalRunnerError(error, step.runner.adapter as HerdrExternalAdapterId, evidenceInput, () => session.retain());
+					settled = await settleHerdrExternalRunnerError(
+						error,
+						step.runner.adapter as HerdrExternalAdapterId,
+						evidenceInput,
+						() => session.retain(),
+					);
 				}
 				const output = settled.output;
-				try { fs.writeFileSync(ctx.outputFile, output, "utf-8"); } catch { /* Observability output is best-effort. */ }
-				const resolvedOutput = step.outputPath ? resolveSingleOutput(step.outputPath, output, outputSnapshot, step.outputClaimPath) : { fullOutput: output };
-				const outputReference = resolvedOutput.savedPath ? formatSavedOutputReference(resolvedOutput.savedPath, resolvedOutput.fullOutput) : undefined;
-				const finalizedOutput = finalizeSingleOutput(omitUndefinedProperties({ fullOutput: resolvedOutput.fullOutput, outputPath: step.outputPath, outputMode: step.outputMode, exitCode: 1, preserveSavedOutput: true, savedPath: resolvedOutput.savedPath, outputReference, saveError: resolvedOutput.saveError }));
-				const artifactErrors = artifactPaths && ctx.artifactConfig?.enabled !== false ? persistStepArtifacts({ artifactPaths, artifactConfig: ctx.artifactConfig, output: formatOutputArtifactContent(omitUndefinedProperties({ output: resolvedOutput.fullOutput, metadataPath: ctx.artifactConfig?.includeMetadata === false ? undefined : artifactPaths.metadataPath })), metadata: { runId: ctx.id, parentSessionId: step.parentSessionId, agent: step.agent, task: PROMPT_REDACTED, runner, placement: session.owner.identity, settlement: settled.settlement, outcome: settled.outcome, timestamp: Date.now() } }) : {};
-				return omitUndefinedProperties({ agent: step.agent, ...(childSessionName ? { sessionName: childSessionName } : {}), context: step.context, output: finalizedOutput.displayOutput, outputState: output.trim() ? "present" : "absent", exitCode: 1, error: isSettlementFatalOutputError(resolvedOutput, step.outputMode) ? resolvedOutput.saveError : undefined, timedOut, stopped, artifactPaths, outputSaveError: [resolvedOutput.saveError, artifactErrors.outputSaveError].filter(Boolean).join("\n") || undefined, metadataSaveError: artifactErrors.metadataSaveError, runner, execution: { status: "partial", success: false, exitCode: 1 } });
+				try {
+					fs.writeFileSync(ctx.outputFile, output, "utf-8");
+				} catch {
+					/* Observability output is best-effort. */
+				}
+				const resolvedOutput = step.outputPath
+					? resolveSingleOutput(step.outputPath, output, outputSnapshot, step.outputClaimPath)
+					: { fullOutput: output };
+				const outputReference = resolvedOutput.savedPath
+					? formatSavedOutputReference(resolvedOutput.savedPath, resolvedOutput.fullOutput)
+					: undefined;
+				const finalizedOutput = finalizeSingleOutput(
+					omitUndefinedProperties({
+						fullOutput: resolvedOutput.fullOutput,
+						outputPath: step.outputPath,
+						outputMode: step.outputMode,
+						exitCode: 1,
+						preserveSavedOutput: true,
+						savedPath: resolvedOutput.savedPath,
+						outputReference,
+						saveError: resolvedOutput.saveError,
+					}),
+				);
+				const artifactErrors =
+					artifactPaths && ctx.artifactConfig?.enabled !== false
+						? persistStepArtifacts({
+								artifactPaths,
+								artifactConfig: ctx.artifactConfig,
+								output: formatOutputArtifactContent(
+									omitUndefinedProperties({
+										output: resolvedOutput.fullOutput,
+										metadataPath:
+											ctx.artifactConfig?.includeMetadata === false ? undefined : artifactPaths.metadataPath,
+									}),
+								),
+								metadata: {
+									runId: ctx.id,
+									parentSessionId: step.parentSessionId,
+									agent: step.agent,
+									task: PROMPT_REDACTED,
+									runner,
+									placement: session.owner.identity,
+									settlement: settled.settlement,
+									outcome: settled.outcome,
+									timestamp: Date.now(),
+								},
+							})
+						: {};
+				return omitUndefinedProperties({
+					agent: step.agent,
+					...(childSessionName ? { sessionName: childSessionName } : {}),
+					context: step.context,
+					output: finalizedOutput.displayOutput,
+					outputState: output.trim() ? "present" : "absent",
+					exitCode: 1,
+					error: isSettlementFatalOutputError(resolvedOutput, step.outputMode)
+						? resolvedOutput.saveError
+						: undefined,
+					timedOut,
+					stopped,
+					artifactPaths,
+					outputSaveError:
+						[resolvedOutput.saveError, artifactErrors.outputSaveError].filter(Boolean).join("\n") || undefined,
+					metadataSaveError: artifactErrors.metadataSaveError,
+					runner,
+					execution: { status: "partial", success: false, exitCode: 1 },
+				});
 			} catch (error) {
 				// Any post-allocation uncertainty retains the pane; only explicit stop
 				// and successful exact settlement are destructive.
 				retain = true;
 				throw error;
 			} finally {
-				ctx.registerTimeout?.(undefined); ctx.registerStop?.(undefined);
-				if (retain) await session.retain(); else await session.dispose();
+				ctx.registerTimeout?.(undefined);
+				ctx.registerStop?.(undefined);
+				if (retain) await session.retain();
+				else await session.dispose();
 			}
 		}
-		const adapterLaunch = step.runner.adapter === "codex-exec" || step.runner.adapter === "codex-exec-writer"
-			? resolveCodexExecLaunch({ adapter: step.runner.adapter, command: step.runner.command, asyncDir: path.dirname(ctx.outputFile), stepIndex: ctx.flatIndex })
-			: step.runner.adapter === "claude-code" || step.runner.adapter === "claude-code-writer"
-				? resolveClaudeCodeLaunch({ adapter: step.runner.adapter, command: step.runner.command, overrideArgs: step.claudeCodeOverrideArgs })
-				: step.runner.adapter === "cursor-agent" || step.runner.adapter === "cursor-agent-writer"
-					? resolveCursorAgentLaunch({ adapter: step.runner.adapter, command: step.runner.command, cwd: externalCwd, asyncDir: path.dirname(ctx.outputFile), stepIndex: ctx.flatIndex })
-				: undefined;
-		const runner = resolveExternalCliRunnerStatus({ ...step.runner, ...(adapterLaunch ? { args: adapterLaunch.args } : {}), ...(step.machine ? { machine: step.machine } : {}) });
+		const adapterLaunch =
+			step.runner.adapter === "codex-exec" || step.runner.adapter === "codex-exec-writer"
+				? resolveCodexExecLaunch({
+						adapter: step.runner.adapter,
+						command: step.runner.command,
+						asyncDir: path.dirname(ctx.outputFile),
+						stepIndex: ctx.flatIndex,
+					})
+				: step.runner.adapter === "claude-code" || step.runner.adapter === "claude-code-writer"
+					? resolveClaudeCodeLaunch({
+							adapter: step.runner.adapter,
+							command: step.runner.command,
+							overrideArgs: step.claudeCodeOverrideArgs,
+						})
+					: step.runner.adapter === "cursor-agent" || step.runner.adapter === "cursor-agent-writer"
+						? resolveCursorAgentLaunch({
+								adapter: step.runner.adapter,
+								command: step.runner.command,
+								cwd: externalCwd,
+								asyncDir: path.dirname(ctx.outputFile),
+								stepIndex: ctx.flatIndex,
+							})
+						: undefined;
+		const runner = resolveExternalCliRunnerStatus({
+			...step.runner,
+			...(adapterLaunch ? { args: adapterLaunch.args } : {}),
+			...(step.machine ? { machine: step.machine } : {}),
+		});
 		const outputSnapshot = captureSingleOutputSnapshot(step.outputPath);
 		const onExternalOutput = (chunk: Buffer): void => {
 			if (chunk.length > 0) ctx.onExternalStreamActivity?.();
@@ -1003,7 +1356,11 @@ export async function runSingleStepInner(
 			onStdout: onExternalOutput,
 			onStderr: onExternalOutput,
 		});
-		const preparedExternal = prepareHerdrMachineExternalCliRun(externalInput, step.machine ? { machine: step.machine, ...(step.machineEnv ? { env: step.machineEnv } : {}) } : undefined, { localCwd: ctx.cwd });
+		const preparedExternal = prepareHerdrMachineExternalCliRun(
+			externalInput,
+			step.machine ? { machine: step.machine, ...(step.machineEnv ? { env: step.machineEnv } : {}) } : undefined,
+			{ localCwd: ctx.cwd },
+		);
 		const ran = await runExternalCli(preparedExternal.input);
 		const externalProcess = preparedExternal.decorateProcess(ran.externalProcess);
 		const external = step.machine ? decorateHerdrMachineResult(ran, step.machine, step.runner.adapter) : ran;
@@ -1036,23 +1393,25 @@ export async function runSingleStepInner(
 			capabilities: { stop: false, steer: false, resume: false, structuredOutput: false, toolEvents: false },
 		};
 		const outputSnapshot = captureSingleOutputSnapshot(step.outputPath);
-		const external = await runExternalJob(omitUndefinedProperties({
-			provider: runner.provider,
-			options: runner.options,
-			cwd: step.cwd ?? ctx.cwd,
-			prompt: buildExternalCliPrompt(step.systemPrompt ?? "", task),
-			asyncDir: path.dirname(ctx.outputFile),
-			stepIndex: ctx.flatIndex,
-			runId: ctx.id,
-			agent: step.agent,
-			sessionId: step.parentSessionId,
-			registerTimeout: ctx.registerTimeout,
-			registerStop: ctx.registerStop,
-			timeoutMessage: ctx.timeoutMessage,
-			stopMessage: ctx.stopMessage,
-			onExternalJob: ctx.onExternalJob,
-			followUp: step.externalJobFollowUp,
-		}));
+		const external = await runExternalJob(
+			omitUndefinedProperties({
+				provider: runner.provider,
+				options: runner.options,
+				cwd: step.cwd ?? ctx.cwd,
+				prompt: buildExternalCliPrompt(step.systemPrompt ?? "", task),
+				asyncDir: path.dirname(ctx.outputFile),
+				stepIndex: ctx.flatIndex,
+				runId: ctx.id,
+				agent: step.agent,
+				sessionId: step.parentSessionId,
+				registerTimeout: ctx.registerTimeout,
+				registerStop: ctx.registerStop,
+				timeoutMessage: ctx.timeoutMessage,
+				stopMessage: ctx.stopMessage,
+				onExternalJob: ctx.onExternalJob,
+				followUp: step.externalJobFollowUp,
+			}),
+		);
 		const settled = settleExternalOutput(external, outputSnapshot, { runner, externalJob: external.externalJob });
 		return omitUndefinedProperties({
 			agent: step.agent,
@@ -1093,7 +1452,17 @@ export async function runSingleStepInner(
 	let toolBudgetBlocked = false;
 	let actualLaunchContractDigest = step.launchContractDigest;
 	// A machine 'local' child edits this disk, so its local Git evidence is authoritative, as for an unplaced run.
-	const mutationSnapshot = step.machine && !isRexLocalMachine(step.machine) ? { source: "tracked-files" as const, trackedOnly: true as const, cwd: step.cwd ?? ctx.cwd, dirtyFiles: [], fingerprints: {}, unavailable: "Local Git evidence is not authoritative for a pane-native remote run." } : snapshotTrackedMutations(step.cwd ?? ctx.cwd);
+	const mutationSnapshot =
+		step.machine && !isRexLocalMachine(step.machine)
+			? {
+					source: "tracked-files" as const,
+					trackedOnly: true as const,
+					cwd: step.cwd ?? ctx.cwd,
+					dirtyFiles: [],
+					fingerprints: {},
+					unavailable: "Local Git evidence is not authoritative for a pane-native remote run.",
+				}
+			: snapshotTrackedMutations(step.cwd ?? ctx.cwd);
 	let finalMutationEvidence = collectTrackedMutationEvidence(mutationSnapshot, step.cwd ?? ctx.cwd);
 
 	let contextOverflow = false;
@@ -1102,36 +1471,60 @@ export async function runSingleStepInner(
 	let launched = false;
 	let recoveryTask = task;
 	let stagedIndexBaseline: string | undefined;
-	singleLaunch: for (let attemptIndex = 0; attemptIndex < 2; attemptIndex++) {
-		if (ctx.timeoutSignal?.aborted || ctx.stopSignal?.aborted || ctx.skipAcceptance?.()) break singleLaunch;
+	for (let attemptIndex = 0; attemptIndex < 2; attemptIndex++) {
+		if (ctx.timeoutSignal?.aborted || ctx.stopSignal?.aborted || ctx.skipAcceptance?.()) break;
 		const expectedModelForVerification = candidate && !step.skipPrimaryModelVerification ? candidate : undefined;
 		try {
-			assertThinkingWithinCeiling({ model: candidate, configThinking: step.thinking, ceiling: step.thinkingCeiling, agent: step.agent, runId: ctx.id });
+			assertThinkingWithinCeiling({
+				model: candidate,
+				configThinking: step.thinking,
+				ceiling: step.thinkingCeiling,
+				agent: step.agent,
+				runId: ctx.id,
+			});
 		} catch (error) {
 			const message = error instanceof Error ? error.message : String(error);
-			return omitUndefinedProperties({ agent: step.agent, output: message, error: message, exitCode: 1, context: step.context, thinkingCeiling: step.thinkingCeiling });
+			return omitUndefinedProperties({
+				agent: step.agent,
+				output: message,
+				error: message,
+				exitCode: 1,
+				context: step.context,
+				thinkingCeiling: step.thinkingCeiling,
+			});
 		}
-		const attemptModel = omitUndefinedProperties({ model: candidate, thinking: resolveEffectiveThinking(candidate, step.thinking) });
-		ctx.onAttemptStart?.(omitUndefinedProperties({
-			...attemptModel,
-			contextLimit: findModelInfo(candidate, step.modelVerificationRegistry)?.contextWindow,
-		}));
+		const attemptModel = omitUndefinedProperties({
+			model: candidate,
+			thinking: resolveEffectiveThinking(candidate, step.thinking),
+		});
+		ctx.onAttemptStart?.(
+			omitUndefinedProperties({
+				...attemptModel,
+				contextLimit: findModelInfo(candidate, step.modelVerificationRegistry)?.contextWindow,
+			}),
+		);
 		const outputSnapshot = captureSingleOutputSnapshot(step.outputPath);
 		if (effectiveStructuredOutput) {
 			const cleanupError = clearStructuredOutputCaptures(effectiveStructuredOutput);
 			if (cleanupError) {
-				return omitUndefinedProperties({ agent: step.agent, output: cleanupError, error: cleanupError, exitCode: 1, context: step.context });
+				return omitUndefinedProperties({
+					agent: step.agent,
+					output: cleanupError,
+					error: cleanupError,
+					exitCode: 1,
+					context: step.context,
+				});
 			}
 		}
 		const watchdogConfig = resolveWatchdogConfig(step.cwd ?? ctx.cwd);
 		const extensionBindings = normalizeExtensionBindings(step.extensionBindings)?.value;
 		const childWatchdog = watchdogConfig.ok
 			? resolveChildWatchdogConfig({
-				config: watchdogConfig.config,
-				agent: step.agent,
-				runId: ctx.id,
-				childIndex: ctx.flatIndex,
-			})
+					config: watchdogConfig.config,
+					agent: step.agent,
+					runId: ctx.id,
+					childIndex: ctx.flatIndex,
+				})
 			: undefined;
 		let watchdogSink: ((event: ChildWatchdogStatusEvent) => void) | undefined;
 		let launch: ReturnType<typeof buildRunnerChildLaunch>;
@@ -1145,7 +1538,9 @@ export async function runSingleStepInner(
 				childWatchdog,
 				watchdogStatus: (event) => watchdogSink?.(event),
 			});
-		} catch (error) { throw error; }
+		} catch (error) {
+			throw error;
+		}
 		if (effectiveStructuredOutput && launch.config.structuredOutput) {
 			// The runner reads the value back from the runtime's files after the run.
 			launch.config.structuredOutput.capture = createStructuredOutputFileCapture(effectiveStructuredOutput);
@@ -1156,24 +1551,28 @@ export async function runSingleStepInner(
 			launchWarningsEmitted = true;
 		}
 		if (step.definitionDigest) {
-			const toolPlan = resolvedTaskToolPlan ?? resolvePiLaunchToolPlan(omitUndefinedProperties({
-				tools: step.tools,
-				excludeTools: step.excludeTools,
-				allowNestedSubagents: step.allowNestedSubagents,
-				extensions: step.extensions,
-				subagentOnlyExtensions: step.subagentOnlyExtensions,
-				fast: step.fast,
-				model: step.model,
-				mcpDirectTools: step.mcpDirectTools,
-				builtinMcpTools: step.builtinMcpTools,
-				cwd: step.cwd ?? ctx.cwd,
-				requireReadTool: Boolean(step.skills?.length),
-				structuredOutput: Boolean(effectiveStructuredOutput),
-				capabilityCeiling: step.capabilityCeiling ?? ctx.capabilityCeiling,
-				inheritedCapabilityCeiling: ctx.inheritedChildRuntime?.capabilityCeiling,
-				requiredExtensions: step.requiredExtensions ?? ctx.inheritedChildRuntime?.requiredExtensions,
-				permissionRules: step.permissionRules,
-			}));
+			const toolPlan =
+				resolvedTaskToolPlan ??
+				resolvePiLaunchToolPlan(
+					omitUndefinedProperties({
+						tools: step.tools,
+						excludeTools: step.excludeTools,
+						allowNestedSubagents: step.allowNestedSubagents,
+						extensions: step.extensions,
+						subagentOnlyExtensions: step.subagentOnlyExtensions,
+						fast: step.fast,
+						model: step.model,
+						mcpDirectTools: step.mcpDirectTools,
+						builtinMcpTools: step.builtinMcpTools,
+						cwd: step.cwd ?? ctx.cwd,
+						requireReadTool: Boolean(step.skills?.length),
+						structuredOutput: Boolean(effectiveStructuredOutput),
+						capabilityCeiling: step.capabilityCeiling ?? ctx.capabilityCeiling,
+						inheritedCapabilityCeiling: ctx.inheritedChildRuntime?.capabilityCeiling,
+						requiredExtensions: step.requiredExtensions ?? ctx.inheritedChildRuntime?.requiredExtensions,
+						permissionRules: step.permissionRules,
+					}),
+				);
 			launchResolvedExtensions = projectLaunchResolvedChildExtensions(toolPlan);
 			actualLaunchContractDigest = resolveLaunchBinding({
 				definitionDigest: step.definitionDigest,
@@ -1206,40 +1605,49 @@ export async function runSingleStepInner(
 				return { agent: step.agent, output: message, error: message, exitCode: 1, context: step.context };
 			}
 		}
-		const run = await runChildSession(omitUndefinedProperties({
-			factory: ctx.childSessions,
-			launch,
-			prompt: `Task: ${recoveryTask}`,
-			childWatchdog,
-			childEventContext: { runId: ctx.id, stepIndex: ctx.flatIndex, agent: step.agent },
-			appendChildEvent: (event) => appendDiagnosticJsonl(eventsPath, JSON.stringify(event), typeof event.type === "string" ? event.type : undefined),
-			writeOutputLine: (line) => {
-				try {
-					fs.appendFileSync(ctx.outputFile, `${line}\n`, "utf-8");
-				} catch {
-					// The output log is observability only.
-				}
-				ctx.orcaProgressTab?.append(`${line}\n`);
-			},
-			registerInterrupt: ctx.registerInterrupt,
-			registerTimeout: ctx.registerTimeout,
-			registerStop: ctx.registerStop,
-			registerSteer: ctx.registerSteer,
-			onSteerOutcome: ctx.onSteerOutcome,
-			registerWatchdogStatus: (sink) => { watchdogSink = sink; },
-			timeoutMessage: ctx.timeoutMessage,
-			stopMessage: ctx.stopMessage,
-			onChildEvent: ctx.onChildEvent,
-			onContextWindow: (contextLimit) => ctx.onAttemptStart?.({ ...attemptModel, contextLimit }),
-			transcriptWriter,
-			toolTimeoutMs: ctx.toolTimeoutMs,
-			runDeadlineAt: ctx.deadlineAt,
-			expectedModelForVerification,
-			modelVerificationRegistry: step.modelVerificationRegistry,
-			modelResponseAliases: step.modelResponseAliases,
-			mutationTools: step.mutationTools,
-			parentExtensionProvider: step.parentExtensionProvider,
-		}));
+		const run = await runChildSession(
+			omitUndefinedProperties({
+				factory: ctx.childSessions,
+				launch,
+				prompt: `Task: ${recoveryTask}`,
+				childWatchdog,
+				childEventContext: { runId: ctx.id, stepIndex: ctx.flatIndex, agent: step.agent },
+				appendChildEvent: (event) =>
+					appendDiagnosticJsonl(
+						eventsPath,
+						JSON.stringify(event),
+						typeof event.type === "string" ? event.type : undefined,
+					),
+				writeOutputLine: (line) => {
+					try {
+						fs.appendFileSync(ctx.outputFile, `${line}\n`, "utf-8");
+					} catch {
+						// The output log is observability only.
+					}
+					ctx.orcaProgressTab?.append(`${line}\n`);
+				},
+				registerInterrupt: ctx.registerInterrupt,
+				registerTimeout: ctx.registerTimeout,
+				registerStop: ctx.registerStop,
+				registerSteer: ctx.registerSteer,
+				onSteerOutcome: ctx.onSteerOutcome,
+				registerWatchdogStatus: (sink) => {
+					watchdogSink = sink;
+				},
+				timeoutMessage: ctx.timeoutMessage,
+				stopMessage: ctx.stopMessage,
+				onChildEvent: ctx.onChildEvent,
+				onContextWindow: (contextLimit) => ctx.onAttemptStart?.({ ...attemptModel, contextLimit }),
+				transcriptWriter,
+				toolTimeoutMs: ctx.toolTimeoutMs,
+				runDeadlineAt: ctx.deadlineAt,
+				expectedModelForVerification,
+				modelVerificationRegistry: step.modelVerificationRegistry,
+				modelResponseAliases: step.modelResponseAliases,
+				mutationTools: step.mutationTools,
+				parentExtensionProvider: step.parentExtensionProvider,
+			}),
+		);
 		launched = true;
 		aggregateUsage.input += run.usage.input;
 		aggregateUsage.output += run.usage.output;
@@ -1253,20 +1661,26 @@ export async function runSingleStepInner(
 		const toolDiagnostic = run.exitCode === 0 && !run.error ? launch.capture.toolDiagnostic() : undefined;
 		const toolAvailabilityError = toolDiagnostic ? formatChildToolDiagnostic(toolDiagnostic) : undefined;
 		const runtimeAcknowledgedExtensions = launch.capture.runtimeAcknowledgedExtensions();
-		const midToolExitError = run.currentTool
-			&& isOrdinaryToolForMidToolExit(run.currentTool)
-			&& !run.interrupted
-			&& !run.timedOut
-			&& !run.stopped
-			&& !toolAvailabilityError
-			? formatMidToolExitError({ toolName: run.currentTool })
-			: undefined;
+		const midToolExitError =
+			run.currentTool &&
+			isOrdinaryToolForMidToolExit(run.currentTool) &&
+			!run.interrupted &&
+			!run.timedOut &&
+			!run.stopped &&
+			!toolAvailabilityError
+				? formatMidToolExitError({ toolName: run.currentTool })
+				: undefined;
 
 		let structuredOutput: unknown;
 		let structuredError: string | undefined;
 		let validatedStructuredOutput = false;
 		if (effectiveStructuredOutput) {
-			const otherwiseSuccessful = terminalDiagnosticsEligible && run.exitCode === 0 && !run.error && !toolAvailabilityError && !midToolExitError;
+			const otherwiseSuccessful =
+				terminalDiagnosticsEligible &&
+				run.exitCode === 0 &&
+				!run.error &&
+				!toolAvailabilityError &&
+				!midToolExitError;
 			if (!run.structuredOutputToolInvoked && otherwiseSuccessful) {
 				structuredError = MISSING_STRUCTURED_OUTPUT_CALL_ERROR;
 			} else if (run.structuredOutputToolInvoked) {
@@ -1277,12 +1691,12 @@ export async function runSingleStepInner(
 				});
 				if (structured.error) {
 					if (otherwiseSuccessful) {
-						structuredError = structured.error === MISSING_STRUCTURED_OUTPUT_CALL_ERROR
-							? formatStructuredOutputRejectionError(run.messages)
-							: structured.error;
+						structuredError =
+							structured.error === MISSING_STRUCTURED_OUTPUT_CALL_ERROR
+								? formatStructuredOutputRejectionError(run.messages)
+								: structured.error;
 					}
-				}
-				else {
+				} else {
 					structuredOutput = structured.value;
 					const acceptanceReport = readStructuredOutputAcceptanceReport(effectiveStructuredOutput);
 					structuredAcceptanceReport = acceptanceReport.value;
@@ -1294,52 +1708,95 @@ export async function runSingleStepInner(
 		const errorMessages = validatedStructuredOutput
 			? run.messages.slice(run.structuredOutputMessageStartIndex ?? run.messages.length)
 			: run.messages;
-		const hiddenError = terminalDiagnosticsEligible && run.exitCode === 0 && !run.error && !toolAvailabilityError && !structuredError && !midToolExitError
-			? detectSubagentError(errorMessages)
-			: null;
-		const terminalEmptyAfterUsefulWork = !validatedStructuredOutput
-			&& hasEmptyTerminalAssistantResponse(run.messages)
-			&& (run.toolCount > 0 || Boolean(run.finalOutput.trim()));
-		const emptyOutputError = terminalDiagnosticsEligible && run.exitCode === 0
-			&& !run.error
-			&& !toolAvailabilityError
-			&& !structuredError
-			&& !validatedStructuredOutput
-			&& (!run.finalOutput.trim() || terminalEmptyAfterUsefulWork)
-			&& (!hiddenError?.hasError || hasEmptyTerminalAssistantResponse(run.messages))
-			? formatEmptyTerminalAssistantResponseError(run.messages)
-			: undefined;
-		const remoteGitChanged = run.nativeMachine?.initialGit && run.nativeMachine.finalGit ? run.nativeMachine.initialGit.head !== run.nativeMachine.finalGit.head || run.nativeMachine.initialGit.dirty !== run.nativeMachine.finalGit.dirty : undefined;
-		const mutationEvidence = run.nativeMachine && !isRexLocalMachine(step.machine) ? { source: "tracked-files" as const, trackedOnly: true as const, changedFiles: [], attemptedMutation: remoteGitChanged === true, ...(remoteGitChanged === undefined ? { unavailable: "Remote Git before/after evidence was incomplete." } : {}) } : collectTrackedMutationEvidence(mutationSnapshot, step.cwd ?? ctx.cwd);
+		const hiddenError =
+			terminalDiagnosticsEligible &&
+			run.exitCode === 0 &&
+			!run.error &&
+			!toolAvailabilityError &&
+			!structuredError &&
+			!midToolExitError
+				? detectSubagentError(errorMessages)
+				: null;
+		const terminalEmptyAfterUsefulWork =
+			!validatedStructuredOutput &&
+			hasEmptyTerminalAssistantResponse(run.messages) &&
+			(run.toolCount > 0 || Boolean(run.finalOutput.trim()));
+		const emptyOutputError =
+			terminalDiagnosticsEligible &&
+			run.exitCode === 0 &&
+			!run.error &&
+			!toolAvailabilityError &&
+			!structuredError &&
+			!validatedStructuredOutput &&
+			(!run.finalOutput.trim() || terminalEmptyAfterUsefulWork) &&
+			(!hiddenError?.hasError || hasEmptyTerminalAssistantResponse(run.messages))
+				? formatEmptyTerminalAssistantResponseError(run.messages)
+				: undefined;
+		const remoteGitChanged =
+			run.nativeMachine?.initialGit && run.nativeMachine.finalGit
+				? run.nativeMachine.initialGit.head !== run.nativeMachine.finalGit.head ||
+					run.nativeMachine.initialGit.dirty !== run.nativeMachine.finalGit.dirty
+				: undefined;
+		const mutationEvidence =
+			run.nativeMachine && !isRexLocalMachine(step.machine)
+				? {
+						source: "tracked-files" as const,
+						trackedOnly: true as const,
+						changedFiles: [],
+						attemptedMutation: remoteGitChanged === true,
+						...(remoteGitChanged === undefined
+							? { unavailable: "Remote Git before/after evidence was incomplete." }
+							: {}),
+					}
+				: collectTrackedMutationEvidence(mutationSnapshot, step.cwd ?? ctx.cwd);
 		finalMutationEvidence = mutationEvidence;
-		const mutationAttemptObserved = run.observedMutationAttempt === true || mutationEvidence.attemptedMutation === true;
+		const mutationAttemptObserved =
+			run.observedMutationAttempt === true || mutationEvidence.attemptedMutation === true;
 		// Validated structured output is persistable file content even when the final text is only
 		// an acceptance-report fence; otherwise the required-output precheck forces exitCode 1 before
 		// resolveSingleOutput can publish the canonical JSON into the bound file-only path.
-		const finalOutputHasPersistableFileContent = run.exitCode === 0 && !run.error && !emptyOutputError
-			&& (Boolean(stripAcceptanceReport(run.finalOutput).trim()) || validatedStructuredOutput);
-		const requiredOutput = step.outputMode === "file-only" && step.outputPath
-			? { kind: "file-only" as const, path: step.outputPath, missing: !fs.existsSync(step.outputPath) && !finalOutputHasPersistableFileContent }
-			: effectiveStructuredOutput
-				? { kind: "structured" as const, path: effectiveStructuredOutput.outputPath, missing: !fs.existsSync(effectiveStructuredOutput.outputPath) }
-			: undefined;
+		const finalOutputHasPersistableFileContent =
+			run.exitCode === 0 &&
+			!run.error &&
+			!emptyOutputError &&
+			(Boolean(stripAcceptanceReport(run.finalOutput).trim()) || validatedStructuredOutput);
+		const requiredOutput =
+			step.outputMode === "file-only" && step.outputPath
+				? {
+						kind: "file-only" as const,
+						path: step.outputPath,
+						missing: !fs.existsSync(step.outputPath) && !finalOutputHasPersistableFileContent,
+					}
+				: effectiveStructuredOutput
+					? {
+							kind: "structured" as const,
+							path: effectiveStructuredOutput.outputPath,
+							missing: !fs.existsSync(effectiveStructuredOutput.outputPath),
+						}
+					: undefined;
 		finalRequiredOutputMissing = requiredOutput?.missing;
-		const missingRequiredOutputError = terminalDiagnosticsEligible ? formatRequiredOutputError(requiredOutput) : undefined;
-		const missingRequiredOutputAfterMutation = Boolean(missingRequiredOutputError) && (mutationAttemptObserved || Boolean(mutationEvidence.changedFiles.length));
-		const effectiveExitCode = toolAvailabilityError || midToolExitError || structuredError || emptyOutputError || missingRequiredOutputError
-			? 1
-			: hiddenError?.hasError
-				? (hiddenError.exitCode ?? 1)
-				: run.error && run.exitCode === 0
-					? 1
-					: run.exitCode;
-		const underlyingError = toolAvailabilityError
-			?? midToolExitError
-			?? structuredError
-			?? run.error
-			?? emptyOutputError
-			?? (missingRequiredOutputAfterMutation ? missingRequiredOutputError : undefined)
-			?? (hiddenError?.hasError
+		const missingRequiredOutputError = terminalDiagnosticsEligible
+			? formatRequiredOutputError(requiredOutput)
+			: undefined;
+		const missingRequiredOutputAfterMutation =
+			Boolean(missingRequiredOutputError) &&
+			(mutationAttemptObserved || Boolean(mutationEvidence.changedFiles.length));
+		const effectiveExitCode =
+			toolAvailabilityError || midToolExitError || structuredError || emptyOutputError || missingRequiredOutputError
+				? 1
+				: hiddenError?.hasError
+					? (hiddenError.exitCode ?? 1)
+					: run.error && run.exitCode === 0
+						? 1
+						: run.exitCode;
+		const underlyingError =
+			toolAvailabilityError ??
+			midToolExitError ??
+			structuredError ??
+			run.error ??
+			emptyOutputError ??
+			(missingRequiredOutputAfterMutation ? missingRequiredOutputError : undefined) ??
+			(hiddenError?.hasError
 				? hiddenError.details
 					? `${hiddenError.errorType} failed (exit ${effectiveExitCode}): ${hiddenError.details}`
 					: `${hiddenError.errorType} failed with exit code ${effectiveExitCode}`
@@ -1348,20 +1805,55 @@ export async function runSingleStepInner(
 		finalOutputSnapshot = outputSnapshot;
 		if (step.toolBudget) {
 			const toolMessages = run.messages.filter((message) => message.role === "toolResult");
-			const blockedMessage = toolMessages.find((message) => extractTextFromContent(message.content).includes("Tool budget hard limit reached"));
+			const blockedMessage = toolMessages.find((message) =>
+				extractTextFromContent(message.content).includes("Tool budget hard limit reached"),
+			);
 			toolBudgetBlocked = Boolean(blockedMessage);
-			toolBudget = toolBudgetState(step.toolBudget, toolMessages.length, blockedMessage ? (blockedMessage as { toolName?: string }).toolName : undefined);
+			toolBudget = toolBudgetState(
+				step.toolBudget,
+				toolMessages.length,
+				blockedMessage ? (blockedMessage as { toolName?: string }).toolName : undefined,
+			);
 		}
-		const settlementDiagnostic = effectiveExitCode !== 0 ? {
-			finalTextPresent: Boolean(stripAcceptanceReport(run.finalOutput).trim()),
-			mutation: { attempted: mutationAttemptObserved, observed: mutationEvidence.attemptedMutation },
-			...(requiredOutput ? { requiredOutput } : {}),
-			afterCompactionSettlement: run.afterCompactionSettlement === true,
-		} : undefined;
-		const fileMutationEffect = missingRequiredOutputAfterMutation ? { status: "observed" as const, attempted: true as const, evidence: mutationEvidence } : undefined;
-		finalResult = { ...run, exitCode: effectiveExitCode, model: candidate ?? run.model, error, structuredOutput, structuredOutputFailed: structuredError ? true : undefined, runtimeAcknowledgedExtensions, ...(step.agentContract ? { agentContract: step.agentContract } : {}), ...(fileMutationEffect || settlementDiagnostic ? { effects: { ...(fileMutationEffect ? { fileMutation: fileMutationEffect } : {}), ...(settlementDiagnostic ? { settlementDiagnostic } : {}) } } : {}) } as RunChildSessionResult;
-		if (run.stopped || run.timedOut || ctx.timeoutSignal?.aborted || ctx.stopSignal?.aborted || ctx.skipAcceptance?.()) break singleLaunch;
-		if (effectiveExitCode === 0 && !error) break singleLaunch;
+		const settlementDiagnostic =
+			effectiveExitCode !== 0
+				? {
+						finalTextPresent: Boolean(stripAcceptanceReport(run.finalOutput).trim()),
+						mutation: { attempted: mutationAttemptObserved, observed: mutationEvidence.attemptedMutation },
+						...(requiredOutput ? { requiredOutput } : {}),
+						afterCompactionSettlement: run.afterCompactionSettlement === true,
+					}
+				: undefined;
+		const fileMutationEffect = missingRequiredOutputAfterMutation
+			? { status: "observed" as const, attempted: true as const, evidence: mutationEvidence }
+			: undefined;
+		finalResult = {
+			...run,
+			exitCode: effectiveExitCode,
+			model: candidate ?? run.model,
+			error,
+			structuredOutput,
+			structuredOutputFailed: structuredError ? true : undefined,
+			runtimeAcknowledgedExtensions,
+			...(step.agentContract ? { agentContract: step.agentContract } : {}),
+			...(fileMutationEffect || settlementDiagnostic
+				? {
+						effects: {
+							...(fileMutationEffect ? { fileMutation: fileMutationEffect } : {}),
+							...(settlementDiagnostic ? { settlementDiagnostic } : {}),
+						},
+					}
+				: {}),
+		} as RunChildSessionResult;
+		if (
+			run.stopped ||
+			run.timedOut ||
+			ctx.timeoutSignal?.aborted ||
+			ctx.stopSignal?.aborted ||
+			ctx.skipAcceptance?.()
+		)
+			break;
+		if (effectiveExitCode === 0 && !error) break;
 		const recovery = planAbortRecovery({
 			messages: run.messages,
 			error,
@@ -1379,7 +1871,7 @@ export async function runSingleStepInner(
 		});
 		if (recovery.action === "resume") {
 			recoveryTask = recovery.prompt;
-			continue singleLaunch;
+			continue;
 		}
 		if (recovery.diagnostic) {
 			finalResult.abortRecoveryDiagnostic = recovery.diagnostic;
@@ -1387,27 +1879,38 @@ export async function runSingleStepInner(
 
 		if (isContextOverflow(error)) {
 			contextOverflow = true;
-			break singleLaunch;
+			break;
 		}
-		break singleLaunch;
+		break;
 	}
 
 	const rawOutput = finalResult?.finalOutput ?? "";
-	const structuredText = finalResult?.structuredOutput === undefined ? undefined : JSON.stringify(finalResult.structuredOutput, null, 2);
+	const structuredText =
+		finalResult?.structuredOutput === undefined ? undefined : JSON.stringify(finalResult.structuredOutput, null, 2);
 	let replyOutput = stripAcceptanceReport(rawOutput);
 	if (!replyOutput.trim() && structuredText !== undefined) replyOutput = structuredText;
 	// The schema is the caller's contract: a bound output file holds the structured result, not closing prose.
-	const resolvedOutput = step.outputPath && finalResult?.exitCode === 0
-		? resolveSingleOutput(step.outputPath, structuredText ?? replyOutput, finalOutputSnapshot, step.outputClaimPath)
-		: { fullOutput: replyOutput };
+	const resolvedOutput =
+		step.outputPath && finalResult?.exitCode === 0
+			? resolveSingleOutput(
+					step.outputPath,
+					structuredText ?? replyOutput,
+					finalOutputSnapshot,
+					step.outputClaimPath,
+				)
+			: { fullOutput: replyOutput };
 	if (isSettlementFatalOutputError(resolvedOutput, step.outputMode)) {
 		if (finalResult) {
 			finalResult.exitCode = 1;
-			finalResult.error = finalResult.error ? `${finalResult.error}\n${resolvedOutput.saveError}` : resolvedOutput.saveError;
+			finalResult.error = finalResult.error
+				? `${finalResult.error}\n${resolvedOutput.saveError}`
+				: resolvedOutput.saveError;
 		}
 	}
 	const output = stripAcceptanceReport(resolvedOutput.fullOutput);
-	const outputReference = resolvedOutput.savedPath ? formatSavedOutputReference(resolvedOutput.savedPath, output) : undefined;
+	const outputReference = resolvedOutput.savedPath
+		? formatSavedOutputReference(resolvedOutput.savedPath, output)
+		: undefined;
 	let outputForSummary = output;
 	if (finalResult?.stopped && !outputForSummary.trim()) {
 		outputForSummary = ctx.stopMessage ?? SUBAGENT_STOPPED_MESSAGE;
@@ -1417,70 +1920,106 @@ export async function runSingleStepInner(
 	const childWrittenOutput = step.outputPath
 		? extractChildWrittenOutput(finalResult?.messages, step.outputPath, step.cwd ?? ctx.cwd)
 		: undefined;
-	const outputState: SubagentOutputState = finalResult?.outputState === "present"
-		|| (finalResult as (RunChildSessionResult & { structuredOutput?: unknown }) | undefined)?.structuredOutput !== undefined
-		|| Boolean(childWrittenOutput?.trim())
-		? "present"
-		: resolvedOutput.savedPath
-			? "unknown"
-			: finalResult?.outputState ?? "unknown";
-	const timeoutRecovery = finalResult?.timedOut === true || ctx.timeoutSignal?.aborted === true
-		? buildTimeoutRecoverySummary({
-			termination: "timed-out",
-			evidence: finalMutationEvidence,
-			requiredOutputMissing: finalRequiredOutputMissing,
-			currentTool: finalResult?.currentTool,
-			currentToolArgs: finalResult?.currentToolArgs,
-			currentPath: finalResult?.currentPath,
-			sessionFile: step.sessionFile,
-			transcriptPath: transcriptWriter ? artifactPaths?.transcriptPath : undefined,
-			artifactPaths,
-		})
-		: undefined;
-	if (timeoutRecovery) outputForSummary = outputForSummary.trim()
-		? `${outputForSummary}\n\n${timeoutRecovery.message}`
-		: timeoutRecovery.message;
-	const finalizedOutput = finalizeSingleOutput(omitUndefinedProperties({
-		fullOutput: outputForSummary,
-		outputPath: step.outputPath,
-		outputMode: step.outputMode,
-		exitCode: finalResult?.exitCode ?? 1,
-		savedPath: resolvedOutput.savedPath,
-		outputReference,
-		saveError: resolvedOutput.saveError,
-	}));
+	const outputState: SubagentOutputState =
+		finalResult?.outputState === "present" ||
+		(finalResult as (RunChildSessionResult & { structuredOutput?: unknown }) | undefined)?.structuredOutput !==
+			undefined ||
+		Boolean(childWrittenOutput?.trim())
+			? "present"
+			: resolvedOutput.savedPath
+				? "unknown"
+				: (finalResult?.outputState ?? "unknown");
+	const timeoutRecovery =
+		finalResult?.timedOut === true || ctx.timeoutSignal?.aborted === true
+			? buildTimeoutRecoverySummary({
+					termination: "timed-out",
+					evidence: finalMutationEvidence,
+					requiredOutputMissing: finalRequiredOutputMissing,
+					currentTool: finalResult?.currentTool,
+					currentToolArgs: finalResult?.currentToolArgs,
+					currentPath: finalResult?.currentPath,
+					sessionFile: step.sessionFile,
+					transcriptPath: transcriptWriter ? artifactPaths?.transcriptPath : undefined,
+					artifactPaths,
+				})
+			: undefined;
+	if (timeoutRecovery)
+		outputForSummary = outputForSummary.trim()
+			? `${outputForSummary}\n\n${timeoutRecovery.message}`
+			: timeoutRecovery.message;
+	const finalizedOutput = finalizeSingleOutput(
+		omitUndefinedProperties({
+			fullOutput: outputForSummary,
+			outputPath: step.outputPath,
+			outputMode: step.outputMode,
+			exitCode: finalResult?.exitCode ?? 1,
+			savedPath: resolvedOutput.savedPath,
+			outputReference,
+			saveError: resolvedOutput.saveError,
+		}),
+	);
 	outputForSummary = finalizedOutput.displayOutput;
-	const acceptance = step.effectiveAcceptance && !finalResult?.stopped && !ctx.timeoutSignal?.aborted && !ctx.stopSignal?.aborted && !ctx.skipAcceptance?.()
-		? await evaluateAcceptance(omitUndefinedProperties({
-			acceptance: step.effectiveAcceptance,
-			output: outputForAcceptance,
-			report: structuredAcceptanceReport as import("../../shared/types.ts").AcceptanceReport | undefined,
-			reportError: structuredAcceptanceReportError,
-			fileOutput: childWrittenOutput !== undefined && step.outputPath
-				? { content: childWrittenOutput, path: step.outputPath, authoritative: step.outputMode === "file-only", durable: resolvedOutput.savedPath !== undefined }
-				: undefined,
-			cwd: step.cwd ?? ctx.cwd,
-			stagedIndexBaseline,
-			signal: combinedAbortSignal([ctx.timeoutSignal, ctx.stopSignal]),
-			abortMessage: ctx.stopSignal?.aborted ? ctx.stopMessage ?? SUBAGENT_STOPPED_MESSAGE : ctx.timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE,
-			reportOptional: isAgentContract(step.agentContract),
-			artifactsDir: ctx.artifactsDir,
-			runId: ctx.id,
-			watchdog: finalResult?.watchdog,
-		}))
-		: undefined;
+	const acceptance =
+		step.effectiveAcceptance &&
+		!finalResult?.stopped &&
+		!ctx.timeoutSignal?.aborted &&
+		!ctx.stopSignal?.aborted &&
+		!ctx.skipAcceptance?.()
+			? await evaluateAcceptance(
+					omitUndefinedProperties({
+						acceptance: step.effectiveAcceptance,
+						output: outputForAcceptance,
+						report: structuredAcceptanceReport as import("../../shared/types.ts").AcceptanceReport | undefined,
+						reportError: structuredAcceptanceReportError,
+						fileOutput:
+							childWrittenOutput !== undefined && step.outputPath
+								? {
+										content: childWrittenOutput,
+										path: step.outputPath,
+										authoritative: step.outputMode === "file-only",
+										durable: resolvedOutput.savedPath !== undefined,
+									}
+								: undefined,
+						cwd: step.cwd ?? ctx.cwd,
+						stagedIndexBaseline,
+						signal: combinedAbortSignal([ctx.timeoutSignal, ctx.stopSignal]),
+						abortMessage: ctx.stopSignal?.aborted
+							? (ctx.stopMessage ?? SUBAGENT_STOPPED_MESSAGE)
+							: (ctx.timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE),
+						reportOptional: isAgentContract(step.agentContract),
+						artifactsDir: ctx.artifactsDir,
+						runId: ctx.id,
+						watchdog: finalResult?.watchdog,
+					}),
+				)
+			: undefined;
 	const stoppedAfterAcceptance = finalResult?.stopped === true || ctx.stopSignal?.aborted === true;
-	const timedOutAfterAcceptance = !stoppedAfterAcceptance && (finalResult?.timedOut === true || ctx.timeoutSignal?.aborted === true);
+	const timedOutAfterAcceptance =
+		!stoppedAfterAcceptance && (finalResult?.timedOut === true || ctx.timeoutSignal?.aborted === true);
 	const effectiveAcceptance = step.effectiveAcceptance
 		? stoppedAfterAcceptance
-			? buildSkippedAcceptanceLedger(step.effectiveAcceptance, { id: "stopped", message: "Acceptance was not evaluated because the subagent was stopped." })
+			? buildSkippedAcceptanceLedger(step.effectiveAcceptance, {
+					id: "stopped",
+					message: "Acceptance was not evaluated because the subagent was stopped.",
+				})
 			: timedOutAfterAcceptance
-				? buildSkippedAcceptanceLedger(step.effectiveAcceptance, { id: "timeout", message: "Acceptance was not evaluated because the subagent timed out." })
+				? buildSkippedAcceptanceLedger(step.effectiveAcceptance, {
+						id: "timeout",
+						message: "Acceptance was not evaluated because the subagent timed out.",
+					})
 				: acceptance
 		: undefined;
 	const acceptanceFailure = effectiveAcceptance ? acceptanceFailureMessage(effectiveAcceptance) : undefined;
-	const acceptanceCanFailRun = acceptanceFailure && effectiveAcceptance?.explicit && (finalResult?.exitCode ?? 1) === 0 && !finalResult?.interrupted && !timedOutAfterAcceptance && !stoppedAfterAcceptance && !isAgentContract(step.agentContract);
-	const effectiveFinalExitCode = timedOutAfterAcceptance || stoppedAfterAcceptance ? 1 : acceptanceCanFailRun ? 1 : finalResult?.exitCode ?? 1;
+	const acceptanceCanFailRun =
+		acceptanceFailure &&
+		effectiveAcceptance?.explicit &&
+		(finalResult?.exitCode ?? 1) === 0 &&
+		!finalResult?.interrupted &&
+		!timedOutAfterAcceptance &&
+		!stoppedAfterAcceptance &&
+		!isAgentContract(step.agentContract);
+	const effectiveFinalExitCode =
+		timedOutAfterAcceptance || stoppedAfterAcceptance ? 1 : acceptanceCanFailRun ? 1 : (finalResult?.exitCode ?? 1);
 	// A passing typed gate supplies the structured output for runs that have no
 	// outputSchema of their own; preflight rejects the combination.
 	const typedGate = typedVerifyOutput(effectiveAcceptance);
@@ -1489,53 +2028,74 @@ export async function runSingleStepInner(
 	}
 	const intercomDetachReceipt = finalResult?.finalOutput === INTERCOM_DETACH_RECEIPT;
 	const baseFinalError = stoppedAfterAcceptance
-		? ctx.stopMessage ?? SUBAGENT_STOPPED_MESSAGE
+		? (ctx.stopMessage ?? SUBAGENT_STOPPED_MESSAGE)
 		: timedOutAfterAcceptance
-			? finalResult?.error ?? ctx.timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE
+			? (finalResult?.error ?? ctx.timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE)
 			: acceptanceCanFailRun
-					? (finalResult?.error ? `${finalResult.error}\n${acceptanceFailure}` : acceptanceFailure)
-					: finalResult?.error ?? (intercomDetachReceipt ? INTERCOM_DETACH_RECEIPT : undefined);
+				? finalResult?.error
+					? `${finalResult.error}\n${acceptanceFailure}`
+					: acceptanceFailure
+				: (finalResult?.error ?? (intercomDetachReceipt ? INTERCOM_DETACH_RECEIPT : undefined));
 	const effectiveFinalError = formatChildFailureDiagnostic({
 		error: baseFinalError,
 		afterCompactionSettlement: effectiveFinalExitCode !== 0 ? finalResult?.afterCompactionSettlement : undefined,
 		abortRecoveryDiagnostic: effectiveFinalExitCode !== 0 ? finalResult?.abortRecoveryDiagnostic : undefined,
-		requiredOutput: effectiveFinalExitCode !== 0 ? finalResult?.effects?.settlementDiagnostic?.requiredOutput : undefined,
+		requiredOutput:
+			effectiveFinalExitCode !== 0 ? finalResult?.effects?.settlementDiagnostic?.requiredOutput : undefined,
 	});
 	const usage = launched ? aggregateUsage : undefined;
 
-	const artifactErrors = artifactPaths && ctx.artifactConfig?.enabled !== false
-		? persistStepArtifacts({
-			artifactPaths,
-			artifactConfig: ctx.artifactConfig,
-			output: formatOutputArtifactContent(omitUndefinedProperties({
-				output,
-				error: effectiveFinalError,
-				transcriptPath: transcriptWriter ? artifactPaths.transcriptPath : undefined,
-				metadataPath: ctx.artifactConfig?.includeMetadata === false ? undefined : artifactPaths.metadataPath,
-			})),
-			metadata: {
-				runId: ctx.id,
-				parentSessionId: step.parentSessionId,
-				agent: step.agent,
-				task: PROMPT_REDACTED,
-				exitCode: effectiveFinalExitCode,
-				model: finalResult?.model,
-				nativeMachine: finalResult?.nativeMachine,
-				requestedModel: step.requestedModel,
-				usage,
-				error: effectiveFinalError,
-				acceptance: effectiveAcceptance,
-				...(capabilityAudit ? { capabilityCeiling: capabilityAudit.ceiling, capabilityAudit } : {}),
-				launchContractDigest: actualLaunchContractDigest,
-				launchResolvedExtensions,
-				...((finalResult as (RunChildSessionResult & { runtimeAcknowledgedExtensions?: RuntimeAcknowledgedChildExtensions }) | undefined)?.runtimeAcknowledgedExtensions ? { runtimeAcknowledgedExtensions: (finalResult as RunChildSessionResult & { runtimeAcknowledgedExtensions?: RuntimeAcknowledgedChildExtensions }).runtimeAcknowledgedExtensions } : {}),
-				...(transcriptWriter ? { transcriptPath: artifactPaths.transcriptPath } : {}),
-				transcriptError: transcriptWriter?.getError(),
-				skills: step.skills,
-				timestamp: Date.now(),
-			},
-		})
-		: {};
+	const artifactErrors =
+		artifactPaths && ctx.artifactConfig?.enabled !== false
+			? persistStepArtifacts({
+					artifactPaths,
+					artifactConfig: ctx.artifactConfig,
+					output: formatOutputArtifactContent(
+						omitUndefinedProperties({
+							output,
+							error: effectiveFinalError,
+							transcriptPath: transcriptWriter ? artifactPaths.transcriptPath : undefined,
+							metadataPath:
+								ctx.artifactConfig?.includeMetadata === false ? undefined : artifactPaths.metadataPath,
+						}),
+					),
+					metadata: {
+						runId: ctx.id,
+						parentSessionId: step.parentSessionId,
+						agent: step.agent,
+						task: PROMPT_REDACTED,
+						exitCode: effectiveFinalExitCode,
+						model: finalResult?.model,
+						nativeMachine: finalResult?.nativeMachine,
+						requestedModel: step.requestedModel,
+						usage,
+						error: effectiveFinalError,
+						acceptance: effectiveAcceptance,
+						...(capabilityAudit ? { capabilityCeiling: capabilityAudit.ceiling, capabilityAudit } : {}),
+						launchContractDigest: actualLaunchContractDigest,
+						launchResolvedExtensions,
+						...((
+							finalResult as
+								| (RunChildSessionResult & {
+										runtimeAcknowledgedExtensions?: RuntimeAcknowledgedChildExtensions;
+								  })
+								| undefined
+						)?.runtimeAcknowledgedExtensions
+							? {
+									runtimeAcknowledgedExtensions: (
+										finalResult as RunChildSessionResult & {
+											runtimeAcknowledgedExtensions?: RuntimeAcknowledgedChildExtensions;
+										}
+									).runtimeAcknowledgedExtensions,
+								}
+							: {}),
+						...(transcriptWriter ? { transcriptPath: artifactPaths.transcriptPath } : {}),
+						transcriptError: transcriptWriter?.getError(),
+						skills: step.skills,
+						timestamp: Date.now(),
+					},
+				})
+			: {};
 
 	const result: StepResult = omitUndefinedProperties({
 		agent: step.agent,
@@ -1559,7 +2119,8 @@ export async function runSingleStepInner(
 		usage,
 		artifactPaths,
 		savedOutputPath: finalizedOutput.savedPath,
-		outputSaveError: [resolvedOutput.saveError, artifactErrors.outputSaveError].filter(Boolean).join("\n") || undefined,
+		outputSaveError:
+			[resolvedOutput.saveError, artifactErrors.outputSaveError].filter(Boolean).join("\n") || undefined,
 		artifactOutputSaveFailed: artifactErrors.outputSaveError ? true : undefined,
 		metadataSaveError: artifactErrors.metadataSaveError,
 		transcriptPath: transcriptWriter ? artifactPaths?.transcriptPath : undefined,
@@ -1570,8 +2131,19 @@ export async function runSingleStepInner(
 		timeoutRecovery,
 		toolBudget,
 		toolBudgetBlocked: toolBudgetBlocked || undefined,
-		...((finalResult as (RunChildSessionResult & { effects?: import("../../shared/types.ts").EffectsProjection }) | undefined)?.effects ? { effects: (finalResult as RunChildSessionResult & { effects?: import("../../shared/types.ts").EffectsProjection }).effects } : {}),
-		structuredOutput: (finalResult as (RunChildSessionResult & { structuredOutput?: unknown }) | undefined)?.structuredOutput,
+		...((
+			finalResult as
+				| (RunChildSessionResult & { effects?: import("../../shared/types.ts").EffectsProjection })
+				| undefined
+		)?.effects
+			? {
+					effects: (
+						finalResult as RunChildSessionResult & { effects?: import("../../shared/types.ts").EffectsProjection }
+					).effects,
+				}
+			: {}),
+		structuredOutput: (finalResult as (RunChildSessionResult & { structuredOutput?: unknown }) | undefined)
+			?.structuredOutput,
 		structuredOutputFailed: finalResult?.structuredOutputFailed,
 		structuredOutputPath: effectiveStructuredOutput?.outputPath,
 		structuredOutputSchemaPath: effectiveStructuredOutput?.schemaPath,
@@ -1579,16 +2151,30 @@ export async function runSingleStepInner(
 		watchdog: finalResult?.watchdog,
 		...(capabilityAudit ? { capabilityCeiling: capabilityAudit.ceiling, capabilityAudit } : {}),
 		launchResolvedExtensions,
-		...((finalResult as (RunChildSessionResult & { runtimeAcknowledgedExtensions?: RuntimeAcknowledgedChildExtensions }) | undefined)?.runtimeAcknowledgedExtensions ? { runtimeAcknowledgedExtensions: (finalResult as RunChildSessionResult & { runtimeAcknowledgedExtensions?: RuntimeAcknowledgedChildExtensions }).runtimeAcknowledgedExtensions } : {}),
+		...((
+			finalResult as
+				| (RunChildSessionResult & { runtimeAcknowledgedExtensions?: RuntimeAcknowledgedChildExtensions })
+				| undefined
+		)?.runtimeAcknowledgedExtensions
+			? {
+					runtimeAcknowledgedExtensions: (
+						finalResult as RunChildSessionResult & {
+							runtimeAcknowledgedExtensions?: RuntimeAcknowledgedChildExtensions;
+						}
+					).runtimeAcknowledgedExtensions,
+				}
+			: {}),
 	});
-	return isAgentContract(step.agentContract) ? attachContractProjections(result as unknown as import("../../shared/types.ts").SingleResult) as unknown as typeof result : result;
+	return isAgentContract(step.agentContract)
+		? (attachContractProjections(
+				result as unknown as import("../../shared/types.ts").SingleResult,
+			) as unknown as typeof result)
+		: result;
 }
 
-async function runSingleStep(
-	step: SubagentStep,
-	ctx: SingleStepContext,
-): Promise<StepResult> {
-	if (!step.importAsyncRoot) ctx.orcaProgressTab?.section({ agent: step.agent, index: ctx.flatIndex, count: ctx.flatStepCount });
+async function runSingleStep(step: SubagentStep, ctx: SingleStepContext): Promise<StepResult> {
+	if (!step.importAsyncRoot)
+		ctx.orcaProgressTab?.section({ agent: step.agent, index: ctx.flatIndex, count: ctx.flatStepCount });
 	return runSingleStepInner(step, ctx);
 }
 
@@ -1597,7 +2183,9 @@ type RunnerStatusStep = NonNullable<AsyncStatus["steps"]>[number] & {
 	description?: string;
 };
 
-function externalRunnerStatus(runner: SubagentStep["runner"]): ExternalCliRunnerStatus | ExternalJobRunnerStatus | undefined {
+function externalRunnerStatus(
+	runner: SubagentStep["runner"],
+): ExternalCliRunnerStatus | ExternalJobRunnerStatus | undefined {
 	if (runner?.type === "external-cli") {
 		return resolveExternalCliRunnerStatus(runner);
 	}
@@ -1612,20 +2200,32 @@ function externalRunnerStatus(runner: SubagentStep["runner"]): ExternalCliRunner
 	return undefined;
 }
 
-function appendCapabilityCeilingAppliedEvent(eventsPath: string, runId: string, stepIndex: number, agent: string, result: StepResult): void {
+function appendCapabilityCeilingAppliedEvent(
+	eventsPath: string,
+	runId: string,
+	stepIndex: number,
+	agent: string,
+	result: StepResult,
+): void {
 	if (!result.capabilityCeiling) return;
-	appendJsonl(eventsPath, JSON.stringify({
-		type: "subagent.capability-ceiling.applied",
-		ts: Date.now(),
-		runId,
-		stepIndex,
-		agent,
-		capabilityCeiling: result.capabilityCeiling,
-		...(result.capabilityAudit ? { capabilityAudit: result.capabilityAudit } : {}),
-	}));
+	appendJsonl(
+		eventsPath,
+		JSON.stringify({
+			type: "subagent.capability-ceiling.applied",
+			ts: Date.now(),
+			runId,
+			stepIndex,
+			agent,
+			capabilityCeiling: result.capabilityCeiling,
+			...(result.capabilityAudit ? { capabilityAudit: result.capabilityAudit } : {}),
+		}),
+	);
 }
 
-type RunnerStatusPayload = Omit<AsyncStatus, "steps" | "parallelGroups" | "pid" | "cwd" | "currentStep" | "chainStepCount" | "lastUpdate"> & {
+type RunnerStatusPayload = Omit<
+	AsyncStatus,
+	"steps" | "parallelGroups" | "pid" | "cwd" | "currentStep" | "chainStepCount" | "lastUpdate"
+> & {
 	pid: number;
 	cwd: string;
 	currentStep: number;
@@ -1685,19 +2285,35 @@ function markParallelGroupSetupFailure(input: {
 		statusStep.durationMs = 0;
 		statusStep.exitCode = paused ? 0 : 1;
 		statusStep.error ??= input.setupError;
-		input.results.push(omitUndefinedProperties({ agent: task.agent, context: task.context, output: input.setupError, error: input.setupError, success: false, exitCode: paused ? 0 : 1, sessionFile: task.sessionFile, stopped: stopped || undefined, interrupted: paused || undefined, timedOut: input.statusPayload.timedOut || undefined }));
+		input.results.push(
+			omitUndefinedProperties({
+				agent: task.agent,
+				context: task.context,
+				output: input.setupError,
+				error: input.setupError,
+				success: false,
+				exitCode: paused ? 0 : 1,
+				sessionFile: task.sessionFile,
+				stopped: stopped || undefined,
+				interrupted: paused || undefined,
+				timedOut: input.statusPayload.timedOut || undefined,
+			}),
+		);
 	}
 	input.statusPayload.currentStep = input.groupStartFlatIndex;
 	input.statusPayload.lastUpdate = input.failedAt;
 	input.statusPayload.outputFile = path.join(input.asyncDir, `output-${input.groupStartFlatIndex}.log`);
 	input.writeStatus(input.statusPayload);
-	appendJsonl(input.eventsPath, JSON.stringify({
-		type: "subagent.parallel.completed",
-		ts: input.failedAt,
-		runId: input.runId,
-		stepIndex: input.stepIndex,
-		success: false,
-	}));
+	appendJsonl(
+		input.eventsPath,
+		JSON.stringify({
+			type: "subagent.parallel.completed",
+			ts: input.failedAt,
+			runId: input.runId,
+			stepIndex: input.stepIndex,
+			success: false,
+		}),
+	);
 }
 
 function markParallelGroupRunning(input: {
@@ -1729,18 +2345,24 @@ function markParallelGroupRunning(input: {
 	input.statusPayload.lastUpdate = input.groupStartTime;
 	input.statusPayload.outputFile = path.join(input.asyncDir, `output-${input.groupStartFlatIndex}.log`);
 	input.writeStatus(input.statusPayload);
-	appendJsonl(input.eventsPath, JSON.stringify({
-		type: "subagent.parallel.started",
-		ts: input.groupStartTime,
-		runId: input.runId,
-		stepIndex: input.stepIndex,
-		agents: input.group.parallel.map((task) => task.agent),
-		count: input.group.parallel.length,
-	}));
+	appendJsonl(
+		input.eventsPath,
+		JSON.stringify({
+			type: "subagent.parallel.started",
+			ts: input.groupStartTime,
+			runId: input.runId,
+			stepIndex: input.stepIndex,
+			agents: input.group.parallel.map((task) => task.agent),
+			count: input.group.parallel.length,
+		}),
+	);
 }
 
 function bindWorktreeCwd(step: SubagentStep, worktreeCwd: string): SubagentStep {
-	const bind = <T extends string | null | undefined>(value: T): T => value === null || value === undefined ? value : value.replaceAll(WORKTREE_AGENT_CWD_PLACEHOLDER, worktreeCwd) as T;
+	const bind = <T extends string | null | undefined>(value: T): T =>
+		value === null || value === undefined
+			? value
+			: (value.replaceAll(WORKTREE_AGENT_CWD_PLACEHOLDER, worktreeCwd) as T);
 	return {
 		...step,
 		task: bind(step.task) ?? step.task,
@@ -1773,7 +2395,11 @@ function captureParallelWorktreeDiffs(
 	group: Extract<RunnerStep, { parallel: SubagentStep[] }>,
 ): { diffs: ReturnType<typeof diffWorktrees>; summary: string } {
 	const diffsDir = path.join(asyncDir, "worktree-diffs", `step-${stepIndex}`);
-	const diffs = diffWorktrees(worktreeSetup, group.parallel.map((task) => task.agent), diffsDir);
+	const diffs = diffWorktrees(
+		worktreeSetup,
+		group.parallel.map((task) => task.agent),
+		diffsDir,
+	);
 	return { diffs, summary: formatWorktreeDiffSummary(diffs) };
 }
 
@@ -1791,7 +2417,12 @@ function resolveAsyncStepTranscriptPath(input: {
 	flatIndex: number;
 	flatStepCount: number;
 }): string | undefined {
-	if (!input.artifactsDir || input.artifactConfig?.enabled === false || input.artifactConfig?.includeTranscript === false) return undefined;
+	if (
+		!input.artifactsDir ||
+		input.artifactConfig?.enabled === false ||
+		input.artifactConfig?.includeTranscript === false
+	)
+		return undefined;
 	return getArtifactPaths(
 		input.artifactsDir,
 		input.runId,
@@ -1804,8 +2435,12 @@ type SingleStepResult = Awaited<ReturnType<typeof runSingleStep>>;
 
 function missingRequiredOutputAfterUsefulMutation(result: SingleStepResult): boolean {
 	const effects = result.effects;
-	return effects?.settlementDiagnostic?.requiredOutput?.missing === true
-		&& (effects.settlementDiagnostic.mutation.attempted || effects.fileMutation?.attempted === true || Boolean(effects.fileMutation?.evidence?.changedFiles.length));
+	return (
+		effects?.settlementDiagnostic?.requiredOutput?.missing === true &&
+		(effects.settlementDiagnostic.mutation.attempted ||
+			effects.fileMutation?.attempted === true ||
+			Boolean(effects.fileMutation?.evidence?.changedFiles.length))
+	);
 }
 
 function partialExecutionWithUsefulMutation(result: SingleStepResult): boolean {
@@ -1846,16 +2481,24 @@ async function runSingleStepWithTimeout(
 	ctx: SingleStepContext,
 	parentDeadlineAt?: number,
 ): Promise<SingleStepResult> {
-	if (step.timeoutMs === undefined) return runSingleStep(step, parentDeadlineAt === undefined ? ctx : {
-		...ctx,
-		deadlineAt: ctx.deadlineAt === undefined ? parentDeadlineAt : Math.min(ctx.deadlineAt, parentDeadlineAt),
-	});
+	if (step.timeoutMs === undefined)
+		return runSingleStep(
+			step,
+			parentDeadlineAt === undefined
+				? ctx
+				: {
+						...ctx,
+						deadlineAt:
+							ctx.deadlineAt === undefined ? parentDeadlineAt : Math.min(ctx.deadlineAt, parentDeadlineAt),
+					},
+		);
 
 	const parentRemainingMs = parentDeadlineAt === undefined ? undefined : Math.max(0, parentDeadlineAt - Date.now());
 	const timeoutMs = parentRemainingMs === undefined ? step.timeoutMs : Math.min(step.timeoutMs, parentRemainingMs);
-	const timeoutMessage = parentRemainingMs !== undefined && parentRemainingMs <= step.timeoutMs
-		? ctx.timeoutMessage
-		: `Subagent timed out after ${step.timeoutMs}ms.`;
+	const timeoutMessage =
+		parentRemainingMs !== undefined && parentRemainingMs <= step.timeoutMs
+			? ctx.timeoutMessage
+			: `Subagent timed out after ${step.timeoutMs}ms.`;
 	const timeoutController = new AbortController();
 	let timeoutAction: (() => void) | undefined;
 	let timeoutTriggered = false;
@@ -1886,10 +2529,7 @@ async function runSingleStepWithTimeout(
 	}
 }
 
-export async function runSubagent(
-	config: SubagentRunConfig,
-	childSessions: ChildSessionFactory,
-): Promise<void> {
+export async function runSubagent(config: SubagentRunConfig, childSessions: ChildSessionFactory): Promise<void> {
 	const { id, steps, resultPath, cwd, placeholder, taskIndex, totalTasks, maxOutput, artifactsDir, artifactConfig } =
 		config;
 	const globalSemaphore = new Semaphore(config.globalConcurrencyLimit ?? DEFAULT_GLOBAL_CONCURRENCY_LIMIT);
@@ -1921,13 +2561,18 @@ export async function runSubagent(
 	let timedOut = false;
 	let stopped = false;
 	let usageBudgetExceeded = false;
-	const timeoutMessage = config.timeoutMs !== undefined ? `Subagent timed out after ${config.timeoutMs}ms.` : undefined;
+	const timeoutMessage =
+		config.timeoutMs !== undefined ? `Subagent timed out after ${config.timeoutMs}ms.` : undefined;
 	const stopMessage = SUBAGENT_STOPPED_MESSAGE;
 	const timeoutAbortController = new AbortController();
 	const stopAbortController = new AbortController();
 	const setupInterruptController = new AbortController();
 	const runStopSignal = AbortSignal.any([timeoutAbortController.signal, stopAbortController.signal]);
-	const setupSignal = AbortSignal.any([timeoutAbortController.signal, stopAbortController.signal, setupInterruptController.signal]);
+	const setupSignal = AbortSignal.any([
+		timeoutAbortController.signal,
+		stopAbortController.signal,
+		setupInterruptController.signal,
+	]);
 	let previousCumulativeTokens: TokenUsage = { input: 0, output: 0, total: 0 };
 	let latestSessionFile: string | undefined;
 
@@ -1942,113 +2587,148 @@ export async function runSubagent(
 			parallelGroups.push({ start: flatStepCount, count: step.parallel.length, stepIndex });
 			for (const task of step.parallel) {
 				const taskFlatIndex = flatStepCount;
-				const transcriptPath = resolveAsyncStepTranscriptPath(omitUndefinedProperties({ artifactsDir, artifactConfig, runId: id, agent: task.agent, flatIndex: taskFlatIndex, flatStepCount: initialFlatStepCount }));
-				const taskSessionName = task.sessionName ?? deriveChildSessionName({ agent: task.agent, task: task.task, label: task.label });
-				initialStatusSteps.push(omitUndefinedProperties({
-					agent: task.agent,
-					...(task.lane ? { lane: task.lane } : config.lane ? { lane: config.lane } : {}),
-					...(taskSessionName ? { sessionName: taskSessionName } : {}),
-					...(externalRunnerStatus(task.runner) ? { runner: externalRunnerStatus(task.runner) } : {}),
-					...(statusStepDescription(task.task) ? { description: statusStepDescription(task.task) } : {}),
-					...(task.context ? { context: task.context } : {}),
-					phase: task.phase,
-					label: task.label,
-					outputName: task.outputName,
-					structured: task.structured,
-					...(task.agentContract ? { agentContract: task.agentContract } : {}),
-					...(task.launchContractDigest ? { launchContractDigest: task.launchContractDigest } : {}),
-					...(task.launchResolvedExtensions ? { launchResolvedExtensions: task.launchResolvedExtensions } : {}),
-					...(task.capabilityCeiling ? { capabilityCeiling: task.capabilityCeiling } : {}),
-					...(task.thinkingCeiling ? { thinkingCeiling: task.thinkingCeiling } : {}),
-					status: "pending",
-					...(task.toolBudget ? { toolBudget: initialToolBudgetState(task.toolBudget) } : {}),
-					...(task.sessionFile ? { sessionFile: task.sessionFile } : {}),
-					...(transcriptPath ? { transcriptPath } : {}),
-					skills: task.skills,
-					model: task.model,
-					...(task.contextLimit !== undefined ? { contextLimit: task.contextLimit } : {}),
-					thinking: task.thinking,
-					requestedModel: task.requestedModel,
-					recentTools: [],
-					recentOutput: [],
-				}));
+				const transcriptPath = resolveAsyncStepTranscriptPath(
+					omitUndefinedProperties({
+						artifactsDir,
+						artifactConfig,
+						runId: id,
+						agent: task.agent,
+						flatIndex: taskFlatIndex,
+						flatStepCount: initialFlatStepCount,
+					}),
+				);
+				const taskSessionName =
+					task.sessionName ?? deriveChildSessionName({ agent: task.agent, task: task.task, label: task.label });
+				initialStatusSteps.push(
+					omitUndefinedProperties({
+						agent: task.agent,
+						...(task.lane ? { lane: task.lane } : config.lane ? { lane: config.lane } : {}),
+						...(taskSessionName ? { sessionName: taskSessionName } : {}),
+						...(externalRunnerStatus(task.runner) ? { runner: externalRunnerStatus(task.runner) } : {}),
+						...(statusStepDescription(task.task) ? { description: statusStepDescription(task.task) } : {}),
+						...(task.context ? { context: task.context } : {}),
+						phase: task.phase,
+						label: task.label,
+						outputName: task.outputName,
+						structured: task.structured,
+						...(task.agentContract ? { agentContract: task.agentContract } : {}),
+						...(task.launchContractDigest ? { launchContractDigest: task.launchContractDigest } : {}),
+						...(task.launchResolvedExtensions ? { launchResolvedExtensions: task.launchResolvedExtensions } : {}),
+						...(task.capabilityCeiling ? { capabilityCeiling: task.capabilityCeiling } : {}),
+						...(task.thinkingCeiling ? { thinkingCeiling: task.thinkingCeiling } : {}),
+						status: "pending",
+						...(task.toolBudget ? { toolBudget: initialToolBudgetState(task.toolBudget) } : {}),
+						...(task.sessionFile ? { sessionFile: task.sessionFile } : {}),
+						...(transcriptPath ? { transcriptPath } : {}),
+						skills: task.skills,
+						model: task.model,
+						...(task.contextLimit !== undefined ? { contextLimit: task.contextLimit } : {}),
+						thinking: task.thinking,
+						requestedModel: task.requestedModel,
+						recentTools: [],
+						recentOutput: [],
+					}),
+				);
 				flatStepCount++;
 			}
 		} else if (isDynamicRunnerGroup(step)) {
 			parallelGroups.push({ start: flatStepCount, count: 1, stepIndex });
-			initialStatusSteps.push(omitUndefinedProperties({
-				agent: `expand:${step.parallel.agent}`,
-				...(externalRunnerStatus(step.parallel.runner) ? { runner: externalRunnerStatus(step.parallel.runner) } : {}),
-				...(step.parallel.context ? { context: step.parallel.context } : {}),
-				phase: step.phase ?? step.parallel.phase,
-				label: step.label ?? step.parallel.label ?? `Dynamic fanout (${step.collect.as})`,
-				outputName: step.collect.as,
-				structured: Boolean(step.collect.outputSchema),
-				...(step.parallel.contextLimit !== undefined ? { contextLimit: step.parallel.contextLimit } : {}),
-				...(step.agentContract ? { agentContract: step.agentContract } : {}),
-				...(step.capabilityCeiling ? { capabilityCeiling: step.capabilityCeiling } : {}),
-				...(step.thinkingCeiling ? { thinkingCeiling: step.thinkingCeiling } : {}),
-				status: "pending",
-				...(step.parallel.toolBudget ? { toolBudget: initialToolBudgetState(step.parallel.toolBudget) } : {}),
-				recentTools: [],
-				recentOutput: [],
-			}));
+			initialStatusSteps.push(
+				omitUndefinedProperties({
+					agent: `expand:${step.parallel.agent}`,
+					...(externalRunnerStatus(step.parallel.runner)
+						? { runner: externalRunnerStatus(step.parallel.runner) }
+						: {}),
+					...(step.parallel.context ? { context: step.parallel.context } : {}),
+					phase: step.phase ?? step.parallel.phase,
+					label: step.label ?? step.parallel.label ?? `Dynamic fanout (${step.collect.as})`,
+					outputName: step.collect.as,
+					structured: Boolean(step.collect.outputSchema),
+					...(step.parallel.contextLimit !== undefined ? { contextLimit: step.parallel.contextLimit } : {}),
+					...(step.agentContract ? { agentContract: step.agentContract } : {}),
+					...(step.capabilityCeiling ? { capabilityCeiling: step.capabilityCeiling } : {}),
+					...(step.thinkingCeiling ? { thinkingCeiling: step.thinkingCeiling } : {}),
+					status: "pending",
+					...(step.parallel.toolBudget ? { toolBudget: initialToolBudgetState(step.parallel.toolBudget) } : {}),
+					recentTools: [],
+					recentOutput: [],
+				}),
+			);
 			flatStepCount++;
 		} else {
 			const stepFlatIndex = flatStepCount;
-			const transcriptPath = resolveAsyncStepTranscriptPath(omitUndefinedProperties({ artifactsDir, artifactConfig, runId: id, agent: step.agent, flatIndex: stepFlatIndex, flatStepCount: initialFlatStepCount }));
-			const stepSessionName = step.sessionName ?? deriveChildSessionName({ agent: step.agent, task: step.task, label: step.label });
-			initialStatusSteps.push(omitUndefinedProperties({
-				agent: step.agent,
-				...(step.lane ? { lane: step.lane } : config.lane ? { lane: config.lane } : {}),
-				...(stepSessionName ? { sessionName: stepSessionName } : {}),
-				...(externalRunnerStatus(step.runner) ? { runner: externalRunnerStatus(step.runner) } : {}),
-				...(statusStepDescription(step.task) ? { description: statusStepDescription(step.task) } : {}),
-				...(step.context ? { context: step.context } : {}),
-				phase: step.phase,
-				label: step.label,
-				outputName: step.outputName,
-				structured: step.structured,
-				...(step.agentContract ? { agentContract: step.agentContract } : {}),
-				...(step.launchContractDigest ? { launchContractDigest: step.launchContractDigest } : {}),
-				...(step.launchResolvedExtensions ? { launchResolvedExtensions: step.launchResolvedExtensions } : {}),
-				...(step.capabilityCeiling ? { capabilityCeiling: step.capabilityCeiling } : {}),
-				...(step.thinkingCeiling ? { thinkingCeiling: step.thinkingCeiling } : {}),
-				status: "pending",
-				...(step.toolBudget ? { toolBudget: initialToolBudgetState(step.toolBudget) } : {}),
-				...(step.sessionFile ? { sessionFile: step.sessionFile } : {}),
-				...(transcriptPath ? { transcriptPath } : {}),
-				skills: step.skills,
-				model: step.model,
-				...(step.contextLimit !== undefined ? { contextLimit: step.contextLimit } : {}),
-				thinking: step.thinking,
-				requestedModel: step.requestedModel,
-				recentTools: [],
-				recentOutput: [],
-			}));
+			const transcriptPath = resolveAsyncStepTranscriptPath(
+				omitUndefinedProperties({
+					artifactsDir,
+					artifactConfig,
+					runId: id,
+					agent: step.agent,
+					flatIndex: stepFlatIndex,
+					flatStepCount: initialFlatStepCount,
+				}),
+			);
+			const stepSessionName =
+				step.sessionName ?? deriveChildSessionName({ agent: step.agent, task: step.task, label: step.label });
+			initialStatusSteps.push(
+				omitUndefinedProperties({
+					agent: step.agent,
+					...(step.lane ? { lane: step.lane } : config.lane ? { lane: config.lane } : {}),
+					...(stepSessionName ? { sessionName: stepSessionName } : {}),
+					...(externalRunnerStatus(step.runner) ? { runner: externalRunnerStatus(step.runner) } : {}),
+					...(statusStepDescription(step.task) ? { description: statusStepDescription(step.task) } : {}),
+					...(step.context ? { context: step.context } : {}),
+					phase: step.phase,
+					label: step.label,
+					outputName: step.outputName,
+					structured: step.structured,
+					...(step.agentContract ? { agentContract: step.agentContract } : {}),
+					...(step.launchContractDigest ? { launchContractDigest: step.launchContractDigest } : {}),
+					...(step.launchResolvedExtensions ? { launchResolvedExtensions: step.launchResolvedExtensions } : {}),
+					...(step.capabilityCeiling ? { capabilityCeiling: step.capabilityCeiling } : {}),
+					...(step.thinkingCeiling ? { thinkingCeiling: step.thinkingCeiling } : {}),
+					status: "pending",
+					...(step.toolBudget ? { toolBudget: initialToolBudgetState(step.toolBudget) } : {}),
+					...(step.sessionFile ? { sessionFile: step.sessionFile } : {}),
+					...(transcriptPath ? { transcriptPath } : {}),
+					skills: step.skills,
+					model: step.model,
+					...(step.contextLimit !== undefined ? { contextLimit: step.contextLimit } : {}),
+					thinking: step.thinking,
+					requestedModel: step.requestedModel,
+					recentTools: [],
+					recentOutput: [],
+				}),
+			);
 			flatStepCount++;
 		}
 	}
-	const sessionEnabled = Boolean(config.sessionDir)
-		|| shareEnabled
-		|| flatSteps.some((step) => Boolean(step.sessionFile));
+	const sessionEnabled =
+		Boolean(config.sessionDir) || shareEnabled || flatSteps.some((step) => Boolean(step.sessionFile));
 	if (config.runnerProcessInstanceId) {
 		for (const step of initialStatusSteps) {
-			step.processTerminal = { version: 1, state: "pending", runId: id, runnerProcessInstanceId: config.runnerProcessInstanceId };
+			step.processTerminal = {
+				version: 1,
+				state: "pending",
+				runId: id,
+				runnerProcessInstanceId: config.runnerProcessInstanceId,
+			};
 		}
 	}
-	const initialAgentLabel = initialStatusSteps.length === 1
-		? initialStatusSteps[0]!.agent
-		: (config.resultMode ?? (flatSteps.length > 1 ? "chain" : "single")) === "parallel"
-			? `parallel:${initialStatusSteps.map((step) => step.agent).join("+")}`
-			: `chain:${initialStatusSteps.map((step) => step.agent).join("->")}`;
-	const orcaProgressTab = flatSteps.every((step) => step.importAsyncRoot) ? undefined : createOrcaProgressTab({
-		cwd,
-		runId: id,
-		agent: initialAgentLabel,
-		index: 0,
-		stepCount: Math.max(initialStatusSteps.length, 1),
-	});
+	const initialAgentLabel =
+		initialStatusSteps.length === 1
+			? initialStatusSteps[0]!.agent
+			: (config.resultMode ?? (flatSteps.length > 1 ? "chain" : "single")) === "parallel"
+				? `parallel:${initialStatusSteps.map((step) => step.agent).join("+")}`
+				: `chain:${initialStatusSteps.map((step) => step.agent).join("->")}`;
+	const orcaProgressTab = flatSteps.every((step) => step.importAsyncRoot)
+		? undefined
+		: createOrcaProgressTab({
+				cwd,
+				runId: id,
+				agent: initialAgentLabel,
+				index: 0,
+				stepCount: Math.max(initialStatusSteps.length, 1),
+			});
 
 	const statusPayload: RunnerStatusPayload = omitUndefinedProperties({
 		lifecycleArtifactVersion: SUBAGENT_LIFECYCLE_ARTIFACT_VERSION,
@@ -2082,7 +2762,16 @@ export async function runSubagent(
 		...(config.parentWorkflowRunId ? { parentWorkflowRunId: config.parentWorkflowRunId } : {}),
 		...(config.workflowKey ? { workflowKey: config.workflowKey } : {}),
 		...(config.lane ? { lane: config.lane } : {}),
-		...(config.runnerProcessInstanceId ? { processTerminal: { version: 1 as const, state: "pending" as const, runId: id, runnerProcessInstanceId: config.runnerProcessInstanceId } } : {}),
+		...(config.runnerProcessInstanceId
+			? {
+					processTerminal: {
+						version: 1 as const,
+						state: "pending" as const,
+						runId: id,
+						runnerProcessInstanceId: config.runnerProcessInstanceId,
+					},
+				}
+			: {}),
 		...(config.launcher ? { launcher: config.launcher } : {}),
 		steps: initialStatusSteps,
 		artifactsDir,
@@ -2110,7 +2799,8 @@ export async function runSubagent(
 	let finalResultPublication: { resolve(): void; reject(error: unknown): void } | undefined;
 	// The paused and final results replace each other under one run id; the lease keeps a consumer
 	// of the older one from retiring the newer one. A lease timeout fails the publication.
-	const publishRunResult = (filePath: string, write: () => void): void => withResultRunLease(path.dirname(filePath), id, write);
+	const publishRunResult = (filePath: string, write: () => void): void =>
+		withResultRunLease(path.dirname(filePath), id, write);
 	const runPersistence = createCapacityResilientJsonWriter({
 		keepAlive: true,
 		onSuccess: (filePath, payload) => {
@@ -2135,11 +2825,18 @@ export async function runSubagent(
 
 	let pendingParallelUsageCost: CostSummary = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
 	const currentUsageTotals = (): CostSummary => {
-		const cost = results.reduce<CostSummary>((sum, result) => ({
-			inputTokens: sum.inputTokens + (result.totalCost?.inputTokens ?? result.usage?.input ?? 0),
-			outputTokens: sum.outputTokens + (result.totalCost?.outputTokens ?? result.usage?.output ?? 0),
-			costUsd: sum.costUsd + (result.totalCost?.costUsd ?? result.usage?.cost ?? 0),
-		}), { inputTokens: pendingParallelUsageCost.inputTokens, outputTokens: pendingParallelUsageCost.outputTokens, costUsd: pendingParallelUsageCost.costUsd });
+		const cost = results.reduce<CostSummary>(
+			(sum, result) => ({
+				inputTokens: sum.inputTokens + (result.totalCost?.inputTokens ?? result.usage?.input ?? 0),
+				outputTokens: sum.outputTokens + (result.totalCost?.outputTokens ?? result.usage?.output ?? 0),
+				costUsd: sum.costUsd + (result.totalCost?.costUsd ?? result.usage?.cost ?? 0),
+			}),
+			{
+				inputTokens: pendingParallelUsageCost.inputTokens,
+				outputTokens: pendingParallelUsageCost.outputTokens,
+				costUsd: pendingParallelUsageCost.costUsd,
+			},
+		);
 		return {
 			inputTokens: Math.max(cost.inputTokens, statusPayload.totalTokens?.input ?? 0),
 			outputTokens: Math.max(cost.outputTokens, statusPayload.totalTokens?.output ?? 0),
@@ -2152,7 +2849,8 @@ export async function runSubagent(
 	};
 	// Continuation admission only: the existing ledger has no in-flight cost or
 	// external/import usage coverage. Never change ordinary budget enforcement.
-	let continuationUsageUncertain = config.steps.some(isDynamicRunnerGroup) || flatSteps.some((step) => Boolean(step.runner || step.importAsyncRoot));
+	let continuationUsageUncertain =
+		config.steps.some(isDynamicRunnerGroup) || flatSteps.some((step) => Boolean(step.runner || step.importAsyncRoot));
 	const continuationUsageBudgetExhausted = (): boolean | undefined => {
 		const exhausted = refreshUsageBudget()?.exhausted === true;
 		return exhausted ? true : config.usageBudget && continuationUsageUncertain ? undefined : false;
@@ -2160,21 +2858,28 @@ export async function runSubagent(
 	const emitNestedSelfEvent = (type: "subagent.nested.updated" | "subagent.nested.completed"): void => {
 		if (!config.nestedRoute || !config.nestedSelf) return;
 		try {
-			writeNestedEvent(config.nestedRoute, omitUndefinedProperties({
-				type,
-				ts: Date.now(),
-				parentRunId: config.nestedSelf.parentRunId,
-				parentStepIndex: config.nestedSelf.parentStepIndex,
-				child: nestedSummaryFromAsyncStatus(statusPayload, asyncDir, omitUndefinedProperties({
-					id,
+			writeNestedEvent(
+				config.nestedRoute,
+				omitUndefinedProperties({
+					type,
+					ts: Date.now(),
 					parentRunId: config.nestedSelf.parentRunId,
 					parentStepIndex: config.nestedSelf.parentStepIndex,
-					depth: config.nestedSelf.depth,
-					path: config.nestedSelf.path,
-					mode: statusPayload.mode,
-					ts: Date.now(),
-				})),
-			}));
+					child: nestedSummaryFromAsyncStatus(
+						statusPayload,
+						asyncDir,
+						omitUndefinedProperties({
+							id,
+							parentRunId: config.nestedSelf.parentRunId,
+							parentStepIndex: config.nestedSelf.parentStepIndex,
+							depth: config.nestedSelf.depth,
+							path: config.nestedSelf.path,
+							mode: statusPayload.mode,
+							ts: Date.now(),
+						}),
+					),
+				}),
+			);
 		} catch (error) {
 			console.error("Failed to emit nested async status event:", error);
 		}
@@ -2182,9 +2887,19 @@ export async function runSubagent(
 	const refreshWorkflowGraph = (): void => {
 		if (!config.workflowGraph) return;
 		const graph = structuredClone(statusPayload.workflowGraph ?? config.workflowGraph);
-		const normalize = (status: RunnerStatusStep["status"]): "pending" | "running" | "completed" | "failed" | "paused" | "stopped" | "detached" | "rejected" => {
+		const normalize = (
+			status: RunnerStatusStep["status"],
+		): "pending" | "running" | "completed" | "failed" | "paused" | "stopped" | "detached" | "rejected" => {
 			if (status === "complete" || status === "completed") return "completed";
-			if (status === "running" || status === "failed" || status === "paused" || status === "stopped" || status === "pending" || status === "rejected") return status;
+			if (
+				status === "running" ||
+				status === "failed" ||
+				status === "paused" ||
+				status === "stopped" ||
+				status === "pending" ||
+				status === "rejected"
+			)
+				return status;
 			return "pending";
 		};
 		const updateNode = (node: NonNullable<typeof graph.nodes>[number]): void => {
@@ -2236,47 +2951,66 @@ export async function runSubagent(
 		if ((state as string) === "complete") return;
 		const now = statusPayload.endedAt ?? statusPayload.lastUpdate ?? Date.now();
 		const summary = statusResultSummary(state);
-		runPersistence.write(resultPath, omitUndefinedProperties({
-			lifecycleArtifactVersion: SUBAGENT_LIFECYCLE_ARTIFACT_VERSION,
-			id,
-			runId: id,
-			agent: statusPayload.steps.length === 1 ? statusPayload.steps[0]!.agent : statusPayload.mode === "parallel" ? `parallel:${statusPayload.steps.map((step) => step.agent).join("+")}` : `chain:${statusPayload.steps.map((step) => step.agent).join("->")}`,
-			mode: statusPayload.mode,
-			success: state === "complete",
-			state,
-			summary,
-			error: state === "failed" || state === "partial" || state === "stopped" || state === "rejected" ? summary : undefined,
-			stopped: state === "stopped" ? true : undefined,
-			results: statusPayload.steps.map((step) => omitUndefinedProperties({
-				agent: step.agent,
-				...(step.sessionName ? { sessionName: step.sessionName } : {}),
-				output: step.status === "complete" || step.status === "completed" ? "" : step.error ?? summary,
-				error: step.error,
-				success: statusResultSuccess(state, step),
-				sessionFile: step.sessionFile,
-				model: step.model,
-				thinking: step.thinking,
-				requestedModel: step.requestedModel,
-				contextOverflow: step.contextOverflow,
-			})),
-			exitCode: state === "complete" || state === "paused" ? 0 : 1,
-			timestamp: now,
-			durationMs: Math.max(0, now - overallStartTime),
-			asyncDir,
-			cwd,
-			sessionId: config.sessionId,
-			completionOwnerId: config.completionOwnerId,
-			completionOwnerProcess: config.completionOwnerProcess,
-			parentWorkflowRunId: config.parentWorkflowRunId,
-			sessionFile: statusPayload.sessionFile ?? latestSessionFile,
-		}), (filePath, payload) => publishRunResult(filePath, () => writePendingAsyncResultFile(filePath, payload as Record<string, unknown>)));
+		runPersistence.write(
+			resultPath,
+			omitUndefinedProperties({
+				lifecycleArtifactVersion: SUBAGENT_LIFECYCLE_ARTIFACT_VERSION,
+				id,
+				runId: id,
+				agent:
+					statusPayload.steps.length === 1
+						? statusPayload.steps[0]!.agent
+						: statusPayload.mode === "parallel"
+							? `parallel:${statusPayload.steps.map((step) => step.agent).join("+")}`
+							: `chain:${statusPayload.steps.map((step) => step.agent).join("->")}`,
+				mode: statusPayload.mode,
+				success: state === "complete",
+				state,
+				summary,
+				error:
+					state === "failed" || state === "partial" || state === "stopped" || state === "rejected"
+						? summary
+						: undefined,
+				stopped: state === "stopped" ? true : undefined,
+				results: statusPayload.steps.map((step) =>
+					omitUndefinedProperties({
+						agent: step.agent,
+						...(step.sessionName ? { sessionName: step.sessionName } : {}),
+						output: step.status === "complete" || step.status === "completed" ? "" : (step.error ?? summary),
+						error: step.error,
+						success: statusResultSuccess(state, step),
+						sessionFile: step.sessionFile,
+						model: step.model,
+						thinking: step.thinking,
+						requestedModel: step.requestedModel,
+						contextOverflow: step.contextOverflow,
+					}),
+				),
+				exitCode: state === "complete" || state === "paused" ? 0 : 1,
+				timestamp: now,
+				durationMs: Math.max(0, now - overallStartTime),
+				asyncDir,
+				cwd,
+				sessionId: config.sessionId,
+				completionOwnerId: config.completionOwnerId,
+				completionOwnerProcess: config.completionOwnerProcess,
+				parentWorkflowRunId: config.parentWorkflowRunId,
+				sessionFile: statusPayload.sessionFile ?? latestSessionFile,
+			}),
+			(filePath, payload) =>
+				publishRunResult(filePath, () => writePendingAsyncResultFile(filePath, payload as Record<string, unknown>)),
+		);
 	};
 	const writeStatusPayloadNow = (): void => {
 		if (finalResultPublication) return;
 		refreshWorkflowGraph();
 		writeRecoverableStatusResult();
 		runPersistence.write(statusPath, { ...statusPayload });
-		emitNestedSelfEvent(statusPayload.state === "running" || statusPayload.state === "queued" ? "subagent.nested.updated" : "subagent.nested.completed");
+		emitNestedSelfEvent(
+			statusPayload.state === "running" || statusPayload.state === "queued"
+				? "subagent.nested.updated"
+				: "subagent.nested.completed",
+		);
 	};
 	const statusWriteCoalescer = createFileCoalescer(writeStatusPayloadNow, 100);
 	const writeStatusPayload = (immediate = true): void => {
@@ -2296,25 +3030,34 @@ export async function runSubagent(
 		statusPayload.lastUpdate = Date.now();
 		writeStatusPayload();
 	};
-	const childStopTargetId = (index: number): string => asyncStatusChildIdentity(requiredStatusStep(statusPayload, index), index);
-	const appendChildStatusEvent = (index: number, childId: string, status: "stopping" | "stopped", now = Date.now()): void => {
+	const childStopTargetId = (index: number): string =>
+		asyncStatusChildIdentity(requiredStatusStep(statusPayload, index), index);
+	const appendChildStatusEvent = (
+		index: number,
+		childId: string,
+		status: "stopping" | "stopped",
+		now = Date.now(),
+	): void => {
 		const step = requiredStatusStep(statusPayload, index);
-		appendJsonl(eventsPath, JSON.stringify({
-			type: "subagent.child-status",
-			version: 1,
-			ts: now,
-			runId: id,
-			childId,
-			status,
-			reason: "user",
-			source: "async",
-			stepIndex: index,
-			agent: step.agent,
-			...(step.runId ? { childRunId: step.runId } : {}),
-			...(step.workflowKey ? { workflowKey: step.workflowKey } : {}),
-			...(step.phase ? { phase: step.phase } : {}),
-			...(step.label ? { label: step.label } : {}),
-		} satisfies SubagentChildStatusEvent));
+		appendJsonl(
+			eventsPath,
+			JSON.stringify({
+				type: "subagent.child-status",
+				version: 1,
+				ts: now,
+				runId: id,
+				childId,
+				status,
+				reason: "user",
+				source: "async",
+				stepIndex: index,
+				agent: step.agent,
+				...(step.runId ? { childRunId: step.runId } : {}),
+				...(step.workflowKey ? { workflowKey: step.workflowKey } : {}),
+				...(step.phase ? { phase: step.phase } : {}),
+				...(step.label ? { label: step.label } : {}),
+			} satisfies SubagentChildStatusEvent),
+		);
 	};
 	const appendTerminalChildStatusEvent = (index: number, now = Date.now()): void => {
 		const request = childStopRequests.get(index);
@@ -2329,7 +3072,17 @@ export async function runSubagent(
 		delete step.activityState;
 		statusPayload.lastUpdate = now;
 		writeStatusPayload();
-		appendJsonl(eventsPath, JSON.stringify({ type: "subagent.step.stop_requested", ts: now, runId: id, stepIndex: index, childId, agent: step.agent }));
+		appendJsonl(
+			eventsPath,
+			JSON.stringify({
+				type: "subagent.step.stop_requested",
+				ts: now,
+				runId: id,
+				stepIndex: index,
+				childId,
+				agent: step.agent,
+			}),
+		);
 		appendChildStatusEvent(index, childId, "stopping", now);
 		return true;
 	};
@@ -2349,7 +3102,19 @@ export async function runSubagent(
 		statusPayload.lastUpdate = now;
 		writeStatusPayload();
 		const childId = childStopRequests.get(index)?.childId ?? childStopTargetId(index);
-		appendJsonl(eventsPath, JSON.stringify({ type: "subagent.step.stopped", ts: now, runId: id, stepIndex: index, childId, agent: step.agent, exitCode: 1, durationMs: step.durationMs }));
+		appendJsonl(
+			eventsPath,
+			JSON.stringify({
+				type: "subagent.step.stopped",
+				ts: now,
+				runId: id,
+				stepIndex: index,
+				childId,
+				agent: step.agent,
+				exitCode: 1,
+				durationMs: step.durationMs,
+			}),
+		);
 		appendChildStatusEvent(index, childId, "stopped", now);
 	};
 	const childStopResult = (index: number, agent: string, context?: "fresh" | "fork"): SingleStepResult => {
@@ -2364,13 +3129,32 @@ export async function runSubagent(
 		const childId = request.childId ?? childStopTargetId(request.targetIndex);
 		const now = Date.now();
 		if (!markChildStopRequested(request.targetIndex, childId, now)) {
-			appendJsonl(eventsPath, JSON.stringify({ type: "subagent.step.stop_failed", ts: now, runId: id, stepIndex: request.targetIndex, childId, message: "Child is not pending or running." }));
+			appendJsonl(
+				eventsPath,
+				JSON.stringify({
+					type: "subagent.step.stop_failed",
+					ts: now,
+					runId: id,
+					stepIndex: request.targetIndex,
+					childId,
+					message: "Child is not pending or running.",
+				}),
+			);
 			return;
 		}
 		const stop = activeChildStops.get(request.targetIndex);
 		if (stop) stop();
 		else if (requiredStatusStep(statusPayload, request.targetIndex).status === "pending") {
-			appendJsonl(eventsPath, JSON.stringify({ type: "subagent.step.stop_queued", ts: now, runId: id, stepIndex: request.targetIndex, childId }));
+			appendJsonl(
+				eventsPath,
+				JSON.stringify({
+					type: "subagent.step.stop_queued",
+					ts: now,
+					runId: id,
+					stepIndex: request.targetIndex,
+					childId,
+				}),
+			);
 		}
 	};
 	const registerStepInterrupt = (flatIndex: number, interrupt: (() => void) | undefined): void => {
@@ -2431,12 +3215,15 @@ export async function runSubagent(
 		try {
 			registry = projectNestedEvents(config.nestedRoute);
 		} catch (error) {
-			appendJsonl(eventsPath, JSON.stringify({
-				type: "subagent.nested.interrupt_failed",
-				ts: Date.now(),
-				runId: id,
-				message: error instanceof Error ? error.message : String(error),
-			}));
+			appendJsonl(
+				eventsPath,
+				JSON.stringify({
+					type: "subagent.nested.interrupt_failed",
+					ts: Date.now(),
+					runId: id,
+					message: error instanceof Error ? error.message : String(error),
+				}),
+			);
 			return;
 		}
 		for (const run of nestedRuns(registry.children)) {
@@ -2446,13 +3233,16 @@ export async function runSubagent(
 			try {
 				deliverInterruptRequest({ asyncDir: nestedAsyncDir, source: "ancestor-interrupt" });
 			} catch (error) {
-				appendJsonl(eventsPath, JSON.stringify({
-					type: "subagent.nested.interrupt_failed",
-					ts: Date.now(),
-					runId: id,
-					targetRunId: run.id,
-					message: error instanceof Error ? error.message : String(error),
-				}));
+				appendJsonl(
+					eventsPath,
+					JSON.stringify({
+						type: "subagent.nested.interrupt_failed",
+						ts: Date.now(),
+						runId: id,
+						targetRunId: run.id,
+						message: error instanceof Error ? error.message : String(error),
+					}),
+				);
 			}
 		}
 	};
@@ -2462,12 +3252,15 @@ export async function runSubagent(
 		try {
 			registry = projectNestedEvents(config.nestedRoute);
 		} catch (error) {
-			appendJsonl(eventsPath, JSON.stringify({
-				type: "subagent.nested.stop_failed",
-				ts: Date.now(),
-				runId: id,
-				message: error instanceof Error ? error.message : String(error),
-			}));
+			appendJsonl(
+				eventsPath,
+				JSON.stringify({
+					type: "subagent.nested.stop_failed",
+					ts: Date.now(),
+					runId: id,
+					message: error instanceof Error ? error.message : String(error),
+				}),
+			);
 			return;
 		}
 		for (const run of nestedRuns(registry.children)) {
@@ -2475,15 +3268,20 @@ export async function runSubagent(
 			const nestedAsyncDir = run.asyncDir ?? resolveNestedAsyncDir(config.nestedRoute.rootRunId, run);
 			if (!nestedAsyncDir) continue;
 			try {
-				deliverStopRequest(omitUndefinedProperties({ asyncDir: nestedAsyncDir, pid: run.pid, source: "ancestor-stop" }));
+				deliverStopRequest(
+					omitUndefinedProperties({ asyncDir: nestedAsyncDir, pid: run.pid, source: "ancestor-stop" }),
+				);
 			} catch (error) {
-				appendJsonl(eventsPath, JSON.stringify({
-					type: "subagent.nested.stop_failed",
-					ts: Date.now(),
-					runId: id,
-					targetRunId: run.id,
-					message: error instanceof Error ? error.message : String(error),
-				}));
+				appendJsonl(
+					eventsPath,
+					JSON.stringify({
+						type: "subagent.nested.stop_failed",
+						ts: Date.now(),
+						runId: id,
+						targetRunId: run.id,
+						message: error instanceof Error ? error.message : String(error),
+					}),
+				);
 			}
 		}
 	};
@@ -2493,12 +3291,15 @@ export async function runSubagent(
 		try {
 			registry = projectNestedEvents(config.nestedRoute);
 		} catch (error) {
-			appendJsonl(eventsPath, JSON.stringify({
-				type: "subagent.nested.timeout_failed",
-				ts: Date.now(),
-				runId: id,
-				message: error instanceof Error ? error.message : String(error),
-			}));
+			appendJsonl(
+				eventsPath,
+				JSON.stringify({
+					type: "subagent.nested.timeout_failed",
+					ts: Date.now(),
+					runId: id,
+					message: error instanceof Error ? error.message : String(error),
+				}),
+			);
 			return;
 		}
 		for (const run of nestedRuns(registry.children)) {
@@ -2506,44 +3307,52 @@ export async function runSubagent(
 			const nestedAsyncDir = run.asyncDir ?? resolveNestedAsyncDir(config.nestedRoute.rootRunId, run);
 			if (!nestedAsyncDir) continue;
 			try {
-				deliverTimeoutRequest(omitUndefinedProperties({ asyncDir: nestedAsyncDir, pid: run.pid, source: "ancestor-timeout" }));
+				deliverTimeoutRequest(
+					omitUndefinedProperties({ asyncDir: nestedAsyncDir, pid: run.pid, source: "ancestor-timeout" }),
+				);
 			} catch (error) {
-				appendJsonl(eventsPath, JSON.stringify({
-					type: "subagent.nested.timeout_failed",
-					ts: Date.now(),
-					runId: id,
-					targetRunId: run.id,
-					message: error instanceof Error ? error.message : String(error),
-				}));
+				appendJsonl(
+					eventsPath,
+					JSON.stringify({
+						type: "subagent.nested.timeout_failed",
+						ts: Date.now(),
+						runId: id,
+						targetRunId: run.id,
+						message: error instanceof Error ? error.message : String(error),
+					}),
+				);
 			}
 		}
 	};
-	const pausedStepResult = (agent: string, context?: "fresh" | "fork", sessionName?: string): SingleStepResult => omitUndefinedProperties({
-		agent,
-		sessionName,
-		context,
-		output: "Paused after interrupt. Waiting for explicit next action.",
-		exitCode: 0,
-		interrupted: true,
-	});
-	const timedOutStepResult = (agent: string, context?: "fresh" | "fork", sessionName?: string): SingleStepResult => omitUndefinedProperties({
-		agent,
-		sessionName,
-		context,
-		output: timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE,
-		error: timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE,
-		exitCode: 1,
-		timedOut: true,
-	});
-	const stoppedStepResult = (agent: string, context?: "fresh" | "fork", sessionName?: string): SingleStepResult => omitUndefinedProperties({
-		agent,
-		sessionName,
-		context,
-		output: stopMessage,
-		error: stopMessage,
-		exitCode: 1,
-		stopped: true,
-	});
+	const pausedStepResult = (agent: string, context?: "fresh" | "fork", sessionName?: string): SingleStepResult =>
+		omitUndefinedProperties({
+			agent,
+			sessionName,
+			context,
+			output: "Paused after interrupt. Waiting for explicit next action.",
+			exitCode: 0,
+			interrupted: true,
+		});
+	const timedOutStepResult = (agent: string, context?: "fresh" | "fork", sessionName?: string): SingleStepResult =>
+		omitUndefinedProperties({
+			agent,
+			sessionName,
+			context,
+			output: timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE,
+			error: timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE,
+			exitCode: 1,
+			timedOut: true,
+		});
+	const stoppedStepResult = (agent: string, context?: "fresh" | "fork", sessionName?: string): SingleStepResult =>
+		omitUndefinedProperties({
+			agent,
+			sessionName,
+			context,
+			output: stopMessage,
+			error: stopMessage,
+			exitCode: 1,
+			stopped: true,
+		});
 	const consumePendingAppendRequests = (): void => {
 		if (statusPayload.mode !== "chain" || statusPayload.state !== "running") return;
 		const requests = consumeChainAppendRequests(asyncDir);
@@ -2569,23 +3378,35 @@ export async function runSubagent(
 		});
 		mutatingFailureStates.push(...Array.from({ length: added.addedFlatSteps }, () => createMutatingFailureState()));
 		pendingToolResults.push(...Array.from({ length: added.addedFlatSteps }, () => undefined));
-		pendingToolResultsByCallId.push(...Array.from({ length: added.addedFlatSteps }, () => new Map<string, PendingToolResult>()));
+		pendingToolResultsByCallId.push(
+			...Array.from({ length: added.addedFlatSteps }, () => new Map<string, PendingToolResult>()),
+		);
 		if (config.childIntercomTargets) {
-			config.childIntercomTargets = statusPayload.steps.map((statusStep, index) => resolveSubagentIntercomTarget(id, statusStep.agent, index));
+			config.childIntercomTargets = statusPayload.steps.map((statusStep, index) =>
+				resolveSubagentIntercomTarget(id, statusStep.agent, index),
+			);
 		}
 		writeStatusPayload();
 		for (const request of requests) {
-			appendJsonl(eventsPath, JSON.stringify({
-				type: "subagent.chain.append.accepted",
-				ts: now,
-				runId: id,
-				requestId: request.id,
-				stepCount: request.steps.length,
-				pendingAppends,
-			}));
+			appendJsonl(
+				eventsPath,
+				JSON.stringify({
+					type: "subagent.chain.append.accepted",
+					ts: now,
+					runId: id,
+					requestId: request.id,
+					stepCount: request.steps.length,
+					pendingAppends,
+				}),
+			);
 		}
 	};
-	const markDynamicGraphGroup = (stepIndex: number, status: "completed" | "failed" | "running" | "stopped", error?: string, acceptance?: import("../../shared/types.ts").AcceptanceLedger): void => {
+	const markDynamicGraphGroup = (
+		stepIndex: number,
+		status: "completed" | "failed" | "running" | "stopped",
+		error?: string,
+		acceptance?: import("../../shared/types.ts").AcceptanceLedger,
+	): void => {
 		const groupNode = statusPayload.workflowGraph?.nodes.find((node) => node.id === `step-${stepIndex}`);
 		if (!groupNode) return;
 		groupNode.status = status;
@@ -2609,12 +3430,16 @@ export async function runSubagent(
 		if (reportedGitProbeErrors.has(externalCwd)) return;
 		reportedGitProbeErrors.add(externalCwd);
 		const detail = error instanceof Error ? error.message : String(error);
-		console.error(`[pi-subagents] Git activity evidence unavailable for '${externalCwd.slice(-300)}'; check the cwd and Git installation: ${detail.slice(0, 500)}`);
+		console.error(
+			`[pi-subagents] Git activity evidence unavailable for '${externalCwd.slice(-300)}'; check the cwd and Git installation: ${detail.slice(0, 500)}`,
+		);
 	};
 	const readSharedGitFingerprint = (externalCwd: string): Promise<string | undefined> => {
 		const inFlight = gitProbesByCwd.get(externalCwd);
 		if (inFlight) return inFlight;
-		const probe = readGitFingerprint(externalCwd, runStopSignal, (error) => reportGitProbeError(externalCwd, error)).finally(() => gitProbesByCwd.delete(externalCwd));
+		const probe = readGitFingerprint(externalCwd, runStopSignal, (error) =>
+			reportGitProbeError(externalCwd, error),
+		).finally(() => gitProbesByCwd.delete(externalCwd));
 		gitProbesByCwd.set(externalCwd, probe);
 		return probe;
 	};
@@ -2628,21 +3453,26 @@ export async function runSubagent(
 		if (step) step.error = message;
 		statusPayload.lastUpdate = Date.now();
 		writeStatusPayload();
-		appendJsonl(eventsPath, JSON.stringify({
-			type: "subagent.run.process_tree_unverified",
-			ts: statusPayload.lastUpdate,
-			runId: id,
-			index,
-			code: "PROCESS_TREE_UNVERIFIED",
-			message,
-		}));
+		appendJsonl(
+			eventsPath,
+			JSON.stringify({
+				type: "subagent.run.process_tree_unverified",
+				ts: statusPayload.lastUpdate,
+				runId: id,
+				index,
+				code: "PROCESS_TREE_UNVERIFIED",
+				message,
+			}),
+		);
 	};
 	const prepareExternalActivity = async (index: number, externalCwd: string, signal: AbortSignal): Promise<void> => {
 		if (!controlConfig.enabled) return;
 		const resolvedCwd = path.resolve(externalCwd);
 		const evidence: ExternalActivityEvidence = { cwd: resolvedCwd, lastProbeStartedAt: performance.now() };
 		externalActivityEvidence.set(index, evidence);
-		evidence.fingerprint = await readGitFingerprint(resolvedCwd, signal, (error) => reportGitProbeError(resolvedCwd, error));
+		evidence.fingerprint = await readGitFingerprint(resolvedCwd, signal, (error) =>
+			reportGitProbeError(resolvedCwd, error),
+		);
 	};
 	const recordExternalStreamActivity = (index: number): void => {
 		const evidence = externalActivityEvidence.get(index) ?? {};
@@ -2671,11 +3501,20 @@ export async function runSubagent(
 	// Pi's parallel tool execution emits every tool_execution_start before the first result message, so each
 	// step matches results to calls by toolCallId; pendingToolResults keeps the last-started call for events without one.
 	const pendingToolResultsByCallId = initialStatusSteps.map(() => new Map<string, PendingToolResult>());
-	type ActiveToolCall = { attentionEmitted?: boolean; key: string; tool: string; args: string; startedAt: number; path?: string; blocksSupervisor: boolean };
+	type ActiveToolCall = {
+		attentionEmitted?: boolean;
+		key: string;
+		tool: string;
+		args: string;
+		startedAt: number;
+		path?: string;
+		blocksSupervisor: boolean;
+	};
 	const activeToolCalls = initialStatusSteps.map(() => new Map<string, ActiveToolCall>());
 	const activeToolKeysByName = initialStatusSteps.map(() => new Map<string, string[]>());
 	const activeToolSequences = initialStatusSteps.map(() => 0);
-	const latestActiveToolCall = (flatIndex: number): ActiveToolCall | undefined => [...(activeToolCalls[flatIndex]?.values() ?? [])].sort((left, right) => right.startedAt - left.startedAt)[0];
+	const latestActiveToolCall = (flatIndex: number): ActiveToolCall | undefined =>
+		[...(activeToolCalls[flatIndex]?.values() ?? [])].sort((left, right) => right.startedAt - left.startedAt)[0];
 	const refreshStepCurrentTool = (flatIndex: number): void => {
 		const step = statusPayload.steps[flatIndex];
 		if (!step) return;
@@ -2692,7 +3531,11 @@ export async function runSubagent(
 		step.currentToolStartedAt = active.startedAt;
 		setOptionalProperty(step, "currentPath", active.path);
 	};
-	const recordActiveToolCall = (flatIndex: number, event: { toolCallId?: unknown; toolName: string }, input: { argsPreview: string; currentPath?: string; blocksSupervisor: boolean; now: number }): ActiveToolCall => {
+	const recordActiveToolCall = (
+		flatIndex: number,
+		event: { toolCallId?: unknown; toolName: string },
+		input: { argsPreview: string; currentPath?: string; blocksSupervisor: boolean; now: number },
+	): ActiveToolCall => {
 		const sequence = (activeToolSequences[flatIndex] ?? 0) + 1;
 		activeToolSequences[flatIndex] = sequence;
 		const key = toolTimeoutCallKey(event, sequence);
@@ -2723,20 +3566,34 @@ export async function runSubagent(
 		else keysByName?.delete(active.tool);
 		return active;
 	};
-	const removeActiveToolCall = (flatIndex: number, event: { toolCallId?: unknown; toolName?: unknown }): ActiveToolCall | undefined => {
+	const removeActiveToolCall = (
+		flatIndex: number,
+		event: { toolCallId?: unknown; toolName?: unknown },
+	): ActiveToolCall | undefined => {
 		const calls = activeToolCalls[flatIndex];
-		const key = typeof event.toolCallId === "string" && event.toolCallId.length > 0
-			? `id:${event.toolCallId}`
-			: typeof event.toolName === "string"
-				? activeToolKeysByName[flatIndex]?.get(event.toolName)?.[0]
-				: calls?.size === 1
-					? [...calls.keys()][0]
-					: undefined;
+		const key =
+			typeof event.toolCallId === "string" && event.toolCallId.length > 0
+				? `id:${event.toolCallId}`
+				: typeof event.toolName === "string"
+					? activeToolKeysByName[flatIndex]?.get(event.toolName)?.[0]
+					: calls?.size === 1
+						? [...calls.keys()][0]
+						: undefined;
 		return key ? removeActiveToolCallKey(flatIndex, key) : undefined;
 	};
-	const openToolAttentionTarget = (flatIndex: number, now: number): ActiveToolCall | undefined => [...(activeToolCalls[flatIndex]?.values() ?? [])]
-		.filter((active) => !active.attentionEmitted && shouldEmitOpenToolAttention({ config: controlConfig, currentTool: active.tool, currentToolStartedAt: active.startedAt, now }))
-		.sort((left, right) => left.startedAt - right.startedAt)[0];
+	const openToolAttentionTarget = (flatIndex: number, now: number): ActiveToolCall | undefined =>
+		[...(activeToolCalls[flatIndex]?.values() ?? [])]
+			.filter(
+				(active) =>
+					!active.attentionEmitted &&
+					shouldEmitOpenToolAttention({
+						config: controlConfig,
+						currentTool: active.tool,
+						currentToolStartedAt: active.startedAt,
+						now,
+					}),
+			)
+			.sort((left, right) => left.startedAt - right.startedAt)[0];
 	const supervisorAttentionSteps = new Map<number, ActivityState | undefined>();
 	const mutatingFailureWindowMs = 5 * 60_000;
 	const appendControlEvent = (rawEvent: ReturnType<typeof buildControlEvent>) => {
@@ -2744,33 +3601,47 @@ export async function runSubagent(
 		const contextStep = statusPayload.steps[rawEvent.index ?? statusPayload.currentStep ?? 0];
 		const event = {
 			...rawEvent,
-			...(contextStep?.workflowKey ?? statusPayload.workflowKey ? { workflowKey: contextStep?.workflowKey ?? statusPayload.workflowKey } : {}),
+			...((contextStep?.workflowKey ?? statusPayload.workflowKey)
+				? { workflowKey: contextStep?.workflowKey ?? statusPayload.workflowKey }
+				: {}),
 			...(contextStep?.phase ? { phase: contextStep.phase } : {}),
 			...(contextStep?.label ? { label: contextStep.label } : {}),
 			...(contextStep?.description ? { taskPreview: contextStep.description } : {}),
 		};
 		const childIntercomTarget = config.childIntercomTargets?.[event.index ?? statusPayload.currentStep];
-		const channels = event.type === "active_long_running"
-			? controlConfig.notifyChannels.filter((channel) => channel !== "intercom")
-			: controlConfig.notifyChannels;
-		if (channels.length === 0 || !claimControlNotification(controlConfig, event, emittedControlEventKeys, childIntercomTarget)) return;
-		appendJsonl(eventsPath, JSON.stringify({
-			type: "subagent.control",
-			event,
-			channels,
-			childIntercomTarget,
-			noticeText: formatControlNoticeMessage(event, childIntercomTarget),
-			...(config.controlIntercomTarget && channels.includes("intercom") ? {
-				intercom: {
-					to: config.controlIntercomTarget,
-					message: formatControlIntercomMessage(event, childIntercomTarget),
-				},
-			} : {}),
-		}));
+		const channels =
+			event.type === "active_long_running"
+				? controlConfig.notifyChannels.filter((channel) => channel !== "intercom")
+				: controlConfig.notifyChannels;
+		if (
+			channels.length === 0 ||
+			!claimControlNotification(controlConfig, event, emittedControlEventKeys, childIntercomTarget)
+		)
+			return;
+		appendJsonl(
+			eventsPath,
+			JSON.stringify({
+				type: "subagent.control",
+				event,
+				channels,
+				childIntercomTarget,
+				noticeText: formatControlNoticeMessage(event, childIntercomTarget),
+				...(config.controlIntercomTarget && channels.includes("intercom")
+					? {
+							intercom: {
+								to: config.controlIntercomTarget,
+								message: formatControlIntercomMessage(event, childIntercomTarget),
+							},
+						}
+					: {}),
+			}),
+		);
 	};
 	const syncTopLevelCurrentTool = (): void => {
 		const activeStep = statusPayload.steps
-			.filter((step) => step.status === "running" && typeof step.currentTool === "string" && step.currentTool.length > 0)
+			.filter(
+				(step) => step.status === "running" && typeof step.currentTool === "string" && step.currentTool.length > 0,
+			)
 			.sort((left, right) => (right.currentToolStartedAt ?? 0) - (left.currentToolStartedAt ?? 0))[0];
 		setOptionalProperty(statusPayload, "currentTool", activeStep?.currentTool);
 		setOptionalProperty(statusPayload, "currentToolStartedAt", activeStep?.currentToolStartedAt);
@@ -2798,25 +3669,31 @@ export async function runSubagent(
 		statusPayload.activityState = "needs_attention";
 		const toolDurationMs = Math.max(0, now - target.startedAt);
 		const toolCallId = target.key.startsWith("id:") ? target.key.slice(3) : undefined;
-		appendControlEvent(buildControlEvent(omitUndefinedProperties({
-			type: "needs_attention",
-			from: previous,
-			to: "needs_attention",
-			runId: id,
-			agent: step.agent,
-			index: flatIndex,
-			ts: now,
-			message: `${step.agent} has had tool '${target.tool}' open for ${Math.floor(toolDurationMs / 1000)}s`,
-			reason: "tool_open_threshold",
-			turns: step.turnCount,
-			tokens: step.tokens?.total,
-			toolCount: step.toolCount,
-			currentTool: target.tool,
-			toolCallId,
-			hasCommandController: Boolean(toolCallId && retainsChildCommand(supervisorChannelDir(id, step.agent, flatIndex), toolCallId)),
-			currentToolDurationMs: toolDurationMs,
-			currentPath: target.path,
-		})));
+		appendControlEvent(
+			buildControlEvent(
+				omitUndefinedProperties({
+					type: "needs_attention",
+					from: previous,
+					to: "needs_attention",
+					runId: id,
+					agent: step.agent,
+					index: flatIndex,
+					ts: now,
+					message: `${step.agent} has had tool '${target.tool}' open for ${Math.floor(toolDurationMs / 1000)}s`,
+					reason: "tool_open_threshold",
+					turns: step.turnCount,
+					tokens: step.tokens?.total,
+					toolCount: step.toolCount,
+					currentTool: target.tool,
+					toolCallId,
+					hasCommandController: Boolean(
+						toolCallId && retainsChildCommand(supervisorChannelDir(id, step.agent, flatIndex), toolCallId),
+					),
+					currentToolDurationMs: toolDurationMs,
+					currentPath: target.path,
+				}),
+			),
+		);
 		return true;
 	};
 	const maybeEmitActiveLongRunning = (flatIndex: number, now: number): boolean => {
@@ -2833,48 +3710,99 @@ export async function runSubagent(
 		activeLongRunningSteps.add(flatIndex);
 		const previous = step.activityState;
 		step.activityState = "active_long_running";
-		statusPayload.activityState = statusPayload.activityState === "needs_attention" ? "needs_attention" : "active_long_running";
-		const event = buildControlEvent(omitUndefinedProperties({
-			type: "active_long_running",
-			from: previous,
-			to: "active_long_running",
-			runId: id,
-			agent: step.agent,
-			index: flatIndex,
-			ts: now,
-			message: `${step.agent} is still active but long-running`,
-			reason,
-			turns: step.turnCount,
-			tokens: step.tokens?.total,
-			toolCount: step.toolCount,
-			currentTool: step.currentTool,
-			currentToolDurationMs: step.currentToolStartedAt ? Math.max(0, now - step.currentToolStartedAt) : undefined,
-			currentPath: step.currentPath,
-			elapsedMs: now - (step.startedAt ?? overallStartTime),
-		}));
+		statusPayload.activityState =
+			statusPayload.activityState === "needs_attention" ? "needs_attention" : "active_long_running";
+		const event = buildControlEvent(
+			omitUndefinedProperties({
+				type: "active_long_running",
+				from: previous,
+				to: "active_long_running",
+				runId: id,
+				agent: step.agent,
+				index: flatIndex,
+				ts: now,
+				message: `${step.agent} is still active but long-running`,
+				reason,
+				turns: step.turnCount,
+				tokens: step.tokens?.total,
+				toolCount: step.toolCount,
+				currentTool: step.currentTool,
+				currentToolDurationMs: step.currentToolStartedAt ? Math.max(0, now - step.currentToolStartedAt) : undefined,
+				currentPath: step.currentPath,
+				elapsedMs: now - (step.startedAt ?? overallStartTime),
+			}),
+		);
 		appendControlEvent(event);
 		return true;
 	};
-	const steeringMarkerPath = (requestId: string): string => path.join(asyncDir, "control", "steer-recovery", `${Buffer.from(requestId).toString("base64url")}.json`);
+	const steeringMarkerPath = (requestId: string): string =>
+		path.join(asyncDir, "control", "steer-recovery", `${Buffer.from(requestId).toString("base64url")}.json`);
 	const markSteeringAttention = (index: number): void => {
 		const step = statusPayload.steps[index];
 		if (step) step.activityState = "needs_attention";
 		statusPayload.activityState = "needs_attention";
 	};
-	const emitSteeringEvent = (type: string, request: SteerRequest, index?: number, extra: Record<string, unknown> = {}): void => {
-		appendJsonl(eventsPath, JSON.stringify({ type, ts: Date.now(), runId: id, requestId: request.id, ...(index !== undefined ? { index } : {}), ...extra }));
+	const emitSteeringEvent = (
+		type: string,
+		request: SteerRequest,
+		index?: number,
+		extra: Record<string, unknown> = {},
+	): void => {
+		appendJsonl(
+			eventsPath,
+			JSON.stringify({
+				type,
+				ts: Date.now(),
+				runId: id,
+				requestId: request.id,
+				...(index !== undefined ? { index } : {}),
+				...extra,
+			}),
+		);
 	};
 	const emitSteeringNotice = (requestId: string, state: "failed" | "partial" | "recovered", message: string): void => {
-		appendJsonl(eventsPath, JSON.stringify({ type: "subagent.steering.notice", ts: Date.now(), runId: id, requestId, state, message, ...(config.sessionId ? { currentSessionId: config.sessionId } : {}) }));
+		appendJsonl(
+			eventsPath,
+			JSON.stringify({
+				type: "subagent.steering.notice",
+				ts: Date.now(),
+				runId: id,
+				requestId,
+				state,
+				message,
+				...(config.sessionId ? { currentSessionId: config.sessionId } : {}),
+			}),
+		);
 	};
-	const recordSteeringLifecycle = (request: SteerRequest, targets: Array<{ index: number; state: SteeringTargetState; reason?: string }>): void => {
+	const recordSteeringLifecycle = (
+		request: SteerRequest,
+		targets: Array<{ index: number; state: SteeringTargetState; reason?: string }>,
+	): void => {
 		const lifecycle = steeringStatus(statusPayload);
-		recordSteeringRequest(lifecycle, omitUndefinedProperties({ id: request.id, requestedAt: request.ts, source: request.source, message: request.message, targets }));
+		recordSteeringRequest(
+			lifecycle,
+			omitUndefinedProperties({
+				id: request.id,
+				requestedAt: request.ts,
+				source: request.source,
+				message: request.message,
+				targets,
+			}),
+		);
 		for (const target of targets) {
 			const step = statusPayload.steps[target.index];
 			if (!step) continue;
 			step.steering ??= createSteeringStatus();
-			recordSteeringRequest(step.steering, omitUndefinedProperties({ id: request.id, requestedAt: request.ts, source: request.source, message: request.message, targets: [target] }));
+			recordSteeringRequest(
+				step.steering,
+				omitUndefinedProperties({
+					id: request.id,
+					requestedAt: request.ts,
+					source: request.source,
+					message: request.message,
+					targets: [target],
+				}),
+			);
 		}
 	};
 	const updateSteeringLifecycleTarget = (
@@ -2897,11 +3825,12 @@ export async function runSubagent(
 	const deliverSteerRequest = (request: SteerRequest): void => {
 		if (statusPayload.state !== "running") {
 			const reason = `run became ${statusPayload.state} before steering request was consumed`;
-			const indexes = request.targetIndex !== undefined
-				? [request.targetIndex]
-				: request.targetIndexes?.length
-					? request.targetIndexes
-					: statusPayload.steps.map((_, index) => index);
+			const indexes =
+				request.targetIndex !== undefined
+					? [request.targetIndex]
+					: request.targetIndexes?.length
+						? request.targetIndexes
+						: statusPayload.steps.map((_, index) => index);
 			const targets = indexes.map((index) => ({ index, state: "failed" as const, reason }));
 			recordSteeringLifecycle(request, targets);
 			emitSteeringEvent("subagent.steer.requested", request, undefined, { targets });
@@ -2915,15 +3844,16 @@ export async function runSubagent(
 			.map((step, index) => ({ step, index }))
 			.filter(({ step }) => step.status === "running")
 			.map(({ index }) => index);
-		const targets = request.targetIndex !== undefined
-			? [request.targetIndex]
-			: request.targetIndexes?.length
-				? request.targetIndexes
-				: runningIndexes.length > 0
-					? runningIndexes
-					: statusPayload.mode === "single" && statusPayload.steps[0]?.status === "pending"
-						? [0]
-						: [];
+		const targets =
+			request.targetIndex !== undefined
+				? [request.targetIndex]
+				: request.targetIndexes?.length
+					? request.targetIndexes
+					: runningIndexes.length > 0
+						? runningIndexes
+						: statusPayload.mode === "single" && statusPayload.steps[0]?.status === "pending"
+							? [0]
+							: [];
 		const now = Date.now();
 		const targetStates = targets.map((index) => {
 			const step = statusPayload.steps[index];
@@ -2951,7 +3881,11 @@ export async function runSubagent(
 		writeStatusPayload();
 	};
 	/** Record the outcome of handing a routed steer to the live child session. */
-	const applySteerDelivery = (requestId: string, index: number, delivery: { state: "delivered" | "queued" | "failed"; message: string }): void => {
+	const applySteerDelivery = (
+		requestId: string,
+		index: number,
+		delivery: { state: "delivered" | "queued" | "failed"; message: string },
+	): void => {
 		const lifecycle = steeringStatus(statusPayload);
 		const request = lifecycle.recent.find((candidate) => candidate.id === requestId);
 		const target = request?.targets.find((candidate) => candidate.index === index);
@@ -2961,15 +3895,36 @@ export async function runSubagent(
 		const late = fs.existsSync(steeringMarkerPath(requestId));
 		const now = Date.now();
 		if (delivery.state === "delivered") {
-			updateSteeringLifecycleTarget(requestId, index, late ? "late" : "delivered", now, omitUndefinedProperties({ reason: late ? "acknowledged after recovery commit" : undefined }));
-			emitSteeringEvent("subagent.steer.delivered", { type: "steer", id: requestId, ts: now, message: delivery.message }, index, { late, deliveryStatus: "delivered", message: delivery.message });
+			updateSteeringLifecycleTarget(
+				requestId,
+				index,
+				late ? "late" : "delivered",
+				now,
+				omitUndefinedProperties({ reason: late ? "acknowledged after recovery commit" : undefined }),
+			);
+			emitSteeringEvent(
+				"subagent.steer.delivered",
+				{ type: "steer", id: requestId, ts: now, message: delivery.message },
+				index,
+				{ late, deliveryStatus: "delivered", message: delivery.message },
+			);
 		} else if (delivery.state === "queued") {
 			updateSteeringLifecycleTarget(requestId, index, "queued", now);
-			emitSteeringEvent("subagent.steer.queued", { type: "steer", id: requestId, ts: now, message: delivery.message }, index, { deliveryStatus: "queued", message: delivery.message });
+			emitSteeringEvent(
+				"subagent.steer.queued",
+				{ type: "steer", id: requestId, ts: now, message: delivery.message },
+				index,
+				{ deliveryStatus: "queued", message: delivery.message },
+			);
 		} else {
 			markSteeringAttention(index);
 			updateSteeringLifecycleTarget(requestId, index, "failed", now, { reason: delivery.message });
-			emitSteeringEvent("subagent.steer.failed", { type: "steer", id: requestId, ts: now, message: delivery.message }, index, { reason: delivery.message });
+			emitSteeringEvent(
+				"subagent.steer.failed",
+				{ type: "steer", id: requestId, ts: now, message: delivery.message },
+				index,
+				{ reason: delivery.message },
+			);
 		}
 		emitTerminalSteeringNotice(requestId, `Steering failed for run ${id}: ${delivery.message}`);
 		statusPayload.lastUpdate = now;
@@ -2986,7 +3941,11 @@ export async function runSubagent(
 		}
 		void steer(request).then(
 			(delivery) => applySteerDelivery(request.id, index, delivery),
-			(error) => applySteerDelivery(request.id, index, { state: "failed", message: error instanceof Error ? error.message : String(error) }),
+			(error) =>
+				applySteerDelivery(request.id, index, {
+					state: "failed",
+					message: error instanceof Error ? error.message : String(error),
+				}),
 		);
 	};
 	const flushPendingStepSteers = (flatIndex: number): void => {
@@ -2998,7 +3957,13 @@ export async function runSubagent(
 		}
 		pendingStepSteers.push(...remaining);
 	};
-	const updateStepModel = (flatIndex: number, model: string | undefined, thinking: string | undefined, contextLimit?: number, now = Date.now()): void => {
+	const updateStepModel = (
+		flatIndex: number,
+		model: string | undefined,
+		thinking: string | undefined,
+		contextLimit?: number,
+		now = Date.now(),
+	): void => {
 		const step = statusPayload.steps[flatIndex];
 		if (!step) return;
 		setOptionalProperty(step, "model", model);
@@ -3009,11 +3974,28 @@ export async function runSubagent(
 		writeStatusPayload();
 	};
 	// Records a finished child's result on its status step; the sequential and both parallel paths share it.
-	const recordStepResult = (fi: number, singleResult: StepResult, startedAt: number, endedAt: number, recordLaunchContractDigest = false): void => {
+	const recordStepResult = (
+		fi: number,
+		singleResult: StepResult,
+		startedAt: number,
+		endedAt: number,
+		recordLaunchContractDigest = false,
+	): void => {
 		const step = requiredStatusStep(statusPayload, fi);
 		const childStopped = singleResult.stopped === true;
 		const childInterrupted = singleResult.interrupted === true;
-		step.status = stopped || childStopped ? "stopped" : timedOut ? "failed" : childInterrupted ? "paused" : singleResult.execution?.status === "partial" ? "partial" : singleResult.exitCode === 0 ? "complete" : "failed";
+		step.status =
+			stopped || childStopped
+				? "stopped"
+				: timedOut
+					? "failed"
+					: childInterrupted
+						? "paused"
+						: singleResult.execution?.status === "partial"
+							? "partial"
+							: singleResult.exitCode === 0
+								? "complete"
+								: "failed";
 		step.endedAt = endedAt;
 		step.durationMs = endedAt - startedAt;
 		step.exitCode = stopped || childStopped ? 1 : timedOut ? 1 : childInterrupted ? 0 : singleResult.exitCode;
@@ -3031,11 +4013,20 @@ export async function runSubagent(
 		setOptionalProperty(step, "requestedModel", singleResult.requestedModel);
 		setOptionalProperty(step, "contextOverflow", singleResult.contextOverflow);
 		setOptionalProperty(step, "totalCost", singleResult.totalCost);
-		setOptionalProperty(step, "error", stopped || childStopped ? stopMessage : timedOut ? (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE) : singleResult.error);
+		setOptionalProperty(
+			step,
+			"error",
+			stopped || childStopped
+				? stopMessage
+				: timedOut
+					? (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE)
+					: singleResult.error,
+		);
 		setOptionalProperty(step, "transcriptPath", singleResult.transcriptPath ?? step.transcriptPath);
 		setOptionalProperty(step, "transcriptError", singleResult.transcriptError);
 		setOptionalProperty(step, "agentContract", singleResult.agentContract);
-		if (recordLaunchContractDigest) setOptionalProperty(step, "launchContractDigest", singleResult.launchContractDigest);
+		if (recordLaunchContractDigest)
+			setOptionalProperty(step, "launchContractDigest", singleResult.launchContractDigest);
 		setOptionalProperty(step, "launchResolvedExtensions", singleResult.launchResolvedExtensions);
 		setOptionalProperty(step, "runtimeAcknowledgedExtensions", singleResult.runtimeAcknowledgedExtensions);
 		setOptionalProperty(step, "effects", singleResult.effects);
@@ -3104,11 +4095,21 @@ export async function runSubagent(
 				step.toolBudget = toolBudgetState(configuredToolBudget, step.toolCount, step.toolBudget?.blockedTool);
 				statusPayload.toolBudget = step.toolBudget;
 			}
-			recordActiveToolCall(flatIndex, { toolCallId: (event as { toolCallId?: unknown }).toolCallId, toolName: event.toolName }, { argsPreview, currentPath, blocksSupervisor, now });
-			const pending: PendingToolResult = omitUndefinedProperties({ tool: event.toolName, path: currentPath, mutates, startedAt: now });
+			recordActiveToolCall(
+				flatIndex,
+				{ toolCallId: (event as { toolCallId?: unknown }).toolCallId, toolName: event.toolName },
+				{ argsPreview, currentPath, blocksSupervisor, now },
+			);
+			const pending: PendingToolResult = omitUndefinedProperties({
+				tool: event.toolName,
+				path: currentPath,
+				mutates,
+				startedAt: now,
+			});
 			pendingToolResults[flatIndex] = pending;
 			const startedCallId = (event as { toolCallId?: unknown }).toolCallId;
-			if (typeof startedCallId === "string" && startedCallId) pendingToolResultsByCallId[flatIndex]!.set(startedCallId, pending);
+			if (typeof startedCallId === "string" && startedCallId)
+				pendingToolResultsByCallId[flatIndex]!.set(startedCallId, pending);
 			statusPayload.toolCount = (statusPayload.toolCount ?? 0) + 1;
 			syncTopLevelCurrentTool();
 			if (controlConfig.enabled && blocksSupervisor && step.activityState !== "needs_attention") {
@@ -3117,24 +4118,28 @@ export async function runSubagent(
 				supervisorAttentionSteps.set(flatIndex, previous);
 				currentActivityState = "needs_attention";
 				statusPayload.activityState = "needs_attention";
-				appendControlEvent(buildControlEvent(omitUndefinedProperties({
-					type: "needs_attention",
-					from: previous,
-					to: "needs_attention",
-					runId: id,
-					agent: step.agent,
-					index: flatIndex,
-					ts: now,
-					message: `${step.agent} is waiting for a supervisor reply`,
-					reason: "supervisor_request",
-					turns: step.turnCount,
-					tokens: step.tokens?.total,
-					toolCount: step.toolCount,
-					currentTool: step.currentTool,
-					toolCallId: event.toolCallId,
-					currentToolDurationMs: 0,
-					currentPath: step.currentPath,
-				})));
+				appendControlEvent(
+					buildControlEvent(
+						omitUndefinedProperties({
+							type: "needs_attention",
+							from: previous,
+							to: "needs_attention",
+							runId: id,
+							agent: step.agent,
+							index: flatIndex,
+							ts: now,
+							message: `${step.agent} is waiting for a supervisor reply`,
+							reason: "supervisor_request",
+							turns: step.turnCount,
+							tokens: step.tokens?.total,
+							toolCount: step.toolCount,
+							currentTool: step.currentTool,
+							toolCallId: event.toolCallId,
+							currentToolDurationMs: 0,
+							currentPath: step.currentPath,
+						}),
+					),
+				);
 			}
 		} else if (event.type === "tool_execution_end") {
 			const endedTool = removeActiveToolCall(flatIndex, event);
@@ -3144,8 +4149,13 @@ export async function runSubagent(
 			}
 			refreshStepCurrentTool(flatIndex);
 			const supervisorPreviousActivity = supervisorAttentionSteps.get(flatIndex);
-			const stillBlockingSupervisor = [...(activeToolCalls[flatIndex]?.values() ?? [])].some((active) => active.blocksSupervisor);
-			const clearedSupervisorAttention = endedTool?.blocksSupervisor && !stillBlockingSupervisor ? supervisorAttentionSteps.delete(flatIndex) : false;
+			const stillBlockingSupervisor = [...(activeToolCalls[flatIndex]?.values() ?? [])].some(
+				(active) => active.blocksSupervisor,
+			);
+			const clearedSupervisorAttention =
+				endedTool?.blocksSupervisor && !stillBlockingSupervisor
+					? supervisorAttentionSteps.delete(flatIndex)
+					: false;
 			if (clearedSupervisorAttention && step.activityState === "needs_attention") {
 				setOptionalProperty(step, "activityState", supervisorPreviousActivity);
 				syncAggregateActivityState();
@@ -3158,12 +4168,17 @@ export async function runSubagent(
 			const keyedSnapshot = typeof resultCallId === "string" ? byCallId.get(resultCallId) : undefined;
 			if (keyedSnapshot) byCallId.delete(resultCallId as string);
 			const toolSnapshot = keyedSnapshot ?? pendingToolResults[flatIndex];
-			if (!keyedSnapshot || pendingToolResults[flatIndex] === keyedSnapshot) pendingToolResults[flatIndex] = undefined;
+			if (!keyedSnapshot || pendingToolResults[flatIndex] === keyedSnapshot)
+				pendingToolResults[flatIndex] = undefined;
 			const resultText = extractTextFromContent(event.message.content);
 			const resultToolName = (event.message as { toolName?: unknown }).toolName;
-			const blockedTool = (typeof resultToolName === "string" && resultToolName.length > 0 ? resultToolName : undefined) ?? toolSnapshot?.tool;
+			const blockedTool =
+				(typeof resultToolName === "string" && resultToolName.length > 0 ? resultToolName : undefined) ??
+				toolSnapshot?.tool;
 			const configuredToolBudget = flatSteps[flatIndex]?.toolBudget;
-			const budgetBlocked = configuredToolBudget !== undefined && isToolBudgetBlockedMessage(configuredToolBudget, resultText, blockedTool);
+			const budgetBlocked =
+				configuredToolBudget !== undefined &&
+				isToolBudgetBlockedMessage(configuredToolBudget, resultText, blockedTool);
 			if (budgetBlocked) {
 				step.toolBudget = toolBudgetState(configuredToolBudget, step.toolCount ?? 0, blockedTool);
 				step.toolBudgetBlocked = true;
@@ -3174,58 +4189,87 @@ export async function runSubagent(
 			// A budget block has its own signal; it is not a failing mutation.
 			if (toolSnapshot?.mutates && !budgetBlocked && didMutatingToolFail(event.message)) {
 				const state = mutatingFailureStates[flatIndex]!;
-				recordMutatingFailure(state, omitUndefinedProperties({
-					tool: toolSnapshot.tool,
-					path: toolSnapshot.path,
-					error: resultText.split("\n").find((line) => line.trim())?.trim().slice(0, 180) ?? "mutating tool failed",
-					ts: now,
-				}), mutatingFailureWindowMs);
-				if (controlConfig.enabled && shouldEscalateMutatingFailures(state, controlConfig.failedToolAttemptsBeforeAttention) && step.activityState !== "needs_attention") {
+				recordMutatingFailure(
+					state,
+					omitUndefinedProperties({
+						tool: toolSnapshot.tool,
+						path: toolSnapshot.path,
+						error:
+							resultText
+								.split("\n")
+								.find((line) => line.trim())
+								?.trim()
+								.slice(0, 180) ?? "mutating tool failed",
+						ts: now,
+					}),
+					mutatingFailureWindowMs,
+				);
+				if (
+					controlConfig.enabled &&
+					shouldEscalateMutatingFailures(state, controlConfig.failedToolAttemptsBeforeAttention) &&
+					step.activityState !== "needs_attention"
+				) {
 					const previous = step.activityState;
 					step.activityState = "needs_attention";
 					statusPayload.activityState = "needs_attention";
-					appendControlEvent(buildControlEvent(omitUndefinedProperties({
-						type: "needs_attention",
-						from: previous,
-						to: "needs_attention",
-						runId: id,
-						agent: step.agent,
-						index: flatIndex,
-						ts: now,
-						message: `${step.agent} needs attention after repeated mutating tool failures`,
-						reason: "tool_failures",
-						turns: step.turnCount,
-						tokens: step.tokens?.total,
-						toolCount: step.toolCount,
-						currentTool: toolSnapshot.tool,
-						currentToolDurationMs: toolSnapshot.startedAt ? Math.max(0, now - toolSnapshot.startedAt) : undefined,
-						currentPath: toolSnapshot.path,
-						recentFailureSummary: summarizeRecentMutatingFailures(state),
-					})));
+					appendControlEvent(
+						buildControlEvent(
+							omitUndefinedProperties({
+								type: "needs_attention",
+								from: previous,
+								to: "needs_attention",
+								runId: id,
+								agent: step.agent,
+								index: flatIndex,
+								ts: now,
+								message: `${step.agent} needs attention after repeated mutating tool failures`,
+								reason: "tool_failures",
+								turns: step.turnCount,
+								tokens: step.tokens?.total,
+								toolCount: step.toolCount,
+								currentTool: toolSnapshot.tool,
+								currentToolDurationMs: toolSnapshot.startedAt
+									? Math.max(0, now - toolSnapshot.startedAt)
+									: undefined,
+								currentPath: toolSnapshot.path,
+								recentFailureSummary: summarizeRecentMutatingFailures(state),
+							}),
+						),
+					);
 				}
 			} else if (toolSnapshot?.mutates) {
 				resetMutatingFailureState(mutatingFailureStates[flatIndex]!);
 			}
 		} else if (event.type === "message_end" && event.message?.role === "assistant") {
-			appendRecentStepOutput(step, stripAcceptanceReport(extractTextFromContent(event.message.content)).split("\n").slice(-10));
+			appendRecentStepOutput(
+				step,
+				stripAcceptanceReport(extractTextFromContent(event.message.content)).split("\n").slice(-10),
+			);
 			step.turnCount = (step.turnCount ?? 0) + 1;
 			// The launch model is only a candidate: a host extension (e.g. a model
 			// router) can switch the child's model on its first input, so report the
 			// model each assistant message actually ran on. Mirrors the foreground
 			// path's `progress.model = observedModel`.
 			if (event.message.model) {
-				const observedModel = qualifyModelWithProvider(event.message.model, event.message.provider, flatSteps[flatIndex]?.modelVerificationRegistry) ?? event.message.model;
+				const observedModel =
+					qualifyModelWithProvider(
+						event.message.model,
+						event.message.provider,
+						flatSteps[flatIndex]?.modelVerificationRegistry,
+					) ?? event.message.model;
 				if (observedModel !== step.model) {
 					step.launchModel ??= step.model;
 					step.model = observedModel;
 				}
 			}
 			const { provider, model } = event.message;
-			if (typeof provider === "string" && provider && typeof model === "string" && model) step.resolvedModel = { provider, model };
+			if (typeof provider === "string" && provider && typeof model === "string" && model)
+				step.resolvedModel = { provider, model };
 			const usage = event.message.usage;
 			if (config.usageBudget) {
 				const known = (value: unknown) => typeof value === "number" && Number.isFinite(value) && value >= 0;
-				if (!known(usage?.input ?? usage?.inputTokens) || !known(usage?.output ?? usage?.outputTokens)) continuationUsageUncertain = true;
+				if (!known(usage?.input ?? usage?.inputTokens) || !known(usage?.output ?? usage?.outputTokens))
+					continuationUsageUncertain = true;
 			}
 			if (usage) {
 				const input = usage.input ?? usage.inputTokens ?? 0;
@@ -3233,10 +4277,22 @@ export async function runSubagent(
 				const window = input + (usage.cacheRead ?? usage.cacheReadTokens ?? 0);
 				const previousInput = step.tokens?.input ?? 0;
 				const previousOutput = step.tokens?.output ?? 0;
-				step.tokens = { input: previousInput + input, output: previousOutput + output, total: previousInput + previousOutput + input + output, window, windowPeak: Math.max(step.tokens?.windowPeak ?? 0, window) };
+				step.tokens = {
+					input: previousInput + input,
+					output: previousOutput + output,
+					total: previousInput + previousOutput + input + output,
+					window,
+					windowPeak: Math.max(step.tokens?.windowPeak ?? 0, window),
+				};
 				const totalInput = statusPayload.totalTokens?.input ?? 0;
 				const totalOutput = statusPayload.totalTokens?.output ?? 0;
-				statusPayload.totalTokens = { input: totalInput + input, output: totalOutput + output, total: totalInput + totalOutput + input + output, window, windowPeak: Math.max(statusPayload.totalTokens?.windowPeak ?? 0, window) };
+				statusPayload.totalTokens = {
+					input: totalInput + input,
+					output: totalOutput + output,
+					total: totalInput + totalOutput + input + output,
+					window,
+					windowPeak: Math.max(statusPayload.totalTokens?.windowPeak ?? 0, window),
+				};
 				refreshUsageBudget();
 			}
 			statusPayload.turnCount = Math.max(statusPayload.turnCount ?? 0, step.turnCount);
@@ -3262,15 +4318,17 @@ export async function runSubagent(
 				step.lastActivityAt = lastActivityAt;
 				changed = true;
 			}
-			const idleState = deriveActivityState(omitUndefinedProperties({
-				config: controlConfig,
-				startedAt: step.startedAt ?? overallStartTime,
-				lastActivityAt,
-				turnCount: flatSteps[index]?.runner?.type === "external-cli" ? 1 : step.turnCount,
-				currentTool: step.currentTool,
-				thinking: step.thinking,
-				now,
-			}));
+			const idleState = deriveActivityState(
+				omitUndefinedProperties({
+					config: controlConfig,
+					startedAt: step.startedAt ?? overallStartTime,
+					lastActivityAt,
+					turnCount: flatSteps[index]?.runner?.type === "external-cli" ? 1 : step.turnCount,
+					currentTool: step.currentTool,
+					thinking: step.thinking,
+					now,
+				}),
+			);
 			if (idleState === "needs_attention") {
 				const evidence = externalActivityEvidence.get(index);
 				if (index !== skipExternalProbeIndex && evidence?.cwd && evidence.fingerprint) {
@@ -3278,35 +4336,42 @@ export async function runSubagent(
 					if (performance.now() - (evidence.lastProbeStartedAt ?? 0) >= EXTERNAL_GIT_PROBE_MIN_INTERVAL_MS) {
 						evidence.lastProbeStartedAt = performance.now();
 						const baseline = evidence.fingerprint;
-						evidence.probeInFlight = readSharedGitFingerprint(evidence.cwd).then((fingerprint) => {
-							if (requiredStatusStep(statusPayload, index).status !== "running") return;
-							if (fingerprint && fingerprint !== baseline) {
-								evidence.fingerprint = fingerprint;
-								evidence.lastStreamActivityAt = Date.now();
-								updateRunnerActivityState(Date.now());
-							} else {
-								updateRunnerActivityState(Date.now(), index);
-							}
-						}).catch((error: unknown) => {
-							recordPeriodicGitProbeFailure(index, error);
-						}).finally(() => {
-							delete evidence.probeInFlight;
-						});
+						evidence.probeInFlight = readSharedGitFingerprint(evidence.cwd)
+							.then((fingerprint) => {
+								if (requiredStatusStep(statusPayload, index).status !== "running") return;
+								if (fingerprint && fingerprint !== baseline) {
+									evidence.fingerprint = fingerprint;
+									evidence.lastStreamActivityAt = Date.now();
+									updateRunnerActivityState(Date.now());
+								} else {
+									updateRunnerActivityState(Date.now(), index);
+								}
+							})
+							.catch((error: unknown) => {
+								recordPeriodicGitProbeFailure(index, error);
+							})
+							.finally(() => {
+								delete evidence.probeInFlight;
+							});
 						continue;
 					}
 				}
 				const previous = step.activityState;
 				step.activityState = "needs_attention";
 				if (previous !== "needs_attention") {
-					appendControlEvent(buildControlEvent(omitUndefinedProperties({
-						from: previous,
-						to: "needs_attention",
-						runId: id,
-						agent: step.agent,
-						index,
-						ts: now,
-						lastActivityAt,
-					})));
+					appendControlEvent(
+						buildControlEvent(
+							omitUndefinedProperties({
+								from: previous,
+								to: "needs_attention",
+								runId: id,
+								agent: step.agent,
+								index,
+								ts: now,
+								lastActivityAt,
+							}),
+						),
+					);
 					changed = true;
 				}
 			} else if (maybeEmitOpenToolAttention(index, now)) {
@@ -3345,7 +4410,9 @@ export async function runSubagent(
 	const publishSetupUnknown = (progress: WorktreeSetupProgress): void => {
 		if (!progress.unknown) return;
 		const proof = {
-			version: 1 as const, state: "unknown" as const, runId: id,
+			version: 1 as const,
+			state: "unknown" as const,
+			runId: id,
 			runnerProcessInstanceId: config.runnerProcessInstanceId ?? "unknown",
 			reason: "process-tree-unverified" as const,
 			diagnostic: `Worktree setup settlement unknown: ${progress.unknown}; manual reconciliation required; ${parallelHandoffPath(asyncDir)}`,
@@ -3354,42 +4421,98 @@ export async function runSubagent(
 		// Publish the sticky proof independently of in-process child writer counts.
 		writeAtomicJson(processTerminalPath(asyncDir), proof);
 	};
-	const finalizeWorktree = async (setup: WorktreeSetup, stepIndex: number, flatStartIndex: number, action: () => void, deadlineAt?: number): Promise<void> => {
+	const finalizeWorktree = async (
+		setup: WorktreeSetup,
+		stepIndex: number,
+		flatStartIndex: number,
+		action: () => void,
+		deadlineAt?: number,
+	): Promise<void> => {
 		let admitted = false;
 		try {
-			await Promise.all([...externalActivityEvidence.values()].map((evidence) => evidence.probeInFlight).filter((probe): probe is Promise<void> => probe !== undefined));
+			await Promise.all(
+				[...externalActivityEvidence.values()]
+					.map((evidence) => evidence.probeInFlight)
+					.filter((probe): probe is Promise<void> => probe !== undefined),
+			);
 			if (periodicGitProbeFailure) throw periodicGitProbeFailure.error;
 			await withWorktreeTransaction(() => {
-				if (deadlineAt !== undefined && Date.now() >= deadlineAt) throw new Error("Run deadline expired before worktree cleanup");
+				if (deadlineAt !== undefined && Date.now() >= deadlineAt)
+					throw new Error("Run deadline expired before worktree cleanup");
 				admitted = true;
 				action();
 			});
-		}
-		catch (error) {
+		} catch (error) {
 			if (admitted) throw error;
 			const reason = `Worktree finalization retained; manual reconciliation required: ${error instanceof Error ? error.message : String(error)}`;
 			statusPayload.parallelHandoff = writeParallelHandoffGroup({
-				manifestPath: parallelHandoffPath(asyncDir), runId: id,
-				mode: (config.resultMode ?? statusPayload.mode) === "parallel" ? "parallel" : (config.resultMode ?? statusPayload.mode) === "single" ? "single" : "chain",
-				source: "async", cwd, stepIndex, flatStartIndex, setup, diffs: [], results: [],
-				cleanup: { state: "partial", pruned: false, errors: [reason], tasks: setup.worktrees.map((worktree) => ({
-					index: worktree.index, path: worktree.path, branch: worktree.branch, provider: worktree.provider, naming: worktree.naming,
-					worktreeRemoved: false, branchRemoved: false, preserved: true, reason,
-				})) },
+				manifestPath: parallelHandoffPath(asyncDir),
+				runId: id,
+				mode:
+					(config.resultMode ?? statusPayload.mode) === "parallel"
+						? "parallel"
+						: (config.resultMode ?? statusPayload.mode) === "single"
+							? "single"
+							: "chain",
+				source: "async",
+				cwd,
+				stepIndex,
+				flatStartIndex,
+				setup,
+				diffs: [],
+				results: [],
+				cleanup: {
+					state: "partial",
+					pruned: false,
+					errors: [reason],
+					tasks: setup.worktrees.map((worktree) => ({
+						index: worktree.index,
+						path: worktree.path,
+						branch: worktree.branch,
+						provider: worktree.provider,
+						naming: worktree.naming,
+						worktreeRemoved: false,
+						branchRemoved: false,
+						preserved: true,
+						reason,
+					})),
+				},
 			});
-			previousOutput = [previousOutput, reason, formatParallelHandoffReference(statusPayload.parallelHandoff)].filter(Boolean).join("\n\n");
+			previousOutput = [previousOutput, reason, formatParallelHandoffReference(statusPayload.parallelHandoff)]
+				.filter(Boolean)
+				.join("\n\n");
 			writeStatusPayload();
 		}
 	};
-	const cleanupRemainingWorktree = (setup: WorktreeSetup, stepIndex: number, flatStartIndex: number) => finalizeWorktree(setup, stepIndex, flatStartIndex, () => {
-		const cleanup = cleanupWorktrees(setup);
-		statusPayload.parallelHandoff = writeParallelHandoffGroup({
-			manifestPath: parallelHandoffPath(asyncDir), runId: id,
-			mode: (config.resultMode ?? statusPayload.mode) === "parallel" ? "parallel" : (config.resultMode ?? statusPayload.mode) === "single" ? "single" : "chain",
-			source: "async", cwd, stepIndex, flatStartIndex, setup, diffs: [], results: [], cleanup,
-		});
-		writeStatusPayload();
-	}, config.deadlineAt);
+	const cleanupRemainingWorktree = (setup: WorktreeSetup, stepIndex: number, flatStartIndex: number) =>
+		finalizeWorktree(
+			setup,
+			stepIndex,
+			flatStartIndex,
+			() => {
+				const cleanup = cleanupWorktrees(setup);
+				statusPayload.parallelHandoff = writeParallelHandoffGroup({
+					manifestPath: parallelHandoffPath(asyncDir),
+					runId: id,
+					mode:
+						(config.resultMode ?? statusPayload.mode) === "parallel"
+							? "parallel"
+							: (config.resultMode ?? statusPayload.mode) === "single"
+								? "single"
+								: "chain",
+					source: "async",
+					cwd,
+					stepIndex,
+					flatStartIndex,
+					setup,
+					diffs: [],
+					results: [],
+					cleanup,
+				});
+				writeStatusPayload();
+			},
+			config.deadlineAt,
+		);
 	const interruptRunner = () => {
 		consumeInterruptRequest(asyncDir);
 		if (interrupted || statusPayload.state !== "running") return;
@@ -3410,11 +4533,14 @@ export async function runSubagent(
 			}
 		}
 		writeStatusPayload();
-		appendJsonl(eventsPath, JSON.stringify({
-			type: "subagent.run.paused",
-			ts: now,
-			runId: id,
-		}));
+		appendJsonl(
+			eventsPath,
+			JSON.stringify({
+				type: "subagent.run.paused",
+				ts: now,
+				runId: id,
+			}),
+		);
 		interruptNestedAsyncDescendants();
 		interruptActiveChildren();
 	};
@@ -3439,15 +4565,27 @@ export async function runSubagent(
 			step.durationMs = step.startedAt ? now - step.startedAt : 0;
 			step.lastActivityAt = now;
 			const result = results[index];
-			if (result?.interrupted) results[index] = { ...result, output: stopMessage, error: stopMessage, exitCode: 1, success: false, interrupted: false, stopped: true };
+			if (result?.interrupted)
+				results[index] = {
+					...result,
+					output: stopMessage,
+					error: stopMessage,
+					exitCode: 1,
+					success: false,
+					interrupted: false,
+					stopped: true,
+				};
 		}
 		writeStatusPayload();
-		appendJsonl(eventsPath, JSON.stringify({
-			type: "subagent.run.stopped",
-			ts: now,
-			runId: id,
-			message: stopMessage,
-		}));
+		appendJsonl(
+			eventsPath,
+			JSON.stringify({
+				type: "subagent.run.stopped",
+				ts: now,
+				runId: id,
+				message: stopMessage,
+			}),
+		);
 		stopAbortController.abort();
 		stopNestedAsyncDescendants();
 		stopActiveChildren();
@@ -3474,14 +4612,17 @@ export async function runSubagent(
 			step.lastActivityAt = now;
 		}
 		writeStatusPayload();
-		appendJsonl(eventsPath, JSON.stringify({
-			type: "subagent.run.timed_out",
-			ts: now,
-			runId: id,
-			timeoutMs: config.timeoutMs,
-			deadlineAt: config.deadlineAt,
-			message,
-		}));
+		appendJsonl(
+			eventsPath,
+			JSON.stringify({
+				type: "subagent.run.timed_out",
+				ts: now,
+				runId: id,
+				timeoutMs: config.timeoutMs,
+				deadlineAt: config.deadlineAt,
+				message,
+			}),
+		);
 		timeoutAbortController.abort();
 		timeoutNestedAsyncDescendants();
 		timeoutActiveChildren();
@@ -3499,7 +4640,11 @@ export async function runSubagent(
 			if (targetStep?.status === "pending") {
 				deliverSteerRequest(request);
 				pendingStepSteers.push(request);
-			} else if (request.targetIndexes !== undefined || request.targetIndex !== undefined || statusPayload.steps.some((step) => step.status === "running")) {
+			} else if (
+				request.targetIndexes !== undefined ||
+				request.targetIndex !== undefined ||
+				statusPayload.steps.some((step) => step.status === "running")
+			) {
 				deliverSteerRequest(request);
 			} else {
 				deliverSteerRequest(request);
@@ -3513,9 +4658,12 @@ export async function runSubagent(
 		timeoutTimer.unref?.();
 		// Route the pre-deadline checkpoint like any external steer so its lifecycle records the receipt.
 		const checkpointBeforeDeadlineMs = config.checkpointBeforeDeadlineMs;
-		const checkpointDelayMs = checkpointBeforeDeadlineMs === undefined || !Number.isInteger(checkpointBeforeDeadlineMs) || checkpointBeforeDeadlineMs <= 0
-			? undefined
-			: remainingMs - checkpointBeforeDeadlineMs;
+		const checkpointDelayMs =
+			checkpointBeforeDeadlineMs === undefined ||
+			!Number.isInteger(checkpointBeforeDeadlineMs) ||
+			checkpointBeforeDeadlineMs <= 0
+				? undefined
+				: remainingMs - checkpointBeforeDeadlineMs;
 		if (checkpointDelayMs !== undefined && checkpointDelayMs >= 1_000) {
 			const deadlineAt = config.deadlineAt;
 			checkpointTimer = setTimeout(() => {
@@ -3572,23 +4720,47 @@ export async function runSubagent(
 			const groupStartFlatIndex = flatIndex;
 			let materialized: ReturnType<typeof materializeDynamicParallelStep>;
 			try {
-				materialized = materializeDynamicParallelStep(step as Parameters<typeof materializeDynamicParallelStep>[0], outputs, stepIndex, omitUndefinedProperties({ maxItems: config.dynamicFanoutMaxItems, allowRunnerFields: true }));
+				materialized = materializeDynamicParallelStep(
+					step as Parameters<typeof materializeDynamicParallelStep>[0],
+					outputs,
+					stepIndex,
+					omitUndefinedProperties({ maxItems: config.dynamicFanoutMaxItems, allowRunnerFields: true }),
+				);
 				if (materialized.parallel.length > 1 && step.parallel.outputPath && !step.parallel.namespaceOutputPath) {
-					throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} materialized ${materialized.parallel.length} items that resolve output to the same path: ${step.parallel.outputPath}. Remove the explicit output path or use an inherited relative agent output so each item can be isolated.`);
+					throw new DynamicFanoutError(
+						`Dynamic chain step ${stepIndex + 1} materialized ${materialized.parallel.length} items that resolve output to the same path: ${step.parallel.outputPath}. Remove the explicit output path or use an inherited relative agent output so each item can be isolated.`,
+					);
 				}
 				for (const [itemIndex] of materialized.parallel.entries()) {
 					const thinkingOverride = step.thinkingOverrides?.[itemIndex];
-					const model = thinkingOverride ? applyThinkingSuffix(step.parallel.model, thinkingOverride, true) : step.parallel.model;
+					const model = thinkingOverride
+						? applyThinkingSuffix(step.parallel.model, thinkingOverride, true)
+						: step.parallel.model;
 					const configThinking = thinkingOverride ? thinkingOverride : step.parallel.thinking;
-					assertThinkingWithinCeiling({ model, configThinking, ceiling: step.parallel.thinkingCeiling, agent: step.parallel.agent, runId: id });
+					assertThinkingWithinCeiling({
+						model,
+						configThinking,
+						ceiling: step.parallel.thinkingCeiling,
+						agent: step.parallel.agent,
+						runId: id,
+					});
 				}
-				if (materialized.collectedOnEmpty) await validateDynamicCollection(step.collect.outputSchema, materialized.collectedOnEmpty);
+				if (materialized.collectedOnEmpty)
+					await validateDynamicCollection(step.collect.outputSchema, materialized.collectedOnEmpty);
 				if (!config.runFanoutBudget) throw new Error("Async runner is missing its run fan-out budget identity.");
-				const runFanoutBudget = claimRunFanoutBatch(config.runFanoutBudget, materialized.parallel.map((_, itemIndex) => `chain[${stepIndex}].expand[${itemIndex}]`));
+				const runFanoutBudget = claimRunFanoutBatch(
+					config.runFanoutBudget,
+					materialized.parallel.map((_, itemIndex) => `chain[${stepIndex}].expand[${itemIndex}]`),
+				);
 				statusPayload.runFanoutBudget = runFanoutBudget;
 			} catch (error) {
 				const now = Date.now();
-				const message = error instanceof DynamicFanoutError ? error.message : error instanceof Error ? error.message : String(error);
+				const message =
+					error instanceof DynamicFanoutError
+						? error.message
+						: error instanceof Error
+							? error.message
+							: String(error);
 				statusPayload.state = "failed";
 				statusPayload.error = message;
 				statusPayload.currentStep = flatIndex;
@@ -3604,20 +4776,32 @@ export async function runSubagent(
 				statusPayload.lastUpdate = now;
 				markDynamicGraphGroup(stepIndex, "failed", message);
 				writeStatusPayload();
-				results.push(omitUndefinedProperties({ agent: step.parallel.agent, context: step.parallel.context, output: message, error: message, success: false, exitCode: 1 }));
+				results.push(
+					omitUndefinedProperties({
+						agent: step.parallel.agent,
+						context: step.parallel.context,
+						output: message,
+						error: message,
+						success: false,
+						exitCode: 1,
+					}),
+				);
 				break;
 			}
 
-			const effectiveDynamicGroupAcceptance = resolveEffectiveAcceptance(omitUndefinedProperties({
-				explicit: step.acceptanceInput,
-				agentName: step.parallel.agent,
-				acceptanceRole: step.acceptanceRole,
-				task: materialized.parallel.map((task) => task.task ?? step.parallel.task).join("\n") || step.parallel.task,
-				mode: config.mode,
-				async: true,
-				dynamicGroup: true,
-				agentContract: step.agentContract,
-			}));
+			const effectiveDynamicGroupAcceptance = resolveEffectiveAcceptance(
+				omitUndefinedProperties({
+					explicit: step.acceptanceInput,
+					agentName: step.parallel.agent,
+					acceptanceRole: step.acceptanceRole,
+					task:
+						materialized.parallel.map((task) => task.task ?? step.parallel.task).join("\n") || step.parallel.task,
+					mode: config.mode,
+					async: true,
+					dynamicGroup: true,
+					agentContract: step.agentContract,
+				}),
+			);
 
 			if (materialized.parallel.length === 0) {
 				const now = Date.now();
@@ -3637,27 +4821,39 @@ export async function runSubagent(
 					placeholder.durationMs = 0;
 				}
 				previousOutput = "Dynamic fanout produced 0 results.";
-				const groupAcceptance = effectiveDynamicGroupAcceptance.explicit && !timedOut && !stopped
-					? await evaluateAcceptance(omitUndefinedProperties({
-						acceptance: effectiveDynamicGroupAcceptance,
-						output: "",
-						report: aggregateAcceptanceReport({
-							results: [],
-							notes: "Dynamic fanout produced 0 results.",
-						}),
-						cwd,
-						signal: combinedAbortSignal([timeoutAbortController.signal, stopAbortController.signal]),
-						abortMessage: stopAbortController.signal.aborted ? stopMessage : timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE,
-						reportOptional: isAgentContract(step.agentContract),
-					}))
-					: undefined;
+				const groupAcceptance =
+					effectiveDynamicGroupAcceptance.explicit && !timedOut && !stopped
+						? await evaluateAcceptance(
+								omitUndefinedProperties({
+									acceptance: effectiveDynamicGroupAcceptance,
+									output: "",
+									report: aggregateAcceptanceReport({
+										results: [],
+										notes: "Dynamic fanout produced 0 results.",
+									}),
+									cwd,
+									signal: combinedAbortSignal([timeoutAbortController.signal, stopAbortController.signal]),
+									abortMessage: stopAbortController.signal.aborted
+										? stopMessage
+										: (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE),
+									reportOptional: isAgentContract(step.agentContract),
+								}),
+							)
+						: undefined;
 				const groupStopped = stopped || stopAbortController.signal.aborted;
 				const groupTimedOut = !groupStopped && (timedOut || timeoutAbortController.signal.aborted);
 				const effectiveGroupAcceptance = groupTimedOut || groupStopped ? undefined : groupAcceptance;
 				if (placeholder && effectiveGroupAcceptance) placeholder.acceptance = effectiveGroupAcceptance;
-				const groupAcceptanceFailure = effectiveGroupAcceptance && (!isAgentContract(step.agentContract) || step.gateOn === "acceptance") ? acceptanceFailureMessage(effectiveGroupAcceptance) : undefined;
+				const groupAcceptanceFailure =
+					effectiveGroupAcceptance && (!isAgentContract(step.agentContract) || step.gateOn === "acceptance")
+						? acceptanceFailureMessage(effectiveGroupAcceptance)
+						: undefined;
 				if (groupTimedOut || groupStopped || groupAcceptanceFailure) {
-					const errorMessage = groupStopped ? stopMessage : groupTimedOut ? timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE : groupAcceptanceFailure!;
+					const errorMessage = groupStopped
+						? stopMessage
+						: groupTimedOut
+							? (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE)
+							: groupAcceptanceFailure!;
 					statusPayload.state = groupStopped ? "stopped" : "failed";
 					statusPayload.error = errorMessage;
 					setOptionalProperty(statusPayload, "stopped", groupStopped ? true : statusPayload.stopped);
@@ -3668,10 +4864,27 @@ export async function runSubagent(
 						setOptionalProperty(placeholder, "timedOut", groupTimedOut ? true : undefined);
 						setOptionalProperty(placeholder, "stopped", groupStopped ? true : undefined);
 					}
-					markDynamicGraphGroup(stepIndex, groupStopped ? "stopped" : "failed", errorMessage, effectiveGroupAcceptance);
+					markDynamicGraphGroup(
+						stepIndex,
+						groupStopped ? "stopped" : "failed",
+						errorMessage,
+						effectiveGroupAcceptance,
+					);
 					statusPayload.lastUpdate = Date.now();
 					writeStatusPayload();
-					results.push(omitUndefinedProperties({ agent: step.parallel.agent, context: step.parallel.context, output: errorMessage, error: errorMessage, success: false, exitCode: 1, timedOut: groupTimedOut ? true : undefined, stopped: groupStopped ? true : undefined, acceptance: effectiveGroupAcceptance }));
+					results.push(
+						omitUndefinedProperties({
+							agent: step.parallel.agent,
+							context: step.parallel.context,
+							output: errorMessage,
+							error: errorMessage,
+							success: false,
+							exitCode: 1,
+							timedOut: groupTimedOut ? true : undefined,
+							stopped: groupStopped ? true : undefined,
+							acceptance: effectiveGroupAcceptance,
+						}),
+					);
 					break;
 				}
 				flatIndex++;
@@ -3683,49 +4896,76 @@ export async function runSubagent(
 
 			const dynamicSteps = materialized.parallel.map((task, itemIndex) => {
 				const thinkingOverride = step.thinkingOverrides?.[itemIndex];
-				const model = thinkingOverride ? applyThinkingSuffix(step.parallel.model, thinkingOverride, true) : step.parallel.model;
+				const model = thinkingOverride
+					? applyThinkingSuffix(step.parallel.model, thinkingOverride, true)
+					: step.parallel.model;
 				const thinking = thinkingOverride ? resolveEffectiveThinking(model, thinkingOverride) : undefined;
-				const outputPath = step.parallel.namespaceOutputPath && step.parallel.outputPath
-					? path.join(path.dirname(step.parallel.outputPath), `dynamic-${stepIndex}`, `${itemIndex}-${step.parallel.agent}`, path.basename(step.parallel.outputPath))
-					: step.parallel.outputPath;
+				const outputPath =
+					step.parallel.namespaceOutputPath && step.parallel.outputPath
+						? path.join(
+								path.dirname(step.parallel.outputPath),
+								`dynamic-${stepIndex}`,
+								`${itemIndex}-${step.parallel.agent}`,
+								path.basename(step.parallel.outputPath),
+							)
+						: step.parallel.outputPath;
 				const taskText = task.task ?? step.parallel.task;
-				const materializedTask = step.parallel.namespaceOutputPath ? injectSingleOutputInstruction(taskText, outputPath, step.parallel) : taskText;
-				const sessionName = deriveChildSessionName({ agent: step.parallel.agent, task: taskText, label: task.label ?? step.parallel.label });
+				const materializedTask = step.parallel.namespaceOutputPath
+					? injectSingleOutputInstruction(taskText, outputPath, step.parallel)
+					: taskText;
+				const sessionName = deriveChildSessionName({
+					agent: step.parallel.agent,
+					task: taskText,
+					label: task.label ?? step.parallel.label,
+				});
 				return omitUndefinedProperties({
 					...step.parallel,
 					runFanoutPath: `chain[${stepIndex}].expand[${itemIndex}]`,
 					task: materializedTask,
 					...(sessionName ? { sessionName } : {}),
-					effectiveAcceptance: resolveEffectiveAcceptance(omitUndefinedProperties({
-						explicit: step.parallel.acceptanceInput,
-						agentName: step.parallel.agent,
-						acceptanceRole: step.parallel.acceptanceRole,
-						task: materializedTask,
-						mode: config.mode,
-						async: true,
-						dynamic: step.parallel.acceptanceInput === undefined,
-						agentContract: step.parallel.agentContract ?? step.agentContract,
-					})),
+					effectiveAcceptance: resolveEffectiveAcceptance(
+						omitUndefinedProperties({
+							explicit: step.parallel.acceptanceInput,
+							agentName: step.parallel.agent,
+							acceptanceRole: step.parallel.acceptanceRole,
+							task: materializedTask,
+							mode: config.mode,
+							async: true,
+							dynamic: step.parallel.acceptanceInput === undefined,
+							agentContract: step.parallel.agentContract ?? step.agentContract,
+						}),
+					),
 					outputPath,
 					label: task.label ?? step.parallel.label,
 					...(step.sessionFiles?.[itemIndex] ? { sessionFile: step.sessionFiles[itemIndex] } : {}),
-					...(thinkingOverride ? {
-						...(model ? { model } : {}),
-						...(thinking ? { thinking } : {}),
-					} : {}),
+					...(thinkingOverride
+						? {
+								...(model ? { model } : {}),
+								...(thinking ? { thinking } : {}),
+							}
+						: {}),
 					structuredOutputSchema: step.parallel.structuredOutputSchema ?? step.parallel.structuredOutput?.schema,
 				});
 			});
 			const dynamicFlatStepCount = Math.max(statusPayload.steps.length - 1 + dynamicSteps.length, 1);
 			const dynamicStatusSteps: RunnerStatusStep[] = dynamicSteps.map((task, itemIndex) => {
-				const transcriptPath = resolveAsyncStepTranscriptPath(omitUndefinedProperties({ artifactsDir, artifactConfig, runId: id, agent: task.agent, flatIndex: groupStartFlatIndex + itemIndex, flatStepCount: dynamicFlatStepCount }));
+				const transcriptPath = resolveAsyncStepTranscriptPath(
+					omitUndefinedProperties({
+						artifactsDir,
+						artifactConfig,
+						runId: id,
+						agent: task.agent,
+						flatIndex: groupStartFlatIndex + itemIndex,
+						flatStepCount: dynamicFlatStepCount,
+					}),
+				);
 				return omitUndefinedProperties({
 					agent: task.agent,
 					...(task.sessionName ? { sessionName: task.sessionName } : {}),
 					...(externalRunnerStatus(task.runner) ? { runner: externalRunnerStatus(task.runner) } : {}),
 					...(statusStepDescription(task.task) ? { description: statusStepDescription(task.task) } : {}),
 					...(task.context ? { context: task.context } : {}),
-					...(task.phase ?? step.phase ? { phase: task.phase ?? step.phase } : {}),
+					...((task.phase ?? step.phase) ? { phase: task.phase ?? step.phase } : {}),
 					...(task.label ? { label: task.label } : {}),
 					structured: Boolean(task.structuredOutputSchema),
 					...(task.agentContract ? { agentContract: task.agentContract } : {}),
@@ -3746,11 +4986,21 @@ export async function runSubagent(
 			});
 			statusPayload.steps.splice(groupStartFlatIndex, 1, ...dynamicStatusSteps);
 			if (config.childIntercomTargets) {
-				config.childIntercomTargets = statusPayload.steps.map((statusStep, index) => resolveSubagentIntercomTarget(id, statusStep.agent, index));
+				config.childIntercomTargets = statusPayload.steps.map((statusStep, index) =>
+					resolveSubagentIntercomTarget(id, statusStep.agent, index),
+				);
 			}
-			mutatingFailureStates.splice(groupStartFlatIndex, 1, ...dynamicStatusSteps.map(() => createMutatingFailureState()));
+			mutatingFailureStates.splice(
+				groupStartFlatIndex,
+				1,
+				...dynamicStatusSteps.map(() => createMutatingFailureState()),
+			);
 			pendingToolResults.splice(groupStartFlatIndex, 1, ...dynamicStatusSteps.map(() => undefined));
-			pendingToolResultsByCallId.splice(groupStartFlatIndex, 1, ...dynamicStatusSteps.map(() => new Map<string, PendingToolResult>()));
+			pendingToolResultsByCallId.splice(
+				groupStartFlatIndex,
+				1,
+				...dynamicStatusSteps.map(() => new Map<string, PendingToolResult>()),
+			);
 			const materializedDelta = dynamicStatusSteps.length - 1;
 			for (const group of statusPayload.parallelGroups) {
 				if (group.stepIndex === stepIndex) {
@@ -3763,7 +5013,12 @@ export async function runSubagent(
 			if (statusPayload.workflowGraph) {
 				const shiftFlatIndexes = (nodes: NonNullable<typeof statusPayload.workflowGraph>["nodes"]): void => {
 					for (const node of nodes) {
-						if (node.stepIndex !== undefined && node.stepIndex > stepIndex && node.flatIndex !== undefined && node.flatIndex >= groupStartFlatIndex) {
+						if (
+							node.stepIndex !== undefined &&
+							node.stepIndex > stepIndex &&
+							node.flatIndex !== undefined &&
+							node.flatIndex >= groupStartFlatIndex
+						) {
 							node.flatIndex += dynamicStatusSteps.length;
 						}
 						if (node.children) shiftFlatIndexes(node.children);
@@ -3772,18 +5027,20 @@ export async function runSubagent(
 				shiftFlatIndexes(statusPayload.workflowGraph.nodes);
 				const groupNode = statusPayload.workflowGraph.nodes.find((node) => node.id === `step-${stepIndex}`);
 				if (groupNode) {
-					groupNode.children = materialized.items.map((item, itemIndex) => omitUndefinedProperties({
-						id: `step-${stepIndex}-item-${item.idKey}`,
-						kind: "agent",
-						agent: step.parallel.agent,
-						phase: dynamicSteps[itemIndex]?.phase ?? step.phase,
-						label: dynamicSteps[itemIndex]?.label?.trim() || `${step.parallel.agent} ${item.key}`,
-						status: "pending",
-						flatIndex: groupStartFlatIndex + itemIndex,
-						stepIndex,
-						itemKey: item.key,
-						structured: Boolean(dynamicSteps[itemIndex]?.structuredOutputSchema),
-					}));
+					groupNode.children = materialized.items.map((item, itemIndex) =>
+						omitUndefinedProperties({
+							id: `step-${stepIndex}-item-${item.idKey}`,
+							kind: "agent",
+							agent: step.parallel.agent,
+							phase: dynamicSteps[itemIndex]?.phase ?? step.phase,
+							label: dynamicSteps[itemIndex]?.label?.trim() || `${step.parallel.agent} ${item.key}`,
+							status: "pending",
+							flatIndex: groupStartFlatIndex + itemIndex,
+							stepIndex,
+							itemKey: item.key,
+							structured: Boolean(dynamicSteps[itemIndex]?.structuredOutputSchema),
+						}),
+					);
 				}
 			}
 			writeStatusPayload();
@@ -3791,171 +5048,290 @@ export async function runSubagent(
 			const concurrency = step.concurrency ?? MAX_PARALLEL_CONCURRENCY;
 			const failFast = step.failFast ?? false;
 			let aborted = false;
-			const parallelResults = await mapConcurrent(dynamicSteps, concurrency, async (task, taskIdx): Promise<StepResult> => {
-				const fi = groupStartFlatIndex + taskIdx;
-				refreshUsageBudget();
-				if (statusPayload.usageBudget?.exhausted) {
-					const skippedAt = Date.now();
-					const message = usageBudgetExceededMessage(statusPayload.usageBudget);
-					requiredStatusStep(statusPayload, fi).status = "failed";
-					requiredStatusStep(statusPayload, fi).error = message;
-					requiredStatusStep(statusPayload, fi).startedAt = skippedAt;
-					requiredStatusStep(statusPayload, fi).endedAt = skippedAt;
-					requiredStatusStep(statusPayload, fi).durationMs = 0;
-					requiredStatusStep(statusPayload, fi).exitCode = 1;
-					statusPayload.lastUpdate = skippedAt;
-					usageBudgetExceeded = true;
+			const parallelResults = await mapConcurrent(
+				dynamicSteps,
+				concurrency,
+				async (task, taskIdx): Promise<StepResult> => {
+					const fi = groupStartFlatIndex + taskIdx;
+					refreshUsageBudget();
+					if (statusPayload.usageBudget?.exhausted) {
+						const skippedAt = Date.now();
+						const message = usageBudgetExceededMessage(statusPayload.usageBudget);
+						requiredStatusStep(statusPayload, fi).status = "failed";
+						requiredStatusStep(statusPayload, fi).error = message;
+						requiredStatusStep(statusPayload, fi).startedAt = skippedAt;
+						requiredStatusStep(statusPayload, fi).endedAt = skippedAt;
+						requiredStatusStep(statusPayload, fi).durationMs = 0;
+						requiredStatusStep(statusPayload, fi).exitCode = 1;
+						statusPayload.lastUpdate = skippedAt;
+						usageBudgetExceeded = true;
+						writeStatusPayload();
+						appendJsonl(
+							eventsPath,
+							JSON.stringify({
+								type: "subagent.step.failed",
+								ts: skippedAt,
+								runId: id,
+								stepIndex: fi,
+								agent: task.agent,
+								exitCode: 1,
+								durationMs: 0,
+							}),
+						);
+						return omitUndefinedProperties({
+							agent: task.agent,
+							...(task.sessionName ? { sessionName: task.sessionName } : {}),
+							context: task.context,
+							output: message,
+							error: message,
+							exitCode: 1 as number | null,
+							skipped: true,
+						});
+					}
+					if (timedOut) return timedOutStepResult(task.agent, task.context, task.sessionName);
+					if (stopped) return stoppedStepResult(task.agent, task.context, task.sessionName);
+					if (childStopRequests.has(fi)) return childStopResult(fi, task.agent, task.context);
+					if (interrupted) return pausedStepResult(task.agent, task.context, task.sessionName);
+					if (aborted && failFast) {
+						const skippedAt = Date.now();
+						requiredStatusStep(statusPayload, fi).status = "failed";
+						requiredStatusStep(statusPayload, fi).error = "Skipped due to fail-fast";
+						requiredStatusStep(statusPayload, fi).startedAt = skippedAt;
+						requiredStatusStep(statusPayload, fi).endedAt = skippedAt;
+						requiredStatusStep(statusPayload, fi).durationMs = 0;
+						requiredStatusStep(statusPayload, fi).exitCode = -1;
+						statusPayload.lastUpdate = skippedAt;
+						writeStatusPayload();
+						return omitUndefinedProperties({
+							agent: task.agent,
+							...(task.sessionName ? { sessionName: task.sessionName } : {}),
+							context: task.context,
+							output: "(skipped — fail-fast)",
+							exitCode: -1 as number | null,
+							skipped: true,
+						});
+					}
+					const taskStartTime = Date.now();
+					statusPayload.currentStep = fi;
+					requiredStatusStep(statusPayload, fi).status = "running";
+					delete requiredStatusStep(statusPayload, fi).error;
+					delete requiredStatusStep(statusPayload, fi).activityState;
+					resetStepLiveDetail(requiredStatusStep(statusPayload, fi));
+					requiredStatusStep(statusPayload, fi).startedAt = taskStartTime;
+					requiredStatusStep(statusPayload, fi).lastActivityAt = taskStartTime;
+					statusPayload.outputFile = path.join(asyncDir, `output-${fi}.log`);
+					statusPayload.lastActivityAt = taskStartTime;
+					statusPayload.lastUpdate = taskStartTime;
 					writeStatusPayload();
-					appendJsonl(eventsPath, JSON.stringify({ type: "subagent.step.failed", ts: skippedAt, runId: id, stepIndex: fi, agent: task.agent, exitCode: 1, durationMs: 0 }));
-					return omitUndefinedProperties({ agent: task.agent, ...(task.sessionName ? { sessionName: task.sessionName } : {}), context: task.context, output: message, error: message, exitCode: 1 as number | null, skipped: true });
-				}
-				if (timedOut) return timedOutStepResult(task.agent, task.context, task.sessionName);
-				if (stopped) return stoppedStepResult(task.agent, task.context, task.sessionName);
-				if (childStopRequests.has(fi)) return childStopResult(fi, task.agent, task.context);
-				if (interrupted) return pausedStepResult(task.agent, task.context, task.sessionName);
-				if (aborted && failFast) {
-					const skippedAt = Date.now();
-					requiredStatusStep(statusPayload, fi).status = "failed";
-					requiredStatusStep(statusPayload, fi).error = "Skipped due to fail-fast";
-					requiredStatusStep(statusPayload, fi).startedAt = skippedAt;
-					requiredStatusStep(statusPayload, fi).endedAt = skippedAt;
-					requiredStatusStep(statusPayload, fi).durationMs = 0;
-					requiredStatusStep(statusPayload, fi).exitCode = -1;
-					statusPayload.lastUpdate = skippedAt;
+					appendJsonl(
+						eventsPath,
+						JSON.stringify({
+							type: "subagent.step.started",
+							ts: taskStartTime,
+							runId: id,
+							stepIndex: fi,
+							agent: task.agent,
+						}),
+					);
+					flushPendingStepSteers(fi);
+					const singleResult = await runSingleStepWithTimeout(
+						task,
+						compactOptional<SingleStepContext>({
+							previousOutput,
+							placeholder,
+							cwd,
+							sessionEnabled,
+							outputs,
+							sessionDir: config.sessionDir
+								? path.join(config.sessionDir, `dynamic-${stepIndex}-${taskIdx}`)
+								: undefined,
+							artifactsDir,
+							artifactConfig,
+							id,
+							flatIndex: fi,
+							flatStepCount: Math.max(statusPayload.steps.length, 1),
+							outputFile: path.join(asyncDir, `output-${fi}.log`),
+							projectTrusted: config.projectTrusted,
+							piPackageRoot: config.piPackageRoot,
+							childSessions,
+							inheritedChildRuntime: config.inheritedChildRuntime,
+							childIntercomTarget: config.childIntercomTargets?.[fi],
+							orchestratorIntercomTarget: config.controlIntercomTarget,
+							nestedRoute: config.nestedRoute,
+							capabilityCeiling: config.capabilityCeiling,
+							runFanoutBudget: config.runFanoutBudget,
+							registerInterrupt: (interrupt) => registerStepInterrupt(fi, interrupt),
+							registerTimeout: (interrupt) => registerStepTimeout(fi, interrupt),
+							registerStop: (stop) => registerStepStop(fi, stop),
+							registerSteer: (steer) => registerStepSteer(fi, steer),
+							onSteerOutcome: (request, delivery) => applySteerDelivery(request.id, fi, delivery),
+							timeoutSignal: timeoutAbortController.signal,
+							stopSignal: stopAbortController.signal,
+							timeoutMessage,
+							stopMessage,
+							toolTimeoutMs: task.toolTimeoutMs ?? config.toolTimeoutMs,
+							onAttemptStart: (attempt) =>
+								updateStepModel(fi, attempt.model, attempt.thinking, attempt.contextLimit),
+							onChildEvent: (event) => updateStepFromChildEvent(fi, event),
+							onExternalProcess: (process) => updateExternalProcess(fi, process),
+							prepareExternalActivity: (externalCwd, signal) => prepareExternalActivity(fi, externalCwd, signal),
+							onExternalStreamActivity: () => recordExternalStreamActivity(fi),
+							onExternalJob: (externalJob) => updateExternalJob(fi, externalJob),
+							skipAcceptance: () => timedOut || stopped || childStopRequests.has(fi),
+							usageBudgetExhausted: continuationUsageBudgetExhausted,
+							usageBudget: config.usageBudget,
+							orcaProgressTab,
+						}),
+						config.deadlineAt,
+					);
+					const taskEndTime = Date.now();
+					const childInterrupted = singleResult.interrupted === true;
+					const childStopped = singleResult.stopped === true;
+					recordStepResult(fi, singleResult, taskStartTime, taskEndTime, true);
+					addParallelUsageCost(singleResult.totalCost);
+					statusPayload.lastUpdate = taskEndTime;
 					writeStatusPayload();
-					return omitUndefinedProperties({ agent: task.agent, ...(task.sessionName ? { sessionName: task.sessionName } : {}), context: task.context, output: "(skipped — fail-fast)", exitCode: -1 as number | null, skipped: true });
-				}
-				const taskStartTime = Date.now();
-				statusPayload.currentStep = fi;
-				requiredStatusStep(statusPayload, fi).status = "running";
-				delete requiredStatusStep(statusPayload, fi).error;
-				delete requiredStatusStep(statusPayload, fi).activityState;
-				resetStepLiveDetail(requiredStatusStep(statusPayload, fi));
-				requiredStatusStep(statusPayload, fi).startedAt = taskStartTime;
-				requiredStatusStep(statusPayload, fi).lastActivityAt = taskStartTime;
-				statusPayload.outputFile = path.join(asyncDir, `output-${fi}.log`);
-				statusPayload.lastActivityAt = taskStartTime;
-				statusPayload.lastUpdate = taskStartTime;
-				writeStatusPayload();
-				appendJsonl(eventsPath, JSON.stringify({ type: "subagent.step.started", ts: taskStartTime, runId: id, stepIndex: fi, agent: task.agent }));
-				flushPendingStepSteers(fi);
-				const singleResult = await runSingleStepWithTimeout(task, compactOptional<SingleStepContext>({
-					previousOutput, placeholder, cwd, sessionEnabled,
-					outputs,
-					sessionDir: config.sessionDir ? path.join(config.sessionDir, `dynamic-${stepIndex}-${taskIdx}`) : undefined,
-					artifactsDir, artifactConfig, id,
-					flatIndex: fi, flatStepCount: Math.max(statusPayload.steps.length, 1),
-					outputFile: path.join(asyncDir, `output-${fi}.log`),
-					projectTrusted: config.projectTrusted,
-					piPackageRoot: config.piPackageRoot,
-					childSessions,
-					inheritedChildRuntime: config.inheritedChildRuntime,
-					childIntercomTarget: config.childIntercomTargets?.[fi],
-					orchestratorIntercomTarget: config.controlIntercomTarget,
-					nestedRoute: config.nestedRoute,
-					capabilityCeiling: config.capabilityCeiling,
-					runFanoutBudget: config.runFanoutBudget,
-					registerInterrupt: (interrupt) => registerStepInterrupt(fi, interrupt),
-					registerTimeout: (interrupt) => registerStepTimeout(fi, interrupt),
-					registerStop: (stop) => registerStepStop(fi, stop),
-					registerSteer: (steer) => registerStepSteer(fi, steer),
-					onSteerOutcome: (request, delivery) => applySteerDelivery(request.id, fi, delivery),
-					timeoutSignal: timeoutAbortController.signal,
-					stopSignal: stopAbortController.signal,
-					timeoutMessage,
-					stopMessage,
-					toolTimeoutMs: task.toolTimeoutMs ?? config.toolTimeoutMs,
-					onAttemptStart: (attempt) => updateStepModel(fi, attempt.model, attempt.thinking, attempt.contextLimit),
-					onChildEvent: (event) => updateStepFromChildEvent(fi, event),
-					onExternalProcess: (process) => updateExternalProcess(fi, process),
-					prepareExternalActivity: (externalCwd, signal) => prepareExternalActivity(fi, externalCwd, signal),
-					onExternalStreamActivity: () => recordExternalStreamActivity(fi),
-					onExternalJob: (externalJob) => updateExternalJob(fi, externalJob),
-					skipAcceptance: () => timedOut || stopped || childStopRequests.has(fi),
-					usageBudgetExhausted: continuationUsageBudgetExhausted,
-					usageBudget: config.usageBudget,
-					orcaProgressTab,
-				}), config.deadlineAt);
-				const taskEndTime = Date.now();
-				const childInterrupted = singleResult.interrupted === true;
-				const childStopped = singleResult.stopped === true;
-				recordStepResult(fi, singleResult, taskStartTime, taskEndTime, true);
-				addParallelUsageCost(singleResult.totalCost);
-				statusPayload.lastUpdate = taskEndTime;
-				writeStatusPayload();
-				appendCapabilityCeilingAppliedEvent(eventsPath, id, fi, task.agent, singleResult);
-		appendJsonl(eventsPath, JSON.stringify({
-			type: stopped || childStopped ? "subagent.step.stopped" : timedOut ? "subagent.step.failed" : childInterrupted ? "subagent.step.paused" : singleResult.exitCode === 0 ? "subagent.step.completed" : "subagent.step.failed",
-			ts: taskEndTime, runId: id, stepIndex: fi, agent: task.agent,
-			exitCode: stopped || childStopped ? 1 : timedOut ? 1 : childInterrupted ? 0 : singleResult.exitCode, durationMs: taskEndTime - taskStartTime,
-		}));
-		if (stopped || childStopped) appendTerminalChildStatusEvent(fi, taskEndTime);
-		if (singleResult.exitCode !== 0 && failFast && !childStopped) aborted = true;
-				return stopped || childStopped ? { ...singleResult, output: stopMessage, error: stopMessage, exitCode: 1, interrupted: false, timedOut: false, stopped: true, skipped: false } : timedOut ? { ...singleResult, output: singleResult.output || (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE), error: singleResult.error ?? timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE, exitCode: 1, interrupted: false, timedOut: true, skipped: false } : { ...singleResult, skipped: false };
-			}, globalSemaphore);
+					appendCapabilityCeilingAppliedEvent(eventsPath, id, fi, task.agent, singleResult);
+					appendJsonl(
+						eventsPath,
+						JSON.stringify({
+							type:
+								stopped || childStopped
+									? "subagent.step.stopped"
+									: timedOut
+										? "subagent.step.failed"
+										: childInterrupted
+											? "subagent.step.paused"
+											: singleResult.exitCode === 0
+												? "subagent.step.completed"
+												: "subagent.step.failed",
+							ts: taskEndTime,
+							runId: id,
+							stepIndex: fi,
+							agent: task.agent,
+							exitCode:
+								stopped || childStopped ? 1 : timedOut ? 1 : childInterrupted ? 0 : singleResult.exitCode,
+							durationMs: taskEndTime - taskStartTime,
+						}),
+					);
+					if (stopped || childStopped) appendTerminalChildStatusEvent(fi, taskEndTime);
+					if (singleResult.exitCode !== 0 && failFast && !childStopped) aborted = true;
+					return stopped || childStopped
+						? {
+								...singleResult,
+								output: stopMessage,
+								error: stopMessage,
+								exitCode: 1,
+								interrupted: false,
+								timedOut: false,
+								stopped: true,
+								skipped: false,
+							}
+						: timedOut
+							? {
+									...singleResult,
+									output: singleResult.output || (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE),
+									error: singleResult.error ?? timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE,
+									exitCode: 1,
+									interrupted: false,
+									timedOut: true,
+									skipped: false,
+								}
+							: { ...singleResult, skipped: false };
+				},
+				globalSemaphore,
+			);
 
 			flatIndex += dynamicSteps.length;
 			for (const pr of parallelResults) {
-				results.push(omitUndefinedProperties({
-					agent: pr.agent,
-					...(pr.sessionName ? { sessionName: pr.sessionName } : {}),
-					context: pr.context,
-					agentContract: pr.agentContract,
-					launchContractDigest: pr.launchContractDigest,
-					launchResolvedExtensions: pr.launchResolvedExtensions,
-					runtimeAcknowledgedExtensions: pr.runtimeAcknowledgedExtensions,
-					output: pr.output,
-					outputState: pr.outputState,
-					outputPartial: pr.outputPartial,
-					error: pr.error,
-					success: pr.stopped !== true && pr.interrupted !== true && pr.exitCode === 0 && pr.execution?.status !== "partial",
-					exitCode: pr.interrupted === true ? 0 : pr.exitCode,
-					skipped: pr.skipped,
-					interrupted: pr.interrupted,
-					timedOut: pr.timedOut,
-					stopped: pr.stopped,
-					toolBudget: pr.toolBudget,
-					toolBudgetBlocked: pr.toolBudgetBlocked,
-					sessionFile: pr.sessionFile,
-					intercomTarget: pr.intercomTarget,
-					model: pr.model,
-					thinking: pr.thinking,
-					requestedModel: pr.requestedModel,
-					contextOverflow: pr.contextOverflow,
-					totalCost: pr.totalCost,
-					usage: pr.usage,
-					artifactPaths: pr.artifactPaths,
-					savedOutputPath: pr.savedOutputPath,
-					outputSaveError: pr.outputSaveError,
-					artifactOutputSaveFailed: pr.artifactOutputSaveFailed,
-					transcriptPath: pr.transcriptPath,
-					transcriptError: pr.transcriptError,
-					effects: pr.effects,
-					execution: pr.execution,
-					review: pr.review,
-					timeoutRecovery: pr.timeoutRecovery,
-					structuredOutput: pr.structuredOutput,
-					structuredOutputFailed: pr.structuredOutputFailed,
-					structuredOutputPath: pr.structuredOutputPath,
-					structuredOutputSchemaPath: pr.structuredOutputSchemaPath,
-					acceptance: pr.acceptance,
-					watchdog: pr.watchdog,
-					capabilityCeiling: pr.capabilityCeiling,
-					capabilityAudit: pr.capabilityAudit,
-				}));
+				results.push(
+					omitUndefinedProperties({
+						agent: pr.agent,
+						...(pr.sessionName ? { sessionName: pr.sessionName } : {}),
+						context: pr.context,
+						agentContract: pr.agentContract,
+						launchContractDigest: pr.launchContractDigest,
+						launchResolvedExtensions: pr.launchResolvedExtensions,
+						runtimeAcknowledgedExtensions: pr.runtimeAcknowledgedExtensions,
+						output: pr.output,
+						outputState: pr.outputState,
+						outputPartial: pr.outputPartial,
+						error: pr.error,
+						success:
+							pr.stopped !== true &&
+							pr.interrupted !== true &&
+							pr.exitCode === 0 &&
+							pr.execution?.status !== "partial",
+						exitCode: pr.interrupted === true ? 0 : pr.exitCode,
+						skipped: pr.skipped,
+						interrupted: pr.interrupted,
+						timedOut: pr.timedOut,
+						stopped: pr.stopped,
+						toolBudget: pr.toolBudget,
+						toolBudgetBlocked: pr.toolBudgetBlocked,
+						sessionFile: pr.sessionFile,
+						intercomTarget: pr.intercomTarget,
+						model: pr.model,
+						thinking: pr.thinking,
+						requestedModel: pr.requestedModel,
+						contextOverflow: pr.contextOverflow,
+						totalCost: pr.totalCost,
+						usage: pr.usage,
+						artifactPaths: pr.artifactPaths,
+						savedOutputPath: pr.savedOutputPath,
+						outputSaveError: pr.outputSaveError,
+						artifactOutputSaveFailed: pr.artifactOutputSaveFailed,
+						transcriptPath: pr.transcriptPath,
+						transcriptError: pr.transcriptError,
+						effects: pr.effects,
+						execution: pr.execution,
+						review: pr.review,
+						timeoutRecovery: pr.timeoutRecovery,
+						structuredOutput: pr.structuredOutput,
+						structuredOutputFailed: pr.structuredOutputFailed,
+						structuredOutputPath: pr.structuredOutputPath,
+						structuredOutputSchemaPath: pr.structuredOutputSchemaPath,
+						acceptance: pr.acceptance,
+						watchdog: pr.watchdog,
+						capabilityCeiling: pr.capabilityCeiling,
+						capabilityAudit: pr.capabilityAudit,
+					}),
+				);
 			}
 			pendingParallelUsageCost = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
 			refreshUsageBudget();
-			const collection = collectDynamicResults(step as Parameters<typeof collectDynamicResults>[0], materialized.items, parallelResults);
+			const collection = collectDynamicResults(
+				step as Parameters<typeof collectDynamicResults>[0],
+				materialized.items,
+				parallelResults,
+			);
 			const failures = parallelResults.filter((result) => result.exitCode !== 0 && result.exitCode !== -1);
 			const acceptanceFailures = parallelResults
 				.map((result, originalIndex) => ({ result, originalIndex, task: dynamicSteps[originalIndex] }))
-				.filter(({ result, task }) => isAgentContract(task?.agentContract ?? step.agentContract) && task?.gateOn === "acceptance" && result.acceptance?.status === "rejected");
+				.filter(
+					({ result, task }) =>
+						isAgentContract(task?.agentContract ?? step.agentContract) &&
+						task?.gateOn === "acceptance" &&
+						result.acceptance?.status === "rejected",
+				);
 			if (acceptanceFailures.length > 0) {
 				const message = acceptanceFailures
-					.map(({ result, originalIndex }) => `Dynamic item ${originalIndex + 1} (${result.agent}, key ${materialized.items[originalIndex]?.key ?? originalIndex}) acceptance rejected: ${(result.acceptance ? acceptanceFailureMessage(result.acceptance) : undefined) ?? "acceptance rejected"}`)
+					.map(
+						({ result, originalIndex }) =>
+							`Dynamic item ${originalIndex + 1} (${result.agent}, key ${materialized.items[originalIndex]?.key ?? originalIndex}) acceptance rejected: ${(result.acceptance ? acceptanceFailureMessage(result.acceptance) : undefined) ?? "acceptance rejected"}`,
+					)
 					.join("\n");
-				results.push(omitUndefinedProperties({ agent: step.parallel.agent, context: step.parallel.context, output: message, error: message, success: false, exitCode: 1, structuredOutput: collection }));
+				results.push(
+					omitUndefinedProperties({
+						agent: step.parallel.agent,
+						context: step.parallel.context,
+						output: message,
+						error: message,
+						success: false,
+						exitCode: 1,
+						structuredOutput: collection,
+					}),
+				);
 				statusPayload.error = message;
 				markDynamicGraphGroup(stepIndex, "failed", message);
 			}
@@ -3969,66 +5345,108 @@ export async function runSubagent(
 						stepIndex,
 					};
 					statusPayload.outputs = outputs;
-					const groupAcceptance = !timedOut && !stopped
-						? await evaluateAcceptance(omitUndefinedProperties({
-							acceptance: effectiveDynamicGroupAcceptance,
-							output: "",
-							report: aggregateAcceptanceReport({
-								results: parallelResults,
-								notes: `Dynamic fanout collected ${collection.length} result(s) into ${step.collect.as}.`,
-							}),
-							cwd,
-							signal: combinedAbortSignal([timeoutAbortController.signal, stopAbortController.signal]),
-							abortMessage: stopAbortController.signal.aborted ? stopMessage : timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE,
-							reportOptional: isAgentContract(step.agentContract),
-						}))
-						: undefined;
+					const groupAcceptance =
+						!timedOut && !stopped
+							? await evaluateAcceptance(
+									omitUndefinedProperties({
+										acceptance: effectiveDynamicGroupAcceptance,
+										output: "",
+										report: aggregateAcceptanceReport({
+											results: parallelResults,
+											notes: `Dynamic fanout collected ${collection.length} result(s) into ${step.collect.as}.`,
+										}),
+										cwd,
+										signal: combinedAbortSignal([timeoutAbortController.signal, stopAbortController.signal]),
+										abortMessage: stopAbortController.signal.aborted
+											? stopMessage
+											: (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE),
+										reportOptional: isAgentContract(step.agentContract),
+									}),
+								)
+							: undefined;
 					const groupStopped = stopped || stopAbortController.signal.aborted;
 					const groupTimedOut = !groupStopped && (timedOut || timeoutAbortController.signal.aborted);
 					const effectiveGroupAcceptance = groupTimedOut || groupStopped ? undefined : groupAcceptance;
-					const groupAcceptanceFailure = effectiveDynamicGroupAcceptance.explicit && effectiveGroupAcceptance && (!isAgentContract(step.agentContract) || step.gateOn === "acceptance") ? acceptanceFailureMessage(effectiveGroupAcceptance) : undefined;
-					const groupError = groupStopped ? stopMessage : groupTimedOut ? timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE : groupAcceptanceFailure;
-					markDynamicGraphGroup(stepIndex, groupError ? groupStopped ? "stopped" : "failed" : "completed", groupError, effectiveGroupAcceptance);
+					const groupAcceptanceFailure =
+						effectiveDynamicGroupAcceptance.explicit &&
+						effectiveGroupAcceptance &&
+						(!isAgentContract(step.agentContract) || step.gateOn === "acceptance")
+							? acceptanceFailureMessage(effectiveGroupAcceptance)
+							: undefined;
+					const groupError = groupStopped
+						? stopMessage
+						: groupTimedOut
+							? (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE)
+							: groupAcceptanceFailure;
+					markDynamicGraphGroup(
+						stepIndex,
+						groupError ? (groupStopped ? "stopped" : "failed") : "completed",
+						groupError,
+						effectiveGroupAcceptance,
+					);
 					if (groupError) {
-						results.push(omitUndefinedProperties({
-							agent: step.parallel.agent,
-							output: groupError,
-							error: groupError,
-							success: false,
-							exitCode: 1,
-							timedOut: groupTimedOut ? true : undefined,
-							stopped: groupStopped ? true : undefined,
-							structuredOutput: collection,
-							acceptance: effectiveGroupAcceptance,
-						}));
+						results.push(
+							omitUndefinedProperties({
+								agent: step.parallel.agent,
+								output: groupError,
+								error: groupError,
+								success: false,
+								exitCode: 1,
+								timedOut: groupTimedOut ? true : undefined,
+								stopped: groupStopped ? true : undefined,
+								structuredOutput: collection,
+								acceptance: effectiveGroupAcceptance,
+							}),
+						);
 						statusPayload.error = groupError;
 						setOptionalProperty(statusPayload, "stopped", groupStopped ? true : statusPayload.stopped);
 					}
 				} catch (error) {
-					const message = error instanceof DynamicFanoutError ? error.message : error instanceof Error ? error.message : String(error);
-					results.push(omitUndefinedProperties({ agent: step.parallel.agent, context: step.parallel.context, output: message, error: message, success: false, exitCode: 1, structuredOutput: collection }));
+					const message =
+						error instanceof DynamicFanoutError
+							? error.message
+							: error instanceof Error
+								? error.message
+								: String(error);
+					results.push(
+						omitUndefinedProperties({
+							agent: step.parallel.agent,
+							context: step.parallel.context,
+							output: message,
+							error: message,
+							success: false,
+							exitCode: 1,
+							structuredOutput: collection,
+						}),
+					);
 					statusPayload.error = message;
 					markDynamicGraphGroup(stepIndex, "failed", message);
 				}
 			}
 			previousOutput = aggregateParallelOutputs(
-				parallelResults.map((r, i) => omitUndefinedProperties({
-					agent: r.agent,
-					taskIndex: i,
-					output: r.output,
-					exitCode: r.exitCode,
-					error: r.error,
-				})),
+				parallelResults.map((r, i) =>
+					omitUndefinedProperties({
+						agent: r.agent,
+						taskIndex: i,
+						output: r.output,
+						exitCode: r.exitCode,
+						error: r.error,
+					}),
+				),
 				(i, agent) => `=== Dynamic Item ${i + 1} (${agent}, key ${materialized.items[i]?.key ?? i}) ===`,
 			);
-			appendJsonl(eventsPath, JSON.stringify({
-				type: "subagent.dynamic.completed",
-				ts: Date.now(),
-				runId: id,
-				stepIndex,
-				success: failures.length === 0 && acceptanceFailures.length === 0,
-			}));
-			if (failures.length > 0) markDynamicGraphGroup(stepIndex, "failed", failures[0]?.error ?? "Dynamic fanout child failed.");
+			appendJsonl(
+				eventsPath,
+				JSON.stringify({
+					type: "subagent.dynamic.completed",
+					ts: Date.now(),
+					runId: id,
+					stepIndex,
+					success: failures.length === 0 && acceptanceFailures.length === 0,
+				}),
+			);
+			if (failures.length > 0)
+				markDynamicGraphGroup(stepIndex, "failed", failures[0]?.error ?? "Dynamic fanout child failed.");
 			statusPayload.lastUpdate = Date.now();
 			writeStatusPayload();
 			if (failures.length > 0 || statusPayload.error) break;
@@ -4065,41 +5483,73 @@ export async function runSubagent(
 					break;
 				}
 				try {
-					worktreeSetup = await createWorktrees(cwd, `${id}-s${stepIndex}`, group.parallel.length, omitUndefinedProperties({
-						signal: setupSignal,
-						deadlineAt: config.deadlineAt,
-						agents: group.parallel.map((task) => task.agent),
-						labels: group.parallel.map((task) => task.lane?.key ?? config.workflowKey ?? task.outputName ?? task.label),
-						tasks: group.parallel.map((task) => task.task),
-						provider: config.worktreeProvider,
-						baseRef: config.baseRef,
-						branchPrefix: config.worktreeBranchPrefix,
-						setupHook: config.worktreeSetupHook
-							? omitUndefinedProperties({ hookPath: config.worktreeSetupHook, timeoutMs: config.worktreeSetupHookTimeoutMs })
-							: undefined,
-						baseDir: config.worktreeBaseDir,
-						onProgress: (progress) => {
-							publishSetupUnknown(progress);
-							for (const worktree of progress.setup.worktrees) setStatusWorktreeReference(requiredStatusStep(statusPayload, groupStartFlatIndex + worktree.index), worktree);
-							const pendingHandoff = writeWorktreeSetupHandoff({
-								manifestPath: parallelHandoffPath(asyncDir),
-								runId: id,
-								mode: (config.resultMode ?? statusPayload.mode) === "parallel" ? "parallel" : "chain",
-								source: "async",
-								cwd,
-								stepIndex,
-								flatStartIndex: groupStartFlatIndex,
-								progress,
-								laneBindings: handoffWorkflowKey || config.lane ? [{ index: groupStartFlatIndex, taskIndex: 0, ...(handoffWorkflowKey ? { workflowKey: handoffWorkflowKey } : {}), ...(handoffChildRunId ? { runId: handoffChildRunId } : {}), ...(config.lane ? { lane: config.lane } : {}) }] : undefined,
-							});
-							if (!pendingHandoff) return;
-							statusPayload.parallelHandoff = pendingHandoff;
-							statusPayload.lastUpdate = Date.now();
-							writeStatusPayload();
-						},
-					}));
+					worktreeSetup = await createWorktrees(
+						cwd,
+						`${id}-s${stepIndex}`,
+						group.parallel.length,
+						omitUndefinedProperties({
+							signal: setupSignal,
+							deadlineAt: config.deadlineAt,
+							agents: group.parallel.map((task) => task.agent),
+							labels: group.parallel.map(
+								(task) => task.lane?.key ?? config.workflowKey ?? task.outputName ?? task.label,
+							),
+							tasks: group.parallel.map((task) => task.task),
+							provider: config.worktreeProvider,
+							baseRef: config.baseRef,
+							branchPrefix: config.worktreeBranchPrefix,
+							setupHook: config.worktreeSetupHook
+								? omitUndefinedProperties({
+										hookPath: config.worktreeSetupHook,
+										timeoutMs: config.worktreeSetupHookTimeoutMs,
+									})
+								: undefined,
+							baseDir: config.worktreeBaseDir,
+							onProgress: (progress) => {
+								publishSetupUnknown(progress);
+								for (const worktree of progress.setup.worktrees)
+									setStatusWorktreeReference(
+										requiredStatusStep(statusPayload, groupStartFlatIndex + worktree.index),
+										worktree,
+									);
+								const pendingHandoff = writeWorktreeSetupHandoff({
+									manifestPath: parallelHandoffPath(asyncDir),
+									runId: id,
+									mode: (config.resultMode ?? statusPayload.mode) === "parallel" ? "parallel" : "chain",
+									source: "async",
+									cwd,
+									stepIndex,
+									flatStartIndex: groupStartFlatIndex,
+									progress,
+									laneBindings:
+										handoffWorkflowKey || config.lane
+											? [
+													{
+														index: groupStartFlatIndex,
+														taskIndex: 0,
+														...(handoffWorkflowKey ? { workflowKey: handoffWorkflowKey } : {}),
+														...(handoffChildRunId ? { runId: handoffChildRunId } : {}),
+														...(config.lane ? { lane: config.lane } : {}),
+													},
+												]
+											: undefined,
+								});
+								if (!pendingHandoff) return;
+								statusPayload.parallelHandoff = pendingHandoff;
+								statusPayload.lastUpdate = Date.now();
+								writeStatusPayload();
+							},
+						}),
+					);
 					if (config.deadlineAt !== undefined && Date.now() >= config.deadlineAt) timeoutRunner();
-					if (setupSignal.aborted) throw new Error(stopped ? stopMessage : timedOut ? timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE : "Subagent paused during worktree setup.");
+					if (setupSignal.aborted)
+						throw new Error(
+							stopped
+								? stopMessage
+								: timedOut
+									? (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE)
+									: "Subagent paused during worktree setup.",
+						);
 				} catch (error) {
 					if (worktreeSetup) await cleanupRemainingWorktree(worktreeSetup, stepIndex, groupStartFlatIndex);
 					if (config.deadlineAt !== undefined && Date.now() >= config.deadlineAt) timeoutRunner();
@@ -4162,10 +5612,27 @@ export async function runSubagent(
 							statusPayload.lastUpdate = skippedAt;
 							usageBudgetExceeded = true;
 							writeStatusPayload();
-							appendJsonl(eventsPath, JSON.stringify({
-								type: "subagent.step.failed", ts: skippedAt, runId: id, stepIndex: fi, agent: task.agent, exitCode: 1, durationMs: 0,
-							}));
-							return omitUndefinedProperties({ agent: task.agent, ...(task.sessionName ? { sessionName: task.sessionName } : {}), context: task.context, output: message, error: message, exitCode: 1 as number | null, skipped: true });
+							appendJsonl(
+								eventsPath,
+								JSON.stringify({
+									type: "subagent.step.failed",
+									ts: skippedAt,
+									runId: id,
+									stepIndex: fi,
+									agent: task.agent,
+									exitCode: 1,
+									durationMs: 0,
+								}),
+							);
+							return omitUndefinedProperties({
+								agent: task.agent,
+								...(task.sessionName ? { sessionName: task.sessionName } : {}),
+								context: task.context,
+								output: message,
+								error: message,
+								exitCode: 1 as number | null,
+								skipped: true,
+							});
 						}
 						if (timedOut) return timedOutStepResult(task.agent, task.context, task.sessionName);
 						if (stopped) return stoppedStepResult(task.agent, task.context, task.sessionName);
@@ -4182,10 +5649,26 @@ export async function runSubagent(
 							delete requiredStatusStep(statusPayload, fi).activityState;
 							statusPayload.lastUpdate = skippedAt;
 							writeStatusPayload();
-							appendJsonl(eventsPath, JSON.stringify({
-								type: "subagent.step.failed", ts: skippedAt, runId: id, stepIndex: fi, agent: task.agent, exitCode: -1, durationMs: 0,
-							}));
-							return omitUndefinedProperties({ agent: task.agent, ...(task.sessionName ? { sessionName: task.sessionName } : {}), context: task.context, output: "(skipped — fail-fast)", exitCode: -1 as number | null, skipped: true });
+							appendJsonl(
+								eventsPath,
+								JSON.stringify({
+									type: "subagent.step.failed",
+									ts: skippedAt,
+									runId: id,
+									stepIndex: fi,
+									agent: task.agent,
+									exitCode: -1,
+									durationMs: 0,
+								}),
+							);
+							return omitUndefinedProperties({
+								agent: task.agent,
+								...(task.sessionName ? { sessionName: task.sessionName } : {}),
+								context: task.context,
+								output: "(skipped — fail-fast)",
+								exitCode: -1 as number | null,
+								skipped: true,
+							});
 						}
 
 						const taskStartTime = Date.now();
@@ -4203,9 +5686,16 @@ export async function runSubagent(
 						statusPayload.lastUpdate = taskStartTime;
 						writeStatusPayload();
 
-						appendJsonl(eventsPath, JSON.stringify({
-							type: "subagent.step.started", ts: taskStartTime, runId: id, stepIndex: fi, agent: task.agent,
-						}));
+						appendJsonl(
+							eventsPath,
+							JSON.stringify({
+								type: "subagent.step.started",
+								ts: taskStartTime,
+								runId: id,
+								stepIndex: fi,
+								agent: task.agent,
+							}),
+						);
 
 						const taskSessionDir = config.sessionDir
 							? path.join(config.sessionDir, `parallel-${taskIdx}`)
@@ -4213,43 +5703,55 @@ export async function runSubagent(
 						const { taskForRun, taskCwd } = prepareParallelTaskRun(task, cwd, worktreeSetup, taskIdx);
 						flushPendingStepSteers(fi);
 
-						const singleResult = await runSingleStepWithTimeout(taskForRun, compactOptional<SingleStepContext>({
-							previousOutput, placeholder, cwd: taskCwd, sessionEnabled,
-							outputs,
-							sessionDir: taskSessionDir,
-							artifactsDir, artifactConfig, id,
-							flatIndex: fi, flatStepCount: Math.max(statusPayload.steps.length, 1),
-							projectTrusted: config.projectTrusted,
-							outputFile: path.join(asyncDir, `output-${fi}.log`),
-							piPackageRoot: config.piPackageRoot,
-							childSessions,
-							inheritedChildRuntime: config.inheritedChildRuntime,
-							childIntercomTarget: config.childIntercomTargets?.[fi],
-							orchestratorIntercomTarget: config.controlIntercomTarget,
-							nestedRoute: config.nestedRoute,
-							capabilityCeiling: config.capabilityCeiling,
-							runFanoutBudget: config.runFanoutBudget,
-							registerInterrupt: (interrupt) => registerStepInterrupt(fi, interrupt),
-							registerTimeout: (interrupt) => registerStepTimeout(fi, interrupt),
-							registerStop: (stop) => registerStepStop(fi, stop),
-							registerSteer: (steer) => registerStepSteer(fi, steer),
-							onSteerOutcome: (request, delivery) => applySteerDelivery(request.id, fi, delivery),
-							timeoutSignal: timeoutAbortController.signal,
-							stopSignal: stopAbortController.signal,
-							timeoutMessage,
-							stopMessage,
-							toolTimeoutMs: taskForRun.toolTimeoutMs ?? config.toolTimeoutMs,
-							onAttemptStart: (attempt) => updateStepModel(fi, attempt.model, attempt.thinking, attempt.contextLimit),
-							onChildEvent: (event) => updateStepFromChildEvent(fi, event),
-							onExternalProcess: (process) => updateExternalProcess(fi, process),
-							prepareExternalActivity: (externalCwd, signal) => prepareExternalActivity(fi, externalCwd, signal),
-							onExternalStreamActivity: () => recordExternalStreamActivity(fi),
-							onExternalJob: (externalJob) => updateExternalJob(fi, externalJob),
-							skipAcceptance: () => timedOut || stopped || childStopRequests.has(fi),
-							usageBudgetExhausted: continuationUsageBudgetExhausted,
-							usageBudget: config.usageBudget,
-							orcaProgressTab,
-						}), config.deadlineAt);
+						const singleResult = await runSingleStepWithTimeout(
+							taskForRun,
+							compactOptional<SingleStepContext>({
+								previousOutput,
+								placeholder,
+								cwd: taskCwd,
+								sessionEnabled,
+								outputs,
+								sessionDir: taskSessionDir,
+								artifactsDir,
+								artifactConfig,
+								id,
+								flatIndex: fi,
+								flatStepCount: Math.max(statusPayload.steps.length, 1),
+								projectTrusted: config.projectTrusted,
+								outputFile: path.join(asyncDir, `output-${fi}.log`),
+								piPackageRoot: config.piPackageRoot,
+								childSessions,
+								inheritedChildRuntime: config.inheritedChildRuntime,
+								childIntercomTarget: config.childIntercomTargets?.[fi],
+								orchestratorIntercomTarget: config.controlIntercomTarget,
+								nestedRoute: config.nestedRoute,
+								capabilityCeiling: config.capabilityCeiling,
+								runFanoutBudget: config.runFanoutBudget,
+								registerInterrupt: (interrupt) => registerStepInterrupt(fi, interrupt),
+								registerTimeout: (interrupt) => registerStepTimeout(fi, interrupt),
+								registerStop: (stop) => registerStepStop(fi, stop),
+								registerSteer: (steer) => registerStepSteer(fi, steer),
+								onSteerOutcome: (request, delivery) => applySteerDelivery(request.id, fi, delivery),
+								timeoutSignal: timeoutAbortController.signal,
+								stopSignal: stopAbortController.signal,
+								timeoutMessage,
+								stopMessage,
+								toolTimeoutMs: taskForRun.toolTimeoutMs ?? config.toolTimeoutMs,
+								onAttemptStart: (attempt) =>
+									updateStepModel(fi, attempt.model, attempt.thinking, attempt.contextLimit),
+								onChildEvent: (event) => updateStepFromChildEvent(fi, event),
+								onExternalProcess: (process) => updateExternalProcess(fi, process),
+								prepareExternalActivity: (externalCwd, signal) =>
+									prepareExternalActivity(fi, externalCwd, signal),
+								onExternalStreamActivity: () => recordExternalStreamActivity(fi),
+								onExternalJob: (externalJob) => updateExternalJob(fi, externalJob),
+								skipAcceptance: () => timedOut || stopped || childStopRequests.has(fi),
+								usageBudgetExhausted: continuationUsageBudgetExhausted,
+								usageBudget: config.usageBudget,
+								orcaProgressTab,
+							}),
+							config.deadlineAt,
+						);
 						if (task.sessionFile) {
 							latestSessionFile = task.sessionFile;
 						}
@@ -4265,14 +5767,52 @@ export async function runSubagent(
 						writeStatusPayload();
 						appendCapabilityCeilingAppliedEvent(eventsPath, id, fi, task.agent, singleResult);
 
-						appendJsonl(eventsPath, JSON.stringify({
-							type: stopped || childStopped ? "subagent.step.stopped" : timedOut ? "subagent.step.failed" : childInterrupted ? "subagent.step.paused" : singleResult.exitCode === 0 ? "subagent.step.completed" : "subagent.step.failed",
-							ts: taskEndTime, runId: id, stepIndex: fi, agent: task.agent,
-							exitCode: stopped || childStopped ? 1 : timedOut ? 1 : childInterrupted ? 0 : singleResult.exitCode, durationMs: taskDuration,
-						}));
+						appendJsonl(
+							eventsPath,
+							JSON.stringify({
+								type:
+									stopped || childStopped
+										? "subagent.step.stopped"
+										: timedOut
+											? "subagent.step.failed"
+											: childInterrupted
+												? "subagent.step.paused"
+												: singleResult.exitCode === 0
+													? "subagent.step.completed"
+													: "subagent.step.failed",
+								ts: taskEndTime,
+								runId: id,
+								stepIndex: fi,
+								agent: task.agent,
+								exitCode:
+									stopped || childStopped ? 1 : timedOut ? 1 : childInterrupted ? 0 : singleResult.exitCode,
+								durationMs: taskDuration,
+							}),
+						);
 						if (stopped || childStopped) appendTerminalChildStatusEvent(fi, taskEndTime);
 						if (singleResult.exitCode !== 0 && failFast && !childStopped) aborted = true;
-						return stopped || childStopped ? { ...singleResult, output: stopMessage, error: stopMessage, exitCode: 1, interrupted: false, timedOut: false, stopped: true, skipped: false } : timedOut ? { ...singleResult, output: singleResult.output || (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE), error: singleResult.error ?? timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE, exitCode: 1, interrupted: false, timedOut: true, skipped: false } : { ...singleResult, skipped: false };
+						return stopped || childStopped
+							? {
+									...singleResult,
+									output: stopMessage,
+									error: stopMessage,
+									exitCode: 1,
+									interrupted: false,
+									timedOut: false,
+									stopped: true,
+									skipped: false,
+								}
+							: timedOut
+								? {
+										...singleResult,
+										output: singleResult.output || (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE),
+										error: singleResult.error ?? timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE,
+										exitCode: 1,
+										interrupted: false,
+										timedOut: true,
+										skipped: false,
+									}
+								: { ...singleResult, skipped: false };
 					},
 					globalSemaphore,
 				);
@@ -4286,9 +5826,17 @@ export async function runSubagent(
 						: null;
 					const fallbackTokens = tokenUsageFromUsage(parallelResults[t]?.usage);
 					const observedTokens = requiredStatusStep(statusPayload, fi).tokens;
-					const taskTokens = sessionTokens ?? (fallbackTokens
-						? { ...fallbackTokens, ...(observedTokens?.window !== undefined ? { window: observedTokens.window } : {}), ...(observedTokens?.windowPeak !== undefined ? { windowPeak: observedTokens.windowPeak } : {}) }
-						: null);
+					const taskTokens =
+						sessionTokens ??
+						(fallbackTokens
+							? {
+									...fallbackTokens,
+									...(observedTokens?.window !== undefined ? { window: observedTokens.window } : {}),
+									...(observedTokens?.windowPeak !== undefined
+										? { windowPeak: observedTokens.windowPeak }
+										: {}),
+								}
+							: null);
 					if (!taskTokens) continue;
 					requiredStatusStep(statusPayload, fi).tokens = taskTokens;
 					previousCumulativeTokens = {
@@ -4306,71 +5854,83 @@ export async function runSubagent(
 				writeStatusPayload();
 
 				for (const pr of parallelResults) {
-					results.push(omitUndefinedProperties({
-						agent: pr.agent,
-						context: pr.context,
-						agentContract: pr.agentContract,
-						launchContractDigest: pr.launchContractDigest,
-						launchResolvedExtensions: pr.launchResolvedExtensions,
-						output: pr.output,
-						outputState: pr.outputState,
-						outputPartial: pr.outputPartial,
-						error: pr.error,
-						success: pr.stopped !== true && pr.interrupted !== true && pr.exitCode === 0 && pr.execution?.status !== "partial",
-						exitCode: pr.interrupted === true ? 0 : pr.exitCode,
-						skipped: pr.skipped,
-						interrupted: pr.interrupted,
-						timedOut: pr.timedOut,
-						stopped: pr.stopped,
-						toolBudget: pr.toolBudget,
-						toolBudgetBlocked: pr.toolBudgetBlocked,
-						sessionFile: pr.sessionFile,
-						intercomTarget: pr.intercomTarget,
-						model: pr.model,
-						thinking: pr.thinking,
-						requestedModel: pr.requestedModel,
-						contextOverflow: pr.contextOverflow,
-						totalCost: pr.totalCost,
-						usage: pr.usage,
-						artifactPaths: pr.artifactPaths,
-						savedOutputPath: pr.savedOutputPath,
-						outputSaveError: pr.outputSaveError,
-						artifactOutputSaveFailed: pr.artifactOutputSaveFailed,
-						transcriptPath: pr.transcriptPath,
-						transcriptError: pr.transcriptError,
-						effects: pr.effects,
-						execution: pr.execution,
-						review: pr.review,
-						timeoutRecovery: pr.timeoutRecovery,
-						structuredOutput: pr.structuredOutput,
-						structuredOutputFailed: pr.structuredOutputFailed,
-						structuredOutputPath: pr.structuredOutputPath,
-						structuredOutputSchemaPath: pr.structuredOutputSchemaPath,
-						acceptance: pr.acceptance,
-						watchdog: pr.watchdog,
-					}));
+					results.push(
+						omitUndefinedProperties({
+							agent: pr.agent,
+							context: pr.context,
+							agentContract: pr.agentContract,
+							launchContractDigest: pr.launchContractDigest,
+							launchResolvedExtensions: pr.launchResolvedExtensions,
+							output: pr.output,
+							outputState: pr.outputState,
+							outputPartial: pr.outputPartial,
+							error: pr.error,
+							success:
+								pr.stopped !== true &&
+								pr.interrupted !== true &&
+								pr.exitCode === 0 &&
+								pr.execution?.status !== "partial",
+							exitCode: pr.interrupted === true ? 0 : pr.exitCode,
+							skipped: pr.skipped,
+							interrupted: pr.interrupted,
+							timedOut: pr.timedOut,
+							stopped: pr.stopped,
+							toolBudget: pr.toolBudget,
+							toolBudgetBlocked: pr.toolBudgetBlocked,
+							sessionFile: pr.sessionFile,
+							intercomTarget: pr.intercomTarget,
+							model: pr.model,
+							thinking: pr.thinking,
+							requestedModel: pr.requestedModel,
+							contextOverflow: pr.contextOverflow,
+							totalCost: pr.totalCost,
+							usage: pr.usage,
+							artifactPaths: pr.artifactPaths,
+							savedOutputPath: pr.savedOutputPath,
+							outputSaveError: pr.outputSaveError,
+							artifactOutputSaveFailed: pr.artifactOutputSaveFailed,
+							transcriptPath: pr.transcriptPath,
+							transcriptError: pr.transcriptError,
+							effects: pr.effects,
+							execution: pr.execution,
+							review: pr.review,
+							timeoutRecovery: pr.timeoutRecovery,
+							structuredOutput: pr.structuredOutput,
+							structuredOutputFailed: pr.structuredOutputFailed,
+							structuredOutputPath: pr.structuredOutputPath,
+							structuredOutputSchemaPath: pr.structuredOutputSchemaPath,
+							acceptance: pr.acceptance,
+							watchdog: pr.watchdog,
+						}),
+					);
 				}
 				pendingParallelUsageCost = { inputTokens: 0, outputTokens: 0, costUsd: 0 };
 				refreshUsageBudget();
 				for (let t = 0; t < group.parallel.length; t++) {
 					const outputName = group.parallel[t]?.outputName;
-					if (outputName) outputs[outputName] = outputEntryFromAsyncResult({
-						agent: parallelResults[t]!.agent,
-						output: parallelResults[t]!.output,
-						structuredOutput: parallelResults[t]!.structuredOutput,
-					}, stepIndex);
+					if (outputName)
+						outputs[outputName] = outputEntryFromAsyncResult(
+							{
+								agent: parallelResults[t]!.agent,
+								output: parallelResults[t]!.output,
+								structuredOutput: parallelResults[t]!.structuredOutput,
+							},
+							stepIndex,
+						);
 				}
 				statusPayload.outputs = outputs;
 
 				previousOutput = aggregateParallelOutputs(
-					parallelResults.map((r) => omitUndefinedProperties({
-						agent: r.agent,
-						output: r.output,
-						exitCode: r.exitCode,
-						error: r.error,
-						model: r.model,
-						requestedModel: r.requestedModel,
-					})),
+					parallelResults.map((r) =>
+						omitUndefinedProperties({
+							agent: r.agent,
+							output: r.output,
+							exitCode: r.exitCode,
+							error: r.error,
+							model: r.model,
+							requestedModel: r.requestedModel,
+						}),
+					),
 				);
 				if (worktreeSetup) {
 					const setup = worktreeSetup;
@@ -4382,7 +5942,10 @@ export async function runSubagent(
 						const handoff = {
 							manifestPath,
 							runId: id,
-							mode: (config.resultMode ?? statusPayload.mode) === "parallel" ? "parallel" as const : "chain" as const,
+							mode:
+								(config.resultMode ?? statusPayload.mode) === "parallel"
+									? ("parallel" as const)
+									: ("chain" as const),
 							source: "async" as const,
 							cwd,
 							stepIndex,
@@ -4394,12 +5957,23 @@ export async function runSubagent(
 								...(handoffWorkflowKey ? { workflowKey: handoffWorkflowKey } : {}),
 								...(handoffChildRunId ? { runId: handoffChildRunId } : {}),
 								...(config.lane ? { lane: config.lane } : {}),
-								status: result.stopped || (result.exitCode !== 0 && isUnexplainedProcessSignal(omitUndefinedProperties({
-									processSignal: result.processSignal,
-									interrupted: result.interrupted,
-									timedOut: result.timedOut,
-									stopped: result.stopped,
-								}))) ? "stopped" as const : result.interrupted ? "paused" as const : result.exitCode === 0 ? "completed" as const : "failed" as const,
+								status:
+									result.stopped ||
+									(result.exitCode !== 0 &&
+										isUnexplainedProcessSignal(
+											omitUndefinedProperties({
+												processSignal: result.processSignal,
+												interrupted: result.interrupted,
+												timedOut: result.timedOut,
+												stopped: result.stopped,
+											}),
+										))
+										? ("stopped" as const)
+										: result.interrupted
+											? ("paused" as const)
+											: result.exitCode === 0
+												? ("completed" as const)
+												: ("failed" as const),
 								summary: result.output || result.error || "(no output)",
 								...(result.artifactPaths?.outputPath ? { outputPath: result.artifactPaths.outputPath } : {}),
 								...(result.structuredOutput !== undefined ? { structuredOutput: result.structuredOutput } : {}),
@@ -4409,7 +5983,11 @@ export async function runSubagent(
 						};
 						try {
 							writeParallelHandoffGroup(handoff);
-							const cleanup = cleanupWorktrees(setup, { kind: "preserve", capturedDiffs: captured.diffs, handoffManifestPath: manifestPath });
+							const cleanup = cleanupWorktrees(setup, {
+								kind: "preserve",
+								capturedDiffs: captured.diffs,
+								handoffManifestPath: manifestPath,
+							});
 							statusPayload.parallelHandoff = writeParallelHandoffGroup({ ...handoff, cleanup });
 							previousOutput = `${previousOutput}\n\n${formatParallelHandoffReference(statusPayload.parallelHandoff)}`;
 						} catch (error) {
@@ -4419,20 +5997,39 @@ export async function runSubagent(
 					});
 				}
 
-				appendJsonl(eventsPath, JSON.stringify({
-					type: "subagent.parallel.completed",
-					ts: Date.now(),
-					runId: id,
-					stepIndex,
-					success: parallelResults.every((r) => r.exitCode === 0 || r.exitCode === -1)
-						&& parallelResults.every((result, index) => !(isAgentContract(group.parallel[index]?.agentContract) && group.parallel[index]?.gateOn === "acceptance" && result.acceptance?.status === "rejected")),
-				}));
+				appendJsonl(
+					eventsPath,
+					JSON.stringify({
+						type: "subagent.parallel.completed",
+						ts: Date.now(),
+						runId: id,
+						stepIndex,
+						success:
+							parallelResults.every((r) => r.exitCode === 0 || r.exitCode === -1) &&
+							parallelResults.every(
+								(result, index) =>
+									!(
+										isAgentContract(group.parallel[index]?.agentContract) &&
+										group.parallel[index]?.gateOn === "acceptance" &&
+										result.acceptance?.status === "rejected"
+									),
+							),
+					}),
+				);
 
 				const acceptanceGateFailure = parallelResults
 					.map((result, index) => ({ result, index, task: group.parallel[index] }))
-					.find(({ result, task }) => isAgentContract(task?.agentContract) && task?.gateOn === "acceptance" && result.acceptance?.status === "rejected");
+					.find(
+						({ result, task }) =>
+							isAgentContract(task?.agentContract) &&
+							task?.gateOn === "acceptance" &&
+							result.acceptance?.status === "rejected",
+					);
 				if (acceptanceGateFailure) {
-					statusPayload.error = (acceptanceGateFailure.result.acceptance ? acceptanceFailureMessage(acceptanceGateFailure.result.acceptance) : undefined) ?? "Parallel acceptance gate rejected the step.";
+					statusPayload.error =
+						(acceptanceGateFailure.result.acceptance
+							? acceptanceFailureMessage(acceptanceGateFailure.result.acceptance)
+							: undefined) ?? "Parallel acceptance gate rejected the step.";
 					writeStatusPayload();
 					break;
 				}
@@ -4440,7 +6037,8 @@ export async function runSubagent(
 					break;
 				}
 			} finally {
-				if (worktreeSetup && !worktreeFinalized) await cleanupRemainingWorktree(worktreeSetup, stepIndex, groupStartFlatIndex);
+				if (worktreeSetup && !worktreeFinalized)
+					await cleanupRemainingWorktree(worktreeSetup, stepIndex, groupStartFlatIndex);
 			}
 		} else {
 			const seqStep = step as SubagentStep;
@@ -4467,57 +6065,83 @@ export async function runSubagent(
 			let singleWorktreeSetup: WorktreeSetup | undefined;
 			if (seqStep.worktree) {
 				try {
-					singleWorktreeSetup = await createWorktrees(cwd, `${id}-s${stepIndex}`, 1, omitUndefinedProperties({
-						signal: setupSignal,
-						deadlineAt: config.deadlineAt,
-						agents: [seqStep.agent],
-						labels: [seqStep.lane?.key ?? config.workflowKey ?? seqStep.outputName ?? seqStep.label],
-						tasks: [seqStep.task],
-						provider: config.worktreeProvider,
-						baseRef: config.baseRef,
-						branchPrefix: config.worktreeBranchPrefix,
-						setupHook: config.worktreeSetupHook
-							? omitUndefinedProperties({ hookPath: config.worktreeSetupHook, timeoutMs: config.worktreeSetupHookTimeoutMs })
-							: undefined,
-						baseDir: config.worktreeBaseDir,
-						onProgress: (progress) => {
-							publishSetupUnknown(progress);
-							const worktree = progress.setup.worktrees[0];
-							if (worktree) {
-								setStatusWorktreeReference(requiredStatusStep(statusPayload, flatIndex), worktree);
-							}
-							const pendingHandoff = writeWorktreeSetupHandoff({
-								manifestPath: parallelHandoffPath(asyncDir),
-								runId: id,
-								mode: "single",
-								source: "async",
-								cwd,
-								stepIndex,
-								flatStartIndex: flatIndex,
-								progress,
-								laneBindings: handoffWorkflowKey || config.lane ? [{ index: flatIndex, taskIndex: 0, ...(handoffWorkflowKey ? { workflowKey: handoffWorkflowKey } : {}), ...(handoffChildRunId ? { runId: handoffChildRunId } : {}), ...(config.lane ? { lane: config.lane } : {}) }] : undefined,
-							});
-							if (!pendingHandoff) return;
-							statusPayload.parallelHandoff = pendingHandoff;
-							statusPayload.lastUpdate = Date.now();
-							writeStatusPayload();
-						},
-					}));
+					singleWorktreeSetup = await createWorktrees(
+						cwd,
+						`${id}-s${stepIndex}`,
+						1,
+						omitUndefinedProperties({
+							signal: setupSignal,
+							deadlineAt: config.deadlineAt,
+							agents: [seqStep.agent],
+							labels: [seqStep.lane?.key ?? config.workflowKey ?? seqStep.outputName ?? seqStep.label],
+							tasks: [seqStep.task],
+							provider: config.worktreeProvider,
+							baseRef: config.baseRef,
+							branchPrefix: config.worktreeBranchPrefix,
+							setupHook: config.worktreeSetupHook
+								? omitUndefinedProperties({
+										hookPath: config.worktreeSetupHook,
+										timeoutMs: config.worktreeSetupHookTimeoutMs,
+									})
+								: undefined,
+							baseDir: config.worktreeBaseDir,
+							onProgress: (progress) => {
+								publishSetupUnknown(progress);
+								const worktree = progress.setup.worktrees[0];
+								if (worktree) {
+									setStatusWorktreeReference(requiredStatusStep(statusPayload, flatIndex), worktree);
+								}
+								const pendingHandoff = writeWorktreeSetupHandoff({
+									manifestPath: parallelHandoffPath(asyncDir),
+									runId: id,
+									mode: "single",
+									source: "async",
+									cwd,
+									stepIndex,
+									flatStartIndex: flatIndex,
+									progress,
+									laneBindings:
+										handoffWorkflowKey || config.lane
+											? [
+													{
+														index: flatIndex,
+														taskIndex: 0,
+														...(handoffWorkflowKey ? { workflowKey: handoffWorkflowKey } : {}),
+														...(handoffChildRunId ? { runId: handoffChildRunId } : {}),
+														...(config.lane ? { lane: config.lane } : {}),
+													},
+												]
+											: undefined,
+								});
+								if (!pendingHandoff) return;
+								statusPayload.parallelHandoff = pendingHandoff;
+								statusPayload.lastUpdate = Date.now();
+								writeStatusPayload();
+							},
+						}),
+					);
 				} catch (error) {
 					if (error instanceof WorktreeSetupError) publishSetupUnknown(error.snapshot);
 					if (config.deadlineAt !== undefined && Date.now() >= config.deadlineAt) timeoutRunner();
 					const message = error instanceof Error ? error.message : String(error);
 					if (childStopRequests.has(flatIndex)) markChildStopped(flatIndex);
 					const statusStep = requiredStatusStep(statusPayload, flatIndex);
-					statusStep.status = stopped || childStopRequests.has(flatIndex) ? "stopped" : interrupted ? "paused" : "failed";
+					statusStep.status =
+						stopped || childStopRequests.has(flatIndex) ? "stopped" : interrupted ? "paused" : "failed";
 					statusStep.error ??= message;
 					statusStep.exitCode = interrupted ? 0 : 1;
 					statusStep.endedAt = Date.now();
-					results.push(stopped ? stoppedStepResult(seqStep.agent, seqStep.context, seqStep.sessionName)
-						: childStopRequests.has(flatIndex) ? childStopResult(flatIndex, seqStep.agent, seqStep.context)
-						: timedOut ? timedOutStepResult(seqStep.agent, seqStep.context, seqStep.sessionName)
-						: interrupted ? pausedStepResult(seqStep.agent, seqStep.context, seqStep.sessionName)
-						: { agent: seqStep.agent, output: message, error: message, exitCode: 1, success: false });
+					results.push(
+						stopped
+							? stoppedStepResult(seqStep.agent, seqStep.context, seqStep.sessionName)
+							: childStopRequests.has(flatIndex)
+								? childStopResult(flatIndex, seqStep.agent, seqStep.context)
+								: timedOut
+									? timedOutStepResult(seqStep.agent, seqStep.context, seqStep.sessionName)
+									: interrupted
+										? pausedStepResult(seqStep.agent, seqStep.context, seqStep.sessionName)
+										: { agent: seqStep.agent, output: message, error: message, exitCode: 1, success: false },
+					);
 					statusPayload.error ??= message;
 					writeStatusPayload();
 					flatIndex++;
@@ -4527,10 +6151,15 @@ export async function runSubagent(
 			if (singleWorktreeSetup && config.deadlineAt !== undefined && Date.now() >= config.deadlineAt) timeoutRunner();
 			if (singleWorktreeSetup && (timedOut || stopped || interrupted || childStopRequests.has(flatIndex))) {
 				await cleanupRemainingWorktree(singleWorktreeSetup, stepIndex, flatIndex);
-				results.push(stopped ? stoppedStepResult(seqStep.agent, seqStep.context, seqStep.sessionName)
-					: childStopRequests.has(flatIndex) ? childStopResult(flatIndex, seqStep.agent, seqStep.context)
-					: timedOut ? timedOutStepResult(seqStep.agent, seqStep.context, seqStep.sessionName)
-					: pausedStepResult(seqStep.agent, seqStep.context, seqStep.sessionName));
+				results.push(
+					stopped
+						? stoppedStepResult(seqStep.agent, seqStep.context, seqStep.sessionName)
+						: childStopRequests.has(flatIndex)
+							? childStopResult(flatIndex, seqStep.agent, seqStep.context)
+							: timedOut
+								? timedOutStepResult(seqStep.agent, seqStep.context, seqStep.sessionName)
+								: pausedStepResult(seqStep.agent, seqStep.context, seqStep.sessionName),
+				);
 				if (interrupted) requiredStatusStep(statusPayload, flatIndex).status = "paused";
 				flatIndex++;
 				continue;
@@ -4550,13 +6179,16 @@ export async function runSubagent(
 			statusPayload.outputFile = path.join(asyncDir, `output-${flatIndex}.log`);
 			writeStatusPayload();
 
-			appendJsonl(eventsPath, JSON.stringify({
-				type: "subagent.step.started",
-				ts: stepStartTime,
-				runId: id,
-				stepIndex: flatIndex,
-				agent: seqStep.agent,
-			}));
+			appendJsonl(
+				eventsPath,
+				JSON.stringify({
+					type: "subagent.step.started",
+					ts: stepStartTime,
+					runId: id,
+					stepIndex: flatIndex,
+					agent: seqStep.agent,
+				}),
+			);
 
 			flushPendingStepSteers(flatIndex);
 			const executionStep = singleWorktreeSetup
@@ -4564,43 +6196,55 @@ export async function runSubagent(
 				: seqStep;
 			let singleResult: Awaited<ReturnType<typeof runSingleStepWithTimeout>>;
 			try {
-				singleResult = await runSingleStepWithTimeout(executionStep, compactOptional<SingleStepContext>({
-				previousOutput, placeholder, cwd: singleCwd, sessionEnabled,
-				outputs: statusPayload.mode === "single" ? undefined : outputs,
-				sessionDir: config.sessionDir,
-				artifactsDir, artifactConfig, id,
-				projectTrusted: config.projectTrusted,
-				flatIndex, flatStepCount: Math.max(statusPayload.steps.length, 1),
-				outputFile: path.join(asyncDir, `output-${flatIndex}.log`),
-				piPackageRoot: config.piPackageRoot,
-				childSessions,
-				inheritedChildRuntime: config.inheritedChildRuntime,
-				childIntercomTarget: config.childIntercomTargets?.[flatIndex],
-				orchestratorIntercomTarget: config.controlIntercomTarget,
-				nestedRoute: config.nestedRoute,
-				capabilityCeiling: config.capabilityCeiling,
-				runFanoutBudget: config.runFanoutBudget,
-				registerInterrupt: (interrupt) => registerStepInterrupt(flatIndex, interrupt),
-				registerTimeout: (interrupt) => registerStepTimeout(flatIndex, interrupt),
-				registerStop: (stop) => registerStepStop(flatIndex, stop),
-				registerSteer: (steer) => registerStepSteer(flatIndex, steer),
-				onSteerOutcome: (request, delivery) => applySteerDelivery(request.id, flatIndex, delivery),
-				timeoutSignal: timeoutAbortController.signal,
-				stopSignal: stopAbortController.signal,
-				timeoutMessage,
-				stopMessage,
-				toolTimeoutMs: seqStep.toolTimeoutMs ?? config.toolTimeoutMs,
-				onAttemptStart: (attempt) => updateStepModel(flatIndex, attempt.model, attempt.thinking, attempt.contextLimit),
-				onChildEvent: (event) => updateStepFromChildEvent(flatIndex, event),
-				onExternalProcess: (process) => updateExternalProcess(flatIndex, process),
-				prepareExternalActivity: (externalCwd, signal) => prepareExternalActivity(flatIndex, externalCwd, signal),
-				onExternalStreamActivity: () => recordExternalStreamActivity(flatIndex),
-				onExternalJob: (externalJob) => updateExternalJob(flatIndex, externalJob),
-				skipAcceptance: () => timedOut || stopped || childStopRequests.has(flatIndex),
-				usageBudgetExhausted: continuationUsageBudgetExhausted,
-				usageBudget: config.usageBudget,
-				orcaProgressTab,
-				}), config.deadlineAt);
+				singleResult = await runSingleStepWithTimeout(
+					executionStep,
+					compactOptional<SingleStepContext>({
+						previousOutput,
+						placeholder,
+						cwd: singleCwd,
+						sessionEnabled,
+						outputs: statusPayload.mode === "single" ? undefined : outputs,
+						sessionDir: config.sessionDir,
+						artifactsDir,
+						artifactConfig,
+						id,
+						projectTrusted: config.projectTrusted,
+						flatIndex,
+						flatStepCount: Math.max(statusPayload.steps.length, 1),
+						outputFile: path.join(asyncDir, `output-${flatIndex}.log`),
+						piPackageRoot: config.piPackageRoot,
+						childSessions,
+						inheritedChildRuntime: config.inheritedChildRuntime,
+						childIntercomTarget: config.childIntercomTargets?.[flatIndex],
+						orchestratorIntercomTarget: config.controlIntercomTarget,
+						nestedRoute: config.nestedRoute,
+						capabilityCeiling: config.capabilityCeiling,
+						runFanoutBudget: config.runFanoutBudget,
+						registerInterrupt: (interrupt) => registerStepInterrupt(flatIndex, interrupt),
+						registerTimeout: (interrupt) => registerStepTimeout(flatIndex, interrupt),
+						registerStop: (stop) => registerStepStop(flatIndex, stop),
+						registerSteer: (steer) => registerStepSteer(flatIndex, steer),
+						onSteerOutcome: (request, delivery) => applySteerDelivery(request.id, flatIndex, delivery),
+						timeoutSignal: timeoutAbortController.signal,
+						stopSignal: stopAbortController.signal,
+						timeoutMessage,
+						stopMessage,
+						toolTimeoutMs: seqStep.toolTimeoutMs ?? config.toolTimeoutMs,
+						onAttemptStart: (attempt) =>
+							updateStepModel(flatIndex, attempt.model, attempt.thinking, attempt.contextLimit),
+						onChildEvent: (event) => updateStepFromChildEvent(flatIndex, event),
+						onExternalProcess: (process) => updateExternalProcess(flatIndex, process),
+						prepareExternalActivity: (externalCwd, signal) =>
+							prepareExternalActivity(flatIndex, externalCwd, signal),
+						onExternalStreamActivity: () => recordExternalStreamActivity(flatIndex),
+						onExternalJob: (externalJob) => updateExternalJob(flatIndex, externalJob),
+						skipAcceptance: () => timedOut || stopped || childStopRequests.has(flatIndex),
+						usageBudgetExhausted: continuationUsageBudgetExhausted,
+						usageBudget: config.usageBudget,
+						orcaProgressTab,
+					}),
+					config.deadlineAt,
+				);
 			} catch (error) {
 				if (singleWorktreeSetup) await cleanupRemainingWorktree(singleWorktreeSetup, stepIndex, flatIndex);
 				throw error;
@@ -4611,61 +6255,89 @@ export async function runSubagent(
 
 			previousOutput = singleResult.output;
 			const childStopped = singleResult.stopped === true;
-			results.push(omitUndefinedProperties({
-				agent: singleResult.agent,
-				...(singleResult.sessionName ? { sessionName: singleResult.sessionName } : {}),
-				context: singleResult.context,
-				agentContract: singleResult.agentContract,
-				launchContractDigest: singleResult.launchContractDigest,
-				launchResolvedExtensions: singleResult.launchResolvedExtensions,
-				runtimeAcknowledgedExtensions: singleResult.runtimeAcknowledgedExtensions,
-				output: stopped || childStopped ? stopMessage : timedOut ? singleResult.output || (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE) : singleResult.output,
-				outputState: singleResult.outputState,
-				outputPartial: singleResult.outputPartial,
-				error: stopped || childStopped ? stopMessage : timedOut ? (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE) : singleResult.error,
-				success: !stopped && !childStopped && !timedOut && singleResult.interrupted !== true && singleResult.exitCode === 0 && singleResult.execution?.status !== "partial",
-				exitCode: stopped || childStopped ? 1 : timedOut ? 1 : singleResult.interrupted === true ? 0 : singleResult.exitCode,
-				sessionFile: singleResult.sessionFile,
-				intercomTarget: singleResult.intercomTarget,
-				model: singleResult.model,
-				thinking: singleResult.thinking,
-				requestedModel: singleResult.requestedModel,
-				contextOverflow: singleResult.contextOverflow,
-				totalCost: singleResult.totalCost,
-				usage: singleResult.usage,
-				artifactPaths: singleResult.artifactPaths,
-				savedOutputPath: singleResult.savedOutputPath,
-				outputSaveError: singleResult.outputSaveError,
-				artifactOutputSaveFailed: singleResult.artifactOutputSaveFailed,
-				transcriptPath: singleResult.transcriptPath,
-				transcriptError: singleResult.transcriptError,
-				effects: singleResult.effects,
-				execution: singleResult.execution,
-				review: singleResult.review,
-				timeoutRecovery: singleResult.timeoutRecovery,
-				structuredOutput: singleResult.structuredOutput,
-				structuredOutputFailed: singleResult.structuredOutputFailed,
-				structuredOutputPath: singleResult.structuredOutputPath,
-				structuredOutputSchemaPath: singleResult.structuredOutputSchemaPath,
-				acceptance: singleResult.acceptance,
-				watchdog: singleResult.watchdog,
-				capabilityCeiling: singleResult.capabilityCeiling,
-				capabilityAudit: singleResult.capabilityAudit,
-				interrupted: singleResult.interrupted,
-				timedOut: timedOut || singleResult.timedOut ? true : undefined,
-				stopped: stopped || childStopped ? true : undefined,
-				toolBudget: singleResult.toolBudget,
-				toolBudgetBlocked: singleResult.toolBudgetBlocked,
-				runner: singleResult.runner,
-				externalProcess: singleResult.externalProcess,
-				externalJob: singleResult.externalJob,
-			}));
-			if (seqStep.outputName) {
-				outputs[seqStep.outputName] = outputEntryFromAsyncResult({
+			results.push(
+				omitUndefinedProperties({
 					agent: singleResult.agent,
-					output: singleResult.output,
+					...(singleResult.sessionName ? { sessionName: singleResult.sessionName } : {}),
+					context: singleResult.context,
+					agentContract: singleResult.agentContract,
+					launchContractDigest: singleResult.launchContractDigest,
+					launchResolvedExtensions: singleResult.launchResolvedExtensions,
+					runtimeAcknowledgedExtensions: singleResult.runtimeAcknowledgedExtensions,
+					output:
+						stopped || childStopped
+							? stopMessage
+							: timedOut
+								? singleResult.output || (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE)
+								: singleResult.output,
+					outputState: singleResult.outputState,
+					outputPartial: singleResult.outputPartial,
+					error:
+						stopped || childStopped
+							? stopMessage
+							: timedOut
+								? (timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE)
+								: singleResult.error,
+					success:
+						!stopped &&
+						!childStopped &&
+						!timedOut &&
+						singleResult.interrupted !== true &&
+						singleResult.exitCode === 0 &&
+						singleResult.execution?.status !== "partial",
+					exitCode:
+						stopped || childStopped
+							? 1
+							: timedOut
+								? 1
+								: singleResult.interrupted === true
+									? 0
+									: singleResult.exitCode,
+					sessionFile: singleResult.sessionFile,
+					intercomTarget: singleResult.intercomTarget,
+					model: singleResult.model,
+					thinking: singleResult.thinking,
+					requestedModel: singleResult.requestedModel,
+					contextOverflow: singleResult.contextOverflow,
+					totalCost: singleResult.totalCost,
+					usage: singleResult.usage,
+					artifactPaths: singleResult.artifactPaths,
+					savedOutputPath: singleResult.savedOutputPath,
+					outputSaveError: singleResult.outputSaveError,
+					artifactOutputSaveFailed: singleResult.artifactOutputSaveFailed,
+					transcriptPath: singleResult.transcriptPath,
+					transcriptError: singleResult.transcriptError,
+					effects: singleResult.effects,
+					execution: singleResult.execution,
+					review: singleResult.review,
+					timeoutRecovery: singleResult.timeoutRecovery,
 					structuredOutput: singleResult.structuredOutput,
-				}, stepIndex);
+					structuredOutputFailed: singleResult.structuredOutputFailed,
+					structuredOutputPath: singleResult.structuredOutputPath,
+					structuredOutputSchemaPath: singleResult.structuredOutputSchemaPath,
+					acceptance: singleResult.acceptance,
+					watchdog: singleResult.watchdog,
+					capabilityCeiling: singleResult.capabilityCeiling,
+					capabilityAudit: singleResult.capabilityAudit,
+					interrupted: singleResult.interrupted,
+					timedOut: timedOut || singleResult.timedOut ? true : undefined,
+					stopped: stopped || childStopped ? true : undefined,
+					toolBudget: singleResult.toolBudget,
+					toolBudgetBlocked: singleResult.toolBudgetBlocked,
+					runner: singleResult.runner,
+					externalProcess: singleResult.externalProcess,
+					externalJob: singleResult.externalJob,
+				}),
+			);
+			if (seqStep.outputName) {
+				outputs[seqStep.outputName] = outputEntryFromAsyncResult(
+					{
+						agent: singleResult.agent,
+						output: singleResult.output,
+						structuredOutput: singleResult.structuredOutput,
+					},
+					stepIndex,
+				);
 			}
 			statusPayload.outputs = outputs;
 
@@ -4685,7 +6357,11 @@ export async function runSubagent(
 				const fallbackTokens = tokenUsageFromUsage(singleResult.usage);
 				const observedTokens = requiredStatusStep(statusPayload, flatIndex).tokens;
 				stepTokens = fallbackTokens
-					? { ...fallbackTokens, ...(observedTokens?.window !== undefined ? { window: observedTokens.window } : {}), ...(observedTokens?.windowPeak !== undefined ? { windowPeak: observedTokens.windowPeak } : {}) }
+					? {
+							...fallbackTokens,
+							...(observedTokens?.window !== undefined ? { window: observedTokens.window } : {}),
+							...(observedTokens?.windowPeak !== undefined ? { windowPeak: observedTokens.windowPeak } : {}),
+						}
 					: null;
 				if (stepTokens) {
 					previousCumulativeTokens = {
@@ -4711,21 +6387,37 @@ export async function runSubagent(
 			writeStatusPayload();
 			appendCapabilityCeilingAppliedEvent(eventsPath, id, flatIndex, seqStep.agent, singleResult);
 
-			appendJsonl(eventsPath, JSON.stringify({
-				type: stopped || childStopped ? "subagent.step.stopped" : timedOut ? "subagent.step.failed" : childInterrupted ? "subagent.step.paused" : singleResult.exitCode === 0 ? "subagent.step.completed" : "subagent.step.failed",
-				ts: stepEndTime,
-				runId: id,
-				stepIndex: flatIndex,
-				agent: seqStep.agent,
-				exitCode: stopped || childStopped ? 1 : timedOut ? 1 : childInterrupted ? 0 : singleResult.exitCode,
-				durationMs: stepEndTime - stepStartTime,
-				tokens: stepTokens,
-			}));
+			appendJsonl(
+				eventsPath,
+				JSON.stringify({
+					type:
+						stopped || childStopped
+							? "subagent.step.stopped"
+							: timedOut
+								? "subagent.step.failed"
+								: childInterrupted
+									? "subagent.step.paused"
+									: singleResult.exitCode === 0
+										? "subagent.step.completed"
+										: "subagent.step.failed",
+					ts: stepEndTime,
+					runId: id,
+					stepIndex: flatIndex,
+					agent: seqStep.agent,
+					exitCode: stopped || childStopped ? 1 : timedOut ? 1 : childInterrupted ? 0 : singleResult.exitCode,
+					durationMs: stepEndTime - stepStartTime,
+					tokens: stepTokens,
+				}),
+			);
 			if (stopped || childStopped) appendTerminalChildStatusEvent(flatIndex, stepEndTime);
 			if (singleWorktreeSetup && !singleResult.detached) {
 				const setup = singleWorktreeSetup;
 				await finalizeWorktree(setup, stepIndex, flatIndex, () => {
-					const diffs = diffWorktrees(setup, [seqStep.agent], path.join(asyncDir, "worktree-diffs", `step-${stepIndex}`));
+					const diffs = diffWorktrees(
+						setup,
+						[seqStep.agent],
+						path.join(asyncDir, "worktree-diffs", `step-${stepIndex}`),
+					);
 					const diffSummary = formatWorktreeDiffSummary(diffs);
 					const manifestPath = parallelHandoffPath(asyncDir);
 					const handoff = {
@@ -4738,18 +6430,32 @@ export async function runSubagent(
 						flatStartIndex: flatIndex,
 						setup,
 						diffs,
-						results: [{
-							agent: singleResult.agent,
-							...(handoffWorkflowKey ? { workflowKey: handoffWorkflowKey } : {}),
-							...(handoffChildRunId ? { runId: handoffChildRunId } : {}),
-							...(config.lane ? { lane: config.lane } : {}),
-							status: singleResult.stopped ? "stopped" as const : singleResult.interrupted ? "paused" as const : singleResult.exitCode === 0 ? "completed" as const : "failed" as const,
-							summary: singleResult.output || singleResult.error || "(no output)",
-							...(singleResult.artifactPaths?.outputPath ? { outputPath: singleResult.artifactPaths.outputPath } : {}),
-							...(singleResult.structuredOutput !== undefined ? { structuredOutput: singleResult.structuredOutput } : {}),
-							...(singleResult.structuredOutputPath ? { structuredOutputPath: singleResult.structuredOutputPath } : {}),
-							...(singleResult.sessionFile ? { sessionPath: singleResult.sessionFile } : {}),
-						}],
+						results: [
+							{
+								agent: singleResult.agent,
+								...(handoffWorkflowKey ? { workflowKey: handoffWorkflowKey } : {}),
+								...(handoffChildRunId ? { runId: handoffChildRunId } : {}),
+								...(config.lane ? { lane: config.lane } : {}),
+								status: singleResult.stopped
+									? ("stopped" as const)
+									: singleResult.interrupted
+										? ("paused" as const)
+										: singleResult.exitCode === 0
+											? ("completed" as const)
+											: ("failed" as const),
+								summary: singleResult.output || singleResult.error || "(no output)",
+								...(singleResult.artifactPaths?.outputPath
+									? { outputPath: singleResult.artifactPaths.outputPath }
+									: {}),
+								...(singleResult.structuredOutput !== undefined
+									? { structuredOutput: singleResult.structuredOutput }
+									: {}),
+								...(singleResult.structuredOutputPath
+									? { structuredOutputPath: singleResult.structuredOutputPath }
+									: {}),
+								...(singleResult.sessionFile ? { sessionPath: singleResult.sessionFile } : {}),
+							},
+						],
 					};
 					try {
 						writeParallelHandoffGroup(handoff);
@@ -4757,22 +6463,38 @@ export async function runSubagent(
 							kind: "preserve",
 							capturedDiffs: diffs,
 							handoffManifestPath: manifestPath,
-							...(config.parentWorkflowRunId && singleResult.sessionFile && fs.existsSync(singleResult.sessionFile) && !singleResult.stopped
+							...(config.parentWorkflowRunId &&
+							singleResult.sessionFile &&
+							fs.existsSync(singleResult.sessionFile) &&
+							!singleResult.stopped
 								? { cleanupBlocker: "retained child resume requires managed worktree cwd" }
 								: {}),
 						});
 						statusPayload.parallelHandoff = writeParallelHandoffGroup({ ...handoff, cleanup });
-						previousOutput = [previousOutput, diffSummary, formatParallelHandoffReference(statusPayload.parallelHandoff)].filter(Boolean).join("\n\n");
+						previousOutput = [
+							previousOutput,
+							diffSummary,
+							formatParallelHandoffReference(statusPayload.parallelHandoff),
+						]
+							.filter(Boolean)
+							.join("\n\n");
 					} catch (error) {
-						previousOutput = [previousOutput, diffSummary, formatParallelHandoffError(error)].filter(Boolean).join("\n\n");
+						previousOutput = [previousOutput, diffSummary, formatParallelHandoffError(error)]
+							.filter(Boolean)
+							.join("\n\n");
 					}
 					writeStatusPayload();
 				});
 			}
 
 			flatIndex++;
-			if (isAgentContract(seqStep.agentContract) && seqStep.gateOn === "acceptance" && singleResult.acceptance?.status === "rejected") {
-				statusPayload.error = acceptanceFailureMessage(singleResult.acceptance) ?? "Chain acceptance gate rejected the step.";
+			if (
+				isAgentContract(seqStep.agentContract) &&
+				seqStep.gateOn === "acceptance" &&
+				singleResult.acceptance?.status === "rejected"
+			) {
+				statusPayload.error =
+					acceptanceFailureMessage(singleResult.acceptance) ?? "Chain acceptance gate rejected the step.";
 				writeStatusPayload();
 				break;
 			}
@@ -4782,7 +6504,11 @@ export async function runSubagent(
 		}
 	}
 
-	await Promise.all([...externalActivityEvidence.values()].map((evidence) => evidence.probeInFlight).filter((probe): probe is Promise<void> => probe !== undefined));
+	await Promise.all(
+		[...externalActivityEvidence.values()]
+			.map((evidence) => evidence.probeInFlight)
+			.filter((probe): probe is Promise<void> => probe !== undefined),
+	);
 	if (periodicGitProbeFailure) {
 		stopped = false;
 		timedOut = false;
@@ -4810,7 +6536,9 @@ export async function runSubagent(
 		}
 	}
 
-	let summary = results.map((r) => `${r.agent}:\n${r.output || (r.exitCode !== 0 ? r.error : undefined) || "(no output)"}`).join("\n\n");
+	let summary = results
+		.map((r) => `${r.agent}:\n${r.output || (r.exitCode !== 0 ? r.error : undefined) || "(no output)"}`)
+		.join("\n\n");
 	let truncated = false;
 
 	if (maxOutput) {
@@ -4824,28 +6552,32 @@ export async function runSubagent(
 	}
 
 	const resultMode = config.resultMode ?? statusPayload.mode;
-	const singleRuntimeAcknowledgedExtensions = results.length === 1 ? results[0]?.runtimeAcknowledgedExtensions : undefined;
-	const totalCost = results.reduce<CostSummary>((sum, result) => ({
-		inputTokens: sum.inputTokens + (result.totalCost?.inputTokens ?? 0),
-		outputTokens: sum.outputTokens + (result.totalCost?.outputTokens ?? 0),
-		costUsd: sum.costUsd + (result.totalCost?.costUsd ?? 0),
-	}), { inputTokens: 0, outputTokens: 0, costUsd: 0 });
-	const finalTotalCost = totalCost.inputTokens > 0 || totalCost.outputTokens > 0 || totalCost.costUsd > 0 ? totalCost : undefined;
+	const singleRuntimeAcknowledgedExtensions =
+		results.length === 1 ? results[0]?.runtimeAcknowledgedExtensions : undefined;
+	const totalCost = results.reduce<CostSummary>(
+		(sum, result) => ({
+			inputTokens: sum.inputTokens + (result.totalCost?.inputTokens ?? 0),
+			outputTokens: sum.outputTokens + (result.totalCost?.outputTokens ?? 0),
+			costUsd: sum.costUsd + (result.totalCost?.costUsd ?? 0),
+		}),
+		{ inputTokens: 0, outputTokens: 0, costUsd: 0 },
+	);
+	const finalTotalCost =
+		totalCost.inputTokens > 0 || totalCost.outputTokens > 0 || totalCost.costUsd > 0 ? totalCost : undefined;
 	const finalFlatAgents = statusPayload.steps.map((step) => step.agent);
-	const agentName = finalFlatAgents.length === 1
-		? finalFlatAgents[0]!
-		: resultMode === "parallel"
-			? `parallel:${finalFlatAgents.join("+")}`
-			: `chain:${finalFlatAgents.join("->")}`;
+	const agentName =
+		finalFlatAgents.length === 1
+			? finalFlatAgents[0]!
+			: resultMode === "parallel"
+				? `parallel:${finalFlatAgents.join("+")}`
+				: `chain:${finalFlatAgents.join("->")}`;
 	let sessionFile: string | undefined;
 	let shareUrl: string | undefined;
 	let gistUrl: string | undefined;
 	let shareError: string | undefined;
 
 	if (shareEnabled) {
-		sessionFile = config.sessionDir
-			? (findLatestSessionFile(config.sessionDir) ?? undefined)
-			: undefined;
+		sessionFile = config.sessionDir ? (findLatestSessionFile(config.sessionDir) ?? undefined) : undefined;
 		if (!sessionFile && latestSessionFile) {
 			sessionFile = latestSessionFile;
 		}
@@ -4879,7 +6611,14 @@ export async function runSubagent(
 		clearTimeout(checkpointTimer);
 		checkpointTimer = undefined;
 	}
-	if (!timedOut && !stopped && !interrupted && config.timeoutMs !== undefined && timeoutMessage !== undefined && results.some((result) => result.timedOut === true && result.error?.startsWith(timeoutMessage))) {
+	if (
+		!timedOut &&
+		!stopped &&
+		!interrupted &&
+		config.timeoutMs !== undefined &&
+		timeoutMessage !== undefined &&
+		results.some((result) => result.timedOut === true && result.error?.startsWith(timeoutMessage))
+	) {
 		timedOut = true;
 	}
 	disposeControlInbox();
@@ -4887,22 +6626,58 @@ export async function runSubagent(
 		closeStopInbox(asyncDir);
 	} catch (error) {
 		// Result publication must not depend on the marker; without it a late stop is accepted as before.
-		appendJsonl(eventsPath, JSON.stringify({ type: "subagent.run.stop_inbox_close_failed", ts: Date.now(), runId: id, message: error instanceof Error ? error.message : String(error) }));
+		appendJsonl(
+			eventsPath,
+			JSON.stringify({
+				type: "subagent.run.stop_inbox_close_failed",
+				ts: Date.now(),
+				runId: id,
+				message: error instanceof Error ? error.message : String(error),
+			}),
+		);
 	}
 	for (const request of consumeStopRequestPayloads(asyncDir)) stopChildStep(request);
-	const signalTerminated = !stopped && !timedOut && !interrupted && results.some((result) => result.exitCode !== 0 && isUnexplainedProcessSignal(omitUndefinedProperties({
-		processSignal: result.processSignal,
-		interrupted: result.interrupted,
-		timedOut: result.timedOut,
-		stopped: result.stopped,
-	})));
-	const partialWithEvidence = !stopped && !signalTerminated && !timedOut && !usageBudgetExceeded && !interrupted && results.some(partialEvidenceResult) && !results.some(concreteFailureResult);
+	const signalTerminated =
+		!stopped &&
+		!timedOut &&
+		!interrupted &&
+		results.some(
+			(result) =>
+				result.exitCode !== 0 &&
+				isUnexplainedProcessSignal(
+					omitUndefinedProperties({
+						processSignal: result.processSignal,
+						interrupted: result.interrupted,
+						timedOut: result.timedOut,
+						stopped: result.stopped,
+					}),
+				),
+		);
+	const partialWithEvidence =
+		!stopped &&
+		!signalTerminated &&
+		!timedOut &&
+		!usageBudgetExceeded &&
+		!interrupted &&
+		results.some(partialEvidenceResult) &&
+		!results.some(concreteFailureResult);
 	// Flush while still nonterminal; deferred status retries retain that state snapshot.
 	statusWriteCoalescer.flush(statusPath);
 	const publication = new Promise<void>((resolve, reject) => {
 		finalResultPublication = { resolve, reject };
 	});
-	statusPayload.state = stopped || signalTerminated ? "stopped" : timedOut || usageBudgetExceeded ? "failed" : interrupted ? "paused" : results.every((r) => r.success) ? "complete" : partialWithEvidence ? "partial" : "failed";
+	statusPayload.state =
+		stopped || signalTerminated
+			? "stopped"
+			: timedOut || usageBudgetExceeded
+				? "failed"
+				: interrupted
+					? "paused"
+					: results.every((r) => r.success)
+						? "complete"
+						: partialWithEvidence
+							? "partial"
+							: "failed";
 	closeSteerInbox(asyncDir, statusPayload.state, (filePath, payload) => runPersistence.write(filePath, payload));
 	for (const request of consumeSteerRequests(asyncDir)) deliverSteerRequest(request);
 	const effectiveSessionFile = sessionFile ?? latestSessionFile;
@@ -4912,12 +6687,19 @@ export async function runSubagent(
 		for (const target of request.targets) {
 			if (target.state !== "scheduled" && target.state !== "routed" && target.state !== "queued") continue;
 			changed = true;
-			const reason = target.state === "queued" ? unconsumedSteerReason() : "child terminated before steering delivery";
+			const reason =
+				target.state === "queued" ? unconsumedSteerReason() : "child terminated before steering delivery";
 			updateSteeringLifecycleTarget(request.id, target.index, "failed", Date.now(), { reason });
 			markSteeringAttention(target.index);
-			emitSteeringEvent("subagent.steer.failed", { type: "steer", id: request.id, ts: request.requestedAt, message: reason }, target.index, { reason });
+			emitSteeringEvent(
+				"subagent.steer.failed",
+				{ type: "steer", id: request.id, ts: request.requestedAt, message: reason },
+				target.index,
+				{ reason },
+			);
 		}
-		if (changed) emitTerminalSteeringNotice(request.id, `Steering failed for run ${id}: child terminated before delivery.`);
+		if (changed)
+			emitTerminalSteeringNotice(request.id, `Steering failed for run ${id}: child terminated before delivery.`);
 	}
 	const runEndedAt = Date.now();
 	delete statusPayload.activityState;
@@ -4945,7 +6727,8 @@ export async function runSubagent(
 	statusPayload.endedAt = runEndedAt;
 	statusPayload.lastUpdate = runEndedAt;
 	setOptionalProperty(statusPayload, "sessionFile", effectiveSessionFile);
-	if (singleRuntimeAcknowledgedExtensions) statusPayload.runtimeAcknowledgedExtensions = singleRuntimeAcknowledgedExtensions;
+	if (singleRuntimeAcknowledgedExtensions)
+		statusPayload.runtimeAcknowledgedExtensions = singleRuntimeAcknowledgedExtensions;
 	setOptionalProperty(statusPayload, "totalCost", finalTotalCost);
 	setOptionalProperty(statusPayload, "usageBudget", usageBudgetState(config.usageBudget, currentUsageTotals()));
 	setOptionalProperty(statusPayload, "shareUrl", shareUrl);
@@ -4960,107 +6743,136 @@ export async function runSubagent(
 		}
 	}
 	let childSessionDisposal: Promise<void> | undefined;
-	const disposeChildSessions = (): Promise<void> => childSessionDisposal ??= childSessions.dispose()
-		.catch((error: unknown) => console.error("Failed to dispose runner child sessions:", error));
+	const disposeChildSessions = (): Promise<void> =>
+		(childSessionDisposal ??= childSessions
+			.dispose()
+			.catch((error: unknown) => console.error("Failed to dispose runner child sessions:", error)));
 	try {
-		runPersistence.write(resultPath, {
-			lifecycleArtifactVersion: SUBAGENT_LIFECYCLE_ARTIFACT_VERSION,
-			id,
-			...(config.toolCallId ? { toolCallId: config.toolCallId } : {}),
-			agent: agentName,
-			mode: resultMode,
-			success: statusPayload.state === "complete",
-			state: statusPayload.state,
-			summary: stopped ? stopMessage : signalTerminated ? (statusPayload.error ?? "Subagent process terminated by signal.") : timedOut ? timedOutRunSummary(timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE, summary, results) : usageBudgetExceeded ? (statusPayload.error ?? "Usage budget exhausted.") : interrupted ? "Paused after interrupt. Waiting for explicit next action." : statusPayload.state === "partial" ? (statusPayload.error ?? summary) : summary,
-			...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
-			...(config.deadlineAt !== undefined ? { deadlineAt: config.deadlineAt } : {}),
-			...(statusPayload.toolBudget ? { toolBudget: statusPayload.toolBudget } : {}),
-			...(statusPayload.toolBudgetBlocked ? { toolBudgetBlocked: true } : {}),
-			...(statusPayload.usageBudget ? { usageBudget: statusPayload.usageBudget } : {}),
-			...(stopped ? { stopped: true, error: stopMessage } : timedOut ? { timedOut: true, error: timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE } : usageBudgetExceeded ? { error: statusPayload.error ?? "Usage budget exhausted." } : {}),
-			results: results.map((r) => omitUndefinedProperties({
-				agent: r.agent,
-				...(r.sessionName ? { sessionName: r.sessionName } : {}),
-				context: r.context,
-				output: r.output,
-				outputState: r.outputState,
-				outputPartial: r.outputPartial,
-				error: r.error,
-				success: r.success,
-				skipped: r.skipped || undefined,
-				interrupted: r.interrupted || undefined,
-				timedOut: r.timedOut || undefined,
-				stopped: r.stopped || undefined,
-				processSignal: r.processSignal || undefined,
-				toolBudget: r.toolBudget,
-				toolBudgetBlocked: r.toolBudgetBlocked || undefined,
-				sessionFile: r.sessionFile,
-				intercomTarget: r.intercomTarget,
-				model: r.model,
-				thinking: r.thinking,
-				requestedModel: r.requestedModel,
-				contextOverflow: r.contextOverflow,
-				totalCost: r.totalCost,
-				usage: r.usage,
-				artifactPaths: r.artifactPaths,
-				savedOutputPath: r.savedOutputPath,
-				outputSaveError: r.outputSaveError,
-				artifactOutputSaveFailed: r.artifactOutputSaveFailed,
-				metadataSaveError: r.metadataSaveError,
-				truncated: r.truncated,
-				transcriptPath: r.transcriptPath,
-				transcriptError: r.transcriptError,
-				agentContract: r.agentContract,
-				launchContractDigest: r.launchContractDigest,
-				launchResolvedExtensions: r.launchResolvedExtensions,
-				runtimeAcknowledgedExtensions: r.runtimeAcknowledgedExtensions,
-				runner: r.runner,
-				externalProcess: r.externalProcess,
-				externalJob: r.externalJob,
-				execution: r.execution,
-				review: r.review,
-				effects: r.effects,
-				structuredOutput: r.structuredOutput,
-				structuredOutputFailed: r.structuredOutputFailed,
-				structuredOutputPath: r.structuredOutputPath,
-				structuredOutputSchemaPath: r.structuredOutputSchemaPath,
-				acceptance: r.acceptance,
-				watchdog: r.watchdog,
-				timeoutRecovery: r.timeoutRecovery,
-				capabilityCeiling: r.capabilityCeiling,
-				capabilityAudit: r.capabilityAudit,
-			})),
-			outputs,
-			workflowGraph: statusPayload.workflowGraph,
-			parallelHandoff: statusPayload.parallelHandoff,
-			capabilityCeiling: statusPayload.capabilityCeiling,
-			capabilityAudit: statusPayload.capabilityAudit,
-			...(config.parentWorkflowRunId ? { parentWorkflowRunId: config.parentWorkflowRunId } : {}),
-			...(config.workflowKey ? { workflowKey: config.workflowKey } : {}),
-			exitCode: statusPayload.state === "complete" || statusPayload.state === "paused" ? 0 : 1,
-			timestamp: runEndedAt,
-			durationMs: runEndedAt - overallStartTime,
-			totalTokens: statusPayload.totalTokens,
-			totalCost: finalTotalCost,
-			usageBudget: statusPayload.usageBudget,
-			truncated,
-			artifactsDir,
-			cwd,
-			asyncDir,
-			launchContractDigest: config.launchContractDigest,
-			launchResolvedExtensions: config.launchResolvedExtensions,
-			runtimeAcknowledgedExtensions: singleRuntimeAcknowledgedExtensions,
-			sessionId: config.sessionId,
-			completionOwnerId: config.completionOwnerId,
-			completionOwnerProcess: config.completionOwnerProcess,
-			sessionFile: effectiveSessionFile,
-			intercomTarget: config.controlIntercomTarget,
-			shareUrl,
-			gistUrl,
-			shareError,
-			...(taskIndex !== undefined && { taskIndex }),
-			...(totalTasks !== undefined && { totalTasks }),
-		}, (filePath, payload) => publishRunResult(filePath, () => { writeAsyncResultFile(filePath, payload as Record<string, unknown>); }));
+		runPersistence.write(
+			resultPath,
+			{
+				lifecycleArtifactVersion: SUBAGENT_LIFECYCLE_ARTIFACT_VERSION,
+				id,
+				...(config.toolCallId ? { toolCallId: config.toolCallId } : {}),
+				agent: agentName,
+				mode: resultMode,
+				success: statusPayload.state === "complete",
+				state: statusPayload.state,
+				summary: stopped
+					? stopMessage
+					: signalTerminated
+						? (statusPayload.error ?? "Subagent process terminated by signal.")
+						: timedOut
+							? timedOutRunSummary(timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE, summary, results)
+							: usageBudgetExceeded
+								? (statusPayload.error ?? "Usage budget exhausted.")
+								: interrupted
+									? "Paused after interrupt. Waiting for explicit next action."
+									: statusPayload.state === "partial"
+										? (statusPayload.error ?? summary)
+										: summary,
+				...(config.timeoutMs !== undefined ? { timeoutMs: config.timeoutMs } : {}),
+				...(config.deadlineAt !== undefined ? { deadlineAt: config.deadlineAt } : {}),
+				...(statusPayload.toolBudget ? { toolBudget: statusPayload.toolBudget } : {}),
+				...(statusPayload.toolBudgetBlocked ? { toolBudgetBlocked: true } : {}),
+				...(statusPayload.usageBudget ? { usageBudget: statusPayload.usageBudget } : {}),
+				...(stopped
+					? { stopped: true, error: stopMessage }
+					: timedOut
+						? { timedOut: true, error: timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE }
+						: usageBudgetExceeded
+							? { error: statusPayload.error ?? "Usage budget exhausted." }
+							: {}),
+				results: results.map((r) =>
+					omitUndefinedProperties({
+						agent: r.agent,
+						...(r.sessionName ? { sessionName: r.sessionName } : {}),
+						context: r.context,
+						output: r.output,
+						outputState: r.outputState,
+						outputPartial: r.outputPartial,
+						error: r.error,
+						success: r.success,
+						skipped: r.skipped || undefined,
+						interrupted: r.interrupted || undefined,
+						timedOut: r.timedOut || undefined,
+						stopped: r.stopped || undefined,
+						processSignal: r.processSignal || undefined,
+						toolBudget: r.toolBudget,
+						toolBudgetBlocked: r.toolBudgetBlocked || undefined,
+						sessionFile: r.sessionFile,
+						intercomTarget: r.intercomTarget,
+						model: r.model,
+						thinking: r.thinking,
+						requestedModel: r.requestedModel,
+						contextOverflow: r.contextOverflow,
+						totalCost: r.totalCost,
+						usage: r.usage,
+						artifactPaths: r.artifactPaths,
+						savedOutputPath: r.savedOutputPath,
+						outputSaveError: r.outputSaveError,
+						artifactOutputSaveFailed: r.artifactOutputSaveFailed,
+						metadataSaveError: r.metadataSaveError,
+						truncated: r.truncated,
+						transcriptPath: r.transcriptPath,
+						transcriptError: r.transcriptError,
+						agentContract: r.agentContract,
+						launchContractDigest: r.launchContractDigest,
+						launchResolvedExtensions: r.launchResolvedExtensions,
+						runtimeAcknowledgedExtensions: r.runtimeAcknowledgedExtensions,
+						runner: r.runner,
+						externalProcess: r.externalProcess,
+						externalJob: r.externalJob,
+						execution: r.execution,
+						review: r.review,
+						effects: r.effects,
+						structuredOutput: r.structuredOutput,
+						structuredOutputFailed: r.structuredOutputFailed,
+						structuredOutputPath: r.structuredOutputPath,
+						structuredOutputSchemaPath: r.structuredOutputSchemaPath,
+						acceptance: r.acceptance,
+						watchdog: r.watchdog,
+						timeoutRecovery: r.timeoutRecovery,
+						capabilityCeiling: r.capabilityCeiling,
+						capabilityAudit: r.capabilityAudit,
+					}),
+				),
+				outputs,
+				workflowGraph: statusPayload.workflowGraph,
+				parallelHandoff: statusPayload.parallelHandoff,
+				capabilityCeiling: statusPayload.capabilityCeiling,
+				capabilityAudit: statusPayload.capabilityAudit,
+				...(config.parentWorkflowRunId ? { parentWorkflowRunId: config.parentWorkflowRunId } : {}),
+				...(config.workflowKey ? { workflowKey: config.workflowKey } : {}),
+				exitCode: statusPayload.state === "complete" || statusPayload.state === "paused" ? 0 : 1,
+				timestamp: runEndedAt,
+				durationMs: runEndedAt - overallStartTime,
+				totalTokens: statusPayload.totalTokens,
+				totalCost: finalTotalCost,
+				usageBudget: statusPayload.usageBudget,
+				truncated,
+				artifactsDir,
+				cwd,
+				asyncDir,
+				launchContractDigest: config.launchContractDigest,
+				launchResolvedExtensions: config.launchResolvedExtensions,
+				runtimeAcknowledgedExtensions: singleRuntimeAcknowledgedExtensions,
+				sessionId: config.sessionId,
+				completionOwnerId: config.completionOwnerId,
+				completionOwnerProcess: config.completionOwnerProcess,
+				sessionFile: effectiveSessionFile,
+				intercomTarget: config.controlIntercomTarget,
+				shareUrl,
+				gistUrl,
+				shareError,
+				...(taskIndex !== undefined && { taskIndex }),
+				...(totalTasks !== undefined && { totalTasks }),
+			},
+			(filePath, payload) =>
+				publishRunResult(filePath, () => {
+					writeAsyncResultFile(filePath, payload as Record<string, unknown>);
+				}),
+		);
 		// Only capacity deferral releases settled sessions before terminal publication.
 		if (!finalResultCommitted) await Promise.all([publication, disposeChildSessions()]);
 	} catch (err) {
@@ -5073,7 +6885,10 @@ export async function runSubagent(
 		finalResultPublication = undefined;
 	}
 	writeStatusPayload();
-	await orcaProgressTab?.finish(statusPayload.state === "complete" ? "completed" : statusPayload.state === "stopped" ? "stopped" : "failed", effectiveSessionFile);
+	await orcaProgressTab?.finish(
+		statusPayload.state === "complete" ? "completed" : statusPayload.state === "stopped" ? "stopped" : "failed",
+		effectiveSessionFile,
+	);
 	appendJsonl(
 		eventsPath,
 		JSON.stringify({
@@ -5088,26 +6903,33 @@ export async function runSubagent(
 			usageBudget: statusPayload.usageBudget,
 		}),
 	);
-	writeRunLog(logPath, omitUndefinedProperties({
-		id,
-		mode: statusPayload.mode,
-		cwd,
-		startedAt: overallStartTime,
-		endedAt: runEndedAt,
-		steps: statusPayload.steps.map((step) => omitUndefinedProperties({
-			agent: step.agent,
-			status: step.status,
-			durationMs: step.durationMs,
-		})),
-		summary,
-		truncated,
-		artifactsDir,
-		sessionFile: effectiveSessionFile,
-		shareUrl,
-		shareError,
-	}), (filePath, content) => runPersistence.write(filePath, { content }, (_path, payload) => {
-		fs.writeFileSync(_path, (payload as { content: string }).content, "utf-8");
-	}));
+	writeRunLog(
+		logPath,
+		omitUndefinedProperties({
+			id,
+			mode: statusPayload.mode,
+			cwd,
+			startedAt: overallStartTime,
+			endedAt: runEndedAt,
+			steps: statusPayload.steps.map((step) =>
+				omitUndefinedProperties({
+					agent: step.agent,
+					status: step.status,
+					durationMs: step.durationMs,
+				}),
+			),
+			summary,
+			truncated,
+			artifactsDir,
+			sessionFile: effectiveSessionFile,
+			shareUrl,
+			shareError,
+		}),
+		(filePath, content) =>
+			runPersistence.write(filePath, { content }, (_path, payload) => {
+				fs.writeFileSync(_path, (payload as { content: string }).content, "utf-8");
+			}),
+	);
 	// Preserve normal-success disposal ordering, then drain remaining persistence retries.
 	await disposeChildSessions();
 	while (runPersistence.pendingCount() + indexPersistence.pendingCount() > 0) {
@@ -5141,7 +6963,10 @@ export async function runSubagent(
 }
 
 /** Heavy execution entry loaded by the bootstrap only after startup commits. */
-export async function runConfiguredSubagentExecution(config: SubagentRunConfig, options?: DefaultChildSessionFactoryOptions): Promise<void> {
+export async function runConfiguredSubagentExecution(
+	config: SubagentRunConfig,
+	options?: DefaultChildSessionFactoryOptions,
+): Promise<void> {
 	let childSessions: ChildSessionFactory;
 	try {
 		// Detached Node runners do not receive Pi's CLI dispatcher setup. Binary

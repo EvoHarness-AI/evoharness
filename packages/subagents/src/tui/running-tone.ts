@@ -1,6 +1,6 @@
 import type { ExtensionContext } from "@evoharness/coding-agent";
-import type { ThinkingLevel } from "../shared/model-info.ts";
 import { isStaleExtensionContextError, isUnboundExtensionRuntimeError } from "../shared/extension-context.ts";
+import type { ThinkingLevel } from "../shared/model-info.ts";
 
 type Theme = Pick<ExtensionContext["ui"]["theme"], "fg" | "getThinkingBorderColor">;
 

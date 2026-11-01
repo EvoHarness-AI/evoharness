@@ -3,10 +3,14 @@ import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { writePrivateAtomicJson } from "../shared/atomic-json.ts";
-import { DEFAULT_FILE_SYSTEM_RETRY_DELAYS_MS, isRetryableFileSystemError, waitForFileSystemRetry } from "../shared/file-system-retry.ts";
+import {
+	DEFAULT_FILE_SYSTEM_RETRY_DELAYS_MS,
+	isRetryableFileSystemError,
+	waitForFileSystemRetry,
+} from "../shared/file-system-retry.ts";
 import { assertWorkflowJsonValue } from "../workflows/scripted-workflow.ts";
-import type { MissionStoreLocation } from "./types.ts";
 import { validateMissionId } from "./store.ts";
+import type { MissionStoreLocation } from "./types.ts";
 
 const STATE_KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const STATE_LOCK_STALE_MS = 60_000;
@@ -47,7 +51,10 @@ interface StateLockOwner {
 function linuxProcessStartKey(pid: number): string | undefined {
 	try {
 		const raw = fs.readFileSync(`/proc/${pid}/stat`, "utf-8");
-		const tail = raw.slice(raw.lastIndexOf(")") + 2).trim().split(/\s+/);
+		const tail = raw
+			.slice(raw.lastIndexOf(")") + 2)
+			.trim()
+			.split(/\s+/);
 		return tail[19] ? `linux:${tail[19]}` : undefined;
 	} catch {
 		return undefined;
@@ -56,7 +63,11 @@ function linuxProcessStartKey(pid: number): string | undefined {
 
 function psProcessStartKey(pid: number): string | undefined {
 	try {
-		const raw = execFileSync("ps", ["-p", String(pid), "-o", "lstart="], { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"], timeout: 1000 }).trim();
+		const raw = execFileSync("ps", ["-p", String(pid), "-o", "lstart="], {
+			encoding: "utf-8",
+			stdio: ["ignore", "pipe", "ignore"],
+			timeout: 1000,
+		}).trim();
 		return raw ? `ps:${raw}` : undefined;
 	} catch {
 		return undefined;
@@ -65,7 +76,11 @@ function psProcessStartKey(pid: number): string | undefined {
 
 function windowsProcessStartKey(pid: number): string | undefined {
 	try {
-		const raw = execFileSync("powershell.exe", ["-NoProfile", "-Command", `(Get-CimInstance Win32_Process -Filter \"ProcessId=${pid}\").CreationDate`], { encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"], timeout: 1000, windowsHide: true }).trim();
+		const raw = execFileSync(
+			"powershell.exe",
+			["-NoProfile", "-Command", `(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CreationDate`],
+			{ encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"], timeout: 1000, windowsHide: true },
+		).trim();
 		return raw ? `win:${raw}` : undefined;
 	} catch {
 		return undefined;
@@ -91,8 +106,19 @@ type StateLockOptions = Required<MissionWorkflowStateOptions>;
 
 function readStateLockOwner(lockPath: string): StateLockOwner | undefined {
 	try {
-		const owner = JSON.parse(fs.readFileSync(path.join(lockPath, "owner.json"), "utf-8")) as { pid?: unknown; token?: unknown; createdAt?: unknown; processKey?: unknown };
-		if (Number.isSafeInteger(owner.pid) && (owner.pid as number) > 0 && typeof owner.token === "string" && owner.token && Number.isSafeInteger(owner.createdAt)) {
+		const owner = JSON.parse(fs.readFileSync(path.join(lockPath, "owner.json"), "utf-8")) as {
+			pid?: unknown;
+			token?: unknown;
+			createdAt?: unknown;
+			processKey?: unknown;
+		};
+		if (
+			Number.isSafeInteger(owner.pid) &&
+			(owner.pid as number) > 0 &&
+			typeof owner.token === "string" &&
+			owner.token &&
+			Number.isSafeInteger(owner.createdAt)
+		) {
 			return {
 				pid: owner.pid as number,
 				token: owner.token,
@@ -189,7 +215,9 @@ function withStateFileLock<T>(filePath: string, operation: () => T, options: Sta
 				waitForStateLock(options.retryDelaysMs[attempt], lockPath);
 				continue;
 			}
-			throw new Error(`Failed to acquire mission state lock '${lockPath}': ${error instanceof Error ? error.message : String(error)}`);
+			throw new Error(
+				`Failed to acquire mission state lock '${lockPath}': ${error instanceof Error ? error.message : String(error)}`,
+			);
 		}
 		if (!acquired) {
 			if (reclaimStaleStateLock(lockPath, reclaimPath, options)) continue;
@@ -216,12 +244,18 @@ function withStateFileLock<T>(filePath: string, operation: () => T, options: Sta
 
 function validateStateKey(value: unknown): string {
 	if (typeof value !== "string" || !STATE_KEY_PATTERN.test(value)) {
-		throw new Error("state key must be 1-128 characters using letters, numbers, '.', '_' or '-', and start with a letter or number.");
+		throw new Error(
+			"state key must be 1-128 characters using letters, numbers, '.', '_' or '-', and start with a letter or number.",
+		);
 	}
 	return value;
 }
 
-export function createMissionWorkflowState(location: MissionStoreLocation, missionId: string, options: MissionWorkflowStateOptions = {}): MissionWorkflowState {
+export function createMissionWorkflowState(
+	location: MissionStoreLocation,
+	missionId: string,
+	options: MissionWorkflowStateOptions = {},
+): MissionWorkflowState {
 	const filePath = missionStatePath(location, missionId);
 	const lockOptions: StateLockOptions = {
 		isProcessAlive: options.isProcessAlive ?? isProcessAlive,
@@ -237,17 +271,23 @@ export function createMissionWorkflowState(location: MissionStoreLocation, missi
 			raw = fs.readFileSync(filePath, "utf-8");
 		} catch (error) {
 			if ((error as NodeJS.ErrnoException).code === "ENOENT") return Object.create(null) as Record<string, unknown>;
-			throw new Error(`Failed to read mission state '${filePath}': ${error instanceof Error ? error.message : String(error)}`);
+			throw new Error(
+				`Failed to read mission state '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
+			);
 		}
 		const bytes = Buffer.byteLength(raw);
-		if (bytes > MISSION_STATE_MAX_BYTES) throw new Error(`Mission state file '${filePath}' exceeds the 256 KiB limit (${bytes} bytes).`);
+		if (bytes > MISSION_STATE_MAX_BYTES)
+			throw new Error(`Mission state file '${filePath}' exceeds the 256 KiB limit (${bytes} bytes).`);
 		try {
 			const parsed: unknown = JSON.parse(raw);
-			if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error("root must be a JSON object");
+			if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+				throw new Error("root must be a JSON object");
 			assertWorkflowJsonValue(parsed, "mission state");
 			return Object.assign(Object.create(null) as Record<string, unknown>, parsed);
 		} catch (error) {
-			throw new Error(`Invalid mission state file '${filePath}': ${error instanceof Error ? error.message : String(error)}`);
+			throw new Error(
+				`Invalid mission state file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
+			);
 		}
 	};
 
@@ -268,14 +308,23 @@ export function createMissionWorkflowState(location: MissionStoreLocation, missi
 		set(key, value) {
 			const validKey = validateStateKey(key);
 			assertWorkflowJsonValue(value, `state.set('${validKey}') value`);
-			withStateFileLock(filePath, () => {
-				const next = Object.assign(Object.create(null) as Record<string, unknown>, readStateFile(), { [validKey]: value });
-				const bytes = Buffer.byteLength(JSON.stringify(next, null, 2));
-				if (bytes > MISSION_STATE_MAX_BYTES) throw new Error(`Mission state exceeds the 256 KiB limit (${bytes} bytes; maximum ${MISSION_STATE_MAX_BYTES} bytes).`);
-				writePrivateAtomicJson(filePath, next);
-				values = next;
-				loaded = true;
-			}, lockOptions);
+			withStateFileLock(
+				filePath,
+				() => {
+					const next = Object.assign(Object.create(null) as Record<string, unknown>, readStateFile(), {
+						[validKey]: value,
+					});
+					const bytes = Buffer.byteLength(JSON.stringify(next, null, 2));
+					if (bytes > MISSION_STATE_MAX_BYTES)
+						throw new Error(
+							`Mission state exceeds the 256 KiB limit (${bytes} bytes; maximum ${MISSION_STATE_MAX_BYTES} bytes).`,
+						);
+					writePrivateAtomicJson(filePath, next);
+					values = next;
+					loaded = true;
+				},
+				lockOptions,
+			);
 		},
 	};
 }

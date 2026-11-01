@@ -42,14 +42,24 @@ describe("file system retry budget", () => {
 		assert.equal(total(delays), 0);
 		let attempts = 0;
 		const slept: number[] = [];
-		assert.throws(() => runFileSystemOperationWithRetry(() => {
-			attempts += 1;
-			throw Object.assign(new Error("EPERM"), { code: "EPERM" });
-		}, { retryDelaysMs: delays, wait: (delayMs) => slept.push(delayMs) }), /EPERM/);
+		assert.throws(
+			() =>
+				runFileSystemOperationWithRetry(
+					() => {
+						attempts += 1;
+						throw Object.assign(new Error("EPERM"), { code: "EPERM" });
+					},
+					{ retryDelaysMs: delays, wait: (delayMs) => slept.push(delayMs) },
+				),
+			/EPERM/,
+		);
 		assert.equal(attempts, BASE.length + 1, "all attempts still run");
 		// waitForFileSystemRetry returns immediately for <= 0, so the thread is
 		// never parked even though wait() is still called between attempts.
-		assert.ok(slept.every((value) => value === 0), "no non-zero sleep is requested");
+		assert.ok(
+			slept.every((value) => value === 0),
+			"no non-zero sleep is requested",
+		);
 	});
 
 	it("rejects values that are not a non-negative integer", () => {

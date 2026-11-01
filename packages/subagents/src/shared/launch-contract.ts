@@ -116,7 +116,10 @@ export function projectLaunchBinding(input: LaunchBindingInput): Record<string, 
 		model: input.model,
 		fast: input.fast,
 		thinking: input.thinking,
-		systemPromptDigest: input.systemPrompt === undefined || input.systemPrompt === null ? undefined : stableJsonDigest(input.systemPrompt),
+		systemPromptDigest:
+			input.systemPrompt === undefined || input.systemPrompt === null
+				? undefined
+				: stableJsonDigest(input.systemPrompt),
 		systemPromptMode: input.systemPromptMode,
 		inheritProjectContext: input.inheritProjectContext,
 		inheritGlobalContext: input.inheritGlobalContext,
@@ -138,24 +141,30 @@ export function launchBindingDigest(input: LaunchBindingInput): string {
 	return stableJsonDigest(projectLaunchBinding(input));
 }
 
-type LaunchBindingPromptMode = Pick<LaunchBindingInput, "systemPromptMode" | "inheritProjectContext" | "inheritGlobalContext" | "inheritSkills">;
+type LaunchBindingPromptMode = Pick<
+	LaunchBindingInput,
+	"systemPromptMode" | "inheritProjectContext" | "inheritGlobalContext" | "inheritSkills"
+>;
 
 /**
  * Who the child is: the launched agent, or the identity a persisted step
  * already captured when a runner recomputes the binding per model attempt.
  */
-export type LaunchBindingIdentity =
-	| { agent: AgentConfig }
-	| ({ definitionDigest: string } & LaunchBindingPromptMode);
+export type LaunchBindingIdentity = { agent: AgentConfig } | ({ definitionDigest: string } & LaunchBindingPromptMode);
 
-export type LaunchBindingSource = LaunchBindingIdentity
-	& Pick<LaunchBindingInput, "fast" | "thinking" | "skills" | "outputPath" | "outputMode" | "structuredOutputSchema" | "extensionBindings">
-	& {
+export type LaunchBindingSource = LaunchBindingIdentity &
+	Pick<
+		LaunchBindingInput,
+		"fast" | "thinking" | "skills" | "outputPath" | "outputMode" | "structuredOutputSchema" | "extensionBindings"
+	> & {
 		task: string;
 		model?: string;
 		/** Effective child system prompt before runtime acceptance prose. */
 		systemPrompt: string;
-		toolPlan: Pick<PiLaunchToolPlan, "effectiveToolAllowlist" | "excludeTools" | "extensionArgs" | "effectiveMcpTools">;
+		toolPlan: Pick<
+			PiLaunchToolPlan,
+			"effectiveToolAllowlist" | "excludeTools" | "extensionArgs" | "effectiveMcpTools"
+		>;
 	};
 
 export interface LaunchBinding {
@@ -168,13 +177,16 @@ export interface LaunchBinding {
  * The stable projection omits undefined optional fields.
  */
 export function resolveLaunchBinding(source: LaunchBindingSource): LaunchBinding {
-	const identity = "agent" in source ? {
-		definitionDigest: agentDefinitionDigest(source.agent),
-		systemPromptMode: source.agent.systemPromptMode,
-		inheritProjectContext: source.agent.inheritProjectContext,
-		inheritGlobalContext: source.agent.inheritGlobalContext,
-		inheritSkills: source.agent.inheritSkills,
-	} : source;
+	const identity =
+		"agent" in source
+			? {
+					definitionDigest: agentDefinitionDigest(source.agent),
+					systemPromptMode: source.agent.systemPromptMode,
+					inheritProjectContext: source.agent.inheritProjectContext,
+					inheritGlobalContext: source.agent.inheritGlobalContext,
+					inheritSkills: source.agent.inheritSkills,
+				}
+			: source;
 	return {
 		definitionDigest: identity.definitionDigest,
 		launchContractDigest: launchBindingDigest({

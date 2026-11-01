@@ -4,16 +4,16 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 import {
-	PROJECT_PANES_API_VERSION,
-	PROJECT_PANE_TRUST_STATUS,
-	createProjectPaneManager,
-	openProjectPane,
-	getProjectPaneStatus,
-	focusProjectPane,
 	closeProjectPane,
+	createProjectPaneManager,
+	focusProjectPane,
+	getProjectPaneStatus,
+	openProjectPane,
+	PROJECT_PANE_TRUST_STATUS,
+	PROJECT_PANES_API_VERSION,
+	type ProjectPaneCommandClient,
 	projectPaneBindingPath,
 	readProjectPaneBinding,
-	type ProjectPaneCommandClient,
 } from "pi-subagents/project-panes";
 
 describe("public project-panes package export", () => {
@@ -40,13 +40,30 @@ describe("public project-panes package export", () => {
 				run: async <T>(args: string[]) => {
 					calls.push(args);
 					if (args[0] === "--version") return { ok: true, data: "herdr 0.8.0" as T };
-					if (args[0] === "pane" && args[1] === "split") return { ok: true, data: { pane: { pane_id: "w1:p20" } } as T };
-					if (args[0] === "pane" && args[1] === "run") { opened = true; return { ok: true, data: {} as T }; }
-					if (args[0] === "pane" && args[1] === "get" && opened) return { ok: true, data: { pane: {
-						pane_id: "w1:p20", agent: "pi", agent_status: "IDLE", cwd: projectRoot,
-						foreground_cwd: projectRoot, focused: false, terminal_title_stripped: "Pi · project",
-						tab_id: "tab-20", workspace_id: "workspace-1", state_text: "one active subagent",
-					} } as T };
+					if (args[0] === "pane" && args[1] === "split")
+						return { ok: true, data: { pane: { pane_id: "w1:p20" } } as T };
+					if (args[0] === "pane" && args[1] === "run") {
+						opened = true;
+						return { ok: true, data: {} as T };
+					}
+					if (args[0] === "pane" && args[1] === "get" && opened)
+						return {
+							ok: true,
+							data: {
+								pane: {
+									pane_id: "w1:p20",
+									agent: "pi",
+									agent_status: "IDLE",
+									cwd: projectRoot,
+									foreground_cwd: projectRoot,
+									focused: false,
+									terminal_title_stripped: "Pi · project",
+									tab_id: "tab-20",
+									workspace_id: "workspace-1",
+									state_text: "one active subagent",
+								},
+							} as T,
+						};
 					return { ok: true, data: {} as T };
 				},
 			};
@@ -69,7 +86,8 @@ describe("public project-panes package export", () => {
 			}
 			const focus = await manager.focus({ cwd: root });
 			assert.equal(focus.ok, true);
-			if (focus.ok) assert.deepEqual(focus.data.focused, { paneId: "w1:p20", tabId: "tab-20", workspaceId: "workspace-1" });
+			if (focus.ok)
+				assert.deepEqual(focus.data.focused, { paneId: "w1:p20", tabId: "tab-20", workspaceId: "workspace-1" });
 			assert.equal(readProjectPaneBinding(root).data?.lastFocusedAt, "2026-01-01T00:00:00.000Z");
 			const close = await manager.close({ cwd: root, requireIdle: true });
 			assert.equal(close.ok, true);
@@ -89,10 +107,17 @@ describe("public project-panes package export", () => {
 		try {
 			const projectRoot = fs.realpathSync(root);
 			fs.mkdirSync(path.dirname(projectPaneBindingPath(projectRoot)), { recursive: true });
-			fs.writeFileSync(projectPaneBindingPath(projectRoot), JSON.stringify({
-				schemaVersion: 1, kind: "herdr-project-pane", projectRoot, paneId: "w1:p21",
-				openedAt: "2026-01-01T00:00:00.000Z", command: "pi",
-			}));
+			fs.writeFileSync(
+				projectPaneBindingPath(projectRoot),
+				JSON.stringify({
+					schemaVersion: 1,
+					kind: "herdr-project-pane",
+					projectRoot,
+					paneId: "w1:p21",
+					openedAt: "2026-01-01T00:00:00.000Z",
+					command: "pi",
+				}),
+			);
 			const client: ProjectPaneCommandClient = {
 				run: async () => ({ ok: false, error: { code: "NOT_FOUND", message: "gone" } }),
 			};
@@ -118,7 +143,14 @@ describe("public project-panes package export", () => {
 				assert.equal(binding.error.bindingPath, bindingPath);
 			}
 			let clientCalled = false;
-			const manager = createProjectPaneManager({ client: { run: async () => { clientCalled = true; return { ok: true, data: {} }; } } });
+			const manager = createProjectPaneManager({
+				client: {
+					run: async () => {
+						clientCalled = true;
+						return { ok: true, data: {} };
+					},
+				},
+			});
 			const status = await manager.status({ cwd: root });
 			assert.equal(status.ok, false);
 			if (!status.ok) {
@@ -170,15 +202,30 @@ describe("public project-panes package export", () => {
 			const projectRoot = fs.realpathSync(root);
 			const bindingPath = projectPaneBindingPath(projectRoot);
 			fs.mkdirSync(path.dirname(bindingPath), { recursive: true });
-			fs.writeFileSync(bindingPath, JSON.stringify({
-				schemaVersion: 1, kind: "herdr-project-pane", projectRoot, paneId: "w1:p25",
-				openedAt: "2026-01-01T00:00:00.000Z", command: "pi",
-			}));
+			fs.writeFileSync(
+				bindingPath,
+				JSON.stringify({
+					schemaVersion: 1,
+					kind: "herdr-project-pane",
+					projectRoot,
+					paneId: "w1:p25",
+					openedAt: "2026-01-01T00:00:00.000Z",
+					command: "pi",
+				}),
+			);
 			const client: ProjectPaneCommandClient = {
 				run: async <T>(args: string[]) => {
-					if (args.join(" ") === "pane get w1:p25") return { ok: true, data: { pane: {
-						pane_id: "w1:p25", agent_status: "idle", cwd: projectRoot,
-					} } as T };
+					if (args.join(" ") === "pane get w1:p25")
+						return {
+							ok: true,
+							data: {
+								pane: {
+									pane_id: "w1:p25",
+									agent_status: "idle",
+									cwd: projectRoot,
+								},
+							} as T,
+						};
 					if (args.join(" ") === "pane close w1:p25") {
 						fs.rmSync(bindingPath);
 						fs.mkdirSync(bindingPath);
@@ -205,10 +252,24 @@ describe("public project-panes package export", () => {
 			const bindingPath = projectPaneBindingPath(projectRoot);
 			const paneId = "w1:p26";
 			fs.mkdirSync(path.dirname(bindingPath), { recursive: true });
-			fs.writeFileSync(bindingPath, JSON.stringify({ schemaVersion: 1, kind: "herdr-project-pane", projectRoot, paneId, openedAt: "2026-01-01T00:00:00.000Z", command: "pi" }));
+			fs.writeFileSync(
+				bindingPath,
+				JSON.stringify({
+					schemaVersion: 1,
+					kind: "herdr-project-pane",
+					projectRoot,
+					paneId,
+					openedAt: "2026-01-01T00:00:00.000Z",
+					command: "pi",
+				}),
+			);
 			const client: ProjectPaneCommandClient = {
 				run: async <T>(args: string[]) => {
-					if (args.join(" ") === `pane get ${paneId}`) return { ok: true, data: { pane: { pane_id: paneId, agent_status: "idle", cwd: projectRoot, tab_id: "tab-26" } } as T };
+					if (args.join(" ") === `pane get ${paneId}`)
+						return {
+							ok: true,
+							data: { pane: { pane_id: paneId, agent_status: "idle", cwd: projectRoot, tab_id: "tab-26" } } as T,
+						};
 					if (args.join(" ") === "tab focus tab-26") {
 						fs.rmSync(bindingPath);
 						fs.mkdirSync(bindingPath);
@@ -234,15 +295,23 @@ describe("public project-panes package export", () => {
 		try {
 			const projectRoot = fs.realpathSync(root);
 			fs.mkdirSync(path.dirname(projectPaneBindingPath(projectRoot)), { recursive: true });
-			fs.writeFileSync(projectPaneBindingPath(projectRoot), JSON.stringify({
-				schemaVersion: 1, kind: "herdr-project-pane", projectRoot, paneId: "w1:p22",
-				openedAt: "2026-01-01T00:00:00.000Z", command: "pi",
-			}));
+			fs.writeFileSync(
+				projectPaneBindingPath(projectRoot),
+				JSON.stringify({
+					schemaVersion: 1,
+					kind: "herdr-project-pane",
+					projectRoot,
+					paneId: "w1:p22",
+					openedAt: "2026-01-01T00:00:00.000Z",
+					command: "pi",
+				}),
+			);
 			let closeCalled = false;
 			const client: ProjectPaneCommandClient = {
 				run: async <T>(args: string[]) => {
 					if (args[0] === "--version") return { ok: true, data: "herdr 0.8.0" as T };
-					if (args[1] === "get") return { ok: true, data: { pane: { pane_id: "w1:p22", agent_status: "idle", cwd: other } } as T };
+					if (args[1] === "get")
+						return { ok: true, data: { pane: { pane_id: "w1:p22", agent_status: "idle", cwd: other } } as T };
 					if (args[1] === "close") closeCalled = true;
 					return { ok: true, data: {} as T };
 				},
@@ -269,15 +338,30 @@ describe("public project-panes package export", () => {
 		try {
 			const projectRoot = fs.realpathSync(root);
 			fs.mkdirSync(path.dirname(projectPaneBindingPath(projectRoot)), { recursive: true });
-			fs.writeFileSync(projectPaneBindingPath(projectRoot), JSON.stringify({
-				schemaVersion: 1, kind: "herdr-project-pane", projectRoot, paneId: "w1:p23",
-				openedAt: "2026-01-01T00:00:00.000Z", command: "pi", startupMessage: 42,
-			}));
+			fs.writeFileSync(
+				projectPaneBindingPath(projectRoot),
+				JSON.stringify({
+					schemaVersion: 1,
+					kind: "herdr-project-pane",
+					projectRoot,
+					paneId: "w1:p23",
+					openedAt: "2026-01-01T00:00:00.000Z",
+					command: "pi",
+					startupMessage: 42,
+				}),
+			);
 			const binding = readProjectPaneBinding(root);
 			assert.equal(binding.ok, false);
 			if (!binding.ok) assert.equal(binding.error.code, "INVALID_BINDING");
 			let clientCalled = false;
-			const manager = createProjectPaneManager({ client: { run: async () => { clientCalled = true; return { ok: true, data: {} }; } } });
+			const manager = createProjectPaneManager({
+				client: {
+					run: async () => {
+						clientCalled = true;
+						return { ok: true, data: {} };
+					},
+				},
+			});
 			const status = await manager.status({ cwd: root });
 			assert.equal(status.ok, false);
 			if (!status.ok) assert.equal(status.error.code, "INVALID_BINDING");

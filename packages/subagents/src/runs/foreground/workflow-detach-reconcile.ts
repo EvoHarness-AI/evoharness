@@ -1,38 +1,47 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { writeAtomicJson } from "../../shared/atomic-json.ts";
-import { getSingleResultOutput, readStatus } from "../../shared/utils.ts";
 import {
-	DIRS,
-	SUBAGENT_ASYNC_COMPLETE_EVENT,
 	type AsyncStatus,
+	DIRS,
 	type IntercomEventBus,
 	type SingleResult,
+	SUBAGENT_ASYNC_COMPLETE_EVENT,
 	type SubagentState,
 	type WorkflowTerminalResolution,
 } from "../../shared/types.ts";
-import { updateActiveRunIndex } from "../background/active-run-index.ts";
-import { resultFilePath, writeAsyncResultFile } from "../background/result-files.ts";
-import { resolveAsyncResumeTarget } from "../background/async-resume.ts";
-import { externalCliReceiptMetadata, normalizeExternalCliRunnerStatus } from "../shared/external-cli-contract.ts";
-import { outputPathMappingFromTask } from "../shared/single-output.ts";
-import { readWorkflowReceipt, workflowReceiptPath, writeWorkflowReceipt, type WorkflowReceipt } from "../../workflows/workflow-receipt.ts";
+import { getSingleResultOutput, readStatus } from "../../shared/utils.ts";
+import {
+	readWorkflowReceipt,
+	type WorkflowReceipt,
+	workflowReceiptPath,
+	writeWorkflowReceipt,
+} from "../../workflows/workflow-receipt.ts";
 import {
 	applyDetachedChildSettlement,
 	classifyWorkflowSettlement,
 	findWorkflowSettlementStep,
 	planWorkflowSettlement,
 	promoteSettledPausedWorkflow,
+	type WorkflowPublicChild,
+	type WorkflowStatusStep,
 	workflowOutputPathMappingSummary,
 	workflowRecoveryActions,
 	workflowTerminalOutcomeForResult,
-	type WorkflowPublicChild,
-	type WorkflowStatusStep,
 } from "../../workflows/workflow-settlement.ts";
+import { updateActiveRunIndex } from "../background/active-run-index.ts";
+import { resolveAsyncResumeTarget } from "../background/async-resume.ts";
+import { resultFilePath, writeAsyncResultFile } from "../background/result-files.ts";
+import { externalCliReceiptMetadata, normalizeExternalCliRunnerStatus } from "../shared/external-cli-contract.ts";
+import { outputPathMappingFromTask } from "../shared/single-output.ts";
 
 export function applyDetachedChildToPausedWorkflow(
 	status: AsyncStatus,
-	input: { childRunId: string; result: Pick<SingleResult, "exitCode" | "error" | "interrupted" | "sessionFile" | "sessionName" | "stopped">; workflowKey?: string },
+	input: {
+		childRunId: string;
+		result: Pick<SingleResult, "exitCode" | "error" | "interrupted" | "sessionFile" | "sessionName" | "stopped">;
+		workflowKey?: string;
+	},
 ): AsyncStatus | undefined {
 	return applyDetachedChildSettlement(status, input);
 }
@@ -42,12 +51,24 @@ export function promotePausedWorkflowIfSettled(status: AsyncStatus): AsyncStatus
 }
 
 function usageWithValue(usage: SingleResult["usage"] | undefined): SingleResult["usage"] | undefined {
-	return usage && (usage.input !== 0 || usage.output !== 0 || usage.cacheRead !== 0 || usage.cacheWrite !== 0 || usage.cost !== 0 || usage.turns !== 0)
+	return usage &&
+		(usage.input !== 0 ||
+			usage.output !== 0 ||
+			usage.cacheRead !== 0 ||
+			usage.cacheWrite !== 0 ||
+			usage.cost !== 0 ||
+			usage.turns !== 0)
 		? usage
 		: undefined;
 }
 
-function workflowResultChildren(status: AsyncStatus, childRunId: string, result: SingleResult, existingResults: unknown, receipt?: WorkflowReceipt): unknown {
+function workflowResultChildren(
+	status: AsyncStatus,
+	childRunId: string,
+	result: SingleResult,
+	existingResults: unknown,
+	receipt?: WorkflowReceipt,
+): unknown {
 	const output = getSingleResultOutput(result);
 	const outputReference = result.savedOutputPath ?? result.outputReference?.path;
 	const outputPathMapping = outputPathMappingFromTask(result.task, outputReference);
@@ -84,64 +105,109 @@ function workflowResultChildren(status: AsyncStatus, childRunId: string, result:
 		success: step.status === "completed" || step.status === "complete",
 		output: step.runId === childRunId ? output : "",
 		outputState: step.runId === childRunId && output.trim() ? "present" : "absent",
-		...(step.runId === childRunId ? { ...(usage ? { usage } : {}), ...(result.sessionFile ? { sessionFile: result.sessionFile } : {}) } : {}),
-		...(step.runId === childRunId && outputReference ? { outputReference } : step.workflowKey && receipt?.entries[step.workflowKey]?.outputReference ? { outputReference: receipt.entries[step.workflowKey]!.outputReference } : {}),
-		...(step.runId === childRunId && outputPathMapping ? { outputPathMapping } : step.outputPathMapping ? { outputPathMapping: step.outputPathMapping } : {}),
+		...(step.runId === childRunId
+			? { ...(usage ? { usage } : {}), ...(result.sessionFile ? { sessionFile: result.sessionFile } : {}) }
+			: {}),
+		...(step.runId === childRunId && outputReference
+			? { outputReference }
+			: step.workflowKey && receipt?.entries[step.workflowKey]?.outputReference
+				? { outputReference: receipt.entries[step.workflowKey]!.outputReference }
+				: {}),
+		...(step.runId === childRunId && outputPathMapping
+			? { outputPathMapping }
+			: step.outputPathMapping
+				? { outputPathMapping: step.outputPathMapping }
+				: {}),
 		...(step.interrupted ? { interrupted: true } : {}),
-		...(step.runId === childRunId && terminalOutcome ? { terminalOutcome } : step.workflowKey && receipt?.entries[step.workflowKey]?.terminalOutcome ? { terminalOutcome: receipt.entries[step.workflowKey]!.terminalOutcome } : {}),
+		...(step.runId === childRunId && terminalOutcome
+			? { terminalOutcome }
+			: step.workflowKey && receipt?.entries[step.workflowKey]?.terminalOutcome
+				? { terminalOutcome: receipt.entries[step.workflowKey]!.terminalOutcome }
+				: {}),
 		...(step.stopped ? { stopped: true } : {}),
 		...(step.error ? { error: step.error } : {}),
 	}));
 }
 
-function reconcileWorkflowReceipt(status: AsyncStatus, childRunId: string, result: SingleResult, asyncDir: string, resolution: WorkflowTerminalResolution | undefined): { receipt: WorkflowReceipt; path: string } | undefined {
+function reconcileWorkflowReceipt(
+	status: AsyncStatus,
+	childRunId: string,
+	result: SingleResult,
+	asyncDir: string,
+	resolution: WorkflowTerminalResolution | undefined,
+): { receipt: WorkflowReceipt; path: string } | undefined {
 	const receiptRoot = path.dirname(asyncDir);
 	const receiptPath = workflowReceiptPath(receiptRoot, status.runId);
 	if (!fs.existsSync(receiptPath)) return undefined;
 	const receipt = readWorkflowReceipt(receiptRoot, status.runId);
 	const step = status.steps?.find((candidate) => candidate.runId === childRunId);
 	const key = step?.workflowKey;
-	if (!key) throw new Error(`Workflow receipt '${status.runId}' cannot identify detached child '${childRunId}' by stable key.`);
+	if (!key)
+		throw new Error(
+			`Workflow receipt '${status.runId}' cannot identify detached child '${childRunId}' by stable key.`,
+		);
 	const entry = receipt.entries[key];
 	if (!entry) throw new Error(`Workflow receipt '${status.runId}' has no detached child key '${key}'.`);
 	let resumability: typeof entry.resumability;
 	try {
-		const target = resolveAsyncResumeTarget({ id: childRunId, dir: path.join(DIRS.async, childRunId) }, {}, { requireSessionFile: true, sessionId: status.sessionId });
-		resumability = target.kind === "revive" ? { state: "resumable" } : { state: "not-resumable", reason: "child is still running" };
+		const target = resolveAsyncResumeTarget(
+			{ id: childRunId, dir: path.join(DIRS.async, childRunId) },
+			{},
+			{ requireSessionFile: true, sessionId: status.sessionId },
+		);
+		resumability =
+			target.kind === "revive"
+				? { state: "resumable" }
+				: { state: "not-resumable", reason: "child is still running" };
 	} catch (error) {
 		resumability = { state: "not-resumable", reason: error instanceof Error ? error.message : String(error) };
 	}
 	const outputReference = result.savedOutputPath ?? result.outputReference?.path ?? entry.outputReference;
 	const childStatus = readStatus(path.join(DIRS.async, childRunId));
-	const externalStep = childStatus?.steps?.length === 1 && childStatus.steps[0]?.runner?.type === "external-cli" ? childStatus.steps[0] : undefined;
-	const externalRunner = normalizeExternalCliRunnerStatus(result.runner?.type === "external-cli" ? result.runner : externalStep?.runner);
+	const externalStep =
+		childStatus?.steps?.length === 1 && childStatus.steps[0]?.runner?.type === "external-cli"
+			? childStatus.steps[0]
+			: undefined;
+	const externalRunner = normalizeExternalCliRunnerStatus(
+		result.runner?.type === "external-cli" ? result.runner : externalStep?.runner,
+	);
 	const externalProcess = result.externalProcess ?? externalStep?.externalProcess;
-	const externalAdapter = externalRunner ? externalCliReceiptMetadata({ runner: externalRunner, externalProcess, outputReference }) : entry.externalAdapter;
+	const externalAdapter = externalRunner
+		? externalCliReceiptMetadata({ runner: externalRunner, externalProcess, outputReference })
+		: entry.externalAdapter;
 	const childTerminalOutcome = workflowTerminalOutcomeForResult(result) ?? entry.terminalOutcome;
 	if (externalAdapter) resumability = { state: "not-resumable", reason: externalAdapter.nonResumableReason };
-	const updatedEntry: WorkflowReceipt["entries"][string] = resumability.state === "resumable"
-		? {
-			...entry,
-			...(step.agent ? { agent: step.agent } : {}),
-			...(step.context ? { resolvedContext: step.context } : {}),
-			latestRunId: entry.latestRunId ?? childRunId,
-			resumability,
-			...(outputReference ? { outputReference } : {}),
-			...(childTerminalOutcome ? { terminalOutcome: childTerminalOutcome } : {}),
-			...(externalAdapter ? { externalAdapter } : {}),
-		}
-		: {
-			...entry,
-			...(step.agent ? { agent: step.agent } : {}),
-			...(step.context ? { resolvedContext: step.context } : {}),
-			resumability,
-			...(outputReference ? { outputReference } : {}),
-			...(childTerminalOutcome ? { terminalOutcome: childTerminalOutcome } : {}),
-			...(externalAdapter ? { externalAdapter } : {}),
-		};
+	const updatedEntry: WorkflowReceipt["entries"][string] =
+		resumability.state === "resumable"
+			? {
+					...entry,
+					...(step.agent ? { agent: step.agent } : {}),
+					...(step.context ? { resolvedContext: step.context } : {}),
+					latestRunId: entry.latestRunId ?? childRunId,
+					resumability,
+					...(outputReference ? { outputReference } : {}),
+					...(childTerminalOutcome ? { terminalOutcome: childTerminalOutcome } : {}),
+					...(externalAdapter ? { externalAdapter } : {}),
+				}
+			: {
+					...entry,
+					...(step.agent ? { agent: step.agent } : {}),
+					...(step.context ? { resolvedContext: step.context } : {}),
+					resumability,
+					...(outputReference ? { outputReference } : {}),
+					...(childTerminalOutcome ? { terminalOutcome: childTerminalOutcome } : {}),
+					...(externalAdapter ? { externalAdapter } : {}),
+				};
 	const next: WorkflowReceipt = {
 		...receipt,
-		state: status.state === "complete" ? "complete" : status.state === "stopped" ? "stopped" : status.state === "paused" ? "paused" : "failed",
+		state:
+			status.state === "complete"
+				? "complete"
+				: status.state === "stopped"
+					? "stopped"
+					: status.state === "paused"
+						? "paused"
+						: "failed",
 		entries: {
 			...receipt.entries,
 			[key]: updatedEntry,
@@ -179,15 +245,25 @@ export function reconcileDetachedWorkflowChildCompletion(input: {
 	const asyncDir = job?.asyncDir ?? path.join(DIRS.async, input.workflowRunId);
 	const status = readStatus(asyncDir);
 	if (!status) return false;
-	const matchingControls = input.workflowKey === undefined ? [] : [...(input.state.foregroundControls?.values() ?? [])].filter((control) =>
-		control.parentWorkflowRunId === input.workflowRunId && control.workflowKey === input.workflowKey
-	);
+	const matchingControls =
+		input.workflowKey === undefined
+			? []
+			: [...(input.state.foregroundControls?.values() ?? [])].filter(
+					(control) =>
+						control.parentWorkflowRunId === input.workflowRunId && control.workflowKey === input.workflowKey,
+				);
 	const confirmedLiveIdentity = matchingControls.length === 1 && matchingControls[0]?.runId === input.childRunId;
 	if (confirmedLiveIdentity) {
 		const candidates = status.steps?.filter((candidate) => candidate.workflowKey === input.workflowKey) ?? [];
 		const candidate = candidates.length === 1 ? candidates[0] : undefined;
-		if (candidate && candidate.runId === undefined && candidate.sessionFile === undefined
-			&& candidate.status === "paused" && candidate.activityState === "needs_attention") candidate.runId = input.childRunId;
+		if (
+			candidate &&
+			candidate.runId === undefined &&
+			candidate.sessionFile === undefined &&
+			candidate.status === "paused" &&
+			candidate.activityState === "needs_attention"
+		)
+			candidate.runId = input.childRunId;
 	}
 	const next = applyDetachedChildToPausedWorkflow(status, {
 		childRunId: input.childRunId,
@@ -218,13 +294,21 @@ export function reconcileDetachedWorkflowChildCompletion(input: {
 	} catch (error) {
 		receiptError = `Failed to reconcile async workflow receipt: ${error instanceof Error ? error.message : String(error)}`;
 	}
-	const results = workflowResultChildren(next, input.childRunId, input.result, existing?.results, receipt) as WorkflowPublicChild[];
+	const results = workflowResultChildren(
+		next,
+		input.childRunId,
+		input.result,
+		existing?.results,
+		receipt,
+	) as WorkflowPublicChild[];
 	const recovery = workflowRecoveryActions(receipt);
-	const summary = `${resolution === "settled-awaiting-resume"
-		? `Workflow lanes settled after detached child ${input.childRunId} finished. JavaScript workflow continuation was not persisted.${recovery.length ? " Use the listed keyed recovery action to continue a child." : " No retained child is resumable."}`
-		: next.state === "complete"
-			? `Workflow completed after detached child ${input.childRunId} finished.`
-			: next.error ?? (typeof existing?.summary === "string" ? existing.summary : "Workflow failed.")}${workflowOutputPathMappingSummary(results)}`;
+	const summary = `${
+		resolution === "settled-awaiting-resume"
+			? `Workflow lanes settled after detached child ${input.childRunId} finished. JavaScript workflow continuation was not persisted.${recovery.length ? " Use the listed keyed recovery action to continue a child." : " No retained child is resumable."}`
+			: next.state === "complete"
+				? `Workflow completed after detached child ${input.childRunId} finished.`
+				: (next.error ?? (typeof existing?.summary === "string" ? existing.summary : "Workflow failed."))
+	}${workflowOutputPathMappingSummary(results)}`;
 	const plan = planWorkflowSettlement({
 		status: next,
 		summary,

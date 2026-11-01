@@ -15,20 +15,21 @@ import * as path from "node:path";
 export const JITI_ALIAS_ENV = "JITI_ALIAS";
 
 /** Specifiers the runner's import graph may use, with the package and export subpath each resolves to. */
-export const HOST_PEER_ALIASES: ReadonlyArray<{ specifier: string; pkg: string; subpath: string; optional?: boolean }> = [
-	{ specifier: "@evoharness/coding-agent", pkg: "@evoharness/coding-agent", subpath: "." },
-	{ specifier: "@evoharness/agent-core", pkg: "@evoharness/agent-core", subpath: "." },
-	// Optional: hosts whose pi-agent-core declares no "./node" export cannot import it, so no alias is needed.
-	{ specifier: "@evoharness/agent-core/node", pkg: "@evoharness/agent-core", subpath: "./node", optional: true },
-	{ specifier: "@evoharness/tui", pkg: "@evoharness/tui", subpath: "." },
-	{ specifier: "@evoharness/ai", pkg: "@evoharness/ai", subpath: "./compat" },
-	{ specifier: "@evoharness/ai/compat", pkg: "@evoharness/ai", subpath: "./compat" },
-	{ specifier: "@evoharness/ai/oauth", pkg: "@evoharness/ai", subpath: "./oauth" },
-	{ specifier: "@evoharness/ai/providers/all", pkg: "@evoharness/ai", subpath: "./providers/all" },
-	{ specifier: "typebox", pkg: "typebox", subpath: "." },
-	{ specifier: "typebox/compile", pkg: "typebox", subpath: "./compile" },
-	{ specifier: "typebox/value", pkg: "typebox", subpath: "./value" },
-];
+export const HOST_PEER_ALIASES: ReadonlyArray<{ specifier: string; pkg: string; subpath: string; optional?: boolean }> =
+	[
+		{ specifier: "@evoharness/coding-agent", pkg: "@evoharness/coding-agent", subpath: "." },
+		{ specifier: "@evoharness/agent-core", pkg: "@evoharness/agent-core", subpath: "." },
+		// Optional: hosts whose pi-agent-core declares no "./node" export cannot import it, so no alias is needed.
+		{ specifier: "@evoharness/agent-core/node", pkg: "@evoharness/agent-core", subpath: "./node", optional: true },
+		{ specifier: "@evoharness/tui", pkg: "@evoharness/tui", subpath: "." },
+		{ specifier: "@evoharness/ai", pkg: "@evoharness/ai", subpath: "./compat" },
+		{ specifier: "@evoharness/ai/compat", pkg: "@evoharness/ai", subpath: "./compat" },
+		{ specifier: "@evoharness/ai/oauth", pkg: "@evoharness/ai", subpath: "./oauth" },
+		{ specifier: "@evoharness/ai/providers/all", pkg: "@evoharness/ai", subpath: "./providers/all" },
+		{ specifier: "typebox", pkg: "typebox", subpath: "." },
+		{ specifier: "typebox/compile", pkg: "typebox", subpath: "./compile" },
+		{ specifier: "typebox/value", pkg: "typebox", subpath: "./value" },
+	];
 
 /** Pi manifests declare chord from 0.85.0 through 1.1.x; earlier hosts and 1.2.0+ do not ship it. */
 const CHORD_PACKAGE = "@evoharness/chord";
@@ -72,7 +73,13 @@ function exportTarget(entry: unknown): string | typeof BLOCKED_EXPORT | undefine
 	if (entry && typeof entry === "object") {
 		const conditions = entry as Record<string, unknown>;
 		for (const [condition, value] of Object.entries(conditions)) {
-			if (condition === "default" || condition === "import" || condition === "node" || condition === "node-addons" || condition === "module-sync") {
+			if (
+				condition === "default" ||
+				condition === "import" ||
+				condition === "node" ||
+				condition === "node-addons" ||
+				condition === "module-sync"
+			) {
 				const target = exportTarget(value);
 				if (target) return target;
 			}
@@ -87,9 +94,14 @@ export function resolvePackageSubpath(packageDir: string, subpath: string): stri
 	if (!manifest) return undefined;
 	const exportsField = manifest.exports;
 	if (exportsField !== undefined && exportsField !== null) {
-		const map: Record<string, unknown> = typeof exportsField === "string" || Array.isArray(exportsField) || (exportsField && typeof exportsField === "object" && !Object.keys(exportsField as object).some((key) => key.startsWith(".")))
-			? { ".": exportsField }
-			: exportsField as Record<string, unknown>;
+		const map: Record<string, unknown> =
+			typeof exportsField === "string" ||
+			Array.isArray(exportsField) ||
+			(exportsField &&
+				typeof exportsField === "object" &&
+				!Object.keys(exportsField as object).some((key) => key.startsWith(".")))
+				? { ".": exportsField }
+				: (exportsField as Record<string, unknown>);
 		if (subpath in map) {
 			const exact = exportTarget(map[subpath]);
 			return typeof exact === "string" ? path.resolve(packageDir, exact) : undefined;
@@ -100,17 +112,29 @@ export function resolvePackageSubpath(packageDir: string, subpath: string): stri
 			if (star === -1) continue;
 			const prefix = pattern.slice(0, star);
 			const suffix = pattern.slice(star + 1);
-			if (!subpath.startsWith(prefix) || !subpath.endsWith(suffix) || subpath.length < prefix.length + suffix.length) continue;
-			if (!best || prefix.length > best.prefix.length || (prefix.length === best.prefix.length && suffix.length > best.suffix.length)) best = { entry, prefix, suffix };
+			if (!subpath.startsWith(prefix) || !subpath.endsWith(suffix) || subpath.length < prefix.length + suffix.length)
+				continue;
+			if (
+				!best ||
+				prefix.length > best.prefix.length ||
+				(prefix.length === best.prefix.length && suffix.length > best.suffix.length)
+			)
+				best = { entry, prefix, suffix };
 		}
 		if (!best) return undefined;
 		const target = exportTarget(best.entry);
 		if (typeof target !== "string") return undefined;
 		const wildcard = subpath.slice(best.prefix.length, subpath.length - best.suffix.length);
-		return path.resolve(packageDir, target.replaceAll("*", () => wildcard));
+		return path.resolve(
+			packageDir,
+			target.replaceAll("*", () => wildcard),
+		);
 	}
 	if (subpath !== ".") return undefined;
-	return path.resolve(packageDir, typeof manifest.main === "string" && manifest.main.trim() ? manifest.main : "index.js");
+	return path.resolve(
+		packageDir,
+		typeof manifest.main === "string" && manifest.main.trim() ? manifest.main : "index.js",
+	);
 }
 
 /** Find `pkg` as the pi package itself, one of its dependencies, or a sibling in a hoisted install. */
@@ -136,7 +160,9 @@ function findPeerPackageDir(piPackageRoot: string, pkg: string, hostName: unknow
 }
 
 function declaresDependency(manifest: PackageManifest, pkg: string): boolean {
-	return [manifest.dependencies, manifest.optionalDependencies].some((deps) => !!deps && typeof deps === "object" && Object.hasOwn(deps, pkg));
+	return [manifest.dependencies, manifest.optionalDependencies].some(
+		(deps) => !!deps && typeof deps === "object" && Object.hasOwn(deps, pkg),
+	);
 }
 
 /** The alias map the runner needs, or the specifiers that could not be resolved. */

@@ -9,7 +9,9 @@ export interface SubagentSteeringMessageDetails extends SteeringNotice {
 	noticeText?: string;
 }
 
-export function formatSteeringNotice(details: Pick<SubagentSteeringMessageDetails, "runId" | "requestId" | "state" | "message">): string {
+export function formatSteeringNotice(
+	details: Pick<SubagentSteeringMessageDetails, "runId" | "requestId" | "state" | "message">,
+): string {
 	return [
 		`Subagent steering ${details.state}: ${details.runId}`,
 		`Request: ${details.requestId}`,
@@ -23,13 +25,20 @@ export function handleSubagentSteeringNotice(input: {
 	state: SubagentState;
 	details: SubagentSteeringMessageDetails;
 }): void {
-	if (!input.details || (input.details.state !== "failed" && input.details.state !== "partial" && input.details.state !== "recovered")) return;
+	if (
+		!input.details ||
+		(input.details.state !== "failed" && input.details.state !== "partial" && input.details.state !== "recovered")
+	)
+		return;
 	if (!input.state.currentSessionId || input.details.currentSessionId !== input.state.currentSessionId) return;
 	const noticeText = input.details.noticeText ?? formatSteeringNotice(input.details);
-	input.pi.sendMessage({
-		customType: SUBAGENT_STEERING_MESSAGE_TYPE,
-		content: noticeText,
-		display: true,
-		details: { ...input.details, noticeText },
-	}, { triggerTurn: true });
+	input.pi.sendMessage(
+		{
+			customType: SUBAGENT_STEERING_MESSAGE_TYPE,
+			content: noticeText,
+			display: true,
+			details: { ...input.details, noticeText },
+		},
+		{ triggerTurn: true },
+	);
 }

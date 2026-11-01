@@ -4,7 +4,10 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { listAsyncRuns } from "../../src/runs/background/async-status.ts";
-import { readWorkflowChildRunModel, withWorkflowChildRunModel } from "../../src/runs/background/workflow-terminal-proof.ts";
+import {
+	readWorkflowChildRunModel,
+	withWorkflowChildRunModel,
+} from "../../src/runs/background/workflow-terminal-proof.ts";
 
 const roots: string[] = [];
 
@@ -42,12 +45,20 @@ describe("workflow child run model", () => {
 	it("fills a roster row without overwriting a recorded model", () => {
 		const { root, parent } = workspace();
 		childRun(root, "child", { agent: "scout", status: "complete", model: "observed/model", thinking: "low" });
+		assert.deepEqual(withWorkflowChildRunModel(parent, { childId: "lane", state: "completed", runId: "child" }), {
+			childId: "lane",
+			state: "completed",
+			runId: "child",
+			model: "observed/model",
+			thinking: "low",
+		});
 		assert.deepEqual(
-			withWorkflowChildRunModel(parent, { childId: "lane", state: "completed", runId: "child" }),
-			{ childId: "lane", state: "completed", runId: "child", model: "observed/model", thinking: "low" },
-		);
-		assert.deepEqual(
-			withWorkflowChildRunModel(parent, { childId: "lane", state: "completed", model: "launch/model", thinking: "high" }),
+			withWorkflowChildRunModel(parent, {
+				childId: "lane",
+				state: "completed",
+				model: "launch/model",
+				thinking: "high",
+			}),
 			{ childId: "lane", state: "completed", model: "launch/model", thinking: "high" },
 		);
 	});

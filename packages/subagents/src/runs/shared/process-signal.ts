@@ -10,7 +10,10 @@ export function formatMidToolExitError(input: {
 	if (input.exitCode === undefined && !input.processSignal) {
 		return `Subagent session ended during '${input.toolName}' tool execution before the tool completed. Earlier assistant output is not a terminal result.`;
 	}
-	const terminal = [`exit ${input.exitCode ?? "unknown"}`, ...(input.processSignal ? [`signal ${input.processSignal}`] : [])].join(", ");
+	const terminal = [
+		`exit ${input.exitCode ?? "unknown"}`,
+		...(input.processSignal ? [`signal ${input.processSignal}`] : []),
+	].join(", ");
 	return `Subagent process exited during '${input.toolName}' tool execution (${terminal}) before the tool completed. Earlier assistant output is not a terminal result.`;
 }
 
@@ -26,10 +29,12 @@ export function isUnexplainedProcessSignal(input: {
 	turnBudgetExceeded?: boolean;
 	forcedDrainAfterFinalSuccess?: boolean;
 }): boolean {
-	return Boolean(input.processSignal)
-		&& input.interrupted !== true
-		&& input.timedOut !== true
-		&& input.stopped !== true
-		&& input.turnBudgetExceeded !== true
-		&& input.forcedDrainAfterFinalSuccess !== true;
+	return (
+		Boolean(input.processSignal) &&
+		input.interrupted !== true &&
+		input.timedOut !== true &&
+		input.stopped !== true &&
+		input.turnBudgetExceeded !== true &&
+		input.forcedDrainAfterFinalSuccess !== true
+	);
 }

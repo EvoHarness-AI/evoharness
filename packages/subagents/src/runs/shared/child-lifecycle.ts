@@ -9,7 +9,11 @@ export interface ChildLifecycleState {
 	compactionRetryActive: boolean;
 }
 
-export function projectChildLifecycle(event: { type?: string; willRetry?: unknown }, terminalAssistantStop = false, state?: ChildLifecycleState): ChildLifecycleAction {
+export function projectChildLifecycle(
+	event: { type?: string; willRetry?: unknown },
+	terminalAssistantStop = false,
+	state?: ChildLifecycleState,
+): ChildLifecycleAction {
 	if (event.type === "compaction_end") {
 		if (state) state.compactionRetryActive = event.willRetry === true;
 		return event.willRetry === true ? "cancel-drain" : "none";

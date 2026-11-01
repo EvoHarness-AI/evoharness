@@ -40,7 +40,10 @@ const MUTATING_BASH_PATTERNS = [
 	/\bopen\s*\([^)]*,\s*["'][wa]/,
 ];
 
-export function resolveCurrentPath(toolName: string | undefined, args: Record<string, unknown> | undefined): string | undefined {
+export function resolveCurrentPath(
+	toolName: string | undefined,
+	args: Record<string, unknown> | undefined,
+): string | undefined {
 	if (!toolName || !args) return undefined;
 	const direct = ["path", "file", "filename", "target", "cwd"];
 	for (const key of direct) {
@@ -87,9 +90,18 @@ function firstWrittenFile(command: string): string | undefined {
 			else if (char === "\\" && quote === '"') i++;
 			continue;
 		}
-		if (char === "'" || char === '"') { quote = char; continue; }
-		if (char === "\\") { i++; continue; }
-		const isTee = command.startsWith("tee", i) && (i === 0 || /[\s|;&(]/.test(command[i - 1]!)) && /\s/.test(command[i + 3] ?? "");
+		if (char === "'" || char === '"') {
+			quote = char;
+			continue;
+		}
+		if (char === "\\") {
+			i++;
+			continue;
+		}
+		const isTee =
+			command.startsWith("tee", i) &&
+			(i === 0 || /[\s|;&(]/.test(command[i - 1]!)) &&
+			/\s/.test(command[i + 3] ?? "");
 		if (char !== ">" && !isTee) continue;
 		let cursor = isTee ? i + 3 : command[i + 1] === ">" ? i + 2 : i + 1;
 		for (;;) {
@@ -170,18 +182,29 @@ function hasMutatingGitCommand(command: string): boolean {
 	for (const segment of unquoted.split(/(?:&&|\|\||[;|()\n])/)) {
 		const trimmed = segment.trim();
 		if (!trimmed || /^(?:echo|printf)\b/.test(trimmed)) continue;
-		if (/^git\s+(?:(?:(?:-C|--git-dir|--work-tree)\s+\S+|(?:--git-dir|--work-tree)=\S+|--paginate)\s+)*(?:add|commit|push)\b/.test(trimmed)) return true;
+		if (
+			/^git\s+(?:(?:(?:-C|--git-dir|--work-tree)\s+\S+|(?:--git-dir|--work-tree)=\S+|--paginate)\s+)*(?:add|commit|push)\b/.test(
+				trimmed,
+			)
+		)
+			return true;
 	}
 	return false;
 }
 
 export function isMutatingBashCommand(command: string): boolean {
-	return hasUnquotedFileRedirection(command)
-		|| hasMutatingGitCommand(command)
-		|| MUTATING_BASH_PATTERNS.some((pattern) => pattern.test(command));
+	return (
+		hasUnquotedFileRedirection(command) ||
+		hasMutatingGitCommand(command) ||
+		MUTATING_BASH_PATTERNS.some((pattern) => pattern.test(command))
+	);
 }
 
-export function isMutatingTool(toolName: string | undefined, args: Record<string, unknown> | undefined, mutationTools?: readonly string[]): boolean {
+export function isMutatingTool(
+	toolName: string | undefined,
+	args: Record<string, unknown> | undefined,
+	mutationTools?: readonly string[],
+): boolean {
 	if (!toolName) return false;
 	if (mutationTools?.includes(toolName)) return true;
 	if (toolName === "edit" || toolName === "write") return true;
@@ -204,8 +227,10 @@ export function nextLongRunningTrigger(
 	metrics: LongRunningNoticeMetrics,
 ): LongRunningTriggerReason | undefined {
 	if (metrics.now - metrics.startedAt >= config.activeNoticeAfterMs) return "time_threshold";
-	if (config.activeNoticeAfterTurns !== undefined && metrics.turns >= config.activeNoticeAfterTurns) return "turn_threshold";
-	if (config.activeNoticeAfterTokens !== undefined && metrics.tokens >= config.activeNoticeAfterTokens) return "token_threshold";
+	if (config.activeNoticeAfterTurns !== undefined && metrics.turns >= config.activeNoticeAfterTurns)
+		return "turn_threshold";
+	if (config.activeNoticeAfterTokens !== undefined && metrics.tokens >= config.activeNoticeAfterTokens)
+		return "token_threshold";
 	return undefined;
 }
 

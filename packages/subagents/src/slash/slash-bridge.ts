@@ -3,12 +3,12 @@ import type { ExtensionContext } from "@evoharness/coding-agent";
 import { normalizePublicSubagentExecution } from "../extension/public-execution.ts";
 import type { SubagentParamsLike } from "../runs/foreground/subagent-executor.ts";
 import {
+	type Details,
 	SLASH_SUBAGENT_CANCEL_EVENT,
 	SLASH_SUBAGENT_REQUEST_EVENT,
 	SLASH_SUBAGENT_RESPONSE_EVENT,
 	SLASH_SUBAGENT_STARTED_EVENT,
 	SLASH_SUBAGENT_UPDATE_EVENT,
-	type Details,
 } from "../shared/types.ts";
 
 interface SlashSubagentRequest {

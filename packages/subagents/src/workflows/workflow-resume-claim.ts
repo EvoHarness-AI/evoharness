@@ -1,10 +1,15 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { writeAtomicJson } from "../shared/atomic-json.ts";
 import { currentBootId, currentRecordedPid } from "../runs/background/boot-id.ts";
 import { currentPidNamespaceScope } from "../runs/background/pid-namespace.ts";
-import { checkRecordedPidLiveness, isRecordedPid, type PidLiveness, type RecordedPid } from "../runs/background/stale-run-reconciler.ts";
+import {
+	checkRecordedPidLiveness,
+	isRecordedPid,
+	type PidLiveness,
+	type RecordedPid,
+} from "../runs/background/stale-run-reconciler.ts";
+import { writeAtomicJson } from "../shared/atomic-json.ts";
 import { readWorkflowLaunchRecord } from "./workflow-launch-record.ts";
 
 const CLAIM_FILE_PATTERN = /^resumed-by\.([1-9][0-9]*)\.json$/;
@@ -63,10 +68,13 @@ function claimFilePath(asyncDir: string, generation: number): string {
 function isClaim(value: unknown): value is WorkflowResumeClaim {
 	if (!isRecordedPid(value) || Array.isArray(value)) return false;
 	const claim = value as Partial<WorkflowResumeClaim>;
-	return claim.version === 1
-		&& typeof claim.claimedAt === "number"
-		&& typeof claim.newRunId === "string" && claim.newRunId.length > 0
-		&& (claim.trigger === "auto" || claim.trigger === "manual" || claim.trigger === "reuse");
+	return (
+		claim.version === 1 &&
+		typeof claim.claimedAt === "number" &&
+		typeof claim.newRunId === "string" &&
+		claim.newRunId.length > 0 &&
+		(claim.trigger === "auto" || claim.trigger === "manual" || claim.trigger === "reuse")
+	);
 }
 
 /**
@@ -91,10 +99,13 @@ function readTopClaim(asyncDir: string, retries = 3): TopClaim {
 			if (released) releasedGeneration = Math.max(releasedGeneration, Number(released[1]));
 		}
 	} catch (error) {
-		return (error as NodeJS.ErrnoException).code === "ENOENT" ? { kind: "open", generation: 0 } : { kind: "unreadable" };
+		return (error as NodeJS.ErrnoException).code === "ENOENT"
+			? { kind: "open", generation: 0 }
+			: { kind: "unreadable" };
 	}
 	// A live file and a released one with the same n: the live one was created after the release.
-	if (releasedGeneration > generation || generation === 0) return { kind: "open", generation: Math.max(releasedGeneration, generation) };
+	if (releasedGeneration > generation || generation === 0)
+		return { kind: "open", generation: Math.max(releasedGeneration, generation) };
 	const filePath = claimFilePath(asyncDir, generation);
 	let text: string;
 	try {
@@ -120,24 +131,40 @@ export function readWorkflowResumeClaim(asyncDir: string): WorkflowResumeClaim |
 
 /** True once the run that resumes the run in `sourceAsyncDir` as `newRunId` has written its first status. */
 export function resumedRunStarted(sourceAsyncDir: string, newRunId: string): boolean {
-	return path.basename(newRunId) === newRunId
-		&& fs.existsSync(path.join(path.dirname(sourceAsyncDir), newRunId, "status.json"));
+	return (
+		path.basename(newRunId) === newRunId &&
+		fs.existsSync(path.join(path.dirname(sourceAsyncDir), newRunId, "status.json"))
+	);
 }
 
-function claimantLiveness(filePath: string, claim: WorkflowResumeClaim, liveness: ClaimLiveness | undefined): PidLiveness {
+function claimantLiveness(
+	filePath: string,
+	claim: WorkflowResumeClaim,
+	liveness: ClaimLiveness | undefined,
+): PidLiveness {
 	// A reload keeps the pid, so this process's own claim counts only while one of its runtimes holds
 	// it. The same pid in another pid namespace (a container sharing the temp root) is another process.
-	if (claim.pid === process.pid && claim.bootId === currentBootId() && claim.pidNamespaceScope === currentPidNamespaceScope()) return heldClaims.has(filePath) ? "alive" : "dead";
+	if (
+		claim.pid === process.pid &&
+		claim.bootId === currentBootId() &&
+		claim.pidNamespaceScope === currentPidNamespaceScope()
+	)
+		return heldClaims.has(filePath) ? "alive" : "dead";
 	return liveness ? liveness(claim) : checkRecordedPidLiveness(claim);
 }
 
 /** Read-only view for reuse readers and auto-resume: a dead, corrupt, or missing claim blocks nothing. */
-export function workflowResumeClaimState(asyncDir: string, options: { liveness?: ClaimLiveness } = {}): WorkflowResumeClaimState {
+export function workflowResumeClaimState(
+	asyncDir: string,
+	options: { liveness?: ClaimLiveness } = {},
+): WorkflowResumeClaimState {
 	const top = readTopClaim(asyncDir);
 	if (top.kind === "unreadable") return { kind: "unreadable" };
 	if (top.kind !== "claim") return { kind: "none" };
 	if (resumedRunStarted(asyncDir, top.claim.newRunId)) return { kind: "resumed", newRunId: top.claim.newRunId };
-	return claimantLiveness(top.filePath, top.claim, options.liveness) === "dead" ? { kind: "none" } : { kind: "busy", pid: top.claim.pid, newRunId: top.claim.newRunId };
+	return claimantLiveness(top.filePath, top.claim, options.liveness) === "dead"
+		? { kind: "none" }
+		: { kind: "busy", pid: top.claim.pid, newRunId: top.claim.newRunId };
 }
 
 /** Creates the claim file only if none exists, with its whole body in place at once. */
@@ -160,7 +187,10 @@ function createClaimFile(filePath: string, claim: WorkflowResumeClaim): boolean 
  * superseded by the next generation file; of several takers, the one whose exclusive create
  * succeeds owns the run, and the others see its live claim on their next read.
  */
-export function claimWorkflowResume(asyncDir: string, input: { newRunId: string; trigger: WorkflowResumeClaim["trigger"]; now?: number; liveness?: ClaimLiveness }): WorkflowResumeClaimOutcome {
+export function claimWorkflowResume(
+	asyncDir: string,
+	input: { newRunId: string; trigger: WorkflowResumeClaim["trigger"]; now?: number; liveness?: ClaimLiveness },
+): WorkflowResumeClaimOutcome {
 	const claim: WorkflowResumeClaim = {
 		version: 1,
 		...currentRecordedPid(),
@@ -178,7 +208,8 @@ export function claimWorkflowResume(asyncDir: string, input: { newRunId: string;
 				return { kind: "owner" };
 			}
 			if (resumedRunStarted(asyncDir, top.claim.newRunId)) return { kind: "resumed", newRunId: top.claim.newRunId };
-			if (claimantLiveness(top.filePath, top.claim, input.liveness) !== "dead") return { kind: "busy", pid: top.claim.pid };
+			if (claimantLiveness(top.filePath, top.claim, input.liveness) !== "dead")
+				return { kind: "busy", pid: top.claim.pid };
 		}
 		const filePath = claimFilePath(asyncDir, top.generation + 1);
 		if (createClaimFile(filePath, claim)) {
@@ -205,16 +236,29 @@ export function releaseWorkflowResumeClaim(asyncDir: string, newRunId: string): 
 	heldClaims.delete(top.filePath);
 }
 
-export function recordWorkflowResumeRefusal(asyncDir: string, refusal: Omit<WorkflowResumeRefusal, "version" | "refusedAt">, now = Date.now()): void {
-	writeAtomicJson(path.join(asyncDir, REFUSAL_FILE), { version: 1, ...refusal, refusedAt: now } satisfies WorkflowResumeRefusal);
+export function recordWorkflowResumeRefusal(
+	asyncDir: string,
+	refusal: Omit<WorkflowResumeRefusal, "version" | "refusedAt">,
+	now = Date.now(),
+): void {
+	writeAtomicJson(path.join(asyncDir, REFUSAL_FILE), {
+		version: 1,
+		...refusal,
+		refusedAt: now,
+	} satisfies WorkflowResumeRefusal);
 }
 
 function readWorkflowResumeRefusal(asyncDir: string): WorkflowResumeRefusal | undefined {
 	try {
-		const value = JSON.parse(fs.readFileSync(path.join(asyncDir, REFUSAL_FILE), "utf-8")) as Partial<WorkflowResumeRefusal>;
-		return value?.version === 1 && typeof value.reason === "string" && typeof value.byHand === "string" && typeof value.refusedAt === "number"
-			&& (value.newRunId === undefined || typeof value.newRunId === "string")
-			? value as WorkflowResumeRefusal
+		const value = JSON.parse(
+			fs.readFileSync(path.join(asyncDir, REFUSAL_FILE), "utf-8"),
+		) as Partial<WorkflowResumeRefusal>;
+		return value?.version === 1 &&
+			typeof value.reason === "string" &&
+			typeof value.byHand === "string" &&
+			typeof value.refusedAt === "number" &&
+			(value.newRunId === undefined || typeof value.newRunId === "string")
+			? (value as WorkflowResumeRefusal)
 			: undefined;
 	} catch {
 		return undefined;
@@ -239,7 +283,11 @@ export function hasWorkflowResumeRefusal(asyncDir: string): boolean {
 	return fs.existsSync(path.join(asyncDir, REFUSAL_FILE));
 }
 
-const RESUMED_AS: Record<WorkflowResumeClaim["trigger"], string> = { auto: "Auto-resumed as", manual: "Resumed as", reuse: "Relaunched as" };
+const RESUMED_AS: Record<WorkflowResumeClaim["trigger"], string> = {
+	auto: "Auto-resumed as",
+	manual: "Resumed as",
+	reuse: "Relaunched as",
+};
 
 /**
  * The one line an interrupted workflow's notice carries about what happens next: the recorded

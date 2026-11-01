@@ -1,6 +1,11 @@
-import { closeTmuxInspector, openTmuxInspector, readTmuxInspectorBindingForTarget, statusTmuxInspector } from "./actions.ts";
-import { createTmuxClient, type TmuxClient } from "./client.ts";
 import type { InspectorPlugin } from "../types.ts";
+import {
+	closeTmuxInspector,
+	openTmuxInspector,
+	readTmuxInspectorBindingForTarget,
+	statusTmuxInspector,
+} from "./actions.ts";
+import { createTmuxClient, type TmuxClient } from "./client.ts";
 
 export interface TmuxPluginDeps {
 	platform?: NodeJS.Platform;

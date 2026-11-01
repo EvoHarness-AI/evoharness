@@ -1,14 +1,14 @@
 import * as fs from "node:fs";
 import { sanitizeDisplayText, truncateDisplayText } from "../../shared/display-text.ts";
+import { type AsyncStatus, DIRS, type NestedRunSummary, type SubagentState } from "../../shared/types.ts";
 import { decodeUtf8Tail } from "../../shared/utf8.ts";
-import { DIRS, type AsyncStatus, type NestedRunSummary, type SubagentState } from "../../shared/types.ts";
 import { readStatus } from "../../shared/utils.ts";
-import { readSessionMessagesTail, type SessionTranscriptMessage } from "./fleet-view.ts";
+import { ownsRun } from "../shared/run-ownership.ts";
 import { completionReplayPath, readCompletionArchive, readCompletionReplay } from "./completion-replay.ts";
+import { readSessionMessagesTail, type SessionTranscriptMessage } from "./fleet-view.ts";
 import { resultPayloadPathForSessionRun } from "./result-files.ts";
 import { resolveSubagentRunId } from "./run-id-resolver.ts";
 import { reconcileAsyncRun, reconcileNestedAsyncDescendants } from "./stale-run-reconciler.ts";
-import { ownsRun } from "../shared/run-ownership.ts";
 
 /** On-demand inspection of current-session async children. Re-reads canonical artifacts after the same reconciliation as status; nothing is persisted or broadcast. */
 
@@ -101,7 +101,10 @@ function errorReply(request: Partial<InspectRequest>, code: InspectErrorCode, me
 	return {
 		kind: INSPECT_REPLY_KIND,
 		version: INSPECT_REPLY_VERSION,
-		requestId: typeof request.requestId === "string" && REQUEST_ID_PATTERN.test(request.requestId) ? request.requestId : "invalid",
+		requestId:
+			typeof request.requestId === "string" && REQUEST_ID_PATTERN.test(request.requestId)
+				? request.requestId
+				: "invalid",
 		...(typeof request.asyncId === "string" ? { asyncId: truncateDisplayText(request.asyncId, MAX_ID_LENGTH) } : {}),
 		...(typeof request.childId === "string" ? { childId: truncateDisplayText(request.childId, MAX_ID_LENGTH) } : {}),
 		error: { code, message },
@@ -132,8 +135,12 @@ export function parseInspectRequest(args: string): { request?: InspectRequest; e
 	if (asyncId.length > MAX_ID_LENGTH || (childId !== undefined && childId.length > MAX_ID_LENGTH)) {
 		return { error: "asyncId/childId exceed the maximum length." };
 	}
-	if (extra.length > 0) return { error: "Too many positional arguments. Usage: /subagents-inspect-rpc <requestId> <asyncId> [childId] [--lines N]." };
-	if (lines !== undefined && (lines < 1 || !Number.isSafeInteger(lines))) return { error: "--lines must be a positive integer." };
+	if (extra.length > 0)
+		return {
+			error: "Too many positional arguments. Usage: /subagents-inspect-rpc <requestId> <asyncId> [childId] [--lines N].",
+		};
+	if (lines !== undefined && (lines < 1 || !Number.isSafeInteger(lines)))
+		return { error: "--lines must be a positive integer." };
 	return { request: { requestId, asyncId, childId, lines } };
 }
 
@@ -175,15 +182,19 @@ function findChildNode(status: AsyncStatus, asyncDir: string, childId: string): 
 
 function resultOutput(data: unknown, stepIndex: number | undefined): { output?: string; errorText?: string } {
 	if (!isRecord(data)) throw new Error("Async result payload must be an object.");
-	if (data.results !== undefined && !Array.isArray(data.results)) throw new Error("Async result payload results must be an array.");
-	if (data.summary !== undefined && typeof data.summary !== "string") throw new Error("Async result payload summary must be a string.");
+	if (data.results !== undefined && !Array.isArray(data.results))
+		throw new Error("Async result payload results must be an array.");
+	if (data.summary !== undefined && typeof data.summary !== "string")
+		throw new Error("Async result payload summary must be a string.");
 	const results = data.results;
 	if (stepIndex !== undefined && results) {
 		const stepResult = results[stepIndex];
 		if (stepResult === undefined) return {};
 		if (!isRecord(stepResult)) throw new Error("Async result payload step result must be an object.");
-		if (stepResult.output !== undefined && typeof stepResult.output !== "string") throw new Error("Async result payload step output must be a string.");
-		if (stepResult.error !== undefined && typeof stepResult.error !== "string") throw new Error("Async result payload step error must be a string.");
+		if (stepResult.output !== undefined && typeof stepResult.output !== "string")
+			throw new Error("Async result payload step output must be a string.");
+		if (stepResult.error !== undefined && typeof stepResult.error !== "string")
+			throw new Error("Async result payload step error must be a string.");
 		return {
 			...(typeof stepResult.output === "string" ? { output: stepResult.output } : {}),
 			...(typeof stepResult.error === "string" ? { errorText: stepResult.error } : {}),
@@ -193,7 +204,8 @@ function resultOutput(data: unknown, stepIndex: number | undefined): { output?: 
 	if (results?.length === 1) {
 		const result = results[0];
 		if (!isRecord(result)) throw new Error("Async result payload result must be an object.");
-		if (result.output !== undefined && typeof result.output !== "string") throw new Error("Async result payload output must be a string.");
+		if (result.output !== undefined && typeof result.output !== "string")
+			throw new Error("Async result payload output must be a string.");
 		if (typeof result.output === "string") return { output: result.output };
 	}
 	return {};
@@ -215,25 +227,48 @@ function readOutputArtifact(outputPath: string): { output?: string; errorText?: 
 		if (metadata >= 0 && !text.slice(metadata + 1).includes("\n")) text = text.slice(0, metadata);
 		const transcript = text.lastIndexOf("\n\nTranscript: ");
 		if (transcript >= 0 && !text.slice(transcript + 2).includes("\n")) text = text.slice(0, transcript);
-		return { errorText: text.startsWith(FAILED_OUTPUT_ARTIFACT_PREFIX) ? text.slice(FAILED_OUTPUT_ARTIFACT_PREFIX.length) : text };
+		return {
+			errorText: text.startsWith(FAILED_OUTPUT_ARTIFACT_PREFIX)
+				? text.slice(FAILED_OUTPUT_ARTIFACT_PREFIX.length)
+				: text,
+		};
 	} finally {
 		fs.closeSync(file);
 	}
 }
 
-function readSessionBackedOutput(sessionPath: string, trustedRoots: string[], trustedSessionFileRoot?: string): { output?: string } {
+function readSessionBackedOutput(
+	sessionPath: string,
+	trustedRoots: string[],
+	trustedSessionFileRoot?: string,
+): { output?: string } {
 	if (trustedRoots.length === 0 && !trustedSessionFileRoot) return {};
 	// The archive retains the child's session file as its output record. The
 	// final answer is the terminal assistant message's text — all text parts
 	// of that one session record, not just the last part.
-	const tail = readSessionMessagesTail(sessionPath, MAX_MESSAGE_LINES, trustedRoots, [sessionPath], trustedSessionFileRoot);
+	const tail = readSessionMessagesTail(
+		sessionPath,
+		MAX_MESSAGE_LINES,
+		trustedRoots,
+		[sessionPath],
+		trustedSessionFileRoot,
+	);
 	const last = tail.messages.findLast((message) => message.role === "assistant" && message.kind === "text");
 	if (!last) return {};
 	const parts = tail.messages.filter((message) => message.recordIndex === last.recordIndex && message.kind === "text");
 	return { output: parts.map((part) => part.text).join("\n") };
 }
 
-function readResultOutput(resultsDir: string, sessionId: string, runId: string, stepIndex: number | undefined, trustedRoots: string[], stepAgent: string | undefined, now: () => number, trustedSessionFileRoot?: string): { output?: string; errorText?: string } {
+function readResultOutput(
+	resultsDir: string,
+	sessionId: string,
+	runId: string,
+	stepIndex: number | undefined,
+	trustedRoots: string[],
+	stepAgent: string | undefined,
+	now: () => number,
+	trustedSessionFileRoot?: string,
+): { output?: string; errorText?: string } {
 	const resultPath = resultPayloadPathForSessionRun(resultsDir, sessionId, runId);
 	if (resultPath) return resultOutput(JSON.parse(fs.readFileSync(resultPath, "utf-8")) as unknown, stepIndex);
 	// Read the raw record first: readCompletionReplay best-effort deletes
@@ -254,9 +289,14 @@ function readResultOutput(resultsDir: string, sessionId: string, runId: string, 
 		// run and session that still failed validation is an inspection failure,
 		// not a child without output — surface it instead of replying success with
 		// no finalOutput.
-		if (isRecord(rawReplay) && rawReplay.version === 1 && rawReplay.runId === runId
-			&& rawReplay.sessionId === sessionId
-			&& typeof rawReplay.expiresAt === "number" && rawReplay.expiresAt > nowMs) {
+		if (
+			isRecord(rawReplay) &&
+			rawReplay.version === 1 &&
+			rawReplay.runId === runId &&
+			rawReplay.sessionId === sessionId &&
+			typeof rawReplay.expiresAt === "number" &&
+			rawReplay.expiresAt > nowMs
+		) {
 			throw new Error("Completion replay record failed validation.");
 		}
 		return {};
@@ -269,11 +309,12 @@ function readResultOutput(resultsDir: string, sessionId: string, runId: string, 
 	// so child reads fall back to a unique agent name. Duplicate legacy agent
 	// names fail closed. A single-child archive is the one exception: the run's
 	// output IS that child's output, including a legacy agent-tagged entry.
-	const childEntries = archive?.entries.filter((entry) => entry.resultIndex !== undefined || entry.agent !== undefined) ?? [];
+	const childEntries =
+		archive?.entries.filter((entry) => entry.resultIndex !== undefined || entry.agent !== undefined) ?? [];
 	const singleChild = childEntries.length === 1;
 	const uniqueLegacyAgent = (agent: string | undefined): boolean =>
-		agent !== undefined
-		&& archive?.entries.filter((entry) => entry.resultIndex === undefined && entry.agent === agent).length === 1;
+		agent !== undefined &&
+		archive?.entries.filter((entry) => entry.resultIndex === undefined && entry.agent === agent).length === 1;
 	const matches = (entry: { resultIndex?: number; agent?: string }): boolean => {
 		if (stepIndex !== undefined) {
 			if (entry.resultIndex !== undefined) return entry.resultIndex === stepIndex;
@@ -292,11 +333,25 @@ function readResultOutput(resultsDir: string, sessionId: string, runId: string, 
 	return output ? { output } : {};
 }
 
-function workflowChildRunModel(runId: string, workflowRunId: string, currentSessionId: string, asyncDirRoot: string, resultsDir: string, state: SubagentState | undefined): { provider: string; model: string } | undefined {
+function workflowChildRunModel(
+	runId: string,
+	workflowRunId: string,
+	currentSessionId: string,
+	asyncDirRoot: string,
+	resultsDir: string,
+	state: SubagentState | undefined,
+): { provider: string; model: string } | undefined {
 	const resolved = resolveSubagentRunId(runId, { asyncDirRoot, resultsDir, state });
 	if (resolved?.kind !== "async" || resolved.id !== runId || !resolved.location.asyncDir) return undefined;
 	const child = readStatus(resolved.location.asyncDir);
-	if (!child || child.runId !== runId || child.parentWorkflowRunId !== workflowRunId || child.mode !== "single" || !ownsRun(currentSessionId, child.sessionId)) return undefined;
+	if (
+		!child ||
+		child.runId !== runId ||
+		child.parentWorkflowRunId !== workflowRunId ||
+		child.mode !== "single" ||
+		!ownsRun(currentSessionId, child.sessionId)
+	)
+		return undefined;
 	return child.steps?.[0]?.resolvedModel;
 }
 
@@ -320,11 +375,17 @@ function enforceByteBudget(reply: InspectReply): InspectReply {
 		truncated.messages += 1;
 	}
 	if (sized() > MAX_SERIALIZED_BYTES && reply.finalOutput) {
-		reply.finalOutput = truncateDisplayText(reply.finalOutput, Math.max(0, reply.finalOutput.length - (sized() - MAX_SERIALIZED_BYTES) - 256));
+		reply.finalOutput = truncateDisplayText(
+			reply.finalOutput,
+			Math.max(0, reply.finalOutput.length - (sized() - MAX_SERIALIZED_BYTES) - 256),
+		);
 		truncated.finalOutput = true;
 	}
 	if (sized() > MAX_SERIALIZED_BYTES && reply.task) {
-		reply.task = truncateDisplayText(reply.task, Math.max(0, reply.task.length - (sized() - MAX_SERIALIZED_BYTES) - 256));
+		reply.task = truncateDisplayText(
+			reply.task,
+			Math.max(0, reply.task.length - (sized() - MAX_SERIALIZED_BYTES) - 256),
+		);
 		truncated.task = true;
 	}
 	if (truncated.task || truncated.messages > 0 || truncated.finalOutput) reply.truncated = truncated;
@@ -336,7 +397,11 @@ export function buildInspectReply(request: InspectRequest, deps: InspectDeps = {
 	const resultsDir = deps.resultsDir ?? DIRS.results;
 	const currentSessionId = deps.state?.currentSessionId ?? undefined;
 	if (!currentSessionId) {
-		return errorReply(request, "no_active_session", "Inspection requires an active session; the request could not be attributed to a session.");
+		return errorReply(
+			request,
+			"no_active_session",
+			"Inspection requires an active session; the request could not be attributed to a session.",
+		);
 	}
 
 	let resolved: ReturnType<typeof resolveSubagentRunId>;
@@ -357,22 +422,32 @@ export function buildInspectReply(request: InspectRequest, deps: InspectDeps = {
 			asyncDir = resolved.match.run.asyncDir ?? "";
 			status = asyncDir ? readStatus(asyncDir) : null;
 		} else {
-			if (!resolved.location.asyncDir) return errorReply(request, "stale", `Async run '${request.asyncId}' has no remaining artifacts.`);
+			if (!resolved.location.asyncDir)
+				return errorReply(request, "stale", `Async run '${request.asyncId}' has no remaining artifacts.`);
 			asyncDir = resolved.location.asyncDir;
-			status = reconcileAsyncRun(asyncDir, { resultsDir, kill: deps.kill, now: deps.now }).status ?? readStatus(asyncDir);
+			status =
+				reconcileAsyncRun(asyncDir, { resultsDir, kill: deps.kill, now: deps.now }).status ?? readStatus(asyncDir);
 		}
-		if (!status) return errorReply(request, "stale", `Async run '${request.asyncId}' artifacts are no longer available.`);
+		if (!status)
+			return errorReply(request, "stale", `Async run '${request.asyncId}' artifacts are no longer available.`);
 		if (!ownsRun(currentSessionId, status.sessionId)) {
-			return errorReply(request, "foreign_session", "Inspection is only available for async runs owned by the current session.");
+			return errorReply(
+				request,
+				"foreign_session",
+				"Inspection is only available for async runs owned by the current session.",
+			);
 		}
 
-		const node: ResolvedNode | { error: string } = request.childId === undefined
-			? { asyncDir, status }
-			: findChildNode(status, asyncDir, request.childId);
+		const node: ResolvedNode | { error: string } =
+			request.childId === undefined ? { asyncDir, status } : findChildNode(status, asyncDir, request.childId);
 		if ("error" in node) return errorReply(request, "not_found", node.error);
 		if (node.asyncDir !== asyncDir) {
 			if (!ownsRun(currentSessionId, node.status.sessionId)) {
-				return errorReply(request, "foreign_session", "Inspection is only available for async runs owned by the current session.");
+				return errorReply(
+					request,
+					"foreign_session",
+					"Inspection is only available for async runs owned by the current session.",
+				);
 			}
 			reconcileAsyncRun(node.asyncDir, { resultsDir, kill: deps.kill, now: deps.now });
 			node.status = readStatus(node.asyncDir) ?? node.status;
@@ -381,15 +456,23 @@ export function buildInspectReply(request: InspectRequest, deps: InspectDeps = {
 		const step = node.stepIndex !== undefined ? node.status.steps?.[node.stepIndex] : undefined;
 		const lineLimit = Math.max(1, Math.min(MAX_MESSAGE_LINES, Math.trunc(request.lines ?? DEFAULT_MESSAGE_LINES)));
 		const sessionFile = step?.sessionFile ?? node.status.sessionFile;
-		const trustedRoots = [...new Set([
-			...(deps.state?.trustedSessionRoots ?? []),
-			...(node.status.sessionRoot ? [node.status.sessionRoot] : []),
-		])];
+		const trustedRoots = [
+			...new Set([
+				...(deps.state?.trustedSessionRoots ?? []),
+				...(node.status.sessionRoot ? [node.status.sessionRoot] : []),
+			]),
+		];
 
 		let messages: InspectReplyMessage[] | undefined;
 		let task: string | undefined;
 		if (sessionFile && (trustedRoots.length > 0 || deps.state?.trustedSessionFileRoot)) {
-			const tail = readSessionMessagesTail(sessionFile, lineLimit, trustedRoots, [sessionFile], deps.state?.trustedSessionFileRoot);
+			const tail = readSessionMessagesTail(
+				sessionFile,
+				lineLimit,
+				trustedRoots,
+				[sessionFile],
+				deps.state?.trustedSessionFileRoot,
+			);
 			if (tail.messages.length > 0) {
 				messages = tail.messages.map(toReplyMessage);
 				// The delegated task is the child session's first user message, but
@@ -404,7 +487,16 @@ export function buildInspectReply(request: InspectRequest, deps: InspectDeps = {
 			}
 		}
 
-		const result = readResultOutput(resultsDir, node.status.sessionId ?? currentSessionId, node.status.runId, node.stepIndex, trustedRoots, step?.agent, deps.now ?? Date.now, deps.state?.trustedSessionFileRoot);
+		const result = readResultOutput(
+			resultsDir,
+			node.status.sessionId ?? currentSessionId,
+			node.status.runId,
+			node.stepIndex,
+			trustedRoots,
+			step?.agent,
+			deps.now ?? Date.now,
+			deps.state?.trustedSessionFileRoot,
+		);
 		const failedText = step?.error ?? node.status.error;
 		if (result.output === undefined && result.errorText === undefined && failedText !== undefined) {
 			return errorReply(request, "internal", "Inspection could not read the async run artifacts.");
@@ -414,13 +506,24 @@ export function buildInspectReply(request: InspectRequest, deps: InspectDeps = {
 		const truncated = { task: false, messages: 0, finalOutput: false };
 		const boundedTask = task !== undefined ? boundContent(task, MAX_TASK_LENGTH) : undefined;
 		if (task !== undefined && boundedTask !== task) truncated.task = true;
-		const boundedFinal = finalOutputRaw !== undefined ? boundContent(finalOutputRaw, MAX_FINAL_OUTPUT_LENGTH) : undefined;
+		const boundedFinal =
+			finalOutputRaw !== undefined ? boundContent(finalOutputRaw, MAX_FINAL_OUTPUT_LENGTH) : undefined;
 		if (finalOutputRaw !== undefined && boundedFinal !== finalOutputRaw) truncated.finalOutput = true;
 		const label = publicText(node.label ?? step?.label ?? step?.agent ?? node.status.runId, MAX_LABEL_LENGTH);
 		// Only the inspected child's own record: a multi-step run-level node has no single child.
 		// A background workflow child records its model in its own run's status, linked back by parentWorkflowRunId.
-		const recordedModel = (step ?? (node.status.mode === "single" ? node.status.steps?.[0] : undefined))?.resolvedModel
-			?? (step?.runId ? workflowChildRunModel(step.runId, node.status.runId, currentSessionId, asyncDirRoot, resultsDir, deps.state) : undefined);
+		const recordedModel =
+			(step ?? (node.status.mode === "single" ? node.status.steps?.[0] : undefined))?.resolvedModel ??
+			(step?.runId
+				? workflowChildRunModel(
+						step.runId,
+						node.status.runId,
+						currentSessionId,
+						asyncDirRoot,
+						resultsDir,
+						deps.state,
+					)
+				: undefined);
 		const resolvedProvider = publicText(recordedModel?.provider, 64);
 		const resolvedModelId = publicText(recordedModel?.model, 160);
 
@@ -435,7 +538,9 @@ export function buildInspectReply(request: InspectRequest, deps: InspectDeps = {
 			...(boundedTask !== undefined ? { task: boundedTask } : {}),
 			...(messages && messages.length > 0 ? { messages } : {}),
 			...(boundedFinal !== undefined ? { finalOutput: boundedFinal } : {}),
-			...(resolvedProvider && resolvedModelId ? { resolvedModel: { provider: resolvedProvider, model: resolvedModelId } } : {}),
+			...(resolvedProvider && resolvedModelId
+				? { resolvedModel: { provider: resolvedProvider, model: resolvedModelId } }
+				: {}),
 			...(truncated.task || truncated.finalOutput || truncated.messages > 0 ? { truncated } : {}),
 		};
 		return enforceByteBudget(reply);

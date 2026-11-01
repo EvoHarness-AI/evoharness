@@ -17,24 +17,31 @@ function projectFixture() {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-mission-lifecycle-"));
 	const projectRoot = path.join(root, "project");
 	fs.mkdirSync(projectRoot, { recursive: true });
-	return { root, projectRoot, missionConfig: { directory: ".pi/subagents/missions", globalIndexDir: path.join(root, "global-index") } };
+	return {
+		root,
+		projectRoot,
+		missionConfig: { directory: ".pi/subagents/missions", globalIndexDir: path.join(root, "global-index") },
+	};
 }
 
 describe("mission launch lifecycle", () => {
 	it("validates the public mission launch shape", () => {
-		assert.deepEqual(validateMissionLaunch({
-			summary: "Review the active backlog",
-			objective: "Find ready work",
-			goal: true,
-			budget: { tokens: 400000 },
-			labels: ["review"],
-		}), {
-			title: "Review the active backlog",
-			objective: "Find ready work",
-			goal: true,
-			budget: { tokens: 400000 },
-			labels: ["review"],
-		});
+		assert.deepEqual(
+			validateMissionLaunch({
+				summary: "Review the active backlog",
+				objective: "Find ready work",
+				goal: true,
+				budget: { tokens: 400000 },
+				labels: ["review"],
+			}),
+			{
+				title: "Review the active backlog",
+				objective: "Find ready work",
+				goal: true,
+				budget: { tokens: 400000 },
+				labels: ["review"],
+			},
+		);
 		assert.throws(() => validateMissionLaunch({}), /title or mission\.summary/);
 		assert.throws(() => validateMissionLaunch(true), /mission must be an object/);
 		assert.throws(() => validateMissionLaunch(false), /mission must be an object/);
@@ -47,11 +54,15 @@ describe("mission launch lifecycle", () => {
 	it("creates missions by default for task launches and honors explicit opt-out", () => {
 		const test = projectFixture();
 		try {
-			assert.throws(() => prepareMissionLaunch({
-				params: { mission: true, task: "Invalid mission" },
-				projectRoot: test.projectRoot,
-				config: test.missionConfig,
-			}), /mission must be an object/);
+			assert.throws(
+				() =>
+					prepareMissionLaunch({
+						params: { mission: true, task: "Invalid mission" },
+						projectRoot: test.projectRoot,
+						config: test.missionConfig,
+					}),
+				/mission must be an object/,
+			);
 			assert.deepEqual(fs.readdirSync(test.projectRoot), [], "invalid mission must not create records");
 			assert.equal(fs.existsSync(test.missionConfig.globalIndexDir), false);
 			const binding = prepareMissionLaunch({
@@ -72,7 +83,15 @@ describe("mission launch lifecycle", () => {
 					details: {
 						mode: "single",
 						runId: "default-mission-run",
-						results: [{ index: 0, agent: "worker", task: "Map the auth flow", exitCode: 0, usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 1 } }],
+						results: [
+							{
+								index: 0,
+								agent: "worker",
+								task: "Map the auth flow",
+								exitCode: 0,
+								usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 1 },
+							},
+						],
 					},
 				},
 			});
@@ -93,11 +112,15 @@ describe("mission launch lifecycle", () => {
 			assert.ok(parallelOnly);
 			assert.equal(readMission(parallelOnly.location, parallelOnly.missionId).objective, PROMPT_REDACTED);
 
-			assert.throws(() => prepareMissionLaunch({
-				params: { missionId: "" },
-				projectRoot: test.projectRoot,
-				config: test.missionConfig,
-			}), /missionId/);
+			assert.throws(
+				() =>
+					prepareMissionLaunch({
+						params: { missionId: "" },
+						projectRoot: test.projectRoot,
+						config: test.missionConfig,
+					}),
+				/missionId/,
+			);
 
 			const perLaunchDisabled = prepareMissionLaunch({
 				params: { mission: false, task: "Ephemeral check" },
@@ -106,11 +129,15 @@ describe("mission launch lifecycle", () => {
 			});
 			assert.equal(perLaunchDisabled, undefined);
 
-			assert.throws(() => prepareMissionLaunch({
-				params: { missionId: binding.missionId, mission: false, task: "Contradictory mission request" },
-				projectRoot: test.projectRoot,
-				config: test.missionConfig,
-			}), /Use missionId or mission/);
+			assert.throws(
+				() =>
+					prepareMissionLaunch({
+						params: { missionId: binding.missionId, mission: false, task: "Contradictory mission request" },
+						projectRoot: test.projectRoot,
+						config: test.missionConfig,
+					}),
+				/Use missionId or mission/,
+			);
 
 			const explicit = prepareMissionLaunch({
 				params: { mission: { title: "Explicit mission" }, task: "Tiny one-off" },
@@ -121,7 +148,10 @@ describe("mission launch lifecycle", () => {
 			assert.equal(readMission(explicit.location, explicit.missionId).objective, "Explicit mission");
 
 			const summaryAlias = prepareMissionLaunch({
-				params: { mission: { summary: "Review active backlog", labels: ["review"] }, task: "Review the current diff" },
+				params: {
+					mission: { summary: "Review active backlog", labels: ["review"] },
+					task: "Review the current diff",
+				},
 				projectRoot: test.projectRoot,
 				config: test.missionConfig,
 			});
@@ -146,13 +176,17 @@ describe("mission launch lifecycle", () => {
 			});
 			assert.ok(binding);
 			const missionDir = path.join(worktreeRoot, ".pi", "subagents", "missions");
-			assert.throws(() => prepareMissionLaunch({
-				params: { missionId: binding.missionId, task: "Prepare worktree work" },
-				projectRoot: worktreeRoot,
-				config: test.missionConfig,
-			}), {
-				message: `Mission '${binding.missionId}' was not found in mission directory '${missionDir}' for project root '${worktreeRoot}'. If it was created in another worktree, run the request from that worktree.`,
-			});
+			assert.throws(
+				() =>
+					prepareMissionLaunch({
+						params: { missionId: binding.missionId, task: "Prepare worktree work" },
+						projectRoot: worktreeRoot,
+						config: test.missionConfig,
+					}),
+				{
+					message: `Mission '${binding.missionId}' was not found in mission directory '${missionDir}' for project root '${worktreeRoot}'. If it was created in another worktree, run the request from that worktree.`,
+				},
+			);
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
 		}
@@ -162,7 +196,10 @@ describe("mission launch lifecycle", () => {
 		const test = projectFixture();
 		try {
 			const binding = prepareMissionLaunch({
-				params: { mission: { title: "Implement feature", objective: "Ship it", labels: ["phase-1"] }, task: "Do the work" },
+				params: {
+					mission: { title: "Implement feature", objective: "Ship it", labels: ["phase-1"] },
+					task: "Do the work",
+				},
 				projectRoot: test.projectRoot,
 				config: test.missionConfig,
 				ownerSessionId: "session-1",
@@ -175,12 +212,23 @@ describe("mission launch lifecycle", () => {
 					details: {
 						mode: "single",
 						runId: "foreground-1",
-						results: [{ index: 0, agent: "worker", task: "Do the work", exitCode: 0, usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 1 } }],
+						results: [
+							{
+								index: 0,
+								agent: "worker",
+								task: "Do the work",
+								exitCode: 0,
+								usage: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 1 },
+							},
+						],
 					},
 				},
 			});
 			assert.equal(result.details?.missionId, binding.missionId);
-			assert.match(result.content[0]?.type === "text" ? result.content[0].text : "", new RegExp(`Implemented and tested\\.\\nMission: ${binding.missionId} \\(completed\\)$`));
+			assert.match(
+				result.content[0]?.type === "text" ? result.content[0].text : "",
+				new RegExp(`Implemented and tested\\.\\nMission: ${binding.missionId} \\(completed\\)$`),
+			);
 			const mission = readMission(binding.location, binding.missionId);
 			assert.equal(mission.status, "completed");
 			assert.equal(mission.runs[0]?.runId, "foreground-1");
@@ -229,7 +277,13 @@ describe("mission launch lifecycle", () => {
 				binding,
 				result: {
 					content: [{ type: "text", text: "Async started" }],
-					details: { mode: "single", runId: "async-missing-mission", asyncId: "async-missing-mission", asyncDir, results: [] },
+					details: {
+						mode: "single",
+						runId: "async-missing-mission",
+						asyncId: "async-missing-mission",
+						asyncDir,
+						results: [],
+					},
 				},
 			});
 			fs.rmSync(binding.location.missionDir, { recursive: true, force: true });
@@ -251,15 +305,21 @@ describe("mission launch lifecycle", () => {
 
 			assert.equal(completed, undefined);
 			assert.equal(repeated, undefined);
-			const events = fs.readFileSync(path.join(asyncDir, "events.jsonl"), "utf-8").trim().split("\n").map((line) => JSON.parse(line) as Record<string, unknown>);
-			assert.deepEqual(events, [{
-				type: "subagent.mission.sync.skipped",
-				ts: events[0]?.ts,
-				runId: "async-missing-mission",
-				missionId: binding.missionId,
-				reason: "mission-record-missing",
-				missionPath: path.join(binding.location.missionDir, `${binding.missionId}.json`),
-			}]);
+			const events = fs
+				.readFileSync(path.join(asyncDir, "events.jsonl"), "utf-8")
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line) as Record<string, unknown>);
+			assert.deepEqual(events, [
+				{
+					type: "subagent.mission.sync.skipped",
+					ts: events[0]?.ts,
+					runId: "async-missing-mission",
+					missionId: binding.missionId,
+					reason: "mission-record-missing",
+					missionPath: path.join(binding.location.missionDir, `${binding.missionId}.json`),
+				},
+			]);
 			assert.equal(typeof events[0]?.ts, "number");
 			assert.equal(fs.readdirSync(asyncDir).filter((name) => name.startsWith(".mission-sync-skipped-")).length, 1);
 		} finally {
@@ -312,7 +372,11 @@ describe("mission launch lifecycle", () => {
 		try {
 			const usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 1 };
 			const launch = (title: string, acceptanceStatus: string) => {
-				const binding = prepareMissionLaunch({ params: { mission: { title }, task: "Do the work" }, projectRoot: test.projectRoot, config: test.missionConfig });
+				const binding = prepareMissionLaunch({
+					params: { mission: { title }, task: "Do the work" },
+					projectRoot: test.projectRoot,
+					config: test.missionConfig,
+				});
 				assert.ok(binding);
 				attachMissionToLaunchResult({
 					binding,
@@ -321,7 +385,16 @@ describe("mission launch lifecycle", () => {
 						details: {
 							mode: "single",
 							runId: `run-${acceptanceStatus}`,
-							results: [{ index: 0, agent: "worker", task: "Do the work", exitCode: 0, usage, acceptance: { status: acceptanceStatus } as never }],
+							results: [
+								{
+									index: 0,
+									agent: "worker",
+									task: "Do the work",
+									exitCode: 0,
+									usage,
+									acceptance: { status: acceptanceStatus } as never,
+								},
+							],
 						},
 					},
 				});
@@ -339,13 +412,26 @@ describe("mission launch lifecycle", () => {
 		try {
 			const asyncDir = path.join(test.root, "fast-run");
 			fs.mkdirSync(asyncDir, { recursive: true });
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-				state: "complete",
-				steps: [{ acceptance: { status: "review-required" } }],
-			}));
-			const binding = prepareMissionLaunch({ params: { mission: { title: "Fast run" }, task: "Do it" }, projectRoot: test.projectRoot, config: test.missionConfig });
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify({
+					state: "complete",
+					steps: [{ acceptance: { status: "review-required" } }],
+				}),
+			);
+			const binding = prepareMissionLaunch({
+				params: { mission: { title: "Fast run" }, task: "Do it" },
+				projectRoot: test.projectRoot,
+				config: test.missionConfig,
+			});
 			assert.ok(binding);
-			attachMissionToLaunchResult({ binding, result: { content: [{ type: "text", text: "Async started" }], details: { mode: "single", runId: "fast-1", asyncId: "fast-1", asyncDir, results: [] } } });
+			attachMissionToLaunchResult({
+				binding,
+				result: {
+					content: [{ type: "text", text: "Async started" }],
+					details: { mode: "single", runId: "fast-1", asyncId: "fast-1", asyncDir, results: [] },
+				},
+			});
 			assert.equal(readMission(binding.location, binding.missionId).status, "waiting");
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
@@ -357,10 +443,27 @@ describe("mission launch lifecycle", () => {
 		try {
 			const asyncDir = path.join(test.root, "default-run");
 			fs.mkdirSync(asyncDir, { recursive: true });
-			const binding = prepareMissionLaunch({ params: { task: "Edit the file" }, projectRoot: test.projectRoot, config: test.missionConfig });
+			const binding = prepareMissionLaunch({
+				params: { task: "Edit the file" },
+				projectRoot: test.projectRoot,
+				config: test.missionConfig,
+			});
 			assert.ok(binding);
-			attachMissionToLaunchResult({ binding, result: { content: [{ type: "text", text: "Async started" }], details: { mode: "single", runId: "default-1", asyncId: "default-1", asyncDir, results: [] } } });
-			const done = syncMissionFromAsyncCompletion({ runId: "default-1", asyncDir, mode: "single", state: "complete", success: true, results: [{ acceptance: { status: "review-required" } }] });
+			attachMissionToLaunchResult({
+				binding,
+				result: {
+					content: [{ type: "text", text: "Async started" }],
+					details: { mode: "single", runId: "default-1", asyncId: "default-1", asyncDir, results: [] },
+				},
+			});
+			const done = syncMissionFromAsyncCompletion({
+				runId: "default-1",
+				asyncDir,
+				mode: "single",
+				state: "complete",
+				success: true,
+				results: [{ acceptance: { status: "review-required" } }],
+			});
 			assert.equal(done?.status, "completed");
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
@@ -372,11 +475,28 @@ describe("mission launch lifecycle", () => {
 		try {
 			const asyncDir = path.join(test.root, "shown-run");
 			fs.mkdirSync(asyncDir, { recursive: true });
-			const binding = prepareMissionLaunch({ params: { mission: { title: "Shown" }, task: "Do it" }, projectRoot: test.projectRoot, config: test.missionConfig });
+			const binding = prepareMissionLaunch({
+				params: { mission: { title: "Shown" }, task: "Do it" },
+				projectRoot: test.projectRoot,
+				config: test.missionConfig,
+			});
 			assert.ok(binding);
-			attachMissionToLaunchResult({ binding, result: { content: [{ type: "text", text: "Async started" }], details: { mode: "single", runId: "shown-1", asyncId: "shown-1", asyncDir, results: [] } } });
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({ state: "complete", steps: [{ acceptance: { status: "review-required" } }] }));
-			const shown = handleMissionAction("mission.show", { missionId: binding.missionId }, { cwd: test.projectRoot, config: test.missionConfig });
+			attachMissionToLaunchResult({
+				binding,
+				result: {
+					content: [{ type: "text", text: "Async started" }],
+					details: { mode: "single", runId: "shown-1", asyncId: "shown-1", asyncDir, results: [] },
+				},
+			});
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify({ state: "complete", steps: [{ acceptance: { status: "review-required" } }] }),
+			);
+			const shown = handleMissionAction(
+				"mission.show",
+				{ missionId: binding.missionId },
+				{ cwd: test.projectRoot, config: test.missionConfig },
+			);
 			assert.equal(shown.details?.mission?.status, "waiting");
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
@@ -390,12 +510,50 @@ describe("mission launch lifecycle", () => {
 			const childDir = path.join(test.root, "child-run");
 			fs.mkdirSync(workflowDir, { recursive: true });
 			fs.mkdirSync(childDir, { recursive: true });
-			const binding = prepareMissionLaunch({ params: { mission: { title: "Draft the approval email" }, task: "Draft it" }, projectRoot: test.projectRoot, config: test.missionConfig });
+			const binding = prepareMissionLaunch({
+				params: { mission: { title: "Draft the approval email" }, task: "Draft it" },
+				projectRoot: test.projectRoot,
+				config: test.missionConfig,
+			});
 			assert.ok(binding);
-			attachMissionToLaunchResult({ binding, result: { content: [{ type: "text", text: "Async started" }], details: { mode: "workflow", runId: "workflow-1", asyncId: "workflow-1", asyncDir: workflowDir, results: [] } } });
-			attachMissionToLaunchResult({ binding, result: { content: [{ type: "text", text: "Child started" }], details: { mode: "single", runId: "child-1", asyncId: "child-1", asyncDir: childDir, results: [] } } });
-			syncMissionFromAsyncCompletion({ runId: "child-1", asyncDir: childDir, mode: "single", state: "complete", success: true, parentWorkflowRunId: "workflow-1", workflowKey: "draft-email", results: [{ acceptance: { status: "review-required" } }] });
-			const workflowDone = syncMissionFromAsyncCompletion({ runId: "workflow-1", asyncDir: workflowDir, mode: "workflow", state: "complete", success: true, results: [] });
+			attachMissionToLaunchResult({
+				binding,
+				result: {
+					content: [{ type: "text", text: "Async started" }],
+					details: {
+						mode: "workflow",
+						runId: "workflow-1",
+						asyncId: "workflow-1",
+						asyncDir: workflowDir,
+						results: [],
+					},
+				},
+			});
+			attachMissionToLaunchResult({
+				binding,
+				result: {
+					content: [{ type: "text", text: "Child started" }],
+					details: { mode: "single", runId: "child-1", asyncId: "child-1", asyncDir: childDir, results: [] },
+				},
+			});
+			syncMissionFromAsyncCompletion({
+				runId: "child-1",
+				asyncDir: childDir,
+				mode: "single",
+				state: "complete",
+				success: true,
+				parentWorkflowRunId: "workflow-1",
+				workflowKey: "draft-email",
+				results: [{ acceptance: { status: "review-required" } }],
+			});
+			const workflowDone = syncMissionFromAsyncCompletion({
+				runId: "workflow-1",
+				asyncDir: workflowDir,
+				mode: "workflow",
+				state: "complete",
+				success: true,
+				results: [],
+			});
 			assert.equal(workflowDone?.status, "waiting");
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });

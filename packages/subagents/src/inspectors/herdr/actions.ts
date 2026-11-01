@@ -28,14 +28,17 @@ export function bindingPath(asyncDir: string, index?: number): string {
 function parse(value: unknown): HerdrInspectorBinding | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const binding = value as Partial<HerdrInspectorBinding>;
-	if (binding.schemaVersion !== 1
-		|| binding.kind !== "herdr-inspector"
-		|| (binding.childIndex !== undefined && (!Number.isInteger(binding.childIndex) || binding.childIndex < 0))
-		|| typeof binding.runId !== "string"
-		|| typeof binding.asyncDir !== "string"
-		|| typeof binding.paneId !== "string"
-		|| typeof binding.openedAt !== "string"
-		|| typeof binding.command !== "string") return undefined;
+	if (
+		binding.schemaVersion !== 1 ||
+		binding.kind !== "herdr-inspector" ||
+		(binding.childIndex !== undefined && (!Number.isInteger(binding.childIndex) || binding.childIndex < 0)) ||
+		typeof binding.runId !== "string" ||
+		typeof binding.asyncDir !== "string" ||
+		typeof binding.paneId !== "string" ||
+		typeof binding.openedAt !== "string" ||
+		typeof binding.command !== "string"
+	)
+		return undefined;
 	return binding as HerdrInspectorBinding;
 }
 
@@ -74,7 +77,7 @@ function errorText(input: { code: HerdrErrorCode; message: string }): string {
 function paneId(value: unknown): string | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const record = value as Record<string, unknown>;
-	const pane = record.pane && typeof record.pane === "object" ? record.pane as Record<string, unknown> : record;
+	const pane = record.pane && typeof record.pane === "object" ? (record.pane as Record<string, unknown>) : record;
 	for (const key of ["pane_id", "paneId", "id"]) {
 		if (typeof pane[key] === "string") return pane[key];
 	}
@@ -97,18 +100,31 @@ export async function openHerdrInspector(
 	if (existing) {
 		const current = await pane(client, existing.paneId, context.signal);
 		if (current.ok && paneId(current.data) === existing.paneId) {
-			return result(`Herdr inspector pane ${existing.paneId} is already open for async run ${context.target.runId}.${params.focus ? " Herdr cannot refocus an arbitrary raw pane id; select it in the Herdr UI." : ""}`);
+			return result(
+				`Herdr inspector pane ${existing.paneId} is already open for async run ${context.target.runId}.${params.focus ? " Herdr cannot refocus an arbitrary raw pane id; select it in the Herdr UI." : ""}`,
+			);
 		}
 	}
-	const split = await client.run([
-		"pane", "split", "--current", "--direction", "right",
-		"--cwd", context.target.status.cwd ?? context.cwd,
-		params.focus === true ? "--focus" : "--no-focus",
-	], { timeoutMs: 15_000, signal: context.signal });
+	const split = await client.run(
+		[
+			"pane",
+			"split",
+			"--current",
+			"--direction",
+			"right",
+			"--cwd",
+			context.target.status.cwd ?? context.cwd,
+			params.focus === true ? "--focus" : "--no-focus",
+		],
+		{ timeoutMs: 15_000, signal: context.signal },
+	);
 	if (!split.ok) return result(errorText(split.error), true);
 	const id = paneId(split.data);
 	if (!id) return result("Herdr inspector error (PANE_GONE): pane split returned no pane id.", true);
-	const started = await client.run(["pane", "run", id, launch.displayCommand], { timeoutMs: 15_000, signal: context.signal });
+	const started = await client.run(["pane", "run", id, launch.displayCommand], {
+		timeoutMs: 15_000,
+		signal: context.signal,
+	});
 	if (!started.ok) {
 		await client.run(["pane", "close", id], { timeoutMs: 5_000 });
 		return result(errorText(started.error), true);
@@ -128,22 +144,37 @@ export async function openHerdrInspector(
 		command: launch.displayCommand,
 	};
 	writeAtomicJson(bindingPath(context.target.asyncDir, context.target.index), binding);
-	return result(`Opened read-only Herdr inspector pane ${id} for async run ${context.target.runId}. Closing the pane does not stop the run.\nControls inside the pane: steer <message>, stop, status.`);
+	return result(
+		`Opened read-only Herdr inspector pane ${id} for async run ${context.target.runId}. Closing the pane does not stop the run.\nControls inside the pane: steer <message>, stop, status.`,
+	);
 }
 
-export async function statusHerdrInspector(context: InspectorContext, client: HerdrClient): Promise<AgentToolResult<Details>> {
+export async function statusHerdrInspector(
+	context: InspectorContext,
+	client: HerdrClient,
+): Promise<AgentToolResult<Details>> {
 	const binding = readHerdrInspectorBindingForTarget(context.target);
 	if (!binding) {
-		return result(`No Herdr inspector binding exists for async run ${context.target.runId}${context.target.index === undefined ? "" : ` child ${context.target.index}`}.`);
+		return result(
+			`No Herdr inspector binding exists for async run ${context.target.runId}${context.target.index === undefined ? "" : ` child ${context.target.index}`}.`,
+		);
 	}
 	const live = await pane(client, binding.paneId, context.signal);
 	if (!live.ok) {
-		return result(`${errorText(live.error)}\nBinding: ${bindingPath(context.target.asyncDir, context.target.index)}\nRun state remains authoritative: ${context.target.status.state}.`, true);
+		return result(
+			`${errorText(live.error)}\nBinding: ${bindingPath(context.target.asyncDir, context.target.index)}\nRun state remains authoritative: ${context.target.status.state}.`,
+			true,
+		);
 	}
-	return result(`Herdr inspector ${binding.paneId} is open for async run ${context.target.runId}.\nRun state: ${context.target.status.state}\nBinding: ${bindingPath(context.target.asyncDir, context.target.index)}`);
+	return result(
+		`Herdr inspector ${binding.paneId} is open for async run ${context.target.runId}.\nRun state: ${context.target.status.state}\nBinding: ${bindingPath(context.target.asyncDir, context.target.index)}`,
+	);
 }
 
-export async function closeHerdrInspector(context: InspectorContext, client: HerdrClient): Promise<AgentToolResult<Details>> {
+export async function closeHerdrInspector(
+	context: InspectorContext,
+	client: HerdrClient,
+): Promise<AgentToolResult<Details>> {
 	const binding = readHerdrInspectorBindingForTarget(context.target);
 	if (!binding) return result(`No Herdr inspector binding exists for async run ${context.target.runId}.`);
 	const closed = await client.run(["pane", "close", binding.paneId], { timeoutMs: 10_000, signal: context.signal });
@@ -151,5 +182,7 @@ export async function closeHerdrInspector(context: InspectorContext, client: Her
 		return result(errorText(closed.error), true);
 	}
 	fs.rmSync(bindingPath(context.target.asyncDir, context.target.index), { force: true });
-	return result(`Closed Herdr inspector pane ${binding.paneId} for async run ${context.target.runId}. The subagent run was not stopped.`);
+	return result(
+		`Closed Herdr inspector pane ${binding.paneId} for async run ${context.target.runId}. The subagent run was not stopped.`,
+	);
 }

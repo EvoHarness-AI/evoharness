@@ -2,9 +2,15 @@ import { createHash, randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { AgentToolResult } from "@evoharness/agent-core";
-import { discoverAgents, formatUnknownAgentError, resolveAgentName, unknownAgentDiagnosticContext, type AgentConfig } from "./agents.ts";
 import { getProjectSubagentsDir } from "../shared/artifacts.ts";
 import type { Details, JsonSchemaObject, SingleResult, SubagentState } from "../shared/types.ts";
+import {
+	type AgentConfig,
+	discoverAgents,
+	formatUnknownAgentError,
+	resolveAgentName,
+	unknownAgentDiagnosticContext,
+} from "./agents.ts";
 
 const REFINEMENT_FORMAT_VERSION = 1;
 const REFINEMENT_DIR = "refinements";
@@ -119,7 +125,9 @@ function result(text: string, isError = false): AgentToolResult<Details> {
 }
 
 function record(value: unknown): Record<string, unknown> | null {
-	return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
+	return value !== null && typeof value === "object" && !Array.isArray(value)
+		? (value as Record<string, unknown>)
+		: null;
 }
 
 function text(value: unknown): string | null {
@@ -191,7 +199,8 @@ export function parseRefinementFile(markdown: string, label = "refinement file")
 	const source = text(base.source);
 	const filePath = text(base.filePath);
 	const systemPromptSha256 = text(base.systemPromptSha256);
-	if (source !== "builtin" && source !== "package" && source !== "user" && source !== "project") throw new Error(`${label} base source is invalid.`);
+	if (source !== "builtin" && source !== "package" && source !== "user" && source !== "project")
+		throw new Error(`${label} base source is invalid.`);
 	if (!filePath || !systemPromptSha256) throw new Error(`${label} base metadata is invalid.`);
 	const current = extractFence(markdown, CURRENT_FENCE);
 	if (current === null) throw new Error(`${label} is missing current refinement block.`);
@@ -205,7 +214,14 @@ export function parseRefinementFile(markdown: string, label = "refinement file")
 		const before = typeof item.before === "string" ? item.before : null;
 		const after = typeof item.after === "string" ? item.after : null;
 		const at = text(item.at);
-		if (typeof item.revision !== "number" || !Number.isInteger(item.revision) || !at || (action !== "refine" && action !== "rollback") || before === null || after === null) {
+		if (
+			typeof item.revision !== "number" ||
+			!Number.isInteger(item.revision) ||
+			!at ||
+			(action !== "refine" && action !== "rollback") ||
+			before === null ||
+			after === null
+		) {
 			throw new Error(`${label} snapshot ${index} is invalid.`);
 		}
 		return {
@@ -306,14 +322,20 @@ function pushCapped(items: RefinementEvidenceItem[], item: RefinementEvidenceIte
 	items.push({ ...item, outputTail: item.outputTail ? tailBytes(item.outputTail, MAX_ITEM_BYTES) : undefined });
 }
 
-function acceptanceFields(value: unknown): Pick<RefinementEvidenceItem, "acceptanceStatus" | "reviewFindings" | "residualRisks"> {
+function acceptanceFields(
+	value: unknown,
+): Pick<RefinementEvidenceItem, "acceptanceStatus" | "reviewFindings" | "residualRisks"> {
 	const ledger = record(value);
 	if (!ledger) return {};
 	const childReport = record(ledger.childReport);
 	const reviewResult = record(ledger.reviewResult);
 	const reviewFindings = [
 		...textArray(childReport?.reviewFindings),
-		...(Array.isArray(reviewResult?.findings) ? reviewResult.findings.map((finding) => text(record(finding)?.issue)).filter((entry): entry is string => entry !== null) : []),
+		...(Array.isArray(reviewResult?.findings)
+			? reviewResult.findings
+					.map((finding) => text(record(finding)?.issue))
+					.filter((entry): entry is string => entry !== null)
+			: []),
 	];
 	const residualRisks = textArray(childReport?.residualRisks);
 	return {
@@ -325,13 +347,15 @@ function acceptanceFields(value: unknown): Pick<RefinementEvidenceItem, "accepta
 
 function controlSignals(value: unknown): string[] {
 	if (!Array.isArray(value)) return [];
-	return value.map((entry) => {
-		const item = record(entry);
-		if (!item) return null;
-		const message = text(item.message);
-		const reason = text(item.reason);
-		return message ? (reason ? `${reason}: ${message}` : message) : null;
-	}).filter((entry): entry is string => entry !== null);
+	return value
+		.map((entry) => {
+			const item = record(entry);
+			if (!item) return null;
+			const message = text(item.message);
+			const reason = text(item.reason);
+			return message ? (reason ? `${reason}: ${message}` : message) : null;
+		})
+		.filter((entry): entry is string => entry !== null);
 }
 
 function evidencePacket(items: RefinementEvidenceItem[]): RefinementEvidenceItem[] {
@@ -346,7 +370,11 @@ function evidencePacket(items: RefinementEvidenceItem[]): RefinementEvidenceItem
 	return packet;
 }
 
-export function collectBoundedRefinementEvidence(cwd: string, agentName: string, state: SubagentState): RefinementEvidenceItem[] {
+export function collectBoundedRefinementEvidence(
+	cwd: string,
+	agentName: string,
+	state: SubagentState,
+): RefinementEvidenceItem[] {
 	const items: RefinementEvidenceItem[] = [];
 	const jobs = [...state.asyncJobs.values()]
 		.filter((job) => !job.cwd || path.resolve(job.cwd) === path.resolve(cwd))
@@ -389,32 +417,42 @@ export function collectBoundedRefinementEvidence(cwd: string, agentName: string,
 
 	const artifactsDir = path.join(getProjectSubagentsDir(cwd), "artifacts");
 	if (fs.existsSync(artifactsDir)) {
-		const files = fs.readdirSync(artifactsDir)
+		const files = fs
+			.readdirSync(artifactsDir)
 			.filter((file) => file.endsWith("_meta.json"))
 			.map((file) => path.join(artifactsDir, file))
 			.sort((a, b) => fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs);
 		for (const file of files) {
 			if (items.length >= MAX_EVIDENCE_ITEMS) break;
 			let metadata: Record<string, unknown> | null = null;
-			try { metadata = record(JSON.parse(fs.readFileSync(file, "utf-8")) as unknown); } catch { metadata = null; }
+			try {
+				metadata = record(JSON.parse(fs.readFileSync(file, "utf-8")) as unknown);
+			} catch {
+				metadata = null;
+			}
 			if (!metadata || text(metadata.agent) !== agentName) continue;
 			const stat = fs.statSync(file);
 			const at = isoTime(metadata.timestamp ?? stat.mtimeMs);
 			if (!withinAge(at)) continue;
 			const outputPath = file.replace(/_meta\.json$/, "_output.md");
-			const outputTail = fs.existsSync(outputPath) ? tailBytes(fs.readFileSync(outputPath, "utf-8"), MAX_ITEM_BYTES) : undefined;
+			const outputTail = fs.existsSync(outputPath)
+				? tailBytes(fs.readFileSync(outputPath, "utf-8"), MAX_ITEM_BYTES)
+				: undefined;
 			pushCapped(items, {
 				id: `artifact:${path.basename(file, "_meta.json")}`,
 				source: outputTail ? "artifact-output" : "artifact-metadata",
 				...(text(metadata.runId) ? { runId: text(metadata.runId)! } : {}),
 				agent: agentName,
 				...(at ? { at } : {}),
-				status: typeof metadata.exitCode === "number" ? (metadata.exitCode === 0 ? "completed" : "failed") : undefined,
+				status:
+					typeof metadata.exitCode === "number" ? (metadata.exitCode === 0 ? "completed" : "failed") : undefined,
 				...(text(metadata.model) ? { model: text(metadata.model)! } : {}),
 				...(text(metadata.thinking) ? { thinking: text(metadata.thinking)! } : {}),
 				...acceptanceFields(metadata.acceptance),
 				...(text(metadata.error) ? { errors: [text(metadata.error)!] } : {}),
-				...((controlSignals(metadata.controlEvents).length > 0) ? { controlSignals: controlSignals(metadata.controlEvents) } : {}),
+				...(controlSignals(metadata.controlEvents).length > 0
+					? { controlSignals: controlSignals(metadata.controlEvents) }
+					: {}),
 				...(outputTail ? { outputTail } : {}),
 				refs: outputTail ? [file, outputPath] : [file],
 			});
@@ -445,16 +483,23 @@ export function appendAgentRefinementOverlay(systemPrompt: string, input: { cwd:
 	return systemPrompt.trim() ? `${systemPrompt}\n\n${overlay}` : overlay;
 }
 
-export function validateRefinementProposal(proposal: unknown, evidenceIds: string[]): { ok: true; proposal: RefinementProposal } | { ok: false; error: string } {
+export function validateRefinementProposal(
+	proposal: unknown,
+	evidenceIds: string[],
+): { ok: true; proposal: RefinementProposal } | { ok: false; error: string } {
 	const item = record(proposal);
 	if (!item) return { ok: false, error: "Refinement proposal must be an object." };
 	const summary = text(item.summary);
 	const editsValue = item.edits;
-	if (!summary || !Array.isArray(editsValue)) return { ok: false, error: "Refinement proposal requires summary and edits." };
+	if (!summary || !Array.isArray(editsValue))
+		return { ok: false, error: "Refinement proposal requires summary and edits." };
 	if (editsValue.length > 3) return { ok: false, error: "Refinement proposal may contain at most 3 edits." };
 	const allowed = new Set(evidenceIds);
 	const protectedInstruction = "(?:acceptance|output|safety|policy|policies|tools?|developer|system)";
-	const blocked = new RegExp(`\\b(all agents|every agent|global|(?:disable|ignore|bypass|skip|override)\\s+(?:the\\s+)?${protectedInstruction}(?:\\s+instructions?)?|${protectedInstruction}\\s+(?:instructions?|overrides?)|tool safety|review gates|rewrite base|base agent file|settings\\.json|\\.evoharness/agent|\\.pi/agent|agents/.*\\.md)\\b`, "i");
+	const blocked = new RegExp(
+		`\\b(all agents|every agent|global|(?:disable|ignore|bypass|skip|override)\\s+(?:the\\s+)?${protectedInstruction}(?:\\s+instructions?)?|${protectedInstruction}\\s+(?:instructions?|overrides?)|tool safety|review gates|rewrite base|base agent file|settings\\.json|\\.evoharness/agent|\\.pi/agent|agents/.*\\.md)\\b`,
+		"i",
+	);
 	const edits: RefinementProposalEdit[] = [];
 	for (const [index, editValue] of editsValue.entries()) {
 		const edit = record(editValue);
@@ -463,12 +508,23 @@ export function validateRefinementProposal(proposal: unknown, evidenceIds: strin
 		const guidance = text(edit.guidance);
 		const rationale = text(edit.rationale);
 		const cited = textArray(edit.evidenceIds);
-		if (!title || !guidance || !rationale) return { ok: false, error: `Refinement proposal edit ${index} is missing title, guidance, or rationale.` };
-		if (cited.length === 0 || cited.some((id) => !allowed.has(id))) return { ok: false, error: `Refinement proposal edit ${index} must cite known evidence ids.` };
-		if (guidance.includes("```") || guidance.includes("</pi-subagents-refinement>") || blocked.test(guidance)) return { ok: false, error: `Refinement proposal edit ${index} contains disallowed guidance.` };
+		if (!title || !guidance || !rationale)
+			return { ok: false, error: `Refinement proposal edit ${index} is missing title, guidance, or rationale.` };
+		if (cited.length === 0 || cited.some((id) => !allowed.has(id)))
+			return { ok: false, error: `Refinement proposal edit ${index} must cite known evidence ids.` };
+		if (guidance.includes("```") || guidance.includes("</pi-subagents-refinement>") || blocked.test(guidance))
+			return { ok: false, error: `Refinement proposal edit ${index} contains disallowed guidance.` };
 		edits.push({ title, guidance, rationale, evidenceIds: cited });
 	}
-	return { ok: true, proposal: { summary, edits, rejectedIdeas: textArray(item.rejectedIdeas), residualRisks: textArray(item.residualRisks) } };
+	return {
+		ok: true,
+		proposal: {
+			summary,
+			edits,
+			rejectedIdeas: textArray(item.rejectedIdeas),
+			residualRisks: textArray(item.residualRisks),
+		},
+	};
 }
 
 function proposalSchema(): JsonSchemaObject {
@@ -503,12 +559,17 @@ function proposalFromChild(child: ProposalChildResult): unknown {
 	for (const entry of child.details?.results ?? []) {
 		if (entry.structuredOutput !== undefined) return entry.structuredOutput;
 	}
-	const output = child.details?.results?.map((entry) => entry.finalOutput ?? "").find((entry) => entry.trim().length > 0)
-		?? child.content?.map((entry) => entry.text ?? "").find((entry) => entry.trim().length > 0)
-		?? "";
+	const output =
+		child.details?.results?.map((entry) => entry.finalOutput ?? "").find((entry) => entry.trim().length > 0) ??
+		child.content?.map((entry) => entry.text ?? "").find((entry) => entry.trim().length > 0) ??
+		"";
 	const jsonMatch = output.match(/```(?:json)?\n([\s\S]*?)\n```/) ?? output.match(/({[\s\S]*})/);
 	if (!jsonMatch?.[1]) return null;
-	try { return JSON.parse(jsonMatch[1]) as unknown; } catch { return null; }
+	try {
+		return JSON.parse(jsonMatch[1]) as unknown;
+	} catch {
+		return null;
+	}
 }
 
 function proposalTask(agent: AgentConfig, current: string, evidence: RefinementEvidenceItem[]): string {
@@ -521,7 +582,16 @@ function proposalTask(agent: AgentConfig, current: string, evidence: RefinementE
 		"Return only structured output that matches the schema.",
 		"",
 		"Agent metadata:",
-		JSON.stringify({ name: agent.name, source: agent.source, filePath: agent.filePath, basePromptSha256: hashPrompt(agent.systemPrompt) }, null, 2),
+		JSON.stringify(
+			{
+				name: agent.name,
+				source: agent.source,
+				filePath: agent.filePath,
+				basePromptSha256: hashPrompt(agent.systemPrompt),
+			},
+			null,
+			2,
+		),
 		"",
 		"Current overlay:",
 		current.trim() || "(none)",
@@ -535,43 +605,72 @@ function guidanceFromProposal(proposal: RefinementProposal): string {
 	return proposal.edits.map((edit) => `- ${edit.guidance.trim()}`).join("\n");
 }
 
-function resolveOneAgent(cwd: string, agentName: string): { ok: true; agent: AgentConfig } | { ok: false; error: string } {
+function resolveOneAgent(
+	cwd: string,
+	agentName: string,
+): { ok: true; agent: AgentConfig } | { ok: false; error: string } {
 	const discovered = discoverAgents(cwd, "both");
 	const resolved = resolveAgentName(agentName, discovered.agents);
 	if (resolved.error) return { ok: false, error: resolved.error };
-	if (!resolved.agent) return { ok: false, error: formatUnknownAgentError(agentName, unknownAgentDiagnosticContext(discovered)) };
+	if (!resolved.agent)
+		return { ok: false, error: formatUnknownAgentError(agentName, unknownAgentDiagnosticContext(discovered)) };
 	return { ok: true, agent: resolved.agent };
 }
 
-export async function handleRefinementAction(action: RefinementAction, params: { agent?: string }, ctx: RefinementActionContext): Promise<AgentToolResult<Details>> {
+export async function handleRefinementAction(
+	action: RefinementAction,
+	params: { agent?: string },
+	ctx: RefinementActionContext,
+): Promise<AgentToolResult<Details>> {
 	const requestedAgent = params.agent?.trim();
-	if (!requestedAgent) return result(`${action} requires agent. Use /subagents-refine <agent> or subagent({ action: "${action}", agent: "<agent>" }).`, true);
+	if (!requestedAgent)
+		return result(
+			`${action} requires agent. Use /subagents-refine <agent> or subagent({ action: "${action}", agent: "<agent>" }).`,
+			true,
+		);
 	let resolved: { ok: true; agent: AgentConfig } | { ok: false; error: string };
-	try { resolved = resolveOneAgent(ctx.cwd, requestedAgent); } catch (error) { return result(error instanceof Error ? error.message : String(error), true); }
+	try {
+		resolved = resolveOneAgent(ctx.cwd, requestedAgent);
+	} catch (error) {
+		return result(error instanceof Error ? error.message : String(error), true);
+	}
 	if (!resolved.ok) return result(resolved.error, true);
 	const agent = resolved.agent;
 	let existing: ExistingRefinementFile;
-	try { existing = readExisting(ctx.cwd, agent.name); } catch (error) { return result(error instanceof Error ? error.message : String(error), true); }
+	try {
+		existing = readExisting(ctx.cwd, agent.name);
+	} catch (error) {
+		return result(error instanceof Error ? error.message : String(error), true);
+	}
 
 	if (action === "refine.show") {
 		if (!existing.parsed) return result(`No refinement overlay exists for '${agent.name}'.`);
 		const currentDigest = hashPrompt(agent.systemPrompt);
 		const drift = existing.parsed.metadata.base.systemPromptSha256 === currentDigest ? "no" : "yes";
-		const history = existing.parsed.snapshots.slice(-5).map((snapshot) => `- r${snapshot.revision} ${snapshot.action} at ${snapshot.at} (${snapshot.evidenceIds.length} evidence id${snapshot.evidenceIds.length === 1 ? "" : "s"})`).join("\n") || "- none";
-		return result([
-			`Refinement overlay for '${agent.name}'`,
-			`Path: ${existing.path}`,
-			`Revision: ${existing.parsed.metadata.revision}`,
-			`Updated: ${existing.parsed.metadata.updatedAt}`,
-			`Base: ${existing.parsed.metadata.base.source} ${existing.parsed.metadata.base.filePath}`,
-			`Base prompt changed since overlay: ${drift}`,
-			"",
-			"Current guidance:",
-			existing.parsed.current.trim() || "(empty)",
-			"",
-			"Recent history:",
-			history,
-		].join("\n"));
+		const history =
+			existing.parsed.snapshots
+				.slice(-5)
+				.map(
+					(snapshot) =>
+						`- r${snapshot.revision} ${snapshot.action} at ${snapshot.at} (${snapshot.evidenceIds.length} evidence id${snapshot.evidenceIds.length === 1 ? "" : "s"})`,
+				)
+				.join("\n") || "- none";
+		return result(
+			[
+				`Refinement overlay for '${agent.name}'`,
+				`Path: ${existing.path}`,
+				`Revision: ${existing.parsed.metadata.revision}`,
+				`Updated: ${existing.parsed.metadata.updatedAt}`,
+				`Base: ${existing.parsed.metadata.base.source} ${existing.parsed.metadata.base.filePath}`,
+				`Base prompt changed since overlay: ${drift}`,
+				"",
+				"Current guidance:",
+				existing.parsed.current.trim() || "(empty)",
+				"",
+				"Recent history:",
+				history,
+			].join("\n"),
+		);
 	}
 
 	if (action === "refine.rollback") {
@@ -583,20 +682,43 @@ export async function handleRefinementAction(action: RefinementAction, params: {
 		const next: ParsedRefinementFile = {
 			metadata: metadataFor(agent, nextRevision, now),
 			current: latest.before,
-			snapshots: [...existing.parsed.snapshots, { revision: nextRevision, at: now, action: "rollback", before: existing.parsed.current, after: latest.before, evidenceIds: latest.evidenceIds }],
+			snapshots: [
+				...existing.parsed.snapshots,
+				{
+					revision: nextRevision,
+					at: now,
+					action: "rollback",
+					before: existing.parsed.current,
+					after: latest.before,
+					evidenceIds: latest.evidenceIds,
+				},
+			],
 		};
-		try { writeRefinementFile(existing.path, next); } catch (error) { return result(error instanceof Error ? error.message : String(error), true); }
-		return result(`Rolled back refinement overlay for '${agent.name}' to revision ${nextRevision}.\nPath: ${existing.path}`);
+		try {
+			writeRefinementFile(existing.path, next);
+		} catch (error) {
+			return result(error instanceof Error ? error.message : String(error), true);
+		}
+		return result(
+			`Rolled back refinement overlay for '${agent.name}' to revision ${nextRevision}.\nPath: ${existing.path}`,
+		);
 	}
 
 	const evidence = collectBoundedRefinementEvidence(ctx.cwd, agent.name, ctx.state);
-	if (evidence.length === 0) return result(`No bounded recent evidence was found for '${agent.name}'. No proposal child was launched and no overlay was written.`);
+	if (evidence.length === 0)
+		return result(
+			`No bounded recent evidence was found for '${agent.name}'. No proposal child was launched and no overlay was written.`,
+		);
 	const current = existing.parsed?.current ?? "";
 	const child = await ctx.launchProposalChild(proposalTask(agent, current, evidence), proposalSchema(), ctx.signal);
 	if (child.isError) return result(`Refinement proposal child failed. No overlay was written.`, true);
-	const validation = validateRefinementProposal(proposalFromChild(child), evidence.map((item) => item.id));
+	const validation = validateRefinementProposal(
+		proposalFromChild(child),
+		evidence.map((item) => item.id),
+	);
 	if (!validation.ok) return result(`${validation.error} No overlay was written.`, true);
-	if (validation.proposal.edits.length === 0) return result(`The proposal child returned no edits for '${agent.name}'. No overlay was written.`);
+	if (validation.proposal.edits.length === 0)
+		return result(`The proposal child returned no edits for '${agent.name}'. No overlay was written.`);
 	const now = new Date().toISOString();
 	const nextRevision = (existing.parsed?.metadata.revision ?? 0) + 1;
 	const after = guidanceFromProposal(validation.proposal);
@@ -614,11 +736,17 @@ export async function handleRefinementAction(action: RefinementAction, params: {
 		current: after,
 		snapshots: [...(existing.parsed?.snapshots ?? []), snapshot],
 	};
-	try { writeRefinementFile(existing.path, next); } catch (error) { return result(error instanceof Error ? error.message : String(error), true); }
-	return result([
-		`Wrote refinement overlay for '${agent.name}' at revision ${nextRevision}.`,
-		`Path: ${existing.path}`,
-		`Evidence items: ${evidence.length}`,
-		`Edits: ${validation.proposal.edits.length}`,
-	].join("\n"));
+	try {
+		writeRefinementFile(existing.path, next);
+	} catch (error) {
+		return result(error instanceof Error ? error.message : String(error), true);
+	}
+	return result(
+		[
+			`Wrote refinement overlay for '${agent.name}' at revision ${nextRevision}.`,
+			`Path: ${existing.path}`,
+			`Evidence items: ${evidence.length}`,
+			`Edits: ${validation.proposal.edits.length}`,
+		].join("\n"),
+	);
 }

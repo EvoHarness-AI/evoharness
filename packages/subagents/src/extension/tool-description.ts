@@ -1,8 +1,12 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import {
+	type DisabledFeatureSurface,
+	resolveDisabledFeatureSurface,
+	type SubagentSurfaceFeature,
+} from "../shared/disabled-features.ts";
 import type { ExtensionConfig, ToolDescriptionMode } from "../shared/types.ts";
 import { getAgentDir, getProjectConfigDir } from "../shared/utils.ts";
-import { resolveDisabledFeatureSurface, type DisabledFeatureSurface, type SubagentSurfaceFeature } from "../shared/disabled-features.ts";
 
 const CUSTOM_TOOL_DESCRIPTION_FILE = "subagent-tool-description.md";
 const CUSTOM_TOOL_DESCRIPTION_MAX_BYTES = 50 * 1024;
@@ -10,7 +14,7 @@ const CUSTOM_TOOL_DESCRIPTION_MAX_BYTES = 50 * 1024;
 type FeatureText = (feature: SubagentSurfaceFeature, text: string, disabledText?: string) => string;
 
 function featureText(disabled: DisabledFeatureSurface): FeatureText {
-	return (feature, text, disabledText = "") => disabled.features.has(feature) ? disabledText : text;
+	return (feature, text, disabledText = "") => (disabled.features.has(feature) ? disabledText : text);
 }
 
 // Part of every built-in description and appended to custom ones, so it is sent on every request.
@@ -20,8 +24,10 @@ export const SUBAGENT_SAFETY_GUIDANCE = `SAFETY-CRITICAL SUBAGENT GUIDANCE:
 - One writer per cwd/worktree; isolate concurrent writers.
 - After a launch or runtime failure, stop and report it; never silently switch to interactive_shell, pi -ne or another CLI.`;
 
-const scriptCalls = "One child: {agent,task}. Independent parallel children: {workflow:\"parallel\",args:{tasks:[{agent,task,cwd?,model?},...]}}. Dependent multi-step work: exactly one top-level subagent workflow call with async:true; write one ```js workflow block in this reply, then call subagent({workflow:true}); children launch only inside it.";
-const structuredCalls = "One child: {agent,task}. Parallel: tasks:[{agent,task,cwd?,model?},...]. In order: chain:[{agent,task?,as?,cwd?,model?} or {parallel:[{agent,task,cwd?,model?},...]}]; step tasks can use {task}, {previous} and {outputs.name}. Use exactly one top-level subagent chain or tasks call with async:true.";
+const scriptCalls =
+	'One child: {agent,task}. Independent parallel children: {workflow:"parallel",args:{tasks:[{agent,task,cwd?,model?},...]}}. Dependent multi-step work: exactly one top-level subagent workflow call with async:true; write one ```js workflow block in this reply, then call subagent({workflow:true}); children launch only inside it.';
+const structuredCalls =
+	"One child: {agent,task}. Parallel: tasks:[{agent,task,cwd?,model?},...]. In order: chain:[{agent,task?,as?,cwd?,model?} or {parallel:[{agent,task,cwd?,model?},...]}]; step tasks can use {task}, {previous} and {outputs.name}. Use exactly one top-level subagent chain or tasks call with async:true.";
 
 const essentials = (on: FeatureText) => `${on("workflow-scripts", scriptCalls, structuredCalls)}
 Management: {action,id?,options:{...}}; fields not in this schema go in options.
@@ -30,13 +36,23 @@ Details: guide workflows/recommended-orchestration-pattern (async, review, failu
 
 ${SUBAGENT_SAFETY_GUIDANCE}`;
 
-const managementDiscovery = (on: FeatureText) => [
-	["list/get/models/guide"],
-	[on("agent-management", "create/update/delete/eject/disable/enable/reset/refine")],
-	[on("missions", "mission.*"), on("schedules", "schedule.*"), on("watchdog", "watchdog.*"), on("panes", "inspector.*, project.*"), on("lane-management", "lane.status/recordMerge/recordSupersession")],
-	[on("lane-management", "worktree.discard and reviewed worktree.cleanup")],
-	[`doctor${on("spawn-budget-grants", " and grant-spawn-budget")}`],
-].map((group) => group.filter(Boolean).join(", ")).filter(Boolean).join("; ");
+const managementDiscovery = (on: FeatureText) =>
+	[
+		["list/get/models/guide"],
+		[on("agent-management", "create/update/delete/eject/disable/enable/reset/refine")],
+		[
+			on("missions", "mission.*"),
+			on("schedules", "schedule.*"),
+			on("watchdog", "watchdog.*"),
+			on("panes", "inspector.*, project.*"),
+			on("lane-management", "lane.status/recordMerge/recordSupersession"),
+		],
+		[on("lane-management", "worktree.discard and reviewed worktree.cleanup")],
+		[`doctor${on("spawn-budget-grants", " and grant-spawn-budget")}`],
+	]
+		.map((group) => group.filter(Boolean).join(", "))
+		.filter(Boolean)
+		.join("; ");
 
 const scriptDetails = `• Scripts: JavaScript statement bodies with explicit return, top-level await, plain helpers/Promise chains; nested async function/arrow/method helpers are rejected. Await runs.run('key',{agent,task}) before .output; await runs.all([{key,agent,task},...]) for an ordered array, not a key map. Observe every stored run promise with direct await, Promise.race or Promise.all. Await/return runs.steer(key,message,options?) for a prior key, never raw run ids; queued/delivered/missed/failed receipts are not compliance proof.
 • workflow:'./path.js' (any value with '/') loads a file from request cwd; other strings name a resource, such as {workflow:'review',args:{task:'...'}}. agent/task exclude workflow; task excludes action; validate accepts workflow:true or a path without launching. Raw-script sandboxes add deeply frozen args that persist as evidence, so never include secrets; raw scripts cannot use runs.host. Granted commands/relative outputs use workflow cwd, never per-step cwd.
@@ -63,8 +79,10 @@ const allEnabled = featureText(resolveDisabledFeatureSurface({}));
 
 export const DEFAULT_SUBAGENT_TOOL_DESCRIPTION = essentials(allEnabled);
 
-export const SUBAGENT_TOOL_PROMPT_SNIPPET = "Delegate focused work to child agents; compose multi-child work in one workflow call.";
-const STRUCTURED_SUBAGENT_TOOL_PROMPT_SNIPPET = "Delegate focused work to child agents; compose multi-child work in one chain or tasks call.";
+export const SUBAGENT_TOOL_PROMPT_SNIPPET =
+	"Delegate focused work to child agents; compose multi-child work in one workflow call.";
+const STRUCTURED_SUBAGENT_TOOL_PROMPT_SNIPPET =
+	"Delegate focused work to child agents; compose multi-child work in one chain or tasks call.";
 
 export const COMPACT_SUBAGENT_TOOL_DESCRIPTION = DEFAULT_SUBAGENT_TOOL_DESCRIPTION;
 
@@ -87,16 +105,29 @@ export interface ToolDescriptionOptions {
 }
 
 // No promptGuidelines: the description carries the authorization rule, so it is stated once.
-export function buildSubagentToolPromptMetadata(config: Pick<ExtensionConfig, "toolDescriptionMode"> = {}, disabledFeatures?: DisabledFeatureSurface): { promptSnippet?: string } {
+export function buildSubagentToolPromptMetadata(
+	config: Pick<ExtensionConfig, "toolDescriptionMode"> = {},
+	disabledFeatures?: DisabledFeatureSurface,
+): { promptSnippet?: string } {
 	if (config.toolDescriptionMode !== undefined) return {};
-	return { promptSnippet: disabledFeatures?.features.has("workflow-scripts") ? STRUCTURED_SUBAGENT_TOOL_PROMPT_SNIPPET : SUBAGENT_TOOL_PROMPT_SNIPPET };
+	return {
+		promptSnippet: disabledFeatures?.features.has("workflow-scripts")
+			? STRUCTURED_SUBAGENT_TOOL_PROMPT_SNIPPET
+			: SUBAGENT_TOOL_PROMPT_SNIPPET,
+	};
 }
 
-export function resolveToolDescriptionMode(config: Pick<ExtensionConfig, "toolDescriptionMode">, options?: ToolDescriptionOptions): ToolDescriptionMode {
+export function resolveToolDescriptionMode(
+	config: Pick<ExtensionConfig, "toolDescriptionMode">,
+	options?: ToolDescriptionOptions,
+): ToolDescriptionMode {
 	const mode = config.toolDescriptionMode;
 	if (mode === undefined) return "full";
 	if (isToolDescriptionMode(mode)) return mode;
-	warn(options, `Ignoring invalid toolDescriptionMode ${JSON.stringify(mode)}; expected "full", "compact", or "custom".`);
+	warn(
+		options,
+		`Ignoring invalid toolDescriptionMode ${JSON.stringify(mode)}; expected "full", "compact", or "custom".`,
+	);
 	return "full";
 }
 
@@ -137,8 +168,17 @@ function loadCustomToolDescription(options?: ToolDescriptionOptions): string | u
 		try {
 			stat = fs.statSync(filePath);
 		} catch (error) {
-			if (typeof error === "object" && error !== null && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") continue;
-			warn(options, `Failed to inspect custom tool description '${filePath}': ${error instanceof Error ? error.message : String(error)}`);
+			if (
+				typeof error === "object" &&
+				error !== null &&
+				"code" in error &&
+				(error as NodeJS.ErrnoException).code === "ENOENT"
+			)
+				continue;
+			warn(
+				options,
+				`Failed to inspect custom tool description '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
+			);
 			continue;
 		}
 		if (!stat.isFile()) {
@@ -146,7 +186,10 @@ function loadCustomToolDescription(options?: ToolDescriptionOptions): string | u
 			continue;
 		}
 		if (stat.size > CUSTOM_TOOL_DESCRIPTION_MAX_BYTES) {
-			warn(options, `Ignoring custom tool description '${filePath}' because it is larger than ${CUSTOM_TOOL_DESCRIPTION_MAX_BYTES} bytes.`);
+			warn(
+				options,
+				`Ignoring custom tool description '${filePath}' because it is larger than ${CUSTOM_TOOL_DESCRIPTION_MAX_BYTES} bytes.`,
+			);
 			continue;
 		}
 		try {
@@ -162,7 +205,10 @@ function loadCustomToolDescription(options?: ToolDescriptionOptions): string | u
 			}
 			return rendered;
 		} catch (error) {
-			warn(options, `Failed to read custom tool description '${filePath}': ${error instanceof Error ? error.message : String(error)}`);
+			warn(
+				options,
+				`Failed to read custom tool description '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
+			);
 		}
 	}
 	return undefined;
@@ -174,12 +220,13 @@ function withMandatorySafetyGuidance(description: string): string {
 		.map((part) => part.trim())
 		.filter(Boolean)
 		.join("\n\n");
-	return customDescription
-		? `${customDescription}\n\n${SUBAGENT_SAFETY_GUIDANCE}`
-		: SUBAGENT_SAFETY_GUIDANCE;
+	return customDescription ? `${customDescription}\n\n${SUBAGENT_SAFETY_GUIDANCE}` : SUBAGENT_SAFETY_GUIDANCE;
 }
 
-export function buildSubagentToolDescription(config: Pick<ExtensionConfig, "toolDescriptionMode"> = {}, options?: ToolDescriptionOptions): string {
+export function buildSubagentToolDescription(
+	config: Pick<ExtensionConfig, "toolDescriptionMode"> = {},
+	options?: ToolDescriptionOptions,
+): string {
 	const on = options?.disabledFeatures ? featureText(options.disabledFeatures) : allEnabled;
 	if (config.toolDescriptionMode === undefined) return essentials(on);
 	const mode = resolveToolDescriptionMode(config, options);
@@ -187,7 +234,10 @@ export function buildSubagentToolDescription(config: Pick<ExtensionConfig, "tool
 	if (mode === "custom") {
 		const custom = loadCustomToolDescription(options);
 		if (custom) return withMandatorySafetyGuidance(custom);
-		warn(options, `${CUSTOM_TOOL_DESCRIPTION_FILE} was not found or valid for toolDescriptionMode "custom"; using full description.`);
+		warn(
+			options,
+			`${CUSTOM_TOOL_DESCRIPTION_FILE} was not found or valid for toolDescriptionMode "custom"; using full description.`,
+		);
 	}
 	return fullDescription(on);
 }

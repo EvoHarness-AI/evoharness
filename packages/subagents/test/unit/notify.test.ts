@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
-import fs from "node:fs";
-import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import fs, { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -9,28 +8,29 @@ import { describe, it } from "node:test";
 import { SessionManager } from "@evoharness/coding-agent";
 import registerSubagentNotify, {
 	buildCompletionDetails,
+	type CompletionNotifier,
 	createCompletionSendRegistry,
 	formatGroupedCompletion,
-	type CompletionNotifier,
 	formatSingleCompletion,
+	incrementalChildCompletionTriggersTurn,
 	parseSubagentNotifyContent,
 	type RegisterSubagentNotifyOptions,
 	type SubagentNotifyDetails,
 	scheduledCompletionTriggersTurn,
-	incrementalChildCompletionTriggersTurn,
 } from "../../src/runs/background/notify.ts";
-import { SUBAGENT_ASYNC_COMPLETE_EVENT, SUBAGENT_FOREGROUND_COMPLETE_EVENT } from "../../src/shared/types.ts";
 import { createResultDeliveryOwnership } from "../../src/runs/background/result-delivery-ownership.ts";
-import { recordSessionReplacement } from "../../src/shared/session-succession.ts";
-import { createParentWake } from "../../src/shared/parent-wake.ts";
-import { finalizeSingleOutput } from "../../src/runs/shared/single-output.ts";
-import { formatPartialOutput, timedOutRunSummary } from "../../src/runs/shared/partial-output.ts";
 import { buildTimeoutRecoverySummary } from "../../src/runs/shared/mutation-evidence.ts";
+import { formatPartialOutput, timedOutRunSummary } from "../../src/runs/shared/partial-output.ts";
+import { finalizeSingleOutput } from "../../src/runs/shared/single-output.ts";
 import { formatOutputArtifactContent } from "../../src/shared/artifacts.ts";
+import { createParentWake } from "../../src/shared/parent-wake.ts";
+import { recordSessionReplacement } from "../../src/shared/session-succession.ts";
+import { SUBAGENT_ASYNC_COMPLETE_EVENT, SUBAGENT_FOREGROUND_COMPLETE_EVENT } from "../../src/shared/types.ts";
 import { claimWorkflowResume } from "../../src/workflows/workflow-resume-claim.ts";
 
 const COMPLETION_OWNER_ID = "completion-owner-a";
-const completionContent = (content: string) => `${content}\n\nParent action: Read the saved results above and resume the already-authorized parent task, or report completion. If approval is required, explicitly ask the user. Do not silently yield, rerun completed work, or infer new authorization.`;
+const completionContent = (content: string) =>
+	`${content}\n\nParent action: Read the saved results above and resume the already-authorized parent task, or report completion. If approval is required, explicitly ask the user. Do not silently yield, rerun completed work, or infer new authorization.`;
 
 it("keeps reload wakes scoped to one session manager and clears them on quit", async () => {
 	const owner = SessionManager.inMemory();
@@ -41,36 +41,68 @@ it("keeps reload wakes scoped to one session manager and clears them on quit", a
 		const pi = {
 			events: createEventBus(),
 			isHeld: () => false,
-			sendMessage(message: unknown) { messages.push(message); },
+			sendMessage(message: unknown) {
+				messages.push(message);
+			},
 		} as unknown as Parameters<typeof registerSubagentNotify>[0];
-		const notifier = registerSubagentNotify(pi, { currentSessionId: sessionId, completionOwnerId: COMPLETION_OWNER_ID }, { batchConfig: { enabled: false } });
+		const notifier = registerSubagentNotify(
+			pi,
+			{ currentSessionId: sessionId, completionOwnerId: COMPLETION_OWNER_ID },
+			{ batchConfig: { enabled: false } },
+		);
 		notifier.bindSession(sessionManager);
 		return { notifier, messages };
 	};
 	const first = create(owner);
-	await first.notifier.deliver({ id: "queued-wake-scope-result", sessionId, completionOwnerId: COMPLETION_OWNER_ID, success: false, summary: "Needs attention" });
+	await first.notifier.deliver({
+		id: "queued-wake-scope-result",
+		sessionId,
+		completionOwnerId: COMPLETION_OWNER_ID,
+		success: false,
+		summary: "Needs attention",
+	});
 	assert.equal(first.notifier.hasPendingDelivery(), true);
 	first.notifier.sessionShutdown("reload");
 	first.notifier.dispose();
 	const other = create(otherOwner);
 	const replacement = create(owner);
-	assert.equal(other.notifier.hasPendingDelivery(), false, "even the same session ID on a different manager must not inherit another queue");
+	assert.equal(
+		other.notifier.hasPendingDelivery(),
+		false,
+		"even the same session ID on a different manager must not inherit another queue",
+	);
 	assert.equal(replacement.notifier.hasPendingDelivery(), true);
 	other.notifier.messageStarted({ role: "custom", ...first.messages[0] });
 	assert.equal(replacement.notifier.hasPendingDelivery(), true, "foreign consumption cannot clear the owner's wake");
 	replacement.notifier.messageStarted({ role: "custom", ...first.messages[0] });
 	assert.equal(replacement.notifier.hasPendingDelivery(), false);
-	await replacement.notifier.deliver({ id: "queued-wake-quit-result", sessionId, completionOwnerId: COMPLETION_OWNER_ID, success: false, summary: "Another wake" });
+	await replacement.notifier.deliver({
+		id: "queued-wake-quit-result",
+		sessionId,
+		completionOwnerId: COMPLETION_OWNER_ID,
+		success: false,
+		summary: "Another wake",
+	});
 	replacement.notifier.sessionShutdown("quit");
 	replacement.notifier.dispose();
 	const reopened = create(owner);
 	assert.equal(reopened.notifier.hasPendingDelivery(), false, "quit clears wakes even if a manager is reused");
-	await reopened.notifier.deliver({ id: "queued-wake-switch-result", sessionId, completionOwnerId: COMPLETION_OWNER_ID, success: false, summary: "Old session wake" });
+	await reopened.notifier.deliver({
+		id: "queued-wake-switch-result",
+		sessionId,
+		completionOwnerId: COMPLETION_OWNER_ID,
+		success: false,
+		summary: "Old session wake",
+	});
 	assert.equal(reopened.notifier.hasPendingDelivery(), true);
 	owner.newSession();
 	assert.notEqual(owner.getSessionId(), sessionId);
 	reopened.notifier.bindSession(owner);
-	assert.equal(reopened.notifier.hasPendingDelivery(), false, "changing session UUID on the same manager must discard old wakes");
+	assert.equal(
+		reopened.notifier.hasPendingDelivery(),
+		false,
+		"changing session UUID on the same manager must discard old wakes",
+	);
 	reopened.notifier.dispose();
 	other.notifier.dispose();
 });
@@ -82,14 +114,30 @@ it("keeps wakes accepted before the first session bind", async () => {
 	const pi = {
 		events: createEventBus(),
 		isHeld: () => false,
-		sendMessage(message: unknown) { messages.push(message); },
+		sendMessage(message: unknown) {
+			messages.push(message);
+		},
 	} as unknown as Parameters<typeof registerSubagentNotify>[0];
-	const first = registerSubagentNotify(pi, { currentSessionId: sessionId, completionOwnerId: COMPLETION_OWNER_ID }, { batchConfig: { enabled: false } });
+	const first = registerSubagentNotify(
+		pi,
+		{ currentSessionId: sessionId, completionOwnerId: COMPLETION_OWNER_ID },
+		{ batchConfig: { enabled: false } },
+	);
 	first.bindSession(owner);
 	first.sessionShutdown("reload");
 	first.dispose();
-	const replacement = registerSubagentNotify(pi, { currentSessionId: sessionId, completionOwnerId: COMPLETION_OWNER_ID }, { batchConfig: { enabled: false } });
-	await replacement.deliver({ id: "queued-wake-before-bind", sessionId, completionOwnerId: COMPLETION_OWNER_ID, success: false, summary: "Early wake" });
+	const replacement = registerSubagentNotify(
+		pi,
+		{ currentSessionId: sessionId, completionOwnerId: COMPLETION_OWNER_ID },
+		{ batchConfig: { enabled: false } },
+	);
+	await replacement.deliver({
+		id: "queued-wake-before-bind",
+		sessionId,
+		completionOwnerId: COMPLETION_OWNER_ID,
+		success: false,
+		summary: "Early wake",
+	});
 	replacement.bindSession(owner);
 	assert.equal(replacement.hasPendingDelivery(), true, "binding must not drop a wake accepted before session_start");
 	replacement.messageStarted({ role: "custom", ...messages[0] });
@@ -101,13 +149,35 @@ it("holds a completion that wakes an idle parent until Pi starts its message", a
 	const owner = SessionManager.inMemory();
 	const sessionId = owner.getSessionId();
 	const calls: unknown[][] = [];
-	const parentWake = createParentWake({ sendMessage: (...args: unknown[]) => { calls.push(args); } } as never);
+	const parentWake = createParentWake({
+		sendMessage: (...args: unknown[]) => {
+			calls.push(args);
+		},
+	} as never);
 	parentWake.bindSession({ isIdle: () => true, sessionManager: owner } as never);
-	const notifier = registerSubagentNotify({ events: createEventBus(), sendMessage: parentWake.sendMessage, isHeld: parentWake.isHeld }, { currentSessionId: sessionId, completionOwnerId: COMPLETION_OWNER_ID }, { batchConfig: { enabled: false } });
+	const notifier = registerSubagentNotify(
+		{ events: createEventBus(), sendMessage: parentWake.sendMessage, isHeld: parentWake.isHeld },
+		{ currentSessionId: sessionId, completionOwnerId: COMPLETION_OWNER_ID },
+		{ batchConfig: { enabled: false } },
+	);
 	notifier.bindSession(owner);
-	await notifier.deliver({ id: "idle-wake-result", sessionId, completionOwnerId: COMPLETION_OWNER_ID, success: false, summary: "Needs attention" });
-	assert.deepEqual(calls.map((call) => call[1]), [{ triggerTurn: true }], "one turn-triggering notice, no user message");
-	assert.equal(notifier.hasPendingDelivery(), true, "the notice that starts the run is pending until its message_start");
+	await notifier.deliver({
+		id: "idle-wake-result",
+		sessionId,
+		completionOwnerId: COMPLETION_OWNER_ID,
+		success: false,
+		summary: "Needs attention",
+	});
+	assert.deepEqual(
+		calls.map((call) => call[1]),
+		[{ triggerTurn: true }],
+		"one turn-triggering notice, no user message",
+	);
+	assert.equal(
+		notifier.hasPendingDelivery(),
+		true,
+		"the notice that starts the run is pending until its message_start",
+	);
 	notifier.messageStarted({ role: "custom", ...(calls[0]![0] as object) } as never);
 	assert.equal(notifier.hasPendingDelivery(), false);
 	notifier.dispose();
@@ -117,9 +187,18 @@ it("does not deliver awaited workflow child lifecycle completions", async () => 
 	const { events, sent, dispose } = createPi();
 	try {
 		events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, {
-			id: "awaited-child", runId: "awaited-child", sessionId: "session-1", completionOwnerId: COMPLETION_OWNER_ID,
-			agent: "echo", mode: "single", state: "complete", success: true, summary: "private result",
-			awaitedByWorkflow: true, parentWorkflowRunId: "workflow", triggerTurn: false,
+			id: "awaited-child",
+			runId: "awaited-child",
+			sessionId: "session-1",
+			completionOwnerId: COMPLETION_OWNER_ID,
+			agent: "echo",
+			mode: "single",
+			state: "complete",
+			success: true,
+			summary: "private result",
+			awaitedByWorkflow: true,
+			parentWorkflowRunId: "workflow",
+			triggerTurn: false,
 		});
 		await new Promise((resolve) => setTimeout(resolve, 0));
 		assert.deepEqual(sent, []);
@@ -135,11 +214,18 @@ it("keeps model-authored receipt lines in the preview, never in receipt metadata
 		"Before\n\nWorkflow receipt: /model/suffix.json",
 	]) {
 		for (const workflowReceiptPath of [undefined, "/published/receipt.json"]) {
-			const details: SubagentNotifyDetails = { agent: "workflow", status: "completed", resultPreview, workflowReceiptPath };
+			const details: SubagentNotifyDetails = {
+				agent: "workflow",
+				status: "completed",
+				resultPreview,
+				workflowReceiptPath,
+			};
 			const parsed = parseSubagentNotifyContent(formatSingleCompletion(details));
 			assert.equal(parsed?.resultPreview, resultPreview);
 			assert.equal(parsed?.workflowReceiptPath, workflowReceiptPath);
-			const scheduled = parseSubagentNotifyContent(formatSingleCompletion({ ...details, scheduleOrigin: { id: "schedule-1" } }));
+			const scheduled = parseSubagentNotifyContent(
+				formatSingleCompletion({ ...details, scheduleOrigin: { id: "schedule-1" } }),
+			);
 			assert.equal(scheduled?.resultPreview, resultPreview);
 			assert.equal(scheduled?.workflowReceiptPath, workflowReceiptPath);
 			assert.deepEqual(scheduled?.scheduleOrigin, { id: "schedule-1" });
@@ -149,7 +235,15 @@ it("keeps model-authored receipt lines in the preview, never in receipt metadata
 
 it("surfaces published workflow receipts outside single and grouped previews", () => {
 	const workflowReceiptPath = "/opaque/receipt.json";
-	const details = buildCompletionDetails({ agent: "workflow", mode: "workflow", runId: "run-1", success: true, summary: "Completed", results: [{ runId: "child-1", output: "x".repeat(20_000) }], workflowReceipt: { path: workflowReceiptPath, receipt: {} } });
+	const details = buildCompletionDetails({
+		agent: "workflow",
+		mode: "workflow",
+		runId: "run-1",
+		success: true,
+		summary: "Completed",
+		results: [{ runId: "child-1", output: "x".repeat(20_000) }],
+		workflowReceipt: { path: workflowReceiptPath, receipt: {} },
+	});
 	assert.equal(details.workflowReceiptPath, workflowReceiptPath);
 	const single = formatSingleCompletion(details);
 	assert.equal(single.split("\n")[1], `Workflow receipt: ${workflowReceiptPath}`);
@@ -164,7 +258,16 @@ it("surfaces published workflow receipts outside single and grouped previews", (
 it("prints what happens next to an interrupted workflow right after its run id, and keeps it out of a re-rendered preview", () => {
 	const root = mkdtempSync(join(tmpdir(), "notify-resume-line-"));
 	try {
-		const interrupted = (asyncDir: string) => ({ agent: "workflow", mode: "workflow", runId: "wf-auto", success: false, state: "stopped", summary: "Workflow stopped.", asyncDir, workflow: { stopCause: "runtime-replaced" } });
+		const interrupted = (asyncDir: string) => ({
+			agent: "workflow",
+			mode: "workflow",
+			runId: "wf-auto",
+			success: false,
+			state: "stopped",
+			summary: "Workflow stopped.",
+			asyncDir,
+			workflow: { stopCause: "runtime-replaced" },
+		});
 		// The line is read from the run only for a workflow that a runtime replacement or a Pi exit stopped.
 		const claimed = join(root, "wf-auto");
 		mkdirSync(claimed);
@@ -173,8 +276,14 @@ it("prints what happens next to an interrupted workflow right after its run id, 
 		assert.equal(details.resumeNotice, "Auto-resumed as wf-auto-next.");
 		const { workflow: _workflow, ...withoutStopCause } = interrupted(claimed);
 		assert.equal(buildCompletionDetails(withoutStopCause).resumeNotice, undefined);
-		assert.equal(buildCompletionDetails({ ...interrupted(claimed), workflow: { stopCause: "user" } }).resumeNotice, undefined);
-		assert.equal(buildCompletionDetails({ ...interrupted(claimed), agent: "worker", mode: "single" }).resumeNotice, undefined);
+		assert.equal(
+			buildCompletionDetails({ ...interrupted(claimed), workflow: { stopCause: "user" } }).resumeNotice,
+			undefined,
+		);
+		assert.equal(
+			buildCompletionDetails({ ...interrupted(claimed), agent: "worker", mode: "single" }).resumeNotice,
+			undefined,
+		);
 
 		const forms = [
 			"Auto-resumed as wf-auto-next.",
@@ -186,7 +295,13 @@ it("prints what happens next to an interrupted workflow right after its run id, 
 		];
 		for (const line of forms) {
 			const withLine = { ...details, resumeNotice: line };
-			for (const text of [formatSingleCompletion(withLine), formatGroupedCompletion([withLine, buildCompletionDetails({ agent: "worker", success: true, summary: "done" })])]) {
+			for (const text of [
+				formatSingleCompletion(withLine),
+				formatGroupedCompletion([
+					withLine,
+					buildCompletionDetails({ agent: "worker", success: true, summary: "done" }),
+				]),
+			]) {
 				const lines = text.split("\n");
 				assert.equal(lines[lines.indexOf("Workflow run: wf-auto") + 1], line, text);
 				assert.equal(lines.filter((entry) => entry === line).length, 1, text);
@@ -194,10 +309,17 @@ it("prints what happens next to an interrupted workflow right after its run id, 
 			const parsed = parseSubagentNotifyContent(formatSingleCompletion(withLine));
 			assert.equal(parsed?.resumeNotice, line);
 			assert.ok(!parsed?.resultPreview.includes(line), parsed?.resultPreview);
-			assert.equal(formatSingleCompletion(parsed!).split("\n").filter((entry) => entry === line).length, 1);
+			assert.equal(
+				formatSingleCompletion(parsed!)
+					.split("\n")
+					.filter((entry) => entry === line).length,
+				1,
+			);
 		}
 		// A line the model wrote is output, not the resume line.
-		const modelText = parseSubagentNotifyContent("Background task completed: **worker**\n\nResumed as nothing.\n\nWorkflow run: wf-x\nChild runs: a=1");
+		const modelText = parseSubagentNotifyContent(
+			"Background task completed: **worker**\n\nResumed as nothing.\n\nWorkflow run: wf-x\nChild runs: a=1",
+		);
 		assert.equal(modelText?.resumeNotice, undefined);
 		assert.match(modelText?.resultPreview ?? "", /Resumed as nothing\./);
 	} finally {
@@ -225,7 +347,8 @@ function createPi(currentSessionId = "session-1", registerOptions: RegisterSubag
 	const events = createEventBus();
 	const sent: Array<{ message: unknown; options: unknown }> = [];
 	const pi = {
-		events, isHeld: () => false,
+		events,
+		isHeld: () => false,
 		sendMessage(message: unknown, options: unknown) {
 			sent.push({ message, options });
 		},
@@ -233,11 +356,15 @@ function createPi(currentSessionId = "session-1", registerOptions: RegisterSubag
 
 	// Formatting-focused tests run with batching disabled so single completions
 	// emit synchronously. Batching behavior is covered by the dedicated suite below.
-	const notifier = registerSubagentNotify(pi as never, { currentSessionId, completionOwnerId: COMPLETION_OWNER_ID }, {
-		batchConfig: { enabled: false },
-		sendRegistry: createCompletionSendRegistry(),
-		...registerOptions,
-	});
+	const notifier = registerSubagentNotify(
+		pi as never,
+		{ currentSessionId, completionOwnerId: COMPLETION_OWNER_ID },
+		{
+			batchConfig: { enabled: false },
+			sendRegistry: createCompletionSendRegistry(),
+			...registerOptions,
+		},
+	);
 
 	return { events, sent, notifier, dispose: () => notifier.dispose() };
 }
@@ -246,17 +373,29 @@ function createBatchingPi(clock: ReturnType<typeof createFakeClock>, currentSess
 	const events = createEventBus();
 	const sent: Array<{ message: unknown; options: unknown }> = [];
 	const pi = {
-		events, isHeld: () => false,
+		events,
+		isHeld: () => false,
 		sendMessage(message: unknown, options: unknown) {
 			sent.push({ message, options });
 		},
 	};
-	const notifier = registerSubagentNotify(pi as never, { currentSessionId, completionOwnerId: COMPLETION_OWNER_ID }, {
-		batchConfig: { enabled: true, debounceMs: 150, maxWaitMs: 1000, stragglerDebounceMs: 75, stragglerMaxWaitMs: 400, stragglerWindowMs: 2000 },
-		timers: clock.api,
-		now: clock.now,
-		sendRegistry: createCompletionSendRegistry(),
-	});
+	const notifier = registerSubagentNotify(
+		pi as never,
+		{ currentSessionId, completionOwnerId: COMPLETION_OWNER_ID },
+		{
+			batchConfig: {
+				enabled: true,
+				debounceMs: 150,
+				maxWaitMs: 1000,
+				stragglerDebounceMs: 75,
+				stragglerMaxWaitMs: 400,
+				stragglerWindowMs: 2000,
+			},
+			timers: clock.api,
+			now: clock.now,
+			sendRegistry: createCompletionSendRegistry(),
+		},
+	);
 	return { events, sent, notifier, dispose: () => notifier.dispose() };
 }
 
@@ -314,7 +453,13 @@ describe("registerSubagentNotify", () => {
 		const events = createEventBus();
 		const sent: Array<{ options: unknown }> = [];
 		const registry = createCompletionSendRegistry();
-		const pi = { events, isHeld: () => false, sendMessage(_message: unknown, options: unknown) { sent.push({ options }); } };
+		const pi = {
+			events,
+			isHeld: () => false,
+			sendMessage(_message: unknown, options: unknown) {
+				sent.push({ options });
+			},
+		};
 		const state = { currentSessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID };
 		const options = { batchConfig: { enabled: false }, sendRegistry: registry } as const;
 		const first = registerSubagentNotify(pi as never, state, options);
@@ -333,13 +478,22 @@ describe("registerSubagentNotify", () => {
 		const events = createEventBus();
 		const sent: unknown[] = [];
 		const registry = createCompletionSendRegistry();
-		const pi = { events, isHeld: () => false, sendMessage(message: unknown) { sent.push(message); } };
+		const pi = {
+			events,
+			isHeld: () => false,
+			sendMessage(message: unknown) {
+				sent.push(message);
+			},
+		};
 		const state = { currentSessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID };
 		const options = { batchConfig: { enabled: false }, sendRegistry: registry } as const;
 		const first = registerSubagentNotify(pi as never, state, options);
 		const second = registerSubagentNotify(pi as never, state, options);
 		try {
-			events.emit(SUBAGENT_FOREGROUND_COMPLETE_EVENT, completionResult({ id: "shared-foreground", source: "foreground" }));
+			events.emit(
+				SUBAGENT_FOREGROUND_COMPLETE_EVENT,
+				completionResult({ id: "shared-foreground", source: "foreground" }),
+			);
 			assert.equal(sent.length, 1);
 		} finally {
 			first.dispose();
@@ -352,11 +506,15 @@ describe("registerSubagentNotify", () => {
 		const registry = createCompletionSendRegistry();
 		let attempts = 0;
 		let accepted = 0;
-		const pi = { events, isHeld: () => false, sendMessage() {
-			attempts += 1;
-			if (attempts === 1) throw new Error("runtime inactive");
-			accepted += 1;
-		} };
+		const pi = {
+			events,
+			isHeld: () => false,
+			sendMessage() {
+				attempts += 1;
+				if (attempts === 1) throw new Error("runtime inactive");
+				accepted += 1;
+			},
+		};
 		const state = { currentSessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID };
 		const options = { batchConfig: { enabled: false }, sendRegistry: registry } as const;
 		const first = registerSubagentNotify(pi as never, state, options);
@@ -377,10 +535,14 @@ describe("registerSubagentNotify", () => {
 		let reentrant: Promise<boolean> | undefined;
 		let sends = 0;
 		let second!: ReturnType<typeof registerSubagentNotify>;
-		const pi = { events: createEventBus(), isHeld: () => false, sendMessage() {
-			sends += 1;
-			reentrant = second.deliver(result);
-		} };
+		const pi = {
+			events: createEventBus(),
+			isHeld: () => false,
+			sendMessage() {
+				sends += 1;
+				reentrant = second.deliver(result);
+			},
+		};
 		const state = { currentSessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID };
 		const options = { batchConfig: { enabled: false }, sendRegistry: registry } as const;
 		const first = registerSubagentNotify(pi as never, state, options);
@@ -398,10 +560,24 @@ describe("registerSubagentNotify", () => {
 	it("keeps identical completion ids isolated by session", async () => {
 		const registry = createCompletionSendRegistry();
 		const sent: unknown[] = [];
-		const pi = { events: createEventBus(), isHeld: () => false, sendMessage(message: unknown) { sent.push(message); } };
+		const pi = {
+			events: createEventBus(),
+			isHeld: () => false,
+			sendMessage(message: unknown) {
+				sent.push(message);
+			},
+		};
 		const options = { batchConfig: { enabled: false }, sendRegistry: registry } as const;
-		const first = registerSubagentNotify(pi as never, { currentSessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID }, options);
-		const second = registerSubagentNotify(pi as never, { currentSessionId: "session-b", completionOwnerId: COMPLETION_OWNER_ID }, options);
+		const first = registerSubagentNotify(
+			pi as never,
+			{ currentSessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID },
+			options,
+		);
+		const second = registerSubagentNotify(
+			pi as never,
+			{ currentSessionId: "session-b", completionOwnerId: COMPLETION_OWNER_ID },
+			options,
+		);
 		try {
 			assert.equal(await first.deliver(completionResult({ id: "same-id", sessionId: "session-a" })), true);
 			assert.equal(await second.deliver(completionResult({ id: "same-id", sessionId: "session-b" })), true);
@@ -416,7 +592,7 @@ describe("registerSubagentNotify", () => {
 		const expiring = createCompletionSendRegistry(10, 2);
 		const first = expiring.claim("first", 0);
 		first.settle?.(true);
-		assert.equal((await expiring.claim("first", 10).outcome), true);
+		assert.equal(await expiring.claim("first", 10).outcome, true);
 		assert.equal(expiring.claim("first", 11).owned, true);
 
 		const capped = createCompletionSendRegistry(10_000, 2);
@@ -456,34 +632,84 @@ describe("registerSubagentNotify", () => {
 
 	it("attaches run ids and paths to subagent-notify details without the text previews", async () => {
 		const { notifier, sent } = createPi("session-a");
-		assert.equal(await notifier.deliver(completionResult({ id: "single-run", asyncDir: "/tmp/async/single-run", durationMs: 1200, summary: "Single done" })), true);
-		assert.equal(await notifier.deliver(completionResult({
-			id: "wf-run",
-			runId: "wf-run",
-			mode: "workflow",
-			agent: "workflow",
-			summary: "Workflow done",
-			results: [
-				{ workflowKey: "scan", agent: "scout", runId: "child-a", status: "completed", success: true, output: "scan output", outputReference: "/tmp/out/scan.md" },
-				{ workflowKey: "fix", agent: "worker", runId: "child-b", status: "completed", success: true, output: "fix output" },
-			],
-		})), true);
+		assert.equal(
+			await notifier.deliver(
+				completionResult({
+					id: "single-run",
+					asyncDir: "/tmp/async/single-run",
+					durationMs: 1200,
+					summary: "Single done",
+				}),
+			),
+			true,
+		);
+		assert.equal(
+			await notifier.deliver(
+				completionResult({
+					id: "wf-run",
+					runId: "wf-run",
+					mode: "workflow",
+					agent: "workflow",
+					summary: "Workflow done",
+					results: [
+						{
+							workflowKey: "scan",
+							agent: "scout",
+							runId: "child-a",
+							status: "completed",
+							success: true,
+							output: "scan output",
+							outputReference: "/tmp/out/scan.md",
+						},
+						{
+							workflowKey: "fix",
+							agent: "worker",
+							runId: "child-b",
+							status: "completed",
+							success: true,
+							output: "fix output",
+						},
+					],
+				}),
+			),
+			true,
+		);
 		const details = sent.map((call) => (call.message as { details?: unknown }).details);
-		assert.deepEqual(details[0], { runs: [{ agent: "worker", status: "completed", runId: "single-run", asyncDir: "/tmp/async/single-run", durationMs: 1200 }] });
-		assert.deepEqual(details[1], { runs: [{
-			agent: "workflow",
-			status: "completed",
-			runId: "wf-run",
-			workflowRunId: "wf-run",
-			childRuns: [
-				{ runId: "child-a", workflowKey: "scan", agent: "scout", status: "completed" },
-				{ runId: "child-b", workflowKey: "fix", agent: "worker", status: "completed" },
+		assert.deepEqual(details[0], {
+			runs: [
+				{
+					agent: "worker",
+					status: "completed",
+					runId: "single-run",
+					asyncDir: "/tmp/async/single-run",
+					durationMs: 1200,
+				},
 			],
-			childOutputs: [
-				{ workflowKey: "scan", runId: "child-a", agent: "scout", status: "completed", savedOutputPath: "/tmp/out/scan.md" },
-				{ workflowKey: "fix", runId: "child-b", agent: "worker", status: "completed" },
+		});
+		assert.deepEqual(details[1], {
+			runs: [
+				{
+					agent: "workflow",
+					status: "completed",
+					runId: "wf-run",
+					workflowRunId: "wf-run",
+					childRuns: [
+						{ runId: "child-a", workflowKey: "scan", agent: "scout", status: "completed" },
+						{ runId: "child-b", workflowKey: "fix", agent: "worker", status: "completed" },
+					],
+					childOutputs: [
+						{
+							workflowKey: "scan",
+							runId: "child-a",
+							agent: "scout",
+							status: "completed",
+							savedOutputPath: "/tmp/out/scan.md",
+						},
+						{ workflowKey: "fix", runId: "child-b", agent: "worker", status: "completed" },
+					],
+				},
 			],
-		}] });
+		});
 	});
 
 	it("does not attach async status snapshots to subagent-notify details", async () => {
@@ -502,15 +728,27 @@ describe("registerSubagentNotify", () => {
 
 	it("rejects async completion delivery for a missing or different parent owner", async () => {
 		const { notifier, sent } = createPi("session-a");
-		assert.equal(await notifier.deliver(completionResult({ id: "missing-owner", completionOwnerId: undefined })), false);
-		assert.equal(await notifier.deliver(completionResult({ id: "different-owner", completionOwnerId: "completion-owner-b" })), false);
+		assert.equal(
+			await notifier.deliver(completionResult({ id: "missing-owner", completionOwnerId: undefined })),
+			false,
+		);
+		assert.equal(
+			await notifier.deliver(completionResult({ id: "different-owner", completionOwnerId: "completion-owner-b" })),
+			false,
+		);
 		assert.equal(sent.length, 0);
 	});
 
 	it("accepts completions of a session this process replaced", async () => {
 		const events = createEventBus();
 		const sent: unknown[] = [];
-		const pi = { events, isHeld: () => false, sendMessage(message: unknown) { sent.push(message); } };
+		const pi = {
+			events,
+			isHeld: () => false,
+			sendMessage(message: unknown) {
+				sent.push(message);
+			},
+		};
 		const state = { currentSessionId: "session-old" as string | null, completionOwnerId: COMPLETION_OWNER_ID };
 		const ownership = createResultDeliveryOwnership(state);
 		recordSessionReplacement("session-new", "session-old");
@@ -519,7 +757,12 @@ describe("registerSubagentNotify", () => {
 		try {
 			assert.equal(await notifier.deliver(completionResult({ id: "predecessor", sessionId: "session-old" })), true);
 			assert.equal(await notifier.deliver(completionResult({ id: "foreign", sessionId: "session-foreign" })), false);
-			assert.equal(await notifier.deliver(completionResult({ id: "wrong-owner", sessionId: "session-old", completionOwnerId: "other-owner" })), false);
+			assert.equal(
+				await notifier.deliver(
+					completionResult({ id: "wrong-owner", sessionId: "session-old", completionOwnerId: "other-owner" }),
+				),
+				false,
+			);
 			assert.equal(sent.length, 1);
 		} finally {
 			notifier.dispose();
@@ -530,10 +773,23 @@ describe("registerSubagentNotify", () => {
 		const clock = createFakeClock();
 		const events = createEventBus();
 		const sent: unknown[] = [];
-		const pi = { events, isHeld: () => false, sendMessage(message: unknown) { sent.push(message); } };
+		const pi = {
+			events,
+			isHeld: () => false,
+			sendMessage(message: unknown) {
+				sent.push(message);
+			},
+		};
 		const state = { currentSessionId: "session-a" as string | null, completionOwnerId: COMPLETION_OWNER_ID };
 		const notifier = registerSubagentNotify(pi as never, state, {
-			batchConfig: { enabled: true, debounceMs: 150, maxWaitMs: 1000, stragglerDebounceMs: 75, stragglerMaxWaitMs: 400, stragglerWindowMs: 2000 },
+			batchConfig: {
+				enabled: true,
+				debounceMs: 150,
+				maxWaitMs: 1000,
+				stragglerDebounceMs: 75,
+				stragglerMaxWaitMs: 400,
+				stragglerWindowMs: 2000,
+			},
 			timers: clock.api,
 			now: clock.now,
 		});
@@ -558,7 +814,10 @@ describe("registerSubagentNotify", () => {
 
 	it("suppresses local delivery after an acknowledged grouped intercom relay", async () => {
 		const { notifier, sent } = createPi("session-a");
-		assert.equal(await notifier.deliver(completionResult({ id: "intercom-delivered", intercomDelivered: true })), true);
+		assert.equal(
+			await notifier.deliver(completionResult({ id: "intercom-delivered", intercomDelivered: true })),
+			true,
+		);
 		assert.equal(sent.length, 0);
 	});
 
@@ -595,7 +854,9 @@ describe("registerSubagentNotify", () => {
 				customType: "subagent-notify",
 				content: completionContent("Detached foreground task completed: **reviewer**\n\nRecovered final review"),
 				display: true,
-				details: { runs: [{ agent: "reviewer", status: "completed", source: "foreground", runId: "foreground-run" }] },
+				details: {
+					runs: [{ agent: "reviewer", status: "completed", source: "foreground", runId: "foreground-run" }],
+				},
 			},
 			options: { triggerTurn: true },
 		});
@@ -638,7 +899,9 @@ describe("registerSubagentNotify", () => {
 				customType: "subagent-notify",
 				content: completionContent(`Background task completed: **worker** (2/3)\n\n${summary}`),
 				display: false,
-				details: { runs: [{ agent: "worker", status: "completed", taskInfo: " (2/3)", runId: "notify-summary-1" }] },
+				details: {
+					runs: [{ agent: "worker", status: "completed", taskInfo: " (2/3)", runId: "notify-summary-1" }],
+				},
 			},
 			options: { triggerTurn: true },
 		});
@@ -659,15 +922,29 @@ describe("registerSubagentNotify", () => {
 			completionOwnerId: COMPLETION_OWNER_ID,
 		});
 
-		assert.deepEqual(sent, [{
-			message: {
-				customType: "subagent-notify",
-				content: completionContent("Background task completed: **worker**\n\nDone\n\nSession file: /tmp/session.jsonl"),
-				display: false,
-				details: { runs: [{ agent: "worker", status: "completed", runId: "notify-path-1", sessionLabel: "Session file", sessionValue: "/tmp/session.jsonl" }] },
+		assert.deepEqual(sent, [
+			{
+				message: {
+					customType: "subagent-notify",
+					content: completionContent(
+						"Background task completed: **worker**\n\nDone\n\nSession file: /tmp/session.jsonl",
+					),
+					display: false,
+					details: {
+						runs: [
+							{
+								agent: "worker",
+								status: "completed",
+								runId: "notify-path-1",
+								sessionLabel: "Session file",
+								sessionValue: "/tmp/session.jsonl",
+							},
+						],
+					},
+				},
+				options: { triggerTurn: true },
 			},
-			options: { triggerTurn: true },
-		}]);
+		]);
 	});
 
 	it("labels paused completions as paused even without an exit code", () => {
@@ -688,7 +965,9 @@ describe("registerSubagentNotify", () => {
 		assert.deepEqual(sent[0], {
 			message: {
 				customType: "subagent-notify",
-				content: completionContent("Background task paused: **worker**\n\nPaused after interrupt. Waiting for explicit next action."),
+				content: completionContent(
+					"Background task paused: **worker**\n\nPaused after interrupt. Waiting for explicit next action.",
+				),
 				display: true,
 				details: { runs: [{ agent: "worker", status: "paused", runId: "notify-paused-1" }] },
 			},
@@ -717,16 +996,22 @@ describe("registerSubagentNotify", () => {
 		assert.deepEqual(sent[0], {
 			message: {
 				customType: "subagent-notify",
-				content: completionContent("Background task paused: **workflow**\n\nRun 'detaches' detached for intercom coordination.\n\nChild outputs:\n- key=detaches run=child-1 status=paused\n  Saved output: unavailable\n  Preview: unavailable (no safe inline output)\n\nWorkflow run: workflow-1\nChild runs: detaches=child-1 (paused)"),
+				content: completionContent(
+					"Background task paused: **workflow**\n\nRun 'detaches' detached for intercom coordination.\n\nChild outputs:\n- key=detaches run=child-1 status=paused\n  Saved output: unavailable\n  Preview: unavailable (no safe inline output)\n\nWorkflow run: workflow-1\nChild runs: detaches=child-1 (paused)",
+				),
 				display: true,
-				details: { runs: [{
-					agent: "workflow",
-					status: "paused",
-					runId: "workflow-1",
-					workflowRunId: "workflow-1",
-					childRuns: [{ runId: "child-1", workflowKey: "detaches", agent: "worker", status: "paused" }],
-					childOutputs: [{ workflowKey: "detaches", runId: "child-1", agent: "worker", status: "paused" }],
-				}] },
+				details: {
+					runs: [
+						{
+							agent: "workflow",
+							status: "paused",
+							runId: "workflow-1",
+							workflowRunId: "workflow-1",
+							childRuns: [{ runId: "child-1", workflowKey: "detaches", agent: "worker", status: "paused" }],
+							childOutputs: [{ workflowKey: "detaches", runId: "child-1", agent: "worker", status: "paused" }],
+						},
+					],
+				},
 			},
 			options: { triggerTurn: true },
 		});
@@ -760,7 +1045,10 @@ describe("registerSubagentNotify", () => {
 		const { events, sent } = createBatchingPi(clock);
 
 		events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, completionResult({ id: "ok-1", agent: "ok-1", summary: "ok-1 done" }));
-		events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, completionResult({ id: "fail-1", agent: "fail-1", success: false, summary: "boom", exitCode: 1 }));
+		events.emit(
+			SUBAGENT_ASYNC_COMPLETE_EVENT,
+			completionResult({ id: "fail-1", agent: "fail-1", success: false, summary: "boom", exitCode: 1 }),
+		);
 
 		// The failure must arrive immediately, and the held success must be
 		// flushed ahead of it rather than waiting on the debounce timer.
@@ -777,9 +1065,18 @@ describe("registerSubagentNotify", () => {
 		const clock = createFakeClock();
 		const { events, sent } = createBatchingPi(clock);
 
-		events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, completionResult({ id: "g-1", agent: "alpha", summary: "alpha done", sessionId: "session-a" }));
-		events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, completionResult({ id: "g-2", agent: "beta", summary: "beta done", sessionId: "session-a" }));
-		events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, completionResult({ id: "g-3", agent: "gamma", summary: "gamma done", sessionId: "session-a" }));
+		events.emit(
+			SUBAGENT_ASYNC_COMPLETE_EVENT,
+			completionResult({ id: "g-1", agent: "alpha", summary: "alpha done", sessionId: "session-a" }),
+		);
+		events.emit(
+			SUBAGENT_ASYNC_COMPLETE_EVENT,
+			completionResult({ id: "g-2", agent: "beta", summary: "beta done", sessionId: "session-a" }),
+		);
+		events.emit(
+			SUBAGENT_ASYNC_COMPLETE_EVENT,
+			completionResult({ id: "g-3", agent: "gamma", summary: "gamma done", sessionId: "session-a" }),
+		);
 		assert.equal(sent.length, 0);
 
 		clock.advance(150);
@@ -792,7 +1089,13 @@ describe("registerSubagentNotify", () => {
 			customType: "subagent-notify",
 			content,
 			display: false,
-			details: { runs: [{ agent: "alpha", status: "completed", runId: "g-1" }, { agent: "beta", status: "completed", runId: "g-2" }, { agent: "gamma", status: "completed", runId: "g-3" }] },
+			details: {
+				runs: [
+					{ agent: "alpha", status: "completed", runId: "g-1" },
+					{ agent: "beta", status: "completed", runId: "g-2" },
+					{ agent: "gamma", status: "completed", runId: "g-3" },
+				],
+			},
 		});
 		assert.deepEqual(sent[0]!.options, { triggerTurn: true });
 	});
@@ -801,8 +1104,14 @@ describe("registerSubagentNotify", () => {
 		const clock = createFakeClock();
 		const { events, sent } = createBatchingPi(clock, "session-a");
 
-		events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, completionResult({ id: "s-1", agent: "alpha", summary: "alpha done", sessionId: "session-a" }));
-		events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, completionResult({ id: "s-2", agent: "beta", summary: "beta done", sessionId: "session-b" }));
+		events.emit(
+			SUBAGENT_ASYNC_COMPLETE_EVENT,
+			completionResult({ id: "s-1", agent: "alpha", summary: "alpha done", sessionId: "session-a" }),
+		);
+		events.emit(
+			SUBAGENT_ASYNC_COMPLETE_EVENT,
+			completionResult({ id: "s-2", agent: "beta", summary: "beta done", sessionId: "session-b" }),
+		);
 		clock.advance(150);
 
 		assert.equal(sent.length, 1);
@@ -814,8 +1123,21 @@ describe("registerSubagentNotify", () => {
 		const clock = createFakeClock();
 		const { events, sent } = createBatchingPi(clock, "session-a");
 
-		events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, completionResult({ id: "held-a-1", agent: "alpha", summary: "alpha done", sessionId: "session-a" }));
-		events.emit(SUBAGENT_ASYNC_COMPLETE_EVENT, completionResult({ id: "fail-b-1", agent: "beta", success: false, summary: "boom", exitCode: 1, sessionId: "session-b" }));
+		events.emit(
+			SUBAGENT_ASYNC_COMPLETE_EVENT,
+			completionResult({ id: "held-a-1", agent: "alpha", summary: "alpha done", sessionId: "session-a" }),
+		);
+		events.emit(
+			SUBAGENT_ASYNC_COMPLETE_EVENT,
+			completionResult({
+				id: "fail-b-1",
+				agent: "beta",
+				success: false,
+				summary: "boom",
+				exitCode: 1,
+				sessionId: "session-b",
+			}),
+		);
 		assert.equal(sent.length, 0);
 
 		clock.advance(150);
@@ -870,7 +1192,10 @@ describe("completion formatting helpers", () => {
 			sessionLabel: "Session file",
 			sessionValue: "/tmp/session.jsonl",
 		});
-		assert.equal(content, "Background task completed: **worker**\n\nDone\n\nParallel handoff: /tmp/run/handoff.json\n\nSession file: /tmp/session.jsonl");
+		assert.equal(
+			content,
+			"Background task completed: **worker**\n\nDone\n\nParallel handoff: /tmp/run/handoff.json\n\nSession file: /tmp/session.jsonl",
+		);
 		assert.deepEqual(parseSubagentNotifyContent(content), {
 			agent: "worker",
 			status: "completed",
@@ -879,13 +1204,16 @@ describe("completion formatting helpers", () => {
 			sessionLabel: "session file",
 			sessionValue: "/tmp/session.jsonl",
 		});
-		assert.equal(buildCompletionDetails({
-			id: "run",
-			agent: "worker",
-			success: true,
-			summary: "Done",
-			parallelHandoff: { path: "/tmp/run/handoff.json" },
-		}).handoffPath, "/tmp/run/handoff.json");
+		assert.equal(
+			buildCompletionDetails({
+				id: "run",
+				agent: "worker",
+				success: true,
+				summary: "Done",
+				parallelHandoff: { path: "/tmp/run/handoff.json" },
+			}).handoffPath,
+			"/tmp/run/handoff.json",
+		);
 	});
 
 	it("formatSingleCompletion mirrors the in-handler single message shape", () => {
@@ -922,13 +1250,20 @@ describe("completion formatting helpers", () => {
 	it("formatGroupedCompletion lists each agent with its summary and session", () => {
 		const content = formatGroupedCompletion([
 			{ agent: "alpha", status: "completed", resultPreview: "alpha done" },
-			{ agent: "beta", status: "completed", taskInfo: " (1/2)", resultPreview: "", sessionLabel: "Session", sessionValue: "https://share/abc" },
+			{
+				agent: "beta",
+				status: "completed",
+				taskInfo: " (1/2)",
+				resultPreview: "",
+				sessionLabel: "Session",
+				sessionValue: "https://share/abc",
+			},
 		]);
 		assert.equal(
 			content,
-			"Background tasks completed (2): **alpha**, **beta** (1/2)\n\n"
-			+ "1. alpha\nalpha done\n\n"
-			+ "2. beta (1/2)\n(no output)\nSession: https://share/abc",
+			"Background tasks completed (2): **alpha**, **beta** (1/2)\n\n" +
+				"1. alpha\nalpha done\n\n" +
+				"2. beta (1/2)\n(no output)\nSession: https://share/abc",
 		);
 	});
 
@@ -947,7 +1282,9 @@ describe("completion formatting helpers", () => {
 
 		assert.equal(details.status, "paused");
 		assert.equal(details.workflowRunId, "workflow-2");
-		assert.deepEqual(details.childRuns, [{ runId: "child-2", workflowKey: "review", agent: "reviewer", status: "paused" }]);
+		assert.deepEqual(details.childRuns, [
+			{ runId: "child-2", workflowKey: "review", agent: "reviewer", status: "paused" },
+		]);
 		assert.equal(details.reconciledFromDetachedChild, "child-2");
 		const parsed = parseSubagentNotifyContent(formatSingleCompletion(details));
 		assert.equal(parsed?.workflowRunId, "workflow-2");
@@ -986,10 +1323,18 @@ describe("completion formatting helpers", () => {
 		});
 
 		assert.equal(details.status, "stopped");
-		assert.deepEqual(details.childOutputs?.map(({ workflowKey, runId, status, savedOutputPath }) => ({ workflowKey, runId, status, savedOutputPath })), [
-			{ workflowKey: "review", runId: "child-review", status: "completed", savedOutputPath: "/tmp/review.md" },
-			{ workflowKey: "stopped", runId: undefined, status: "stopped", savedOutputPath: undefined },
-		]);
+		assert.deepEqual(
+			details.childOutputs?.map(({ workflowKey, runId, status, savedOutputPath }) => ({
+				workflowKey,
+				runId,
+				status,
+				savedOutputPath,
+			})),
+			[
+				{ workflowKey: "review", runId: "child-review", status: "completed", savedOutputPath: "/tmp/review.md" },
+				{ workflowKey: "stopped", runId: undefined, status: "stopped", savedOutputPath: undefined },
+			],
+		);
 		assert.ok(Buffer.byteLength(details.childOutputs?.[0]?.preview ?? "", "utf8") <= 4 * 1024);
 
 		const content = formatSingleCompletion(details);
@@ -1022,16 +1367,81 @@ describe("completion formatting helpers", () => {
 			writeFileSync(artifact, "retained output");
 			mkdirSync(directory);
 			const details = buildCompletionDetails({
-				id: "workflow-paths", runId: "workflow-paths", mode: "workflow", agent: "workflow", success: true,
+				id: "workflow-paths",
+				runId: "workflow-paths",
+				mode: "workflow",
+				agent: "workflow",
+				success: true,
 				results: [
-					{ workflowKey: "verified", runId: "child-1", success: true, output: "é".repeat(5_000), artifactPaths: { outputPath: artifact }, structuredOutput: { ok: true }, structuredOutputPath: structured },
-					{ workflowKey: "missing", runId: "child-2", success: true, output: "x".repeat(5_000), artifactPaths: { outputPath: join(root, "missing.txt") }, structuredOutputPath: join(root, "missing.json") },
-					{ workflowKey: "disabled", runId: "child-3", success: true, output: "short", artifactPaths: { outputPath: join(root, "disabled.txt") } },
-					{ workflowKey: "binding-failed", runId: "child-4", success: true, output: "x".repeat(5_000), artifactPaths: { outputPath: artifact }, outputSaveError: "configured output-reference save failed" },
-					{ workflowKey: "directory", runId: "child-5", success: true, output: "short", artifactPaths: { outputPath: directory }, structuredOutputPath: directory },
-					{ workflowKey: "stopped", runId: "child-6", success: false, stopped: true, output: "x".repeat(5_000), artifactPaths: { outputPath: artifact }, structuredOutput: { stale: true }, structuredOutputPath: structured },
-					{ workflowKey: "timed-out", runId: "child-7", success: false, timedOut: true, output: "x".repeat(5_000), artifactPaths: { outputPath: artifact }, structuredOutput: { stale: true }, structuredOutputPath: structured },
-					{ workflowKey: "artifact-failed", runId: "child-8", success: true, output: "x".repeat(5_000), artifactPaths: { outputPath: artifact }, outputSaveError: "Artifact output post-processing failed", artifactOutputSaveFailed: true },
+					{
+						workflowKey: "verified",
+						runId: "child-1",
+						success: true,
+						output: "é".repeat(5_000),
+						artifactPaths: { outputPath: artifact },
+						structuredOutput: { ok: true },
+						structuredOutputPath: structured,
+					},
+					{
+						workflowKey: "missing",
+						runId: "child-2",
+						success: true,
+						output: "x".repeat(5_000),
+						artifactPaths: { outputPath: join(root, "missing.txt") },
+						structuredOutputPath: join(root, "missing.json"),
+					},
+					{
+						workflowKey: "disabled",
+						runId: "child-3",
+						success: true,
+						output: "short",
+						artifactPaths: { outputPath: join(root, "disabled.txt") },
+					},
+					{
+						workflowKey: "binding-failed",
+						runId: "child-4",
+						success: true,
+						output: "x".repeat(5_000),
+						artifactPaths: { outputPath: artifact },
+						outputSaveError: "configured output-reference save failed",
+					},
+					{
+						workflowKey: "directory",
+						runId: "child-5",
+						success: true,
+						output: "short",
+						artifactPaths: { outputPath: directory },
+						structuredOutputPath: directory,
+					},
+					{
+						workflowKey: "stopped",
+						runId: "child-6",
+						success: false,
+						stopped: true,
+						output: "x".repeat(5_000),
+						artifactPaths: { outputPath: artifact },
+						structuredOutput: { stale: true },
+						structuredOutputPath: structured,
+					},
+					{
+						workflowKey: "timed-out",
+						runId: "child-7",
+						success: false,
+						timedOut: true,
+						output: "x".repeat(5_000),
+						artifactPaths: { outputPath: artifact },
+						structuredOutput: { stale: true },
+						structuredOutputPath: structured,
+					},
+					{
+						workflowKey: "artifact-failed",
+						runId: "child-8",
+						success: true,
+						output: "x".repeat(5_000),
+						artifactPaths: { outputPath: artifact },
+						outputSaveError: "Artifact output post-processing failed",
+						artifactOutputSaveFailed: true,
+					},
 				],
 			});
 			assert.equal(details.childOutputs?.[0]?.savedOutputPath, undefined);
@@ -1042,7 +1452,11 @@ describe("completion formatting helpers", () => {
 			assert.equal(details.childOutputs?.[2]?.outputArtifactPath, undefined);
 			assert.equal(details.childOutputs?.[3]?.outputArtifactPath, artifact);
 			assert.equal(details.childOutputs?.[4]?.outputArtifactPath, undefined);
-			assert.ok(details.childOutputs?.slice(5, 7).every((child) => child.outputArtifactPath === artifact && child.structuredOutputPath === undefined));
+			assert.ok(
+				details.childOutputs
+					?.slice(5, 7)
+					.every((child) => child.outputArtifactPath === artifact && child.structuredOutputPath === undefined),
+			);
 			assert.equal(details.childOutputs?.[7]?.outputArtifactPath, undefined);
 
 			const content = formatSingleCompletion(details);
@@ -1059,7 +1473,8 @@ describe("completion formatting helpers", () => {
 				assert.match(block, /preview truncated/);
 				assert.doesNotMatch(block, /Full output unavailable/);
 			}
-			const failedArtifactBlock = content.split("\n- key=").find((part) => part.startsWith("artifact-failed ")) ?? "";
+			const failedArtifactBlock =
+				content.split("\n- key=").find((part) => part.startsWith("artifact-failed ")) ?? "";
 			assert.doesNotMatch(failedArtifactBlock, /Output artifact \(retention-managed\):/);
 			assert.match(failedArtifactBlock, /Full output unavailable/);
 			assert.ok(Buffer.byteLength(details.childOutputs?.[0]?.preview ?? "", "utf8") <= 4 * 1024);
@@ -1070,8 +1485,20 @@ describe("completion formatting helpers", () => {
 
 	it("keeps structured retrieval separate from launch bindings for large structured-only output", () => {
 		const details = buildCompletionDetails({
-			id: "workflow-structured", runId: "workflow-structured", mode: "workflow", agent: "workflow", success: true,
-			results: [{ workflowKey: "structured", success: true, outputState: "absent", structuredOutput: { body: "é".repeat(5_000) }, structuredOutputPath: "/retained/output.json" }],
+			id: "workflow-structured",
+			runId: "workflow-structured",
+			mode: "workflow",
+			agent: "workflow",
+			success: true,
+			results: [
+				{
+					workflowKey: "structured",
+					success: true,
+					outputState: "absent",
+					structuredOutput: { body: "é".repeat(5_000) },
+					structuredOutputPath: "/retained/output.json",
+				},
+			],
 		});
 		const content = formatSingleCompletion(details);
 		assert.match(content, /Saved output: unavailable/);
@@ -1085,7 +1512,8 @@ describe("completion formatting helpers", () => {
 		fs.statSync = ((path, ...args) => {
 			const value = String(path);
 			if (value.includes("failure-unknown")) throw new Error("cannot verify");
-			if (value.includes("missing")) throw Object.assign(new Error("missing"), { code: value.includes("not-dir") ? "ENOTDIR" : "ENOENT" });
+			if (value.includes("missing"))
+				throw Object.assign(new Error("missing"), { code: value.includes("not-dir") ? "ENOTDIR" : "ENOENT" });
 			if (value.includes("failure-EACCES")) {
 				const error = new Error(`cannot verify\n\u001b[31m${"é".repeat(800)}`) as NodeJS.ErrnoException;
 				error.code = "EACCES";
@@ -1099,31 +1527,79 @@ describe("completion formatting helpers", () => {
 				const artifactPath = `/failure-EACCES/${"é".repeat(500)}`;
 				const structuredPath = "/failure-EACCES/structured";
 				const details = buildCompletionDetails({
-					id: "workflow-EACCES", mode: "workflow", agent: "workflow", success: true,
+					id: "workflow-EACCES",
+					mode: "workflow",
+					agent: "workflow",
+					success: true,
 					results: [
 						{ workflowKey: "artifact", output: "short", artifactPaths: { outputPath: artifactPath } },
 						{ workflowKey: "structured", output: "short", structuredOutputPath: structuredPath },
-						{ workflowKey: "sibling", output: "short", structuredOutput: { ok: true }, structuredOutputPath: "/producer-confirmed" },
+						{
+							workflowKey: "sibling",
+							output: "short",
+							structuredOutput: { ok: true },
+							structuredOutputPath: "/producer-confirmed",
+						},
 					],
 				});
-				assert.deepEqual(details.childOutputs?.[0]?.outputArtifactError, { path: artifactPath, code: "EACCES", message: `cannot verify\n\u001b[31m${"é".repeat(800)}` });
-				assert.deepEqual(details.childOutputs?.[1]?.structuredOutputError, { path: structuredPath, code: "EACCES", message: `cannot verify\n\u001b[31m${"é".repeat(800)}` });
+				assert.deepEqual(details.childOutputs?.[0]?.outputArtifactError, {
+					path: artifactPath,
+					code: "EACCES",
+					message: `cannot verify\n\u001b[31m${"é".repeat(800)}`,
+				});
+				assert.deepEqual(details.childOutputs?.[1]?.structuredOutputError, {
+					path: structuredPath,
+					code: "EACCES",
+					message: `cannot verify\n\u001b[31m${"é".repeat(800)}`,
+				});
 				assert.equal(details.childOutputs?.[2]?.structuredOutputPath, "/producer-confirmed");
 				const content = formatSingleCompletion(details);
 				assert.match(content, /Output artifact verification failed: stat EACCES/);
 				assert.match(content, /Structured output verification failed: stat EACCES/);
 				assert.doesNotMatch(content, /\u001b/);
-				for (const line of content.split("\n").filter((line) => line.includes("verification failed"))) assert.ok(Buffer.byteLength(line, "utf8") < 1_024);
+				for (const line of content.split("\n").filter((line) => line.includes("verification failed")))
+					assert.ok(Buffer.byteLength(line, "utf8") < 1_024);
 				assert.match(formatGroupedCompletion([details, { ...details, agent: "reviewer" }]), /verification failed/);
 				assert.match(parseSubagentNotifyContent(content)?.resultPreview ?? "", /verification failed/);
-				assert.match(formatSingleCompletion(buildCompletionDetails({ id: "workflow-unknown", mode: "workflow", agent: "workflow", success: true, results: [{ workflowKey: "artifact", output: "short", artifactPaths: { outputPath: "/failure-unknown/artifact" } }] })), /Output artifact verification failed: stat unknown/);
+				assert.match(
+					formatSingleCompletion(
+						buildCompletionDetails({
+							id: "workflow-unknown",
+							mode: "workflow",
+							agent: "workflow",
+							success: true,
+							results: [
+								{
+									workflowKey: "artifact",
+									output: "short",
+									artifactPaths: { outputPath: "/failure-unknown/artifact" },
+								},
+							],
+						}),
+					),
+					/Output artifact verification failed: stat unknown/,
+				);
 			}
 
-			const unavailable = buildCompletionDetails({ id: "workflow-missing", mode: "workflow", agent: "workflow", success: true, results: [
-				{ workflowKey: "missing", output: "short", artifactPaths: { outputPath: "/missing/artifact" } },
-				{ workflowKey: "not-dir", output: "short", structuredOutputPath: "/missing-not-dir/structured" },
-			] });
-			assert.ok(unavailable.childOutputs?.every((child) => !child.outputArtifactPath && !child.structuredOutputPath && !child.outputArtifactError && !child.structuredOutputError));
+			const unavailable = buildCompletionDetails({
+				id: "workflow-missing",
+				mode: "workflow",
+				agent: "workflow",
+				success: true,
+				results: [
+					{ workflowKey: "missing", output: "short", artifactPaths: { outputPath: "/missing/artifact" } },
+					{ workflowKey: "not-dir", output: "short", structuredOutputPath: "/missing-not-dir/structured" },
+				],
+			});
+			assert.ok(
+				unavailable.childOutputs?.every(
+					(child) =>
+						!child.outputArtifactPath &&
+						!child.structuredOutputPath &&
+						!child.outputArtifactError &&
+						!child.structuredOutputError,
+				),
+			);
 		} finally {
 			fs.statSync = originalStatSync;
 			syncBuiltinESMExports();
@@ -1131,58 +1607,176 @@ describe("completion formatting helpers", () => {
 	});
 
 	it("formats sanitized async retrieval metadata in single and grouped notices", () => {
-		const details = buildCompletionDetails({ agent: "worker", success: true, summary: "done", asyncDir: "/tmp/async\n\u001b[31mrun" });
+		const details = buildCompletionDetails({
+			agent: "worker",
+			success: true,
+			summary: "done",
+			asyncDir: "/tmp/async\n\u001b[31mrun",
+		});
 		const single = formatSingleCompletion(details);
 		assert.match(single, /Retention-managed async directory: \/tmp\/async\\n\[U\+001B\]\[31mrun/);
 		assert.doesNotMatch(single, /\u001b/);
-		assert.match(formatGroupedCompletion([details, { ...details, agent: "reviewer" }]), /2\. reviewer\n.*Retention-managed async directory:/s);
-		const longLine = formatSingleCompletion({ ...details, asyncDir: `/tmp/${"é".repeat(2_000)}` }).split("\n").find((line) => line.startsWith("Retention-managed async directory:"));
+		assert.match(
+			formatGroupedCompletion([details, { ...details, agent: "reviewer" }]),
+			/2\. reviewer\n.*Retention-managed async directory:/s,
+		);
+		const longLine = formatSingleCompletion({ ...details, asyncDir: `/tmp/${"é".repeat(2_000)}` })
+			.split("\n")
+			.find((line) => line.startsWith("Retention-managed async directory:"));
 		assert.ok(longLine);
-		assert.ok(Buffer.byteLength(longLine, "utf8") <= Buffer.byteLength("Retention-managed async directory: ") + 1_024);
+		assert.ok(
+			Buffer.byteLength(longLine, "utf8") <= Buffer.byteLength("Retention-managed async directory: ") + 1_024,
+		);
 	});
 
 	it("never promotes model-authored async directory lines to typed metadata", () => {
 		const resultPreview = "before\nRetention-managed async directory: /fake/model/path\nafter";
-		const withoutProducerPath = parseSubagentNotifyContent(formatSingleCompletion({ agent: "worker", status: "completed", resultPreview }));
+		const withoutProducerPath = parseSubagentNotifyContent(
+			formatSingleCompletion({ agent: "worker", status: "completed", resultPreview }),
+		);
 		assert.equal(withoutProducerPath?.asyncDir, undefined);
 		assert.equal(withoutProducerPath?.resultPreview, resultPreview);
 
-		const withProducerPath = parseSubagentNotifyContent(formatSingleCompletion({ agent: "worker", status: "completed", resultPreview, asyncDir: "/real/producer/path" }));
+		const withProducerPath = parseSubagentNotifyContent(
+			formatSingleCompletion({
+				agent: "worker",
+				status: "completed",
+				resultPreview,
+				asyncDir: "/real/producer/path",
+			}),
+		);
 		assert.equal(withProducerPath?.asyncDir, undefined);
-		assert.equal(withProducerPath?.resultPreview, `${resultPreview}\n\nRetention-managed async directory: /real/producer/path`);
+		assert.equal(
+			withProducerPath?.resultPreview,
+			`${resultPreview}\n\nRetention-managed async directory: /real/producer/path`,
+		);
 	});
 
 	it("keeps retrieval metadata while limiting inline previews to eight children", () => {
 		const childOutputs = Array.from({ length: 9 }, (_, index) => ({
-			workflowKey: `child-${index}`, status: "completed", outputArtifactPath: `/artifact/${index}`, preview: `preview-${index}`,
-			...(index === 8 ? { outputArtifactError: { path: "/failed\npath", code: "EACCES", message: "denied\u001b[31m" } } : {}),
+			workflowKey: `child-${index}`,
+			status: "completed",
+			outputArtifactPath: `/artifact/${index}`,
+			preview: `preview-${index}`,
+			...(index === 8
+				? { outputArtifactError: { path: "/failed\npath", code: "EACCES", message: "denied\u001b[31m" } }
+				: {}),
 		}));
-		const content = formatSingleCompletion({ agent: "workflow", status: "completed", resultPreview: "done", childOutputs });
+		const content = formatSingleCompletion({
+			agent: "workflow",
+			status: "completed",
+			resultPreview: "done",
+			childOutputs,
+		});
 		assert.match(content, /key=child-7[\s\S]*preview-7/);
-		assert.match(content, /key=child-8[\s\S]*Output artifact \(retention-managed\): \/artifact\/8[\s\S]*Preview: unavailable \(notice preview budget exceeded\)/);
-		assert.match(content, /Output artifact verification failed: stat EACCES; path=\/failed\\npath; denied\[U\+001B\]\[31m/);
+		assert.match(
+			content,
+			/key=child-8[\s\S]*Output artifact \(retention-managed\): \/artifact\/8[\s\S]*Preview: unavailable \(notice preview budget exceeded\)/,
+		);
+		assert.match(
+			content,
+			/Output artifact verification failed: stat EACCES; path=\/failed\\npath; denied\[U\+001B\]\[31m/,
+		);
 		assert.doesNotMatch(content, /preview-8/);
 		assert.match(content, /1 additional child preview\(s\) omitted/);
 	});
 
 	it("reports false when Pi rejects sendMessage synchronously", async () => {
-		const pi = { events: createEventBus(), isHeld: () => false, sendMessage() { throw new Error("runtime inactive"); } };
-		const notifier = registerSubagentNotify(pi as never, { currentSessionId: "session-a" }, { batchConfig: { enabled: false } });
+		const pi = {
+			events: createEventBus(),
+			isHeld: () => false,
+			sendMessage() {
+				throw new Error("runtime inactive");
+			},
+		};
+		const notifier = registerSubagentNotify(
+			pi as never,
+			{ currentSessionId: "session-a" },
+			{ batchConfig: { enabled: false } },
+		);
 		assert.equal(await notifier.deliver(completionResult({ id: "direct-rejected" })), false);
 		notifier.dispose();
 	});
 
 	it("buildCompletionDetails derives paused and stopped statuses", () => {
-		assert.equal(buildCompletionDetails({ id: "x", agent: "w", success: false, state: "paused", summary: "Paused after interrupt.", timestamp: 1 }).status, "paused");
-		assert.equal(buildCompletionDetails({ id: "x", agent: "w", success: false, interrupted: true, summary: "interrupted", timestamp: 1 }).status, "paused");
-		const pausedWorkflow = buildCompletionDetails({ id: "workflow", agent: "workflow", mode: "workflow", state: "paused", results: [{ workflowKey: "failed", success: false }] });
+		assert.equal(
+			buildCompletionDetails({
+				id: "x",
+				agent: "w",
+				success: false,
+				state: "paused",
+				summary: "Paused after interrupt.",
+				timestamp: 1,
+			}).status,
+			"paused",
+		);
+		assert.equal(
+			buildCompletionDetails({
+				id: "x",
+				agent: "w",
+				success: false,
+				interrupted: true,
+				summary: "interrupted",
+				timestamp: 1,
+			}).status,
+			"paused",
+		);
+		const pausedWorkflow = buildCompletionDetails({
+			id: "workflow",
+			agent: "workflow",
+			mode: "workflow",
+			state: "paused",
+			results: [{ workflowKey: "failed", success: false }],
+		});
 		assert.equal(pausedWorkflow.childOutputs?.[0]?.status, "failed");
-		const runningWorkflow = buildCompletionDetails({ id: "workflow", agent: "workflow", mode: "workflow", success: true, results: [{ workflowKey: "running", state: "running" }] });
+		const runningWorkflow = buildCompletionDetails({
+			id: "workflow",
+			agent: "workflow",
+			mode: "workflow",
+			success: true,
+			results: [{ workflowKey: "running", state: "running" }],
+		});
 		assert.equal(runningWorkflow.taskInfo, " (dispatch complete; 1 child running or uncollected)");
-		assert.equal(buildCompletionDetails({ id: "x", agent: "w", success: false, summary: "boom", exitCode: 1, timestamp: 1 }).status, "failed");
-		assert.equal(buildCompletionDetails({ id: "x", agent: "w", success: false, summary: "terminated", exitCode: 1, processSignal: "SIGTERM", timestamp: 1 }).status, "stopped");
-		assert.equal(buildCompletionDetails({ id: "x", agent: "w", success: false, summary: "terminated", results: [{ success: false, exitCode: 1, processSignal: "SIGTERM" }], timestamp: 1 }).status, "stopped");
-		assert.equal(buildCompletionDetails({ id: "x", agent: "w", success: true, summary: "ok", exitCode: 0, processSignal: "SIGTERM", timestamp: 1 }).status, "completed");
+		assert.equal(
+			buildCompletionDetails({ id: "x", agent: "w", success: false, summary: "boom", exitCode: 1, timestamp: 1 })
+				.status,
+			"failed",
+		);
+		assert.equal(
+			buildCompletionDetails({
+				id: "x",
+				agent: "w",
+				success: false,
+				summary: "terminated",
+				exitCode: 1,
+				processSignal: "SIGTERM",
+				timestamp: 1,
+			}).status,
+			"stopped",
+		);
+		assert.equal(
+			buildCompletionDetails({
+				id: "x",
+				agent: "w",
+				success: false,
+				summary: "terminated",
+				results: [{ success: false, exitCode: 1, processSignal: "SIGTERM" }],
+				timestamp: 1,
+			}).status,
+			"stopped",
+		);
+		assert.equal(
+			buildCompletionDetails({
+				id: "x",
+				agent: "w",
+				success: true,
+				summary: "ok",
+				exitCode: 0,
+				processSignal: "SIGTERM",
+				timestamp: 1,
+			}).status,
+			"completed",
+		);
 	});
 
 	it("labels workflow completion and preserves its return/emit/trace preview", () => {
@@ -1198,20 +1792,38 @@ describe("completion formatting helpers", () => {
 	});
 
 	it("buildCompletionDetails falls back to the unknown agent label", () => {
-		const details: SubagentNotifyDetails = buildCompletionDetails({ id: "x", agent: null, success: true, summary: "ok", timestamp: 1 });
+		const details: SubagentNotifyDetails = buildCompletionDetails({
+			id: "x",
+			agent: null,
+			success: true,
+			summary: "ok",
+			timestamp: 1,
+		});
 		assert.equal(details.agent, "unknown");
 		assert.equal(details.status, "completed");
 	});
 
 	it("surfaces structured output in workflow previews and direct notices for degenerate text", () => {
-		const summary = "Workflow completed with 1 child run(s). Return: { answer: 42 } Emitted: ready Trace: 2 event(s).";
+		const summary =
+			"Workflow completed with 1 child run(s). Return: { answer: 42 } Emitted: ready Trace: 2 event(s).";
 		for (const output of ["</think>", " \n\t", " \n</think> \n"]) {
 			const result = {
-				id: "workflow-think-tag", agent: "workflow", success: true, summary,
-				results: [{
-					workflowKey: "review", runId: "child-review", agent: "delegate", success: true,
-					outputState: "present" as const, outputReference: "/tmp/review.json", output, structuredOutput: false,
-				}],
+				id: "workflow-think-tag",
+				agent: "workflow",
+				success: true,
+				summary,
+				results: [
+					{
+						workflowKey: "review",
+						runId: "child-review",
+						agent: "delegate",
+						success: true,
+						outputState: "present" as const,
+						outputReference: "/tmp/review.json",
+						output,
+						structuredOutput: false,
+					},
+				],
 			};
 			const details = buildCompletionDetails(result);
 			const content = formatSingleCompletion(details);
@@ -1221,7 +1833,7 @@ describe("completion formatting helpers", () => {
 			assert.match(content, /Saved output: \/tmp\/review\.json/);
 			assert.match(content, /Workflow run: workflow-think-tag/);
 			assert.match(content, /Child runs: review=child-review \(completed\)/);
-			assert.match(content, /    \| false/);
+			assert.match(content, / {4}\| false/);
 			const direct = buildCompletionDetails({ ...result, agent: "delegate", summary: `delegate:\n${output}` });
 			assert.match(formatSingleCompletion(direct), /Structured output:\nfalse/);
 		}
@@ -1232,10 +1844,22 @@ describe("completion formatting helpers", () => {
 		const child = { agent: "delegate", success: true, output, structuredOutput: { ok: true } };
 		const workflow = buildCompletionDetails({ id: "prose-run", agent: "workflow", success: true, results: [child] });
 		assert.equal(workflow.childOutputs?.[0]?.preview, output);
-		const direct = buildCompletionDetails({ id: "prose-run", agent: "delegate", success: true, summary: `delegate:\n${output}`, results: [child] });
+		const direct = buildCompletionDetails({
+			id: "prose-run",
+			agent: "delegate",
+			success: true,
+			summary: `delegate:\n${output}`,
+			results: [child],
+		});
 		assert.equal(direct.resultPreview, `delegate:\n${output}`);
 		const diagnostic = "delegate:\n</think>\nError: validation failed.";
-		const failed = buildCompletionDetails({ id: "error-run", agent: "delegate", success: false, summary: diagnostic, results: [{ ...child, success: false, output: "</think>" }] });
+		const failed = buildCompletionDetails({
+			id: "error-run",
+			agent: "delegate",
+			success: false,
+			summary: diagnostic,
+			results: [{ ...child, success: false, output: "</think>" }],
+		});
 		assert.equal(failed.resultPreview, diagnostic);
 		assert.match(formatSingleCompletion(failed), /Background task failed/);
 	});
@@ -1243,9 +1867,20 @@ describe("completion formatting helpers", () => {
 	it("retains tag text when structured output is unavailable or unserializable", () => {
 		for (const structuredOutput of [undefined, 1n]) {
 			const child = { agent: "delegate", success: true, output: "</think>", structuredOutput };
-			const workflow = buildCompletionDetails({ id: "fallback-run", agent: "workflow", success: true, results: [child] });
+			const workflow = buildCompletionDetails({
+				id: "fallback-run",
+				agent: "workflow",
+				success: true,
+				results: [child],
+			});
 			assert.equal(workflow.childOutputs?.[0]?.preview, "</think>");
-			const direct = buildCompletionDetails({ id: "fallback-run", agent: "delegate", success: true, summary: "delegate:\n</think>", results: [child] });
+			const direct = buildCompletionDetails({
+				id: "fallback-run",
+				agent: "delegate",
+				success: true,
+				summary: "delegate:\n</think>",
+				results: [child],
+			});
 			assert.equal(direct.resultPreview, "delegate:\n</think>");
 		}
 	});
@@ -1280,7 +1915,10 @@ describe("scheduled completions", () => {
 	it("carries the schedule origin from the result into the notice", () => {
 		const details = buildCompletionDetails(scheduledResult);
 		assert.deepEqual(details.scheduleOrigin, { id: "45daa203", name: "authz-facts-efficacy" });
-		assert.match(formatSingleCompletion(details), /Scheduled run from \*\*authz-facts-efficacy\*\* \(schedule 45daa203\)\./);
+		assert.match(
+			formatSingleCompletion(details),
+			/Scheduled run from \*\*authz-facts-efficacy\*\* \(schedule 45daa203\)\./,
+		);
 	});
 
 	it("round-trips the origin without absorbing it into the result preview", () => {
@@ -1291,14 +1929,22 @@ describe("scheduled completions", () => {
 
 	it("keeps attribution when a scheduled run is batched with other completions", () => {
 		const { scheduleOrigin: _origin, ...plain } = scheduledResult;
-		const grouped = formatGroupedCompletion([buildCompletionDetails({ ...plain, agent: "worker" }), buildCompletionDetails(scheduledResult)]);
+		const grouped = formatGroupedCompletion([
+			buildCompletionDetails({ ...plain, agent: "worker" }),
+			buildCompletionDetails(scheduledResult),
+		]);
 		assert.match(grouped, /2\. workflow — scheduled run from authz-facts-efficacy \(schedule 45daa203\)/);
 		assert.doesNotMatch(grouped, /1\. worker —/);
 	});
 
 	it("keeps a quiet scheduled success visible without triggering a turn", async () => {
 		const { notifier, sent } = createPi("session-a");
-		const quiet = { ...scheduledResult, scheduleOrigin: { ...scheduledResult.scheduleOrigin, quiet: true }, sessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID };
+		const quiet = {
+			...scheduledResult,
+			scheduleOrigin: { ...scheduledResult.scheduleOrigin, quiet: true },
+			sessionId: "session-a",
+			completionOwnerId: COMPLETION_OWNER_ID,
+		};
 		assert.equal(await notifier.deliver(quiet), true);
 		assert.deepEqual(sent[0]!.options, { triggerTurn: false });
 		assert.equal((sent[0]!.message as { display?: boolean }).display, true);
@@ -1321,7 +1967,12 @@ describe("scheduled completions", () => {
 	});
 
 	it("keeps a terminal child settlement as the workflow barrier", () => {
-		const terminal = { workflowRunId: "workflow-2", childKey: "last", outcome: "completed" as const, workflowRunning: false };
+		const terminal = {
+			workflowRunId: "workflow-2",
+			childKey: "last",
+			outcome: "completed" as const,
+			workflowRunning: false,
+		};
 		assert.equal(incrementalChildCompletionTriggersTurn(terminal, undefined), true);
 	});
 
@@ -1332,17 +1983,51 @@ describe("scheduled completions", () => {
 			assert.equal(scheduledCompletionTriggersTurn(quietOrigin, outcome), true);
 		}
 		const failed = createPi("session-a");
-		assert.equal(await failed.notifier.deliver({ ...scheduledResult, id: "run-failed", success: false, exitCode: 1, summary: "boom", scheduleOrigin: quietOrigin, sessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID }), true);
+		assert.equal(
+			await failed.notifier.deliver({
+				...scheduledResult,
+				id: "run-failed",
+				success: false,
+				exitCode: 1,
+				summary: "boom",
+				scheduleOrigin: quietOrigin,
+				sessionId: "session-a",
+				completionOwnerId: COMPLETION_OWNER_ID,
+			}),
+			true,
+		);
 		assert.deepEqual(failed.sent[0]!.options, { triggerTurn: true });
 
 		const stopped = createPi("session-a");
-		assert.equal(await stopped.notifier.deliver({ ...scheduledResult, id: "run-stopped", success: false, stopped: true, scheduleOrigin: quietOrigin, sessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID }), true);
+		assert.equal(
+			await stopped.notifier.deliver({
+				...scheduledResult,
+				id: "run-stopped",
+				success: false,
+				stopped: true,
+				scheduleOrigin: quietOrigin,
+				sessionId: "session-a",
+				completionOwnerId: COMPLETION_OWNER_ID,
+			}),
+			true,
+		);
 		assert.deepEqual(stopped.sent[0]!.options, { triggerTurn: true });
 	});
 
 	it("does not let quiet override an explicit triggerTurn:false", async () => {
 		const { notifier, sent } = createPi("session-a");
-		assert.equal(await notifier.deliver({ ...scheduledResult, success: false, exitCode: 1, triggerTurn: false, scheduleOrigin: { ...scheduledResult.scheduleOrigin, quiet: true }, sessionId: "session-a", completionOwnerId: COMPLETION_OWNER_ID }), true);
+		assert.equal(
+			await notifier.deliver({
+				...scheduledResult,
+				success: false,
+				exitCode: 1,
+				triggerTurn: false,
+				scheduleOrigin: { ...scheduledResult.scheduleOrigin, quiet: true },
+				sessionId: "session-a",
+				completionOwnerId: COMPLETION_OWNER_ID,
+			}),
+			true,
+		);
 		assert.deepEqual(sent[0]!.options, { triggerTurn: false });
 	});
 
@@ -1374,9 +2059,36 @@ describe("watchdog blockers in completion notices", () => {
 						seq: 3,
 						lastUpdate: 1,
 						warnings: [
-							{ severity: "blocker", importance: "high", category: "test-gap", summary: "Claims tests passed without running them", evidence: "e", recommendedAction: "r", addressed: false, stalemate: false },
-							{ severity: "concern", importance: "low", category: "other", summary: "Concern is not listed", evidence: "e", recommendedAction: "r", addressed: true, stalemate: false },
-							{ severity: "blocker", importance: "high", category: "scope-drift", summary: "Kept editing after being told to stop", evidence: "e", recommendedAction: "r", addressed: false, stalemate: true },
+							{
+								severity: "blocker",
+								importance: "high",
+								category: "test-gap",
+								summary: "Claims tests passed without running them",
+								evidence: "e",
+								recommendedAction: "r",
+								addressed: false,
+								stalemate: false,
+							},
+							{
+								severity: "concern",
+								importance: "low",
+								category: "other",
+								summary: "Concern is not listed",
+								evidence: "e",
+								recommendedAction: "r",
+								addressed: true,
+								stalemate: false,
+							},
+							{
+								severity: "blocker",
+								importance: "high",
+								category: "scope-drift",
+								summary: "Kept editing after being told to stop",
+								evidence: "e",
+								recommendedAction: "r",
+								addressed: false,
+								stalemate: true,
+							},
 						],
 					},
 				},
@@ -1391,7 +2103,10 @@ describe("watchdog blockers in completion notices", () => {
 		]);
 
 		const content = formatSingleCompletion(details);
-		assert.match(content, /\nWatchdog blockers:\n- worker: Claims tests passed without running them \(unaddressed\)\n- worker: Kept editing after being told to stop \(stalemate\)\n/);
+		assert.match(
+			content,
+			/\nWatchdog blockers:\n- worker: Claims tests passed without running them \(unaddressed\)\n- worker: Kept editing after being told to stop \(stalemate\)\n/,
+		);
 		const parsed = parseSubagentNotifyContent(content);
 		assert.deepEqual(parsed?.watchdogBlockers, details.watchdogBlockers);
 		assert.match(parsed?.resultPreview ?? "", /^worker:\nPatched billing\./);
@@ -1401,12 +2116,12 @@ describe("watchdog blockers in completion notices", () => {
 		const grouped = formatGroupedCompletion([details, { agent: "scout", status: "completed", resultPreview: "ok" }]);
 		assert.match(grouped, /Watchdog blockers:\n- worker: Claims tests passed without running them \(unaddressed\)/);
 		assert.equal(grouped.split("Watchdog blockers:").length, 2);
-
 	});
 });
 
 describe("completion notice output size", () => {
-	const longOutput = (marker: string) => Array.from({ length: 200 }, (_, index) => `${marker} line ${index} ${"x".repeat(40)}`).join("\n");
+	const longOutput = (marker: string) =>
+		Array.from({ length: 200 }, (_, index) => `${marker} line ${index} ${"x".repeat(40)}`).join("\n");
 
 	it("inlines the head of a long single-child output and names the file that holds all of it", () => {
 		const root = mkdtempSync(join(tmpdir(), "notify-output-head-"));
@@ -1414,10 +2129,15 @@ describe("completion notice output size", () => {
 			const artifact = join(root, "worker_output.md");
 			const output = longOutput("single");
 			writeFileSync(artifact, output);
-			const notice = (text: string, outputPath: string) => formatSingleCompletion(buildCompletionDetails({
-				agent: "worker", success: true, summary: `worker:\n${text}`,
-				results: [{ agent: "worker", success: true, output: text, artifactPaths: { outputPath } }],
-			}));
+			const notice = (text: string, outputPath: string) =>
+				formatSingleCompletion(
+					buildCompletionDetails({
+						agent: "worker",
+						success: true,
+						summary: `worker:\n${text}`,
+						results: [{ agent: "worker", success: true, output: text, artifactPaths: { outputPath } }],
+					}),
+				);
 
 			const content = notice(output, artifact);
 			assert.ok(content.includes(output.slice(0, 1_500)));
@@ -1429,7 +2149,10 @@ describe("completion notice output size", () => {
 			const short = notice("short output", artifact);
 			assert.match(short, /worker:\nshort output/);
 			assert.doesNotMatch(short, /Full output:/);
-			assert.ok(notice(output, join(root, "missing.md")).includes(output), "without a full-output file the output stays inline");
+			assert.ok(
+				notice(output, join(root, "missing.md")).includes(output),
+				"without a full-output file the output stays inline",
+			);
 		} finally {
 			rmSync(root, { recursive: true, force: true });
 		}
@@ -1446,18 +2169,43 @@ describe("completion notice output size", () => {
 			const recovery = buildTimeoutRecoverySummary({
 				termination: "timed-out",
 				evidence: { source: "tracked-files", trackedOnly: true, changedFiles: [], attemptedMutation: false },
-				artifactPaths: { inputPath: join(root, "worker_input.md"), outputPath: artifact, jsonlPath: join(root, "worker.jsonl"), transcriptPath: join(root, "worker_transcript.md"), metadataPath: join(root, "worker_meta.json") },
+				artifactPaths: {
+					inputPath: join(root, "worker_input.md"),
+					outputPath: artifact,
+					jsonlPath: join(root, "worker.jsonl"),
+					transcriptPath: join(root, "worker_transcript.md"),
+					metadataPath: join(root, "worker_meta.json"),
+				},
 			}).message;
 			const output = `${partial}\n\n${recovery}`;
-			const result = { agent: "worker", success: false, timedOut: true, outputPartial: true, output, error: timeout, artifactPaths: { outputPath: artifact } };
-			const content = formatSingleCompletion(buildCompletionDetails({
-				agent: "worker", success: false, timedOut: true, error: timeout,
-				summary: timedOutRunSummary(timeout, `worker:\n${output}`, [result]),
-				results: [result],
-			}));
-			assert.match(content, /Subagent timed out after 300000ms\.\n\nworker:\nPartial output before timeout:\npartial line 0 /);
+			const result = {
+				agent: "worker",
+				success: false,
+				timedOut: true,
+				outputPartial: true,
+				output,
+				error: timeout,
+				artifactPaths: { outputPath: artifact },
+			};
+			const content = formatSingleCompletion(
+				buildCompletionDetails({
+					agent: "worker",
+					success: false,
+					timedOut: true,
+					error: timeout,
+					summary: timedOutRunSummary(timeout, `worker:\n${output}`, [result]),
+					results: [result],
+				}),
+			);
+			assert.match(
+				content,
+				/Subagent timed out after 300000ms\.\n\nworker:\nPartial output before timeout:\npartial line 0 /,
+			);
 			assert.ok(!content.includes("partial line 199"));
-			assert.match(content, /\nFull output: .*worker_output\.md \(\d+\.\d KB, 201 lines\)\. Read it if needed\.\n\nRecovery summary:\n- termination: timed-out\n/);
+			assert.match(
+				content,
+				/\nFull output: .*worker_output\.md \(\d+\.\d KB, 201 lines\)\. Read it if needed\.\n\nRecovery summary:\n- termination: timed-out\n/,
+			);
 			assert.ok(content.includes(recovery), "the recovery summary is not in the file, so it stays inline");
 			assert.ok(content.length < 3_500);
 			assert.equal(content.split(timeout).length, 2, "the timeout line is not repeated as an Error line");
@@ -1475,14 +2223,34 @@ describe("completion notice output size", () => {
 			const artifact = join(root, "worker_output.md");
 			writeFileSync(savedPath, output);
 			writeFileSync(artifact, output);
-			const { displayOutput } = finalizeSingleOutput({ fullOutput: output, outputPath: savedPath, exitCode: 0, savedPath });
-			const content = formatSingleCompletion(buildCompletionDetails({
-				agent: "worker", success: true, summary: `worker:\n${displayOutput}`,
-				results: [{ agent: "worker", success: true, output: displayOutput, savedOutputPath: savedPath, artifactPaths: { outputPath: artifact } }],
-			}));
+			const { displayOutput } = finalizeSingleOutput({
+				fullOutput: output,
+				outputPath: savedPath,
+				exitCode: 0,
+				savedPath,
+			});
+			const content = formatSingleCompletion(
+				buildCompletionDetails({
+					agent: "worker",
+					success: true,
+					summary: `worker:\n${displayOutput}`,
+					results: [
+						{
+							agent: "worker",
+							success: true,
+							output: displayOutput,
+							savedOutputPath: savedPath,
+							artifactPaths: { outputPath: artifact },
+						},
+					],
+				}),
+			);
 			assert.ok(content.includes(output.slice(0, 1_500)));
 			assert.ok(!content.includes("saved line 199"), `expected a capped notice, got ${content.length} chars`);
-			assert.match(content, /\nOutput saved to: .*report\.md \(\d+\.\d KB, 200 lines\)\. Read this file if needed\./);
+			assert.match(
+				content,
+				/\nOutput saved to: .*report\.md \(\d+\.\d KB, 200 lines\)\. Read this file if needed\./,
+			);
 			assert.doesNotMatch(content, /Full output:/);
 		} finally {
 			rmSync(root, { recursive: true, force: true });
@@ -1501,17 +2269,36 @@ describe("completion notice output size", () => {
 				const artifact = join(root, "worker_output.md");
 				writeFileSync(artifact, output);
 				for (const savedOutputPath of [undefined, join(root, "recorded.md")]) {
-					const content = formatSingleCompletion(buildCompletionDetails({
-						agent: "worker", success: true, summary: `worker:\n${output}`,
-						results: [{ agent: "worker", success: true, output, artifactPaths: { outputPath: artifact }, ...(savedOutputPath ? { savedOutputPath } : {}) }],
-					}));
+					const content = formatSingleCompletion(
+						buildCompletionDetails({
+							agent: "worker",
+							success: true,
+							summary: `worker:\n${output}`,
+							results: [
+								{
+									agent: "worker",
+									success: true,
+									output,
+									artifactPaths: { outputPath: artifact },
+									...(savedOutputPath ? { savedOutputPath } : {}),
+								},
+							],
+						}),
+					);
 					assert.ok(!content.includes(target), `${target} must not be trusted as the pointer`);
-					assert.match(content, /\nFull output: .*worker_output\.md \(\d+\.\d KB, 202 lines\)\. Read it if needed\./);
+					assert.match(
+						content,
+						/\nFull output: .*worker_output\.md \(\d+\.\d KB, 202 lines\)\. Read it if needed\./,
+					);
 				}
-				const noArtifact = formatSingleCompletion(buildCompletionDetails({
-					agent: "worker", success: true, summary: `worker:\n${output}`,
-					results: [{ agent: "worker", success: true, output }],
-				}));
+				const noArtifact = formatSingleCompletion(
+					buildCompletionDetails({
+						agent: "worker",
+						success: true,
+						summary: `worker:\n${output}`,
+						results: [{ agent: "worker", success: true, output }],
+					}),
+				);
 				assert.ok(noArtifact.includes(output), "with no recorded file the output stays whole");
 			}
 		} finally {
@@ -1520,34 +2307,75 @@ describe("completion notice output size", () => {
 	});
 
 	it("shows each workflow child's output once, capped at 2,000 characters", () => {
-		const content = formatSingleCompletion(buildCompletionDetails({
-			id: "workflow-two", runId: "workflow-two", mode: "workflow", agent: "workflow", success: true,
-			summary: "Workflow completed with 2 child run(s). Return: done",
-			results: [
-				{ workflowKey: "a", runId: "child-a", agent: "worker", success: true, output: longOutput("alpha") },
-				{ workflowKey: "b", runId: "child-b", agent: "reviewer", success: true, output: longOutput("beta") },
-			],
-		}));
+		const content = formatSingleCompletion(
+			buildCompletionDetails({
+				id: "workflow-two",
+				runId: "workflow-two",
+				mode: "workflow",
+				agent: "workflow",
+				success: true,
+				summary: "Workflow completed with 2 child run(s). Return: done",
+				results: [
+					{ workflowKey: "a", runId: "child-a", agent: "worker", success: true, output: longOutput("alpha") },
+					{ workflowKey: "b", runId: "child-b", agent: "reviewer", success: true, output: longOutput("beta") },
+				],
+			}),
+		);
 		for (const marker of ["alpha", "beta"]) {
 			assert.equal(content.split(`${marker} line 0 `).length - 1, 1);
-			const inline = content.split("\n").filter((line) => line.includes(`${marker} line`)).map((line) => line.replace(/^ {4}\| /, "")).join("\n");
+			const inline = content
+				.split("\n")
+				.filter((line) => line.includes(`${marker} line`))
+				.map((line) => line.replace(/^ {4}\| /, ""))
+				.join("\n");
 			assert.ok(inline.length <= 2_000, `${marker} preview is ${inline.length} chars`);
 		}
 	});
 
 	it("reports the error of a failed child that produced output", () => {
-		const single = formatSingleCompletion(buildCompletionDetails({
-			agent: "scout", success: false, exitCode: 1, summary: "scout:\nRead the task and started.",
-			results: [{ agent: "scout", success: false, output: "Read the task and started.", error: "Model request failed: 529 overloaded\n    at request (provider.js:1)" }],
-		}));
-		assert.match(single, /^Background task failed: \*\*scout\*\*\n\nError: Model request failed: 529 overloaded\n\nscout:\nRead the task and started\./);
+		const single = formatSingleCompletion(
+			buildCompletionDetails({
+				agent: "scout",
+				success: false,
+				exitCode: 1,
+				summary: "scout:\nRead the task and started.",
+				results: [
+					{
+						agent: "scout",
+						success: false,
+						output: "Read the task and started.",
+						error: "Model request failed: 529 overloaded\n    at request (provider.js:1)",
+					},
+				],
+			}),
+		);
+		assert.match(
+			single,
+			/^Background task failed: \*\*scout\*\*\n\nError: Model request failed: 529 overloaded\n\nscout:\nRead the task and started\./,
+		);
 		assert.doesNotMatch(single, /provider\.js/);
 
-		const workflow = formatSingleCompletion(buildCompletionDetails({
-			id: "workflow-failed", runId: "workflow-failed", mode: "workflow", agent: "workflow", success: false, state: "failed",
-			summary: "Workflow failed.",
-			results: [{ workflowKey: "fix", runId: "child-fix", agent: "worker", success: false, output: "Partial work.", error: "Tool budget exhausted" }],
-		}));
+		const workflow = formatSingleCompletion(
+			buildCompletionDetails({
+				id: "workflow-failed",
+				runId: "workflow-failed",
+				mode: "workflow",
+				agent: "workflow",
+				success: false,
+				state: "failed",
+				summary: "Workflow failed.",
+				results: [
+					{
+						workflowKey: "fix",
+						runId: "child-fix",
+						agent: "worker",
+						success: false,
+						output: "Partial work.",
+						error: "Tool budget exhausted",
+					},
+				],
+			}),
+		);
 		assert.match(workflow, /- key=fix run=child-fix status=failed\n(?: {2}.*\n)*? {2}Error: Tool budget exhausted\n/);
 	});
 });

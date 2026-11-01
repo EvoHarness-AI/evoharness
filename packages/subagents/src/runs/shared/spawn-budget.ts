@@ -1,6 +1,6 @@
 import {
-	resolveMaxSubagentSpawnsPerSession,
 	type ExtensionConfig,
+	resolveMaxSubagentSpawnsPerSession,
 	type SpawnBudgetSnapshot,
 	type SubagentState,
 } from "../../shared/types.ts";
@@ -34,7 +34,7 @@ export function getSpawnBudgetSnapshot(
 ): SpawnBudgetSnapshot {
 	const counters = sessionState(state, config, sessionId);
 	const configuredLimit = counters.configuredLimit ?? null;
-	const granted = configuredLimit === null ? 0 : counters.granted ?? 0;
+	const granted = configuredLimit === null ? 0 : (counters.granted ?? 0);
 	const limit = configuredLimit === null ? null : configuredLimit + granted;
 	return {
 		used: counters.count,
@@ -93,7 +93,10 @@ export function preflightSpawnBudgetGrant(
 		return { snapshot, error: "action='grant-spawn-budget' requires additional to be a positive integer." };
 	}
 	if (snapshot.configuredLimit === null || snapshot.limit === null) {
-		return { snapshot, error: "The current session has no configured spawn cap, so it does not need a budget grant." };
+		return {
+			snapshot,
+			error: "The current session has no configured spawn cap, so it does not need a budget grant.",
+		};
 	}
 	if (additional > (snapshot.grantRemaining ?? 0)) {
 		return {
@@ -115,7 +118,10 @@ export function grantSpawnBudget(
 	if (checked.error) return checked;
 	const before = checked.snapshot;
 	if (before.limit === null) {
-		return { snapshot: before, error: "The current session has no configured spawn cap, so it does not need a budget grant." };
+		return {
+			snapshot: before,
+			error: "The current session has no configured spawn cap, so it does not need a budget grant.",
+		};
 	}
 	const counters = state.subagentSpawns!;
 	counters.granted = (counters.granted ?? 0) + additional;

@@ -1,9 +1,35 @@
 import { sanitizeDisplayText, truncateDisplayText } from "../../shared/display-text.ts";
 import { formatModelThinking } from "../../shared/formatters.ts";
 import { childThinkingLevel, splitKnownThinkingSuffix, type ThinkingLevel } from "../../shared/model-info.ts";
-import type { AsyncJobState, AsyncJobStep, HostStepFreshness, HostStepMonitorKind, HostStepNode, HostStepState, HostStepVerdict, NestedRunSummary, NestedStepSummary, SubagentRunMode, WorkflowGraphSnapshot, WorkflowPreflightLane, WorkflowPreflight } from "../../shared/types.ts";
-import { HOST_STEP_MAX_COUNT, HOST_STEP_MAX_DETAIL_CHARS, HOST_STEP_MAX_LABEL_CHARS, HOST_STEP_MAX_PROVIDER_CHARS, HOST_STEP_MAX_REASON_CHARS, HOST_STEP_MAX_REF_CHARS, HOST_STEP_MAX_ROLE_CHARS, HOST_STEP_MAX_TARGET_CHARS, hostStepReportName, parseHostStepNode, validHostStepNodes } from "./host-step-status.ts";
+import type {
+	AsyncJobState,
+	AsyncJobStep,
+	HostStepFreshness,
+	HostStepMonitorKind,
+	HostStepNode,
+	HostStepState,
+	HostStepVerdict,
+	NestedRunSummary,
+	NestedStepSummary,
+	SubagentRunMode,
+	WorkflowGraphSnapshot,
+	WorkflowPreflight,
+	WorkflowPreflightLane,
+} from "../../shared/types.ts";
 import { workflowPreflightLaneForRuntimeKey } from "../../workflows/workflow-preflight.ts";
+import {
+	HOST_STEP_MAX_COUNT,
+	HOST_STEP_MAX_DETAIL_CHARS,
+	HOST_STEP_MAX_LABEL_CHARS,
+	HOST_STEP_MAX_PROVIDER_CHARS,
+	HOST_STEP_MAX_REASON_CHARS,
+	HOST_STEP_MAX_REF_CHARS,
+	HOST_STEP_MAX_ROLE_CHARS,
+	HOST_STEP_MAX_TARGET_CHARS,
+	hostStepReportName,
+	parseHostStepNode,
+	validHostStepNodes,
+} from "./host-step-status.ts";
 import { workflowGraphStageNodes } from "./workflow-graph.ts";
 
 export const ASYNC_STATUS_SNAPSHOT_KIND = "pi-subagents.async-status-snapshot";
@@ -15,7 +41,15 @@ const DEFAULT_MAX_DEPTH = 3;
 const DEFAULT_MAX_STRING_LENGTH = 160;
 const DEFAULT_MAX_SERIALIZED_BYTES = 32 * 1024;
 
-export type AsyncStatusSnapshotState = "queued" | "running" | "complete" | "failed" | "partial" | "paused" | "stopped" | "rejected";
+export type AsyncStatusSnapshotState =
+	| "queued"
+	| "running"
+	| "complete"
+	| "failed"
+	| "partial"
+	| "paused"
+	| "stopped"
+	| "rejected";
 export type AsyncStatusSnapshotKind = "subagent" | "workflow" | "step";
 
 const ASYNC_STATUS_SNAPSHOT_STATES: Record<AsyncStatusSnapshotState, true> = {
@@ -187,7 +221,14 @@ function normalizeState(value: string): AsyncStatusSnapshotState {
 }
 
 function terminalState(state: AsyncStatusSnapshotState): boolean {
-	return state === "complete" || state === "failed" || state === "partial" || state === "paused" || state === "stopped" || state === "rejected";
+	return (
+		state === "complete" ||
+		state === "failed" ||
+		state === "partial" ||
+		state === "paused" ||
+		state === "stopped" ||
+		state === "rejected"
+	);
 }
 
 function kindForMode(mode: SubagentRunMode | undefined): AsyncStatusSnapshotKind {
@@ -196,26 +237,34 @@ function kindForMode(mode: SubagentRunMode | undefined): AsyncStatusSnapshotKind
 
 function labelForAgents(agents: readonly string[] | undefined, fallback: string, maxLength: number): string {
 	if (!agents?.length) return publicText(fallback, fallback, maxLength);
-	const visible = agents.slice(0, 3).map((agent) => publicText(agent, "agent", maxLength)).join(", ");
+	const visible = agents
+		.slice(0, 3)
+		.map((agent) => publicText(agent, "agent", maxLength))
+		.join(", ");
 	const suffix = agents.length > 3 ? `, +${agents.length - 3} more` : "";
 	return truncateDisplayText(`${visible}${suffix}`, maxLength);
 }
 
-function activityFor(source: {
-	activityState?: unknown;
-	currentTool?: unknown;
-	lastActivityAt?: unknown;
-	currentToolStartedAt?: unknown;
-	turnCount?: unknown;
-	toolCount?: unknown;
-}, ctx: ProjectionContext): AsyncStatusSnapshotActivity | undefined {
+function activityFor(
+	source: {
+		activityState?: unknown;
+		currentTool?: unknown;
+		lastActivityAt?: unknown;
+		currentToolStartedAt?: unknown;
+		turnCount?: unknown;
+		toolCount?: unknown;
+	},
+	ctx: ProjectionContext,
+): AsyncStatusSnapshotActivity | undefined {
 	const currentTool = publicOptionalText(source.currentTool, ctx.caps.maxStringLength);
 	const lastActivityAt = publicTime(source.lastActivityAt);
 	const currentToolStartedAt = publicTime(source.currentToolStartedAt);
 	const turnCount = publicCount(source.turnCount);
 	const toolCount = publicCount(source.toolCount);
 	const activity: AsyncStatusSnapshotActivity = {
-		...(typeof source.activityState === "string" ? { state: publicText(source.activityState, "unknown", ctx.caps.maxStringLength) } : {}),
+		...(typeof source.activityState === "string"
+			? { state: publicText(source.activityState, "unknown", ctx.caps.maxStringLength) }
+			: {}),
 		...(currentTool ? { currentTool } : {}),
 		...(lastActivityAt !== undefined ? { lastActivityAt } : {}),
 		...(currentToolStartedAt !== undefined ? { currentToolStartedAt } : {}),
@@ -230,7 +279,11 @@ function activityFor(source: {
  * A launch model can carry a thinking suffix (`provider/id:low`) until the child's first reply; the
  * node reports the bare model and keeps the level in `thinking`.
  */
-function setStepModel(node: AsyncStatusSnapshotNode, ctx: ProjectionContext, ...sources: Array<{ model?: string; thinking?: string } | undefined>): void {
+function setStepModel(
+	node: AsyncStatusSnapshotNode,
+	ctx: ProjectionContext,
+	...sources: Array<{ model?: string; thinking?: string } | undefined>
+): void {
 	const { baseModel, thinkingSuffix } = splitKnownThinkingSuffix(sources.find((source) => source?.model)?.model ?? "");
 	const model = publicOptionalText(baseModel, ctx.caps.maxStringLength);
 	if (model) node.model = model;
@@ -238,7 +291,11 @@ function setStepModel(node: AsyncStatusSnapshotNode, ctx: ProjectionContext, ...
 	if (thinking) node.thinking = thinking;
 }
 
-function appendBoundedChildren(children: AsyncStatusSnapshotNode[], source: readonly AsyncStatusSnapshotNode[], ctx: ProjectionContext): void {
+function appendBoundedChildren(
+	children: AsyncStatusSnapshotNode[],
+	source: readonly AsyncStatusSnapshotNode[],
+	ctx: ProjectionContext,
+): void {
 	const remaining = Math.max(0, ctx.caps.maxChildrenPerNode - children.length);
 	children.push(...source.slice(0, remaining));
 	ctx.omitted.children += Math.max(0, source.length - remaining);
@@ -246,16 +303,33 @@ function appendBoundedChildren(children: AsyncStatusSnapshotNode[], source: read
 
 function stepIdentity(step: AsyncJobStep | NestedStepSummary, index: number, ctx: ProjectionContext) {
 	return {
-		id: publicText("workflowKey" in step && step.workflowKey ? step.workflowKey : "runId" in step && step.runId ? step.runId : `step:${index}`, `step:${index}`, ctx.caps.maxStringLength),
+		id: publicText(
+			"workflowKey" in step && step.workflowKey
+				? step.workflowKey
+				: "runId" in step && step.runId
+					? step.runId
+					: `step:${index}`,
+			`step:${index}`,
+			ctx.caps.maxStringLength,
+		),
 		label: publicText("label" in step && step.label ? step.label : step.agent, "step", ctx.caps.maxStringLength),
 	};
 }
 
-function projectStep(step: AsyncJobStep | NestedStepSummary, index: number, depth: number, ctx: ProjectionContext): AsyncStatusSnapshotNode {
+function projectStep(
+	step: AsyncJobStep | NestedStepSummary,
+	index: number,
+	depth: number,
+	ctx: ProjectionContext,
+): AsyncStatusSnapshotNode {
 	const state = normalizeState(step.status);
 	const startedAt = publicTime(step.startedAt);
 	const durationMs = "durationMs" in step ? publicTime(step.durationMs) : undefined;
-	const endedAt = publicTime(step.endedAt) ?? (terminalState(state) && startedAt !== undefined && durationMs !== undefined ? publicTime(startedAt + durationMs) : undefined);
+	const endedAt =
+		publicTime(step.endedAt) ??
+		(terminalState(state) && startedAt !== undefined && durationMs !== undefined
+			? publicTime(startedAt + durationMs)
+			: undefined);
 	const updatedAt = endedAt ?? publicTime(step.lastActivityAt) ?? startedAt;
 	const activity = activityFor(step, ctx);
 	const { id, label } = stepIdentity(step, index, ctx);
@@ -283,7 +357,12 @@ function projectStep(step: AsyncJobStep | NestedStepSummary, index: number, dept
 	return node;
 }
 
-function projectNestedRun(child: NestedRunSummary, index: number, depth: number, ctx: ProjectionContext): AsyncStatusSnapshotNode {
+function projectNestedRun(
+	child: NestedRunSummary,
+	index: number,
+	depth: number,
+	ctx: ProjectionContext,
+): AsyncStatusSnapshotNode {
 	const state = normalizeState(child.state);
 	const startedAt = publicTime(child.startedAt);
 	const endedAt = publicTime(child.endedAt);
@@ -292,7 +371,9 @@ function projectNestedRun(child: NestedRunSummary, index: number, depth: number,
 	const node: AsyncStatusSnapshotNode = {
 		id: publicText(child.id, `nested:${index}`, ctx.caps.maxStringLength),
 		kind: kindForMode(child.mode),
-		label: child.agent ? publicText(child.agent, "subagent", ctx.caps.maxStringLength) : labelForAgents(child.agents, child.mode ?? "subagent", ctx.caps.maxStringLength),
+		label: child.agent
+			? publicText(child.agent, "subagent", ctx.caps.maxStringLength)
+			: labelForAgents(child.agents, child.mode ?? "subagent", ctx.caps.maxStringLength),
 		state,
 		...(startedAt !== undefined ? { startedAt } : {}),
 		...(updatedAt !== undefined ? { updatedAt } : {}),
@@ -301,7 +382,8 @@ function projectNestedRun(child: NestedRunSummary, index: number, depth: number,
 	};
 	if (depth < ctx.caps.maxDepth) {
 		const nestedSteps = child.steps?.map((step, stepIndex) => projectStep(step, stepIndex, depth + 1, ctx)) ?? [];
-		const nestedChildren = child.children?.map((nested, childIndex) => projectNestedRun(nested, childIndex, depth + 1, ctx)) ?? [];
+		const nestedChildren =
+			child.children?.map((nested, childIndex) => projectNestedRun(nested, childIndex, depth + 1, ctx)) ?? [];
 		const bounded: AsyncStatusSnapshotNode[] = [];
 		appendBoundedChildren(bounded, [...nestedSteps, ...nestedChildren], ctx);
 		if (bounded.length) node.children = bounded;
@@ -329,7 +411,9 @@ function projectHostStep(hostStep: HostStepNode, ctx: ProjectionContext): AsyncS
 		...(hostStep.provider ? { provider: publicText(hostStep.provider, "provider", ctx.caps.maxStringLength) } : {}),
 		...(hostStep.role ? { role: publicText(hostStep.role, "role", ctx.caps.maxStringLength) } : {}),
 		...(hostStep.verdict ? { verdict: hostStep.verdict } : {}),
-		...(hostStep.reasonCode ? { reasonCode: publicText(hostStep.reasonCode, "reason", ctx.caps.maxStringLength) } : {}),
+		...(hostStep.reasonCode
+			? { reasonCode: publicText(hostStep.reasonCode, "reason", ctx.caps.maxStringLength) }
+			: {}),
 		...(detail ? { detail } : {}),
 		...(hostStep.target ? { target: publicText(hostStep.target, "target", ctx.caps.maxStringLength) } : {}),
 		...(hostStep.freshness?.stale !== undefined ? { stale: hostStep.freshness.stale } : {}),
@@ -391,7 +475,10 @@ function groupMaterializedChildren(jobs: readonly AsyncJobState[]) {
 	return { roots, childrenByParent, liveRoots };
 }
 
-function assignMaterializedChildren(steps: readonly AsyncJobStep[], children: readonly AsyncJobState[]): Map<AsyncJobStep, AsyncJobState> {
+function assignMaterializedChildren(
+	steps: readonly AsyncJobStep[],
+	children: readonly AsyncJobState[],
+): Map<AsyncJobStep, AsyncJobState> {
 	const assigned = new Map<AsyncJobStep, AsyncJobState>();
 	const claimed = new Set<AsyncJobState>();
 	for (const step of steps) {
@@ -413,13 +500,24 @@ function assignMaterializedChildren(steps: readonly AsyncJobStep[], children: re
 	return assigned;
 }
 
-function projectMaterializedStep(step: AsyncJobStep, index: number, child: AsyncJobState, depth: number, ctx: ProjectionContext, childrenByParent: MaterializedChildren, liveRoots: ReadonlySet<AsyncJobState>): AsyncStatusSnapshotNode {
+function projectMaterializedStep(
+	step: AsyncJobStep,
+	index: number,
+	child: AsyncJobState,
+	depth: number,
+	ctx: ProjectionContext,
+	childrenByParent: MaterializedChildren,
+	liveRoots: ReadonlySet<AsyncJobState>,
+): AsyncStatusSnapshotNode {
 	const { id, label } = stepIdentity(step, index, ctx);
 	const selfStep = child.mode === undefined || child.mode === "single" ? child.steps?.[0] : undefined;
 	const live = projectRun(child, ctx, depth, childrenByParent, liveRoots, selfStep !== undefined);
 	const laneActivity = activityFor(step, ctx);
 	const selfActivity = selfStep ? activityFor(selfStep, ctx) : undefined;
-	const activity = laneActivity || selfActivity || live.activity ? { ...laneActivity, ...selfActivity, ...live.activity } : undefined;
+	const activity =
+		laneActivity || selfActivity || live.activity
+			? { ...laneActivity, ...selfActivity, ...live.activity }
+			: undefined;
 	const node: AsyncStatusSnapshotNode = { ...live, id, kind: "step", label };
 	const agent = publicOptionalText(selfStep?.agent || step.agent, ctx.caps.maxStringLength);
 	if (agent) node.agent = agent;
@@ -428,7 +526,14 @@ function projectMaterializedStep(step: AsyncJobStep, index: number, child: Async
 	return node;
 }
 
-function projectRun(job: AsyncJobState, ctx: ProjectionContext, depth: number, childrenByParent: MaterializedChildren, liveRoots: ReadonlySet<AsyncJobState>, omitSteps = false): AsyncStatusSnapshotNode {
+function projectRun(
+	job: AsyncJobState,
+	ctx: ProjectionContext,
+	depth: number,
+	childrenByParent: MaterializedChildren,
+	liveRoots: ReadonlySet<AsyncJobState>,
+	omitSteps = false,
+): AsyncStatusSnapshotNode {
 	const state = normalizeState(job.status);
 	const startedAt = publicTime(job.startedAt);
 	const updatedAt = publicTime(job.updatedAt) ?? startedAt;
@@ -443,13 +548,23 @@ function projectRun(job: AsyncJobState, ctx: ProjectionContext, depth: number, c
 		...(terminalState(state) && updatedAt !== undefined ? { endedAt: updatedAt } : {}),
 		...(activity ? { activity } : {}),
 	};
-	const steps = omitSteps ? [] : job.steps ?? [];
+	const steps = omitSteps ? [] : (job.steps ?? []);
 	const materialized = childrenByParent.get(job.asyncId) ?? [];
-	const nestedSummaries = (job.nestedChildren ?? []).filter((child) => !materialized.some((live) => live.asyncId === child.id));
-	const loadedKeys = new Set(steps.flatMap((step) => step.workflowKey ? [step.workflowKey] : []));
-	const graphStages = job.mode === "workflow" ? workflowGraphStageNodes(job.workflowGraph).filter((graphNode) => !loadedKeys.has(graphNode.id)) : [];
+	const nestedSummaries = (job.nestedChildren ?? []).filter(
+		(child) => !materialized.some((live) => live.asyncId === child.id),
+	);
+	const loadedKeys = new Set(steps.flatMap((step) => (step.workflowKey ? [step.workflowKey] : [])));
+	const graphStages =
+		job.mode === "workflow"
+			? workflowGraphStageNodes(job.workflowGraph).filter((graphNode) => !loadedKeys.has(graphNode.id))
+			: [];
 	const graphSteps = graphStages.map((node, index) => ({
-		step: { agent: node.agent ?? node.label, status: workflowGraphStepStatus(node.status), workflowKey: node.id, label: node.label },
+		step: {
+			agent: node.agent ?? node.label,
+			status: workflowGraphStepStatus(node.status),
+			workflowKey: node.id,
+			label: node.label,
+		},
 		index: node.flatIndex ?? index,
 	}));
 	const lanes = [...steps, ...graphSteps.map(({ step }) => step)];
@@ -463,22 +578,37 @@ function projectRun(job: AsyncJobState, ctx: ProjectionContext, depth: number, c
 			if (liveRoots.has(child)) return undefined;
 			return projectMaterializedStep(step, index, child, childDepth, ctx, childrenByParent, liveRoots);
 		};
-		const stepChildren = steps.map((step, index) => projectLane(step, step.index ?? index)).filter((child): child is AsyncStatusSnapshotNode => child !== undefined);
-		const graphChildren = graphSteps.map(({ step, index }) => projectLane(step, index)).filter((child): child is AsyncStatusSnapshotNode => child !== undefined);
+		const stepChildren = steps
+			.map((step, index) => projectLane(step, step.index ?? index))
+			.filter((child): child is AsyncStatusSnapshotNode => child !== undefined);
+		const graphChildren = graphSteps
+			.map(({ step, index }) => projectLane(step, index))
+			.filter((child): child is AsyncStatusSnapshotNode => child !== undefined);
 		const nestedChildren = nestedSummaries.map((child, index) => projectNestedRun(child, index, childDepth, ctx));
-		const unclaimedChildren = materialized.filter((child) => !claimed.has(child) && !liveRoots.has(child)).map((child) => projectRun(child, ctx, childDepth, childrenByParent, liveRoots));
+		const unclaimedChildren = materialized
+			.filter((child) => !claimed.has(child) && !liveRoots.has(child))
+			.map((child) => projectRun(child, ctx, childDepth, childrenByParent, liveRoots));
 		const hostStepChildren = validHostStepList(job.hostSteps).map((hostStep) => projectHostStep(hostStep, ctx));
 		const ordinaryChildren = [...stepChildren, ...graphChildren, ...nestedChildren, ...unclaimedChildren];
 		const retainedHostSteps = hostStepChildren.slice(0, ctx.caps.maxChildrenPerNode);
-		const retainedOrdinaryChildren = ordinaryChildren.slice(0, ctx.caps.maxChildrenPerNode - retainedHostSteps.length);
+		const retainedOrdinaryChildren = ordinaryChildren.slice(
+			0,
+			ctx.caps.maxChildrenPerNode - retainedHostSteps.length,
+		);
 		const bounded: AsyncStatusSnapshotNode[] = [];
 		bounded.push(...retainedOrdinaryChildren, ...retainedHostSteps);
-		ctx.omitted.children += ordinaryChildren.length - retainedOrdinaryChildren.length + hostStepChildren.length - retainedHostSteps.length;
+		ctx.omitted.children +=
+			ordinaryChildren.length - retainedOrdinaryChildren.length + hostStepChildren.length - retainedHostSteps.length;
 		if (bounded.length) node.children = bounded;
 	} else {
 		const rootAssignments = [...assigned.values()].filter((child) => liveRoots.has(child)).length;
 		const unclaimedChildren = materialized.filter((child) => !claimed.has(child) && !liveRoots.has(child)).length;
-		ctx.omitted.children += lanes.length - rootAssignments + nestedSummaries.length + unclaimedChildren + validHostStepList(job.hostSteps).length;
+		ctx.omitted.children +=
+			lanes.length -
+			rootAssignments +
+			nestedSummaries.length +
+			unclaimedChildren +
+			validHostStepList(job.hostSteps).length;
 	}
 	return node;
 }
@@ -525,19 +655,25 @@ function workflowStepName(step: AsyncJobStep, index: number): string {
 function hostStepRow(hostStep: HostStepNode): AsyncStatusWorkflowRow {
 	const freshness = hostStep.freshness
 		? {
-			expectedRef: publicText(hostStep.freshness.expectedRef, "ref", HOST_STEP_MAX_REF_CHARS),
-			...(hostStep.freshness.observedRef ? { observedRef: publicText(hostStep.freshness.observedRef, "ref", HOST_STEP_MAX_REF_CHARS) } : {}),
-			...(hostStep.freshness.stale !== undefined ? { stale: hostStep.freshness.stale } : {}),
-		}
+				expectedRef: publicText(hostStep.freshness.expectedRef, "ref", HOST_STEP_MAX_REF_CHARS),
+				...(hostStep.freshness.observedRef
+					? { observedRef: publicText(hostStep.freshness.observedRef, "ref", HOST_STEP_MAX_REF_CHARS) }
+					: {}),
+				...(hostStep.freshness.stale !== undefined ? { stale: hostStep.freshness.stale } : {}),
+			}
 		: undefined;
 	return {
 		name: publicText(hostStep.label, "host step", HOST_STEP_MAX_LABEL_CHARS),
 		kind: hostStep.monitorKind,
 		state: hostStep.state,
 		...(hostStep.role ? { role: publicText(hostStep.role, "role", HOST_STEP_MAX_ROLE_CHARS) } : {}),
-		...(hostStep.provider ? { provider: publicText(hostStep.provider, "provider", HOST_STEP_MAX_PROVIDER_CHARS) } : {}),
+		...(hostStep.provider
+			? { provider: publicText(hostStep.provider, "provider", HOST_STEP_MAX_PROVIDER_CHARS) }
+			: {}),
 		...(hostStep.verdict ? { verdict: hostStep.verdict } : {}),
-		...(hostStep.reasonCode ? { reasonCode: publicText(hostStep.reasonCode, "reason", HOST_STEP_MAX_REASON_CHARS) } : {}),
+		...(hostStep.reasonCode
+			? { reasonCode: publicText(hostStep.reasonCode, "reason", HOST_STEP_MAX_REASON_CHARS) }
+			: {}),
 		...(hostStep.detail ? { detail: publicText(hostStep.detail, "detail", HOST_STEP_MAX_DETAIL_CHARS) } : {}),
 		...(hostStep.target ? { target: publicText(hostStep.target, "target", HOST_STEP_MAX_TARGET_CHARS) } : {}),
 		...(freshness ? { freshness } : {}),
@@ -545,16 +681,21 @@ function hostStepRow(hostStep: HostStepNode): AsyncStatusWorkflowRow {
 	};
 }
 
-
-function isWorkflowPreflight(value: readonly HostStepNode[] | WorkflowGraphSnapshot | WorkflowPreflight | undefined): value is WorkflowPreflight {
+function isWorkflowPreflight(
+	value: readonly HostStepNode[] | WorkflowGraphSnapshot | WorkflowPreflight | undefined,
+): value is WorkflowPreflight {
 	return value !== undefined && !Array.isArray(value) && "lanes" in value;
 }
 
-function isWorkflowGraph(value: readonly HostStepNode[] | WorkflowGraphSnapshot | WorkflowPreflight | undefined): value is WorkflowGraphSnapshot {
+function isWorkflowGraph(
+	value: readonly HostStepNode[] | WorkflowGraphSnapshot | WorkflowPreflight | undefined,
+): value is WorkflowGraphSnapshot {
 	return value !== undefined && !Array.isArray(value) && "nodes" in value;
 }
 
-function workflowGraphRowState(status: WorkflowGraphSnapshot["nodes"][number]["status"]): AsyncStatusWorkflowRow["state"] {
+function workflowGraphRowState(
+	status: WorkflowGraphSnapshot["nodes"][number]["status"],
+): AsyncStatusWorkflowRow["state"] {
 	switch (status) {
 		case "pending":
 			return "planned";
@@ -586,7 +727,10 @@ function workflowGraphRowName(node: WorkflowGraphSnapshot["nodes"][number]): str
 	return `${phase ? `${phase}: ` : ""}${key}${label && label !== node.id ? ` · ${label}` : ""}${agent ? ` (${agent})` : ""}`;
 }
 
-function projectWorkflowGraphRow(node: WorkflowGraphSnapshot["nodes"][number], preflight?: WorkflowPreflightLane): AsyncStatusWorkflowRow {
+function projectWorkflowGraphRow(
+	node: WorkflowGraphSnapshot["nodes"][number],
+	preflight?: WorkflowPreflightLane,
+): AsyncStatusWorkflowRow {
 	return {
 		name: workflowGraphRowName(node),
 		state: workflowGraphRowState(node.status),
@@ -600,12 +744,15 @@ export function projectAsyncWorkflowRows(
 	hostStepsOrPreflight?: readonly HostStepNode[] | WorkflowGraphSnapshot | WorkflowPreflight,
 	preflightOverride?: WorkflowPreflight,
 ): AsyncStatusWorkflowRow[] {
-	const preflight = preflightOverride ?? (isWorkflowPreflight(hostStepsOrPreflight) ? hostStepsOrPreflight : undefined);
+	const preflight =
+		preflightOverride ?? (isWorkflowPreflight(hostStepsOrPreflight) ? hostStepsOrPreflight : undefined);
 	const graph = isWorkflowGraph(hostStepsOrPreflight) ? hostStepsOrPreflight : undefined;
 	const hostSteps = isWorkflowPreflight(hostStepsOrPreflight) || graph ? undefined : hostStepsOrPreflight;
 	const loaded = steps ?? [];
-	const preflightForKey = (key: string, groupKeys: readonly (string | undefined)[] = []): WorkflowPreflightLane | undefined =>
-		workflowPreflightLaneForRuntimeKey(preflight, key, groupKeys);
+	const preflightForKey = (
+		key: string,
+		groupKeys: readonly (string | undefined)[] = [],
+	): WorkflowPreflightLane | undefined => workflowPreflightLaneForRuntimeKey(preflight, key, groupKeys);
 	if (graph) {
 		const loadedIndexesByKey = new Map<string, number[]>();
 		for (const [index, step] of loaded.entries()) {
@@ -637,17 +784,34 @@ export function projectAsyncWorkflowRows(
 			}
 		}
 		for (const [index, step] of loaded.entries()) {
-			if (!consumed.has(index)) childRows.push(projectLoadedWorkflowRow(step, index, step.workflowKey ? preflightForKey(step.workflowKey, [step.phase]) : undefined));
+			if (!consumed.has(index))
+				childRows.push(
+					projectLoadedWorkflowRow(
+						step,
+						index,
+						step.workflowKey ? preflightForKey(step.workflowKey, [step.phase]) : undefined,
+					),
+				);
 		}
 		return [...childRows, ...validHostStepList(graph).map(hostStepRow)];
 	}
 	return [
-		...loaded.map((step, index) => projectLoadedWorkflowRow(step, index, step.workflowKey ? preflightForKey(step.workflowKey, [step.phase]) : undefined)),
+		...loaded.map((step, index) =>
+			projectLoadedWorkflowRow(
+				step,
+				index,
+				step.workflowKey ? preflightForKey(step.workflowKey, [step.phase]) : undefined,
+			),
+		),
 		...validHostStepList(hostSteps).map(hostStepRow),
 	];
 }
 
-function projectLoadedWorkflowRow(step: AsyncJobStep, index: number, preflight?: WorkflowPreflightLane): AsyncStatusWorkflowRow {
+function projectLoadedWorkflowRow(
+	step: AsyncJobStep,
+	index: number,
+	preflight?: WorkflowPreflightLane,
+): AsyncStatusWorkflowRow {
 	const modelThinking = formatModelThinking(step.model, step.thinking) || undefined;
 	const thinking = childThinkingLevel(step);
 	const activity = workflowStepActivity(step);
@@ -668,7 +832,10 @@ function projectLoadedWorkflowRow(step: AsyncJobStep, index: number, preflight?:
 }
 
 /** Project already-loaded async status facts into the bounded public snapshot shape. */
-export function projectAsyncStatusSnapshot(jobs: Iterable<AsyncJobState>, options: AsyncStatusSnapshotOptions = {}): AsyncStatusSnapshot {
+export function projectAsyncStatusSnapshot(
+	jobs: Iterable<AsyncJobState>,
+	options: AsyncStatusSnapshotOptions = {},
+): AsyncStatusSnapshot {
 	const caps = resolveCaps(options);
 	const ctx: ProjectionContext = { caps, omitted: { runs: 0, children: 0, byteLimitExceeded: false } };
 	const { roots, childrenByParent, liveRoots } = groupMaterializedChildren([...jobs]);

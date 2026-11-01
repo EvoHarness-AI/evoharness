@@ -1,10 +1,10 @@
 import type { ExtensionAPI, ToolDefinition } from "@evoharness/coding-agent";
+import { registerPinnedTool } from "../../extension/declaration-pinning.ts";
 import { SubagentWaitParams } from "../../extension/schemas.ts";
+import { finalizeToolResult } from "../../extension/tool-result.ts";
 import type { Details, SubagentState } from "../../shared/types.ts";
 import { resolveWaitToolConfig, waitForSubagents } from "./subagent-wait.ts";
 import type { WaitSubscriptionManager } from "./wait-subscriptions.ts";
-import { finalizeToolResult } from "../../extension/tool-result.ts";
-import { registerPinnedTool } from "../../extension/declaration-pinning.ts";
 
 export function registerWaitTool(
 	pi: ExtensionAPI,
@@ -27,21 +27,29 @@ Timeout or a user message ends the wait without error; work keeps running.${enab
 		if (event.source === "extension" || !event.streamingBehavior) return;
 		for (const controller of userInputWaits) controller.abort();
 	});
-	const execute: ToolDefinition<typeof SubagentWaitParams, Details>["execute"] = async (_id, params, signal, onUpdate, ctx) => {
+	const execute: ToolDefinition<typeof SubagentWaitParams, Details>["execute"] = async (
+		_id,
+		params,
+		signal,
+		onUpdate,
+		ctx,
+	) => {
 		const userInput = new AbortController();
 		userInputWaits.add(userInput);
 		try {
-			return finalizeToolResult(await waitForSubagents(params, signal, {
-				state,
-				nestedRootRunId: child?.nestedRootRunId,
-				events: pi.events,
-				enabled,
-				hasPendingSupervisorRequest,
-				userInputSignal: userInput.signal,
-				...(defaultTimeoutMs !== undefined ? { defaultTimeoutMs } : {}),
-				onUpdate,
-				...(subscriptions && ctx?.hasUI ? { subscribe: (input) => subscriptions.arm(input) } : {}),
-			}));
+			return finalizeToolResult(
+				await waitForSubagents(params, signal, {
+					state,
+					nestedRootRunId: child?.nestedRootRunId,
+					events: pi.events,
+					enabled,
+					hasPendingSupervisorRequest,
+					userInputSignal: userInput.signal,
+					...(defaultTimeoutMs !== undefined ? { defaultTimeoutMs } : {}),
+					onUpdate,
+					...(subscriptions && ctx?.hasUI ? { subscribe: (input) => subscriptions.arm(input) } : {}),
+				}),
+			);
 		} finally {
 			userInputWaits.delete(userInput);
 		}

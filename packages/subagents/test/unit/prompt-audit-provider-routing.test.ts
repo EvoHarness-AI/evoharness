@@ -41,11 +41,13 @@ test("Prompt Audit rewrite uses the session model registry stream for complete p
 			streamSimple(nextModel: Model<any>, context: TranscriptContext, options?: SimpleStreamOptions) {
 				calls.push({ model: nextModel, context, options });
 				const stream = createAssistantMessageEventStream();
-				queueMicrotask(() => stream.push({
-					type: "done",
-					reason: "stop",
-					message: fauxAssistantMessage("rewritten task", { stopReason: "stop" }),
-				}));
+				queueMicrotask(() =>
+					stream.push({
+						type: "done",
+						reason: "stop",
+						message: fauxAssistantMessage("rewritten task", { stopReason: "stop" }),
+					}),
+				);
 				return stream;
 			},
 		},

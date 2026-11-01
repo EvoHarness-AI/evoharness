@@ -5,7 +5,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { test } from "node:test";
-import { ASYNC_DIR, RESULTS_DIR, observeSharedCwdRunner } from "../support/async-execution-fixture.ts";
+import { ASYNC_DIR, observeSharedCwdRunner, RESULTS_DIR } from "../support/async-execution-fixture.ts";
 
 // Synthetic lifecycle only: no runner, providers, polling, or Windows control.
 test("shared-cwd failure artifact preserves correlated allowlisted lifecycle once", () => {
@@ -32,11 +32,23 @@ test("shared-cwd failure artifact preserves correlated allowlisted lifecycle onc
 		});
 		const proof = { runId: id, runnerProcessInstanceId: "instance-1906", state: "pending", task: secret };
 		fs.writeFileSync(path.join(runDir, "process-terminal.json"), JSON.stringify(proof));
-		fs.writeFileSync(path.join(runDir, "process-terminal-candidate.json"), JSON.stringify({ ...proof, writers: { "0": [], "1": [] }, expectedWriters: { "0": 0, "1": 0 } }));
-		fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({ ...proof, state: "complete", result: secret }));
+		fs.writeFileSync(
+			path.join(runDir, "process-terminal-candidate.json"),
+			JSON.stringify({ ...proof, writers: { "0": [], "1": [] }, expectedWriters: { "0": 0, "1": 0 } }),
+		);
+		fs.writeFileSync(
+			path.join(runDir, "status.json"),
+			JSON.stringify({ ...proof, state: "complete", result: secret }),
+		);
 		fs.writeFileSync(resultFile, JSON.stringify({ runId: id, output: secret }));
-		fs.writeFileSync(path.join(runDir, "events.jsonl"), JSON.stringify({ ...proof, type: "subagent.run.completed", output: secret }) + "\n");
-		fs.writeFileSync(path.join(runDir, "runner.stderr.log"), `${secret}\n#1906 phase=dispose-return invocation=2 ts=123 pid=${proc.pid}\n#1906 phase=exit invocation=0 ts=124 pid=${proc.pid}\n#1906 phase=exit invocation=0 ts=124 pid=${proc.pid + 1}\n`);
+		fs.writeFileSync(
+			path.join(runDir, "events.jsonl"),
+			JSON.stringify({ ...proof, type: "subagent.run.completed", output: secret }) + "\n",
+		);
+		fs.writeFileSync(
+			path.join(runDir, "runner.stderr.log"),
+			`${secret}\n#1906 phase=dispose-return invocation=2 ts=123 pid=${proc.pid}\n#1906 phase=exit invocation=0 ts=124 pid=${proc.pid}\n#1906 phase=exit invocation=0 ts=124 pid=${proc.pid + 1}\n`,
+		);
 		fs.writeFileSync(path.join(runDir, "runner.stdout.log"), secret);
 		observer.marks.waitStartedAt = Date.now();
 		const diagnostics: string[] = [];
@@ -49,11 +61,23 @@ test("shared-cwd failure artifact preserves correlated allowlisted lifecycle onc
 		const evidence = JSON.parse(text);
 		assert.equal(evidence.pid, process.pid);
 		assert.equal(evidence.correlatedProcesses, 1);
-		assert.deepEqual(evidence.processEvents[0].map((event: { type: string }) => event.type), ["spawn", "exit", "close"]);
+		assert.deepEqual(
+			evidence.processEvents[0].map((event: { type: string }) => event.type),
+			["spawn", "exit", "close"],
+		);
 		const files = evidence.snapshot.files;
 		assert.equal(files.find((file: { name: string }) => file.name === "status.json").state, "complete");
-		assert.equal(files.find((file: { name: string }) => file.name === "process-terminal.json").runnerProcessInstanceId, "instance-1906");
-		assert.deepEqual(files.find((file: { name: string }) => file.name === "process-terminal-candidate.json").writers, [{ index: "0", count: 0, expected: 0 }, { index: "1", count: 0, expected: 0 }]);
+		assert.equal(
+			files.find((file: { name: string }) => file.name === "process-terminal.json").runnerProcessInstanceId,
+			"instance-1906",
+		);
+		assert.deepEqual(
+			files.find((file: { name: string }) => file.name === "process-terminal-candidate.json").writers,
+			[
+				{ index: "0", count: 0, expected: 0 },
+				{ index: "1", count: 0, expected: 0 },
+			],
+		);
 		const journal = files.find((file: { name: string }) => file.name === "events.jsonl");
 		assert.equal(journal.terminalPresentInRead, false);
 		assert.equal(journal.parseErrors, 0);
@@ -64,7 +88,9 @@ test("shared-cwd failure artifact preserves correlated allowlisted lifecycle onc
 		]);
 		fs.rmSync(runDir, { recursive: true, force: true });
 		fs.rmSync(resultFile, { force: true });
-		observer.snapshot = () => { throw new Error("must not capture again"); };
+		observer.snapshot = () => {
+			throw new Error("must not capture again");
+		};
 		observer.reportFailure((message) => diagnostics.push(message));
 		assert.equal(diagnostics.length, 1);
 		assert.equal(fs.readFileSync(artifact, "utf8"), text, "artifact survives fixture cleanup");
@@ -86,7 +112,9 @@ test("shared-cwd evidence is failure-only and write errors retain safe log evide
 	process.env.PI_SUBAGENTS_TERMINAL_EVIDENCE_DIR = destination;
 	const observer = observeSharedCwdRunner("terminal-evidence-no-run");
 	try {
-		observer.snapshot = () => { throw new Error("raw secret error"); };
+		observer.snapshot = () => {
+			throw new Error("raw secret error");
+		};
 		observer.summary();
 		observer.dispose();
 		assert.equal(fs.existsSync(destination), false, "success does not create artifacts or snapshot");

@@ -3,10 +3,15 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { resolvePiLaunchToolPlan } from "../../src/runs/shared/child-tool-plan.ts";
-import { buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
 import { runSingleStepInner } from "../../src/runs/background/subagent-runner.ts";
-import { MCP_RUNTIME_SNAPSHOT_EVENT, MCP_RUNTIME_SNAPSHOT_VERSION, type McpHostToolInfo, type McpRuntimeSnapshotHost } from "../../src/runs/shared/mcp-direct-tool-allowlist.ts";
+import { buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
+import { resolvePiLaunchToolPlan } from "../../src/runs/shared/child-tool-plan.ts";
+import {
+	MCP_RUNTIME_SNAPSHOT_EVENT,
+	MCP_RUNTIME_SNAPSHOT_VERSION,
+	type McpHostToolInfo,
+	type McpRuntimeSnapshotHost,
+} from "../../src/runs/shared/mcp-direct-tool-allowlist.ts";
 import { createFakeChildSessions } from "../support/fake-child-session.ts";
 
 /** A parent whose pi-mcp-adapter answers snapshot requests for one runtime-only server. */
@@ -14,8 +19,21 @@ function runtimeSnapshotHost(serverName: string): McpRuntimeSnapshotHost {
 	return {
 		events: {
 			emit(event, request) {
-				if (event !== MCP_RUNTIME_SNAPSHOT_EVENT || request.version !== MCP_RUNTIME_SNAPSHOT_VERSION || request.name !== serverName) return;
-				request.result = { ok: true, snapshot: { name: serverName, runtime: true, persisted: false, definition: { command: "node", args: ["server.js"] } } };
+				if (
+					event !== MCP_RUNTIME_SNAPSHOT_EVENT ||
+					request.version !== MCP_RUNTIME_SNAPSHOT_VERSION ||
+					request.name !== serverName
+				)
+					return;
+				request.result = {
+					ok: true,
+					snapshot: {
+						name: serverName,
+						runtime: true,
+						persisted: false,
+						definition: { command: "node", args: ["server.js"] },
+					},
+				};
 			},
 		},
 	};
@@ -43,21 +61,31 @@ describe("child tool plan with Pi built-in MCP", () => {
 	it("grants every non-hidden tool of a selected server as a required child tool", () => {
 		const plan = resolvePiLaunchToolPlan({ tools: ["read"], mcpDirectTools: ["docs"], runtimeSnapshotHost: host });
 		const granted = ["mcp__docs__search_pages", "mcp__docs__fetch"];
-		assert.deepEqual(plan.builtinMcpTools, granted.map((name) => ({ name, selector: "docs" })));
+		assert.deepEqual(
+			plan.builtinMcpTools,
+			granted.map((name) => ({ name, selector: "docs" })),
+		);
 		assert.deepEqual(plan.effectiveToolAllowlist, ["read", ...granted]);
 		assert.deepEqual(plan.requiredChildTools, ["read", ...granted]);
 	});
 
 	it("grants one tool for a tool selector and applies exclusions", () => {
-		const plan = resolvePiLaunchToolPlan({ mcpDirectTools: ["docs/search.pages", "docs/fetch"], excludeTools: ["mcp__docs__fetch"], runtimeSnapshotHost: host });
+		const plan = resolvePiLaunchToolPlan({
+			mcpDirectTools: ["docs/search.pages", "docs/fetch"],
+			excludeTools: ["mcp__docs__fetch"],
+			runtimeSnapshotHost: host,
+		});
 		assert.deepEqual(plan.builtinMcpTools, [{ name: "mcp__docs__search_pages", selector: "docs/search.pages" }]);
 	});
 
 	it("grants the hash-suffixed name Pi gives a tool whose sanitized name another tool took", () => {
-		const plan = resolvePiLaunchToolPlan({ mcpDirectTools: ["srv/a.b"], runtimeSnapshotHost: mcpHost("builtin:mcp", [
-			{ name: "mcp__srv__a_b", exposure: "codemode", namespace: { name: "mcp__srv" } },
-			{ name: "mcp__srv__a_b_df0974cd", exposure: "codemode", namespace: { name: "mcp__srv" } },
-		]) });
+		const plan = resolvePiLaunchToolPlan({
+			mcpDirectTools: ["srv/a.b"],
+			runtimeSnapshotHost: mcpHost("builtin:mcp", [
+				{ name: "mcp__srv__a_b", exposure: "codemode", namespace: { name: "mcp__srv" } },
+				{ name: "mcp__srv__a_b_df0974cd", exposure: "codemode", namespace: { name: "mcp__srv" } },
+			]),
+		});
 		assert.deepEqual(plan.effectiveMcpTools, ["mcp__srv__a_b_df0974cd"]);
 	});
 
@@ -65,27 +93,37 @@ describe("child tool plan with Pi built-in MCP", () => {
 		const plan = resolvePiLaunchToolPlan({
 			mcpDirectTools: ["my-docs/get-item"],
 			capabilityCeiling: { version: 1, allowedTools: ["mcp__my_docs__get_item"], sources: ["test"] },
-			runtimeSnapshotHost: mcpHost("builtin:mcp", [{ name: "mcp__my_docs__get_item", exposure: "codemode", namespace: { name: "mcp__my_docs" } }]),
+			runtimeSnapshotHost: mcpHost("builtin:mcp", [
+				{ name: "mcp__my_docs__get_item", exposure: "codemode", namespace: { name: "mcp__my_docs" } },
+			]),
 		});
 		assert.deepEqual(plan.builtinMcpTools, [{ name: "mcp__my_docs__get_item", selector: "my-docs/get-item" }]);
 	});
 
 	it("fails a launch whose selector matches no offered tool", () => {
 		assert.throws(
-			() => resolvePiLaunchToolPlan({ mcpDirectTools: ["docs/admin", "gone"], agentName: "browser", runtimeSnapshotHost: host }),
+			() =>
+				resolvePiLaunchToolPlan({
+					mcpDirectTools: ["docs/admin", "gone"],
+					agentName: "browser",
+					runtimeSnapshotHost: host,
+				}),
 			/Agent 'browser' selects MCP tools that Pi's built-in MCP does not offer: mcp:docs\/admin, mcp:gone\. The server may be missing, disconnected, still connecting, or its tools hidden; check \/mcp\./,
 		);
 	});
 
 	for (const [description, adapterHost] of [
 		["when the adapter owns /mcp", mcpHost("/ext/pi-mcp-adapter/index.ts", BUILTIN_MCP_TOOLS)],
-		["when adapter 3.x loads next to Pi's built-in /mcp", {
-			...mcpHost("builtin:mcp", BUILTIN_MCP_TOOLS),
-			getCommands: () => [
-				{ name: "mcp", sourceInfo: { path: "builtin:mcp" } },
-				{ name: "mcp-adapter", sourceInfo: { path: "/ext/pi-mcp-adapter/index.ts" } },
-			],
-		}],
+		[
+			"when adapter 3.x loads next to Pi's built-in /mcp",
+			{
+				...mcpHost("builtin:mcp", BUILTIN_MCP_TOOLS),
+				getCommands: () => [
+					{ name: "mcp", sourceInfo: { path: "builtin:mcp" } },
+					{ name: "mcp-adapter", sourceInfo: { path: "/ext/pi-mcp-adapter/index.ts" } },
+				],
+			},
+		],
 	] satisfies Array<[string, McpRuntimeSnapshotHost]>) {
 		it(`keeps the pi-mcp-adapter path ${description}`, () => {
 			const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-adapter-mcp-"));
@@ -107,7 +145,10 @@ describe("child tool plan", () => {
 			const plan = resolvePiLaunchToolPlan({ tools: ["read", "contact_supervisor"], agentName });
 			assert.equal(plan.effectiveToolAllowlist.includes("watchdog_diff"), false);
 		}
-		const bundledReviewer = resolvePiLaunchToolPlan({ tools: ["read", "watchdog_diff", "contact_supervisor"], agentName: "reviewer" });
+		const bundledReviewer = resolvePiLaunchToolPlan({
+			tools: ["read", "watchdog_diff", "contact_supervisor"],
+			agentName: "reviewer",
+		});
 		assert.deepEqual(bundledReviewer.effectiveToolAllowlist, ["read", "watchdog_diff", "contact_supervisor"]);
 	});
 
@@ -115,7 +156,14 @@ describe("child tool plan", () => {
 		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-runtime-mcp-"));
 		try {
 			assert.throws(
-				() => resolvePiLaunchToolPlan({ tools: ["read"], mcpDirectTools: ["runtime-only/search"], cwd, agentName: "browser", runtimeSnapshotHost: runtimeSnapshotHost("runtime-only") }),
+				() =>
+					resolvePiLaunchToolPlan({
+						tools: ["read"],
+						mcpDirectTools: ["runtime-only/search"],
+						cwd,
+						agentName: "browser",
+						runtimeSnapshotHost: runtimeSnapshotHost("runtime-only"),
+					}),
 				/cannot be provided to in-process children; MCP tools must come from an ambient adapter extension in a background child/,
 			);
 		} finally {
@@ -142,10 +190,25 @@ describe("child tool plan declared tools", () => {
 	});
 
 	it("does not enable command controls through a ceiling alone and honors explicit exclusions", () => {
-		const ceiling = { version: 1 as const, allowedTools: ["bash", "subagent_command"], denyExtensions: false, sources: ["test"] };
+		const ceiling = {
+			version: 1 as const,
+			allowedTools: ["bash", "subagent_command"],
+			denyExtensions: false,
+			sources: ["test"],
+		};
 		assert.deepEqual(resolvePiLaunchToolPlan({ capabilityCeiling: ceiling }).effectiveToolAllowlist, ["bash"]);
-		assert.deepEqual(resolvePiLaunchToolPlan({ tools: ["bash", "subagent_command"], excludeTools: ["subagent_command"] }).effectiveToolAllowlist, ["bash"]);
-		assert.deepEqual(resolvePiLaunchToolPlan({ tools: ["bash", "subagent_command"], capabilityCeiling: { ...ceiling, allowedTools: ["bash"] } }).effectiveToolAllowlist, ["bash"]);
+		assert.deepEqual(
+			resolvePiLaunchToolPlan({ tools: ["bash", "subagent_command"], excludeTools: ["subagent_command"] })
+				.effectiveToolAllowlist,
+			["bash"],
+		);
+		assert.deepEqual(
+			resolvePiLaunchToolPlan({
+				tools: ["bash", "subagent_command"],
+				capabilityCeiling: { ...ceiling, allowedTools: ["bash"] },
+			}).effectiveToolAllowlist,
+			["bash"],
+		);
 	});
 
 	it("adds read for lazy skill loading without an explicit declaration", () => {
@@ -155,13 +218,27 @@ describe("child tool plan declared tools", () => {
 
 	it("rejects Pi tool modifier entries instead of planning them as tool names", () => {
 		assert.throws(() => resolvePiLaunchToolPlan({ tools: ["+codemode"], agentName: "modifier-repro" }), {
-			message: "Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: +codemode. A child's `tools` list is the complete set of tools it gets, so +name and -name entries are not supported; name every tool the child needs, or omit `tools` and use `excludeTools` to drop one.",
+			message:
+				"Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: +codemode. A child's `tools` list is the complete set of tools it gets, so +name and -name entries are not supported; name every tool the child needs, or omit `tools` and use `excludeTools` to drop one.",
 		});
 		for (const { input, rejected } of [
-			{ input: { tools: ["-write"], agentName: "modifier-repro" }, rejected: /^Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: -write\. .*use `excludeTools` to drop one\.$/ },
-			{ input: { tools: ["read", "+codemode"], agentName: "modifier-repro" }, rejected: /^Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: \+codemode\. / },
-			{ input: { tools: ["+codemode"], requireReadTool: true, agentName: "modifier-repro" }, rejected: /^Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: \+codemode\. / },
-			{ input: { tools: ["+codemode", "read", "-write"] }, rejected: /^Subagent lists Pi tool modifier entries in `tools`: \+codemode, -write\. / },
+			{
+				input: { tools: ["-write"], agentName: "modifier-repro" },
+				rejected:
+					/^Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: -write\. .*use `excludeTools` to drop one\.$/,
+			},
+			{
+				input: { tools: ["read", "+codemode"], agentName: "modifier-repro" },
+				rejected: /^Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: \+codemode\. /,
+			},
+			{
+				input: { tools: ["+codemode"], requireReadTool: true, agentName: "modifier-repro" },
+				rejected: /^Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: \+codemode\. /,
+			},
+			{
+				input: { tools: ["+codemode", "read", "-write"] },
+				rejected: /^Subagent lists Pi tool modifier entries in `tools`: \+codemode, -write\. /,
+			},
 		]) {
 			assert.throws(() => resolvePiLaunchToolPlan(input), { message: rejected });
 		}
@@ -169,8 +246,23 @@ describe("child tool plan declared tools", () => {
 
 	it("rejects a modifier entry that the ceiling or an exclusion would filter out", () => {
 		for (const { input, rejected } of [
-			{ input: { tools: ["+codemode"], capabilityCeiling: { version: 1 as const, allowedTools: ["read"], denyExtensions: false, sources: ["test"] }, agentName: "modifier-repro" }, rejected: /^Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: \+codemode\. / },
-			{ input: { tools: ["read", "-write"], excludeTools: ["-write"], agentName: "modifier-repro" }, rejected: /^Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: -write\. / },
+			{
+				input: {
+					tools: ["+codemode"],
+					capabilityCeiling: {
+						version: 1 as const,
+						allowedTools: ["read"],
+						denyExtensions: false,
+						sources: ["test"],
+					},
+					agentName: "modifier-repro",
+				},
+				rejected: /^Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: \+codemode\. /,
+			},
+			{
+				input: { tools: ["read", "-write"], excludeTools: ["-write"], agentName: "modifier-repro" },
+				rejected: /^Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: -write\. /,
+			},
 		]) {
 			assert.throws(() => resolvePiLaunchToolPlan(input), { message: rejected });
 		}
@@ -185,7 +277,11 @@ describe("child tool plan declared tools", () => {
 	});
 
 	it("still plans a plain tool list whose names contain hyphens", () => {
-		const plan = resolvePiLaunchToolPlan({ tools: ["bash", "codemode", "fixture-search"], requireReadTool: true, agentName: "modifier-repro" });
+		const plan = resolvePiLaunchToolPlan({
+			tools: ["bash", "codemode", "fixture-search"],
+			requireReadTool: true,
+			agentName: "modifier-repro",
+		});
 		assert.deepEqual(plan.effectiveToolAllowlist, ["read", "bash", "codemode", "fixture-search"]);
 		assert.deepEqual(plan.requiredChildTools, ["read", "bash", "codemode", "fixture-search"]);
 	});
@@ -201,12 +297,16 @@ describe("child tool plan declared tools", () => {
 			assert.deepEqual(plan.requiredChildTools, tools);
 		}
 		const restricted = resolvePiLaunchToolPlan({
-			tools, excludeTools: ["__proto__"],
+			tools,
+			excludeTools: ["__proto__"],
 			capabilityCeiling: { version: 1, allowedTools: ["fixture_search", "__proto__"], sources: ["test"] },
 		});
 		assert.deepEqual(restricted.effectiveToolAllowlist, ["fixture_search"]);
 		assert.deepEqual(restricted.requiredChildTools, ["fixture_search"]);
-		for (const restriction of [{ tools: [] }, { capabilityCeiling: { version: 1 as const, allowedTools: [], sources: ["test"] } }]) {
+		for (const restriction of [
+			{ tools: [] },
+			{ capabilityCeiling: { version: 1 as const, allowedTools: [], sources: ["test"] } },
+		]) {
 			const empty = resolvePiLaunchToolPlan({ tools, ...restriction });
 			assert.deepEqual(empty.effectiveToolAllowlist, []);
 			assert.deepEqual(empty.requiredChildTools, []);
@@ -229,7 +329,14 @@ describe("child tool plan declared tools", () => {
 		assert.equal(plan.fanoutAuthorized, true);
 		for (const restriction of [
 			{ excludeTools: ["subagent_supervisor"] },
-			{ capabilityCeiling: { version: 1 as const, allowedTools: ["read", "subagent", "contact_supervisor"], denyExtensions: true, sources: ["test"] } },
+			{
+				capabilityCeiling: {
+					version: 1 as const,
+					allowedTools: ["read", "subagent", "contact_supervisor"],
+					denyExtensions: true,
+					sources: ["test"],
+				},
+			},
 		]) {
 			const restricted = resolvePiLaunchToolPlan({ tools, ...restriction });
 			assert.equal(restricted.fanoutAuthorized, true);
@@ -244,7 +351,14 @@ describe("child tool plan declared tools", () => {
 		for (const input of [
 			{ tools: ["read", "subagent_supervisor"] },
 			{ tools: ["read", "subagent", "subagent_supervisor"], excludeTools: ["subagent"] },
-			{ tools: ["read", "subagent", "subagent_supervisor"], capabilityCeiling: { version: 1 as const, allowedTools: ["read", "subagent_supervisor"], sources: ["test"] } },
+			{
+				tools: ["read", "subagent", "subagent_supervisor"],
+				capabilityCeiling: {
+					version: 1 as const,
+					allowedTools: ["read", "subagent_supervisor"],
+					sources: ["test"],
+				},
+			},
 		]) {
 			assert.throws(() => resolvePiLaunchToolPlan(input), /subagent_supervisor.*requires fanout authorization/);
 		}
@@ -295,9 +409,25 @@ describe("production launch path keeps declared child tools", () => {
 		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-runner-modifier-"));
 		const fake = createFakeChildSessions(() => cwd);
 		try {
-			await assert.rejects(runSingleStepInner({ agent: "modifier-repro", task: "do the work", tools: ["+codemode"] }, { cwd, id: "runner-modifier", flatIndex: 0, flatStepCount: 1, previousOutput: "", placeholder: "{previous}", outputFile: path.join(cwd, "output.log"), sessionEnabled: false, childSessions: fake.factory }), {
-				message: /^Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: \+codemode\. /,
-			});
+			await assert.rejects(
+				runSingleStepInner(
+					{ agent: "modifier-repro", task: "do the work", tools: ["+codemode"] },
+					{
+						cwd,
+						id: "runner-modifier",
+						flatIndex: 0,
+						flatStepCount: 1,
+						previousOutput: "",
+						placeholder: "{previous}",
+						outputFile: path.join(cwd, "output.log"),
+						sessionEnabled: false,
+						childSessions: fake.factory,
+					},
+				),
+				{
+					message: /^Agent 'modifier-repro' lists Pi tool modifier entry in `tools`: \+codemode\. /,
+				},
+			);
 			assert.equal(fake.sessions.length, 0);
 		} finally {
 			fs.rmSync(cwd, { recursive: true, force: true });

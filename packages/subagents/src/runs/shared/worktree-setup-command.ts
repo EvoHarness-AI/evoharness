@@ -1,8 +1,11 @@
 import { spawn } from "node:child_process";
-import { createOwnedProcessTreeController } from "../background/owned-process-tree.ts";
 import type { ProcessTreeTerminal } from "../../shared/types.ts";
+import { createOwnedProcessTreeController } from "../background/owned-process-tree.ts";
 
-function terminateCommandTree(pid: number, controller: ReturnType<typeof createOwnedProcessTreeController>): Promise<ProcessTreeTerminal> {
+function terminateCommandTree(
+	pid: number,
+	controller: ReturnType<typeof createOwnedProcessTreeController>,
+): Promise<ProcessTreeTerminal> {
 	if (process.platform !== "win32") return controller.terminate();
 	return new Promise((resolve) => {
 		let settled = false;
@@ -67,12 +70,21 @@ export async function runSetupCommand(
 	options: SetupCommandOptions,
 ): Promise<SetupCommandResult> {
 	const result: SetupCommandResult = {
-		stdout: "", stdoutBuffer: Buffer.alloc(0), stderr: "", status: null, signal: null, outputIncomplete: false,
+		stdout: "",
+		stdoutBuffer: Buffer.alloc(0),
+		stderr: "",
+		status: null,
+		signal: null,
+		outputIncomplete: false,
 	};
 	const maxBuffer = options.maxBuffer ?? 1024 * 1024;
 	if (!Number.isSafeInteger(maxBuffer) || maxBuffer <= 0) throw new Error("Invalid setup command maxBuffer");
-	if (options.deadlineAt !== undefined && !Number.isFinite(options.deadlineAt)) throw new Error("Invalid setup deadline");
-	if (options.hookTimeoutMs !== undefined && (!Number.isSafeInteger(options.hookTimeoutMs) || options.hookTimeoutMs <= 0)) {
+	if (options.deadlineAt !== undefined && !Number.isFinite(options.deadlineAt))
+		throw new Error("Invalid setup deadline");
+	if (
+		options.hookTimeoutMs !== undefined &&
+		(!Number.isSafeInteger(options.hookTimeoutMs) || options.hookTimeoutMs <= 0)
+	) {
 		throw new Error("Invalid setup hook timeout");
 	}
 	const cancellation = (): Error | undefined => {
@@ -90,7 +102,9 @@ export async function runSetupCommand(
 		child = spawn(command, args, {
 			cwd: options.cwd,
 			env: options.env ? { ...process.env, ...options.env } : process.env,
-			stdio: "pipe", shell: false, windowsHide: true,
+			stdio: "pipe",
+			shell: false,
+			windowsHide: true,
 			// Isolated owned POSIX group, never unref'd or fire-and-forget.
 			detached: process.platform !== "win32",
 		});
@@ -106,7 +120,10 @@ export async function runSetupCommand(
 	const releaseUnknownIO = () => {
 		if (!directSettled || result.processTree?.state !== "unknown") return;
 		const detail = result.processTree.diagnostic ? `: ${result.processTree.diagnostic}` : "";
-		result.error = commandError(`Worktree setup process tree settlement is unverified${detail}`, "PROCESS_TREE_UNVERIFIED");
+		result.error = commandError(
+			`Worktree setup process tree settlement is unverified${detail}`,
+			"PROCESS_TREE_UNVERIFIED",
+		);
 		result.outputIncomplete = true;
 		// Only local I/O is released; unknown descendant ownership remains retained.
 		child.stdin.destroy();
@@ -117,7 +134,8 @@ export async function runSetupCommand(
 		if (termination || !tree) return;
 		if (directSettled) {
 			result.processTree = {
-				state: "unknown", reason: "verification-failed",
+				state: "unknown",
+				reason: "verification-failed",
 				diagnostic: "Command exited before termination began; no longer safe to signal its recorded PID.",
 			};
 			releaseUnknownIO();
@@ -174,8 +192,10 @@ export async function runSetupCommand(
 		});
 	});
 	let timer: ReturnType<typeof setTimeout> | undefined;
-	const deadlineAt = Math.min(options.deadlineAt ?? Infinity,
-		options.hookTimeoutMs === undefined ? Infinity : Date.now() + options.hookTimeoutMs);
+	const deadlineAt = Math.min(
+		options.deadlineAt ?? Infinity,
+		options.hookTimeoutMs === undefined ? Infinity : Date.now() + options.hookTimeoutMs,
+	);
 	const armDeadline = () => {
 		if (deadlineAt === Infinity) return;
 		const remaining = deadlineAt - Date.now();
@@ -187,8 +207,11 @@ export async function runSetupCommand(
 		armDeadline();
 		if (options.signal?.aborted) onAbort();
 		if (child.pid !== undefined) {
-			try { options.onSpawn?.({ pid: child.pid, processGroupId: result.processGroupId }); }
-			catch (error) { fail(error instanceof Error ? error : new Error(String(error))); }
+			try {
+				options.onSpawn?.({ pid: child.pid, processGroupId: result.processGroupId });
+			} catch (error) {
+				fail(error instanceof Error ? error : new Error(String(error)));
+			}
 		}
 		child.stdin.end(options.input);
 		await directExit;

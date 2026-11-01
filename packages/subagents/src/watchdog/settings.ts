@@ -1,20 +1,20 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { THINKING_LEVELS, type ThinkingLevel } from "../shared/model-info.ts";
-import { getAgentDir, getProjectConfigDir } from "../shared/utils.ts";
 import { withSettingsFileLease } from "../shared/settings-file-lease.ts";
+import { getAgentDir, getProjectConfigDir } from "../shared/utils.ts";
 import {
-	WATCHDOG_WARNING_SEVERITIES,
 	type ResolvedWatchdogConfig,
+	WATCHDOG_WARNING_SEVERITIES,
+	type WatchdogCadenceConfig,
 	type WatchdogChildOverrideConfig,
 	type WatchdogChildrenConfig,
 	type WatchdogEndpointConfig,
-	type WatchdogCadenceConfig,
 	type WatchdogGuidanceConfig,
-	type WatchdogScopeConfig,
 	type WatchdogLspConfig,
 	type WatchdogRoleModelRule,
 	type WatchdogRulesConfig,
+	type WatchdogScopeConfig,
 	type WatchdogSettingsError,
 	type WatchdogSettingsResult,
 	type WatchdogSettingsSource,
@@ -32,10 +32,7 @@ type WatchdogChildrenPatch = Partial<Omit<WatchdogChildrenConfig, "overrides">> 
 type WatchdogLspPatch = Partial<WatchdogLspConfig>;
 
 export type WatchdogSettingsWriteScope = "user" | "project";
-export type WatchdogModelSettingsTarget =
-	| { kind: "main" }
-	| { kind: "children" }
-	| { kind: "child"; agent: string };
+export type WatchdogModelSettingsTarget = { kind: "main" } | { kind: "children" } | { kind: "child"; agent: string };
 
 export interface WatchdogModelSettingsWrite {
 	scope: WatchdogSettingsWriteScope;
@@ -45,7 +42,9 @@ export interface WatchdogModelSettingsWrite {
 	thinking?: ThinkingLevel | false | null;
 }
 
-type WatchdogConfigPatch = Partial<Omit<ResolvedWatchdogConfig, "guidance" | "scope" | "cadence" | "main" | "children" | "lsp" | "rules">> & {
+type WatchdogConfigPatch = Partial<
+	Omit<ResolvedWatchdogConfig, "guidance" | "scope" | "cadence" | "main" | "children" | "lsp" | "rules">
+> & {
 	rules?: WatchdogRulesConfig;
 	guidance?: WatchdogGuidancePatch;
 	scope?: WatchdogScopePatch;
@@ -148,7 +147,12 @@ function unknown(meta: ParseMeta, field: string): Error {
 	return new Error(`Watchdog settings in ${sourceName(meta)} have unknown field '${field}'.`);
 }
 
-function assertKnownFields(input: Record<string, unknown>, allowed: Set<string>, fieldPrefix: string, meta: ParseMeta): void {
+function assertKnownFields(
+	input: Record<string, unknown>,
+	allowed: Set<string>,
+	fieldPrefix: string,
+	meta: ParseMeta,
+): void {
 	for (const key of Object.keys(input)) {
 		if (!allowed.has(key)) throw unknown(meta, `${fieldPrefix}.${key}`);
 	}
@@ -171,16 +175,29 @@ function parseNonEmptyString(value: unknown, field: string, meta: ParseMeta): st
 
 function parseThinking(value: unknown, field: string, meta: ParseMeta): ThinkingLevel | false {
 	if (value === false) return false;
-	if (typeof value === "string" && (THINKING_LEVELS as readonly string[]).includes(value)) return value as ThinkingLevel;
+	if (typeof value === "string" && (THINKING_LEVELS as readonly string[]).includes(value))
+		return value as ThinkingLevel;
 	throw invalid(meta, field, `${THINKING_LEVELS.map((level) => `'${level}'`).join(" or ")} or false`);
 }
 
-function parseInteger(value: unknown, field: string, meta: ParseMeta, expected: string, check: (value: number) => boolean): number {
+function parseInteger(
+	value: unknown,
+	field: string,
+	meta: ParseMeta,
+	expected: string,
+	check: (value: number) => boolean,
+): number {
 	if (typeof value === "number" && Number.isInteger(value) && check(value)) return value;
 	throw invalid(meta, field, expected);
 }
 
-function parseNullableInteger(value: unknown, field: string, meta: ParseMeta, expected: string, check: (value: number) => boolean): number | null {
+function parseNullableInteger(
+	value: unknown,
+	field: string,
+	meta: ParseMeta,
+	expected: string,
+	check: (value: number) => boolean,
+): number | null {
 	if (value === null) return null;
 	return parseInteger(value, field, meta, expected, check);
 }
@@ -211,9 +228,16 @@ function parseCadencePatch(value: unknown, field: string, meta: ParseMeta): Watc
 	assertKnownFields(input, CADENCE_FIELDS, field, meta);
 	const patch: WatchdogCadencePatch = {};
 	if ("everyNTools" in input) {
-		patch.everyNTools = input.everyNTools === null
-			? null
-			: parseInteger(input.everyNTools, `${field}.everyNTools`, meta, "null or an integer >= 5", (candidate) => candidate >= 5);
+		patch.everyNTools =
+			input.everyNTools === null
+				? null
+				: parseInteger(
+						input.everyNTools,
+						`${field}.everyNTools`,
+						meta,
+						"null or an integer >= 5",
+						(candidate) => candidate >= 5,
+					);
 	}
 	return patch;
 }
@@ -247,7 +271,13 @@ function parseChildrenPatch(value: unknown, field: string, meta: ParseMeta): Wat
 	if ("model" in input) patch.model = parseNonEmptyString(input.model, `${field}.model`, meta);
 	if ("thinking" in input) patch.thinking = parseThinking(input.thinking, `${field}.thinking`, meta);
 	if ("watchdogTailTimeoutMs" in input) {
-		patch.watchdogTailTimeoutMs = parseInteger(input.watchdogTailTimeoutMs, `${field}.watchdogTailTimeoutMs`, meta, "a positive integer", (candidate) => candidate >= 1);
+		patch.watchdogTailTimeoutMs = parseInteger(
+			input.watchdogTailTimeoutMs,
+			`${field}.watchdogTailTimeoutMs`,
+			meta,
+			"a positive integer",
+			(candidate) => candidate >= 1,
+		);
 	}
 	if ("cadence" in input) patch.cadence = parseCadencePatch(input.cadence, `${field}.cadence`, meta);
 	if ("overrides" in input) {
@@ -266,14 +296,36 @@ function parseLspPatch(value: unknown, field: string, meta: ParseMeta): Watchdog
 	assertKnownFields(input, LSP_FIELDS, field, meta);
 	const patch: WatchdogLspPatch = {};
 	if ("enabled" in input) patch.enabled = parseBoolean(input.enabled, `${field}.enabled`, meta);
-	if ("timeoutMs" in input) patch.timeoutMs = parseInteger(input.timeoutMs, `${field}.timeoutMs`, meta, "a positive integer", (candidate) => candidate >= 1);
-	if ("maxFiles" in input) patch.maxFiles = parseInteger(input.maxFiles, `${field}.maxFiles`, meta, "a positive integer", (candidate) => candidate >= 1);
-	if ("maxDiagnostics" in input) patch.maxDiagnostics = parseInteger(input.maxDiagnostics, `${field}.maxDiagnostics`, meta, "a non-negative integer", (candidate) => candidate >= 0);
+	if ("timeoutMs" in input)
+		patch.timeoutMs = parseInteger(
+			input.timeoutMs,
+			`${field}.timeoutMs`,
+			meta,
+			"a positive integer",
+			(candidate) => candidate >= 1,
+		);
+	if ("maxFiles" in input)
+		patch.maxFiles = parseInteger(
+			input.maxFiles,
+			`${field}.maxFiles`,
+			meta,
+			"a positive integer",
+			(candidate) => candidate >= 1,
+		);
+	if ("maxDiagnostics" in input)
+		patch.maxDiagnostics = parseInteger(
+			input.maxDiagnostics,
+			`${field}.maxDiagnostics`,
+			meta,
+			"a non-negative integer",
+			(candidate) => candidate >= 0,
+		);
 	return patch;
 }
 
 function parseStringList(value: unknown, field: string, meta: ParseMeta): string[] {
-	if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string" || !entry.trim())) throw invalid(meta, field, "an array of non-empty strings");
+	if (!Array.isArray(value) || value.some((entry) => typeof entry !== "string" || !entry.trim()))
+		throw invalid(meta, field, "an array of non-empty strings");
 	return value.map((entry: string) => entry.trim());
 }
 
@@ -306,19 +358,43 @@ function parseWatchdogPatch(value: unknown, field: string, meta: ParseMeta): Wat
 	assertKnownFields(input, WATCHDOG_FIELDS, field, meta);
 	const patch: WatchdogConfigPatch = {};
 	if ("enabled" in input) patch.enabled = parseBoolean(input.enabled, `${field}.enabled`, meta);
-	if ("clarification" in input) patch.clarification = parseBoolean(input.clarification, `${field}.clarification`, meta);
+	if ("clarification" in input)
+		patch.clarification = parseBoolean(input.clarification, `${field}.clarification`, meta);
 	if ("agentEndTimeoutMs" in input) {
-		patch.agentEndTimeoutMs = parseInteger(input.agentEndTimeoutMs, `${field}.agentEndTimeoutMs`, meta, "a positive integer", (candidate) => candidate >= 1);
+		patch.agentEndTimeoutMs = parseInteger(
+			input.agentEndTimeoutMs,
+			`${field}.agentEndTimeoutMs`,
+			meta,
+			"a positive integer",
+			(candidate) => candidate >= 1,
+		);
 	}
 	if ("severityThreshold" in input) {
-		patch.severityThreshold = parseEnum<WatchdogSeverity>(input.severityThreshold, `${field}.severityThreshold`, meta, WATCHDOG_WARNING_SEVERITIES);
+		patch.severityThreshold = parseEnum<WatchdogSeverity>(
+			input.severityThreshold,
+			`${field}.severityThreshold`,
+			meta,
+			WATCHDOG_WARNING_SEVERITIES,
+		);
 	}
 	if ("maxWarnings" in input) {
-		patch.maxWarnings = parseNullableInteger(input.maxWarnings, `${field}.maxWarnings`, meta, "null or a non-negative integer", (candidate) => candidate >= 0);
+		patch.maxWarnings = parseNullableInteger(
+			input.maxWarnings,
+			`${field}.maxWarnings`,
+			meta,
+			"null or a non-negative integer",
+			(candidate) => candidate >= 0,
+		);
 	}
 	if ("guidance" in input) patch.guidance = parseGuidancePatch(input.guidance, `${field}.guidance`, meta);
 	if ("stalemateRepeats" in input) {
-		patch.stalemateRepeats = parseInteger(input.stalemateRepeats, `${field}.stalemateRepeats`, meta, "a positive integer", (candidate) => candidate >= 1);
+		patch.stalemateRepeats = parseInteger(
+			input.stalemateRepeats,
+			`${field}.stalemateRepeats`,
+			meta,
+			"a positive integer",
+			(candidate) => candidate >= 1,
+		);
 	}
 	if ("scope" in input) patch.scope = parseScopePatch(input.scope, `${field}.scope`, meta);
 	if ("cadence" in input) patch.cadence = parseCadencePatch(input.cadence, `${field}.cadence`, meta);
@@ -401,7 +477,10 @@ function deepMerge<T extends Record<string, unknown>>(base: T, patch: Record<str
 }
 
 function resolvePatch(patch: WatchdogConfigPatch): ResolvedWatchdogConfig {
-	const config = deepMerge(cloneDefaultConfig() as unknown as Record<string, unknown>, patch as Record<string, unknown>) as unknown as ResolvedWatchdogConfig;
+	const config = deepMerge(
+		cloneDefaultConfig() as unknown as Record<string, unknown>,
+		patch as Record<string, unknown>,
+	) as unknown as ResolvedWatchdogConfig;
 	config.enabled = patch.enabled ?? DEFAULT_WATCHDOG_CONFIG.enabled;
 	config.main.enabled = patch.main?.enabled ?? config.enabled;
 	return config;
@@ -416,20 +495,37 @@ function parseSessionOverride(value: Record<string, unknown>): WatchdogConfigPat
 	return parseWatchdogPatch(value, "subagents.watchdog", { scope: "session" });
 }
 
-export function resolveWatchdogConfigStrict(cwd: string, options: { session?: Record<string, unknown> } = {}): ResolvedWatchdogConfig {
+export function resolveWatchdogConfigStrict(
+	cwd: string,
+	options: { session?: Record<string, unknown> } = {},
+): ResolvedWatchdogConfig {
 	let patch: WatchdogConfigPatch = {};
-	patch = deepMerge(patch as Record<string, unknown>, parseSourceFile(getUserSettingsPath(), "user") as Record<string, unknown>) as WatchdogConfigPatch;
+	patch = deepMerge(
+		patch as Record<string, unknown>,
+		parseSourceFile(getUserSettingsPath(), "user") as Record<string, unknown>,
+	) as WatchdogConfigPatch;
 	const projectSettingsPath = getProjectSettingsPath(cwd);
 	if (projectSettingsPath) {
-		patch = deepMerge(patch as Record<string, unknown>, parseSourceFile(projectSettingsPath, "project") as Record<string, unknown>) as WatchdogConfigPatch;
+		patch = deepMerge(
+			patch as Record<string, unknown>,
+			parseSourceFile(projectSettingsPath, "project") as Record<string, unknown>,
+		) as WatchdogConfigPatch;
 	}
 	if (options.session) {
-		patch = deepMerge(patch as Record<string, unknown>, parseSessionOverride(options.session) as Record<string, unknown>) as WatchdogConfigPatch;
+		patch = deepMerge(
+			patch as Record<string, unknown>,
+			parseSessionOverride(options.session) as Record<string, unknown>,
+		) as WatchdogConfigPatch;
 	}
 	return resolvePatch(patch);
 }
 
-function ensureObjectField(parent: Record<string, unknown>, key: string, field: string, meta: ParseMeta): Record<string, unknown> {
+function ensureObjectField(
+	parent: Record<string, unknown>,
+	key: string,
+	field: string,
+	meta: ParseMeta,
+): Record<string, unknown> {
 	if (!(key in parent)) parent[key] = {};
 	if (!isPlainObject(parent[key])) throw invalid(meta, field, "an object");
 	return parent[key];
@@ -444,13 +540,23 @@ function settingsPathForWrite(scope: WatchdogSettingsWriteScope, cwd: string | u
 	return scope === "user" ? getUserSettingsPath() : getWatchdogProjectSettingsPath(cwd ?? process.cwd());
 }
 
-function targetSettingsObject(watchdog: Record<string, unknown>, target: WatchdogModelSettingsTarget, meta: ParseMeta): Record<string, unknown> {
+function targetSettingsObject(
+	watchdog: Record<string, unknown>,
+	target: WatchdogModelSettingsTarget,
+	meta: ParseMeta,
+): Record<string, unknown> {
 	if (target.kind === "main") return ensureObjectField(watchdog, "main", "subagents.watchdog.main", meta);
 	const children = ensureObjectField(watchdog, "children", "subagents.watchdog.children", meta);
 	if (target.kind === "children") return children;
-	if (!target.agent.trim()) throw invalid(meta, "subagents.watchdog.children.overrides.<agent>", "a non-empty agent name");
+	if (!target.agent.trim())
+		throw invalid(meta, "subagents.watchdog.children.overrides.<agent>", "a non-empty agent name");
 	const overrides = ensureObjectField(children, "overrides", "subagents.watchdog.children.overrides", meta);
-	return ensureObjectField(overrides, target.agent.trim(), `subagents.watchdog.children.overrides.${target.agent.trim()}`, meta);
+	return ensureObjectField(
+		overrides,
+		target.agent.trim(),
+		`subagents.watchdog.children.overrides.${target.agent.trim()}`,
+		meta,
+	);
 }
 
 function writeSettingsFile(settingsPath: string, settings: Record<string, unknown>): string {
@@ -486,7 +592,10 @@ export function writeWatchdogModelSettings(input: WatchdogModelSettingsWrite): s
 	});
 }
 
-export function resolveWatchdogConfig(cwd: string, options: { session?: Record<string, unknown> } = {}): WatchdogSettingsResult {
+export function resolveWatchdogConfig(
+	cwd: string,
+	options: { session?: Record<string, unknown> } = {},
+): WatchdogSettingsResult {
 	const sources: WatchdogSettingsSource[] = [];
 	const errors: WatchdogSettingsError[] = [];
 	let patch: WatchdogConfigPatch = {};
@@ -498,15 +607,25 @@ export function resolveWatchdogConfig(cwd: string, options: { session?: Record<s
 		if (!source.path) continue;
 		sources.push({ scope: source.scope, path: source.path, exists: fs.existsSync(source.path) });
 		try {
-			patch = deepMerge(patch as Record<string, unknown>, parseSourceFile(source.path, source.scope) as Record<string, unknown>) as WatchdogConfigPatch;
+			patch = deepMerge(
+				patch as Record<string, unknown>,
+				parseSourceFile(source.path, source.scope) as Record<string, unknown>,
+			) as WatchdogConfigPatch;
 		} catch (error) {
-			errors.push({ scope: source.scope, path: source.path, message: error instanceof Error ? error.message : String(error) });
+			errors.push({
+				scope: source.scope,
+				path: source.path,
+				message: error instanceof Error ? error.message : String(error),
+			});
 		}
 	}
 	if (options.session) {
 		sources.push({ scope: "session", exists: true });
 		try {
-			patch = deepMerge(patch as Record<string, unknown>, parseSessionOverride(options.session) as Record<string, unknown>) as WatchdogConfigPatch;
+			patch = deepMerge(
+				patch as Record<string, unknown>,
+				parseSessionOverride(options.session) as Record<string, unknown>,
+			) as WatchdogConfigPatch;
 		} catch (error) {
 			errors.push({ scope: "session", message: error instanceof Error ? error.message : String(error) });
 		}

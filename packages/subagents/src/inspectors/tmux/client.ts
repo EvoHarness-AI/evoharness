@@ -1,10 +1,6 @@
 import { execFile } from "node:child_process";
 
-export type TmuxErrorCode =
-	| "TMUX_UNAVAILABLE"
-	| "TMUX_ERROR"
-	| "PANE_GONE"
-	| "TIMEOUT";
+export type TmuxErrorCode = "TMUX_UNAVAILABLE" | "TMUX_ERROR" | "PANE_GONE" | "TIMEOUT";
 
 export type TmuxResult<T> =
 	| { ok: true; data: T }
@@ -26,9 +22,15 @@ function error(code: TmuxErrorCode, message: string, details?: unknown): TmuxRes
 }
 
 function failureText(execError: Error, stderr?: string): string {
-	const direct = stderr?.split(/\r?\n/).map((line) => line.trim()).find(Boolean);
+	const direct = stderr
+		?.split(/\r?\n/)
+		.map((line) => line.trim())
+		.find(Boolean);
 	if (direct) return direct;
-	const lines = execError.message.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+	const lines = execError.message
+		.split(/\r?\n/)
+		.map((line) => line.trim())
+		.filter(Boolean);
 	const withoutPrefix = lines.filter((line) => !/^Command failed:/.test(line));
 	return withoutPrefix[0] ?? "tmux failed.";
 }
@@ -59,26 +61,31 @@ export function createTmuxClient(options: { bin?: string; exec?: ExecTmux } = {}
 					return;
 				}
 				runOptions.signal?.addEventListener("abort", abort, { once: true });
-				execImpl(bin, args, { timeout: runOptions.timeoutMs ?? 10_000, signal: runOptions.signal }, (execError, stdout, stderr) => {
-					if (execError) {
-						const code = (execError as NodeJS.ErrnoException).code;
-						if (code === "ENOENT") {
-							finish(error("TMUX_UNAVAILABLE", "tmux is not installed or is not on PATH."));
+				execImpl(
+					bin,
+					args,
+					{ timeout: runOptions.timeoutMs ?? 10_000, signal: runOptions.signal },
+					(execError, stdout, stderr) => {
+						if (execError) {
+							const code = (execError as NodeJS.ErrnoException).code;
+							if (code === "ENOENT") {
+								finish(error("TMUX_UNAVAILABLE", "tmux is not installed or is not on PATH."));
+								return;
+							}
+							// Node reports its own timeout expiry as a killed child, not as our abort listener firing.
+							const killed = execError as NodeJS.ErrnoException & { killed?: boolean; signal?: string };
+							if (killed.killed === true || killed.signal) {
+								finish(error("TIMEOUT", `tmux command '${args.join(" ")}' timed out.`));
+								return;
+							}
+							const text = failureText(execError, stderr);
+							const exitCode = Number(code);
+							finish(error(exitCode === 127 ? "TMUX_UNAVAILABLE" : classifyFailure(text), text));
 							return;
 						}
-						// Node reports its own timeout expiry as a killed child, not as our abort listener firing.
-						const killed = execError as NodeJS.ErrnoException & { killed?: boolean; signal?: string };
-						if (killed.killed === true || killed.signal) {
-							finish(error("TIMEOUT", `tmux command '${args.join(" ")}' timed out.`));
-							return;
-						}
-						const text = failureText(execError, stderr);
-						const exitCode = Number(code);
-						finish(error(exitCode === 127 ? "TMUX_UNAVAILABLE" : classifyFailure(text), text));
-						return;
-					}
-					finish({ ok: true, data: stdout.trim() });
-				});
+						finish({ ok: true, data: stdout.trim() });
+					},
+				);
 			});
 		},
 	};

@@ -1,24 +1,36 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { DIRS, RUNNER_LAUNCHER_NAME_PATTERN, type AcceptanceInput, type AsyncStatus, type SteeringRecoveryDescriptor, type SubagentRunMode } from "../../shared/types.ts";
 import type { AgentConfig } from "../../agents/agents.ts";
-import { normalizeExtensionBindings } from "../shared/extension-bindings.ts";
-import { snapshotRequiredChildExtensions } from "../../shared/required-child-extensions.ts";
-import { normalizeWorkflowLaneMetadata } from "../shared/lane-metadata.ts";
-import { validateAcceptanceInput } from "../shared/acceptance.ts";
-import { validateToolBudgetConfig } from "../shared/tool-budget.ts";
-import { intersectSubagentCapabilityCeilings, normalizeCapabilityCeilingAllowedAgents, parseSubagentCapabilityCeiling, type ResolvedSubagentCapabilityCeiling } from "../shared/capability-ceiling.ts";
-import { validateRunFanoutBudgetDescriptor } from "../shared/run-fanout-budget.ts";
-import { ownsRun } from "../shared/run-ownership.ts";
-import { reconcileAsyncRun } from "./stale-run-reconciler.ts";
-import { resultFilePath, resultPayloadPathForIndexedRun } from "./result-files.ts";
-import { canScanAsyncRunPrefix, MIN_SAFE_ASYNC_RUN_PREFIX_LENGTH } from "./run-id-query.ts";
-import { parallelHandoffPath, resolveRetainedWorktreeCwd } from "../shared/parallel-handoff.ts";
-import { normalizeWorktreeBaseRef } from "../shared/worktree.ts";
-import { intersectThinkingCeilings, parseThinkingLevel, type ThinkingLevel } from "../../shared/thinking-ceiling.ts";
-import { assertWorkflowGraphHostSteps } from "../shared/host-step-status.ts";
 import { validateIntercomBridgeConfig } from "../../intercom/intercom-bridge.ts";
 import { validateModelResponseAliases } from "../../shared/model-response-aliases.ts";
+import { snapshotRequiredChildExtensions } from "../../shared/required-child-extensions.ts";
+import { intersectThinkingCeilings, parseThinkingLevel, type ThinkingLevel } from "../../shared/thinking-ceiling.ts";
+import {
+	type AcceptanceInput,
+	type AsyncStatus,
+	DIRS,
+	RUNNER_LAUNCHER_NAME_PATTERN,
+	type SteeringRecoveryDescriptor,
+	type SubagentRunMode,
+} from "../../shared/types.ts";
+import { validateAcceptanceInput } from "../shared/acceptance.ts";
+import {
+	intersectSubagentCapabilityCeilings,
+	normalizeCapabilityCeilingAllowedAgents,
+	parseSubagentCapabilityCeiling,
+	type ResolvedSubagentCapabilityCeiling,
+} from "../shared/capability-ceiling.ts";
+import { normalizeExtensionBindings } from "../shared/extension-bindings.ts";
+import { assertWorkflowGraphHostSteps } from "../shared/host-step-status.ts";
+import { normalizeWorkflowLaneMetadata } from "../shared/lane-metadata.ts";
+import { parallelHandoffPath, resolveRetainedWorktreeCwd } from "../shared/parallel-handoff.ts";
+import { validateRunFanoutBudgetDescriptor } from "../shared/run-fanout-budget.ts";
+import { ownsRun } from "../shared/run-ownership.ts";
+import { validateToolBudgetConfig } from "../shared/tool-budget.ts";
+import { normalizeWorktreeBaseRef } from "../shared/worktree.ts";
+import { resultFilePath, resultPayloadPathForIndexedRun } from "./result-files.ts";
+import { canScanAsyncRunPrefix, MIN_SAFE_ASYNC_RUN_PREFIX_LENGTH } from "./run-id-query.ts";
+import { reconcileAsyncRun } from "./stale-run-reconciler.ts";
 
 export interface AsyncResumeParams {
 	id?: string;
@@ -79,7 +91,17 @@ interface AsyncResultFile {
 	launchContractDigest?: string;
 	capabilityCeiling?: ResolvedSubagentCapabilityCeiling;
 	admissionCapabilityCeiling?: ResolvedSubagentCapabilityCeiling;
-	results?: Array<{ agent?: string; sessionName?: string; success?: boolean; sessionFile?: string; intercomTarget?: string; model?: string; thinking?: string; launchContractDigest?: string; capabilityCeiling?: ResolvedSubagentCapabilityCeiling }>;
+	results?: Array<{
+		agent?: string;
+		sessionName?: string;
+		success?: boolean;
+		sessionFile?: string;
+		intercomTarget?: string;
+		model?: string;
+		thinking?: string;
+		launchContractDigest?: string;
+		capabilityCeiling?: ResolvedSubagentCapabilityCeiling;
+	}>;
 }
 
 export interface AsyncRunLocation {
@@ -99,10 +121,16 @@ function ensureObject(value: unknown, source: string): Record<string, unknown> {
 	return value as Record<string, unknown>;
 }
 
-function validateOptionalString(value: Record<string, unknown>, field: string, source: string, displayField = field): string | undefined {
+function validateOptionalString(
+	value: Record<string, unknown>,
+	field: string,
+	source: string,
+	displayField = field,
+): string | undefined {
 	const fieldValue = value[field];
 	if (fieldValue === undefined) return undefined;
-	if (typeof fieldValue !== "string") throw new Error(`Invalid async result file '${source}': ${displayField} must be a string.`);
+	if (typeof fieldValue !== "string")
+		throw new Error(`Invalid async result file '${source}': ${displayField} must be a string.`);
 	return fieldValue;
 }
 
@@ -111,24 +139,53 @@ function validateResultFile(value: unknown, resultPath: string): AsyncResultFile
 	const resultsValue = data.results;
 	let results: AsyncResultFile["results"];
 	if (resultsValue !== undefined) {
-		if (!Array.isArray(resultsValue)) throw new Error(`Invalid async result file '${resultPath}': results must be an array.`);
+		if (!Array.isArray(resultsValue))
+			throw new Error(`Invalid async result file '${resultPath}': results must be an array.`);
 		results = resultsValue.map((entry, index) => {
 			const child = ensureObject(entry, `${resultPath} results[${index}]`);
 			const agent = validateOptionalString(child, "agent", resultPath, `results[${index}].agent`);
 			const sessionFile = validateOptionalString(child, "sessionFile", resultPath, `results[${index}].sessionFile`);
 			const sessionName = validateOptionalString(child, "sessionName", resultPath, `results[${index}].sessionName`);
-			const intercomTarget = validateOptionalString(child, "intercomTarget", resultPath, `results[${index}].intercomTarget`);
+			const intercomTarget = validateOptionalString(
+				child,
+				"intercomTarget",
+				resultPath,
+				`results[${index}].intercomTarget`,
+			);
 			const model = validateOptionalString(child, "model", resultPath, `results[${index}].model`);
 			const thinking = validateOptionalString(child, "thinking", resultPath, `results[${index}].thinking`);
-			const launchContractDigest = validateOptionalString(child, "launchContractDigest", resultPath, `results[${index}].launchContractDigest`);
-			const capabilityCeiling = child.capabilityCeiling === undefined ? undefined : parseSubagentCapabilityCeiling(child.capabilityCeiling, `async result file '${resultPath}' results[${index}].capabilityCeiling`);
+			const launchContractDigest = validateOptionalString(
+				child,
+				"launchContractDigest",
+				resultPath,
+				`results[${index}].launchContractDigest`,
+			);
+			const capabilityCeiling =
+				child.capabilityCeiling === undefined
+					? undefined
+					: parseSubagentCapabilityCeiling(
+							child.capabilityCeiling,
+							`async result file '${resultPath}' results[${index}].capabilityCeiling`,
+						);
 			const success = child.success;
-			if (success !== undefined && typeof success !== "boolean") throw new Error(`Invalid async result file '${resultPath}': results[${index}].success must be a boolean.`);
-			return { agent, sessionName, sessionFile, intercomTarget, model, thinking, launchContractDigest, ...(capabilityCeiling ? { capabilityCeiling } : {}), ...(typeof success === "boolean" ? { success } : {}) };
+			if (success !== undefined && typeof success !== "boolean")
+				throw new Error(`Invalid async result file '${resultPath}': results[${index}].success must be a boolean.`);
+			return {
+				agent,
+				sessionName,
+				sessionFile,
+				intercomTarget,
+				model,
+				thinking,
+				launchContractDigest,
+				...(capabilityCeiling ? { capabilityCeiling } : {}),
+				...(typeof success === "boolean" ? { success } : {}),
+			};
 		});
 	}
 	const success = data.success;
-	if (success !== undefined && typeof success !== "boolean") throw new Error(`Invalid async result file '${resultPath}': success must be a boolean.`);
+	if (success !== undefined && typeof success !== "boolean")
+		throw new Error(`Invalid async result file '${resultPath}': success must be a boolean.`);
 	return {
 		id: validateOptionalString(data, "id", resultPath),
 		runId: validateOptionalString(data, "runId", resultPath),
@@ -141,8 +198,22 @@ function validateResultFile(value: unknown, resultPath: string): AsyncResultFile
 		model: validateOptionalString(data, "model", resultPath),
 		thinking: validateOptionalString(data, "thinking", resultPath),
 		launchContractDigest: validateOptionalString(data, "launchContractDigest", resultPath),
-		...(data.capabilityCeiling === undefined ? {} : { capabilityCeiling: parseSubagentCapabilityCeiling(data.capabilityCeiling, `async result file '${resultPath}' capabilityCeiling`) }),
-		...(data.admissionCapabilityCeiling === undefined ? {} : { admissionCapabilityCeiling: parseSubagentCapabilityCeiling(data.admissionCapabilityCeiling, `async result file '${resultPath}' admissionCapabilityCeiling`) }),
+		...(data.capabilityCeiling === undefined
+			? {}
+			: {
+					capabilityCeiling: parseSubagentCapabilityCeiling(
+						data.capabilityCeiling,
+						`async result file '${resultPath}' capabilityCeiling`,
+					),
+				}),
+		...(data.admissionCapabilityCeiling === undefined
+			? {}
+			: {
+					admissionCapabilityCeiling: parseSubagentCapabilityCeiling(
+						data.admissionCapabilityCeiling,
+						`async result file '${resultPath}' admissionCapabilityCeiling`,
+					),
+				}),
 		...(typeof success === "boolean" ? { success } : {}),
 		...(results ? { results } : {}),
 	};
@@ -188,9 +259,10 @@ function assertInsideRoot(root: string, target: string, label: string): void {
 
 function prefixedRunIds(dir: string, prefix: string, suffix = ""): string[] {
 	if (!fs.existsSync(dir)) return [];
-	return fs.readdirSync(dir)
+	return fs
+		.readdirSync(dir)
 		.filter((entry) => entry.startsWith(prefix) && (!suffix || entry.endsWith(suffix)))
-		.map((entry) => suffix ? entry.slice(0, -suffix.length) : entry)
+		.map((entry) => (suffix ? entry.slice(0, -suffix.length) : entry))
 		.sort();
 }
 
@@ -202,7 +274,11 @@ function exactResultPath(resultsDir: string, runId: string): string | null {
 	return fs.existsSync(resultPath) ? resultPath : null;
 }
 
-export function findAsyncRunPrefixMatches(prefix: string, asyncDirRoot: string, resultsDir: string): Array<{ id: string; location: AsyncRunLocation }> {
+export function findAsyncRunPrefixMatches(
+	prefix: string,
+	asyncDirRoot: string,
+	resultsDir: string,
+): Array<{ id: string; location: AsyncRunLocation }> {
 	const requestedId = assertRunId(prefix, "id");
 	if (!requestedId) return [];
 	if (!canScanAsyncRunPrefix(requestedId)) return [];
@@ -223,7 +299,11 @@ export function findAsyncRunPrefixMatches(prefix: string, asyncDirRoot: string, 
 	});
 }
 
-export function resolveAsyncRunLocation(params: AsyncResumeParams, asyncDirRoot: string, resultsDir: string): AsyncRunLocation {
+export function resolveAsyncRunLocation(
+	params: AsyncResumeParams,
+	asyncDirRoot: string,
+	resultsDir: string,
+): AsyncRunLocation {
 	const asyncRoot = path.resolve(asyncDirRoot);
 	const resultRoot = path.resolve(resultsDir);
 	const requestedId = assertRunId(params.id, "id") ?? assertRunId(params.runId, "runId");
@@ -249,20 +329,32 @@ export function resolveAsyncRunLocation(params: AsyncResumeParams, asyncDirRoot:
 		};
 	}
 	if (requestedId.length < MIN_SAFE_ASYNC_RUN_PREFIX_LENGTH) {
-		throw new Error(`Async run id prefix '${requestedId}' is too short. Provide at least ${MIN_SAFE_ASYNC_RUN_PREFIX_LENGTH} characters.`);
+		throw new Error(
+			`Async run id prefix '${requestedId}' is too short. Provide at least ${MIN_SAFE_ASYNC_RUN_PREFIX_LENGTH} characters.`,
+		);
 	}
 	if (!canScanAsyncRunPrefix(requestedId)) return { asyncDir: null, resultPath: null, resolvedId: requestedId };
 
 	const matching = findAsyncRunPrefixMatches(requestedId, asyncRoot, resultRoot);
 	if (matching.length === 0) return { asyncDir: null, resultPath: null, resolvedId: requestedId };
 	if (matching.length > 1) {
-		throw new Error(`Ambiguous async run id prefix '${requestedId}' matched: ${matching.map((match) => match.id).join(", ")}. Provide a longer id.`);
+		throw new Error(
+			`Ambiguous async run id prefix '${requestedId}' matched: ${matching.map((match) => match.id).join(", ")}. Provide a longer id.`,
+		);
 	}
 	return matching[0]!.location;
 }
 
 function resultState(result: AsyncResultFile): AsyncStatus["state"] {
-	if (result.state === "complete" || result.state === "failed" || result.state === "partial" || result.state === "paused" || result.state === "stopped" || result.state === "running" || result.state === "queued") {
+	if (
+		result.state === "complete" ||
+		result.state === "failed" ||
+		result.state === "partial" ||
+		result.state === "paused" ||
+		result.state === "stopped" ||
+		result.state === "running" ||
+		result.state === "queued"
+	) {
 		return result.state;
 	}
 	return result.success ? "complete" : "failed";
@@ -272,25 +364,52 @@ function validateStatusForResume(status: AsyncStatus | null, source: string): vo
 	if (!status) return;
 	if (typeof status.runId !== "string") throw new Error(`Invalid async status '${source}': runId must be a string.`);
 	assertWorkflowGraphHostSteps(status.workflowGraph, source, status.runId);
-	if (status.sessionId !== undefined && typeof status.sessionId !== "string") throw new Error(`Invalid async status '${source}': sessionId must be a string.`);
-	if (status.cwd !== undefined && typeof status.cwd !== "string") throw new Error(`Invalid async status '${source}': cwd must be a string.`);
-	if (status.sessionFile !== undefined && typeof status.sessionFile !== "string") throw new Error(`Invalid async status '${source}': sessionFile must be a string.`);
-	if (status.capabilityCeiling !== undefined) status.capabilityCeiling = parseSubagentCapabilityCeiling(status.capabilityCeiling, `async status '${source}' capabilityCeiling`);
-	if (status.admissionCapabilityCeiling !== undefined) status.admissionCapabilityCeiling = parseSubagentCapabilityCeiling(status.admissionCapabilityCeiling, `async status '${source}' admissionCapabilityCeiling`);
+	if (status.sessionId !== undefined && typeof status.sessionId !== "string")
+		throw new Error(`Invalid async status '${source}': sessionId must be a string.`);
+	if (status.cwd !== undefined && typeof status.cwd !== "string")
+		throw new Error(`Invalid async status '${source}': cwd must be a string.`);
+	if (status.sessionFile !== undefined && typeof status.sessionFile !== "string")
+		throw new Error(`Invalid async status '${source}': sessionFile must be a string.`);
+	if (status.capabilityCeiling !== undefined)
+		status.capabilityCeiling = parseSubagentCapabilityCeiling(
+			status.capabilityCeiling,
+			`async status '${source}' capabilityCeiling`,
+		);
+	if (status.admissionCapabilityCeiling !== undefined)
+		status.admissionCapabilityCeiling = parseSubagentCapabilityCeiling(
+			status.admissionCapabilityCeiling,
+			`async status '${source}' admissionCapabilityCeiling`,
+		);
 	if (status.steps !== undefined) {
 		if (!Array.isArray(status.steps)) throw new Error(`Invalid async status '${source}': steps must be an array.`);
 		status.steps.forEach((step, index) => {
-			if (!step || typeof step !== "object" || Array.isArray(step)) throw new Error(`Invalid async status '${source}': steps[${index}] must be an object.`);
+			if (!step || typeof step !== "object" || Array.isArray(step))
+				throw new Error(`Invalid async status '${source}': steps[${index}] must be an object.`);
 			const stepRecord = step as Record<string, unknown>;
-			if (typeof stepRecord.agent !== "string") throw new Error(`Invalid async status '${source}': steps[${index}].agent must be a string.`);
-			if (stepRecord.sessionFile !== undefined && typeof stepRecord.sessionFile !== "string") throw new Error(`Invalid async status '${source}': steps[${index}].sessionFile must be a string.`);
-			if (stepRecord.sessionName !== undefined && typeof stepRecord.sessionName !== "string") throw new Error(`Invalid async status '${source}': steps[${index}].sessionName must be a string.`);
-			if (stepRecord.model !== undefined && typeof stepRecord.model !== "string") throw new Error(`Invalid async status '${source}': steps[${index}].model must be a string.`);
-			if (stepRecord.launchModel !== undefined && typeof stepRecord.launchModel !== "string") throw new Error(`Invalid async status '${source}': steps[${index}].launchModel must be a string.`);
-			if (stepRecord.thinking !== undefined && typeof stepRecord.thinking !== "string") throw new Error(`Invalid async status '${source}': steps[${index}].thinking must be a string.`);
-			if (stepRecord.thinkingCeiling !== undefined) stepRecord.thinkingCeiling = parseThinkingLevel(stepRecord.thinkingCeiling, `async status '${source}' steps[${index}].thinkingCeiling`);
-			if (stepRecord.launchContractDigest !== undefined && typeof stepRecord.launchContractDigest !== "string") throw new Error(`Invalid async status '${source}': steps[${index}].launchContractDigest must be a string.`);
-			if (stepRecord.capabilityCeiling !== undefined) stepRecord.capabilityCeiling = parseSubagentCapabilityCeiling(stepRecord.capabilityCeiling, `async status '${source}' steps[${index}].capabilityCeiling`);
+			if (typeof stepRecord.agent !== "string")
+				throw new Error(`Invalid async status '${source}': steps[${index}].agent must be a string.`);
+			if (stepRecord.sessionFile !== undefined && typeof stepRecord.sessionFile !== "string")
+				throw new Error(`Invalid async status '${source}': steps[${index}].sessionFile must be a string.`);
+			if (stepRecord.sessionName !== undefined && typeof stepRecord.sessionName !== "string")
+				throw new Error(`Invalid async status '${source}': steps[${index}].sessionName must be a string.`);
+			if (stepRecord.model !== undefined && typeof stepRecord.model !== "string")
+				throw new Error(`Invalid async status '${source}': steps[${index}].model must be a string.`);
+			if (stepRecord.launchModel !== undefined && typeof stepRecord.launchModel !== "string")
+				throw new Error(`Invalid async status '${source}': steps[${index}].launchModel must be a string.`);
+			if (stepRecord.thinking !== undefined && typeof stepRecord.thinking !== "string")
+				throw new Error(`Invalid async status '${source}': steps[${index}].thinking must be a string.`);
+			if (stepRecord.thinkingCeiling !== undefined)
+				stepRecord.thinkingCeiling = parseThinkingLevel(
+					stepRecord.thinkingCeiling,
+					`async status '${source}' steps[${index}].thinkingCeiling`,
+				);
+			if (stepRecord.launchContractDigest !== undefined && typeof stepRecord.launchContractDigest !== "string")
+				throw new Error(`Invalid async status '${source}': steps[${index}].launchContractDigest must be a string.`);
+			if (stepRecord.capabilityCeiling !== undefined)
+				stepRecord.capabilityCeiling = parseSubagentCapabilityCeiling(
+					stepRecord.capabilityCeiling,
+					`async status '${source}' steps[${index}].capabilityCeiling`,
+				);
 		});
 	}
 }
@@ -301,14 +420,25 @@ function normalizeRecoveryAcceptance(value: unknown, descriptorPath: string): Ac
 	return value as AcceptanceInput;
 }
 
-export function asyncReviveRequiresRecoveryDescriptor(target: Pick<AsyncResumeTarget, "recoveryDescriptor" | "mode" | "sessionFile" | "capabilityCeiling">): boolean {
+export function asyncReviveRequiresRecoveryDescriptor(
+	target: Pick<AsyncResumeTarget, "recoveryDescriptor" | "mode" | "sessionFile" | "capabilityCeiling">,
+): boolean {
 	if (target.recoveryDescriptor) return false;
 	return !(target.mode === "workflow" && target.sessionFile && target.capabilityCeiling);
 }
 
-function resumeTargetMode(status: AsyncStatus | null, result: AsyncResultFile | undefined): SubagentRunMode | undefined {
+function resumeTargetMode(
+	status: AsyncStatus | null,
+	result: AsyncResultFile | undefined,
+): SubagentRunMode | undefined {
 	if (status?.mode) return status.mode;
-	if (result?.mode === "single" || result?.mode === "parallel" || result?.mode === "chain" || result?.mode === "workflow") return result.mode;
+	if (
+		result?.mode === "single" ||
+		result?.mode === "parallel" ||
+		result?.mode === "chain" ||
+		result?.mode === "workflow"
+	)
+		return result.mode;
 	return undefined;
 }
 
@@ -320,88 +450,251 @@ export function readAsyncRecoveryDescriptor(asyncDir: string | undefined): Steer
 	try {
 		value = JSON.parse(fs.readFileSync(descriptorPath, "utf-8"));
 	} catch (error) {
-		throw new Error(`Failed to parse async recovery descriptor '${descriptorPath}': ${getErrorMessage(error)}`, { cause: error instanceof Error ? error : undefined });
+		throw new Error(`Failed to parse async recovery descriptor '${descriptorPath}': ${getErrorMessage(error)}`, {
+			cause: error instanceof Error ? error : undefined,
+		});
 	}
-	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': expected an object.`);
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw new Error(`Invalid async recovery descriptor '${descriptorPath}': expected an object.`);
 	const parsed = value as Record<string, unknown>;
 	const allowedFields = new Set([
-		"modelResponseAliases", "version", "launchContractDigest", "sourceRunId", "agentContract", "agent", "sessionFile", "cwd", "model", "modelProvider", "modelOverrideFromParent", "modelOrigin", "fast", "thinking", "thinkingCeiling", "tools", "allowNestedSubagents", "allowedAgents", "extensions",
-		"subagentOnlyExtensions", "mcpDirectTools", "excludeTools", "mutationTools", "systemPrompt", "systemPromptMode", "inheritProjectContext", "inheritGlobalContext", "inheritSkills", "skills",
-		"skillPath", "agentFilePath", "memory", "outputPath", "outputMode", "structuredOutputSchema", "acceptance", "sessionDir", "artifactConfig",
-		"artifactsDir", "maxOutput", "controlConfig", "context", "intercomBridge", "absoluteDeadlineAt", "initialTurnBudget", "initialToolBudget", "maxSubagentDepth", "share", "capabilityCeiling",
-		"launchResolvedExtensions", "runFanoutBudget", "lane", "baseRef", "launcher",
+		"modelResponseAliases",
+		"version",
+		"launchContractDigest",
+		"sourceRunId",
+		"agentContract",
+		"agent",
+		"sessionFile",
+		"cwd",
+		"model",
+		"modelProvider",
+		"modelOverrideFromParent",
+		"modelOrigin",
+		"fast",
+		"thinking",
+		"thinkingCeiling",
+		"tools",
+		"allowNestedSubagents",
+		"allowedAgents",
+		"extensions",
+		"subagentOnlyExtensions",
+		"mcpDirectTools",
+		"excludeTools",
+		"mutationTools",
+		"systemPrompt",
+		"systemPromptMode",
+		"inheritProjectContext",
+		"inheritGlobalContext",
+		"inheritSkills",
+		"skills",
+		"skillPath",
+		"agentFilePath",
+		"memory",
+		"outputPath",
+		"outputMode",
+		"structuredOutputSchema",
+		"acceptance",
+		"sessionDir",
+		"artifactConfig",
+		"artifactsDir",
+		"maxOutput",
+		"controlConfig",
+		"context",
+		"intercomBridge",
+		"absoluteDeadlineAt",
+		"initialTurnBudget",
+		"initialToolBudget",
+		"maxSubagentDepth",
+		"share",
+		"capabilityCeiling",
+		"launchResolvedExtensions",
+		"runFanoutBudget",
+		"lane",
+		"baseRef",
+		"launcher",
 		"extensionBindings",
 		"requiredExtensions",
 	]);
 	for (const field of Object.keys(parsed)) {
-		if (!allowedFields.has(field)) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': unknown field '${field}'.`);
+		if (!allowedFields.has(field))
+			throw new Error(`Invalid async recovery descriptor '${descriptorPath}': unknown field '${field}'.`);
 	}
 	const requiredStrings = ["sourceRunId", "agent", "cwd", "systemPromptMode", "outputMode"] as const;
 	for (const field of requiredStrings) {
-		if (typeof parsed[field] !== "string" || !(parsed[field] as string).trim()) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': ${field} must be a non-empty string.`);
+		if (typeof parsed[field] !== "string" || !(parsed[field] as string).trim())
+			throw new Error(`Invalid async recovery descriptor '${descriptorPath}': ${field} must be a non-empty string.`);
 	}
-	if (parsed.version !== 1) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': version must be 1.`);
-	if (parsed.launcher !== undefined && (typeof parsed.launcher !== "string" || !RUNNER_LAUNCHER_NAME_PATTERN.test(parsed.launcher))) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': launcher must be a launcher name.`);
+	if (parsed.version !== 1)
+		throw new Error(`Invalid async recovery descriptor '${descriptorPath}': version must be 1.`);
+	if (
+		parsed.launcher !== undefined &&
+		(typeof parsed.launcher !== "string" || !RUNNER_LAUNCHER_NAME_PATTERN.test(parsed.launcher))
+	)
+		throw new Error(`Invalid async recovery descriptor '${descriptorPath}': launcher must be a launcher name.`);
 	try {
 		parsed.runFanoutBudget = validateRunFanoutBudgetDescriptor(parsed.runFanoutBudget);
 	} catch (error) {
-		throw new Error(`Invalid async recovery descriptor '${descriptorPath}': ${error instanceof Error ? error.message : String(error)}`);
+		throw new Error(
+			`Invalid async recovery descriptor '${descriptorPath}': ${error instanceof Error ? error.message : String(error)}`,
+		);
 	}
-	validateModelResponseAliases(parsed.modelResponseAliases, `async recovery descriptor '${descriptorPath}' modelResponseAliases`);
-	if (parsed.capabilityCeiling !== undefined) parsed.capabilityCeiling = parseSubagentCapabilityCeiling(parsed.capabilityCeiling, `async recovery descriptor '${descriptorPath}' capabilityCeiling`);
-	if (parsed.thinkingCeiling !== undefined) parsed.thinkingCeiling = parseThinkingLevel(parsed.thinkingCeiling, `async recovery descriptor '${descriptorPath}' thinkingCeiling`);
-	if (parsed.extensionBindings !== undefined) parsed.extensionBindings = normalizeExtensionBindings(parsed.extensionBindings)!.value;
+	validateModelResponseAliases(
+		parsed.modelResponseAliases,
+		`async recovery descriptor '${descriptorPath}' modelResponseAliases`,
+	);
+	if (parsed.capabilityCeiling !== undefined)
+		parsed.capabilityCeiling = parseSubagentCapabilityCeiling(
+			parsed.capabilityCeiling,
+			`async recovery descriptor '${descriptorPath}' capabilityCeiling`,
+		);
+	if (parsed.thinkingCeiling !== undefined)
+		parsed.thinkingCeiling = parseThinkingLevel(
+			parsed.thinkingCeiling,
+			`async recovery descriptor '${descriptorPath}' thinkingCeiling`,
+		);
+	if (parsed.extensionBindings !== undefined)
+		parsed.extensionBindings = normalizeExtensionBindings(parsed.extensionBindings)!.value;
 	if (parsed.requiredExtensions !== undefined) {
-		try { parsed.requiredExtensions = snapshotRequiredChildExtensions(parsed.requiredExtensions, "requiredExtensions"); }
-		catch (error) { throw new Error(`Invalid async recovery descriptor '${descriptorPath}': ${error instanceof Error ? error.message : String(error)}`); }
+		try {
+			parsed.requiredExtensions = snapshotRequiredChildExtensions(parsed.requiredExtensions, "requiredExtensions");
+		} catch (error) {
+			throw new Error(
+				`Invalid async recovery descriptor '${descriptorPath}': ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
 	}
-	if (parsed.lane !== undefined) parsed.lane = normalizeWorkflowLaneMetadata(parsed.lane, `Invalid async recovery descriptor '${descriptorPath}': lane`);
+	if (parsed.lane !== undefined)
+		parsed.lane = normalizeWorkflowLaneMetadata(
+			parsed.lane,
+			`Invalid async recovery descriptor '${descriptorPath}': lane`,
+		);
 	if (parsed.agentContract !== undefined) {
-		if (!parsed.agentContract || typeof parsed.agentContract !== "object" || Array.isArray(parsed.agentContract)) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': agentContract must be an object.`);
+		if (!parsed.agentContract || typeof parsed.agentContract !== "object" || Array.isArray(parsed.agentContract))
+			throw new Error(`Invalid async recovery descriptor '${descriptorPath}': agentContract must be an object.`);
 		const contract = parsed.agentContract as Record<string, unknown>;
-		if (contract.version !== 1 || Object.keys(contract).some((key) => key !== "version")) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': agentContract must be { version: 1 }.`);
+		if (contract.version !== 1 || Object.keys(contract).some((key) => key !== "version"))
+			throw new Error(
+				`Invalid async recovery descriptor '${descriptorPath}': agentContract must be { version: 1 }.`,
+			);
 	}
-	if (parsed.systemPromptMode !== "append" && parsed.systemPromptMode !== "replace") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': systemPromptMode is invalid.`);
-	if (parsed.outputMode !== "inline" && parsed.outputMode !== "file-only") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': outputMode is invalid.`);
-	if (parsed.context !== undefined && parsed.context !== "fresh" && parsed.context !== "fork") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': context is invalid.`);
-	if (parsed.modelOverrideFromParent !== undefined && typeof parsed.modelOverrideFromParent !== "boolean") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': modelOverrideFromParent must be a boolean.`);
-	if (parsed.fast !== undefined && typeof parsed.fast !== "boolean") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': fast must be a boolean.`);
-	if (parsed.modelOrigin !== undefined && parsed.modelOrigin !== "explicit" && parsed.modelOrigin !== "inherited" && parsed.modelOrigin !== "configured") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': modelOrigin must be 'explicit', 'inherited', or 'configured'.`);
-	if (parsed.modelOrigin === undefined && parsed.model !== undefined) parsed.modelOrigin = parsed.modelOverrideFromParent ? "inherited" : "configured";
+	if (parsed.systemPromptMode !== "append" && parsed.systemPromptMode !== "replace")
+		throw new Error(`Invalid async recovery descriptor '${descriptorPath}': systemPromptMode is invalid.`);
+	if (parsed.outputMode !== "inline" && parsed.outputMode !== "file-only")
+		throw new Error(`Invalid async recovery descriptor '${descriptorPath}': outputMode is invalid.`);
+	if (parsed.context !== undefined && parsed.context !== "fresh" && parsed.context !== "fork")
+		throw new Error(`Invalid async recovery descriptor '${descriptorPath}': context is invalid.`);
+	if (parsed.modelOverrideFromParent !== undefined && typeof parsed.modelOverrideFromParent !== "boolean")
+		throw new Error(
+			`Invalid async recovery descriptor '${descriptorPath}': modelOverrideFromParent must be a boolean.`,
+		);
+	if (parsed.fast !== undefined && typeof parsed.fast !== "boolean")
+		throw new Error(`Invalid async recovery descriptor '${descriptorPath}': fast must be a boolean.`);
+	if (
+		parsed.modelOrigin !== undefined &&
+		parsed.modelOrigin !== "explicit" &&
+		parsed.modelOrigin !== "inherited" &&
+		parsed.modelOrigin !== "configured"
+	)
+		throw new Error(
+			`Invalid async recovery descriptor '${descriptorPath}': modelOrigin must be 'explicit', 'inherited', or 'configured'.`,
+		);
+	if (parsed.modelOrigin === undefined && parsed.model !== undefined)
+		parsed.modelOrigin = parsed.modelOverrideFromParent ? "inherited" : "configured";
 	for (const field of ["inheritProjectContext", "inheritSkills", "share"] as const) {
-		if (typeof parsed[field] !== "boolean") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': ${field} must be a boolean.`);
+		if (typeof parsed[field] !== "boolean")
+			throw new Error(`Invalid async recovery descriptor '${descriptorPath}': ${field} must be a boolean.`);
 	}
 	if (parsed.inheritGlobalContext === undefined) parsed.inheritGlobalContext = parsed.inheritProjectContext;
-	else if (typeof parsed.inheritGlobalContext !== "boolean") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': inheritGlobalContext must be a boolean.`);
-	if (parsed.allowNestedSubagents !== undefined && typeof parsed.allowNestedSubagents !== "boolean") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': allowNestedSubagents must be a boolean.`);
+	else if (typeof parsed.inheritGlobalContext !== "boolean")
+		throw new Error(`Invalid async recovery descriptor '${descriptorPath}': inheritGlobalContext must be a boolean.`);
+	if (parsed.allowNestedSubagents !== undefined && typeof parsed.allowNestedSubagents !== "boolean")
+		throw new Error(`Invalid async recovery descriptor '${descriptorPath}': allowNestedSubagents must be a boolean.`);
 	if (parsed.allowedAgents !== undefined) {
-		try { parsed.allowedAgents = normalizeCapabilityCeilingAllowedAgents(parsed.allowedAgents); }
-		catch (error) { throw new Error(`Invalid async recovery descriptor '${descriptorPath}': ${error instanceof Error ? error.message : String(error)}`); }
+		try {
+			parsed.allowedAgents = normalizeCapabilityCeilingAllowedAgents(parsed.allowedAgents);
+		} catch (error) {
+			throw new Error(
+				`Invalid async recovery descriptor '${descriptorPath}': ${error instanceof Error ? error.message : String(error)}`,
+			);
+		}
 	}
-	if (!Number.isInteger(parsed.maxSubagentDepth) || (parsed.maxSubagentDepth as number) < 0) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': maxSubagentDepth must be a non-negative integer.`);
-	for (const field of ["tools", "excludeTools", "extensions", "subagentOnlyExtensions", "mcpDirectTools", "mutationTools", "skills", "skillPath"] as const) {
+	if (!Number.isInteger(parsed.maxSubagentDepth) || (parsed.maxSubagentDepth as number) < 0)
+		throw new Error(
+			`Invalid async recovery descriptor '${descriptorPath}': maxSubagentDepth must be a non-negative integer.`,
+		);
+	for (const field of [
+		"tools",
+		"excludeTools",
+		"extensions",
+		"subagentOnlyExtensions",
+		"mcpDirectTools",
+		"mutationTools",
+		"skills",
+		"skillPath",
+	] as const) {
 		const item = parsed[field];
-		if (item !== undefined && (!Array.isArray(item) || item.some((entry) => typeof entry !== "string" || !entry.trim()))) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': ${field} must contain non-empty strings.`);
+		if (
+			item !== undefined &&
+			(!Array.isArray(item) || item.some((entry) => typeof entry !== "string" || !entry.trim()))
+		)
+			throw new Error(
+				`Invalid async recovery descriptor '${descriptorPath}': ${field} must contain non-empty strings.`,
+			);
 	}
-	if (parsed.systemPrompt !== undefined && typeof parsed.systemPrompt !== "string") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': systemPrompt must be a string.`);
-	for (const field of ["launchContractDigest", "sessionFile", "model", "modelProvider", "thinking", "agentFilePath", "outputPath", "sessionDir", "artifactsDir"] as const) {
-		if (parsed[field] !== undefined && (typeof parsed[field] !== "string" || !(parsed[field] as string).trim())) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': ${field} must be a non-empty string.`);
+	if (parsed.systemPrompt !== undefined && typeof parsed.systemPrompt !== "string")
+		throw new Error(`Invalid async recovery descriptor '${descriptorPath}': systemPrompt must be a string.`);
+	for (const field of [
+		"launchContractDigest",
+		"sessionFile",
+		"model",
+		"modelProvider",
+		"thinking",
+		"agentFilePath",
+		"outputPath",
+		"sessionDir",
+		"artifactsDir",
+	] as const) {
+		if (parsed[field] !== undefined && (typeof parsed[field] !== "string" || !(parsed[field] as string).trim()))
+			throw new Error(`Invalid async recovery descriptor '${descriptorPath}': ${field} must be a non-empty string.`);
 	}
 	if (parsed.baseRef !== undefined) {
-		if (typeof parsed.baseRef !== "string") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': baseRef must be a string.`);
+		if (typeof parsed.baseRef !== "string")
+			throw new Error(`Invalid async recovery descriptor '${descriptorPath}': baseRef must be a string.`);
 		try {
 			parsed.baseRef = normalizeWorktreeBaseRef(parsed.baseRef);
 		} catch (error) {
-			throw new Error(`Invalid async recovery descriptor '${descriptorPath}': ${error instanceof Error ? error.message : String(error)}`);
+			throw new Error(
+				`Invalid async recovery descriptor '${descriptorPath}': ${error instanceof Error ? error.message : String(error)}`,
+			);
 		}
 	}
-	if (parsed.structuredOutputSchema !== undefined && (!parsed.structuredOutputSchema || typeof parsed.structuredOutputSchema !== "object" || Array.isArray(parsed.structuredOutputSchema))) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': structuredOutputSchema must be an object.`);
+	if (
+		parsed.structuredOutputSchema !== undefined &&
+		(!parsed.structuredOutputSchema ||
+			typeof parsed.structuredOutputSchema !== "object" ||
+			Array.isArray(parsed.structuredOutputSchema))
+	)
+		throw new Error(
+			`Invalid async recovery descriptor '${descriptorPath}': structuredOutputSchema must be an object.`,
+		);
 	if (parsed.memory !== undefined) {
-		if (!parsed.memory || typeof parsed.memory !== "object" || Array.isArray(parsed.memory)) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': memory must be an object.`);
+		if (!parsed.memory || typeof parsed.memory !== "object" || Array.isArray(parsed.memory))
+			throw new Error(`Invalid async recovery descriptor '${descriptorPath}': memory must be an object.`);
 		const memory = parsed.memory as Record<string, unknown>;
-		if ((memory.scope !== "project" && memory.scope !== "user") || typeof memory.path !== "string" || !memory.path.trim()) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': memory is invalid.`);
+		if (
+			(memory.scope !== "project" && memory.scope !== "user") ||
+			typeof memory.path !== "string" ||
+			!memory.path.trim()
+		)
+			throw new Error(`Invalid async recovery descriptor '${descriptorPath}': memory is invalid.`);
 	}
-	if (parsed.absoluteDeadlineAt !== undefined && (!Number.isFinite(parsed.absoluteDeadlineAt) || (parsed.absoluteDeadlineAt as number) <= 0)) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': absoluteDeadlineAt must be a positive timestamp.`);
+	if (
+		parsed.absoluteDeadlineAt !== undefined &&
+		(!Number.isFinite(parsed.absoluteDeadlineAt) || (parsed.absoluteDeadlineAt as number) <= 0)
+	)
+		throw new Error(
+			`Invalid async recovery descriptor '${descriptorPath}': absoluteDeadlineAt must be a positive timestamp.`,
+		);
 	if (parsed.initialTurnBudget !== undefined) {
 		// Older descriptors may contain the removed turn-budget setting. Accept it
 		// for recovery compatibility, but do not restore or enforce it.
@@ -412,44 +705,84 @@ export function readAsyncRecoveryDescriptor(asyncDir: string | undefined): Steer
 		if (result.error) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': ${result.error}`);
 	}
 	if (parsed.maxOutput !== undefined) {
-		if (!parsed.maxOutput || typeof parsed.maxOutput !== "object" || Array.isArray(parsed.maxOutput)) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': maxOutput must be an object.`);
+		if (!parsed.maxOutput || typeof parsed.maxOutput !== "object" || Array.isArray(parsed.maxOutput))
+			throw new Error(`Invalid async recovery descriptor '${descriptorPath}': maxOutput must be an object.`);
 		for (const field of ["bytes", "lines"] as const) {
 			const item = (parsed.maxOutput as Record<string, unknown>)[field];
-			if (item !== undefined && (!Number.isInteger(item) || (item as number) < 1)) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': maxOutput.${field} must be a positive integer.`);
+			if (item !== undefined && (!Number.isInteger(item) || (item as number) < 1))
+				throw new Error(
+					`Invalid async recovery descriptor '${descriptorPath}': maxOutput.${field} must be a positive integer.`,
+				);
 		}
 	}
 	if (parsed.artifactConfig !== undefined) {
-		if (!parsed.artifactConfig || typeof parsed.artifactConfig !== "object" || Array.isArray(parsed.artifactConfig)) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': artifactConfig must be an object.`);
+		if (!parsed.artifactConfig || typeof parsed.artifactConfig !== "object" || Array.isArray(parsed.artifactConfig))
+			throw new Error(`Invalid async recovery descriptor '${descriptorPath}': artifactConfig must be an object.`);
 		const artifact = parsed.artifactConfig as Record<string, unknown>;
 		for (const field of ["enabled", "includeInput", "includeOutput", "includeJsonl", "includeMetadata"] as const) {
-			if (typeof artifact[field] !== "boolean") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': artifactConfig.${field} must be a boolean.`);
+			if (typeof artifact[field] !== "boolean")
+				throw new Error(
+					`Invalid async recovery descriptor '${descriptorPath}': artifactConfig.${field} must be a boolean.`,
+				);
 		}
-		if (artifact.includeTranscript !== undefined && typeof artifact.includeTranscript !== "boolean") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': artifactConfig.includeTranscript must be a boolean.`);
-		if (!Number.isInteger(artifact.cleanupDays) || (artifact.cleanupDays as number) < 0) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': artifactConfig.cleanupDays must be a non-negative integer.`);
+		if (artifact.includeTranscript !== undefined && typeof artifact.includeTranscript !== "boolean")
+			throw new Error(
+				`Invalid async recovery descriptor '${descriptorPath}': artifactConfig.includeTranscript must be a boolean.`,
+			);
+		if (!Number.isInteger(artifact.cleanupDays) || (artifact.cleanupDays as number) < 0)
+			throw new Error(
+				`Invalid async recovery descriptor '${descriptorPath}': artifactConfig.cleanupDays must be a non-negative integer.`,
+			);
 	}
 	if (parsed.intercomBridge !== undefined) {
 		const bridge = validateIntercomBridgeConfig({ value: parsed.intercomBridge, label: "intercomBridge" });
 		if (!bridge.ok) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': ${bridge.error}`);
 	}
 	if (parsed.controlConfig !== undefined) {
-		if (!parsed.controlConfig || typeof parsed.controlConfig !== "object" || Array.isArray(parsed.controlConfig)) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': controlConfig must be an object.`);
+		if (!parsed.controlConfig || typeof parsed.controlConfig !== "object" || Array.isArray(parsed.controlConfig))
+			throw new Error(`Invalid async recovery descriptor '${descriptorPath}': controlConfig must be an object.`);
 		const control = parsed.controlConfig as Record<string, unknown>;
-		if (typeof control.enabled !== "boolean") throw new Error(`Invalid async recovery descriptor '${descriptorPath}': controlConfig.enabled must be a boolean.`);
-		for (const field of ["needsAttentionAfterMs", "activeNoticeAfterMs", "failedToolAttemptsBeforeAttention"] as const) {
-			if (!Number.isInteger(control[field]) || (control[field] as number) < 1) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': controlConfig.${field} must be a positive integer.`);
+		if (typeof control.enabled !== "boolean")
+			throw new Error(
+				`Invalid async recovery descriptor '${descriptorPath}': controlConfig.enabled must be a boolean.`,
+			);
+		for (const field of [
+			"needsAttentionAfterMs",
+			"activeNoticeAfterMs",
+			"failedToolAttemptsBeforeAttention",
+		] as const) {
+			if (!Number.isInteger(control[field]) || (control[field] as number) < 1)
+				throw new Error(
+					`Invalid async recovery descriptor '${descriptorPath}': controlConfig.${field} must be a positive integer.`,
+				);
 		}
 		for (const field of ["activeNoticeAfterTurns", "activeNoticeAfterTokens"] as const) {
-			if (control[field] !== undefined && (!Number.isInteger(control[field]) || (control[field] as number) < 1)) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': controlConfig.${field} must be a positive integer.`);
+			if (control[field] !== undefined && (!Number.isInteger(control[field]) || (control[field] as number) < 1))
+				throw new Error(
+					`Invalid async recovery descriptor '${descriptorPath}': controlConfig.${field} must be a positive integer.`,
+				);
 		}
-		if (!Array.isArray(control.notifyOn) || control.notifyOn.some((item) => item !== "active_long_running" && item !== "needs_attention")) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': controlConfig.notifyOn is invalid.`);
-		if (!Array.isArray(control.notifyChannels) || control.notifyChannels.some((item) => item !== "event" && item !== "async" && item !== "intercom")) throw new Error(`Invalid async recovery descriptor '${descriptorPath}': controlConfig.notifyChannels is invalid.`);
+		if (
+			!Array.isArray(control.notifyOn) ||
+			control.notifyOn.some((item) => item !== "active_long_running" && item !== "needs_attention")
+		)
+			throw new Error(`Invalid async recovery descriptor '${descriptorPath}': controlConfig.notifyOn is invalid.`);
+		if (
+			!Array.isArray(control.notifyChannels) ||
+			control.notifyChannels.some((item) => item !== "event" && item !== "async" && item !== "intercom")
+		)
+			throw new Error(
+				`Invalid async recovery descriptor '${descriptorPath}': controlConfig.notifyChannels is invalid.`,
+			);
 	}
-	if (parsed.acceptance !== undefined) parsed.acceptance = normalizeRecoveryAcceptance(parsed.acceptance, descriptorPath);
+	if (parsed.acceptance !== undefined)
+		parsed.acceptance = normalizeRecoveryAcceptance(parsed.acceptance, descriptorPath);
 	return parsed as unknown as SteeringRecoveryDescriptor;
 }
 
 function validateResumeSessionFile(runId: string, sessionFile: string): string {
-	if (path.extname(sessionFile) !== ".jsonl") throw new Error(`Async run '${runId}' session file must be a .jsonl file: ${sessionFile}`);
+	if (path.extname(sessionFile) !== ".jsonl")
+		throw new Error(`Async run '${runId}' session file must be a .jsonl file: ${sessionFile}`);
 	const resolved = path.resolve(sessionFile);
 	if (!fs.existsSync(resolved)) throw new Error(`Async run '${runId}' session file does not exist: ${sessionFile}`);
 	return resolved;
@@ -461,19 +794,27 @@ function validateResumeCwd(runId: string, cwd: string | undefined): string | und
 	try {
 		if (!fs.statSync(resolved).isDirectory()) throw new Error("path is not a directory");
 	} catch (error) {
-		throw new Error(`Async run '${runId}' required cwd does not exist: ${cwd}`, { cause: error instanceof Error ? error : undefined });
+		throw new Error(`Async run '${runId}' required cwd does not exist: ${cwd}`, {
+			cause: error instanceof Error ? error : undefined,
+		});
 	}
 	return resolved;
 }
 
-export function resolveAsyncResumeTarget(params: AsyncResumeParams, deps: AsyncResumeDeps = {}, options: AsyncResumeOptions = {}): AsyncResumeTarget {
+export function resolveAsyncResumeTarget(
+	params: AsyncResumeParams,
+	deps: AsyncResumeDeps = {},
+	options: AsyncResumeOptions = {},
+): AsyncResumeTarget {
 	const asyncDirRoot = deps.asyncDirRoot ?? DIRS.async;
 	const resultsDir = deps.resultsDir ?? DIRS.results;
 	const requireSessionFile = options.requireSessionFile ?? true;
 	const location = resolveAsyncRunLocation(params, asyncDirRoot, resultsDir);
 	if (!location.asyncDir && !location.resultPath) {
 		const requested = params.id ?? params.runId;
-		throw new Error(requested ? `Async run not found for '${requested}'.` : "Async run not found. Provide id or dir.");
+		throw new Error(
+			requested ? `Async run not found for '${requested}'.` : "Async run not found. Provide id or dir.",
+		);
 	}
 
 	const reconciliation = location.asyncDir
@@ -483,29 +824,45 @@ export function resolveAsyncResumeTarget(params: AsyncResumeParams, deps: AsyncR
 	validateStatusForResume(status, location.asyncDir ? path.join(location.asyncDir, "status.json") : "status.json");
 	const recoveryDescriptor = readAsyncRecoveryDescriptor(location.asyncDir ?? undefined);
 	const result = location.resultPath ? readResultFile(location.resultPath) : undefined;
-	const runId = status?.runId ?? result?.runId ?? result?.id ?? location.resolvedId ?? (location.asyncDir ? path.basename(location.asyncDir) : "unknown");
+	const runId =
+		status?.runId ??
+		result?.runId ??
+		result?.id ??
+		location.resolvedId ??
+		(location.asyncDir ? path.basename(location.asyncDir) : "unknown");
 	const mode = resumeTargetMode(status, result);
-	if (options.sessionId && ((status && !ownsRun(options.sessionId, status.sessionId)) || (result && !ownsRun(options.sessionId, result.sessionId)))) {
+	if (
+		options.sessionId &&
+		((status && !ownsRun(options.sessionId, status.sessionId)) ||
+			(result && !ownsRun(options.sessionId, result.sessionId)))
+	) {
 		throw new Error(`Async run '${runId}' was not found in the active session.`);
 	}
-	if (recoveryDescriptor && recoveryDescriptor.sourceRunId !== runId) throw new Error(`Async run '${runId}' has a recovery descriptor for a different source run.`);
+	if (recoveryDescriptor && recoveryDescriptor.sourceRunId !== runId)
+		throw new Error(`Async run '${runId}' has a recovery descriptor for a different source run.`);
 	const state = status?.state ?? (result ? resultState(result) : undefined);
 	if (!state) throw new Error(`Status file not found for async run '${runId}'.`);
-	if (state === "stopped") throw new Error(`Async run '${runId}' was stopped and cannot be resumed. Start a new run instead.`);
+	if (state === "stopped")
+		throw new Error(`Async run '${runId}' was stopped and cannot be resumed. Start a new run instead.`);
 
 	const statusSteps = status?.steps ?? [];
 	const resultSteps = result?.results ?? [];
 	const stepCount = statusSteps.length || resultSteps.length || (result?.agent ? 1 : 0);
 	const requestedIndex = params.index;
-	if (requestedIndex !== undefined && !Number.isInteger(requestedIndex)) throw new Error(`Async run '${runId}' index must be an integer.`);
+	if (requestedIndex !== undefined && !Number.isInteger(requestedIndex))
+		throw new Error(`Async run '${runId}' index must be an integer.`);
 	const terminalStepStatuses = new Set(["complete", "completed", "failed", "paused"]);
 
 	if (state === "running") {
 		if (requestedIndex !== undefined) {
-			if (requestedIndex < 0 || requestedIndex >= stepCount) throw new Error(`Async run '${runId}' has ${stepCount} children. Index ${requestedIndex} is out of range.`);
+			if (requestedIndex < 0 || requestedIndex >= stepCount)
+				throw new Error(`Async run '${runId}' has ${stepCount} children. Index ${requestedIndex} is out of range.`);
 			const selectedStep = statusSteps[requestedIndex];
 			if (selectedStep?.status === "running") {
-				const capabilityCeiling = intersectSubagentCapabilityCeilings(status?.capabilityCeiling, selectedStep.capabilityCeiling);
+				const capabilityCeiling = intersectSubagentCapabilityCeilings(
+					status?.capabilityCeiling,
+					selectedStep.capabilityCeiling,
+				);
 				return {
 					kind: "live",
 					runId,
@@ -513,13 +870,19 @@ export function resolveAsyncResumeTarget(params: AsyncResumeParams, deps: AsyncR
 					state,
 					...(mode ? { mode } : {}),
 					agent: selectedStep.agent,
-					...(selectedStep.sessionName ?? result?.results?.[requestedIndex]?.sessionName ? { sessionName: selectedStep.sessionName ?? result?.results?.[requestedIndex]?.sessionName } : {}),
+					...((selectedStep.sessionName ?? result?.results?.[requestedIndex]?.sessionName)
+						? { sessionName: selectedStep.sessionName ?? result?.results?.[requestedIndex]?.sessionName }
+						: {}),
 					index: requestedIndex,
 					cwd: status?.cwd ?? result?.cwd,
 					sessionFile: selectedStep.sessionFile ?? status?.sessionFile ?? result?.sessionFile,
 					model: selectedStep.model,
 					thinking: selectedStep.thinking,
-					launchContractDigest: selectedStep.launchContractDigest ?? result?.results?.[requestedIndex]?.launchContractDigest ?? result?.launchContractDigest ?? recoveryDescriptor?.launchContractDigest,
+					launchContractDigest:
+						selectedStep.launchContractDigest ??
+						result?.results?.[requestedIndex]?.launchContractDigest ??
+						result?.launchContractDigest ??
+						recoveryDescriptor?.launchContractDigest,
 					...(selectedStep.runner ? { runner: selectedStep.runner } : {}),
 					...(selectedStep.externalJob ? { externalJob: selectedStep.externalJob } : {}),
 					...(capabilityCeiling ? { capabilityCeiling } : {}),
@@ -527,17 +890,28 @@ export function resolveAsyncResumeTarget(params: AsyncResumeParams, deps: AsyncR
 					...(recoveryDescriptor ? { recoveryDescriptor } : {}),
 				};
 			}
-			if (selectedStep?.status === "pending") throw new Error(`Async run '${runId}' child ${requestedIndex} is pending and has not started yet. Wait for it to run or complete before resuming.`);
-			if (selectedStep && !terminalStepStatuses.has(selectedStep.status)) throw new Error(`Async run '${runId}' child ${requestedIndex} is ${selectedStep.status} and cannot be revived yet.`);
+			if (selectedStep?.status === "pending")
+				throw new Error(
+					`Async run '${runId}' child ${requestedIndex} is pending and has not started yet. Wait for it to run or complete before resuming.`,
+				);
+			if (selectedStep && !terminalStepStatuses.has(selectedStep.status))
+				throw new Error(
+					`Async run '${runId}' child ${requestedIndex} is ${selectedStep.status} and cannot be revived yet.`,
+				);
 		} else {
 			const running = statusSteps
 				.map((step, index) => ({ step, index }))
 				.filter(({ step }) => step.status === "running");
 			const selected = running.length === 1 ? running[0] : undefined;
 			if (!selected) {
-				throw new Error(`Async run '${runId}' has ${running.length} running children. Provide index to choose one.`);
+				throw new Error(
+					`Async run '${runId}' has ${running.length} running children. Provide index to choose one.`,
+				);
 			}
-			const capabilityCeiling = intersectSubagentCapabilityCeilings(status?.capabilityCeiling, selected.step.capabilityCeiling);
+			const capabilityCeiling = intersectSubagentCapabilityCeilings(
+				status?.capabilityCeiling,
+				selected.step.capabilityCeiling,
+			);
 			return {
 				kind: "live",
 				runId,
@@ -545,13 +919,19 @@ export function resolveAsyncResumeTarget(params: AsyncResumeParams, deps: AsyncR
 				state,
 				...(mode ? { mode } : {}),
 				agent: selected.step.agent,
-				...(selected.step.sessionName ?? result?.results?.[selected.index]?.sessionName ? { sessionName: selected.step.sessionName ?? result?.results?.[selected.index]?.sessionName } : {}),
+				...((selected.step.sessionName ?? result?.results?.[selected.index]?.sessionName)
+					? { sessionName: selected.step.sessionName ?? result?.results?.[selected.index]?.sessionName }
+					: {}),
 				index: selected.index,
 				cwd: status?.cwd ?? result?.cwd,
 				sessionFile: selected.step.sessionFile ?? status?.sessionFile ?? result?.sessionFile,
 				model: selected.step.model,
 				thinking: selected.step.thinking,
-				launchContractDigest: selected.step.launchContractDigest ?? result?.results?.[selected.index]?.launchContractDigest ?? result?.launchContractDigest ?? recoveryDescriptor?.launchContractDigest,
+				launchContractDigest:
+					selected.step.launchContractDigest ??
+					result?.results?.[selected.index]?.launchContractDigest ??
+					result?.launchContractDigest ??
+					recoveryDescriptor?.launchContractDigest,
 				...(selected.step.runner ? { runner: selected.step.runner } : {}),
 				...(selected.step.externalJob ? { externalJob: selected.step.externalJob } : {}),
 				...(capabilityCeiling ? { capabilityCeiling } : {}),
@@ -566,29 +946,57 @@ export function resolveAsyncResumeTarget(params: AsyncResumeParams, deps: AsyncR
 	}
 	const index = requestedIndex ?? 0;
 	if (!Number.isInteger(index)) throw new Error(`Async run '${runId}' index must be an integer.`);
-	if (index < 0 || index >= stepCount) throw new Error(`Async run '${runId}' has ${stepCount} children. Index ${index} is out of range.`);
+	if (index < 0 || index >= stepCount)
+		throw new Error(`Async run '${runId}' has ${stepCount} children. Index ${index} is out of range.`);
 	const selectedStatusStep = statusSteps[index];
 	if (selectedStatusStep?.status === "stopped" || selectedStatusStep?.stopped === true) {
-		throw new Error(`Async run '${runId}' child ${index} was stopped and cannot be resumed. Start a new run instead.`);
+		throw new Error(
+			`Async run '${runId}' child ${index} was stopped and cannot be resumed. Start a new run instead.`,
+		);
 	}
 	const agent = selectedStatusStep?.agent ?? resultSteps[index]?.agent ?? result?.agent;
 	if (!agent) throw new Error(`Could not determine child agent for async run '${runId}'.`);
-	if (recoveryDescriptor && recoveryDescriptor.agent !== agent) throw new Error(`Async run '${runId}' has a recovery descriptor for '${recoveryDescriptor.agent}', not '${agent}'.`);
-	const sessionFile = statusSteps[index]?.sessionFile
-		?? resultSteps[index]?.sessionFile
-		?? (stepCount === 1 ? status?.sessionFile ?? result?.sessionFile : undefined);
-	if (!sessionFile && requireSessionFile) throw new Error(`Async run '${runId}' child ${index} does not have a persisted session file to resume from.`);
+	if (recoveryDescriptor && recoveryDescriptor.agent !== agent)
+		throw new Error(
+			`Async run '${runId}' has a recovery descriptor for '${recoveryDescriptor.agent}', not '${agent}'.`,
+		);
+	const sessionFile =
+		statusSteps[index]?.sessionFile ??
+		resultSteps[index]?.sessionFile ??
+		(stepCount === 1 ? (status?.sessionFile ?? result?.sessionFile) : undefined);
+	if (!sessionFile && requireSessionFile)
+		throw new Error(`Async run '${runId}' child ${index} does not have a persisted session file to resume from.`);
 	const resolvedSessionFile = sessionFile ? validateResumeSessionFile(runId, sessionFile) : undefined;
-	const stepModel = statusSteps[index]?.launchModel ?? statusSteps[index]?.model ?? resultSteps[index]?.model ?? (stepCount === 1 ? result?.model : undefined);
-	const stepThinking = statusSteps[index]?.thinking ?? resultSteps[index]?.thinking ?? (stepCount === 1 ? result?.thinking : undefined);
-	const thinkingCeiling = statusSteps[index]?.thinkingCeiling ?? (stepCount === 1 ? recoveryDescriptor?.thinkingCeiling : undefined);
-	const capabilityCeiling = mode === "workflow"
-		? intersectSubagentCapabilityCeilings(status?.admissionCapabilityCeiling, result?.admissionCapabilityCeiling)
-		: intersectSubagentCapabilityCeilings(status?.capabilityCeiling, statusSteps[index]?.capabilityCeiling, result?.capabilityCeiling, resultSteps[index]?.capabilityCeiling);
+	const stepModel =
+		statusSteps[index]?.launchModel ??
+		statusSteps[index]?.model ??
+		resultSteps[index]?.model ??
+		(stepCount === 1 ? result?.model : undefined);
+	const stepThinking =
+		statusSteps[index]?.thinking ?? resultSteps[index]?.thinking ?? (stepCount === 1 ? result?.thinking : undefined);
+	const thinkingCeiling =
+		statusSteps[index]?.thinkingCeiling ?? (stepCount === 1 ? recoveryDescriptor?.thinkingCeiling : undefined);
+	const capabilityCeiling =
+		mode === "workflow"
+			? intersectSubagentCapabilityCeilings(status?.admissionCapabilityCeiling, result?.admissionCapabilityCeiling)
+			: intersectSubagentCapabilityCeilings(
+					status?.capabilityCeiling,
+					statusSteps[index]?.capabilityCeiling,
+					result?.capabilityCeiling,
+					resultSteps[index]?.capabilityCeiling,
+				);
 	const managedWorktreeCwd = location.asyncDir
-		? resolveRetainedWorktreeCwd(parallelHandoffPath(location.asyncDir), runId, index, statusSteps[index]?.worktreePath)
+		? resolveRetainedWorktreeCwd(
+				parallelHandoffPath(location.asyncDir),
+				runId,
+				index,
+				statusSteps[index]?.worktreePath,
+			)
 		: undefined;
-	const resumeCwd = validateResumeCwd(runId, managedWorktreeCwd ?? status?.cwd ?? result?.cwd ?? recoveryDescriptor?.cwd);
+	const resumeCwd = validateResumeCwd(
+		runId,
+		managedWorktreeCwd ?? status?.cwd ?? result?.cwd ?? recoveryDescriptor?.cwd,
+	);
 
 	return {
 		kind: "revive",
@@ -597,14 +1005,20 @@ export function resolveAsyncResumeTarget(params: AsyncResumeParams, deps: AsyncR
 		state,
 		...(mode ? { mode } : {}),
 		agent,
-		...(statusSteps[index]?.sessionName ?? resultSteps[index]?.sessionName ? { sessionName: statusSteps[index]?.sessionName ?? resultSteps[index]?.sessionName } : {}),
+		...((statusSteps[index]?.sessionName ?? resultSteps[index]?.sessionName)
+			? { sessionName: statusSteps[index]?.sessionName ?? resultSteps[index]?.sessionName }
+			: {}),
 		index,
 		...(resumeCwd ? { cwd: resumeCwd } : {}),
 		...(managedWorktreeCwd ? { managedWorktree: true } : {}),
 		...(resolvedSessionFile ? { sessionFile: resolvedSessionFile } : {}),
 		...(stepModel ? { model: stepModel } : {}),
 		...(stepThinking ? { thinking: stepThinking } : {}),
-		launchContractDigest: statusSteps[index]?.launchContractDigest ?? resultSteps[index]?.launchContractDigest ?? result?.launchContractDigest ?? recoveryDescriptor?.launchContractDigest,
+		launchContractDigest:
+			statusSteps[index]?.launchContractDigest ??
+			resultSteps[index]?.launchContractDigest ??
+			result?.launchContractDigest ??
+			recoveryDescriptor?.launchContractDigest,
 		...(statusSteps[index]?.runner ? { runner: statusSteps[index]!.runner } : {}),
 		...(statusSteps[index]?.externalJob ? { externalJob: statusSteps[index]!.externalJob } : {}),
 		...(capabilityCeiling ? { capabilityCeiling } : {}),
@@ -613,7 +1027,10 @@ export function resolveAsyncResumeTarget(params: AsyncResumeParams, deps: AsyncR
 	};
 }
 
-export function applySteeringRecoveryAgentConfig(agentConfig: AgentConfig, descriptor: SteeringRecoveryDescriptor): AgentConfig {
+export function applySteeringRecoveryAgentConfig(
+	agentConfig: AgentConfig,
+	descriptor: SteeringRecoveryDescriptor,
+): AgentConfig {
 	return {
 		...agentConfig,
 		model: descriptor.model,
@@ -657,5 +1074,7 @@ export function buildRevivedAsyncTask(target: AsyncResumeTarget, message: string
 		"",
 		"Follow-up:",
 		message,
-	].filter((line): line is string => line !== undefined).join("\n");
+	]
+		.filter((line): line is string => line !== undefined)
+		.join("\n");
 }

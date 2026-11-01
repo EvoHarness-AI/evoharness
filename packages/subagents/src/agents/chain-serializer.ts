@@ -1,11 +1,10 @@
-import type { ChainConfig, ChainStepConfig } from "./agents.ts";
-import { buildRuntimeName, frontmatterNameForConfig, parsePackageName } from "./identity.ts";
-import { parseFrontmatter } from "./frontmatter.ts";
-import { ChainOutputValidationError, validateChainOutputBindings } from "../runs/shared/chain-outputs.ts";
 import { validateAcceptanceInput } from "../runs/shared/acceptance.ts";
+import { ChainOutputValidationError, validateChainOutputBindings } from "../runs/shared/chain-outputs.ts";
 import { validateToolBudgetConfig } from "../runs/shared/tool-budget.ts";
 import type { ChainStep } from "../shared/settings.ts";
-import type { AgentSource } from "./agents.ts";
+import type { AgentSource, ChainConfig, ChainStepConfig } from "./agents.ts";
+import { parseFrontmatter } from "./frontmatter.ts";
+import { buildRuntimeName, frontmatterNameForConfig, parsePackageName } from "./identity.ts";
 
 function parseStepBody(agent: string, sectionBody: string): ChainStepConfig {
 	const lines = sectionBody.split("\n");
@@ -178,7 +177,8 @@ export function parseJsonChain(content: string, source: AgentSource, filePath: s
 			throw new Error(`JSON chain '${filePath}' step ${i + 1} must be an object.`);
 		}
 		const stepRecord = step as Record<string, unknown>;
-		if (stepRecord.toolBudget !== undefined) validateJsonChainToolBudget(stepRecord.toolBudget, `step ${i + 1} toolBudget`);
+		if (stepRecord.toolBudget !== undefined)
+			validateJsonChainToolBudget(stepRecord.toolBudget, `step ${i + 1} toolBudget`);
 		const acceptanceErrors = validateAcceptanceInput(stepRecord.acceptance, `step ${i + 1} acceptance`);
 		if (acceptanceErrors.length > 0) {
 			throw new Error(`Invalid JSON chain '${filePath}': ${acceptanceErrors.join(" ")}`);
@@ -189,16 +189,27 @@ export function parseJsonChain(content: string, source: AgentSource, filePath: s
 				const task = parallel[taskIndex];
 				if (!task || typeof task !== "object" || Array.isArray(task)) continue;
 				const taskRecord = task as Record<string, unknown>;
-				if (taskRecord.toolBudget !== undefined) validateJsonChainToolBudget(taskRecord.toolBudget, `step ${i + 1} parallel task ${taskIndex + 1} toolBudget`);
-				const taskErrors = validateAcceptanceInput(taskRecord.acceptance, `step ${i + 1} parallel task ${taskIndex + 1} acceptance`);
+				if (taskRecord.toolBudget !== undefined)
+					validateJsonChainToolBudget(
+						taskRecord.toolBudget,
+						`step ${i + 1} parallel task ${taskIndex + 1} toolBudget`,
+					);
+				const taskErrors = validateAcceptanceInput(
+					taskRecord.acceptance,
+					`step ${i + 1} parallel task ${taskIndex + 1} acceptance`,
+				);
 				if (taskErrors.length > 0) {
 					throw new Error(`Invalid JSON chain '${filePath}': ${taskErrors.join(" ")}`);
 				}
 			}
 		} else if (parallel && typeof parallel === "object") {
 			const parallelRecord = parallel as Record<string, unknown>;
-			if (parallelRecord.toolBudget !== undefined) validateJsonChainToolBudget(parallelRecord.toolBudget, `step ${i + 1} dynamic template toolBudget`);
-			const templateErrors = validateAcceptanceInput(parallelRecord.acceptance, `step ${i + 1} dynamic template acceptance`);
+			if (parallelRecord.toolBudget !== undefined)
+				validateJsonChainToolBudget(parallelRecord.toolBudget, `step ${i + 1} dynamic template toolBudget`);
+			const templateErrors = validateAcceptanceInput(
+				parallelRecord.acceptance,
+				`step ${i + 1} dynamic template acceptance`,
+			);
 			if (templateErrors.length > 0) {
 				throw new Error(`Invalid JSON chain '${filePath}': ${templateErrors.join(" ")}`);
 			}
@@ -207,10 +218,14 @@ export function parseJsonChain(content: string, source: AgentSource, filePath: s
 	try {
 		validateChainOutputBindings(input.chain as ChainStep[], { maxItems: Number.MAX_SAFE_INTEGER });
 	} catch (error) {
-		if (error instanceof ChainOutputValidationError) throw new Error(`Invalid JSON chain '${filePath}': ${error.message}`);
+		if (error instanceof ChainOutputValidationError)
+			throw new Error(`Invalid JSON chain '${filePath}': ${error.message}`);
 		throw error;
 	}
-	const parsedPackage = parsePackageName(typeof input.package === "string" ? input.package : undefined, `Chain '${input.name}' package`);
+	const parsedPackage = parsePackageName(
+		typeof input.package === "string" ? input.package : undefined,
+		`Chain '${input.name}' package`,
+	);
 	if (parsedPackage.error) throw new Error(parsedPackage.error);
 	const extraFields: Record<string, string> = {};
 	for (const [key, value] of Object.entries(input)) {

@@ -3,7 +3,14 @@ import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { ArtifactPaths, TimeoutRecoveryProjection, TimeoutRecoverySummary, TrackedMutationEvidence, TrackedMutationFingerprint, TrackedMutationSnapshot } from "../../shared/types.ts";
+import type {
+	ArtifactPaths,
+	TimeoutRecoveryProjection,
+	TimeoutRecoverySummary,
+	TrackedMutationEvidence,
+	TrackedMutationFingerprint,
+	TrackedMutationSnapshot,
+} from "../../shared/types.ts";
 
 const MAX_TRACKED_PATHS = 500;
 const MAX_HASH_BYTES = 1024 * 1024;
@@ -15,7 +22,13 @@ function gitArguments(args: string[]): string[] {
 }
 
 function gitOutput(cwd: string, args: string[], maxBuffer = MAX_HASH_BYTES): string {
-	return execFileSync("git", gitArguments(args), { cwd, encoding: "utf-8", stdio: ["ignore", "pipe", "pipe"], maxBuffer, windowsHide: true });
+	return execFileSync("git", gitArguments(args), {
+		cwd,
+		encoding: "utf-8",
+		stdio: ["ignore", "pipe", "pipe"],
+		maxBuffer,
+		windowsHide: true,
+	});
 }
 
 function splitNul(output: string): string[] {
@@ -26,7 +39,11 @@ function hashLargeDiff(cwd: string, relativePath: string): string {
 	const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tracked-diff-"));
 	const diffPath = path.join(tempDir, "diff.patch");
 	try {
-		execFileSync("git", gitArguments(["diff", "--no-ext-diff", "--binary", `--output=${diffPath}`, "HEAD", "--", relativePath]), { cwd, stdio: "ignore", windowsHide: true });
+		execFileSync(
+			"git",
+			gitArguments(["diff", "--no-ext-diff", "--binary", `--output=${diffPath}`, "HEAD", "--", relativePath]),
+			{ cwd, stdio: "ignore", windowsHide: true },
+		);
 		const hash = createHash("sha256");
 		const buffer = Buffer.allocUnsafe(64 * 1024);
 		const fd = fs.openSync(diffPath, "r");
@@ -69,15 +86,38 @@ export function snapshotTrackedMutations(cwd: string): TrackedMutationSnapshot {
 		const changed = listChangedTrackedFiles(cwd);
 		const fingerprints: Record<string, TrackedMutationFingerprint> = {};
 		for (const file of changed.paths) fingerprints[file] = fingerprintPath(cwd, file);
-		return { source: "tracked-files", trackedOnly: true, cwd, dirtyFiles: changed.paths, fingerprints, truncated: changed.truncated };
+		return {
+			source: "tracked-files",
+			trackedOnly: true,
+			cwd,
+			dirtyFiles: changed.paths,
+			fingerprints,
+			truncated: changed.truncated,
+		};
 	} catch (error) {
-		return { source: "tracked-files", trackedOnly: true, cwd, dirtyFiles: [], fingerprints: {}, unavailable: error instanceof Error ? error.message : String(error) };
+		return {
+			source: "tracked-files",
+			trackedOnly: true,
+			cwd,
+			dirtyFiles: [],
+			fingerprints: {},
+			unavailable: error instanceof Error ? error.message : String(error),
+		};
 	}
 }
 
-export function collectTrackedMutationEvidence(snapshot: TrackedMutationSnapshot, cwd = snapshot.cwd): TrackedMutationEvidence {
+export function collectTrackedMutationEvidence(
+	snapshot: TrackedMutationSnapshot,
+	cwd = snapshot.cwd,
+): TrackedMutationEvidence {
 	if (snapshot.unavailable) {
-		return { source: "tracked-files", trackedOnly: true, changedFiles: [], attemptedMutation: false, unavailable: snapshot.unavailable };
+		return {
+			source: "tracked-files",
+			trackedOnly: true,
+			changedFiles: [],
+			attemptedMutation: false,
+			unavailable: snapshot.unavailable,
+		};
 	}
 	try {
 		const current = listChangedTrackedFiles(cwd);
@@ -100,7 +140,13 @@ export function collectTrackedMutationEvidence(snapshot: TrackedMutationSnapshot
 			truncated: snapshot.truncated || current.truncated || undefined,
 		};
 	} catch (error) {
-		return { source: "tracked-files", trackedOnly: true, changedFiles: [], attemptedMutation: false, unavailable: error instanceof Error ? error.message : String(error) };
+		return {
+			source: "tracked-files",
+			trackedOnly: true,
+			changedFiles: [],
+			attemptedMutation: false,
+			unavailable: error instanceof Error ? error.message : String(error),
+		};
 	}
 }
 
@@ -114,16 +160,18 @@ function formatPathList(paths: string[]): string {
 export function projectTimeoutRecovery(value: unknown): TimeoutRecoveryProjection | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const source = value as Record<string, unknown>;
-	const termination = source.termination === "timed-out" || source.termination === "stopped" ? source.termination : undefined;
+	const termination =
+		source.termination === "timed-out" || source.termination === "stopped" ? source.termination : undefined;
 	if (!termination || !Array.isArray(source.changedFiles)) return undefined;
 	const allChangedFiles = source.changedFiles.filter((file): file is string => typeof file === "string");
 	const changedFiles = allChangedFiles.slice(0, MAX_TIMEOUT_FILES);
-	const reportStatus = source.reportStatus === "missing"
-		|| source.reportStatus === "written"
-		|| source.reportStatus === "not-requested"
-		|| source.reportStatus === "unknown"
-		? source.reportStatus
-		: undefined;
+	const reportStatus =
+		source.reportStatus === "missing" ||
+		source.reportStatus === "written" ||
+		source.reportStatus === "not-requested" ||
+		source.reportStatus === "unknown"
+			? source.reportStatus
+			: undefined;
 	return {
 		termination,
 		changedFiles,
@@ -138,10 +186,12 @@ export function projectTimeoutRecovery(value: unknown): TimeoutRecoveryProjectio
 export function formatTimeoutRecoveryLines(value: unknown, indent = ""): string[] {
 	const recovery = projectTimeoutRecovery(value);
 	if (!recovery?.recoveryNeeded) return [];
-	const changedFiles = recovery.changedFiles.length > 0
-		? `${recovery.changedFiles.join(", ")}${recovery.truncated ? ", …" : ""}`
-		: "none";
-	const changedFileCount = recovery.changedFiles.length > 0 ? `${recovery.changedFiles.length}${recovery.truncated ? "+" : ""}` : "0";
+	const changedFiles =
+		recovery.changedFiles.length > 0
+			? `${recovery.changedFiles.join(", ")}${recovery.truncated ? ", …" : ""}`
+			: "none";
+	const changedFileCount =
+		recovery.changedFiles.length > 0 ? `${recovery.changedFiles.length}${recovery.truncated ? "+" : ""}` : "0";
 	return [
 		`${indent}Recovery needed: review the diff and artifacts before resuming or launching dependent stages.`,
 		`${indent}Recovery evidence: requested report: ${recovery.reportStatus ?? "unknown"}; changed tracked files: ${changedFiles} (${changedFileCount}); classification: ${recovery.reason ?? recovery.termination}`,
@@ -164,17 +214,18 @@ export function buildTimeoutRecoverySummary(input: {
 	let reportStatus: "missing" | "written" | "not-requested" = "not-requested";
 	if (input.requiredOutputMissing === true) reportStatus = "missing";
 	else if (input.requiredOutputMissing === false) reportStatus = "written";
-	const recoveryNeeded = input.termination === "timed-out"
-		&& reportStatus === "missing"
-		&& input.evidence.changedFiles.length > 0;
+	const recoveryNeeded =
+		input.termination === "timed-out" && reportStatus === "missing" && input.evidence.changedFiles.length > 0;
 	const lines = [
 		"Recovery summary:",
 		`- termination: ${input.termination}`,
 		`- changed tracked files: ${input.evidence.unavailable ? `unavailable (${input.evidence.unavailable})` : formatPathList(input.evidence.changedFiles)}`,
 	];
 	if (input.requiredOutputMissing !== undefined) lines.push(`- requested report: ${reportStatus}`);
-	if (recoveryNeeded) lines.push("- Recovery needed: review the diff and artifacts before resuming or launching dependent stages.");
-	if (input.currentTool) lines.push(`- active tool: ${input.currentTool}${input.currentToolArgs ? ` — ${input.currentToolArgs}` : ""}`);
+	if (recoveryNeeded)
+		lines.push("- Recovery needed: review the diff and artifacts before resuming or launching dependent stages.");
+	if (input.currentTool)
+		lines.push(`- active tool: ${input.currentTool}${input.currentToolArgs ? ` — ${input.currentToolArgs}` : ""}`);
 	if (input.currentPath) lines.push(`- active path: ${input.currentPath}`);
 	if (input.sessionFile) lines.push(`- session file: ${input.sessionFile}`);
 	if (input.transcriptPath) lines.push(`- transcript: ${input.transcriptPath}`);

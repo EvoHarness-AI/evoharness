@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { Type } from "typebox";
 import type { AgentToolResult } from "@evoharness/agent-core";
 import type { ToolDefinition } from "@evoharness/coding-agent";
+import { Type } from "typebox";
 import { createAtomicJsonWriter } from "../../shared/atomic-json.ts";
-import { watchAsyncControlInbox, requestAsyncCommand, type CommandRequest } from "../background/control-channel.ts";
+import { type CommandRequest, requestAsyncCommand, watchAsyncControlInbox } from "../background/control-channel.ts";
 
 export const CHILD_COMMAND_TOOL = "subagent_command";
 export type CommandOperation = "status" | "yield" | "cancel";
@@ -37,16 +37,29 @@ function childCommandStatePath(channelDir: string): string {
 	return path.join(channelDir, "commands.json");
 }
 export function readChildCommandState(channelDir: string): ChildCommandState | undefined {
-	try { return JSON.parse(fs.readFileSync(childCommandStatePath(channelDir), "utf8")) as ChildCommandState; }
-	catch (error) { if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined; throw error; }
+	try {
+		return JSON.parse(fs.readFileSync(childCommandStatePath(channelDir), "utf8")) as ChildCommandState;
+	} catch (error) {
+		if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
+		throw error;
+	}
 }
 /** True when the child's native command controller manages `toolCallId`, so command controls can target that call. */
 export function retainsChildCommand(channelDir: string, toolCallId: string): boolean {
 	return readChildCommandState(channelDir)?.commands.some((command) => command.toolCallId === toolCallId) === true;
 }
-function active(job: CommandJob): boolean { return job.snapshot.endedAt === undefined; }
+function active(job: CommandJob): boolean {
+	return job.snapshot.endedAt === undefined;
+}
 function text(result: AgentToolResult<unknown>): string {
-	return Buffer.from(result.content.filter((part) => part.type === "text").map((part) => part.text).join("\n")).subarray(-MAX_OUTPUT_BYTES).toString("utf8");
+	return Buffer.from(
+		result.content
+			.filter((part) => part.type === "text")
+			.map((part) => part.text)
+			.join("\n"),
+	)
+		.subarray(-MAX_OUTPUT_BYTES)
+		.toString("utf8");
 }
 
 /** Owns command lifetimes, not shell execution. The supplied Pi tool still executes the command. */
@@ -56,11 +69,20 @@ export function createChildCommandRuntime(channelDir: string) {
 	const usedIds = new Set<string>();
 	let closed = false;
 	let disposeInbox: (() => void) | undefined;
-	const state = (): ChildCommandState => ({ ownerId, closed, commands: [...jobs.values()].map((job) => ({ ...job.snapshot })) });
-	const persist = () => writeAtomicJson(childCommandStatePath(channelDir), {
-		ownerId, closed,
-		commands: [...jobs.values()].map((job) => ({ ...job.snapshot, output: job.yielded ? job.snapshot.output : "" })),
+	const state = (): ChildCommandState => ({
+		ownerId,
+		closed,
+		commands: [...jobs.values()].map((job) => ({ ...job.snapshot })),
 	});
+	const persist = () =>
+		writeAtomicJson(childCommandStatePath(channelDir), {
+			ownerId,
+			closed,
+			commands: [...jobs.values()].map((job) => ({
+				...job.snapshot,
+				output: job.yielded ? job.snapshot.output : "",
+			})),
+		});
 	const operate = (operation: CommandOperation, toolCallId?: string): ChildCommandState => {
 		if (operation === "status" && toolCallId === undefined) return state();
 		const job = toolCallId ? jobs.get(toolCallId) : undefined;
@@ -98,10 +120,11 @@ export function createChildCommandRuntime(channelDir: string) {
 	const stop = async () => {
 		closed = true;
 		disposeInbox?.();
-		for (const job of jobs.values()) if (active(job)) {
-			job.snapshot.state = "cancel_requested";
-			job.controller.abort();
-		}
+		for (const job of jobs.values())
+			if (active(job)) {
+				job.snapshot.state = "cancel_requested";
+				job.controller.abort();
+			}
 		await Promise.all([...jobs.values()].map((job) => job.settled));
 		if (jobs.size) persist();
 	};
@@ -113,67 +136,127 @@ export function createChildCommandRuntime(channelDir: string) {
 			const pending = [...jobs.values()].filter(active);
 			if (!pending.length) return;
 			await stop();
-			throw new Error(`Child finished with unfinished commands: ${pending.map((job) => job.snapshot.toolCallId).join(", ")}. Commands were cancelled; query or cancel background commands before finishing.`);
+			throw new Error(
+				`Child finished with unfinished commands: ${pending.map((job) => job.snapshot.toolCallId).join(", ")}. Commands were cancelled; query or cancel background commands before finishing.`,
+			);
 		},
 		wrap(tool: ToolDefinition): ToolDefinition {
 			return {
 				...tool,
-				parameters: Type.Unsafe({ ...tool.parameters, properties: {
-					...(tool.parameters as { properties?: object }).properties,
-					yieldTimeMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 30_000, description: "Return a managed command handle after this wait; does not terminate the command. Omit to wait for completion." })),
-				} }),
+				parameters: Type.Unsafe({
+					...tool.parameters,
+					properties: {
+						...(tool.parameters as { properties?: object }).properties,
+						yieldTimeMs: Type.Optional(
+							Type.Integer({
+								minimum: 0,
+								maximum: 30_000,
+								description:
+									"Return a managed command handle after this wait; does not terminate the command. Omit to wait for completion.",
+							}),
+						),
+					},
+				}),
 				description: `${tool.description}\nOptional yieldTimeMs returns a command handle without stopping execution. Use subagent_command to query or cancel it. Finish or cancel every command before completing the task.`,
 				async execute(toolCallId, params, signal, onUpdate, ctx) {
 					if (closed) throw new Error("Child command controller is closed.");
-					if (usedIds.has(toolCallId)) throw new Error(`Command id '${toolCallId}' was already used in this child session.`);
+					if (usedIds.has(toolCallId))
+						throw new Error(`Command id '${toolCallId}' was already used in this child session.`);
 					usedIds.add(toolCallId);
 					const { yieldTimeMs, ...args } = params as Record<string, unknown>;
 					const controller = new AbortController();
 					const commandSignal = signal ? AbortSignal.any([signal, controller.signal]) : controller.signal;
 					let yieldResult!: () => void;
-					const yielded = new Promise<void>((resolve) => { yieldResult = resolve; });
-					const job: CommandJob = { snapshot: { toolCallId, state: "running", startedAt: Date.now(), output: "" }, controller, yieldResult, settled: Promise.resolve() };
+					const yielded = new Promise<void>((resolve) => {
+						yieldResult = resolve;
+					});
+					const job: CommandJob = {
+						snapshot: { toolCallId, state: "running", startedAt: Date.now(), output: "" },
+						controller,
+						yieldResult,
+						settled: Promise.resolve(),
+					};
 					// Keep active commands and a bounded recent history; never retain full outputs.
 					const completed = [...jobs].filter(([, candidate]) => !active(candidate));
-					for (const [id] of completed.slice(0, Math.max(0, completed.length - RECENT_COMMANDS + 1))) jobs.delete(id);
+					for (const [id] of completed.slice(0, Math.max(0, completed.length - RECENT_COMMANDS + 1)))
+						jobs.delete(id);
 					jobs.set(toolCallId, job);
 					persist();
 					startInbox();
 					let timer: ReturnType<typeof setTimeout> | undefined;
 					if (typeof yieldTimeMs === "number") timer = setTimeout(() => operate("yield", toolCallId), yieldTimeMs);
-					const execution = Promise.resolve().then(() => tool.execute(toolCallId, args, commandSignal, (update) => {
-						job.snapshot.output = text(update);
-						if (job.snapshot.state === "running") onUpdate?.(update);
-					}, ctx)).then((result) => {
-						job.snapshot.output = text(result);
-						// Pi 1.2 reports a non-zero exit as an isError result instead of throwing.
-						job.snapshot.state = result.isError ? "failed" : "completed";
-						const fullOutputPath = (result.details as { fullOutputPath?: string } | undefined)?.fullOutputPath;
-						if (fullOutputPath) job.snapshot.fullOutputPath = fullOutputPath;
-						return result;
-					}, (error: unknown) => {
-						job.snapshot.state = controller.signal.aborted ? "cancelled" : "failed";
-						job.snapshot.output = String(error).slice(-MAX_OUTPUT_BYTES);
-						throw error;
-					}).finally(() => {
-						if (timer) clearTimeout(timer);
-						job.snapshot.endedAt = Date.now();
-						persist();
-					});
-					job.settled = execution.then(() => {}, () => {});
-					const result = await Promise.race([execution.then((value) => ({ value })), yielded.then(() => undefined)]);
+					const execution = Promise.resolve()
+						.then(() =>
+							tool.execute(
+								toolCallId,
+								args,
+								commandSignal,
+								(update) => {
+									job.snapshot.output = text(update);
+									if (job.snapshot.state === "running") onUpdate?.(update);
+								},
+								ctx,
+							),
+						)
+						.then(
+							(result) => {
+								job.snapshot.output = text(result);
+								// Pi 1.2 reports a non-zero exit as an isError result instead of throwing.
+								job.snapshot.state = result.isError ? "failed" : "completed";
+								const fullOutputPath = (result.details as { fullOutputPath?: string } | undefined)
+									?.fullOutputPath;
+								if (fullOutputPath) job.snapshot.fullOutputPath = fullOutputPath;
+								return result;
+							},
+							(error: unknown) => {
+								job.snapshot.state = controller.signal.aborted ? "cancelled" : "failed";
+								job.snapshot.output = String(error).slice(-MAX_OUTPUT_BYTES);
+								throw error;
+							},
+						)
+						.finally(() => {
+							if (timer) clearTimeout(timer);
+							job.snapshot.endedAt = Date.now();
+							persist();
+						});
+					job.settled = execution.then(
+						() => {},
+						() => {},
+					);
+					const result = await Promise.race([
+						execution.then((value) => ({ value })),
+						yielded.then(() => undefined),
+					]);
 					if (result) return result.value;
-					return { content: [{ type: "text", text: `Command is still running (toolCallId: ${toolCallId}). This is not a successful exit. Use subagent_command({ action: "status", toolCallId: ${JSON.stringify(toolCallId)} }) to inspect or wait, or action: "cancel" to stop it.\n${job.snapshot.output}` }], details: { command: { ...job.snapshot } } };
+					return {
+						content: [
+							{
+								type: "text",
+								text: `Command is still running (toolCallId: ${toolCallId}). This is not a successful exit. Use subagent_command({ action: "status", toolCallId: ${JSON.stringify(toolCallId)} }) to inspect or wait, or action: "cancel" to stop it.\n${job.snapshot.output}`,
+							},
+						],
+						details: { command: { ...job.snapshot } },
+					};
 				},
 			};
 		},
 		tool(): ToolDefinition {
 			return {
-				name: CHILD_COMMAND_TOOL, label: "Child command",
-				description: "Inspect or cancel bash commands owned by this child. Cancellation stops only the selected command, not the agent. Check terminal state before finishing.",
-				parameters: Type.Object({ action: Type.String({ enum: ["status", "cancel"] }), toolCallId: Type.Optional(Type.String()), waitMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 30_000 })) }),
+				name: CHILD_COMMAND_TOOL,
+				label: "Child command",
+				description:
+					"Inspect or cancel bash commands owned by this child. Cancellation stops only the selected command, not the agent. Check terminal state before finishing.",
+				parameters: Type.Object({
+					action: Type.String({ enum: ["status", "cancel"] }),
+					toolCallId: Type.Optional(Type.String()),
+					waitMs: Type.Optional(Type.Integer({ minimum: 0, maximum: 30_000 })),
+				}),
 				async execute(_id, params, signal) {
-					const { action, toolCallId, waitMs = 0 } = params as { action: "status" | "cancel"; toolCallId?: string; waitMs?: number };
+					const {
+						action,
+						toolCallId,
+						waitMs = 0,
+					} = params as { action: "status" | "cancel"; toolCallId?: string; waitMs?: number };
 					operate(action, toolCallId);
 					const job = toolCallId ? jobs.get(toolCallId) : undefined;
 					if (job && active(job) && waitMs > 0) await waitForCommand(job.settled, waitMs, signal);
@@ -194,15 +277,27 @@ async function waitForCommand(settled: Promise<void>, waitMs: number, signal?: A
 		if (signal?.aborted) abort();
 		else signal?.addEventListener("abort", abort, { once: true });
 	});
-	try { await Promise.race([settled, wait]); }
-	finally { clearTimeout(timer!); signal?.removeEventListener("abort", abort); }
+	try {
+		await Promise.race([settled, wait]);
+	} finally {
+		clearTimeout(timer!);
+		signal?.removeEventListener("abort", abort);
+	}
 }
 function commandReplyPath(channelDir: string, id: string): string {
 	return path.join(channelDir, "command-replies", `${id}.json`);
 }
-export async function controlChildCommand(channelDir: string, operation: CommandOperation, toolCallId?: string, signal?: AbortSignal): Promise<ChildCommandState> {
+export async function controlChildCommand(
+	channelDir: string,
+	operation: CommandOperation,
+	toolCallId?: string,
+	signal?: AbortSignal,
+): Promise<ChildCommandState> {
 	const current = readChildCommandState(channelDir);
-	if (!current) throw new Error("No command controller is available for this child. Command controls require a local native Pi child with bash.");
+	if (!current)
+		throw new Error(
+			"No command controller is available for this child. Command controls require a local native Pi child with bash.",
+		);
 	if (current.closed) {
 		if (operation === "status") {
 			if (toolCallId === undefined) return current;
@@ -212,22 +307,39 @@ export async function controlChildCommand(channelDir: string, operation: Command
 		}
 		throw new Error("Child command controller is closed.");
 	}
-	if (operation !== "status" && !toolCallId) throw new Error("An exact toolCallId is required; command controls never target the next command.");
+	if (operation !== "status" && !toolCallId)
+		throw new Error("An exact toolCallId is required; command controls never target the next command.");
 	const id = randomUUID();
 	const deadlineAt = Date.now() + 5_000;
-	const request: CommandRequest = { type: "command", id, ownerId: current.ownerId, operation, ...(toolCallId ? { toolCallId } : {}), deadlineAt };
+	const request: CommandRequest = {
+		type: "command",
+		id,
+		ownerId: current.ownerId,
+		operation,
+		...(toolCallId ? { toolCallId } : {}),
+		deadlineAt,
+	};
 	requestAsyncCommand(channelDir, request);
 	const replyPath = commandReplyPath(channelDir, id);
 	try {
 		while (Date.now() < deadlineAt) {
 			if (signal?.aborted) throw new Error("Command control wait aborted; delivery may still be pending.");
 			try {
-				const reply = JSON.parse(fs.readFileSync(replyPath, "utf8")) as { state?: ChildCommandState; error?: string };
+				const reply = JSON.parse(fs.readFileSync(replyPath, "utf8")) as {
+					state?: ChildCommandState;
+					error?: string;
+				};
 				if (reply.error) throw new Error(reply.error);
 				if (reply.state) return reply.state;
-			} catch (error) { if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error; }
+			} catch (error) {
+				if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
+			}
 			await new Promise((resolve) => setTimeout(resolve, 20));
 		}
-		throw new Error("Command control acknowledgement timed out. Inspect command status; cancellation is not confirmed.");
-	} finally { fs.rmSync(replyPath, { force: true }); }
+		throw new Error(
+			"Command control acknowledgement timed out. Inspect command status; cancellation is not confirmed.",
+		);
+	} finally {
+		fs.rmSync(replyPath, { force: true });
+	}
 }

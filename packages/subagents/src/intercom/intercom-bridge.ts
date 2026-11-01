@@ -45,20 +45,29 @@ export interface IntercomBridgeState {
 	interpolatesOrchestratorTarget: boolean;
 }
 
-export type IntercomBridgeConfigValidation =
-	| { ok: true; value: IntercomBridgeConfig }
-	| { ok: false; error: string };
+export type IntercomBridgeConfigValidation = { ok: true; value: IntercomBridgeConfig } | { ok: false; error: string };
 
 /** Validates untrusted bridge config from descriptors or delegation requests; `label` prefixes each error. */
-export function validateIntercomBridgeConfig({ value, label }: { value: unknown; label: string }): IntercomBridgeConfigValidation {
-	if (!value || typeof value !== "object" || Array.isArray(value)) return { ok: false, error: `${label} must be an object.` };
+export function validateIntercomBridgeConfig({
+	value,
+	label,
+}: {
+	value: unknown;
+	label: string;
+}): IntercomBridgeConfigValidation {
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		return { ok: false, error: `${label} must be an object.` };
 	const bridge = value as Record<string, unknown>;
 	for (const field of Object.keys(bridge)) {
-		if (field !== "mode" && field !== "instructionFile" && field !== "resultDelivery") return { ok: false, error: `${label}.${field} is not supported.` };
+		if (field !== "mode" && field !== "instructionFile" && field !== "resultDelivery")
+			return { ok: false, error: `${label}.${field} is not supported.` };
 	}
-	if (bridge.mode !== undefined && bridge.mode !== "off" && bridge.mode !== "fork-only" && bridge.mode !== "always") return { ok: false, error: `${label}.mode is invalid.` };
-	if (bridge.instructionFile !== undefined && typeof bridge.instructionFile !== "string") return { ok: false, error: `${label}.instructionFile must be a string.` };
-	if (bridge.resultDelivery !== undefined && typeof bridge.resultDelivery !== "boolean") return { ok: false, error: `${label}.resultDelivery must be a boolean.` };
+	if (bridge.mode !== undefined && bridge.mode !== "off" && bridge.mode !== "fork-only" && bridge.mode !== "always")
+		return { ok: false, error: `${label}.mode is invalid.` };
+	if (bridge.instructionFile !== undefined && typeof bridge.instructionFile !== "string")
+		return { ok: false, error: `${label}.instructionFile must be a string.` };
+	if (bridge.resultDelivery !== undefined && typeof bridge.resultDelivery !== "boolean")
+		return { ok: false, error: `${label}.resultDelivery must be a boolean.` };
 	return {
 		ok: true,
 		value: {
@@ -92,11 +101,17 @@ interface ResolveIntercomBridgeInput {
 
 // Inside a child, callers pass the child's intercom route instead of its session
 // name: the name is a readable label and need not be unique.
-export function resolveIntercomSessionTarget(sessionName: string | undefined, sessionId: string, intercomSessionId = process.env[PI_INTERCOM_SESSION_ID_ENV]): string {
+export function resolveIntercomSessionTarget(
+	sessionName: string | undefined,
+	sessionId: string,
+	intercomSessionId = process.env[PI_INTERCOM_SESSION_ID_ENV],
+): string {
 	const trimmedName = sessionName?.trim();
 	if (trimmedName) return trimmedName;
 	const fallbackSessionId = intercomSessionId?.trim() || sessionId;
-	const normalizedSessionId = fallbackSessionId.startsWith("session-") ? fallbackSessionId.slice("session-".length) : fallbackSessionId;
+	const normalizedSessionId = fallbackSessionId.startsWith("session-")
+		? fallbackSessionId.slice("session-".length)
+		: fallbackSessionId;
 	// NOTE: keep slice length in sync with pi-intercom's resolveIntercomPresenceName
 	// (index.ts: DEFAULT_UNNAMED_SESSION_ALIAS_PREFIX + slice(0, 18)); mismatched lengths
 	// make fallback orchestrator targets unresolvable ("Session not found").
@@ -104,7 +119,13 @@ export function resolveIntercomSessionTarget(sessionName: string | undefined, se
 }
 
 function sanitizeIntercomTargetPart(value: string): string {
-	return value.trim().toLowerCase().replace(/[^a-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "agent";
+	return (
+		value
+			.trim()
+			.toLowerCase()
+			.replace(/[^a-z0-9_-]+/g, "-")
+			.replace(/^-+|-+$/g, "") || "agent"
+	);
 }
 
 export function resolveSubagentIntercomTarget(runId: string, agent: string, index?: number): string {
@@ -135,13 +156,14 @@ function expandTilde(filePath: string): string {
 function resolveInstructionTemplate(instructionFile: string, settingsDir: string): string {
 	if (!instructionFile) return DEFAULT_INTERCOM_BRIDGE_TEMPLATE;
 	const expandedPath = expandTilde(instructionFile);
-	const resolvedPath = path.isAbsolute(expandedPath)
-		? expandedPath
-		: path.resolve(settingsDir, expandedPath);
+	const resolvedPath = path.isAbsolute(expandedPath) ? expandedPath : path.resolve(settingsDir, expandedPath);
 	try {
 		return fs.readFileSync(resolvedPath, "utf-8");
 	} catch (error) {
-		console.warn(`Failed to read intercom bridge instructionFile at '${resolvedPath}'. Using default instructions.`, error);
+		console.warn(
+			`Failed to read intercom bridge instructionFile at '${resolvedPath}'. Using default instructions.`,
+			error,
+		);
 		return DEFAULT_INTERCOM_BRIDGE_TEMPLATE;
 	}
 }
@@ -152,7 +174,11 @@ function buildIntercomBridgeInstruction(orchestratorTarget: string, template: st
 	return `${INTERCOM_BRIDGE_MARKER}\n${instruction}`;
 }
 
-function inactiveReason(mode: IntercomBridgeMode, context: "fresh" | "fork" | undefined, orchestratorTarget: string | undefined): string | undefined {
+function inactiveReason(
+	mode: IntercomBridgeMode,
+	context: "fresh" | "fork" | undefined,
+	orchestratorTarget: string | undefined,
+): string | undefined {
 	if (mode === "off") return "bridge mode is off";
 	if (mode === "fork-only" && context !== "fork") return "bridge mode is fork-only and context is not fork";
 	if (!orchestratorTarget) return "orchestrator target is not available";
@@ -214,9 +240,10 @@ export function applyIntercomBridgeToAgent(agent: AgentConfig, bridge: IntercomB
 	if (!bridge.active || !bridge.orchestratorTarget) return agent;
 
 	const bridgeTools = ["contact_supervisor"];
-	const tools = agent.tools && agent.tools.length > 0
-		? [...agent.tools, ...bridgeTools.filter((tool) => !agent.tools?.includes(tool))]
-		: agent.tools;
+	const tools =
+		agent.tools && agent.tools.length > 0
+			? [...agent.tools, ...bridgeTools.filter((tool) => !agent.tools?.includes(tool))]
+			: agent.tools;
 	const instruction = bridge.instruction;
 	const trimmedPrompt = agent.systemPrompt?.trim() || "";
 	const systemPrompt = trimmedPrompt.includes(INTERCOM_BRIDGE_MARKER)

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, it } from "node:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import { clearAgentDiscoveryCache, discoverAgents } from "../../src/agents/agents.ts";
 
 function tempDir(prefix: string): string {
@@ -11,7 +11,11 @@ function tempDir(prefix: string): string {
 
 function writeAgent(dir: string, name: string, description = "scan dirs test"): void {
 	fs.mkdirSync(dir, { recursive: true });
-	fs.writeFileSync(path.join(dir, `${name}.md`), `---\nname: ${name}\ndescription: ${description}\n---\nbody\n`, "utf-8");
+	fs.writeFileSync(
+		path.join(dir, `${name}.md`),
+		`---\nname: ${name}\ndescription: ${description}\n---\nbody\n`,
+		"utf-8",
+	);
 }
 
 describe("settings subagents.agentScanDirs", () => {
@@ -59,23 +63,35 @@ describe("settings subagents.agentScanDirs", () => {
 
 	it("expands one wildcard directory segment and invalidates when children are added", () => {
 		writeUserSettings({ subagents: { agentScanDirs: [path.join(scanRoot, "*", "agents")] } });
-		assert.equal(discoverAgents(projectDir, "user").agents.some((agent) => agent.name === "late-writer"), false);
+		assert.equal(
+			discoverAgents(projectDir, "user").agents.some((agent) => agent.name === "late-writer"),
+			false,
+		);
 
 		writeAgent(path.join(scanRoot, "template-a", "agents"), "late-writer");
 		const result = discoverAgents(projectDir, "user");
 
-		assert.equal(result.agents.some((agent) => agent.name === "late-writer"), true);
+		assert.equal(
+			result.agents.some((agent) => agent.name === "late-writer"),
+			true,
+		);
 	});
 
 	it("invalidates when an existing wildcard child receives its agents directory", () => {
 		fs.mkdirSync(path.join(scanRoot, "template-a"));
 		writeUserSettings({ subagents: { agentScanDirs: [path.join(scanRoot, "*", "agents")] } });
-		assert.equal(discoverAgents(projectDir, "user").agents.some((agent) => agent.name === "late-nested-writer"), false);
+		assert.equal(
+			discoverAgents(projectDir, "user").agents.some((agent) => agent.name === "late-nested-writer"),
+			false,
+		);
 
 		writeAgent(path.join(scanRoot, "template-a", "agents"), "late-nested-writer");
 		const result = discoverAgents(projectDir, "user");
 
-		assert.equal(result.agents.some((agent) => agent.name === "late-nested-writer"), true);
+		assert.equal(
+			result.agents.some((agent) => agent.name === "late-nested-writer"),
+			true,
+		);
 	});
 
 	it("keeps user and project scan directories scoped", () => {
@@ -86,10 +102,22 @@ describe("settings subagents.agentScanDirs", () => {
 		writeUserSettings({ subagents: { agentScanDirs: [userScanDir] } });
 		writeProjectSettings({ subagents: { agentScanDirs: [projectScanDir] } });
 
-		assert.equal(discoverAgents(projectDir, "user").agents.some((agent) => agent.name === "project-scan"), false);
-		assert.equal(discoverAgents(projectDir, "project").agents.some((agent) => agent.name === "user-scan"), false);
-		assert.equal(discoverAgents(projectDir, "both").agents.some((agent) => agent.name === "user-scan"), true);
-		assert.equal(discoverAgents(projectDir, "both").agents.some((agent) => agent.name === "project-scan"), true);
+		assert.equal(
+			discoverAgents(projectDir, "user").agents.some((agent) => agent.name === "project-scan"),
+			false,
+		);
+		assert.equal(
+			discoverAgents(projectDir, "project").agents.some((agent) => agent.name === "user-scan"),
+			false,
+		);
+		assert.equal(
+			discoverAgents(projectDir, "both").agents.some((agent) => agent.name === "user-scan"),
+			true,
+		);
+		assert.equal(
+			discoverAgents(projectDir, "both").agents.some((agent) => agent.name === "project-scan"),
+			true,
+		);
 	});
 
 	it("lets fixed user agents override same-name scan-dir agents", () => {
@@ -108,7 +136,10 @@ describe("settings subagents.agentScanDirs", () => {
 
 		const result = discoverAgents(projectDir, "user");
 
-		assert.equal(result.agents.some((agent) => agent.name === "backslash-scan"), true);
+		assert.equal(
+			result.agents.some((agent) => agent.name === "backslash-scan"),
+			true,
+		);
 	});
 
 	it("does not treat constrained wildcard segments as broad directory scans", () => {
@@ -118,16 +149,19 @@ describe("settings subagents.agentScanDirs", () => {
 
 		const result = discoverAgents(projectDir, "user");
 
-		assert.equal(result.agents.some((agent) => agent.name === "flow-scan"), false);
-		assert.equal(result.agents.some((agent) => agent.name === "other-scan"), false);
+		assert.equal(
+			result.agents.some((agent) => agent.name === "flow-scan"),
+			false,
+		);
+		assert.equal(
+			result.agents.some((agent) => agent.name === "other-scan"),
+			false,
+		);
 	});
 
 	it("rejects malformed scan directory settings", () => {
 		writeUserSettings({ subagents: { agentScanDirs: [path.join(scanRoot, "agents"), 42] } });
 
-		assert.throws(
-			() => discoverAgents(projectDir, "user"),
-			/Subagent settings .* invalid 'agentScanDirs'/,
-		);
+		assert.throws(() => discoverAgents(projectDir, "user"), /Subagent settings .* invalid 'agentScanDirs'/);
 	});
 });

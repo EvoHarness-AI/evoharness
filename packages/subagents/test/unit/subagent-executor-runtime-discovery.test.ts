@@ -21,12 +21,19 @@ test("executor doctor/status remain available when the selected SDK root is brok
 	fs.writeFileSync(path.join(dependency, "package.json"), JSON.stringify({ name: PI_CODING_AGENT_PACKAGE }));
 	const env = {
 		...process.env,
-		HOME: path.join(tmp, "home"), USERPROFILE: path.join(tmp, "home"),
+		HOME: path.join(tmp, "home"),
+		USERPROFILE: path.join(tmp, "home"),
 		PI_SUBAGENTS_TEMP_ROOT: path.join(tmp, "runs"),
 		[PI_CODING_AGENT_PACKAGE_ROOT_ENV]: path.join(tmp, "absent-override"),
 	};
 	// A fresh process gives the executor a static dependency graph that has never resolved a working SDK.
-	const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "-e", `
+	const result = spawnSync(
+		process.execPath,
+		[
+			"--experimental-strip-types",
+			"--input-type=module",
+			"-e",
+			`
 		import assert from "node:assert/strict";
 		import childProcess from "node:child_process";
 		import { syncBuiltinESMExports } from "node:module";
@@ -72,6 +79,9 @@ test("executor doctor/status remain available when the selected SDK root is brok
 		assert.match(launch.content[0].text, /ENOENT/);
 		assert.equal(spawnCalls, 0);
 		await checkManagement();
-	`], { cwd: tmp, env, encoding: "utf8", timeout: 30_000 });
+	`,
+		],
+		{ cwd: tmp, env, encoding: "utf8", timeout: 30_000 },
+	);
 	assert.equal(result.status, 0, `${result.error ?? ""}\n${result.stderr}\n${result.stdout}`);
 });

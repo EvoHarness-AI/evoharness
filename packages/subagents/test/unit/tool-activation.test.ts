@@ -5,58 +5,125 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { toToolDeclaration, validateToolArguments } from "@evoharness/ai";
-import { ensureSupervisorChannelDir, registerNativeSupervisorClient, resolveSupervisorChannelDir, TOP_LEVEL_SUPERVISOR_REFUSAL } from "../../src/intercom/native-supervisor-channel.ts";
-import registerSubagentExtension from "../../src/extension/index.ts";
-import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
-import { resolvePiPackageRoot } from "../../src/runs/shared/pi-spawn.ts";
 import { registerBackgroundWorkProvider } from "../../src/api/background-work.ts";
+import registerSubagentExtension from "../../src/extension/index.ts";
+import {
+	ensureSupervisorChannelDir,
+	registerNativeSupervisorClient,
+	resolveSupervisorChannelDir,
+	TOP_LEVEL_SUPERVISOR_REFUSAL,
+} from "../../src/intercom/native-supervisor-channel.ts";
+import { resolvePiPackageRoot } from "../../src/runs/shared/pi-spawn.ts";
+import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
 
 type Handler = (event: any, context: any) => any;
-type Tool = { name: string; description?: string; promptSnippet?: string; parameters?: unknown; execute?: (...args: any[]) => any; sourceInfo?: { path: string } };
+type Tool = {
+	name: string;
+	description?: string;
+	promptSnippet?: string;
+	parameters?: unknown;
+	execute?: (...args: any[]) => any;
+	sourceInfo?: { path: string };
+};
 
 const runtimes: Array<{ handlers: Map<string, Handler[]>; context: any }> = [];
 
 type RuntimeOptions = { config?: Record<string, unknown>; model?: unknown };
 const DYNAMIC: RuntimeOptions = { config: { toolActivation: "dynamic" } };
 
-function createRuntime(messages: any[] = [], excluded: string[] = [], missingApis: string[] = [], options: RuntimeOptions = {}) {
+function createRuntime(
+	messages: any[] = [],
+	excluded: string[] = [],
+	missingApis: string[] = [],
+	options: RuntimeOptions = {},
+) {
 	const handlers = new Map<string, Handler[]>();
 	const tools = new Map<string, Tool>();
 	let activeNames = ["read"];
 	const excludedNames = new Set(excluded);
 	const missingApiNames = new Set(missingApis);
-	const pi = new Proxy({
-		events: { on() { return () => {}; }, emit() {} },
-		on(name: string, handler: Handler) {
-			const registered = handlers.get(name) ?? [];
-			registered.push(handler);
-			handlers.set(name, registered);
+	const pi = new Proxy(
+		{
+			events: {
+				on() {
+					return () => {};
+				},
+				emit() {},
+			},
+			on(name: string, handler: Handler) {
+				const registered = handlers.get(name) ?? [];
+				registered.push(handler);
+				handlers.set(name, registered);
+			},
+			registerTool(tool: Tool) {
+				tools.set(tool.name, tool);
+				if (!excludedNames.has(tool.name)) activeNames = [...new Set([...activeNames, tool.name])];
+			},
+			getAllTools() {
+				return [...tools.values()]
+					.filter((tool) => !excludedNames.has(tool.name))
+					.map((tool) => ({ sourceInfo: { path: "pi-subagents" }, ...tool }));
+			},
+			getActiveTools() {
+				return [...activeNames];
+			},
+			setActiveTools(names: string[]) {
+				const available = new Set([...tools.keys(), "read"].filter((name) => !excludedNames.has(name)));
+				activeNames = [...new Set(names.filter((name) => available.has(name)))];
+			},
+			registerCommand() {},
+			registerShortcut() {},
+			registerMessageRenderer() {},
+			sendMessage() {},
+			getSessionName() {},
 		},
-		registerTool(tool: Tool) {
-			tools.set(tool.name, tool);
-			if (!excludedNames.has(tool.name)) activeNames = [...new Set([...activeNames, tool.name])];
+		{
+			get(target, property) {
+				if (missingApiNames.has(String(property))) return undefined;
+				return property in target ? target[property as keyof typeof target] : () => undefined;
+			},
 		},
-		getAllTools() {
-			return [...tools.values()].filter((tool) => !excludedNames.has(tool.name)).map((tool) => ({ sourceInfo: { path: "pi-subagents" }, ...tool }));
-		},
-		getActiveTools() { return [...activeNames]; },
-		setActiveTools(names: string[]) {
-			const available = new Set([...tools.keys(), "read"].filter((name) => !excludedNames.has(name)));
-			activeNames = [...new Set(names.filter((name) => available.has(name)))];
-		},
-		registerCommand() {}, registerShortcut() {}, registerMessageRenderer() {}, sendMessage() {}, getSessionName() {},
-	}, { get(target, property) {
-		if (missingApiNames.has(String(property))) return undefined;
-		return property in target ? target[property as keyof typeof target] : () => undefined;
-	} });
+	);
 	const context = {
-		cwd: process.cwd(), isIdle() { return false; }, hasUI: false, model: options.model as any,
-		ui: { setWidget() {}, theme: { fg(_name: string, text: string) { return text; }, bg(_name: string, text: string) { return text; }, bold(text: string) { return text; } } },
-		sessionManager: {
-			getSessionId() { return "activation-session"; }, getSessionFile() { return null; }, getEntries() { return []; },
-			buildSessionContext() { return { messages }; },
+		cwd: process.cwd(),
+		isIdle() {
+			return false;
 		},
-		modelRegistry: { getAvailable() { return []; } },
+		hasUI: false,
+		model: options.model as any,
+		ui: {
+			setWidget() {},
+			theme: {
+				fg(_name: string, text: string) {
+					return text;
+				},
+				bg(_name: string, text: string) {
+					return text;
+				},
+				bold(text: string) {
+					return text;
+				},
+			},
+		},
+		sessionManager: {
+			getSessionId() {
+				return "activation-session";
+			},
+			getSessionFile() {
+				return null;
+			},
+			getEntries() {
+				return [];
+			},
+			buildSessionContext() {
+				return { messages };
+			},
+		},
+		modelRegistry: {
+			getAvailable() {
+				return [];
+			},
+		},
 	};
 	const childEnv = process.env.PI_SUBAGENT_CHILD;
 	const priorAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -77,9 +144,13 @@ function createRuntime(messages: any[] = [], excluded: string[] = [], missingApi
 	}
 	runtimes.push({ handlers, context });
 	return {
-		handlers, tools, context,
+		handlers,
+		tools,
+		context,
 		active: () => [...activeNames],
-		select: (names: string[]) => { activeNames = [...names]; },
+		select: (names: string[]) => {
+			activeNames = [...names];
+		},
 		async emit(name: string, event: any) {
 			for (const handler of handlers.get(name) ?? []) await handler(event, context);
 		},
@@ -88,7 +159,8 @@ function createRuntime(messages: any[] = [], excluded: string[] = [], missingApi
 
 afterEach(async () => {
 	for (const runtime of runtimes.splice(0)) {
-		for (const handler of runtime.handlers.get("session_shutdown") ?? []) await handler({ type: "session_shutdown", reason: "quit" }, runtime.context);
+		for (const handler of runtime.handlers.get("session_shutdown") ?? [])
+			await handler({ type: "session_shutdown", reason: "quit" }, runtime.context);
 	}
 });
 
@@ -104,7 +176,15 @@ describe("subagent tool activation", () => {
 		const loader = runtime.tools.get("subagents_enable");
 		assert.ok(loader);
 		assert.match(loader.description ?? "", /current request|applicable .*instructions/i);
-		assert.deepEqual(validateToolArguments(loader as never, { type: "toolCall", id: "call-1", name: "subagents_enable", arguments: { action: "enable" } }), { action: "enable" });
+		assert.deepEqual(
+			validateToolArguments(loader as never, {
+				type: "toolCall",
+				id: "call-1",
+				name: "subagents_enable",
+				arguments: { action: "enable" },
+			}),
+			{ action: "enable" },
+		);
 
 		const result = await loader.execute?.("enable", {}, new AbortController().signal, undefined, runtime.context);
 		assert.notEqual(result?.isError, true);
@@ -157,14 +237,18 @@ describe("subagent tool activation", () => {
 		runtime.select(["read"]);
 		const selectedTools = runtime.active();
 		await runtime.emit("before_agent_start", {
-			type: "before_agent_start", prompt: "delegate this complex task", systemPrompt: "base",
+			type: "before_agent_start",
+			prompt: "delegate this complex task",
+			systemPrompt: "base",
 			systemPromptOptions: { selectedTools, sections: {}, promptGuidelines: [] },
 		});
 		assert.equal(runtime.active().includes("subagent"), false);
 		assert.ok(runtime.active().includes("subagents_enable"));
 		assert.ok(selectedTools.includes("subagents_enable"));
 		const defaultSelectionEvent = {
-			type: "before_agent_start", prompt: "continue", systemPrompt: "base",
+			type: "before_agent_start",
+			prompt: "continue",
+			systemPrompt: "base",
 			systemPromptOptions: { selectedTools: runtime.active(), sections: {}, promptGuidelines: [] },
 		};
 		await runtime.emit("before_agent_start", defaultSelectionEvent);
@@ -200,7 +284,11 @@ describe("host dynamic tool support detection", () => {
 
 const tool = (name: string) => ({ name, description: name, parameters: { type: "object" } });
 const declared = (added: string[], removed: string[] = []) => ({
-	role: "system", content: "", toolsAdded: added.map(tool), ...(removed.length ? { toolsRemoved: removed.map((name) => ({ name })) } : {}), timestamp: 1,
+	role: "system",
+	content: "",
+	toolsAdded: added.map(tool),
+	...(removed.length ? { toolsRemoved: removed.map((name) => ({ name })) } : {}),
+	timestamp: 1,
 });
 const model = (api: string, compat?: Record<string, boolean>) => ({ id: "m", provider: "p", api, compat });
 const system = { supportsMidConvoSystemMessages: true };
@@ -209,7 +297,9 @@ const INCOMPATIBLE = model("openai-completions", { supportsMidConvoToolAdditions
 
 async function startAgent(runtime: ReturnType<typeof createRuntime>): Promise<string[]> {
 	const event = {
-		type: "before_agent_start", prompt: "continue", systemPrompt: "base",
+		type: "before_agent_start",
+		prompt: "continue",
+		systemPrompt: "base",
 		systemPromptOptions: { selectedTools: runtime.active(), sections: {}, promptGuidelines: [] },
 	};
 	await runtime.emit("before_agent_start", event);
@@ -235,17 +325,29 @@ const replays = (current: string[]): Array<[string, (runtime: Runtime) => void, 
 // Asserts what the replay applied, then that before_agent_start declares the same.
 async function assertOwned(runtime: Runtime, label: string, expected: Record<string, boolean>): Promise<void> {
 	const active = runtime.active();
-	for (const [name, on] of Object.entries(expected)) assert.equal(active.includes(name), on, `${label}: active ${name}`);
+	for (const [name, on] of Object.entries(expected))
+		assert.equal(active.includes(name), on, `${label}: active ${name}`);
 	const selectedTools = await startAgent(runtime);
-	for (const [name, on] of Object.entries(expected)) assert.equal(selectedTools.includes(name), on, `${label}: ${name}`);
+	for (const [name, on] of Object.entries(expected))
+		assert.equal(selectedTools.includes(name), on, `${label}: ${name}`);
 }
 
-async function replayAll(messages: any[], options: RuntimeOptions, current: string[], label: string, expected: Record<string, boolean>): Promise<void> {
+async function replayAll(
+	messages: any[],
+	options: RuntimeOptions,
+	current: string[],
+	label: string,
+	expected: Record<string, boolean>,
+): Promise<void> {
 	const runtime = createRuntime(messages, [], [], options);
 	for (const [event, prepare, payload] of replays(current)) {
 		prepare(runtime);
 		await runtime.emit(payload.type, payload);
-		await assertOwned(runtime, `${label}, ${(options.model as { api?: string } | undefined)?.api}, ${event}`, expected);
+		await assertOwned(
+			runtime,
+			`${label}, ${(options.model as { api?: string } | undefined)?.api}, ${event}`,
+			expected,
+		);
 	}
 }
 
@@ -268,7 +370,10 @@ describe("toolActivation modes", () => {
 			[undefined, false],
 			[model("anthropic-messages"), false],
 			[model("anthropic-messages", { ...system, supportsMidConvoToolChanges: true }), true],
-			[model("anthropic-messages", { supportsMidConvoSystemMessages: false, supportsMidConvoToolChanges: true }), false],
+			[
+				model("anthropic-messages", { supportsMidConvoSystemMessages: false, supportsMidConvoToolChanges: true }),
+				false,
+			],
 			[model("anthropic-messages", { supportsMidConvoToolChanges: true }), false],
 			[model("anthropic-messages", system), false],
 			[model("openai-completions", { ...system, supportsMidConvoToolAdditions: true }), true],
@@ -278,7 +383,15 @@ describe("toolActivation modes", () => {
 			[model("openai-responses", system), false],
 			[model("openai-codex-responses", { ...system, supportsToolSearch: true }), true],
 			[model("azure-openai-responses", { ...system, supportsAdditionalTools: true }), true],
-			[model("google-generative-ai", { ...system, supportsMidConvoToolChanges: true, supportsMidConvoToolAdditions: true, supportsAdditionalTools: true }), false],
+			[
+				model("google-generative-ai", {
+					...system,
+					supportsMidConvoToolChanges: true,
+					supportsMidConvoToolAdditions: true,
+					supportsAdditionalTools: true,
+				}),
+				false,
+			],
 		];
 		for (const [caseModel, compatible] of cases) {
 			const runtime = createRuntime([], [], [], { model: caseModel });
@@ -315,7 +428,11 @@ describe("toolActivation modes", () => {
 			["cold", [declared(["read", "subagents_enable"])], ["subagents_enable"]],
 			["warm", [declared(["read", "subagents_enable"]), declared(["subagent"])], ["subagents_enable", "subagent"]],
 			["eager", [declared(["read", "subagent"])], ["subagent"]],
-			["loader removed", [declared(["read", "subagents_enable", "subagent"]), declared([], ["subagents_enable"])], ["subagent"]],
+			[
+				"loader removed",
+				[declared(["read", "subagents_enable", "subagent"]), declared([], ["subagents_enable"])],
+				["subagent"],
+			],
 			["legacy", [{ role: "user", content: "continue", timestamp: 1 }], ["subagents_enable", "subagent"]],
 		];
 		for (const caseModel of [COMPATIBLE, INCOMPATIBLE]) {
@@ -329,8 +446,16 @@ describe("toolActivation modes", () => {
 					await runtime.emit(event.type, event);
 					const selectedTools = await startAgent(runtime);
 					for (const name of ["subagents_enable", "subagent"]) {
-						assert.equal(selectedTools.includes(name), expected.includes(name), `${label}, ${caseModel.api}, ${event.type}: ${name}`);
-						assert.equal(runtime.active().includes(name), expected.includes(name), `${label}, ${caseModel.api}, ${event.type}: active ${name}`);
+						assert.equal(
+							selectedTools.includes(name),
+							expected.includes(name),
+							`${label}, ${caseModel.api}, ${event.type}: ${name}`,
+						);
+						assert.equal(
+							runtime.active().includes(name),
+							expected.includes(name),
+							`${label}, ${caseModel.api}, ${event.type}: active ${name}`,
+						);
 					}
 				}
 			}
@@ -341,18 +466,52 @@ describe("toolActivation modes", () => {
 		const extensionTools = ["bg_wait", "subagent_supervisor"];
 		const unload = (names: string[]) => declared([], [...names, ...extensionTools]);
 		const cases: Array<[string, RuntimeOptions, any[], string[]]> = [
-			["warm unload", {}, [declared(["read", "subagent", "contact_supervisor", ...extensionTools]), unload(["subagent", "contact_supervisor"])], ["subagent"]],
-			["warm unload, support tools re-added", {}, [declared(["read", "subagent", ...extensionTools]), unload(["subagent"]), declared(extensionTools)], ["subagent"]],
-			["cold unload", {}, [declared(["read", "subagents_enable", ...extensionTools]), unload(["subagents_enable"])], ["subagents_enable"]],
-			["dynamic warm unload", DYNAMIC, [declared(["read", "subagent", ...extensionTools]), unload(["subagent"])], ["subagents_enable", "subagent"]],
-			["deliberate removal", {}, [declared(["read", "subagent", ...extensionTools]), declared([], ["subagent", "contact_supervisor"])], []],
-			["bg_wait redefined", {}, [declared(["read", "subagent", ...extensionTools]), declared(["bg_wait"], ["subagent", "bg_wait"])], []],
+			[
+				"warm unload",
+				{},
+				[
+					declared(["read", "subagent", "contact_supervisor", ...extensionTools]),
+					unload(["subagent", "contact_supervisor"]),
+				],
+				["subagent"],
+			],
+			[
+				"warm unload, support tools re-added",
+				{},
+				[declared(["read", "subagent", ...extensionTools]), unload(["subagent"]), declared(extensionTools)],
+				["subagent"],
+			],
+			[
+				"cold unload",
+				{},
+				[declared(["read", "subagents_enable", ...extensionTools]), unload(["subagents_enable"])],
+				["subagents_enable"],
+			],
+			[
+				"dynamic warm unload",
+				DYNAMIC,
+				[declared(["read", "subagent", ...extensionTools]), unload(["subagent"])],
+				["subagents_enable", "subagent"],
+			],
+			[
+				"deliberate removal",
+				{},
+				[declared(["read", "subagent", ...extensionTools]), declared([], ["subagent", "contact_supervisor"])],
+				[],
+			],
+			[
+				"bg_wait redefined",
+				{},
+				[declared(["read", "subagent", ...extensionTools]), declared(["bg_wait"], ["subagent", "bg_wait"])],
+				[],
+			],
 		];
 		for (const [label, options, messages, expected] of cases) {
 			const runtime = createRuntime(messages, [], [], { ...options, model: COMPATIBLE });
 			await runtime.emit("session_start", { type: "session_start", reason: "reload" });
 			const selectedTools = await startAgent(runtime);
-			for (const name of ["subagents_enable", "subagent"]) assert.equal(selectedTools.includes(name), expected.includes(name), `${label}: ${name}`);
+			for (const name of ["subagents_enable", "subagent"])
+				assert.equal(selectedTools.includes(name), expected.includes(name), `${label}: ${name}`);
 		}
 	});
 
@@ -366,9 +525,18 @@ describe("toolActivation modes", () => {
 			await runtime.emit("session_start", { type: "session_start", reason: "resume" });
 			return runtime;
 		};
-		const firstUpdate = [declared(["read", "plan_tool", ...extensionTools]), declared([], ["plan_tool", ...extensionTools])];
+		const firstUpdate = [
+			declared(["read", "plan_tool", ...extensionTools]),
+			declared([], ["plan_tool", ...extensionTools]),
+		];
 		const continued = await restart(firstUpdate);
-		assert.deepEqual(continued.active().sort(), ["bg_wait", "contact_supervisor", "read", "subagent", "subagent_supervisor"]);
+		assert.deepEqual(continued.active().sort(), [
+			"bg_wait",
+			"contact_supervisor",
+			"read",
+			"subagent",
+			"subagent_supervisor",
+		]);
 
 		// The next turn declares what is active; a second update then removes it again.
 		const redeclared = continued.active().filter((name) => name !== "read");
@@ -381,7 +549,11 @@ describe("toolActivation modes", () => {
 		assert.equal(excluded.active().includes("subagent_supervisor"), false, "excluded: subagent_supervisor");
 
 		// Without an unload, the transcript's tools stand: bg_wait was never declared here.
-		const unaffected = await restart([declared(["read", "subagent", "contact_supervisor"])], [], ["read", "subagent", "contact_supervisor"]);
+		const unaffected = await restart(
+			[declared(["read", "subagent", "contact_supervisor"])],
+			[],
+			["read", "subagent", "contact_supervisor"],
+		);
 		assert.equal(unaffected.active().includes("bg_wait"), false, "unaffected: bg_wait");
 		assert.ok(unaffected.active().includes("subagent"), "unaffected: subagent");
 	});
@@ -408,7 +580,12 @@ describe("toolActivation modes", () => {
 		assert.ok((await startAgent(coldAuto)).includes("subagents_enable"), "cold: loader kept");
 
 		// Synthetic: Pi cannot remove a tool that was never declared. It pins that such a removal is a choice, not an unload.
-		const removedAfterCompaction = createRuntime([compacted, surviving, declared([], ["subagent", "contact_supervisor"])], [], [], { model: INCOMPATIBLE });
+		const removedAfterCompaction = createRuntime(
+			[compacted, surviving, declared([], ["subagent", "contact_supervisor"])],
+			[],
+			[],
+			{ model: INCOMPATIBLE },
+		);
 		removedAfterCompaction.select(["read"]);
 		await removedAfterCompaction.emit("session_start", { type: "session_start", reason: "resume" });
 		assert.equal(removedAfterCompaction.active().includes("subagent"), false, "removal echo honored");
@@ -425,10 +602,20 @@ describe("toolActivation modes", () => {
 		const messages = [compacted, other, declared(["bg_wait"])];
 		const dispose = registerBackgroundWorkProvider({ name: "tool-activation-lost-loader", listActiveWork: () => [] });
 		try {
-			await replayAll(messages, { model: COMPATIBLE }, ["other_extension_tool", "bg_wait"], "lost cold",
-				{ subagents_enable: true, subagent: false, contact_supervisor: false, bg_wait: true, subagent_supervisor: false });
-			await replayAll(messages, { model: INCOMPATIBLE }, ["other_extension_tool", "bg_wait"], "lost eager",
-				{ subagents_enable: false, subagent: true, contact_supervisor: true, bg_wait: true, subagent_supervisor: true });
+			await replayAll(messages, { model: COMPATIBLE }, ["other_extension_tool", "bg_wait"], "lost cold", {
+				subagents_enable: true,
+				subagent: false,
+				contact_supervisor: false,
+				bg_wait: true,
+				subagent_supervisor: false,
+			});
+			await replayAll(messages, { model: INCOMPATIBLE }, ["other_extension_tool", "bg_wait"], "lost eager", {
+				subagents_enable: false,
+				subagent: true,
+				contact_supervisor: true,
+				bg_wait: true,
+				subagent_supervisor: true,
+			});
 		} finally {
 			dispose();
 		}
@@ -438,16 +625,35 @@ describe("toolActivation modes", () => {
 		// guard: the checkpoint system message precedes the summary and re-declares the active tools.
 		const messages = [declared(["read", "other_extension_tool"]), compacted, declared(["bg_wait"])];
 		for (const caseModel of [COMPATIBLE, INCOMPATIBLE]) {
-			await replayAll(messages, { model: caseModel }, ["other_extension_tool", "bg_wait"], "checkpointed",
-				{ subagents_enable: false, subagent: false, contact_supervisor: false, bg_wait: true });
+			await replayAll(messages, { model: caseModel }, ["other_extension_tool", "bg_wait"], "checkpointed", {
+				subagents_enable: false,
+				subagent: false,
+				contact_supervisor: false,
+				bg_wait: true,
+			});
 		}
-		await replayAll([declared(["read", "subagents_enable"]), compacted, declared(["bg_wait"])], { model: COMPATIBLE }, ["subagents_enable", "bg_wait"], "checkpointed cold",
-			{ subagents_enable: true, subagent: false, bg_wait: true });
+		await replayAll(
+			[declared(["read", "subagents_enable"]), compacted, declared(["bg_wait"])],
+			{ model: COMPATIBLE },
+			["subagents_enable", "bg_wait"],
+			"checkpointed cold",
+			{ subagents_enable: true, subagent: false, bg_wait: true },
+		);
 	});
 
 	it("keeps the loader of a lost activation state across an unload recorded after the compaction", async () => {
 		// Both the old and the new unload rule call this an unload; it pins the loader and the bg_wait restore.
-		const runtime = createRuntime([compacted, other, declared(["bg_wait", "subagent_supervisor"]), declared([], ["bg_wait", "subagent_supervisor"])], [], [], { model: COMPATIBLE });
+		const runtime = createRuntime(
+			[
+				compacted,
+				other,
+				declared(["bg_wait", "subagent_supervisor"]),
+				declared([], ["bg_wait", "subagent_supervisor"]),
+			],
+			[],
+			[],
+			{ model: COMPATIBLE },
+		);
 		runtime.select(["read"]);
 		await runtime.emit(RESUME.type, RESUME);
 		await assertOwned(runtime, "lost unload", { subagents_enable: true, subagent: false, bg_wait: true });
@@ -455,18 +661,38 @@ describe("toolActivation modes", () => {
 
 	it("keeps a surviving activation record after a compaction, whatever the model", async () => {
 		// guard: the loader and subagent are one activation state; either surviving declares it.
-		await replayAll([compacted, declared(["read", "subagents_enable"])], { model: INCOMPATIBLE }, ["subagents_enable"], "lost, loader survives",
-			{ subagents_enable: true, subagent: false, contact_supervisor: false, bg_wait: false });
-		await replayAll([compacted, declared(["read", "subagent", "contact_supervisor", "bg_wait"])], { model: COMPATIBLE }, ["subagent", "contact_supervisor", "bg_wait"], "lost, subagent survives",
-			{ subagents_enable: false, subagent: true, bg_wait: true });
+		await replayAll(
+			[compacted, declared(["read", "subagents_enable"])],
+			{ model: INCOMPATIBLE },
+			["subagents_enable"],
+			"lost, loader survives",
+			{ subagents_enable: true, subagent: false, contact_supervisor: false, bg_wait: false },
+		);
+		await replayAll(
+			[compacted, declared(["read", "subagent", "contact_supervisor", "bg_wait"])],
+			{ model: COMPATIBLE },
+			["subagent", "contact_supervisor", "bg_wait"],
+			"lost, subagent survives",
+			{ subagents_enable: false, subagent: true, bg_wait: true },
+		);
 		const enabled = ["subagent", "contact_supervisor", "bg_wait", "subagent_supervisor"];
 		const messages = [compacted, other, declared(enabled)];
 		for (const caseModel of [COMPATIBLE, INCOMPATIBLE]) {
-			await replayAll(messages, { model: caseModel }, ["other_extension_tool", ...enabled], "lost, enable survives",
-				{ subagents_enable: false, subagent: true, contact_supervisor: true, bg_wait: true });
+			await replayAll(
+				messages,
+				{ model: caseModel },
+				["other_extension_tool", ...enabled],
+				"lost, enable survives",
+				{ subagents_enable: false, subagent: true, contact_supervisor: true, bg_wait: true },
+			);
 		}
-		await replayAll(messages, { ...DYNAMIC, model: COMPATIBLE }, ["other_extension_tool", ...enabled], "dynamic, enable survives",
-			{ subagents_enable: true, subagent: true });
+		await replayAll(
+			messages,
+			{ ...DYNAMIC, model: COMPATIBLE },
+			["other_extension_tool", ...enabled],
+			"dynamic, enable survives",
+			{ subagents_enable: true, subagent: true },
+		);
 	});
 
 	it("replays a transcript that never declared this extension's tools without adding them", async () => {
@@ -481,20 +707,49 @@ describe("toolActivation modes", () => {
 	});
 
 	it("tells an unload from a deliberate removal after a compaction", async () => {
-		const removed = createRuntime([compacted, declared(["bg_wait", "subagent", "contact_supervisor"]), declared([], ["subagent", "contact_supervisor"])], [], [], { model: INCOMPATIBLE });
+		const removed = createRuntime(
+			[
+				compacted,
+				declared(["bg_wait", "subagent", "contact_supervisor"]),
+				declared([], ["subagent", "contact_supervisor"]),
+			],
+			[],
+			[],
+			{ model: INCOMPATIBLE },
+		);
 		await removed.emit(RELOAD.type, RELOAD);
 		await assertOwned(removed, "deliberate removal", { subagents_enable: false, subagent: false, bg_wait: true });
 
-		const redefined = createRuntime([compacted, other, declared(["subagent", "contact_supervisor", "bg_wait"]), declared(["bg_wait"], ["bg_wait"])], [], [], { model: COMPATIBLE });
+		const redefined = createRuntime(
+			[
+				compacted,
+				other,
+				declared(["subagent", "contact_supervisor", "bg_wait"]),
+				declared(["bg_wait"], ["bg_wait"]),
+			],
+			[],
+			[],
+			{ model: COMPATIBLE },
+		);
 		await redefined.emit(RELOAD.type, RELOAD);
 		await assertOwned(redefined, "bg_wait redefined", { subagents_enable: false, subagent: true, bg_wait: true });
 	});
 
 	it("always offers the loader in dynamic after a compaction", async () => {
-		await replayAll([compacted, other, declared(["bg_wait"])], { ...DYNAMIC, model: INCOMPATIBLE }, ["other_extension_tool", "bg_wait"], "dynamic lost",
-			{ subagents_enable: true, subagent: false });
-		await replayAll([compacted, declared(["read", "subagent", "contact_supervisor"])], { ...DYNAMIC, model: COMPATIBLE }, ["subagent", "contact_supervisor"], "dynamic lost warm",
-			{ subagents_enable: true, subagent: true });
+		await replayAll(
+			[compacted, other, declared(["bg_wait"])],
+			{ ...DYNAMIC, model: INCOMPATIBLE },
+			["other_extension_tool", "bg_wait"],
+			"dynamic lost",
+			{ subagents_enable: true, subagent: false },
+		);
+		await replayAll(
+			[compacted, declared(["read", "subagent", "contact_supervisor"])],
+			{ ...DYNAMIC, model: COMPATIBLE },
+			["subagent", "contact_supervisor"],
+			"dynamic lost warm",
+			{ subagents_enable: true, subagent: true },
+		);
 	});
 
 	it("leaves the channel's subagent_supervisor off in a lost cold session without a pending request", async () => {
@@ -506,20 +761,89 @@ describe("toolActivation modes", () => {
 	it("decides a compacted session's tools from its transcript alone", async () => {
 		const unit = ["subagent", "contact_supervisor", "bg_wait", "subagent_supervisor"];
 		const scenarios: Array<[string, any[], RuntimeOptions, string[]]> = [
-			["lost cold", [compacted, other, declared(["bg_wait"])], { model: COMPATIBLE }, ["other_extension_tool", "bg_wait"]],
-			["lost eager", [compacted, other, declared(["bg_wait"])], { model: INCOMPATIBLE }, ["other_extension_tool", "bg_wait"]],
-			["checkpointed", [other, compacted, declared(["bg_wait"])], { model: COMPATIBLE }, ["other_extension_tool", "bg_wait"]],
-			["checkpointed", [other, compacted, declared(["bg_wait"])], { model: INCOMPATIBLE }, ["other_extension_tool", "bg_wait"]],
-			["lost unload", [compacted, other, declared(["bg_wait", "subagent_supervisor"]), declared([], ["bg_wait", "subagent_supervisor"])], { model: COMPATIBLE }, []],
-			["lost, loader survives", [compacted, declared(["read", "subagents_enable"])], { model: INCOMPATIBLE }, ["subagents_enable"]],
-			["lost, subagent survives", [compacted, declared(["read", "subagent", "contact_supervisor", "bg_wait"])], { model: COMPATIBLE }, ["subagent", "contact_supervisor", "bg_wait"]],
-			["lost, enable survives", [compacted, other, declared(unit)], { model: INCOMPATIBLE }, ["other_extension_tool", ...unit]],
+			[
+				"lost cold",
+				[compacted, other, declared(["bg_wait"])],
+				{ model: COMPATIBLE },
+				["other_extension_tool", "bg_wait"],
+			],
+			[
+				"lost eager",
+				[compacted, other, declared(["bg_wait"])],
+				{ model: INCOMPATIBLE },
+				["other_extension_tool", "bg_wait"],
+			],
+			[
+				"checkpointed",
+				[other, compacted, declared(["bg_wait"])],
+				{ model: COMPATIBLE },
+				["other_extension_tool", "bg_wait"],
+			],
+			[
+				"checkpointed",
+				[other, compacted, declared(["bg_wait"])],
+				{ model: INCOMPATIBLE },
+				["other_extension_tool", "bg_wait"],
+			],
+			[
+				"lost unload",
+				[
+					compacted,
+					other,
+					declared(["bg_wait", "subagent_supervisor"]),
+					declared([], ["bg_wait", "subagent_supervisor"]),
+				],
+				{ model: COMPATIBLE },
+				[],
+			],
+			[
+				"lost, loader survives",
+				[compacted, declared(["read", "subagents_enable"])],
+				{ model: INCOMPATIBLE },
+				["subagents_enable"],
+			],
+			[
+				"lost, subagent survives",
+				[compacted, declared(["read", "subagent", "contact_supervisor", "bg_wait"])],
+				{ model: COMPATIBLE },
+				["subagent", "contact_supervisor", "bg_wait"],
+			],
+			[
+				"lost, enable survives",
+				[compacted, other, declared(unit)],
+				{ model: INCOMPATIBLE },
+				["other_extension_tool", ...unit],
+			],
 			["lost, nothing survives", [compacted, other], { model: INCOMPATIBLE }, []],
 			["lost, nothing survives", [compacted, other], { model: COMPATIBLE }, []],
-			["lost, no tool selection survives", [compacted, { role: "user", content: "next", timestamp: 0 }], { model: INCOMPATIBLE }, []],
-			["lost, no tool selection survives", [compacted, { role: "user", content: "next", timestamp: 0 }], { model: COMPATIBLE }, []],
-			["deliberate removal", [compacted, declared(["bg_wait", "subagent", "contact_supervisor"]), declared([], ["subagent", "contact_supervisor"])], { model: INCOMPATIBLE }, ["bg_wait"]],
-			["dynamic lost", [compacted, other, declared(["bg_wait"])], { ...DYNAMIC, model: INCOMPATIBLE }, ["other_extension_tool", "bg_wait"]],
+			[
+				"lost, no tool selection survives",
+				[compacted, { role: "user", content: "next", timestamp: 0 }],
+				{ model: INCOMPATIBLE },
+				[],
+			],
+			[
+				"lost, no tool selection survives",
+				[compacted, { role: "user", content: "next", timestamp: 0 }],
+				{ model: COMPATIBLE },
+				[],
+			],
+			[
+				"deliberate removal",
+				[
+					compacted,
+					declared(["bg_wait", "subagent", "contact_supervisor"]),
+					declared([], ["subagent", "contact_supervisor"]),
+				],
+				{ model: INCOMPATIBLE },
+				["bg_wait"],
+			],
+			[
+				"dynamic lost",
+				[compacted, other, declared(["bg_wait"])],
+				{ ...DYNAMIC, model: INCOMPATIBLE },
+				["other_extension_tool", "bg_wait"],
+			],
 			["intact, never declared", [other], { model: COMPATIBLE }, ["other_extension_tool"]],
 		];
 		const owned = (names: string[]) => {
@@ -563,7 +887,15 @@ describe("toolActivation modes", () => {
 		}
 
 		// A cold session that never declared bg_wait: its unload removes the loader, and a new process brings it back.
-		const unloaded = createRuntime([declared(["read", "subagents_enable", "subagent_supervisor"]), declared([], ["subagents_enable", "subagent_supervisor"])], [], [], { model: COMPATIBLE });
+		const unloaded = createRuntime(
+			[
+				declared(["read", "subagents_enable", "subagent_supervisor"]),
+				declared([], ["subagents_enable", "subagent_supervisor"]),
+			],
+			[],
+			[],
+			{ model: COMPATIBLE },
+		);
 		unloaded.select(["read"]);
 		await unloaded.emit("session_start", { type: "session_start", reason: "resume" });
 		assert.ok((await startAgent(unloaded)).includes("subagents_enable"), "unload: loader restored");
@@ -590,7 +922,10 @@ describe("toolActivation modes", () => {
 	});
 
 	it("rejects an unknown toolActivation value instead of falling back", () => {
-		assert.throws(() => createRuntime([], [], [], { config: { toolActivation: "lazy" } }), /config\.toolActivation must be "auto", "dynamic", or "eager"/);
+		assert.throws(
+			() => createRuntime([], [], [], { config: { toolActivation: "lazy" } }),
+			/config\.toolActivation must be "auto", "dynamic", or "eager"/,
+		);
 	});
 
 	it("keeps subagent_supervisor declared for a child request already pending when the session starts", async () => {
@@ -598,10 +933,21 @@ describe("toolActivation modes", () => {
 		const channelDir = resolveSupervisorChannelDir(runId, "worker", 0);
 		ensureSupervisorChannelDir(channelDir);
 		const requestId = randomUUID();
-		fs.writeFileSync(path.join(channelDir, "requests", `${requestId}.json`), JSON.stringify({
-			type: "subagent.supervisor.request", id: requestId, createdAt: Date.now(), reason: "need_decision", message: "Proceed?",
-			expectsReply: true, orchestratorSessionId: "activation-session", runId, agent: "worker", childIndex: 0,
-		}));
+		fs.writeFileSync(
+			path.join(channelDir, "requests", `${requestId}.json`),
+			JSON.stringify({
+				type: "subagent.supervisor.request",
+				id: requestId,
+				createdAt: Date.now(),
+				reason: "need_decision",
+				message: "Proceed?",
+				expectsReply: true,
+				orchestratorSessionId: "activation-session",
+				runId,
+				agent: "worker",
+				childIndex: 0,
+			}),
+		);
 		try {
 			const runtime = createRuntime([declared(["read", "subagents_enable", "bg_wait"])], [], [], DYNAMIC);
 			await runtime.emit("session_start", { type: "session_start", reason: "resume" });
@@ -622,14 +968,19 @@ describe("contact_supervisor in a top-level session", () => {
 		const lazy = createRuntime([], [], [], DYNAMIC);
 		await lazy.emit("session_start", { type: "session_start", reason: "startup" });
 		assert.equal(lazy.active().includes("contact_supervisor"), false);
-		await lazy.tools.get("subagents_enable")!.execute?.("enable", {}, new AbortController().signal, undefined, lazy.context);
+		await lazy.tools
+			.get("subagents_enable")!
+			.execute?.("enable", {}, new AbortController().signal, undefined, lazy.context);
 		assert.equal(lazy.active().indexOf("contact_supervisor"), lazy.active().indexOf("subagent") + 1);
 
 		const eager = createRuntime([], [], [], { config: { toolActivation: "eager" } });
 		await eager.emit("session_start", { type: "session_start", reason: "startup" });
 		assert.ok((await startAgent(eager)).includes("contact_supervisor"));
 
-		for (const [messages, expected] of [[[declared(["read", "subagents_enable"])], false], [[declared(["read", "subagent"])], true]] as const) {
+		for (const [messages, expected] of [
+			[[declared(["read", "subagents_enable"])], false],
+			[[declared(["read", "subagent"])], true],
+		] as const) {
 			const recorded = createRuntime([...messages], [], [], { model: COMPATIBLE });
 			await recorded.emit("session_start", { type: "session_start", reason: "resume" });
 			assert.equal(recorded.active().includes("contact_supervisor"), expected);
@@ -639,15 +990,33 @@ describe("contact_supervisor in a top-level session", () => {
 	it("has the declaration a child's working tool has, and a call is an error", async () => {
 		const runtime = createRuntime([], [], [], { config: { toolActivation: "eager" } });
 		let child: Tool | undefined;
-		registerNativeSupervisorClient({ registerTool(tool: Tool) { child = tool; }, getAllTools: () => [] } as never, {
-			channelDir: fs.mkdtempSync(path.join(os.tmpdir(), "supervisor-channel-")), runId: "run", agent: "worker", childIndex: 0, orchestratorSessionId: "parent",
-		} as never);
+		registerNativeSupervisorClient(
+			{
+				registerTool(tool: Tool) {
+					child = tool;
+				},
+				getAllTools: () => [],
+			} as never,
+			{
+				channelDir: fs.mkdtempSync(path.join(os.tmpdir(), "supervisor-channel-")),
+				runId: "run",
+				agent: "worker",
+				childIndex: 0,
+				orchestratorSessionId: "parent",
+			} as never,
+		);
 		const parent = runtime.tools.get("contact_supervisor");
 
 		assert.ok(parent && child);
 		assert.deepEqual(toToolDeclaration(parent as never), toToolDeclaration(child as never));
 		assert.equal((parent as { exposure?: string }).exposure, (child as { exposure?: string }).exposure);
-		const result = await parent.execute?.("call-1", { reason: "need_decision", message: "?" }, new AbortController().signal, undefined, runtime.context);
+		const result = await parent.execute?.(
+			"call-1",
+			{ reason: "need_decision", message: "?" },
+			new AbortController().signal,
+			undefined,
+			runtime.context,
+		);
 		assert.equal(result?.isError, true);
 		assert.equal(result?.content[0]?.text, TOP_LEVEL_SUPERVISOR_REFUSAL);
 	});

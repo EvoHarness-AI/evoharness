@@ -1,4 +1,9 @@
-import { previewDisplayText, safeTerminalText, sanitizeDisplayText, truncateDisplayText } from "../shared/display-text.ts";
+import {
+	previewDisplayText,
+	safeTerminalText,
+	sanitizeDisplayText,
+	truncateDisplayText,
+} from "../shared/display-text.ts";
 
 export const EXTERNAL_RUN_REGISTRY_VERSION = 2;
 export const EXTERNAL_RUN_REGISTRY_KEY = "pi-subagents.external-runs.v2";
@@ -72,7 +77,9 @@ const RUN_FIELD_NAMES = [
 	"transcriptPath",
 ] as const satisfies readonly (keyof ExternalRun)[];
 const RUN_FIELDS = new Set<string>(RUN_FIELD_NAMES);
-const UPDATE_FIELDS = new Set([...RUN_FIELDS].filter((field) => field !== "id" && field !== "sessionId" && field !== "source"));
+const UPDATE_FIELDS = new Set(
+	[...RUN_FIELDS].filter((field) => field !== "id" && field !== "sessionId" && field !== "source"),
+);
 
 function registry(): ExternalRunRegistry {
 	const key = Symbol.for(EXTERNAL_RUN_REGISTRY_KEY);
@@ -83,9 +90,11 @@ function registry(): ExternalRunRegistry {
 		target[key] = created;
 		return created;
 	}
-	if (!existing || typeof existing !== "object" || Array.isArray(existing)) throw new Error(`Malformed external-run registry at Symbol.for("${EXTERNAL_RUN_REGISTRY_KEY}").`);
+	if (!existing || typeof existing !== "object" || Array.isArray(existing))
+		throw new Error(`Malformed external-run registry at Symbol.for("${EXTERNAL_RUN_REGISTRY_KEY}").`);
 	const candidate = existing as Partial<ExternalRunRegistry>;
-	if (candidate.version !== EXTERNAL_RUN_REGISTRY_VERSION || !(candidate.runs instanceof Map)) throw new Error(`Unsupported external-run registry at Symbol.for("${EXTERNAL_RUN_REGISTRY_KEY}").`);
+	if (candidate.version !== EXTERNAL_RUN_REGISTRY_VERSION || !(candidate.runs instanceof Map))
+		throw new Error(`Unsupported external-run registry at Symbol.for("${EXTERNAL_RUN_REGISTRY_KEY}").`);
 	return candidate as ExternalRunRegistry;
 }
 
@@ -106,10 +115,12 @@ function inputObject(value: unknown, field: string, allowed: Set<string>): Recor
 }
 
 function identity(value: unknown, field: string, maxLength: number = EXTERNAL_RUN_LIMITS.maxIdentityLength): string {
-	if (typeof value !== "string" || value.length === 0 || value.trim() !== value || value.includes("\0")) throw new Error(`${field} must be a non-empty trimmed string without NUL characters.`);
+	if (typeof value !== "string" || value.length === 0 || value.trim() !== value || value.includes("\0"))
+		throw new Error(`${field} must be a non-empty trimmed string without NUL characters.`);
 	if (value.length > maxLength) throw new Error(`${field} must be at most ${maxLength} characters.`);
 	// Identities are often session-file paths, so Unicode spaces such as U+00A0 are valid; only terminal controls and line breaks are not.
-	if (/[\t\n\p{Zl}\p{Zp}]/u.test(value) || safeTerminalText(value) !== value) throw new Error(`${field} must contain only display-safe text.`);
+	if (/[\t\n\p{Zl}\p{Zp}]/u.test(value) || safeTerminalText(value) !== value)
+		throw new Error(`${field} must contain only display-safe text.`);
 	return value;
 }
 
@@ -127,12 +138,14 @@ function timestamp(value: unknown, field: string): number | undefined;
 function timestamp(value: unknown, field: string, required: true): number;
 function timestamp(value: unknown, field: string, required = false): number | undefined {
 	if (value === undefined && !required) return undefined;
-	if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0 || value > 8_640_000_000_000_000) throw new Error(`${field} must be a non-negative safe timestamp.`);
+	if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0 || value > 8_640_000_000_000_000)
+		throw new Error(`${field} must be a non-negative safe timestamp.`);
 	return value;
 }
 
 function state(value: unknown, field: string): ExternalRunState {
-	if (value === "queued" || value === "running" || value === "completed" || value === "failed" || value === "stopped") return value;
+	if (value === "queued" || value === "running" || value === "completed" || value === "failed" || value === "stopped")
+		return value;
 	throw new Error(`${field} is invalid.`);
 }
 
@@ -140,10 +153,18 @@ function validateRun(value: unknown): ExternalRun {
 	const run = inputObject(value, "External run", RUN_FIELDS);
 	const updatedAt = timestamp(run.updatedAt, "External run updatedAt");
 	const endedAt = timestamp(run.endedAt, "External run endedAt");
-	const currentAction = displayText(run.currentAction, "External run currentAction", EXTERNAL_RUN_LIMITS.maxTextLength);
+	const currentAction = displayText(
+		run.currentAction,
+		"External run currentAction",
+		EXTERNAL_RUN_LIMITS.maxTextLength,
+	);
 	const preview = displayText(run.preview, "External run preview", EXTERNAL_RUN_LIMITS.maxPreviewLength);
 	const reportPath = displayText(run.reportPath, "External run reportPath", EXTERNAL_RUN_LIMITS.maxPathLength);
-	const transcriptPath = displayText(run.transcriptPath, "External run transcriptPath", EXTERNAL_RUN_LIMITS.maxPathLength);
+	const transcriptPath = displayText(
+		run.transcriptPath,
+		"External run transcriptPath",
+		EXTERNAL_RUN_LIMITS.maxPathLength,
+	);
 	return {
 		id: identity(run.id, "External run id"),
 		sessionId: identity(run.sessionId, "External run sessionId", EXTERNAL_RUN_LIMITS.maxSessionIdLength),
@@ -193,7 +214,12 @@ function trustedRecordValue(value: unknown, record: TrustedExternalRunRecord | u
 	}
 }
 
-function rememberTrustedRecord(current: ExternalRunRegistry, cacheKey: string, value: unknown, normalized: ExternalRun): void {
+function rememberTrustedRecord(
+	current: ExternalRunRegistry,
+	cacheKey: string,
+	value: unknown,
+	normalized: ExternalRun,
+): void {
 	trustedRecords(current).set(cacheKey, trustedRecord(value, normalized));
 }
 
@@ -208,8 +234,10 @@ export function registerExternalRun(input: ExternalRun): ExternalRun {
 	const run = validateRun(input);
 	const current = registry();
 	const runKey = key(run.sessionId, run.id);
-	if (current.runs.has(runKey)) throw new Error(`External run '${run.id}' is already registered for session '${run.sessionId}'.`);
-	if (current.runs.size >= EXTERNAL_RUN_LIMITS.maxCachedRuns) throw new Error(`External-run registry supports at most ${EXTERNAL_RUN_LIMITS.maxCachedRuns} cached runs.`);
+	if (current.runs.has(runKey))
+		throw new Error(`External run '${run.id}' is already registered for session '${run.sessionId}'.`);
+	if (current.runs.size >= EXTERNAL_RUN_LIMITS.maxCachedRuns)
+		throw new Error(`External-run registry supports at most ${EXTERNAL_RUN_LIMITS.maxCachedRuns} cached runs.`);
 	current.runs.set(runKey, run);
 	rememberTrustedRecord(current, runKey, run, run);
 	return clone(run);
@@ -233,7 +261,10 @@ export function updateExternalRun(sessionId: string, id: string, update: Externa
 /** Remove a cached external job. The caller remains responsible for its process and artifacts. */
 export function unregisterExternalRun(sessionId: string, id: string): boolean {
 	const current = registry();
-	const runKey = key(identity(sessionId, "External run sessionId", EXTERNAL_RUN_LIMITS.maxSessionIdLength), identity(id, "External run id"));
+	const runKey = key(
+		identity(sessionId, "External run sessionId", EXTERNAL_RUN_LIMITS.maxSessionIdLength),
+		identity(id, "External run id"),
+	);
 	const deleted = current.runs.delete(runKey);
 	if (deleted) trustedRecords(current).delete(runKey);
 	return deleted;
@@ -248,7 +279,10 @@ function getErrorMessage(error: unknown): string {
 }
 
 /** Read a bounded cached snapshot for one Pi session. This never invokes third-party code. */
-export function snapshotExternalRuns(sessionId: string, options: ExternalRunSnapshotOptions = {}): readonly ExternalRun[] {
+export function snapshotExternalRuns(
+	sessionId: string,
+	options: ExternalRunSnapshotOptions = {},
+): readonly ExternalRun[] {
 	const safeSessionId = identity(sessionId, "External-run snapshot sessionId", EXTERNAL_RUN_LIMITS.maxSessionIdLength);
 	const current = registry();
 	const trusted = trustedRecords(current);
@@ -257,7 +291,8 @@ export function snapshotExternalRuns(sessionId: string, options: ExternalRunSnap
 	for (const [cacheKey, value] of current.runs.entries()) {
 		if (typeof cacheKey !== "string" || !cacheKey.startsWith(sessionPrefix)) continue;
 		try {
-			const run = trustedRecordValue(value, trusted.get(cacheKey)) ?? normalizeCachedRecord(current, cacheKey, value);
+			const run =
+				trustedRecordValue(value, trusted.get(cacheKey)) ?? normalizeCachedRecord(current, cacheKey, value);
 			if (run.sessionId === safeSessionId) runs.push(run);
 		} catch (error) {
 			// The cache key joins session and run id with NUL, and a malformed record's id is unvalidated.
@@ -272,7 +307,10 @@ export function snapshotExternalRuns(sessionId: string, options: ExternalRunSnap
 		const leftActive = left.state === "queued" || left.state === "running";
 		const rightActive = right.state === "queued" || right.state === "running";
 		if (leftActive !== rightActive) return leftActive ? -1 : 1;
-		return (right.updatedAt ?? right.endedAt ?? right.startedAt) - (left.updatedAt ?? left.endedAt ?? left.startedAt) || left.id.localeCompare(right.id);
+		return (
+			(right.updatedAt ?? right.endedAt ?? right.startedAt) - (left.updatedAt ?? left.endedAt ?? left.startedAt) ||
+			left.id.localeCompare(right.id)
+		);
 	});
 	const snapshot = runs.slice(0, EXTERNAL_RUN_LIMITS.maxSnapshotRuns).map(clone);
 	while (snapshot.length > 0 && snapshotBytes(snapshot) > EXTERNAL_RUN_LIMITS.maxSerializedBytes) snapshot.pop();

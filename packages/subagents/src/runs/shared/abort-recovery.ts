@@ -1,22 +1,27 @@
 import type { Message } from "@evoharness/ai";
 
-export const ABORT_RECOVERY_PROMPT = "The prior run ended from a provider/transport abort after useful progress. Continue from the current files and transcript. Do not restart. Fix any validation failure or write the required report. Finish with final output.";
+export const ABORT_RECOVERY_PROMPT =
+	"The prior run ended from a provider/transport abort after useful progress. Continue from the current files and transcript. Do not restart. Fix any validation failure or write the required report. Finish with final output.";
 
 export type AbortRecoveryPlan =
 	| { action: "resume"; prompt: typeof ABORT_RECOVERY_PROMPT }
 	| { action: "settle"; reason: string; diagnostic?: string };
 
-const PROVIDER_ABORT_PATTERN = /(?:provider|transport|connection|stream|socket|request).*(?:abort|closed|reset|ended|terminated|error|fail)|(?:abort|closed|reset|ended|terminated|error|fail).*(?:provider|transport|connection|stream|socket|request)/i;
-const ABORT_ERROR_PATTERN = /\b(?:operation|request|response|stream|connection|transport|provider)?\s*(?:was\s+)?aborted\b/i;
+const PROVIDER_ABORT_PATTERN =
+	/(?:provider|transport|connection|stream|socket|request).*(?:abort|closed|reset|ended|terminated|error|fail)|(?:abort|closed|reset|ended|terminated|error|fail).*(?:provider|transport|connection|stream|socket|request)/i;
+const ABORT_ERROR_PATTERN =
+	/\b(?:operation|request|response|stream|connection|transport|provider)?\s*(?:was\s+)?aborted\b/i;
 const TOOL_FAILURE_PREFIX = /^[\w.:@/-]+ failed (?:(?:\(exit \d+\):)|(?:with exit code \d+))(?:\s|$)/i;
 
 function isProviderAbortError(error: string): boolean {
-	return !TOOL_FAILURE_PREFIX.test(error.trim()) && (PROVIDER_ABORT_PATTERN.test(error) || ABORT_ERROR_PATTERN.test(error));
+	return (
+		!TOOL_FAILURE_PREFIX.test(error.trim()) && (PROVIDER_ABORT_PATTERN.test(error) || ABORT_ERROR_PATTERN.test(error))
+	);
 }
 
 function record(value: unknown): Record<string, unknown> | undefined {
 	return value !== null && typeof value === "object" && !Array.isArray(value)
-		? value as Record<string, unknown>
+		? (value as Record<string, unknown>)
 		: undefined;
 }
 
@@ -83,11 +88,11 @@ export function planAbortRecovery(input: {
 	const terminal = terminalAssistant(input.messages);
 	const message = terminal.message;
 	const terminalError = typeof message?.errorMessage === "string" ? message.errorMessage : undefined;
-	const emptyZeroUsageTerminal = message !== undefined
-		&& contentParts(message).length === 0
-		&& zeroOutputUsage(message);
-	const terminalAssistantAbort = message?.stopReason === "aborted"
-		|| (message?.stopReason === "error" && terminalError !== undefined && isProviderAbortError(terminalError));
+	const emptyZeroUsageTerminal =
+		message !== undefined && contentParts(message).length === 0 && zeroOutputUsage(message);
+	const terminalAssistantAbort =
+		message?.stopReason === "aborted" ||
+		(message?.stopReason === "error" && terminalError !== undefined && isProviderAbortError(terminalError));
 	const abortCandidate = emptyZeroUsageTerminal && terminalAssistantAbort;
 	const compactionAbortCandidate = input.afterCompactionSettlement === true && abortCandidate;
 	const settle = (reason: string): AbortRecoveryPlan => ({

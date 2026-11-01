@@ -25,7 +25,17 @@ function createState(): SubagentState {
 
 function createExecutor() {
 	return createSubagentExecutor({
-		pi: { events: { emit() {}, on() { return () => {}; } }, getSessionName() { return "parent"; } } as any,
+		pi: {
+			events: {
+				emit() {},
+				on() {
+					return () => {};
+				},
+			},
+			getSessionName() {
+				return "parent";
+			},
+		} as any,
 		state: createState(),
 		config: { maxSubagentDepth: 2, control: {}, intercomBridge: {} } as any,
 		asyncByDefault: false,
@@ -40,8 +50,19 @@ function ctx() {
 	return {
 		cwd: os.tmpdir(),
 		hasUI: false,
-		sessionManager: { getSessionId() { return "session"; }, getSessionFile() { return null; } },
-		modelRegistry: { getAvailable() { return []; } },
+		sessionManager: {
+			getSessionId() {
+				return "session";
+			},
+			getSessionFile() {
+				return null;
+			},
+		},
+		modelRegistry: {
+			getAvailable() {
+				return [];
+			},
+		},
 	} as any;
 }
 
@@ -63,14 +84,26 @@ describe("subagent action recovery", () => {
 	});
 
 	it("returns a concise recovery error for an invalid action", async () => {
-		const result = await createExecutor().execute("invalid-action", { action: "statsu" }, new AbortController().signal, undefined, ctx());
+		const result = await createExecutor().execute(
+			"invalid-action",
+			{ action: "statsu" },
+			new AbortController().signal,
+			undefined,
+			ctx(),
+		);
 		assert.equal(result.isError, true);
 		assert.equal(result.content[0]?.type, "text");
 		assert.equal(result.content[0]?.text, unknownSubagentActionMessage("statsu"));
 	});
 
 	it("routes invalid schedule actions through common recovery", async () => {
-		const result = await createExecutor().execute("invalid-schedule-action", { action: "schedule.lsit" }, new AbortController().signal, undefined, ctx());
+		const result = await createExecutor().execute(
+			"invalid-schedule-action",
+			{ action: "schedule.lsit" },
+			new AbortController().signal,
+			undefined,
+			ctx(),
+		);
 		assert.equal(result.isError, true);
 		assert.equal(result.content[0]?.type, "text");
 		assert.equal(result.content[0]?.text, unknownSubagentActionMessage("schedule.lsit"));

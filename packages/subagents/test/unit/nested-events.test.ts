@@ -2,20 +2,20 @@ import assert from "node:assert/strict";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
-import type { AsyncJobState, SubagentState } from "../../src/shared/types.ts";
 import {
 	buildNestedRouteIndex,
 	createNestedRoute,
 	hasLiveNestedDescendants,
-	nestedSummaryFromAsyncStatus,
-	parseNestedEventRecords,
 	inheritedNestedParentAddressOf,
 	inheritedNestedRouteOf,
+	nestedSummaryFromAsyncStatus,
+	parseNestedEventRecords,
 	projectNestedEvents,
 	updateAsyncJobNestedProjection,
 	updateForegroundNestedProjection,
 	writeNestedEvent,
 } from "../../src/runs/shared/nested-events.ts";
+import type { AsyncJobState, SubagentState } from "../../src/shared/types.ts";
 
 const routes: Array<{ eventSink: string }> = [];
 
@@ -45,7 +45,12 @@ function trackRoute(rootRunId = "root-run") {
 	return route;
 }
 
-function child(id: string, state: "queued" | "running" | "complete" | "failed" | "paused" | "rejected", ts: number, parentRunId = "root-run") {
+function child(
+	id: string,
+	state: "queued" | "running" | "complete" | "failed" | "paused" | "rejected",
+	ts: number,
+	parentRunId = "root-run",
+) {
 	return {
 		id,
 		parentRunId,
@@ -58,7 +63,7 @@ function child(id: string, state: "queued" | "running" | "complete" | "failed" |
 		agents: ["reviewer"],
 		startedAt: 10,
 		lastUpdate: ts,
-		steps: [{ agent: "leaf", status: state === "running" ? "running" as const : "complete" as const }],
+		steps: [{ agent: "leaf", status: state === "running" ? ("running" as const) : ("complete" as const) }],
 	};
 }
 
@@ -100,34 +105,45 @@ describe("nested route index", () => {
 
 describe("nested event route validation", () => {
 	it("resolves nested parent addresses from the inherited child runtime", () => {
-		assert.deepEqual(inheritedNestedParentAddressOf({
-			nestedParent: {
+		assert.deepEqual(
+			inheritedNestedParentAddressOf({
+				nestedParent: {
+					parentRunId: "nested-parent",
+					parentChildIndex: 2,
+					depth: 3,
+					path: [
+						{ runId: "root-run", stepIndex: 0, agent: "root-agent" },
+						{ runId: "nested-parent", stepIndex: 2, agent: "nested-agent" },
+					],
+				},
+			}),
+			{
 				parentRunId: "nested-parent",
-				parentChildIndex: 2,
+				parentStepIndex: 2,
 				depth: 3,
 				path: [
 					{ runId: "root-run", stepIndex: 0, agent: "root-agent" },
 					{ runId: "nested-parent", stepIndex: 2, agent: "nested-agent" },
 				],
 			},
-		}), {
-			parentRunId: "nested-parent",
-			parentStepIndex: 2,
-			depth: 3,
-			path: [
-				{ runId: "root-run", stepIndex: 0, agent: "root-agent" },
-				{ runId: "nested-parent", stepIndex: 2, agent: "nested-agent" },
-			],
-		});
-		assert.deepEqual(inheritedNestedParentAddressOf({ nestedParent: { parentRunId: "nested-parent", depth: 1, path: [] } }), {
-			parentRunId: "nested-parent",
-			depth: 1,
-			path: [{ runId: "nested-parent" }],
-		});
+		);
+		assert.deepEqual(
+			inheritedNestedParentAddressOf({ nestedParent: { parentRunId: "nested-parent", depth: 1, path: [] } }),
+			{
+				parentRunId: "nested-parent",
+				depth: 1,
+				path: [{ runId: "nested-parent" }],
+			},
+		);
 	});
 
 	it("ignores unsafe nested parent ids and missing parents", () => {
-		assert.equal(inheritedNestedParentAddressOf({ nestedParent: { parentRunId: "../unsafe", parentChildIndex: 2, depth: 1, path: [] } }), undefined);
+		assert.equal(
+			inheritedNestedParentAddressOf({
+				nestedParent: { parentRunId: "../unsafe", parentChildIndex: 2, depth: 1, path: [] },
+			}),
+			undefined,
+		);
 		assert.equal(inheritedNestedParentAddressOf({}), undefined);
 		assert.equal(inheritedNestedParentAddressOf(undefined), undefined);
 	});
@@ -139,7 +155,9 @@ describe("nested event route validation", () => {
 
 		const originalError = console.error;
 		const logged: unknown[] = [];
-		console.error = (...args: unknown[]) => { logged.push(args[1]); };
+		console.error = (...args: unknown[]) => {
+			logged.push(args[1]);
+		};
 		try {
 			assert.equal(inheritedNestedRouteOf({ nestedRoute: { ...route, capabilityToken: "wrong-token" } }), undefined);
 		} finally {
@@ -157,7 +175,13 @@ describe("nested event parsing and projection", () => {
 			ts: 100,
 			parentRunId: "root-run",
 			parentStepIndex: 1,
-			child: { ...child("nested-a", "running", 100), model: "provider/gpt-5.6-luna:medium", thinking: "medium", steps: [{ agent: "leaf", status: "running", model: "provider/leaf", thinking: "low" }], children: [child("nested-grandchild", "running", 100, "nested-a")] },
+			child: {
+				...child("nested-a", "running", 100),
+				model: "provider/gpt-5.6-luna:medium",
+				thinking: "medium",
+				steps: [{ agent: "leaf", status: "running", model: "provider/leaf", thinking: "low" }],
+				children: [child("nested-grandchild", "running", 100, "nested-a")],
+			},
 		});
 		writeNestedEvent(route, {
 			type: "subagent.nested.updated",
@@ -167,7 +191,12 @@ describe("nested event parsing and projection", () => {
 			child: {
 				...child("nested-a", "running", 200),
 				currentTool: "read",
-				runtimeAcknowledgedExtensions: { version: 1, source: "child-runtime", ids: ["ext.ok", "bad/path", "ext.ok"], omitted: 1 },
+				runtimeAcknowledgedExtensions: {
+					version: 1,
+					source: "child-runtime",
+					ids: ["ext.ok", "bad/path", "ext.ok"],
+					omitted: 1,
+				},
 			},
 		});
 		writeNestedEvent(route, {
@@ -175,7 +204,15 @@ describe("nested event parsing and projection", () => {
 			ts: 300,
 			parentRunId: "root-run",
 			parentStepIndex: 1,
-			child: { ...child("nested-a", "complete", 300), runtimeAcknowledgedExtensions: { version: 1, source: "child-runtime", ids: ["ext.ok", "bad/path", "ext.ok"], omitted: 1 } },
+			child: {
+				...child("nested-a", "complete", 300),
+				runtimeAcknowledgedExtensions: {
+					version: 1,
+					source: "child-runtime",
+					ids: ["ext.ok", "bad/path", "ext.ok"],
+					omitted: 1,
+				},
+			},
 		});
 
 		const registry = projectNestedEvents(route);
@@ -227,7 +264,11 @@ describe("nested event parsing and projection", () => {
 			ts: 100,
 			parentRunId: "root-run",
 			parentStepIndex: 3,
-			child: { ...child("nested-visible", "running", 100), parentStepIndex: 3, path: [{ runId: "root-run", stepIndex: 3 }] },
+			child: {
+				...child("nested-visible", "running", 100),
+				parentStepIndex: 3,
+				path: [{ runId: "root-run", stepIndex: 3 }],
+			},
 		});
 		const job: AsyncJobState = {
 			asyncId: "root-run",
@@ -269,45 +310,65 @@ describe("nested event parsing and projection", () => {
 			parentStepIndex: 1,
 			child: child("nested-terminal", "complete", 300),
 		});
-		fs.writeFileSync(path.join(route.eventSink, "0000000000400-stale.json"), `${JSON.stringify({
-			type: "subagent.nested.updated",
-			ts: 400,
-			rootRunId: route.rootRunId,
-			parentRunId: "root-run",
-			parentStepIndex: 1,
-			capabilityToken: route.capabilityToken,
-			child: child("nested-terminal", "running", 100),
-		})}\n`, "utf-8");
-		fs.writeFileSync(path.join(route.eventSink, "0000000000500-wrong-token.json"), `${JSON.stringify({
-			type: "subagent.nested.started",
-			ts: 500,
-			rootRunId: route.rootRunId,
-			parentRunId: "root-run",
-			parentStepIndex: 1,
-			capabilityToken: "wrong",
-			child: child("wrong-token", "running", 500),
-		})}\n`, "utf-8");
+		fs.writeFileSync(
+			path.join(route.eventSink, "0000000000400-stale.json"),
+			`${JSON.stringify({
+				type: "subagent.nested.updated",
+				ts: 400,
+				rootRunId: route.rootRunId,
+				parentRunId: "root-run",
+				parentStepIndex: 1,
+				capabilityToken: route.capabilityToken,
+				child: child("nested-terminal", "running", 100),
+			})}\n`,
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(route.eventSink, "0000000000500-wrong-token.json"),
+			`${JSON.stringify({
+				type: "subagent.nested.started",
+				ts: 500,
+				rootRunId: route.rootRunId,
+				parentRunId: "root-run",
+				parentStepIndex: 1,
+				capabilityToken: "wrong",
+				child: child("wrong-token", "running", 500),
+			})}\n`,
+			"utf-8",
+		);
 
 		const registry = projectNestedEvents(route);
 		assert.equal(registry.children.find((item) => item.id === "partial-good")?.state, "running");
 		assert.equal(registry.children.find((item) => item.id === "nested-terminal")?.state, "complete");
-		assert.equal(registry.children.some((item) => item.id === "wrong-token"), false);
+		assert.equal(
+			registry.children.some((item) => item.id === "wrong-token"),
+			false,
+		);
 		assert.equal(hasLiveNestedDescendants(registry.children), true);
 	});
 
 	it("detects live descendants attached to terminal step children", () => {
-		assert.equal(hasLiveNestedDescendants([{
-			...child("terminal-parent", "complete", 300),
-			steps: [{
-				agent: "owner-step",
-				status: "complete",
-				children: [{
-					...child("running-step-child", "running", 310, "terminal-parent"),
-					parentStepIndex: 0,
-					path: [{ runId: "terminal-parent", stepIndex: 0 }],
-				}],
-			}],
-		}]), true);
+		assert.equal(
+			hasLiveNestedDescendants([
+				{
+					...child("terminal-parent", "complete", 300),
+					steps: [
+						{
+							agent: "owner-step",
+							status: "complete",
+							children: [
+								{
+									...child("running-step-child", "running", 310, "terminal-parent"),
+									parentStepIndex: 0,
+									path: [{ runId: "terminal-parent", stepIndex: 0 }],
+								},
+							],
+						},
+					],
+				},
+			]),
+			true,
+		);
 	});
 
 	it("preserves rejected nested states across the event and registry boundary", () => {
@@ -338,39 +399,57 @@ describe("nested event parsing and projection", () => {
 			ts: 100,
 			parentRunId: "root-run",
 			parentStepIndex: 1,
-			child: { ...child("nested-valid-tokens", "running", 100), totalTokens: { input: 10, output: 15, total: 25, window: 30, windowPeak: 40 } },
+			child: {
+				...child("nested-valid-tokens", "running", 100),
+				totalTokens: { input: 10, output: 15, total: 25, window: 30, windowPeak: 40 },
+			},
 		});
-		fs.writeFileSync(path.join(route.eventSink, "0000000000200-invalid-tokens.json"), `${JSON.stringify({
-			type: "subagent.nested.updated",
-			ts: 200,
-			rootRunId: route.rootRunId,
-			parentRunId: "root-run",
-			parentStepIndex: 1,
-			capabilityToken: route.capabilityToken,
-			child: { ...child("nested-invalid-tokens", "running", 200), totalTokens: { input: 1, output: "bad", total: 1 } },
-		})}\n`, "utf-8");
+		fs.writeFileSync(
+			path.join(route.eventSink, "0000000000200-invalid-tokens.json"),
+			`${JSON.stringify({
+				type: "subagent.nested.updated",
+				ts: 200,
+				rootRunId: route.rootRunId,
+				parentRunId: "root-run",
+				parentStepIndex: 1,
+				capabilityToken: route.capabilityToken,
+				child: {
+					...child("nested-invalid-tokens", "running", 200),
+					totalTokens: { input: 1, output: "bad", total: 1 },
+				},
+			})}\n`,
+			"utf-8",
+		);
 
 		const registry = projectNestedEvents(route);
 
-		assert.deepEqual(registry.children.find((item) => item.id === "nested-valid-tokens")?.totalTokens, { input: 10, output: 15, total: 25, window: 30, windowPeak: 40 });
+		assert.deepEqual(registry.children.find((item) => item.id === "nested-valid-tokens")?.totalTokens, {
+			input: 10,
+			output: 15,
+			total: 25,
+			window: 30,
+			windowPeak: 40,
+		});
 		assert.equal(registry.children.find((item) => item.id === "nested-invalid-tokens")?.totalTokens, undefined);
 	});
 
 	it("parses only complete jsonl records", () => {
 		const route = trackRoute();
-		const records = parseNestedEventRecords(`${JSON.stringify({
-			type: "subagent.nested.started",
-			ts: 100,
-			rootRunId: route.rootRunId,
-			parentRunId: "root-run",
-			parentStepIndex: 1,
-			capabilityToken: route.capabilityToken,
-			child: child("jsonl-good", "running", 100),
-		})}\n{"type":"subagent.nested.started"`, route);
+		const records = parseNestedEventRecords(
+			`${JSON.stringify({
+				type: "subagent.nested.started",
+				ts: 100,
+				rootRunId: route.rootRunId,
+				parentRunId: "root-run",
+				parentStepIndex: 1,
+				capabilityToken: route.capabilityToken,
+				child: child("jsonl-good", "running", 100),
+			})}\n{"type":"subagent.nested.started"`,
+			route,
+		);
 		assert.equal(records.length, 1);
 		assert.equal(records[0]?.child.id, "jsonl-good");
 	});
-
 
 	it("sanitizes nested model bounds and thinking levels", () => {
 		const route = trackRoute();
@@ -393,15 +472,17 @@ describe("nested event parsing and projection", () => {
 	});
 
 	it("projects effective model and thinking from async status, including a single-step run", () => {
-		const summary = nestedSummaryFromAsyncStatus({
-			runId: "child-run",
-			mode: "single",
-			state: "running",
-			startedAt: 1,
-			steps: [
-				{ agent: "worker", status: "running", model: "provider/worker", thinking: "high" },
-			],
-		}, "/tmp/child-run", { id: "child-run", parentRunId: "parent-run", depth: 1, mode: "single", ts: 2 });
+		const summary = nestedSummaryFromAsyncStatus(
+			{
+				runId: "child-run",
+				mode: "single",
+				state: "running",
+				startedAt: 1,
+				steps: [{ agent: "worker", status: "running", model: "provider/worker", thinking: "high" }],
+			},
+			"/tmp/child-run",
+			{ id: "child-run", parentRunId: "parent-run", depth: 1, mode: "single", ts: 2 },
+		);
 
 		assert.equal(summary.model, "provider/worker");
 		assert.equal(summary.thinking, "high");
@@ -410,18 +491,34 @@ describe("nested event parsing and projection", () => {
 	});
 
 	it("sanitizes malformed process-terminal proofs in nested status summaries", () => {
-		const summary = nestedSummaryFromAsyncStatus({
-			runId: "child-run",
-			mode: "single",
-			state: "complete",
-			startedAt: 1,
-			processTerminal: { version: 1, state: "bogus", runId: "child-run", runnerProcessInstanceId: "runner-1" } as never,
-			steps: [{
-				agent: "worker",
-				status: "complete",
-				processTerminal: { version: 1, state: "observed", runId: "wrong-run", runnerProcessInstanceId: "runner-1" } as never,
-			}],
-		}, "/tmp/child-run", { id: "child-run", parentRunId: "parent-run", depth: 1, mode: "single", ts: 2 });
+		const summary = nestedSummaryFromAsyncStatus(
+			{
+				runId: "child-run",
+				mode: "single",
+				state: "complete",
+				startedAt: 1,
+				processTerminal: {
+					version: 1,
+					state: "bogus",
+					runId: "child-run",
+					runnerProcessInstanceId: "runner-1",
+				} as never,
+				steps: [
+					{
+						agent: "worker",
+						status: "complete",
+						processTerminal: {
+							version: 1,
+							state: "observed",
+							runId: "wrong-run",
+							runnerProcessInstanceId: "runner-1",
+						} as never,
+					},
+				],
+			},
+			"/tmp/child-run",
+			{ id: "child-run", parentRunId: "parent-run", depth: 1, mode: "single", ts: 2 },
+		);
 
 		assert.equal(summary.processTerminal?.state, "unknown");
 		assert.equal(summary.processTerminal?.reason, "proof-write-failed");
@@ -430,18 +527,34 @@ describe("nested event parsing and projection", () => {
 	});
 
 	it("sanitizes runtime acknowledged extensions in nested status summaries", () => {
-		const summary = nestedSummaryFromAsyncStatus({
-			runId: "child-run",
-			mode: "single",
-			state: "complete",
-			startedAt: 1,
-			runtimeAcknowledgedExtensions: { version: 1, source: "child-runtime", ids: ["/Users/alice/.secret-extension", "ok-ext", "x".repeat(5000)], omitted: 0 } as never,
-			steps: [{
-				agent: "worker",
-				status: "complete",
-				runtimeAcknowledgedExtensions: { version: 1, source: "child-runtime", ids: ["C:/Users/alice/secret"], omitted: 0 } as never,
-			}],
-		}, "/tmp/child-run", { id: "child-run", parentRunId: "parent-run", depth: 1, mode: "single", ts: 2 });
+		const summary = nestedSummaryFromAsyncStatus(
+			{
+				runId: "child-run",
+				mode: "single",
+				state: "complete",
+				startedAt: 1,
+				runtimeAcknowledgedExtensions: {
+					version: 1,
+					source: "child-runtime",
+					ids: ["/Users/alice/.secret-extension", "ok-ext", "x".repeat(5000)],
+					omitted: 0,
+				} as never,
+				steps: [
+					{
+						agent: "worker",
+						status: "complete",
+						runtimeAcknowledgedExtensions: {
+							version: 1,
+							source: "child-runtime",
+							ids: ["C:/Users/alice/secret"],
+							omitted: 0,
+						} as never,
+					},
+				],
+			},
+			"/tmp/child-run",
+			{ id: "child-run", parentRunId: "parent-run", depth: 1, mode: "single", ts: 2 },
+		);
 
 		assert.deepEqual(summary.runtimeAcknowledgedExtensions?.ids, ["ok-ext"]);
 		assert.equal(summary.steps?.[0]?.runtimeAcknowledgedExtensions, undefined);
@@ -480,17 +593,23 @@ describe("nested event parsing and projection", () => {
 
 describe("nested session-name projection", () => {
 	it("keeps bounded root and step session names from async status", () => {
-		const summary = nestedSummaryFromAsyncStatus({
-			runId: "child-run",
-			mode: "single",
-			state: "running",
-			startedAt: 1,
-			steps: [{
-				agent: "reviewer",
-				sessionName: "reviewer: Inspect the changed auth middleware",
-				status: "running",
-			}],
-		}, "/tmp/child-run", { id: "child-run", parentRunId: "root-run", depth: 1, ts: 1 });
+		const summary = nestedSummaryFromAsyncStatus(
+			{
+				runId: "child-run",
+				mode: "single",
+				state: "running",
+				startedAt: 1,
+				steps: [
+					{
+						agent: "reviewer",
+						sessionName: "reviewer: Inspect the changed auth middleware",
+						status: "running",
+					},
+				],
+			},
+			"/tmp/child-run",
+			{ id: "child-run", parentRunId: "root-run", depth: 1, ts: 1 },
+		);
 		assert.equal(summary.sessionName, "reviewer: Inspect the changed auth middleware");
 		assert.equal(summary.steps?.[0]?.sessionName, "reviewer: Inspect the changed auth middleware");
 	});

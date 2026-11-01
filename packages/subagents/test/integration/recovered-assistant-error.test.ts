@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { makeAgent } from "../support/helpers.ts";
-import type { MockPiResponse } from "../support/mock-pi.ts";
 import { runSync } from "../../src/runs/foreground/execution.ts";
 import { createStructuredOutputRuntime } from "../../src/runs/shared/structured-output.ts";
 import type { JsonSchemaObject } from "../../src/shared/types.ts";
@@ -16,6 +14,8 @@ import {
 	readAsyncPayload,
 	tempDir,
 } from "../support/async-execution-fixture.ts";
+import { makeAgent } from "../support/helpers.ts";
+import type { MockPiResponse } from "../support/mock-pi.ts";
 
 const providerError = "provider transport failed";
 const structuredValue = { verdict: "ready" };
@@ -42,7 +42,12 @@ function assistantMessage(stopReason: string, content: unknown[] = [], errorMess
 }
 
 function toolCall(name = "read") {
-	return { type: "toolCall", id: `${name}-call`, name, arguments: name === "structured_output" ? { value: structuredValue } : {} };
+	return {
+		type: "toolCall",
+		id: `${name}-call`,
+		name,
+		arguments: name === "structured_output" ? { value: structuredValue } : {},
+	};
 }
 
 function failedAssistantRequest() {
@@ -61,10 +66,15 @@ async function runFixture(host: Host, response: MockPiResponse, withStructuredOu
 	const runId = `recovered-assistant-error-${host}-${randomUUID()}`;
 
 	if (host === "foreground") {
-		const structuredOutput = withStructuredOutput ? createStructuredOutputRuntime(structuredSchema, tempDir) : undefined;
+		const structuredOutput = withStructuredOutput
+			? createStructuredOutputRuntime(structuredSchema, tempDir)
+			: undefined;
 		const options = { runId, acceptance: false as const, waitToolEnabled: false };
 		const result = structuredOutput
-			? await runSync(tempDir, [agent], agent.name, "Exercise the scripted child lifecycle", { ...options, structuredOutput })
+			? await runSync(tempDir, [agent], agent.name, "Exercise the scripted child lifecycle", {
+					...options,
+					structuredOutput,
+				})
 			: await runSync(tempDir, [agent], agent.name, "Exercise the scripted child lifecycle", options);
 		assert.equal(mockPi.callCount(), 1, "the fixture must not launch a fallback child");
 		return { success: result.exitCode === 0, error: result.error, structuredOutput: result.structuredOutput };
@@ -75,7 +85,14 @@ async function runFixture(host: Host, response: MockPiResponse, withStructuredOu
 		task: "Exercise the scripted child lifecycle",
 		agentConfig: agent,
 		ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "recovered-assistant-error-session" },
-		artifactConfig: { enabled: false, includeInput: false, includeOutput: false, includeJsonl: false, includeMetadata: false, cleanupDays: 7 },
+		artifactConfig: {
+			enabled: false,
+			includeInput: false,
+			includeOutput: false,
+			includeJsonl: false,
+			includeMetadata: false,
+			cleanupDays: 7,
+		},
 		shareEnabled: false,
 		sessionRoot: path.join(tempDir, "sessions"),
 		maxSubagentDepth: 2,
@@ -101,51 +118,71 @@ describe("recovered assistant errors", { skip: !available ? "pi packages not ava
 	installAsyncExecutionHooks();
 
 	for (const host of ["background", "foreground"] as const) {
-		it(`${host}: recovered request can terminate with structured_output`, { skip: host === "background" && !isAsyncAvailable() ? "jiti not available" : undefined }, async () => {
-			const result = await runFixture(host, {
-				jsonl: [
-					failedAssistantRequest(),
-					{ type: "auto_retry_start", attempt: 1, maxAttempts: 3, delayMs: 0, errorMessage: providerError },
-					assistantMessage("toolUse", [toolCall("structured_output")]),
-					{ type: "auto_retry_end", success: true, attempt: 1 },
-				],
-				structuredOutput: structuredValue,
-			}, true);
+		it(
+			`${host}: recovered request can terminate with structured_output`,
+			{ skip: host === "background" && !isAsyncAvailable() ? "jiti not available" : undefined },
+			async () => {
+				const result = await runFixture(
+					host,
+					{
+						jsonl: [
+							failedAssistantRequest(),
+							{ type: "auto_retry_start", attempt: 1, maxAttempts: 3, delayMs: 0, errorMessage: providerError },
+							assistantMessage("toolUse", [toolCall("structured_output")]),
+							{ type: "auto_retry_end", success: true, attempt: 1 },
+						],
+						structuredOutput: structuredValue,
+					},
+					true,
+				);
 
-			assert.equal(result.success, true, result.error);
-			assert.equal(result.error, undefined);
-			assert.deepEqual(result.structuredOutput, structuredValue);
-		});
+				assert.equal(result.success, true, result.error);
+				assert.equal(result.error, undefined);
+				assert.deepEqual(result.structuredOutput, structuredValue);
+			},
+		);
 
-		it(`${host}: retry success and toolUse without a call do not clear the error`, { skip: host === "background" && !isAsyncAvailable() ? "jiti not available" : undefined }, async () => {
-			const result = await runFixture(host, {
-				jsonl: [
-					failedAssistantRequest(),
-					{ type: "auto_retry_end", success: true, attempt: 1 },
-					assistantMessage("toolUse"),
-				],
-			});
+		it(
+			`${host}: retry success and toolUse without a call do not clear the error`,
+			{ skip: host === "background" && !isAsyncAvailable() ? "jiti not available" : undefined },
+			async () => {
+				const result = await runFixture(host, {
+					jsonl: [
+						failedAssistantRequest(),
+						{ type: "auto_retry_end", success: true, attempt: 1 },
+						assistantMessage("toolUse"),
+					],
+				});
 
-			assert.equal(result.success, false);
-			assert.match(result.error ?? "", new RegExp(providerError));
-		});
+				assert.equal(result.success, false);
+				assert.match(result.error ?? "", new RegExp(providerError));
+			},
+		);
 
-		it(`${host}: a tool call with a non-toolUse stop does not clear the error`, { skip: host === "background" && !isAsyncAvailable() ? "jiti not available" : undefined }, async () => {
-			const result = await runFixture(host, {
-				jsonl: [failedAssistantRequest(), assistantMessage("length", [toolCall()])],
-			});
+		it(
+			`${host}: a tool call with a non-toolUse stop does not clear the error`,
+			{ skip: host === "background" && !isAsyncAvailable() ? "jiti not available" : undefined },
+			async () => {
+				const result = await runFixture(host, {
+					jsonl: [failedAssistantRequest(), assistantMessage("length", [toolCall()])],
+				});
 
-			assert.equal(result.success, false);
-			assert.match(result.error ?? "", new RegExp(providerError));
-		});
+				assert.equal(result.success, false);
+				assert.match(result.error ?? "", new RegExp(providerError));
+			},
+		);
 
-		it(`${host}: an error-bearing toolUse response replaces rather than clears the error`, { skip: host === "background" && !isAsyncAvailable() ? "jiti not available" : undefined }, async () => {
-			const result = await runFixture(host, {
-				jsonl: [failedAssistantRequest(), assistantMessage("toolUse", [toolCall()], "later provider failure")],
-			});
+		it(
+			`${host}: an error-bearing toolUse response replaces rather than clears the error`,
+			{ skip: host === "background" && !isAsyncAvailable() ? "jiti not available" : undefined },
+			async () => {
+				const result = await runFixture(host, {
+					jsonl: [failedAssistantRequest(), assistantMessage("toolUse", [toolCall()], "later provider failure")],
+				});
 
-			assert.equal(result.success, false);
-			assert.match(result.error ?? "", /later provider failure/);
-		});
+				assert.equal(result.success, false);
+				assert.match(result.error ?? "", /later provider failure/);
+			},
+		);
 	}
 });

@@ -1,35 +1,25 @@
 import type { ExtensionContext } from "@evoharness/coding-agent";
 import { normalizeModelSegment, resolveModelCandidate } from "../runs/shared/model-resolution.ts";
-import type { WatchdogEndpointConfig } from "./types.ts";
 import {
 	getSupportedThinkingLevels,
+	type ModelInfo,
 	splitKnownThinkingSuffix,
 	THINKING_LEVELS,
-	toModelInfo,
-	type ModelInfo,
 	type ThinkingLevel,
+	toModelInfo,
 } from "../shared/model-info.ts";
+import type { WatchdogEndpointConfig } from "./types.ts";
 
 export const STRONG_WATCHDOG_THINKING: ThinkingLevel = "high";
 
 const STRONG_WATCHDOG_MODELS = {
 	opus48: {
 		label: "Opus 4.8",
-		queries: [
-			"anthropic/claude-opus-4-8",
-			"anthropic/claude-opus-4.8",
-			"anthropic/opus-4-8",
-			"anthropic/opus-4.8",
-		],
+		queries: ["anthropic/claude-opus-4-8", "anthropic/claude-opus-4.8", "anthropic/opus-4-8", "anthropic/opus-4.8"],
 	},
 	gpt55: {
 		label: "GPT 5.5",
-		queries: [
-			"openai-codex/gpt-5.5",
-			"openai-codex/gpt-5-5",
-			"openai/gpt-5.5",
-			"openai/gpt-5-5",
-		],
+		queries: ["openai-codex/gpt-5.5", "openai-codex/gpt-5-5", "openai/gpt-5.5", "openai/gpt-5-5"],
 	},
 } as const;
 
@@ -68,10 +58,15 @@ function splitProviderModel(value: string): { provider: string; id: string } | u
 
 function assertSupportedThinking(value: string, source: string): ThinkingLevel {
 	if ((THINKING_LEVELS as readonly string[]).includes(value)) return value as ThinkingLevel;
-	throw new Error(`Unsupported watchdog thinking '${value}' from ${source}; expected ${THINKING_LEVELS.join(", ")}, false, or inherit.`);
+	throw new Error(
+		`Unsupported watchdog thinking '${value}' from ${source}; expected ${THINKING_LEVELS.join(", ")}, false, or inherit.`,
+	);
 }
 
-export function parseWatchdogThinkingInput(value: string | false | undefined, source = "watchdog input"): ThinkingLevel | false | undefined {
+export function parseWatchdogThinkingInput(
+	value: string | false | undefined,
+	source = "watchdog input",
+): ThinkingLevel | false | undefined {
 	if (value === undefined || value === "") return undefined;
 	if (value === false) return false;
 	if (value === "false") return false;
@@ -86,15 +81,22 @@ export function resolveWatchdogModelInput(ctx: ExtensionContext, rawModel: strin
 	const resolved = resolveModelCandidate(trimmed, availableModels, preferredProvider) ?? trimmed;
 	const { baseModel, thinkingSuffix } = splitKnownThinkingSuffix(resolved);
 	const named = splitProviderModel(baseModel);
-	if (!named) throw new Error(`Watchdog model '${rawModel}' did not resolve to provider/model. Use a provider-qualified model such as openai-codex/gpt-5.5:high or anthropic/claude-opus-4-8:high.`);
+	if (!named)
+		throw new Error(
+			`Watchdog model '${rawModel}' did not resolve to provider/model. Use a provider-qualified model such as openai-codex/gpt-5.5:high or anthropic/claude-opus-4-8:high.`,
+		);
 	const registryModel = ctx.modelRegistry.find(named.provider, named.id);
 	if (!registryModel) throw new Error(`Watchdog model '${rawModel}' was not found as '${baseModel}'.`);
 	if (!ctx.modelRegistry.hasConfiguredAuth(registryModel)) {
-		throw new Error(`Watchdog model '${baseModel}' is not authenticated. Configure credentials for provider '${named.provider}' or choose an authenticated model.`);
+		throw new Error(
+			`Watchdog model '${baseModel}' is not authenticated. Configure credentials for provider '${named.provider}' or choose an authenticated model.`,
+		);
 	}
 	return {
 		model: `${named.provider}/${named.id}`,
-		...(thinkingSuffix ? { thinking: assertSupportedThinking(thinkingSuffix.slice(1), "watchdog model suffix") } : {}),
+		...(thinkingSuffix
+			? { thinking: assertSupportedThinking(thinkingSuffix.slice(1), "watchdog model suffix") }
+			: {}),
 		registryModel,
 	};
 }
@@ -104,7 +106,8 @@ function familyForModel(model: Pick<ModelInfo, "provider" | "id"> | undefined): 
 	const provider = normalizeModelSegment(model.provider);
 	const id = normalizeModelSegment(model.id);
 	if (provider.includes("openai") && /^gpt-5-5(-\d{8}|-\d{4}-\d{2}-\d{2})?$/.test(id)) return "gpt55";
-	if (provider.includes("anthropic") && /^(claude-opus-4-8|opus-4-8)(-\d{8}|-\d{4}-\d{2}-\d{2})?$/.test(id)) return "opus48";
+	if (provider.includes("anthropic") && /^(claude-opus-4-8|opus-4-8)(-\d{8}|-\d{4}-\d{2}-\d{2})?$/.test(id))
+		return "opus48";
 	return undefined;
 }
 
@@ -131,7 +134,10 @@ function findFamilyMatch(family: StrongWatchdogFamily, availableModels: ModelInf
 	return undefined;
 }
 
-function resolveStrongCandidate(ctx: ExtensionContext, family: StrongWatchdogFamily): WatchdogModelRecommendation | undefined {
+function resolveStrongCandidate(
+	ctx: ExtensionContext,
+	family: StrongWatchdogFamily,
+): WatchdogModelRecommendation | undefined {
 	const availableModels = modelRegistryEntries(ctx);
 	const preference = STRONG_WATCHDOG_MODELS[family];
 	const queries: string[] = [...preference.queries];
@@ -166,10 +172,15 @@ export function recommendStrongWatchdogModel(ctx: ExtensionContext): WatchdogMod
 		if (recommendation) return recommendation;
 	}
 	const current = ctx.model ? fullModelId(toModelInfo(ctx.model)) : "the current session";
-	throw new Error(`No authenticated strong complementary watchdog model was found for ${current}. Configure access to Opus 4.8 or GPT 5.5, then run the recommendation again.`);
+	throw new Error(
+		`No authenticated strong complementary watchdog model was found for ${current}. Configure access to Opus 4.8 or GPT 5.5, then run the recommendation again.`,
+	);
 }
 
-export function recommendWatchdogModel(ctx: ExtensionContext, configured: WatchdogEndpointConfig): WatchdogModelRecommendation {
+export function recommendWatchdogModel(
+	ctx: ExtensionContext,
+	configured: WatchdogEndpointConfig,
+): WatchdogModelRecommendation {
 	if (!configured.model) return recommendStrongWatchdogModel(ctx);
 	const resolved = resolveWatchdogModelInput(ctx, configured.model);
 	const thinking = resolved.thinking ?? parseWatchdogThinkingInput(configured.thinking) ?? "off";
@@ -178,7 +189,8 @@ export function recommendWatchdogModel(ctx: ExtensionContext, configured: Watchd
 		source: "configured",
 		thinking: thinking === false ? "off" : thinking,
 		label: "configured watchdog",
-		reason: "Keep the configured watchdog model and thinking; no replacement recommendation is needed. This is not a strength or independence assessment.",
+		reason:
+			"Keep the configured watchdog model and thinking; no replacement recommendation is needed. This is not a strength or independence assessment.",
 	};
 }
 

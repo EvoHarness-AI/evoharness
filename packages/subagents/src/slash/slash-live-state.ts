@@ -1,10 +1,10 @@
 import type { AgentToolResult } from "@evoharness/agent-core";
 import type { Message } from "@evoharness/ai";
 import type { SubagentParamsLike } from "../runs/foreground/subagent-executor.ts";
-import { previewSimpleWorkflowRun } from "../workflows/scripted-workflow.ts";
 import { deriveChildSessionName } from "../shared/child-session-name.ts";
+import { type Details, type SingleResult, SLASH_RESULT_TYPE, type Usage } from "../shared/types.ts";
+import { previewSimpleWorkflowRun } from "../workflows/scripted-workflow.ts";
 import type { SlashSubagentResponse, SlashSubagentUpdate } from "./slash-bridge.ts";
-import { type Details, type SingleResult, type Usage, SLASH_RESULT_TYPE } from "../shared/types.ts";
 
 export interface SlashMessageDetails {
 	requestId: string;
@@ -124,12 +124,26 @@ function flattenChainResults(chain: ChainStepLike[], fallbackTask: string | unde
 	for (const step of chain) {
 		if (isParallelChainStep(step)) {
 			for (const task of step.parallel) {
-				results.push(createPlaceholderResult(task.agent, task.task ?? fallbackTask ?? "", results.length === 0 ? "running" : "pending", flatIndex));
+				results.push(
+					createPlaceholderResult(
+						task.agent,
+						task.task ?? fallbackTask ?? "",
+						results.length === 0 ? "running" : "pending",
+						flatIndex,
+					),
+				);
 				flatIndex++;
 			}
 			continue;
 		}
-		results.push(createPlaceholderResult(step.agent, step.task ?? fallbackTask ?? "", results.length === 0 ? "running" : "pending", flatIndex));
+		results.push(
+			createPlaceholderResult(
+				step.agent,
+				step.task ?? fallbackTask ?? "",
+				results.length === 0 ? "running" : "pending",
+				flatIndex,
+			),
+		);
 		flatIndex++;
 	}
 	return results;
@@ -139,10 +153,12 @@ function buildChainInitialResult(params: SubagentParamsLike): AgentToolResult<De
 	const chain = (params.chain ?? []) as ChainStepLike[];
 	const results = flattenChainResults(chain, params.task);
 	return {
-		content: [{
-			type: "text",
-			text: results.map((result, index) => `Step ${index + 1}: ${result.agent}\n${result.task}`).join("\n\n"),
-		}],
+		content: [
+			{
+				type: "text",
+				text: results.map((result, index) => `Step ${index + 1}: ${result.agent}\n${result.task}`).join("\n\n"),
+			},
+		],
 		details: {
 			mode: "chain",
 			...(params.async ? { background: true } : {}),
@@ -152,7 +168,7 @@ function buildChainInitialResult(params: SubagentParamsLike): AgentToolResult<De
 				index,
 				agent: result.agent,
 				...(result.sessionName ? { sessionName: result.sessionName } : {}),
-				status: index === 0 ? "running" as const : "pending" as const,
+				status: index === 0 ? ("running" as const) : ("pending" as const),
 				task: result.task,
 				recentTools: [],
 				recentOutput: [],
@@ -179,28 +195,31 @@ function buildSingleInitialResult(params: SubagentParamsLike): AgentToolResult<D
 			...(params.async ? { background: true } : {}),
 			...(params.context === "fresh" || params.context === "fork" ? { context: params.context } : {}),
 			results: [createPlaceholderResult(agent, task, "running", 0)],
-			progress: [{
-				index: 0,
-				agent,
-				...(sessionName ? { sessionName } : {}),
-				status: "running",
-				task,
-				recentTools: [],
-				recentOutput: [],
-				toolCount: 0,
-				tokens: 0,
-				durationMs: 0,
-			}],
+			progress: [
+				{
+					index: 0,
+					agent,
+					...(sessionName ? { sessionName } : {}),
+					status: "running",
+					task,
+					recentTools: [],
+					recentOutput: [],
+					toolCount: 0,
+					tokens: 0,
+					durationMs: 0,
+				},
+			],
 		},
 	};
 }
 
 export function buildSlashInitialResult(requestId: string, params: SubagentParamsLike): SlashMessageDetails {
-	const result = (params.tasks?.length ?? 0) > 0
-		? buildParallelInitialResult(params)
-		: (params.chain?.length ?? 0) > 0
-			? buildChainInitialResult(params)
-			: buildSingleInitialResult(params);
+	const result =
+		(params.tasks?.length ?? 0) > 0
+			? buildParallelInitialResult(params)
+			: (params.chain?.length ?? 0) > 0
+				? buildChainInitialResult(params)
+				: buildSingleInitialResult(params);
 	liveSnapshots.set(requestId, { result, version: nextVersion() });
 	finalSnapshots.delete(requestId);
 	return { requestId, result };
@@ -211,9 +230,10 @@ function cloneResultsWithProgress(
 	progress: NonNullable<Details["progress"]> | undefined,
 ): SingleResult[] {
 	return results.map((result, index) => {
-		const nextProgress = progress?.find((entry) => entry.index === index
-			|| (entry.index === undefined && entry.agent === result.agent))
-			?? result.progress;
+		const nextProgress =
+			progress?.find(
+				(entry) => entry.index === index || (entry.index === undefined && entry.agent === result.agent),
+			) ?? result.progress;
 		return nextProgress ? { ...result, progress: nextProgress } : result;
 	});
 }
@@ -287,9 +307,10 @@ export function resolveSlashMessageDetails(value: unknown): SlashMessageDetails 
 }
 
 export function getSlashRenderableSnapshot(details: SlashMessageDetails): SlashSnapshot {
-	return finalSnapshots.get(details.requestId)
-		?? liveSnapshots.get(details.requestId)
-		?? { result: details.result, version: 0 };
+	return (
+		finalSnapshots.get(details.requestId) ??
+		liveSnapshots.get(details.requestId) ?? { result: details.result, version: 0 }
+	);
 }
 
 export function restoreSlashFinalSnapshots(entries: unknown[]): void {

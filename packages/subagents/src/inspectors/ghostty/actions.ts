@@ -1,4 +1,4 @@
-import { execFile, type ExecFileOptionsWithStringEncoding } from "node:child_process";
+import { type ExecFileOptionsWithStringEncoding, execFile } from "node:child_process";
 import type { AgentToolResult } from "@evoharness/agent-core";
 import type { Details } from "../../shared/types.ts";
 import type { InspectorContext, InspectorLaunch, InspectorParams } from "../types.ts";
@@ -25,9 +25,15 @@ export const GHOSTTY_APPLESCRIPT = `on run argv
   end tell
 end run`;
 
-export type GhosttyRunner = (args: readonly string[], options: ExecFileOptionsWithStringEncoding) => Promise<{ stdout: string; stderr: string }>;
+export type GhosttyRunner = (
+	args: readonly string[],
+	options: ExecFileOptionsWithStringEncoding,
+) => Promise<{ stdout: string; stderr: string }>;
 
-function defaultRunner(args: readonly string[], options: ExecFileOptionsWithStringEncoding): Promise<{ stdout: string; stderr: string }> {
+function defaultRunner(
+	args: readonly string[],
+	options: ExecFileOptionsWithStringEncoding,
+): Promise<{ stdout: string; stderr: string }> {
 	return new Promise((resolve, reject) => {
 		execFile("/usr/bin/osascript", [...args], options, (error, stdout, stderr) => {
 			if (error) {
@@ -58,15 +64,27 @@ export async function openGhosttyInspector(
 	runner: GhosttyRunner = defaultRunner,
 ): Promise<AgentToolResult<Details>> {
 	try {
-		const output = await runner(["-e", GHOSTTY_APPLESCRIPT, "--", launch.displayCommand, context.target.status.cwd ?? context.cwd, params.focus === true ? "true" : "false"], {
-			signal: context.signal,
-			timeout: 15_000,
-			encoding: "utf8",
-			maxBuffer: 64 * 1024,
-		});
+		const output = await runner(
+			[
+				"-e",
+				GHOSTTY_APPLESCRIPT,
+				"--",
+				launch.displayCommand,
+				context.target.status.cwd ?? context.cwd,
+				params.focus === true ? "true" : "false",
+			],
+			{
+				signal: context.signal,
+				timeout: 15_000,
+				encoding: "utf8",
+				maxBuffer: 64 * 1024,
+			},
+		);
 		const id = output.stdout.trim();
 		if (!id) return result(`Ghostty inspector error: Ghostty returned an empty terminal id. ${failureHint}`, true);
-		return result(`Opened read-only Ghostty inspector terminal ${id} for async run ${context.target.runId}. Status and close are unavailable because this plugin writes no binding.`);
+		return result(
+			`Opened read-only Ghostty inspector terminal ${id} for async run ${context.target.runId}. Status and close are unavailable because this plugin writes no binding.`,
+		);
 	} catch (cause) {
 		const message = cause instanceof Error ? cause.message : String(cause);
 		return result(`Ghostty inspector error: ${message}. ${failureHint}`, true);

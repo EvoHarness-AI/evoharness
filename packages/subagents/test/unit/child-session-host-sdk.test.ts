@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { createDefaultChildSessionFactory, loadHostPiCodingAgent } from "../../src/runs/shared/child-session.ts";
 import { resolvePackageSubpath } from "../../src/runs/background/runner-aliases.ts";
+import { createDefaultChildSessionFactory, loadHostPiCodingAgent } from "../../src/runs/shared/child-session.ts";
 import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
 
 declare global {
@@ -16,11 +16,15 @@ function writeManifest(root: string, manifest: unknown): void {
 	fs.writeFileSync(path.join(root, "package.json"), JSON.stringify(manifest));
 }
 
-function fakeHostRoot(base: string, directory = "fake-pi-coding-agent", source = [
-	"globalThis.__fakeHostSdkLoads = (globalThis.__fakeHostSdkLoads ?? 0) + 1;",
-	"export const __fakeHostSdk = true;",
-	"",
-].join("\n")): string {
+function fakeHostRoot(
+	base: string,
+	directory = "fake-pi-coding-agent",
+	source = [
+		"globalThis.__fakeHostSdkLoads = (globalThis.__fakeHostSdkLoads ?? 0) + 1;",
+		"export const __fakeHostSdk = true;",
+		"",
+	].join("\n"),
+): string {
 	const root = path.join(base, directory);
 	fs.mkdirSync(path.join(root, "dist"), { recursive: true });
 	writeManifest(root, {
@@ -56,7 +60,7 @@ describe("loadHostPiCodingAgent", () => {
 	});
 
 	it("imports the SDK entry from the override root", async () => {
-		const mod = await loadHostPiCodingAgent() as { __fakeHostSdk?: unknown };
+		const mod = (await loadHostPiCodingAgent()) as { __fakeHostSdk?: unknown };
 		assert.equal(mod.__fakeHostSdk, true);
 	});
 
@@ -69,7 +73,7 @@ describe("loadHostPiCodingAgent", () => {
 			{ ".": "./dist/index.js" },
 		]) {
 			writeManifest(root, { name: "@evoharness/coding-agent", type: "module", exports });
-			const mod = await loadHostPiCodingAgent() as { __fakeHostSdk?: unknown };
+			const mod = (await loadHostPiCodingAgent()) as { __fakeHostSdk?: unknown };
 			assert.equal(mod.__fakeHostSdk, true, JSON.stringify(exports));
 		}
 	});
@@ -89,7 +93,7 @@ describe("loadHostPiCodingAgent", () => {
 			exports: null,
 			main: "./dist/index.js",
 		});
-		const mod = await loadHostPiCodingAgent() as { __fakeHostSdk?: unknown };
+		const mod = (await loadHostPiCodingAgent()) as { __fakeHostSdk?: unknown };
 		assert.equal(mod.__fakeHostSdk, true);
 	});
 
@@ -127,7 +131,7 @@ describe("loadHostPiCodingAgent", () => {
 
 	it("auto-discovers the host package when no override is set", async () => {
 		delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
-		const mod = await loadHostPiCodingAgent() as { createAgentSession?: unknown };
+		const mod = (await loadHostPiCodingAgent()) as { createAgentSession?: unknown };
 		assert.equal(typeof mod.createAgentSession, "function");
 	});
 
@@ -137,12 +141,16 @@ describe("loadHostPiCodingAgent", () => {
 		process.argv[1] = path.join(runningRoot, "dist", "index.js");
 		process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = overrideRoot;
 
-		const mod = await loadHostPiCodingAgent() as { owner?: unknown };
+		const mod = (await loadHostPiCodingAgent()) as { owner?: unknown };
 		assert.equal(mod.owner, "running");
 	});
 
 	it("propagates dependency failures from an existing auto-discovered entry", async () => {
-		const runningRoot = fakeHostRoot(tmp, "broken-running-pi-coding-agent", "import 'definitely-missing-pr2348-dependency';\n");
+		const runningRoot = fakeHostRoot(
+			tmp,
+			"broken-running-pi-coding-agent",
+			"import 'definitely-missing-pr2348-dependency';\n",
+		);
 		process.argv[1] = path.join(runningRoot, "dist", "index.js");
 		delete process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV];
 
@@ -174,23 +182,31 @@ describe("loadHostPiCodingAgent", () => {
 	});
 
 	it("uses the host loader when the default factory creates a child", async () => {
-		const runningRoot = fakeHostRoot(tmp, "factory-owner-pi-coding-agent", [
-			"export const ModelRuntime = { create: async () => { throw new Error('factory loaded host-owned SDK'); } };",
-			"",
-		].join("\n"));
+		const runningRoot = fakeHostRoot(
+			tmp,
+			"factory-owner-pi-coding-agent",
+			[
+				"export const ModelRuntime = { create: async () => { throw new Error('factory loaded host-owned SDK'); } };",
+				"",
+			].join("\n"),
+		);
 		process.argv[1] = path.join(runningRoot, "dist", "index.js");
 
 		const factory = createDefaultChildSessionFactory();
-		await assert.rejects(() => factory.create({
-			cwd: tmp,
-			storage: { kind: "memory" },
-			extensionPaths: [],
-			ambientExtensions: false,
-			hooks: [],
-			noSkills: true,
-			noContextFiles: true,
-			runtime: { fanoutChild: false, depth: 1, waitTool: { enabled: false }, fast: false },
-		}), /factory loaded host-owned SDK/);
+		await assert.rejects(
+			() =>
+				factory.create({
+					cwd: tmp,
+					storage: { kind: "memory" },
+					extensionPaths: [],
+					ambientExtensions: false,
+					hooks: [],
+					noSkills: true,
+					noContextFiles: true,
+					runtime: { fanoutChild: false, depth: 1, waitTool: { enabled: false }, fast: false },
+				}),
+			/factory loaded host-owned SDK/,
+		);
 	});
 
 	it("rethrows when the override root cannot be imported", async () => {

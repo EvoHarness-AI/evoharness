@@ -1,9 +1,9 @@
+import { previewDisplayText, sanitizeDisplayText } from "../shared/display-text.ts";
 import {
 	SUBAGENT_ASYNC_COMPLETE_EVENT,
 	SUBAGENT_ASYNC_STARTED_EVENT,
 	SUBAGENT_CONTROL_EVENT,
 } from "../shared/types.ts";
-import { previewDisplayText, sanitizeDisplayText } from "../shared/display-text.ts";
 
 export const HERDR_FOREGROUND_CONTROL_CHANGED_EVENT = "pi-subagents:herdr:foreground-control-changed";
 const DEFAULT_SOURCE = "pi-subagents:herdr";
@@ -82,7 +82,8 @@ function workflowTaskLabel(data: Record<string, unknown>): string | undefined {
 	const explicit = boundedTaskLabel(data.taskLabel);
 	if (explicit) return explicit;
 	if (!isRecord(data.workflowGraph) || !Array.isArray(data.workflowGraph.nodes)) return undefined;
-	const currentNodeId = typeof data.workflowGraph.currentNodeId === "string" ? data.workflowGraph.currentNodeId : undefined;
+	const currentNodeId =
+		typeof data.workflowGraph.currentNodeId === "string" ? data.workflowGraph.currentNodeId : undefined;
 	const nodes: Record<string, unknown>[] = [];
 	const collect = (values: unknown[], depth: number): void => {
 		if (depth > MAX_WORKFLOW_LABEL_DEPTH || nodes.length >= MAX_WORKFLOW_LABEL_NODES) return;
@@ -95,7 +96,8 @@ function workflowTaskLabel(data: Record<string, unknown>): string | undefined {
 	};
 	collect(data.workflowGraph.nodes, 0);
 	const current = currentNodeId ? nodes.find((node) => node.id === currentNodeId) : undefined;
-	const active = current ?? nodes.find((node) => node.status === "running") ?? nodes.find((node) => node.status === "pending");
+	const active =
+		current ?? nodes.find((node) => node.status === "running") ?? nodes.find((node) => node.status === "pending");
 	return boundedTaskLabel(active?.label);
 }
 
@@ -112,7 +114,9 @@ function startedRun(data: unknown): HerdrStatusRun | undefined {
 		...(!isWorkflowCoordinator && typeof data.agent === "string" ? { agent: data.agent } : {}),
 		...(isWorkflowCoordinator
 			? { agents: [] }
-			: Array.isArray(data.agents) && data.agents.every((agent) => typeof agent === "string") ? { agents: data.agents as string[] } : {}),
+			: Array.isArray(data.agents) && data.agents.every((agent) => typeof agent === "string")
+				? { agents: data.agents as string[] }
+				: {}),
 		...(taskLabel ? { taskLabel } : {}),
 	};
 }
@@ -125,7 +129,8 @@ function completedRunId(data: unknown): string | undefined {
 
 function attentionRunId(data: unknown): string | undefined {
 	if (!isRecord(data) || data.source !== "async" || !isRecord(data.event)) return undefined;
-	if (data.event.type !== "needs_attention" || typeof data.event.runId !== "string" || !data.event.runId) return undefined;
+	if (data.event.type !== "needs_attention" || typeof data.event.runId !== "string" || !data.event.runId)
+		return undefined;
 	return data.event.runId;
 }
 
@@ -153,19 +158,25 @@ export function registerHerdrStatusBridge(options: HerdrStatusBridgeOptions): He
 	let drainPromise = Promise.resolve();
 	let refreshTimer: ReturnType<typeof setInterval> | undefined;
 
-	const activeAgentNames = (): string[] => [...new Set([...runs.values()].flatMap((run) => run.agents?.length ? run.agents : run.agent ? [run.agent] : []))];
+	const activeAgentNames = (): string[] => [
+		...new Set([...runs.values()].flatMap((run) => (run.agents?.length ? run.agents : run.agent ? [run.agent] : []))),
+	];
 	// Preserve the minimum count for ordinary runs with incomplete status;
 	// only an empty workflow coordinator contributes zero child agents.
-	const activeSubagentCount = (): number => [...runs.values()].reduce((total, run) =>
-		total + (run.coordinator && !run.agents?.length ? 0 : Math.max(1, run.agents?.length ?? (run.agent ? 1 : 0))), 0);
-	const activeTaskLabel = (): string | undefined => [...runs.values()].reverse().find((run) => run.taskLabel)?.taskLabel;
+	const activeSubagentCount = (): number =>
+		[...runs.values()].reduce(
+			(total, run) =>
+				total +
+				(run.coordinator && !run.agents?.length ? 0 : Math.max(1, run.agents?.length ?? (run.agent ? 1 : 0))),
+			0,
+		);
+	const activeTaskLabel = (): string | undefined =>
+		[...runs.values()].reverse().find((run) => run.taskLabel)?.taskLabel;
 
 	const label = (includeAttention = false): string => {
 		const agents = activeAgentNames();
 		const activeCount = activeSubagentCount();
-		const who = agents.length > 0
-			? ` (${agents.slice(0, 3).join(", ")}${agents.length > 3 ? ", …" : ""})`
-			: "";
+		const who = agents.length > 0 ? ` (${agents.slice(0, 3).join(", ")}${agents.length > 3 ? ", …" : ""})` : "";
 		const panes = Math.max(0, options.getProjectPaneCount?.() ?? 0);
 		const paneText = panes > 0 ? ` · ${panes} pane${panes === 1 ? "" : "s"}` : "";
 		const task = activeTaskLabel();
@@ -210,14 +221,22 @@ export function registerHerdrStatusBridge(options: HerdrStatusBridgeOptions): He
 		if (runs.size === 0) {
 			published = false;
 			enqueue([
-				"pane", "report-metadata", paneId,
-				"--source", DEFAULT_SOURCE,
-				"--agent", "pi",
-				"--applies-to-source", "herdr:pi",
+				"pane",
+				"report-metadata",
+				paneId,
+				"--source",
+				DEFAULT_SOURCE,
+				"--agent",
+				"pi",
+				"--applies-to-source",
+				"herdr:pi",
 				"--clear-state-labels",
-				"--clear-token", "summary",
-				"--clear-token", "title-suffix",
-				"--seq", seq,
+				"--clear-token",
+				"summary",
+				"--clear-token",
+				"title-suffix",
+				"--seq",
+				seq,
 			]);
 			return;
 		}
@@ -225,17 +244,28 @@ export function registerHerdrStatusBridge(options: HerdrStatusBridgeOptions): He
 		const suffix = titleSuffix();
 		published = true;
 		enqueue([
-			"pane", "report-metadata", paneId,
-			"--source", DEFAULT_SOURCE,
-			"--agent", "pi",
-			"--applies-to-source", "herdr:pi",
-			"--state-label", `idle=${text}`,
-			"--state-label", `done=${text}`,
-			"--state-label", `working=${text}`,
-			"--token", `summary=${text}`,
+			"pane",
+			"report-metadata",
+			paneId,
+			"--source",
+			DEFAULT_SOURCE,
+			"--agent",
+			"pi",
+			"--applies-to-source",
+			"herdr:pi",
+			"--state-label",
+			`idle=${text}`,
+			"--state-label",
+			`done=${text}`,
+			"--state-label",
+			`working=${text}`,
+			"--token",
+			`summary=${text}`,
 			...(suffix ? ["--token", `title-suffix=${suffix}`] : []),
-			"--ttl-ms", String(ttlMs),
-			"--seq", seq,
+			"--ttl-ms",
+			String(ttlMs),
+			"--seq",
+			seq,
 		]);
 	};
 

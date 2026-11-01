@@ -1,56 +1,62 @@
 import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { keyText, type ExtensionAPI, type ExtensionContext } from "@evoharness/coding-agent";
-import { Key, matchesKey, truncateToWidth, type Component, type KeyId, type TUI } from "@evoharness/tui";
-import { discoverAgentSnapshot, discoverAgents, findBlockingAgentDiagnostic, formatUnknownAgentError, resolveAgentName, unknownAgentDiagnosticContext, type AgentConfig, type AgentDiscoveryDiagnostic, type AgentScope, type UnknownAgentDiagnosticContext } from "../agents/agents.ts";
-import { listRuntimeAgentConfigs, mergeRuntimeAgents } from "../agents/runtime-agent-registry.ts";
-import { resolveExistingReadPaths } from "../shared/settings.ts";
+import { type ExtensionAPI, type ExtensionContext, keyText } from "@evoharness/coding-agent";
+import { type Component, Key, type KeyId, matchesKey, type TUI, truncateToWidth } from "@evoharness/tui";
 import {
-	DEFAULT_PROVIDER_MODELS_MAX_AGE_DAYS,
+	type AgentConfig,
+	type AgentDiscoveryDiagnostic,
+	type AgentScope,
+	discoverAgentSnapshot,
+	discoverAgents,
+	findBlockingAgentDiagnostic,
+	formatUnknownAgentError,
+	resolveAgentName,
+	type UnknownAgentDiagnosticContext,
+	unknownAgentDiagnosticContext,
+} from "../agents/agents.ts";
+import { listRuntimeAgentConfigs, mergeRuntimeAgents } from "../agents/runtime-agent-registry.ts";
+import { SUBAGENT_GUIDE_TOPICS } from "../extension/subagent-guide.ts";
+import { getInspectorPlugins } from "../inspectors/plugins.ts";
+import {
 	applySubagentProfile,
 	checkSubagentProfile,
+	DEFAULT_PROVIDER_MODELS_MAX_AGE_DAYS,
 	generateProfilesForProvider,
 	listSubagentProfiles,
 	readSubagentProfile,
 	refreshProviderModelCatalog,
 } from "../profiles/profiles.ts";
-import type { SubagentParamsLike } from "../runs/foreground/subagent-executor.ts";
-import { findModelInfo, toModelInfo } from "../shared/model-info.ts";
-import { shortenPath } from "../shared/formatters.ts";
-import { canRenderComponents } from "../shared/extension-context.ts";
-import { listAsyncRuns, formatAsyncRunProgressLabel, type AsyncRunSummary } from "../runs/background/async-status.ts";
+import { type AsyncRunSummary, formatAsyncRunProgressLabel, listAsyncRuns } from "../runs/background/async-status.ts";
 import { encodeInspectReply, handleInspectRpcArgs, INSPECT_WIDGET_KEY } from "../runs/background/inspect-rpc.ts";
 import { listScheduledRunSummaries } from "../runs/background/scheduled-runs.ts";
+import type { SubagentParamsLike } from "../runs/foreground/subagent-executor.ts";
 import { resolveAsyncStatusChild } from "../runs/shared/child-identity.ts";
-import { readStatus } from "../shared/utils.ts";
-import type { SlashSubagentResponse, SlashSubagentUpdate } from "./slash-bridge.ts";
-import { registerPromptWorkflowCommands } from "./prompt-workflows.ts";
-import { collectSubagentCost, formatSubagentCostReport } from "./subagent-cost.ts";
-import { openSubagentsAdmin } from "./subagents-admin.ts";
-import { SUBAGENT_GUIDE_TOPICS } from "../extension/subagent-guide.ts";
-import { getInspectorPlugins } from "../inspectors/plugins.ts";
+import { canRenderComponents } from "../shared/extension-context.ts";
+import { shortenPath } from "../shared/formatters.ts";
+import { findModelInfo, toModelInfo } from "../shared/model-info.ts";
+import { resolveExistingReadPaths } from "../shared/settings.ts";
 import {
-	applySlashUpdate,
-	buildSlashInitialResult,
-	failSlashResult,
-	finalizeSlashResult,
-} from "./slash-live-state.ts";
-import {
+	type Details,
+	DIRS,
+	type FleetKeybindingsConfig,
+	type SingleResult,
 	SLASH_RESULT_TYPE,
-	SLASH_TEXT_RESULT_TYPE,
-	SLASH_TEXT_VIEW_ONLY_DETAILS,
 	SLASH_SUBAGENT_CANCEL_EVENT,
 	SLASH_SUBAGENT_REQUEST_EVENT,
 	SLASH_SUBAGENT_RESPONSE_EVENT,
 	SLASH_SUBAGENT_STARTED_EVENT,
 	SLASH_SUBAGENT_UPDATE_EVENT,
-	DIRS,
-	type Details,
-	type FleetKeybindingsConfig,
-	type SingleResult,
+	SLASH_TEXT_RESULT_TYPE,
+	SLASH_TEXT_VIEW_ONLY_DETAILS,
 	type SubagentState,
 } from "../shared/types.ts";
+import { readStatus } from "../shared/utils.ts";
+import { registerPromptWorkflowCommands } from "./prompt-workflows.ts";
+import type { SlashSubagentResponse, SlashSubagentUpdate } from "./slash-bridge.ts";
+import { applySlashUpdate, buildSlashInitialResult, failSlashResult, finalizeSlashResult } from "./slash-live-state.ts";
+import { collectSubagentCost, formatSubagentCostReport } from "./subagent-cost.ts";
+import { openSubagentsAdmin } from "./subagents-admin.ts";
 
 interface InlineConfig {
 	output?: string | false;
@@ -70,11 +76,22 @@ const parseInlineConfig = (raw: string): InlineConfig => {
 		const key = trimmed.slice(0, eq).trim();
 		const val = trimmed.slice(eq + 1).trim();
 		switch (key) {
-			case "output": config.output = val === "false" ? false : val; break;
-			case "outputMode": if (val === "inline" || val === "file-only") config.outputMode = val; break;
-			case "reads": config.reads = val === "false" ? false : val.split("+").filter(Boolean); break;
-			case "model": config.model = val || undefined; break;
-			case "skill": case "skills": config.skill = val === "false" ? false : val.split("+").filter(Boolean); break;
+			case "output":
+				config.output = val === "false" ? false : val;
+				break;
+			case "outputMode":
+				if (val === "inline" || val === "file-only") config.outputMode = val;
+				break;
+			case "reads":
+				config.reads = val === "false" ? false : val.split("+").filter(Boolean);
+				break;
+			case "model":
+				config.model = val || undefined;
+				break;
+			case "skill":
+			case "skills":
+				config.skill = val === "false" ? false : val.split("+").filter(Boolean);
+				break;
 		}
 	}
 	return config;
@@ -84,7 +101,10 @@ const parseAgentToken = (token: string): { name: string; config: InlineConfig } 
 	const bracket = token.indexOf("[");
 	if (bracket === -1) return { name: token, config: {} };
 	const end = token.lastIndexOf("]");
-	return { name: token.slice(0, bracket), config: parseInlineConfig(token.slice(bracket + 1, end !== -1 ? end : undefined)) };
+	return {
+		name: token.slice(0, bracket),
+		config: parseInlineConfig(token.slice(bracket + 1, end !== -1 ? end : undefined)),
+	};
 };
 
 const extractExecutionFlags = (rawArgs: string): { args: string; bg: boolean; fork: boolean } => {
@@ -109,7 +129,15 @@ const extractExecutionFlags = (rawArgs: string): { args: string; bg: boolean; fo
 	return { args, bg, fork };
 };
 
-function discoverSlashAgents(pi: ExtensionAPI, cwd: string, scope: AgentScope): { agents: AgentConfig[]; agentDiagnostics?: AgentDiscoveryDiagnostic[]; unknownAgentDiagnosticContext: UnknownAgentDiagnosticContext } {
+function discoverSlashAgents(
+	pi: ExtensionAPI,
+	cwd: string,
+	scope: AgentScope,
+): {
+	agents: AgentConfig[];
+	agentDiagnostics?: AgentDiscoveryDiagnostic[];
+	unknownAgentDiagnosticContext: UnknownAgentDiagnosticContext;
+} {
 	if (listRuntimeAgentConfigs(pi).length === 0) {
 		const discovered = discoverAgents(cwd, scope);
 		return { ...discovered, unknownAgentDiagnosticContext: unknownAgentDiagnosticContext(discovered) };
@@ -124,13 +152,16 @@ function discoverSlashAgents(pi: ExtensionAPI, cwd: string, scope: AgentScope): 
 		...(scope !== "user" ? all.project : []),
 	];
 	const merged = mergeRuntimeAgents(pi, discovered, configuredAgents, { cwd, scope });
-	return { ...merged, unknownAgentDiagnosticContext: { ...unknownAgentDiagnosticContext(discovered), agents: merged.agents } };
+	return {
+		...merged,
+		unknownAgentDiagnosticContext: { ...unknownAgentDiagnosticContext(discovered), agents: merged.agents },
+	};
 }
 
 const makeAgentCompletions = (pi: ExtensionAPI, state: SubagentState) => (prefix: string) => {
 	if (!state.baseCwd || prefix.includes(" ")) return null;
-	return discoverSlashAgents(pi, state.baseCwd, "both").agents
-		.filter((agent) => agent.name.startsWith(prefix))
+	return discoverSlashAgents(pi, state.baseCwd, "both")
+		.agents.filter((agent) => agent.name.startsWith(prefix))
 		.map((agent) => ({ value: agent.name, label: agent.name }));
 };
 
@@ -138,24 +169,24 @@ const makeProviderCompletions = (state: SubagentState) => (prefix: string) => {
 	if (prefix.includes(" ")) return null;
 	const available = state.lastUiContext?.modelRegistry?.getAvailable?.();
 	if (!Array.isArray(available)) return null;
-	const providers = [...new Set(available
-		.map((model) => typeof model?.provider === "string" ? model.provider : "")
-		.filter(Boolean))]
-		.sort((a, b) => a.localeCompare(b));
+	const providers = [
+		...new Set(available.map((model) => (typeof model?.provider === "string" ? model.provider : "")).filter(Boolean)),
+	].sort((a, b) => a.localeCompare(b));
 	return providers
 		.filter((provider) => provider.startsWith(prefix))
 		.map((provider) => ({ value: provider, label: provider }));
 };
 
 function sendSlashText(pi: ExtensionAPI, text: string): void {
-	pi.sendMessage({ customType: SLASH_TEXT_RESULT_TYPE, content: text, display: true, details: SLASH_TEXT_VIEW_ONLY_DETAILS });
+	pi.sendMessage({
+		customType: SLASH_TEXT_RESULT_TYPE,
+		content: text,
+		display: true,
+		details: SLASH_TEXT_VIEW_ONLY_DETAILS,
+	});
 }
 
-async function withSlashStatus<T>(
-	ctx: ExtensionContext,
-	text: string,
-	run: () => Promise<T>,
-): Promise<T> {
+async function withSlashStatus<T>(ctx: ExtensionContext, text: string, run: () => Promise<T>): Promise<T> {
 	if (ctx.hasUI) ctx.ui.setStatus("subagent-slash-text", text);
 	try {
 		return await run();
@@ -237,14 +268,20 @@ function stopFallbackText(targets: StopSelectorTarget[]): string {
 function stopPickerTargets(targets: StopSelectorTarget[]): StopPickerTarget[] {
 	const ids = targets.filter((target) => target.kind === "async").map((target) => target.id);
 	if (ids.length < 2) return targets;
-	return [{ kind: "all", ids, label: `${ids.length} async runs`, detail: ids.join(", "), actionLabel: "stop all" }, ...targets];
+	return [
+		{ kind: "all", ids, label: `${ids.length} async runs`, detail: ids.join(", "), actionLabel: "stop all" },
+		...targets,
+	];
 }
 
 function selectForegroundDetachControl(state: SubagentState, requested: string) {
 	const controls = [...state.foregroundControls.values()];
 	if (requested) {
 		const matches = controls.filter((control) => control.runId === requested || control.runId.startsWith(requested));
-		if (matches.length > 1) throw new Error(`Ambiguous foreground run id prefix '${requested}' matched: ${matches.map((control) => control.runId).join(", ")}. Provide a longer id.`);
+		if (matches.length > 1)
+			throw new Error(
+				`Ambiguous foreground run id prefix '${requested}' matched: ${matches.map((control) => control.runId).join(", ")}. Provide a longer id.`,
+			);
 		return matches[0];
 	}
 	const singleControls = controls.filter((control) => control.mode === "single");
@@ -307,24 +344,50 @@ class SubagentsStopSelector implements Component {
 
 	render(width: number): string[] {
 		const contentWidth = Math.max(0, Math.min(this.width, Math.floor(width)));
-		const lines = [this.theme.bold("Stop subagent run"), this.theme.fg("dim", "Select a current-session async run to stop, or a scheduled run to cancel."), ""];
+		const lines = [
+			this.theme.bold("Stop subagent run"),
+			this.theme.fg("dim", "Select a current-session async run to stop, or a scheduled run to cancel."),
+			"",
+		];
 		const maxRows = 10;
 		const start = Math.max(0, Math.min(this.selected - maxRows + 1, Math.max(0, this.targets.length - maxRows)));
 		for (let index = start; index < Math.min(this.targets.length, start + maxRows); index++) {
 			const target = this.targets[index]!;
 			const selected = index === this.selected;
 			const marker = selected ? "›" : " ";
-			const action = target.kind === "scheduled" ? this.theme.fg("warning", target.actionLabel) : this.theme.fg("accent", target.actionLabel);
+			const action =
+				target.kind === "scheduled"
+					? this.theme.fg("warning", target.actionLabel)
+					: this.theme.fg("accent", target.actionLabel);
 			const labelWidth = Math.max(0, contentWidth - marker.length - target.actionLabel.length - 2);
 			lines.push(`${marker} ${action} ${target.label.slice(0, labelWidth)}`);
 			if (selected) lines.push(this.theme.fg("dim", `  ${target.detail}`.slice(0, contentWidth)));
 		}
-		if (this.targets.length > maxRows) lines.push(this.theme.fg("dim", `Showing ${start + 1}-${Math.min(this.targets.length, start + maxRows)} of ${this.targets.length}`));
+		if (this.targets.length > maxRows)
+			lines.push(
+				this.theme.fg(
+					"dim",
+					`Showing ${start + 1}-${Math.min(this.targets.length, start + maxRows)} of ${this.targets.length}`,
+				),
+			);
 		lines.push("");
 		if (this.confirming) {
 			const target = this.targets[this.selected]!;
-			lines.push(this.theme.fg("warning", `Confirm: ${target.actionLabel} ${target.kind === "all" ? target.label : target.id}?`));
-			if (target.kind !== "scheduled") lines.push(this.theme.fg("dim", target.kind === "all" ? "Stop ends these runs; scheduled runs are not paused." : "Stop ends this run; use interrupt for a resumable pause."));
+			lines.push(
+				this.theme.fg(
+					"warning",
+					`Confirm: ${target.actionLabel} ${target.kind === "all" ? target.label : target.id}?`,
+				),
+			);
+			if (target.kind !== "scheduled")
+				lines.push(
+					this.theme.fg(
+						"dim",
+						target.kind === "all"
+							? "Stop ends these runs; scheduled runs are not paused."
+							: "Stop ends this run; use interrupt for a resumable pause.",
+					),
+				);
 			lines.push(this.theme.fg("dim", "Enter/Y confirms · N returns · Esc cancels"));
 		} else {
 			lines.push(this.theme.fg("dim", "↑↓/jk select · Enter confirm · Esc cancel"));
@@ -333,21 +396,28 @@ class SubagentsStopSelector implements Component {
 	}
 }
 
-function parseSingleRequiredArg(args: string, usage: string): { ok: true; value: string } | { ok: false; message: string } {
+function parseSingleRequiredArg(
+	args: string,
+	usage: string,
+): { ok: true; value: string } | { ok: false; message: string } {
 	const parts = args.trim().split(/\s+/).filter(Boolean);
 	if (parts.length !== 1) return { ok: false, message: usage };
 	return { ok: true, value: parts[0]! };
 }
 
-function getProfileWorkerModel(profile: { subagents?: { agentOverrides?: Record<string, { model?: string }> } }): string | undefined {
+function getProfileWorkerModel(profile: {
+	subagents?: { agentOverrides?: Record<string, { model?: string }> };
+}): string | undefined {
 	const model = profile.subagents?.agentOverrides?.worker?.model;
 	return typeof model === "string" && model.trim() ? model.trim() : undefined;
 }
 
 function isStaleExtensionContextError(error: unknown): boolean {
-	return error instanceof Error
-		&& (error.message.includes("This extension ctx is stale")
-			|| error.message.includes("Extension context no longer active"));
+	return (
+		error instanceof Error &&
+		(error.message.includes("This extension ctx is stale") ||
+			error.message.includes("Extension context no longer active"))
+	);
 }
 
 function slashHasUI(ctx: ExtensionContext): boolean | undefined {
@@ -358,7 +428,6 @@ function slashHasUI(ctx: ExtensionContext): boolean | undefined {
 		throw error;
 	}
 }
-
 
 async function requestSlashRun(
 	pi: ExtensionAPI,
@@ -406,7 +475,10 @@ async function requestSlashRun(
 				const tool = update.currentTool ? ` ${update.currentTool}` : "";
 				const count = update.toolCount ?? 0;
 				const liveDetailKey = keyText("app.tools.expand");
-				ctx.ui.setStatus("subagent-slash", `${count} tools${tool}${liveDetailKey ? ` | ${liveDetailKey} live detail` : ""}`);
+				ctx.ui.setStatus(
+					"subagent-slash",
+					`${count} tools${tool}${liveDetailKey ? ` | ${liveDetailKey} live detail` : ""}`,
+				);
 			} catch (error) {
 				if (isStaleExtensionContextError(error)) {
 					finish(() => reject(error));
@@ -418,11 +490,11 @@ async function requestSlashRun(
 
 		const onTerminalInput = ctx.hasUI
 			? ctx.ui.onTerminalInput((input) => {
-				if (!matchesKey(input, Key.escape)) return undefined;
-				pi.events.emit(SLASH_SUBAGENT_CANCEL_EVENT, { requestId });
-				finish(() => reject(new Error("Cancelled")));
-				return { consume: true };
-			})
+					if (!matchesKey(input, Key.escape)) return undefined;
+					pi.events.emit(SLASH_SUBAGENT_CANCEL_EVENT, { requestId });
+					finish(() => reject(new Error("Cancelled")));
+					return { consume: true };
+				})
 			: undefined;
 
 		const unsubStarted = pi.events.on(SLASH_SUBAGENT_STARTED_EVENT, onStarted);
@@ -445,11 +517,14 @@ async function requestSlashRun(
 			signal?.removeEventListener("abort", onAbort);
 			next();
 		};
-		onAbort = () => finish(() => reject(new Error("Slash subagent request canceled during session replacement or reload.")));
+		onAbort = () =>
+			finish(() => reject(new Error("Slash subagent request canceled during session replacement or reload.")));
 		startTimeout = setTimeout(() => {
-			finish(() => reject(new Error(
-				"Slash subagent bridge did not start within 15s. Ensure the extension is loaded correctly.",
-			)));
+			finish(() =>
+				reject(
+					new Error("Slash subagent bridge did not start within 15s. Ensure the extension is loaded correctly."),
+				),
+			);
 		}, 15_000);
 
 		if (signal?.aborted) {
@@ -471,9 +546,9 @@ async function requestSlashRun(
 		// If not started, no bridge received the request.
 		if (!started && done) return;
 		if (!started) {
-			finish(() => reject(new Error(
-				"No slash subagent bridge responded. Ensure the subagent extension is loaded correctly.",
-			)));
+			finish(() =>
+				reject(new Error("No slash subagent bridge responded. Ensure the subagent extension is loaded correctly.")),
+			);
 		}
 	});
 }
@@ -492,9 +567,7 @@ function formatExportPathList(paths: string[]): string {
 }
 
 function collectResultPaths(results: SingleResult[], getPath: (result: SingleResult) => string | undefined): string[] {
-	return results
-		.map(getPath)
-		.filter((file): file is string => typeof file === "string" && file.length > 0);
+	return results.map(getPath).filter((file): file is string => typeof file === "string" && file.length > 0);
 }
 
 function buildSlashExportText(response: SlashSubagentResponse): string {
@@ -640,7 +713,12 @@ export function registerSlashCommands(
 		fleetOpen = true;
 		try {
 			const { openSubagentFleet } = await import("../tui/fleet.ts");
-			await openSubagentFleet(ctx, state, { asyncDirRoot: DIRS.async, inspectorPlugins: () => getInspectorPlugins(pi), resultsDir: DIRS.results, fleetKeybindings: options.fleetKeybindings });
+			await openSubagentFleet(ctx, state, {
+				asyncDirRoot: DIRS.async,
+				inspectorPlugins: () => getInspectorPlugins(pi),
+				resultsDir: DIRS.results,
+				fleetKeybindings: options.fleetKeybindings,
+			});
 		} finally {
 			fleetOpen = false;
 		}
@@ -660,11 +738,19 @@ export function registerSlashCommands(
 			const { args: cleanedArgs, bg, fork } = extractExecutionFlags(args);
 			const input = cleanedArgs.trim();
 			const firstSpace = input.indexOf(" ");
-			if (!input) { ctx.ui.notify("Usage: /run <agent> [task] [--bg] [--fork]", "error"); return; }
-			const { name: agentName, config: inline } = parseAgentToken(firstSpace === -1 ? input : input.slice(0, firstSpace));
+			if (!input) {
+				ctx.ui.notify("Usage: /run <agent> [task] [--bg] [--fork]", "error");
+				return;
+			}
+			const { name: agentName, config: inline } = parseAgentToken(
+				firstSpace === -1 ? input : input.slice(0, firstSpace),
+			);
 			const task = firstSpace === -1 ? "" : input.slice(firstSpace + 1).trim();
 
-			if (!state.baseCwd) { ctx.ui.notify("Subagent session cwd is not initialized yet", "error"); return; }
+			if (!state.baseCwd) {
+				ctx.ui.notify("Subagent session cwd is not initialized yet", "error");
+				return;
+			}
 			const discovered = discoverSlashAgents(pi, state.baseCwd, "both");
 			const resolvedAgent = resolveAgentName(agentName, discovered.agents);
 			const candidates = resolvedAgent.error
@@ -672,13 +758,21 @@ export function registerSlashCommands(
 				: resolvedAgent.agent;
 			const diagnostic = findBlockingAgentDiagnostic(agentName, candidates, discovered.agentDiagnostics);
 			if (diagnostic || resolvedAgent.error || !resolvedAgent.agent) {
-				ctx.ui.notify(diagnostic ? `Agent '${agentName}' has invalid configuration: ${diagnostic.error}` : resolvedAgent.error ?? formatUnknownAgentError(agentName, discovered.unknownAgentDiagnosticContext), "error");
+				ctx.ui.notify(
+					diagnostic
+						? `Agent '${agentName}' has invalid configuration: ${diagnostic.error}`
+						: (resolvedAgent.error ??
+								formatUnknownAgentError(agentName, discovered.unknownAgentDiagnosticContext)),
+					"error",
+				);
 				return;
 			}
 
 			let finalTask = task;
 			if (inline.reads && Array.isArray(inline.reads) && inline.reads.length > 0) {
-				const existingReads = inline.reads.filter((read) => resolveExistingReadPaths([read], state.baseCwd).length > 0);
+				const existingReads = inline.reads.filter(
+					(read) => resolveExistingReadPaths([read], state.baseCwd).length > 0,
+				);
 				if (existingReads.length > 0) finalTask = `[Read from: ${existingReads.join(", ")}]\n\n${finalTask}`;
 			}
 			const child: SubagentParamsLike = { agent: agentName, task: finalTask, agentScope: "both" };
@@ -687,7 +781,12 @@ export function registerSlashCommands(
 			if (inline.skill !== undefined) child.skill = inline.skill;
 			if (inline.model) child.model = inline.model;
 			if (fork) child.context = "fork";
-			launchCommand(ctx, options.workflowScriptsDisabled ? { ...child, async: bg } : { workflowScript: slashRunWorkflowScript("run", child), async: bg });
+			launchCommand(
+				ctx,
+				options.workflowScriptsDisabled
+					? { ...child, async: bg }
+					: { workflowScript: slashRunWorkflowScript("run", child), async: bg },
+			);
 		},
 	});
 
@@ -706,10 +805,14 @@ export function registerSlashCommands(
 	});
 
 	pi.registerCommand("subagents-inspect-rpc", {
-		description: "Host integration bridge: answer an async child inspection request with a correlated widget payload (no model turn)",
+		description:
+			"Host integration bridge: answer an async child inspection request with a correlated widget payload (no model turn)",
 		handler: async (args, ctx) => {
 			if (ctx.mode === "tui") {
-				ctx.ui.notify("Inspection replies are emitted only on RPC surfaces. Use /subagents or subagent({ action: \"status\", options: { view: \"transcript\" } }) interactively.", "info");
+				ctx.ui.notify(
+					'Inspection replies are emitted only on RPC surfaces. Use /subagents or subagent({ action: "status", options: { view: "transcript" } }) interactively.',
+					"info",
+				);
 				return;
 			}
 			if (!ctx.hasUI) return;
@@ -724,9 +827,13 @@ export function registerSlashCommands(
 
 	pi.registerCommand("subagents-guide", {
 		description: "Show a packaged subagents guide topic",
-		getArgumentCompletions: (prefix) => prefix.includes(" ") ? null : SUBAGENT_GUIDE_TOPICS
-			.filter((topic) => topic.startsWith(prefix))
-			.map((topic) => ({ value: topic, label: topic })),
+		getArgumentCompletions: (prefix) =>
+			prefix.includes(" ")
+				? null
+				: SUBAGENT_GUIDE_TOPICS.filter((topic) => topic.startsWith(prefix)).map((topic) => ({
+						value: topic,
+						label: topic,
+					})),
 		handler: async (args, ctx) => {
 			const topic = args.trim();
 			if (topic.includes(" ")) {
@@ -765,7 +872,10 @@ export function registerSlashCommands(
 			return;
 		}
 		if (!control) {
-			ctx.ui.notify(id ? `No active foreground run found for '${id}'.` : "No active foreground single-subagent run to detach.", "info");
+			ctx.ui.notify(
+				id ? `No active foreground run found for '${id}'.` : "No active foreground single-subagent run to detach.",
+				"info",
+			);
 			return;
 		}
 		if (control.mode !== "single") {
@@ -776,7 +886,10 @@ export function registerSlashCommands(
 			ctx.ui.notify(`Foreground run ${control.runId} is not currently detachable.`, "info");
 			return;
 		}
-		sendSlashText(pi, `Detached foreground run ${control.runId} without terminating its child. Use subagent({ action: "status", id: ${JSON.stringify(control.runId)} }) or bg_wait({ id: ${JSON.stringify(control.runId)} }) to recover the eventual result. This does not daemonize the process or guarantee survival across Pi reload/restart.`);
+		sendSlashText(
+			pi,
+			`Detached foreground run ${control.runId} without terminating its child. Use subagent({ action: "status", id: ${JSON.stringify(control.runId)} }) or bg_wait({ id: ${JSON.stringify(control.runId)} }) to recover the eventual result. This does not daemonize the process or guarantee survival across Pi reload/restart.`,
+		);
 	};
 
 	pi.registerCommand("subagents-detach", {
@@ -792,7 +905,8 @@ export function registerSlashCommands(
 	}
 
 	pi.registerCommand("subagents-stop", {
-		description: "Stop a current-session async subagent run, or one child of it with /subagents-stop <run-id> <child-id>",
+		description:
+			"Stop a current-session async subagent run, or one child of it with /subagents-stop <run-id> <child-id>",
 		handler: async (args, ctx) => {
 			const [id, childId, ...extra] = args.trim().split(/\s+/).filter(Boolean);
 			if (extra.length > 0) {
@@ -878,7 +992,10 @@ export function registerSlashCommands(
 				}
 				const resolutionStatus = {
 					...status,
-					steps: status.steps?.map((step, index) => ({ ...step, children: run.steps[index]?.children ?? step.children })),
+					steps: status.steps?.map((step, index) => ({
+						...step,
+						children: run.steps[index]?.children ?? step.children,
+					})),
 				};
 				const resolution = resolveAsyncStatusChild(resolutionStatus, childId, { includeNested: true });
 				if (!resolution.ok) {
@@ -964,7 +1081,12 @@ export function registerSlashCommands(
 						`Updated: ${result.settingsPath}`,
 					];
 
-					if (workerModel && typeof pi.setModel === "function" && typeof ctx.modelRegistry?.find === "function" && typeof ctx.modelRegistry?.getAvailable === "function") {
+					if (
+						workerModel &&
+						typeof pi.setModel === "function" &&
+						typeof ctx.modelRegistry?.find === "function" &&
+						typeof ctx.modelRegistry?.getAvailable === "function"
+					) {
 						const shouldSwitch = await ctx.ui.confirm(
 							"",
 							`Profile loaded. Also switch this session to the profile worker model?\n\n${workerModel}`,
@@ -973,11 +1095,16 @@ export function registerSlashCommands(
 							const modelInfo = findModelInfo(workerModel, ctx.modelRegistry.getAvailable().map(toModelInfo));
 							const model = modelInfo ? ctx.modelRegistry.find(modelInfo.provider, modelInfo.id) : undefined;
 							if (!modelInfo || !model) {
-								lines.push(`Could not switch current session model: '${workerModel}' is not available in the current model registry.`);
+								lines.push(
+									`Could not switch current session model: '${workerModel}' is not available in the current model registry.`,
+								);
 							} else {
 								const success = await pi.setModel(model);
 								if (success) lines.push(`Current session model switched to: ${modelInfo.fullId}`);
-								else lines.push(`Could not switch current session model to '${workerModel}': no API key or provider access is available.`);
+								else
+									lines.push(
+										`Could not switch current session model to '${workerModel}': no API key or provider access is available.`,
+									);
 							}
 						}
 					} else if (workerModel) {
@@ -999,14 +1126,20 @@ export function registerSlashCommands(
 			const trimmed = args.trim();
 			const force = /(?:^|\s)--force$/.test(trimmed) || /(?:^|\s)force$/.test(trimmed);
 			const withoutForce = trimmed.replace(/(?:^|\s)(?:--force|force)$/, "").trim();
-			const parsed = parseSingleRequiredArg(withoutForce, "Usage: /subagents-refresh-provider-models <provider> [--force]");
+			const parsed = parseSingleRequiredArg(
+				withoutForce,
+				"Usage: /subagents-refresh-provider-models <provider> [--force]",
+			);
 			if (parsed.ok === false) {
 				ctx.ui.notify(parsed.message, "error");
 				return;
 			}
 			try {
 				await withSlashStatus(ctx, `Refreshing provider models for ${parsed.value}…`, async () => {
-					const result = await refreshProviderModelCatalog(pi, ctx, parsed.value, { force, maxAgeDays: DEFAULT_PROVIDER_MODELS_MAX_AGE_DAYS });
+					const result = await refreshProviderModelCatalog(pi, ctx, parsed.value, {
+						force,
+						maxAgeDays: DEFAULT_PROVIDER_MODELS_MAX_AGE_DAYS,
+					});
 					const lines = [
 						"Provider model catalog",
 						`Provider: ${parsed.value}`,
@@ -1016,7 +1149,9 @@ export function registerSlashCommands(
 						`Refreshed at: ${result.catalog.refreshedAt}`,
 					];
 					if (result.heuristicFallbackCount > 0) {
-						lines.push(`Warning: ${result.heuristicFallbackCount} model${result.heuristicFallbackCount === 1 ? " was" : "s were"} classified with name heuristics fallback.`);
+						lines.push(
+							`Warning: ${result.heuristicFallbackCount} model${result.heuristicFallbackCount === 1 ? " was" : "s were"} classified with name heuristics fallback.`,
+						);
 					}
 					sendSlashText(pi, lines.join("\n"));
 				});
@@ -1037,7 +1172,9 @@ export function registerSlashCommands(
 			}
 			try {
 				await withSlashStatus(ctx, `Generating profiles for ${parsed.value}…`, async () => {
-					const result = await generateProfilesForProvider(pi, ctx, parsed.value, { maxAgeDays: DEFAULT_PROVIDER_MODELS_MAX_AGE_DAYS });
+					const result = await generateProfilesForProvider(pi, ctx, parsed.value, {
+						maxAgeDays: DEFAULT_PROVIDER_MODELS_MAX_AGE_DAYS,
+					});
 					const lines = [
 						"Generated subagent profiles",
 						`Provider: ${parsed.value}`,
@@ -1052,9 +1189,13 @@ export function registerSlashCommands(
 						`  strong=${result.qualityModels.strong}`,
 					];
 					if (result.selectedHeuristicFallbackCount > 0) {
-						lines.push(`Warning: generated profiles depend on heuristic-only classification for ${result.selectedHeuristicFallbackCount} selected model${result.selectedHeuristicFallbackCount === 1 ? "" : "s"}.`);
+						lines.push(
+							`Warning: generated profiles depend on heuristic-only classification for ${result.selectedHeuristicFallbackCount} selected model${result.selectedHeuristicFallbackCount === 1 ? "" : "s"}.`,
+						);
 					} else if (result.heuristicFallbackCount > 0) {
-						lines.push(`Warning: provider catalog still contains ${result.heuristicFallbackCount} heuristic-classified model${result.heuristicFallbackCount === 1 ? "" : "s"}.`);
+						lines.push(
+							`Warning: provider catalog still contains ${result.heuristicFallbackCount} heuristic-classified model${result.heuristicFallbackCount === 1 ? "" : "s"}.`,
+						);
 					}
 					sendSlashText(pi, lines.join("\n"));
 				});
@@ -1086,7 +1227,10 @@ export function registerSlashCommands(
 						`Profile: ${result.profileName}`,
 						`File: ${result.filePath}`,
 						"",
-						...result.results.map((entry) => `${entry.agent} → ${entry.model} — registry ${entry.inRegistry ? "ok" : "missing"}; probe ${entry.probe.status}${entry.probe.message ? ` (${entry.probe.message.split(/\r?\n/, 1)[0]})` : ""}`),
+						...result.results.map(
+							(entry) =>
+								`${entry.agent} → ${entry.model} — registry ${entry.inRegistry ? "ok" : "missing"}; probe ${entry.probe.status}${entry.probe.message ? ` (${entry.probe.message.split(/\r?\n/, 1)[0]})` : ""}`,
+						),
 					];
 					sendSlashText(pi, lines.join("\n"));
 				});

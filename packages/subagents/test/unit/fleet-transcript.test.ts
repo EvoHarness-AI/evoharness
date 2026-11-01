@@ -3,7 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { visibleWidth, type MarkdownTheme } from "@evoharness/tui";
+import { type MarkdownTheme, visibleWidth } from "@evoharness/tui";
 import { readFleetTranscript, renderFleetTranscript } from "../../src/tui/fleet-transcript.ts";
 
 const theme = {
@@ -39,20 +39,59 @@ describe("Fleet inspector structured transcript", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-transcript-"));
 		try {
 			const transcriptPath = writeTranscript(root, [
-				{ recordType: "message", sourceEventType: "initial_prompt", role: "user", text: "large injected task", ts: 1 },
-				{ recordType: "message", sourceEventType: "message_end", role: "user", text: "Task: large injected task", ts: 2 },
-				{ recordType: "tool_start", toolName: "read", argsPreview: "src/tui/fleet.ts", argsPayload: JSON.stringify({ path: "src/tui/fleet.ts" }), ts: 3 },
+				{
+					recordType: "message",
+					sourceEventType: "initial_prompt",
+					role: "user",
+					text: "large injected task",
+					ts: 1,
+				},
+				{
+					recordType: "message",
+					sourceEventType: "message_end",
+					role: "user",
+					text: "Task: large injected task",
+					ts: 2,
+				},
+				{
+					recordType: "tool_start",
+					toolName: "read",
+					argsPreview: "src/tui/fleet.ts",
+					argsPayload: JSON.stringify({ path: "src/tui/fleet.ts" }),
+					ts: 3,
+				},
 				{ recordType: "tool_end", toolName: "read", ts: 4 },
-				{ recordType: "message", role: "toolResult", text: "file contents", message: { toolName: "read", isError: false }, ts: 5 },
-				{ recordType: "message", role: "assistant", model: "test-model", text: "## Result\n\n```ts\nconst answer = 42;\n```", ts: 6 },
+				{
+					recordType: "message",
+					role: "toolResult",
+					text: "file contents",
+					message: { toolName: "read", isError: false },
+					ts: 5,
+				},
+				{
+					recordType: "message",
+					role: "assistant",
+					model: "test-model",
+					text: "## Result\n\n```ts\nconst answer = 42;\n```",
+					ts: 6,
+				},
 				{ recordType: "tool_start", toolName: "write", argsPreview: "missing/file.ts", ts: 7 },
 				{ recordType: "tool_end", toolName: "write", ts: 8 },
-				{ recordType: "message", role: "toolResult", text: "Permission denied\nstack omitted", message: { toolName: "write", isError: true }, ts: 9 },
+				{
+					recordType: "message",
+					role: "toolResult",
+					text: "Permission denied\nstack omitted",
+					message: { toolName: "write", isError: true },
+					ts: 9,
+				},
 				{ recordType: "message", role: "user", text: "Continue without writing.", ts: 10 },
 			]);
 
 			const transcript = readFleetTranscript(transcriptPath, { trustedRoots: [root] });
-			assert.deepEqual(transcript.events.map((event) => event.kind), ["tool", "assistant", "tool", "user"]);
+			assert.deepEqual(
+				transcript.events.map((event) => event.kind),
+				["tool", "assistant", "tool", "user"],
+			);
 			assert.deepEqual(transcript.events[0], {
 				kind: "tool",
 				name: "read",
@@ -89,9 +128,23 @@ describe("Fleet inspector structured transcript", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-transcript-model-provider-"));
 		try {
 			const transcriptPath = writeTranscript(root, [
-				{ recordType: "message", role: "assistant", model: "claude-haiku-4-5", text: "qualified", message: { role: "assistant", provider: "anthropic", model: "claude-haiku-4-5" }, ts: 1 },
+				{
+					recordType: "message",
+					role: "assistant",
+					model: "claude-haiku-4-5",
+					text: "qualified",
+					message: { role: "assistant", provider: "anthropic", model: "claude-haiku-4-5" },
+					ts: 1,
+				},
 				{ recordType: "message", role: "assistant", model: "gpt-5-mini", text: "unqualified", ts: 2 },
-				{ recordType: "message", role: "assistant", model: "openrouter/auto-beta", text: "provider-local id with a slash", message: { role: "assistant", provider: "openrouter", model: "openrouter/auto-beta" }, ts: 3 },
+				{
+					recordType: "message",
+					role: "assistant",
+					model: "openrouter/auto-beta",
+					text: "provider-local id with a slash",
+					message: { role: "assistant", provider: "openrouter", model: "openrouter/auto-beta" },
+					ts: 3,
+				},
 			]);
 			const transcript = readFleetTranscript(transcriptPath, { trustedRoots: [root] });
 			const assistantEvents = transcript.events.filter((event) => event.kind === "assistant");
@@ -109,12 +162,36 @@ describe("Fleet inspector structured transcript", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-tool-render-"));
 		try {
 			const transcriptPath = writeTranscript(root, [
-				{ recordType: "tool_start", toolName: "bash", argsPreview: "npm test", argsPayload: JSON.stringify({ command: "npm test" }), ts: 1000 },
+				{
+					recordType: "tool_start",
+					toolName: "bash",
+					argsPreview: "npm test",
+					argsPayload: JSON.stringify({ command: "npm test" }),
+					ts: 1000,
+				},
 				{ recordType: "tool_end", toolName: "bash", ts: 2200 },
-				{ recordType: "message", role: "toolResult", text: "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8", message: { toolName: "bash", isError: false }, ts: 2300 },
-				{ recordType: "tool_start", toolName: "read", argsPreview: "src/a.ts", argsPayload: JSON.stringify({ path: "src/a.ts" }), ts: 2400 },
+				{
+					recordType: "message",
+					role: "toolResult",
+					text: "line 1\nline 2\nline 3\nline 4\nline 5\nline 6\nline 7\nline 8",
+					message: { toolName: "bash", isError: false },
+					ts: 2300,
+				},
+				{
+					recordType: "tool_start",
+					toolName: "read",
+					argsPreview: "src/a.ts",
+					argsPayload: JSON.stringify({ path: "src/a.ts" }),
+					ts: 2400,
+				},
 				{ recordType: "tool_end", toolName: "read", ts: 2500 },
-				{ recordType: "message", role: "toolResult", text: "const answer: number = 42;", message: { toolName: "read", isError: false }, ts: 2600 },
+				{
+					recordType: "message",
+					role: "toolResult",
+					text: "const answer: number = 42;",
+					message: { toolName: "read", isError: false },
+					ts: 2600,
+				},
 			]);
 			const transcript = readFleetTranscript(transcriptPath, { trustedRoots: [root] });
 			const compact = renderFleetTranscript(transcript, 52, theme as never, markdownTheme);
@@ -138,13 +215,15 @@ describe("Fleet inspector structured transcript", () => {
 		const transcript = {
 			path: "/trusted/transcript.jsonl",
 			truncated: false,
-			events: [{
-				kind: "tool" as const,
-				name: "bash",
-				args: "printf red",
-				output: "\x1b[31mred output that is deliberately wider than the viewport\x1b[0m",
-				status: "complete" as const,
-			}],
+			events: [
+				{
+					kind: "tool" as const,
+					name: "bash",
+					args: "printf red",
+					output: "\x1b[31mred output that is deliberately wider than the viewport\x1b[0m",
+					status: "complete" as const,
+				},
+			],
 		};
 		const rendered = renderFleetTranscript(transcript, 24, theme as never, markdownTheme, { expandedTools: true });
 		assert.doesNotMatch(rendered.join("\n"), /\u001b/u);
@@ -162,7 +241,12 @@ describe("Fleet inspector structured transcript", () => {
 				{ recordType: "message", role: "assistant", text: `**safe Markdown**\n${unsafe}` },
 				{ recordType: "message", role: "user", text: `supervisor ${unsafe}` },
 				{ recordType: "stderr", text: `notice ${unsafe}` },
-				{ recordType: "tool_start", toolName: "custom", argsPreview: `preview ${unsafe}`, argsPayload: JSON.stringify({ value: unsafe }) },
+				{
+					recordType: "tool_start",
+					toolName: "custom",
+					argsPreview: `preview ${unsafe}`,
+					argsPayload: JSON.stringify({ value: unsafe }),
+				},
 				{ recordType: "message", role: "toolResult", toolName: "custom", text: `output ${unsafe}`, isError: false },
 				{ recordType: "tool_start", toolName: "failing", argsPreview: "failure" },
 				{ recordType: "message", role: "toolResult", toolName: "failing", text: `error ${unsafe}`, isError: true },
@@ -184,7 +268,8 @@ describe("Fleet inspector structured transcript", () => {
 			assert.ok(rendered.some((line) => line.includes("output escape:[U+001B]")));
 			assert.ok(rendered.some((line) => line.includes("error escape:[U+001B]")));
 			assert.doesNotMatch(rendered.join("\n"), /[\u001b\u202e\ue000\ud800]/u);
-			for (const line of [...compact, ...rendered]) assert.ok(visibleWidth(line) <= 44, `line exceeded width: ${JSON.stringify(line)}`);
+			for (const line of [...compact, ...rendered])
+				assert.ok(visibleWidth(line) <= 44, `line exceeded width: ${JSON.stringify(line)}`);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -224,7 +309,12 @@ describe("Fleet inspector structured transcript", () => {
 			const binary = "PNG\u0000\u0001\u0002payload";
 			const transcriptPath = writeTranscript(root, [
 				{ recordType: "message", role: "assistant", text: binary },
-				{ recordType: "tool_start", toolName: "custom", argsPreview: binary, argsPayload: JSON.stringify({ data: binary }) },
+				{
+					recordType: "tool_start",
+					toolName: "custom",
+					argsPreview: binary,
+					argsPayload: JSON.stringify({ data: binary }),
+				},
 				{ recordType: "message", role: "toolResult", toolName: "custom", text: binary, isError: false },
 			]);
 
@@ -235,7 +325,8 @@ describe("Fleet inspector structured transcript", () => {
 
 			const rendered = renderFleetTranscript(transcript, 36, theme as never, markdownTheme, { expandedTools: true });
 			assert.ok(rendered.some((line) => /binary content omitted/i.test(line)));
-			for (const line of rendered) assert.ok(visibleWidth(line) <= 36, `line exceeded width: ${JSON.stringify(line)}`);
+			for (const line of rendered)
+				assert.ok(visibleWidth(line) <= 36, `line exceeded width: ${JSON.stringify(line)}`);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -244,17 +335,19 @@ describe("Fleet inspector structured transcript", () => {
 	it("preserves normal Unicode, newlines, tabs, Markdown, code highlighting, and width", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-unicode-transcript-"));
 		try {
-			const text = "## Résumé 世界 👩🏽‍💻\r\n\r\n```ts\r\nconst café = \"☕\";\r\n```\r\n\tindented";
+			const text = '## Résumé 世界 👩🏽‍💻\r\n\r\n```ts\r\nconst café = "☕";\r\n```\r\n\tindented';
 			const transcriptPath = writeTranscript(root, [{ recordType: "message", role: "assistant", text }]);
 			const transcript = readFleetTranscript(transcriptPath, { trustedRoots: [root] });
 			assert.equal(transcript.events[0]?.kind, "assistant");
-			if (transcript.events[0]?.kind === "assistant") assert.equal(transcript.events[0].text, text.replace(/\r\n/g, "\n"));
+			if (transcript.events[0]?.kind === "assistant")
+				assert.equal(transcript.events[0].text, text.replace(/\r\n/g, "\n"));
 
 			const rendered = renderFleetTranscript(transcript, 28, theme as never, markdownTheme);
 			assert.ok(rendered.some((line) => line.includes("Résumé 世界")));
 			assert.ok(rendered.some((line) => line.includes("const café")));
 			assert.ok(rendered.some((line) => line.includes("indented")));
-			for (const line of rendered) assert.ok(visibleWidth(line) <= 28, `line exceeded width: ${JSON.stringify(line)}`);
+			for (const line of rendered)
+				assert.ok(visibleWidth(line) <= 28, `line exceeded width: ${JSON.stringify(line)}`);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -268,16 +361,35 @@ describe("Fleet inspector structured transcript", () => {
 				{ recordType: "tool_start", toolCallId: "read-b", toolName: "read", argsPreview: "b.ts", ts: 2 },
 				{ recordType: "tool_end", toolCallId: "read-b", toolName: "read", ts: 3 },
 				{ recordType: "tool_end", toolCallId: "read-a", toolName: "read", ts: 4 },
-				{ recordType: "message", role: "toolResult", toolCallId: "read-a", toolName: "read", text: "contents-a", isError: false, ts: 5 },
-				{ recordType: "message", role: "toolResult", toolCallId: "read-b", toolName: "read", text: "contents-b", isError: false, ts: 6 },
+				{
+					recordType: "message",
+					role: "toolResult",
+					toolCallId: "read-a",
+					toolName: "read",
+					text: "contents-a",
+					isError: false,
+					ts: 5,
+				},
+				{
+					recordType: "message",
+					role: "toolResult",
+					toolCallId: "read-b",
+					toolName: "read",
+					text: "contents-b",
+					isError: false,
+					ts: 6,
+				},
 			]);
 			const transcript = readFleetTranscript(transcriptPath, { trustedRoots: [root] });
 			const tools = transcript.events.filter((event) => event.kind === "tool");
 			assert.equal(tools.length, 2);
-			assert.deepEqual(tools.map((tool) => ({ id: tool.toolCallId, args: tool.args, output: tool.output, endedAt: tool.endedAt })), [
-				{ id: "read-a", args: "a.ts", output: "contents-a", endedAt: 4 },
-				{ id: "read-b", args: "b.ts", output: "contents-b", endedAt: 3 },
-			]);
+			assert.deepEqual(
+				tools.map((tool) => ({ id: tool.toolCallId, args: tool.args, output: tool.output, endedAt: tool.endedAt })),
+				[
+					{ id: "read-a", args: "a.ts", output: "contents-a", endedAt: 4 },
+					{ id: "read-b", args: "b.ts", output: "contents-b", endedAt: 3 },
+				],
+			);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -289,16 +401,33 @@ describe("Fleet inspector structured transcript", () => {
 			const transcriptPath = writeTranscript(root, [
 				{ recordType: "tool_start", toolCallId: "read-a", toolName: "read", argsPreview: "a.ts" },
 				{ recordType: "tool_start", toolCallId: "read-b", toolName: "read", argsPreview: "b.ts" },
-				{ recordType: "message", role: "toolResult", toolCallId: "read-a", toolName: "read", text: "contents-a", isError: false },
-				{ recordType: "message", role: "toolResult", toolCallId: "read-b", toolName: "read", text: "contents-b", isError: false },
+				{
+					recordType: "message",
+					role: "toolResult",
+					toolCallId: "read-a",
+					toolName: "read",
+					text: "contents-a",
+					isError: false,
+				},
+				{
+					recordType: "message",
+					role: "toolResult",
+					toolCallId: "read-b",
+					toolName: "read",
+					text: "contents-b",
+					isError: false,
+				},
 			]);
 			const transcript = readFleetTranscript(transcriptPath, { trustedRoots: [root], maxRecords: 3 });
 			const tools = transcript.events.filter((event) => event.kind === "tool");
 			assert.equal(transcript.truncated, true);
-			assert.deepEqual(new Map(tools.map((tool) => [tool.toolCallId, tool.output])), new Map([
-				["read-a", "contents-a"],
-				["read-b", "contents-b"],
-			]));
+			assert.deepEqual(
+				new Map(tools.map((tool) => [tool.toolCallId, tool.output])),
+				new Map([
+					["read-a", "contents-a"],
+					["read-b", "contents-b"],
+				]),
+			);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -308,9 +437,15 @@ describe("Fleet inspector structured transcript", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-final-record-"));
 		try {
 			const transcriptPath = path.join(root, "child-transcript.jsonl");
-			fs.writeFileSync(transcriptPath, JSON.stringify({ recordType: "message", role: "assistant", text: "Complete final record" }), "utf-8");
+			fs.writeFileSync(
+				transcriptPath,
+				JSON.stringify({ recordType: "message", role: "assistant", text: "Complete final record" }),
+				"utf-8",
+			);
 			let transcript = readFleetTranscript(transcriptPath, { trustedRoots: [root] });
-			assert.ok(transcript.events.some((event) => event.kind === "assistant" && event.text === "Complete final record"));
+			assert.ok(
+				transcript.events.some((event) => event.kind === "assistant" && event.text === "Complete final record"),
+			);
 
 			fs.writeFileSync(
 				transcriptPath,
@@ -318,7 +453,10 @@ describe("Fleet inspector structured transcript", () => {
 				"utf-8",
 			);
 			transcript = readFleetTranscript(transcriptPath, { trustedRoots: [root] });
-			assert.deepEqual(transcript.events.map((event) => event.kind === "assistant" ? event.text : event.kind), ["Complete first record"]);
+			assert.deepEqual(
+				transcript.events.map((event) => (event.kind === "assistant" ? event.text : event.kind)),
+				["Complete first record"],
+			);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -329,9 +467,25 @@ describe("Fleet inspector structured transcript", () => {
 		try {
 			const transcriptPath = writeTranscript(root, [
 				{ recordType: "tool_start", toolCallId: "bash-1", toolName: "bash", ts: 1 },
-				{ recordType: "message", role: "toolResult", toolCallId: "bash-1", toolName: "bash", text: "command failed", isError: true, ts: 2 },
+				{
+					recordType: "message",
+					role: "toolResult",
+					toolCallId: "bash-1",
+					toolName: "bash",
+					text: "command failed",
+					isError: true,
+					ts: 2,
+				},
 				{ recordType: "tool_end", toolCallId: "bash-1", toolName: "bash", isError: false, ts: 3 },
-				{ recordType: "message", role: "toolResult", toolCallId: "bash-1", toolName: "bash", text: "late success", isError: false, ts: 4 },
+				{
+					recordType: "message",
+					role: "toolResult",
+					toolCallId: "bash-1",
+					toolName: "bash",
+					text: "late success",
+					isError: false,
+					ts: 4,
+				},
 			]);
 			const transcript = readFleetTranscript(transcriptPath, { trustedRoots: [root] });
 			const tool = transcript.events.find((event) => event.kind === "tool");
@@ -351,12 +505,18 @@ describe("Fleet inspector structured transcript", () => {
 		try {
 			const transcriptPath = writeTranscript(root, [
 				{ recordType: "message", role: "assistant", text: "Earlier response" },
-				...Array.from({ length: 8 }, (_, index) => ({ recordType: "tool_start", toolName: "read", argsPreview: `file-${index}` })),
+				...Array.from({ length: 8 }, (_, index) => ({
+					recordType: "tool_start",
+					toolName: "read",
+					argsPreview: `file-${index}`,
+				})),
 				{ recordType: "message", role: "user", text: "Use the narrower approach." },
 			]);
 			const transcript = readFleetTranscript(transcriptPath, { trustedRoots: [root], maxRecords: 3 });
 			assert.equal(transcript.truncated, true);
-			assert.ok(transcript.events.some((event) => event.kind === "user" && event.text === "Use the narrower approach."));
+			assert.ok(
+				transcript.events.some((event) => event.kind === "user" && event.text === "Use the narrower approach."),
+			);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -366,7 +526,9 @@ describe("Fleet inspector structured transcript", () => {
 		const trustedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-symlink-trusted-"));
 		const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-symlink-outside-"));
 		try {
-			const outsideTranscript = writeTranscript(outsideRoot, [{ recordType: "message", role: "assistant", text: "secret" }]);
+			const outsideTranscript = writeTranscript(outsideRoot, [
+				{ recordType: "message", role: "assistant", text: "secret" },
+			]);
 			try {
 				fs.symlinkSync(outsideTranscript, path.join(trustedRoot, "transcript-link.jsonl"));
 				fs.symlinkSync(outsideRoot, path.join(trustedRoot, "directory-link"), "dir");
@@ -379,12 +541,18 @@ describe("Fleet inspector structured transcript", () => {
 				throw error;
 			}
 
-			const directLink = readFleetTranscript(path.join(trustedRoot, "transcript-link.jsonl"), { trustedRoots: [trustedRoot] });
+			const directLink = readFleetTranscript(path.join(trustedRoot, "transcript-link.jsonl"), {
+				trustedRoots: [trustedRoot],
+			});
 			assert.deepEqual(directLink.events, []);
 			assert.match(directLink.warning ?? "", /refused a symlink/);
 
 			const linkedPath = path.join(trustedRoot, "directory-link", path.basename(outsideTranscript));
-			const parentLink = readFleetTranscript(linkedPath, { trustedRoots: [trustedRoot], trustedFiles: [linkedPath], trustedFileRoot: trustedRoot });
+			const parentLink = readFleetTranscript(linkedPath, {
+				trustedRoots: [trustedRoot],
+				trustedFiles: [linkedPath],
+				trustedFileRoot: trustedRoot,
+			});
 			assert.deepEqual(parentLink.events, []);
 			assert.match(parentLink.warning ?? "", /resolves outside trusted roots/);
 		} finally {
@@ -397,7 +565,9 @@ describe("Fleet inspector structured transcript", () => {
 		const trustedRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-trusted-"));
 		const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-outside-"));
 		try {
-			const transcriptPath = writeTranscript(outsideRoot, [{ recordType: "message", role: "assistant", text: "secret" }]);
+			const transcriptPath = writeTranscript(outsideRoot, [
+				{ recordType: "message", role: "assistant", text: "secret" },
+			]);
 			const transcript = readFleetTranscript(transcriptPath, { trustedRoots: [trustedRoot] });
 			assert.deepEqual(transcript.events, []);
 			assert.match(transcript.warning ?? "", /outside trusted roots/);
@@ -413,19 +583,33 @@ describe("Fleet inspector structured transcript", () => {
 		try {
 			const projectDir = path.join(sessionsBase, "project");
 			fs.mkdirSync(projectDir);
-			const recorded = writeTranscript(projectDir, [{ recordType: "message", role: "assistant", text: "recorded child" }]);
+			const recorded = writeTranscript(projectDir, [
+				{ recordType: "message", role: "assistant", text: "recorded child" },
+			]);
 			const sibling = path.join(projectDir, "sibling.jsonl");
 			fs.copyFileSync(recorded, sibling);
 
-			const trusted = readFleetTranscript(recorded, { trustedRoots: [], trustedFiles: [recorded], trustedFileRoot: sessionsBase });
+			const trusted = readFleetTranscript(recorded, {
+				trustedRoots: [],
+				trustedFiles: [recorded],
+				trustedFileRoot: sessionsBase,
+			});
 			assert.equal(trusted.events.find((event) => event.kind === "assistant")?.text, "recorded child");
 
-			const refused = readFleetTranscript(sibling, { trustedRoots: [], trustedFiles: [recorded], trustedFileRoot: sessionsBase });
+			const refused = readFleetTranscript(sibling, {
+				trustedRoots: [],
+				trustedFiles: [recorded],
+				trustedFileRoot: sessionsBase,
+			});
 			assert.deepEqual(refused.events, []);
 			assert.match(refused.warning ?? "", /outside trusted roots/);
 
 			const outside = writeTranscript(outsideBase, [{ recordType: "message", role: "assistant", text: "outside" }]);
-			const outsideRefused = readFleetTranscript(outside, { trustedRoots: [], trustedFiles: [outside], trustedFileRoot: sessionsBase });
+			const outsideRefused = readFleetTranscript(outside, {
+				trustedRoots: [],
+				trustedFiles: [outside],
+				trustedFileRoot: sessionsBase,
+			});
 			assert.deepEqual(outsideRefused.events, []);
 			assert.match(outsideRefused.warning ?? "", /outside trusted roots/);
 		} finally {
@@ -439,14 +623,17 @@ describe("Fleet inspector structured transcript", () => {
 		const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-fleet-warning-outside-"));
 		try {
 			writeTranscript(outsideRoot, [{ recordType: "message", role: "assistant", text: "secret" }]);
-			const transcript = readFleetTranscript(path.join(outsideRoot, "unsafe-\u001b[31m.jsonl"), { trustedRoots: [trustedRoot] });
+			const transcript = readFleetTranscript(path.join(outsideRoot, "unsafe-\u001b[31m.jsonl"), {
+				trustedRoots: [trustedRoot],
+			});
 			assert.deepEqual(transcript.events, []);
 			assert.doesNotMatch(transcript.warning ?? "", /\u001b/u);
 			assert.match(transcript.warning ?? "", /U\+001B/);
 
 			const rendered = renderFleetTranscript(transcript, 40, theme as never, markdownTheme);
 			assert.doesNotMatch(rendered.join("\n"), /\u001b/u);
-			for (const line of rendered) assert.ok(visibleWidth(line) <= 40, `line exceeded width: ${JSON.stringify(line)}`);
+			for (const line of rendered)
+				assert.ok(visibleWidth(line) <= 40, `line exceeded width: ${JSON.stringify(line)}`);
 		} finally {
 			fs.rmSync(trustedRoot, { recursive: true, force: true });
 			fs.rmSync(outsideRoot, { recursive: true, force: true });

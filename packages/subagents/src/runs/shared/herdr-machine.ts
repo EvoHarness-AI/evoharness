@@ -6,6 +6,7 @@ import { getAgentDir, getProjectConfigDir } from "../../shared/utils.ts";
 import { CODE_OWNED_EXTERNAL_CLI_ADAPTER_IDS, type CodeOwnedExternalCliAdapterId } from "./external-cli-contract.ts";
 import type { runExternalCli } from "./external-cli-runner.ts";
 import { REX_LOCAL_MACHINE, resolveRexLocalPlacement } from "./rex-machine.ts";
+
 export { shellQuoteRemote as shellQuote } from "./herdr-connection.ts";
 
 /**
@@ -57,7 +58,9 @@ export interface ResolveHerdrMachinePlacementInput {
 	herdrBin?: string;
 }
 
-export interface HerdrMachinePlacement extends MachinePlacement { machine: HerdrMachineReference }
+export interface HerdrMachinePlacement extends MachinePlacement {
+	machine: HerdrMachineReference;
+}
 
 /** A resolved `machine` value: a Herdr saved machine, or the reserved `local` (a Rex pane on this machine). */
 export interface MachinePlacement {
@@ -74,7 +77,8 @@ export interface PreparedHerdrMachineExternalCliRun {
 function validateMachineName(value: string): string {
 	const trimmed = value.trim();
 	if (!trimmed) throw new Error("Herdr machine id or label is required.");
-	if (trimmed.length > MAX_MACHINE_NAME_LENGTH) throw new Error(`Herdr machine '${trimmed.slice(0, 24)}…' exceeds ${MAX_MACHINE_NAME_LENGTH} characters.`);
+	if (trimmed.length > MAX_MACHINE_NAME_LENGTH)
+		throw new Error(`Herdr machine '${trimmed.slice(0, 24)}…' exceeds ${MAX_MACHINE_NAME_LENGTH} characters.`);
 	if (CONTROL_CHARS.test(trimmed)) throw new Error("Herdr machine id or label contains control characters.");
 	return trimmed;
 }
@@ -82,7 +86,9 @@ function validateMachineName(value: string): string {
 function validateTarget(value: string, requested: string): string {
 	const target = value.trim();
 	if (!target || target.startsWith("-") || /[\s\u0000-\u001f\u007f]/u.test(target)) {
-		throw new Error(`Herdr machine '${requested}' has an ssh target that cannot be passed safely: ${JSON.stringify(target)}.`);
+		throw new Error(
+			`Herdr machine '${requested}' has an ssh target that cannot be passed safely: ${JSON.stringify(target)}.`,
+		);
 	}
 	return target;
 }
@@ -93,7 +99,10 @@ function isRemoteAbsolute(value: string): boolean {
 
 function validateRemoteCwd(value: string, requested: string): string {
 	const cwd = value.trim();
-	if (!isRemoteAbsolute(cwd)) throw new Error(`Herdr machine '${requested}' cwd must be an absolute POSIX path or start with '~': ${JSON.stringify(cwd)}.`);
+	if (!isRemoteAbsolute(cwd))
+		throw new Error(
+			`Herdr machine '${requested}' cwd must be an absolute POSIX path or start with '~': ${JSON.stringify(cwd)}.`,
+		);
 	if (CONTROL_CHARS.test(cwd)) throw new Error(`Herdr machine '${requested}' cwd contains control characters.`);
 	return cwd.length > 1 ? cwd.replace(/\/+$/u, "") : cwd;
 }
@@ -103,21 +112,29 @@ function parseMachineCatalog(json: string): HerdrMachineCatalogEntry[] {
 	try {
 		parsed = JSON.parse(json) as unknown;
 	} catch (error) {
-		throw new Error(`Failed to parse herdr machine list --json: ${error instanceof Error ? error.message : String(error)}`);
+		throw new Error(
+			`Failed to parse herdr machine list --json: ${error instanceof Error ? error.message : String(error)}`,
+		);
 	}
-	const entries = Array.isArray(parsed) ? parsed : (parsed && typeof parsed === "object" && Array.isArray((parsed as Record<string, unknown>).machines) ? (parsed as Record<string, unknown[]>).machines : undefined);
+	const entries = Array.isArray(parsed)
+		? parsed
+		: parsed && typeof parsed === "object" && Array.isArray((parsed as Record<string, unknown>).machines)
+			? (parsed as Record<string, unknown[]>).machines
+			: undefined;
 	if (!entries) throw new Error("herdr machine list --json returned no machine list.");
 	return entries.flatMap((entry) => {
 		if (!entry || typeof entry !== "object" || Array.isArray(entry)) return [];
 		const record = entry as Record<string, unknown>;
 		if (typeof record.id !== "string" || !record.id.trim() || typeof record.target !== "string") return [];
-		return [{
-			id: record.id.trim(),
-			...(typeof record.label === "string" && record.label.trim() ? { label: record.label.trim() } : {}),
-			target: record.target,
-			...(typeof record.session === "string" && record.session.trim() ? { session: record.session.trim() } : {}),
-			enabled: record.enabled !== false,
-		}];
+		return [
+			{
+				id: record.id.trim(),
+				...(typeof record.label === "string" && record.label.trim() ? { label: record.label.trim() } : {}),
+				target: record.target,
+				...(typeof record.session === "string" && record.session.trim() ? { session: record.session.trim() } : {}),
+				enabled: record.enabled !== false,
+			},
+		];
 	});
 }
 
@@ -131,10 +148,16 @@ function readHerdrMachineCatalog(env: NodeJS.ProcessEnv, herdrBin: string): Herd
 	});
 	if (result.error) {
 		const code = (result.error as NodeJS.ErrnoException).code;
-		if (code === "ENOENT") throw new Error(`Herdr CLI '${herdrBin}' was not found on PATH. Saved-machine placement needs Herdr installed locally.`);
+		if (code === "ENOENT")
+			throw new Error(
+				`Herdr CLI '${herdrBin}' was not found on PATH. Saved-machine placement needs Herdr installed locally.`,
+			);
 		throw new Error(`Failed to run herdr machine list --json: ${result.error.message}`);
 	}
-	if (result.status !== 0) throw new Error(`herdr machine list --json exited with code ${result.status}: ${(result.stderr || result.stdout).trim()}`);
+	if (result.status !== 0)
+		throw new Error(
+			`herdr machine list --json exited with code ${result.status}: ${(result.stderr || result.stdout).trim()}`,
+		);
 	return parseMachineCatalog(result.stdout);
 }
 
@@ -146,7 +169,9 @@ function selectMachine(catalog: HerdrMachineCatalogEntry[], requested: string): 
 	const machine = matches[0];
 	if (!machine) {
 		const saved = catalog.filter((entry) => entry.enabled).map((entry) => entry.label ?? entry.id);
-		throw new Error(`Herdr machine '${requested}' was not found. Saved machines: ${saved.length ? saved.join(", ") : "none"}. Add one with herdr machine add <target> --label <name>.`);
+		throw new Error(
+			`Herdr machine '${requested}' was not found. Saved machines: ${saved.length ? saved.join(", ") : "none"}. Add one with herdr machine add <target> --label <name>.`,
+		);
 	}
 	if (!machine.enabled) throw new Error(`Machine '${requested}' is disabled. Run herdr machine enable ${machine.id}.`);
 	return machine;
@@ -158,39 +183,72 @@ function readJsonObject(filePath: string): Record<string, unknown> {
 	try {
 		parsed = JSON.parse(fs.readFileSync(filePath, "utf-8")) as unknown;
 	} catch (error) {
-		throw new Error(`Failed to read settings file '${filePath}': ${error instanceof Error ? error.message : String(error)}`);
+		throw new Error(
+			`Failed to read settings file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
+		);
 	}
-	return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+	return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : {};
 }
 
-function machineSettingsFrom(settings: Record<string, unknown>, keys: readonly string[], filePath: string): MachineSettingsEntry | undefined {
+function machineSettingsFrom(
+	settings: Record<string, unknown>,
+	keys: readonly string[],
+	filePath: string,
+): MachineSettingsEntry | undefined {
 	const subagents = settings.subagents;
 	if (!subagents || typeof subagents !== "object" || Array.isArray(subagents)) return undefined;
 	const machines = (subagents as Record<string, unknown>).machines;
 	if (machines === undefined) return undefined;
-	if (!machines || typeof machines !== "object" || Array.isArray(machines)) throw new Error(`Subagent settings in '${filePath}' have invalid 'machines'; expected an object keyed by machine label or id.`);
+	if (!machines || typeof machines !== "object" || Array.isArray(machines))
+		throw new Error(
+			`Subagent settings in '${filePath}' have invalid 'machines'; expected an object keyed by machine label or id.`,
+		);
 	const key = keys.find((candidate) => candidate in (machines as Record<string, unknown>));
 	if (key === undefined) return undefined;
 	const value = (machines as Record<string, unknown>)[key];
-	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Subagent settings in '${filePath}' have invalid 'machines.${key}'; expected an object with 'cwd' and optional 'env'.`);
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw new Error(
+			`Subagent settings in '${filePath}' have invalid 'machines.${key}'; expected an object with 'cwd' and optional 'env'.`,
+		);
 	const record = value as Record<string, unknown>;
 	const entry: MachineSettingsEntry = {};
 	if (record.cwd !== undefined) {
-		if (typeof record.cwd !== "string" || !record.cwd.trim()) throw new Error(`Subagent settings in '${filePath}' have invalid 'machines.${key}.cwd'; expected a non-empty string.`);
+		if (typeof record.cwd !== "string" || !record.cwd.trim())
+			throw new Error(
+				`Subagent settings in '${filePath}' have invalid 'machines.${key}.cwd'; expected a non-empty string.`,
+			);
 		entry.cwd = validateRemoteCwd(record.cwd, key);
 	}
 	if (record.env !== undefined) {
-		if (!record.env || typeof record.env !== "object" || Array.isArray(record.env) || Object.entries(record.env).some(([name, item]) => !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(name) || typeof item !== "string")) {
-			throw new Error(`Subagent settings in '${filePath}' have invalid 'machines.${key}.env'; expected an object of string values keyed by variable name.`);
+		if (
+			!record.env ||
+			typeof record.env !== "object" ||
+			Array.isArray(record.env) ||
+			Object.entries(record.env).some(
+				([name, item]) => !/^[A-Za-z_][A-Za-z0-9_]*$/u.test(name) || typeof item !== "string",
+			)
+		) {
+			throw new Error(
+				`Subagent settings in '${filePath}' have invalid 'machines.${key}.env'; expected an object of string values keyed by variable name.`,
+			);
 		}
 		entry.env = { ...(record.env as Record<string, string>) };
 		if (Object.keys(entry.env).length > 0) {
-			throw new Error(`Subagent settings in '${filePath}' set 'machines.${key}.env'. Saved-machine runs use the remote Herdr/Pi environment; configure credentials and environment on '${key}' and remove the local env map.`);
+			throw new Error(
+				`Subagent settings in '${filePath}' set 'machines.${key}.env'. Saved-machine runs use the remote Herdr/Pi environment; configure credentials and environment on '${key}' and remove the local env map.`,
+			);
 		}
 	}
 	if (record.rex !== undefined) {
-		const rex = record.rex, ssh = rex && typeof rex === "object" && !Array.isArray(rex) && Object.keys(rex).every((field) => field === "ssh") ? (rex as Record<string, unknown>).ssh : undefined;
-		if (typeof ssh !== "string") throw new Error(`Subagent settings in '${filePath}' have invalid 'machines.${key}.rex'; expected { "ssh": "<ssh target>" }.`);
+		const rex = record.rex,
+			ssh =
+				rex && typeof rex === "object" && !Array.isArray(rex) && Object.keys(rex).every((field) => field === "ssh")
+					? (rex as Record<string, unknown>).ssh
+					: undefined;
+		if (typeof ssh !== "string")
+			throw new Error(
+				`Subagent settings in '${filePath}' have invalid 'machines.${key}.rex'; expected { "ssh": "<ssh target>" }.`,
+			);
 		entry.rex = { ssh: validateTarget(ssh, key) };
 	}
 	return entry;
@@ -201,8 +259,12 @@ function readMachineSettings(cwd: string, keys: readonly string[]): MachineSetti
 	const userPath = path.join(getAgentDir(), "settings.json");
 	const projectPath = path.join(getProjectConfigDir(findProjectRootForSettings(cwd)), "settings.json");
 	const user = machineSettingsFrom(readJsonObject(userPath), keys, userPath);
-	const project = projectPath === userPath ? undefined : machineSettingsFrom(readJsonObject(projectPath), keys, projectPath);
-	if (project?.rex) throw new Error(`Project settings '${projectPath}' set a Rex SSH host in 'machines'. Move the rex entry to your user settings '${userPath}'; only user settings choose which host a task runs on.`);
+	const project =
+		projectPath === userPath ? undefined : machineSettingsFrom(readJsonObject(projectPath), keys, projectPath);
+	if (project?.rex)
+		throw new Error(
+			`Project settings '${projectPath}' set a Rex SSH host in 'machines'. Move the rex entry to your user settings '${userPath}'; only user settings choose which host a task runs on.`,
+		);
 	if (!user && !project) return undefined;
 	return { ...user, ...project };
 }
@@ -227,21 +289,27 @@ function findProjectRootForSettings(cwd: string): string {
 function remoteMachineCwd(stepCwd: string | undefined, root: string | undefined, name: string): string {
 	const step = stepCwd?.trim();
 	if (step && isRemoteAbsolute(step)) return step;
-	if (!root) throw new Error(`No root for ${name} in this repo. Set subagents.machines.${name}.cwd in .pi/settings.json or pass an absolute cwd on that machine.`);
+	if (!root)
+		throw new Error(
+			`No root for ${name} in this repo. Set subagents.machines.${name}.cwd in .pi/settings.json or pass an absolute cwd on that machine.`,
+		);
 	return step ? path.posix.join(root, step) : root;
 }
 
 export function resolveHerdrMachinePlacement(input: ResolveHerdrMachinePlacementInput): HerdrMachinePlacement {
 	const requested = validateMachineName(input.machine);
-	const catalog = input.catalogJson !== undefined
-		? parseMachineCatalog(input.catalogJson)
-		: readHerdrMachineCatalog(input.env ?? process.env, input.herdrBin ?? process.env.HERDR_BIN ?? "herdr");
+	const catalog =
+		input.catalogJson !== undefined
+			? parseMachineCatalog(input.catalogJson)
+			: readHerdrMachineCatalog(input.env ?? process.env, input.herdrBin ?? process.env.HERDR_BIN ?? "herdr");
 	const selected = selectMachine(catalog, requested);
 	const name = selected.label ?? selected.id;
 	const keys = [...new Set([requested, ...(selected.label ? [selected.label] : []), selected.id])];
 	const settings = input.settings ?? readMachineSettings(input.cwd, keys);
 	if (settings?.env && Object.keys(settings.env).length > 0) {
-		throw new Error(`Saved-machine environment for '${name}' must be configured remotely. Remove machines.${name}.env and configure the remote Herdr/Pi session instead.`);
+		throw new Error(
+			`Saved-machine environment for '${name}' must be configured remotely. Remove machines.${name}.env and configure the remote Herdr/Pi session instead.`,
+		);
 	}
 	const cwd = remoteMachineCwd(input.stepCwd, settings?.cwd, name);
 	return {
@@ -262,15 +330,27 @@ export function resolveMachinePlacement(input: ResolveHerdrMachinePlacementInput
 	const requested = validateMachineName(input.machine);
 	const settings = input.settings ?? readMachineSettings(input.cwd, [requested]);
 	if (requested === REX_LOCAL_MACHINE) {
-		if (settings?.rex) throw new Error("Machine 'local' is reserved for a Rex pane on this machine; give the Rex SSH host in subagents.machines.local.rex another name.");
+		if (settings?.rex)
+			throw new Error(
+				"Machine 'local' is reserved for a Rex pane on this machine; give the Rex SSH host in subagents.machines.local.rex another name.",
+			);
 		return { machine: resolveRexLocalPlacement({ cwd: input.cwd, stepCwd: input.stepCwd, env: input.env }) };
 	}
-	if (settings?.rex) return { machine: { provider: "rex", id: requested, target: settings.rex.ssh, cwd: validateRemoteCwd(remoteMachineCwd(input.stepCwd, settings.cwd, requested), requested) } };
+	if (settings?.rex)
+		return {
+			machine: {
+				provider: "rex",
+				id: requested,
+				target: settings.rex.ssh,
+				cwd: validateRemoteCwd(remoteMachineCwd(input.stepCwd, settings.cwd, requested), requested),
+			},
+		};
 	return resolveHerdrMachinePlacement(input);
 }
 
 /** A placed Pi keeps its transcript on the pane's machine, so it can't start from a local one. */
-export const PLACED_RESTORE_UNSUPPORTED = "Pane-native remote Pi does not support fork, resume, or revival; use fresh context.";
+export const PLACED_RESTORE_UNSUPPORTED =
+	"Pane-native remote Pi does not support fork, resume, or revival; use fresh context.";
 
 export function formatHerdrMachineRunnerUnsupported(input: {
 	machine?: string;
@@ -282,40 +362,71 @@ export function formatHerdrMachineRunnerUnsupported(input: {
 	if (input.machine === undefined) return undefined;
 	const name = input.machine.trim();
 	let rex: boolean;
-	try { rex = name === REX_LOCAL_MACHINE || userRexMachine(name); } catch (error) { return error instanceof Error ? error.message : String(error); }
+	try {
+		rex = name === REX_LOCAL_MACHINE || userRexMachine(name);
+	} catch (error) {
+		return error instanceof Error ? error.message : String(error);
+	}
 	if (rex) {
-		if (input.runnerType !== undefined && input.runnerType !== "pi") return `Agent '${input.agentName}' requested machine '${name}', but Rex supports native Pi children only. Remove the machine or use a native Pi agent.`;
-		if (input.worktree === true) return `Agent '${input.agentName}' requested machine '${name}', but managed worktrees cannot be combined with machine placement.`;
-		if (process.platform === "win32") return `Machine '${name}' runs the child in a Rex pane, which is not supported on Windows.`;
+		if (input.runnerType !== undefined && input.runnerType !== "pi")
+			return `Agent '${input.agentName}' requested machine '${name}', but Rex supports native Pi children only. Remove the machine or use a native Pi agent.`;
+		if (input.worktree === true)
+			return `Agent '${input.agentName}' requested machine '${name}', but managed worktrees cannot be combined with machine placement.`;
+		if (process.platform === "win32")
+			return `Machine '${name}' runs the child in a Rex pane, which is not supported on Windows.`;
 		return undefined;
 	}
 	if (input.runnerType !== undefined && input.runnerType !== "pi" && input.runnerType !== "external-cli") {
 		return `Agent '${input.agentName}' requested machine '${input.machine}', but this runner cannot use pane-native Herdr placement. Use native Pi or a built-in Claude, Codex, or Cursor profile.`;
 	}
-	if (input.runnerType === "external-cli" && (input.adapter === undefined || !SUPPORTED_MACHINE_ADAPTERS.has(input.adapter))) {
+	if (
+		input.runnerType === "external-cli" &&
+		(input.adapter === undefined || !SUPPORTED_MACHINE_ADAPTERS.has(input.adapter))
+	) {
 		return `Agent '${input.agentName}' requested machine '${input.machine}', but generic external-cli commands cannot be remote-wrapped safely. Use claude-code, claude-code-writer, codex-exec, codex-exec-writer, cursor-agent, or cursor-agent-writer.`;
 	}
-	if (input.worktree === true) return `Agent '${input.agentName}' requested machine '${input.machine}', but managed worktrees are local git operations and cannot be combined with a Herdr saved machine.`;
-	if (process.platform === "win32") return "Herdr saved-machine pane transport requires hardened OpenSSH StreamLocal forwarding, which is not supported from a Windows host yet.";
+	if (input.worktree === true)
+		return `Agent '${input.agentName}' requested machine '${input.machine}', but managed worktrees are local git operations and cannot be combined with a Herdr saved machine.`;
+	if (process.platform === "win32")
+		return "Herdr saved-machine pane transport requires hardened OpenSSH StreamLocal forwarding, which is not supported from a Windows host yet.";
 	return undefined;
 }
 
 /** Legacy local-child SSH wrapping is intentionally unavailable after the pane-native cut-over. */
-export function prepareHerdrMachineExternalCliRun(input: RunExternalCliInput, placement: HerdrMachinePlacement | undefined, _options: { localCwd: string }): PreparedHerdrMachineExternalCliRun {
+export function prepareHerdrMachineExternalCliRun(
+	input: RunExternalCliInput,
+	placement: HerdrMachinePlacement | undefined,
+	_options: { localCwd: string },
+): PreparedHerdrMachineExternalCliRun {
 	if (placement) throw new Error("Saved-machine external profiles must run in a Herdr-owned pane.");
 	return { input, decorateProcess: (process) => process };
 }
 const HINTS: ReadonlyArray<readonly [RegExp, (machine: HerdrMachineReference) => string]> = [
-	[/Host key verification failed|REMOTE HOST IDENTIFICATION HAS CHANGED|Permission denied \(publickey|Permission denied, please try again|No such identity|Could not resolve hostname|Connection (timed out|refused)/iu,
-		(machine) => `ssh could not reach or authenticate with ${machine.target}. Connect once interactively with ssh ${machine.target} to accept the host key or fix the identity; BatchMode never prompts.`],
-	[/is not recognized as|CommandNotFoundException|PowerShell|At line:\d+ char:\d+/u,
-		(machine) => `Machine '${machine.label ?? machine.id}' is not a POSIX host. External-cli runs support POSIX ssh targets only.`],
-	[/\bcd: .*(No such file or directory|not a directory|can't cd)|exit(?:ed with)? code 125\b/iu,
-		(machine) => `Nothing at ${machine.cwd} on ${machine.label ?? machine.id}. Clone the repo there first; pi-subagents never clones, pulls, or checks out on a machine.`],
-	[/(?:command not found|not found)\s*$|No such file or directory\s*$|exit(?:ed with)? code 127\b/imu,
-		(machine) => `The agent CLI was not found on ${machine.label ?? machine.id}. Non-interactive shells skip rc files and the PATH prefix did not find it; set the agent's command to the absolute path on that machine.`],
-	[/not logged in|unauthorized|authentication_error|invalid api key|please run .*login|OAuth token/iu,
-		(machine) => `Remote runs use the machine's own credentials. Log in to the agent CLI on ${machine.label ?? machine.id} once.`],
+	[
+		/Host key verification failed|REMOTE HOST IDENTIFICATION HAS CHANGED|Permission denied \(publickey|Permission denied, please try again|No such identity|Could not resolve hostname|Connection (timed out|refused)/iu,
+		(machine) =>
+			`ssh could not reach or authenticate with ${machine.target}. Connect once interactively with ssh ${machine.target} to accept the host key or fix the identity; BatchMode never prompts.`,
+	],
+	[
+		/is not recognized as|CommandNotFoundException|PowerShell|At line:\d+ char:\d+/u,
+		(machine) =>
+			`Machine '${machine.label ?? machine.id}' is not a POSIX host. External-cli runs support POSIX ssh targets only.`,
+	],
+	[
+		/\bcd: .*(No such file or directory|not a directory|can't cd)|exit(?:ed with)? code 125\b/iu,
+		(machine) =>
+			`Nothing at ${machine.cwd} on ${machine.label ?? machine.id}. Clone the repo there first; pi-subagents never clones, pulls, or checks out on a machine.`,
+	],
+	[
+		/(?:command not found|not found)\s*$|No such file or directory\s*$|exit(?:ed with)? code 127\b/imu,
+		(machine) =>
+			`The agent CLI was not found on ${machine.label ?? machine.id}. Non-interactive shells skip rc files and the PATH prefix did not find it; set the agent's command to the absolute path on that machine.`,
+	],
+	[
+		/not logged in|unauthorized|authentication_error|invalid api key|please run .*login|OAuth token/iu,
+		(machine) =>
+			`Remote runs use the machine's own credentials. Log in to the agent CLI on ${machine.label ?? machine.id} once.`,
+	],
 ];
 
 /** One-line operator hint for a predictable remote failure, matched against error text and the stderr tail. */

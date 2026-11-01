@@ -19,21 +19,67 @@ function commandFor(root: string, source: string): string {
 
 describe("workflow host commands", () => {
 	it("validates the narrow command shape", () => {
-		assert.deepEqual(normalizeWorkflowHostCommandParams({ kind: "command", command: "npm test", timeoutMs: 1000, output: "reports/test.log", role: "ci", provider: "local" }), {
-			kind: "command",
-			command: "npm test",
-			timeoutMs: 1000,
-			output: "reports/test.log",
-			role: "ci",
-			provider: "local",
-		});
-		assert.throws(() => normalizeWorkflowHostCommandParams({ kind: "http", command: "true", timeoutMs: 1000 }), /kind must be 'command'/);
+		assert.deepEqual(
+			normalizeWorkflowHostCommandParams({
+				kind: "command",
+				command: "npm test",
+				timeoutMs: 1000,
+				output: "reports/test.log",
+				role: "ci",
+				provider: "local",
+			}),
+			{
+				kind: "command",
+				command: "npm test",
+				timeoutMs: 1000,
+				output: "reports/test.log",
+				role: "ci",
+				provider: "local",
+			},
+		);
+		assert.throws(
+			() => normalizeWorkflowHostCommandParams({ kind: "http", command: "true", timeoutMs: 1000 }),
+			/kind must be 'command'/,
+		);
 		assert.throws(() => normalizeWorkflowHostCommandParams({ kind: "command", command: "true" }), /timeoutMs/);
-		assert.throws(() => normalizeWorkflowHostCommandParams({ kind: "command", command: "true", timeoutMs: 1000, output: "../outside.log" }), /relative path/);
-		assert.throws(() => normalizeWorkflowHostCommandParams({ kind: "command", command: "true", timeoutMs: 86_400_001 }), /integer from 1/);
-		assert.throws(() => normalizeWorkflowHostCommandParams({ kind: "command", command: "true", timeoutMs: 1000, output: path.resolve("outside.log") }), /relative path/);
-		assert.throws(() => normalizeWorkflowHostCommandParams({ kind: "command", command: "true", timeoutMs: 1000, provider: "bad\nprovider" }), /single-line/);
-		assert.throws(() => normalizeWorkflowHostCommandParams({ kind: "command", command: "true", timeoutMs: 1000, cwd: "/tmp" }), /does not accept per-step cwd.*workflow cwd.*outer subagent request.*cd \/path\/to\/worktree/);
+		assert.throws(
+			() =>
+				normalizeWorkflowHostCommandParams({
+					kind: "command",
+					command: "true",
+					timeoutMs: 1000,
+					output: "../outside.log",
+				}),
+			/relative path/,
+		);
+		assert.throws(
+			() => normalizeWorkflowHostCommandParams({ kind: "command", command: "true", timeoutMs: 86_400_001 }),
+			/integer from 1/,
+		);
+		assert.throws(
+			() =>
+				normalizeWorkflowHostCommandParams({
+					kind: "command",
+					command: "true",
+					timeoutMs: 1000,
+					output: path.resolve("outside.log"),
+				}),
+			/relative path/,
+		);
+		assert.throws(
+			() =>
+				normalizeWorkflowHostCommandParams({
+					kind: "command",
+					command: "true",
+					timeoutMs: 1000,
+					provider: "bad\nprovider",
+				}),
+			/single-line/,
+		);
+		assert.throws(
+			() => normalizeWorkflowHostCommandParams({ kind: "command", command: "true", timeoutMs: 1000, cwd: "/tmp" }),
+			/does not accept per-step cwd.*workflow cwd.*outer subagent request.*cd \/path\/to\/worktree/,
+		);
 	});
 
 	it("runs without stdin and saves bounded command evidence", async () => {
@@ -44,7 +90,12 @@ describe("workflow host commands", () => {
 		fs.writeFileSync(outputPath, "stale", "utf8");
 		const result = await executeWorkflowHostCommand({
 			key: "unit-tests",
-			params: { kind: "command", command: commandFor(root, `process.stdout.write("passed\\n"); process.stderr.write("warning\\n");`), timeoutMs: 5000, output: "reports/command.log" },
+			params: {
+				kind: "command",
+				command: commandFor(root, `process.stdout.write("passed\\n"); process.stderr.write("warning\\n");`),
+				timeoutMs: 5000,
+				output: "reports/command.log",
+			},
 			cwd: root,
 			defaultOutputPath: path.join(root, "fallback.log"),
 			signal: new AbortController().signal,
@@ -65,7 +116,11 @@ describe("workflow host commands", () => {
 		roots.push(root);
 		const failed = await executeWorkflowHostCommand({
 			key: "failed",
-			params: { kind: "command", command: commandFor(root, `process.stderr.write("bad\\n"); process.exit(3);`), timeoutMs: 5000 },
+			params: {
+				kind: "command",
+				command: commandFor(root, `process.stderr.write("bad\\n"); process.exit(3);`),
+				timeoutMs: 5000,
+			},
 			cwd: root,
 			defaultOutputPath: path.join(root, "failed.log"),
 			signal: new AbortController().signal,
@@ -85,60 +140,82 @@ describe("workflow host commands", () => {
 		assert.match(timedOut.error ?? "", /timed out/);
 	});
 
-	it("rejects symlinked output parents before creating outside directories", { skip: process.platform === "win32" ? "symlink permissions vary on Windows" : undefined }, async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-symlink-"));
-		const outside = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-outside-"));
-		roots.push(root, outside);
-		fs.symlinkSync(outside, path.join(root, "link-out"), "dir");
+	it(
+		"rejects symlinked output parents before creating outside directories",
+		{ skip: process.platform === "win32" ? "symlink permissions vary on Windows" : undefined },
+		async () => {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-symlink-"));
+			const outside = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-outside-"));
+			roots.push(root, outside);
+			fs.symlinkSync(outside, path.join(root, "link-out"), "dir");
 
-		await assert.rejects(
-			executeWorkflowHostCommand({
-				key: "symlink-output",
-				params: { kind: "command", command: commandFor(root, `process.stdout.write("unused");`), timeoutMs: 5000, output: "link-out/sub/report.log" },
-				cwd: root,
-				defaultOutputPath: path.join(root, "fallback.log"),
-				signal: new AbortController().signal,
-			}),
-			/resolves outside the workflow cwd/,
-		);
-		assert.equal(fs.existsSync(path.join(outside, "sub")), false);
-	});
+			await assert.rejects(
+				executeWorkflowHostCommand({
+					key: "symlink-output",
+					params: {
+						kind: "command",
+						command: commandFor(root, `process.stdout.write("unused");`),
+						timeoutMs: 5000,
+						output: "link-out/sub/report.log",
+					},
+					cwd: root,
+					defaultOutputPath: path.join(root, "fallback.log"),
+					signal: new AbortController().signal,
+				}),
+				/resolves outside the workflow cwd/,
+			);
+			assert.equal(fs.existsSync(path.join(outside, "sub")), false);
+		},
+	);
 
-	it("rejects an explicit output parent redirected while the command runs", { skip: process.platform === "win32" ? "symlink permissions vary on Windows" : undefined }, async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-symlink-race-"));
-		const outside = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-symlink-target-"));
-		roots.push(root, outside);
-		const outputParent = path.join(root, "reports");
-		const outsidePath = path.join(outside, "outside.log");
-		const command = commandFor(root, `
+	it(
+		"rejects an explicit output parent redirected while the command runs",
+		{ skip: process.platform === "win32" ? "symlink permissions vary on Windows" : undefined },
+		async () => {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-symlink-race-"));
+			const outside = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-symlink-target-"));
+			roots.push(root, outside);
+			const outputParent = path.join(root, "reports");
+			const outsidePath = path.join(outside, "outside.log");
+			const command = commandFor(
+				root,
+				`
 			const fs = require("node:fs");
 			fs.rmdirSync(${JSON.stringify(outputParent)});
 			fs.symlinkSync(${JSON.stringify(outside)}, ${JSON.stringify(outputParent)}, "dir");
 			process.stdout.write("captured");
-		`);
+		`,
+			);
 
-		await assert.rejects(executeWorkflowHostCommand({
-			key: "replaced-output",
-			params: { kind: "command", command, timeoutMs: 5000, output: "reports/command.log" },
-			cwd: root,
-			defaultOutputPath: path.join(root, "fallback.log"),
-			signal: new AbortController().signal,
-		}), /resolves outside the workflow cwd/);
-		assert.equal(fs.existsSync(outsidePath), false);
-	});
+			await assert.rejects(
+				executeWorkflowHostCommand({
+					key: "replaced-output",
+					params: { kind: "command", command, timeoutMs: 5000, output: "reports/command.log" },
+					cwd: root,
+					defaultOutputPath: path.join(root, "fallback.log"),
+					signal: new AbortController().signal,
+				}),
+				/resolves outside the workflow cwd/,
+			);
+			assert.equal(fs.existsSync(outsidePath), false);
+		},
+	);
 
 	it("stops the owned process tree when the workflow aborts", async () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-host-command-abort-"));
 		roots.push(root);
 		const readyPath = path.join(root, "ready");
 		const leakedPath = path.join(root, "leaked");
-		const command = commandFor(root, `
+		const command = commandFor(
+			root,
+			`
 			const { spawn } = require("node:child_process");
 			const fs = require("node:fs");
 			fs.writeFileSync(${JSON.stringify(readyPath)}, "ready");
 			spawn(process.execPath, ["-e", ${JSON.stringify(`setTimeout(() => require("node:fs").writeFileSync(${JSON.stringify(leakedPath)}, "leaked"), 400)}`)}], { stdio: "ignore" });
 			setTimeout(() => {}, 10000);
-		`);
+		`,
+		);
 		const controller = new AbortController();
 		const pending = executeWorkflowHostCommand({
 			key: "abort",
@@ -147,7 +224,8 @@ describe("workflow host commands", () => {
 			defaultOutputPath: path.join(root, "abort.log"),
 			signal: controller.signal,
 		});
-		for (let attempt = 0; attempt < 100 && !fs.existsSync(readyPath); attempt += 1) await new Promise((resolve) => setTimeout(resolve, 10));
+		for (let attempt = 0; attempt < 100 && !fs.existsSync(readyPath); attempt += 1)
+			await new Promise((resolve) => setTimeout(resolve, 10));
 		assert.equal(fs.existsSync(readyPath), true);
 		controller.abort();
 		assert.equal((await pending).state, "stopped");

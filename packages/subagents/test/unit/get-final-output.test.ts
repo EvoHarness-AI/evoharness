@@ -9,10 +9,12 @@ function assistantContent(content: unknown[]): Message {
 
 describe("getFinalOutput", () => {
 	it("uses the last non-empty text part in the latest assistant message", () => {
-		const messages = [assistantContent([
-			{ type: "text", text: "" },
-			{ type: "text", text: "Summary" },
-		])];
+		const messages = [
+			assistantContent([
+				{ type: "text", text: "" },
+				{ type: "text", text: "Summary" },
+			]),
+		];
 
 		assert.equal(getFinalOutput(messages), "Summary");
 	});
@@ -20,9 +22,7 @@ describe("getFinalOutput", () => {
 	it("removes a trailing Pi turn-timing footer from final output", () => {
 		const report = "## Review\n\nVERDICT: FINDINGS";
 		const timingFooter = "\x1b[38;2;136;136;136m✻ Turn took 5m 54s (Total time 5m 54s · 2 turns)\x1b[0m";
-		const messages = [assistantContent([
-			{ type: "text", text: `${report}\n\n${timingFooter}` },
-		])];
+		const messages = [assistantContent([{ type: "text", text: `${report}\n\n${timingFooter}` }])];
 
 		assert.equal(getFinalOutput(messages), report);
 	});
@@ -30,10 +30,12 @@ describe("getFinalOutput", () => {
 	it("ignores a separate Pi turn-timing footer text part", () => {
 		const report = "## Review\n\nVERDICT: CLEAN";
 		const timingFooter = "\x1b[38;2;136;136;136m✻ Turn took 2m 19s (Total time 2m 18s · 1 turn)\x1b[0m";
-		const messages = [assistantContent([
-			{ type: "text", text: report },
-			{ type: "text", text: timingFooter },
-		])];
+		const messages = [
+			assistantContent([
+				{ type: "text", text: report },
+				{ type: "text", text: timingFooter },
+			]),
+		];
 
 		assert.equal(getFinalOutput(messages), report);
 	});
@@ -44,11 +46,13 @@ describe("getFinalOutput", () => {
 	});
 
 	it("prefers final text over progress text in a multi-part assistant message", () => {
-		const messages = [assistantContent([
-			{ type: "text", text: "Working on the fix..." },
-			{ type: "thinking", thinking: "Cursor shell: shell $ npm test" },
-			{ type: "text", text: "Implemented: patch applied." },
-		])];
+		const messages = [
+			assistantContent([
+				{ type: "text", text: "Working on the fix..." },
+				{ type: "thinking", thinking: "Cursor shell: shell $ npm test" },
+				{ type: "text", text: "Implemented: patch applied." },
+			]),
+		];
 
 		assert.equal(getFinalOutput(messages), "Implemented: patch applied.");
 	});
@@ -109,10 +113,12 @@ describe("getFinalOutput", () => {
 
 	it("preserves prose from a sibling text part when selecting an acceptance report", () => {
 		const report = "```acceptance-report\n{}\n```";
-		const messages = [assistantContent([
-			{ type: "text", text: "Human-readable answer." },
-			{ type: "text", text: report },
-		])];
+		const messages = [
+			assistantContent([
+				{ type: "text", text: "Human-readable answer." },
+				{ type: "text", text: report },
+			]),
+		];
 
 		assert.equal(getFinalOutput(messages), `Human-readable answer.\n${report}`);
 	});

@@ -7,7 +7,18 @@
  */
 export const SUBAGENT_FEATURES = {
 	"agent-management": {
-		actions: ["create", "update", "delete", "eject", "disable", "enable", "reset", "refine", "refine.show", "refine.rollback"],
+		actions: [
+			"create",
+			"update",
+			"delete",
+			"eject",
+			"disable",
+			"enable",
+			"reset",
+			"refine",
+			"refine.show",
+			"refine.rollback",
+		],
 		params: ["config"],
 	},
 	watchdog: {
@@ -15,12 +26,37 @@ export const SUBAGENT_FEATURES = {
 		params: ["scope", "target", "thinking"],
 	},
 	panes: {
-		actions: ["inspector.open", "inspector.command", "inspector.status", "inspector.close", "project.open", "project.status", "project.close"],
+		actions: [
+			"inspector.open",
+			"inspector.command",
+			"inspector.status",
+			"inspector.close",
+			"project.open",
+			"project.status",
+			"project.close",
+		],
 		params: ["focus"],
 	},
 	missions: {
-		actions: ["mission.create", "mission.list", "mission.show", "mission.update", "mission.resolve-decision", "mission.attach-run", "mission.close"],
-		params: ["mission", "missionUpdate", "missionStatus", "missionScope", "missionId", "runMode", "runStatus", "summary"],
+		actions: [
+			"mission.create",
+			"mission.list",
+			"mission.show",
+			"mission.update",
+			"mission.resolve-decision",
+			"mission.attach-run",
+			"mission.close",
+		],
+		params: [
+			"mission",
+			"missionUpdate",
+			"missionStatus",
+			"missionScope",
+			"missionId",
+			"runMode",
+			"runStatus",
+			"summary",
+		],
 	},
 	"lane-management": {
 		actions: ["lane.status", "lane.recordMerge", "lane.recordSupersession", "worktree.discard", "worktree.cleanup"],
@@ -35,7 +71,10 @@ export const SUBAGENT_FEATURES = {
 	"control-overrides": { actions: [], params: ["control"] },
 	"extension-bindings": { actions: [], params: ["extensionBindings"] },
 	"external-machines": { actions: [], params: ["machine"] },
-	"workflow-scripts": { actions: ["validate"], params: ["workflow", "args", "preflight", "globalConcurrencyLimit", "maxSubagentSpawnsPerRun"] },
+	"workflow-scripts": {
+		actions: ["validate"],
+		params: ["workflow", "args", "preflight", "globalConcurrencyLimit", "maxSubagentSpawnsPerRun"],
+	},
 } as const satisfies Record<string, { actions: readonly string[]; params: readonly string[] }>;
 
 export type SubagentFeature = keyof typeof SUBAGENT_FEATURES;
@@ -44,7 +83,17 @@ export type SubagentFeature = keyof typeof SUBAGENT_FEATURES;
 export type SubagentSurfaceFeature = SubagentFeature | "schedules";
 
 const SCHEDULE_SURFACE = {
-	actions: ["schedule.create", "schedule.list", "schedule.show", "schedule.history", "schedule.pause", "schedule.resume", "schedule.run", "schedule.run-due", "schedule.delete"],
+	actions: [
+		"schedule.create",
+		"schedule.list",
+		"schedule.show",
+		"schedule.history",
+		"schedule.pause",
+		"schedule.resume",
+		"schedule.run",
+		"schedule.run-due",
+		"schedule.delete",
+	],
 	params: ["name", "at", "every", "sessionOnly", "quiet", "on", "timezone", "overlap", "catchUp"],
 } as const;
 
@@ -53,9 +102,14 @@ export function validateDisabledFeatures(value: unknown): void {
 	if (!Array.isArray(value)) throw new Error("config.disabledFeatures must be an array of feature names");
 	const seen = new Set<string>();
 	for (const entry of value) {
-		if (entry === "schedules") throw new Error(`config.disabledFeatures does not accept "schedules"; set config.scheduledRuns.enabled to false instead`);
+		if (entry === "schedules")
+			throw new Error(
+				`config.disabledFeatures does not accept "schedules"; set config.scheduledRuns.enabled to false instead`,
+			);
 		if (typeof entry !== "string" || !Object.hasOwn(SUBAGENT_FEATURES, entry)) {
-			throw new Error(`config.disabledFeatures entry ${JSON.stringify(entry)} is not one of: ${Object.keys(SUBAGENT_FEATURES).join(", ")}`);
+			throw new Error(
+				`config.disabledFeatures entry ${JSON.stringify(entry)} is not one of: ${Object.keys(SUBAGENT_FEATURES).join(", ")}`,
+			);
 		}
 		if (seen.has(entry)) throw new Error(`config.disabledFeatures lists "${entry}" more than once`);
 		seen.add(entry);
@@ -74,7 +128,11 @@ interface FeatureConfig {
 	scheduledRuns?: { enabled?: boolean };
 }
 
-function featureSurface(feature: SubagentSurfaceFeature): { actions: readonly string[]; params: readonly string[]; disabledBy: string } {
+function featureSurface(feature: SubagentSurfaceFeature): {
+	actions: readonly string[];
+	params: readonly string[];
+	disabledBy: string;
+} {
 	if (feature === "schedules") return { ...SCHEDULE_SURFACE, disabledBy: "scheduledRuns.enabled=false" };
 	return { ...SUBAGENT_FEATURES[feature], disabledBy: `disabledFeatures "${feature}"` };
 }
@@ -88,14 +146,19 @@ export function resolveDisabledFeatureSurface(config: FeatureConfig): DisabledFe
 		const surface = featureSurface(feature);
 		// A parameter shared with workflow-scripts is always attributed to workflow-scripts,
 		// whatever order the config lists the features in.
-		for (const param of surface.params) if (feature === "workflow-scripts" || !params.has(param)) params.set(param, surface.disabledBy);
+		for (const param of surface.params)
+			if (feature === "workflow-scripts" || !params.has(param)) params.set(param, surface.disabledBy);
 		for (const action of surface.actions) actions.set(action, surface.disabledBy);
 	}
 	return { features, params, actions };
 }
 
 /** Returns why a request uses a disabled feature, or undefined when every requested field is enabled. */
-export function disabledFeatureUseError(request: object, surface: DisabledFeatureSurface, label = "subagent"): string | undefined {
+export function disabledFeatureUseError(
+	request: object,
+	surface: DisabledFeatureSurface,
+	label = "subagent",
+): string | undefined {
 	const params = request as Record<string, unknown>;
 	const action = typeof params.action === "string" ? params.action.trim() : undefined;
 	const disabledAction = action === undefined ? undefined : surface.actions.get(action);

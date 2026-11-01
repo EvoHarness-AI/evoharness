@@ -10,10 +10,19 @@ export class ReadonlyDrainObservation {
 	private first = false;
 	private readonly file: string;
 	private readonly guard: () => boolean;
-	constructor(file: string, guard: () => boolean) { this.file = file; this.guard = guard; }
-	deny(): void { this.state = "denied"; }
+	constructor(file: string, guard: () => boolean) {
+		this.file = file;
+		this.guard = guard;
+	}
+	deny(): void {
+		this.state = "denied";
+	}
 	check(): boolean {
-		try { if (!this.guard()) this.deny(); } catch { this.deny(); }
+		try {
+			if (!this.guard()) this.deny();
+		} catch {
+			this.deny();
+		}
 		return this.state !== "denied";
 	}
 	begin(file: string | null, native: boolean): void {
@@ -23,8 +32,13 @@ export class ReadonlyDrainObservation {
 	}
 	/** Called at the existing initial read, before reconciliation or filtering. */
 	readonly status: RawDrainStatusObserver = (status) => {
-		if (!status || typeof status.sessionId !== "string" || !status.sessionId
-			|| !knownStates.has(status.state as string)) this.deny();
+		if (
+			!status ||
+			typeof status.sessionId !== "string" ||
+			!status.sessionId ||
+			!knownStates.has(status.state as string)
+		)
+			this.deny();
 		else if (status.sessionId === this.file && (status.state === "queued" || status.state === "running")) this.deny();
 	};
 	predicate(hasWork: boolean): void {
@@ -35,7 +49,9 @@ export class ReadonlyDrainObservation {
 	complete(): void {
 		if (this.started && this.first && this.check()) this.state = "empty";
 	}
-	settled(): boolean { return this.check() && this.state === "empty"; }
+	settled(): boolean {
+		return this.check() && this.state === "empty";
+	}
 }
 
 /** Internal synchronous sink; null means an existing query encountered uncertainty. */

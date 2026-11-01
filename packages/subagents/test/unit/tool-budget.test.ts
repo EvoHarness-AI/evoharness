@@ -23,10 +23,10 @@ describe("tool-budget module", () => {
 	});
 
 	it("accepts a zero hard limit only when the internal minimum opts in", () => {
-		assert.deepEqual(
-			validateToolBudgetConfig({ hard: 0, block: "*" }, "toolBudget", { minimumHard: 0 }).budget,
-			{ hard: 0, block: "*" },
-		);
+		assert.deepEqual(validateToolBudgetConfig({ hard: 0, block: "*" }, "toolBudget", { minimumHard: 0 }).budget, {
+			hard: 0,
+			block: "*",
+		});
 		assert.equal(
 			validateToolBudgetConfig({ soft: 0, hard: 0, block: "*" }, "toolBudget", { minimumHard: 0 }).error,
 			"toolBudget.soft must be an integer >= 1 when provided.",
@@ -36,13 +36,25 @@ describe("tool-budget module", () => {
 	it("rejects unsafe configs", () => {
 		assert.equal(validateToolBudgetConfig({ hard: 0 }).error, "toolBudget.hard must be an integer >= 1.");
 		assert.equal(validateToolBudgetConfig({ soft: 5, hard: 4 }).error, "toolBudget.soft must be <= toolBudget.hard.");
-		assert.equal(validateToolBudgetConfig({ hard: 4, block: [] }).error, "toolBudget.block must contain at least one tool name.");
-		assert.equal(validateToolBudgetConfig({ hard: 4, block: [""] }).error, "toolBudget.block must contain non-empty tool names.");
+		assert.equal(
+			validateToolBudgetConfig({ hard: 4, block: [] }).error,
+			"toolBudget.block must contain at least one tool name.",
+		);
+		assert.equal(
+			validateToolBudgetConfig({ hard: 4, block: [""] }).error,
+			"toolBudget.block must contain non-empty tool names.",
+		);
 	});
 
 	it("tracks state and block decisions", () => {
 		const budget = { soft: 2, hard: 3, block: ["read"] };
-		assert.deepEqual(initialToolBudgetState(budget), { soft: 2, hard: 3, block: ["read"], toolCount: 0, outcome: "within-budget" });
+		assert.deepEqual(initialToolBudgetState(budget), {
+			soft: 2,
+			hard: 3,
+			block: ["read"],
+			toolCount: 0,
+			outcome: "within-budget",
+		});
 		assert.equal(toolBudgetState(budget, 2).outcome, "soft-reached");
 		assert.equal(toolBudgetState(budget, 4, "read").outcome, "hard-blocked");
 		assert.equal(toolBudgetState(budget, 4).outcome, "hard-reached", "past the hard limit with no blocked call");
@@ -55,13 +67,41 @@ describe("tool-budget module", () => {
 		const budget = { hard: 0, block: "*" };
 		const exact = toolBudgetBlockedMessage(budget, "bash", 1);
 		assert.equal(isToolBudgetBlockedMessage(budget, exact, "bash"), true);
-		assert.equal(isToolBudgetBlockedMessage({ hard: 2, block: "*" }, toolBudgetBlockedMessage({ hard: 2, block: "*" }, "bash", 3), "bash"), true, "plural count past the hard limit");
-		assert.equal(isToolBudgetBlockedMessage(budget, toolBudgetBlockedMessage({ hard: 3, block: "*" }, "bash", 4), "bash"), false, "different hard limit");
-		assert.equal(isToolBudgetBlockedMessage(budget, toolBudgetBlockedMessage(budget, "read", 1), "bash"), false, "different tool name");
-		assert.equal(isToolBudgetBlockedMessage(budget, `src/log.md:12:${exact}`, "bash"), false, "phrase embedded in ordinary tool output");
+		assert.equal(
+			isToolBudgetBlockedMessage(
+				{ hard: 2, block: "*" },
+				toolBudgetBlockedMessage({ hard: 2, block: "*" }, "bash", 3),
+				"bash",
+			),
+			true,
+			"plural count past the hard limit",
+		);
+		assert.equal(
+			isToolBudgetBlockedMessage(budget, toolBudgetBlockedMessage({ hard: 3, block: "*" }, "bash", 4), "bash"),
+			false,
+			"different hard limit",
+		);
+		assert.equal(
+			isToolBudgetBlockedMessage(budget, toolBudgetBlockedMessage(budget, "read", 1), "bash"),
+			false,
+			"different tool name",
+		);
+		assert.equal(
+			isToolBudgetBlockedMessage(budget, `src/log.md:12:${exact}`, "bash"),
+			false,
+			"phrase embedded in ordinary tool output",
+		);
 		assert.equal(isToolBudgetBlockedMessage(budget, `${exact}\nnext line`, "bash"), false, "trailing output lines");
-		assert.equal(isToolBudgetBlockedMessage(budget, exact, undefined), false, "missing resolved tool name fails closed");
-		assert.equal(isToolBudgetBlockedMessage(budget, exact.replace("after 1 tool call", "after 0 tool call"), "bash"), false, "blocked count must exceed the hard limit");
+		assert.equal(
+			isToolBudgetBlockedMessage(budget, exact, undefined),
+			false,
+			"missing resolved tool name fails closed",
+		);
+		assert.equal(
+			isToolBudgetBlockedMessage(budget, exact.replace("after 1 tool call", "after 0 tool call"), "bash"),
+			false,
+			"blocked count must exceed the hard limit",
+		);
 	});
 
 	it("formats user-facing budget messages", () => {

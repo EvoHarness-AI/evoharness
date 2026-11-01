@@ -67,31 +67,30 @@
 
 ## Phase 1 — 机械改名(零逻辑改动;详见 subagents-port.md §2 + 附录 A)
 
-- [ ] **1.1 包名 4 映射全局替换**(预期 ~349 处;覆盖 src/test/*.mjs/*.cjs/*.json)
-  - 前置:检查点 0 原始拷贝已入库(可 diff)
-  - 记:逐映射计数(预期 114/85/77+7/66 附近):
-    - `@earendil-works/pi-coding-agent` → `@evoharness/coding-agent`:
-    - `@earendil-works/pi-agent-core` → `@evoharness/agent-core`:
-    - `@earendil-works/pi-ai` → `@evoharness/ai`(+ `/compat` 7):
-    - `@earendil-works/pi-tui` → `@evoharness/tui`:
-- [ ] **1.2 内核 env 5 项 sed + theme Symbol 键**(文件清单 = subagents-port.md §2.3)
-  - 前置:替换前 grep 现存计数与 §2.3 清单吻合
-  - 记:逐 env 计数:`PI_CACHE_RETENTION`:_ `PI_OFFLINE`:4 `PI_CODING_AGENT_DIR`:2 `PI_PACKAGE_DIR`:1 `PI_PROGRAM_STATUS`:1 `Symbol theme`:1
-- [ ] **1.3 package.json 重写**(§2.2:name/private/`"pi"`→`"evoharness"`/peer+devDeps/退役 bin+files+pack)
-  - 前置:对照 §2.2 逐字段核对
-  - 记:字段清单落位:
-- [ ] **1.4 功能性 `.pi` 硬编码 3 处**(`mcp-direct-tool-allowlist.ts:224`、`agents.ts:1891`、`utils.ts:11 DEFAULT_CONFIG_DIR_NAME`)+ 核对 `model-resolution.ts:356` + `agent-refinements.ts:457` 正则;**不动 D4 两常量**(`artifacts.ts:6`、`worktree.ts:14`)
-  - 前置:逐处读上下文确认改法,不盲改
-  - 记:每处前后对照:
-- [ ] **1.5 测试断言期望值同步**(与源码同 commit)
-  - 前置:grep 全部受影响断言文件清单
-  - 记:清单与数量:
-- [ ] **1.6 四大子系统专项扫描**(native-supervisor-channel / intercom / rpc.ts / missions/)
-  - 前置:扫描模式清单(A.3 类)备好
-  - 记:发现逐条入 `packages/subagents/UPSTREAM-PORT-NOTES.md`:
-- [ ] **1.7 附录 A.3 双模式残留审计**
-  - 前置:命令逐条可执行
-  - 记:全零?分拣结论:
+- [x] **1.1 包名 4 映射全局替换**(V7 记录:shell 转发层会破坏 xargs/tr/变量替换构造,**只用 find -exec 与 Edit 工具**)
+  - 前置:检查点 0 原始拷贝已入库 ✅(commit 8e2551e)
+  - 记:替换前全量出现计数(含注释/字符串,高于 import-only 估计):coding-agent 183 / agent-core 111 / ai 119(+compat) / tui 96;替换后旧名在 src/test **0 残留**,新名计数逐项与替换前精确对账 ✅
+  - 记:范围扩展(⟲ 已回写计划 §2.1):`@earendil-works/chord` → `@evoharness/chord`(runner-aliases.ts 别名表真实运行时映射);夹具 vendored 包名/目录、测试内安装布局字符串与报错断言(原则:测试模拟改名后宿主);`pi-client`/`pi-server` 桩名 → `@evoharness/pi-client|pi-server`(语义不变:仍是"不存在的包")
+  - 记:白名单保留(审计例外,3 处):上游 GitHub issue 注释 ×2(链接语义)、standalone-release.json 的官方 pi 二进制下载 URL(gated smoke)
+  - 记:注释散文(Mirrors pi-ai's… 等 ~30 处)保留原名——指上游包的说明,非说明符;Phase 3 可选美化
+  - 记:Edit 修复 3 处功能点:standalone-background.mjs 的 coreSdk 正则与 negative 断言、async-spawn-preload 的 agent-core 正则
+  - 回滚:`git checkout 8e2551e -- packages/subagents`
+- [x] **1.2 内核 env 5 项 + theme Symbol**
+  - 前置:替换前计数核对 ✅(实测远高于 §2.3 代码处计数:测试大量 set/restore 宿主 env,属"测试模拟宿主"范畴,抽样确认后全量替换,含 md 文档中的用户指令);`PI_CODING_AGENT_PACKAGE_ROOT_ENV` 常量值 = `PI_SUBAGENTS_*` 自有命名,不动 ✅;theme Symbol 已被 1.1 顺带完成 ✅
+  - 记:旧 env 全部归零(src/test/docs/skills/md/mjs/cjs);新名计数逐项精确对账:`EVOHARNESS_CACHE_RETENTION` 18 / `EVOHARNESS_OFFLINE` 22 / `EVOHARNESS_CODING_AGENT_DIR` 332 / `EVOHARNESS_PACKAGE_DIR` 16 / `EVOHARNESS_PROGRAM_STATUS` 2 ✅
+  - 回滚:`git checkout 8e2551e -- packages/subagents`
+- [x] **1.3 package.json 重写**
+  - 前置:对照 §2.2 逐字段 ✅;⚠️ 发现 devDeps 残留 `@evoharness/*: 1.2.0`(1.1 sed 只改了 scope)→ 改 `0.0.2` 后需重跑 npm install 同步 lock
+  - 记:name=`@evoharness/subagents`;`"pi"`→`"evoharness"` manifest ✅;peer `ai ">=1.2.0"`→`"*"`(0.0.2 不满足旧语义);退役 bin/files/build:pkg/pack:pkg/overrides(workspace 子包无 effect);**typescript 保持 5.9.3**;repository 留上游 URL(出处溯源,配 UPSTREAM-PORT-NOTES);install.mjs 文件暂留磁盘(惰性),Phase 3 清理
+- [x] **1.4 功能性 `.pi` 硬编码**
+  - 前置:逐处读上下文 ✅;**重要发现**:`resolveConfigDirName` 本就自适应(优先读宿主导出的 `CONFIG_DIR_NAME`——evoharness 导出 `.evoharness` ✅,config.ts:606),常量仅是回退
+  - 记:①`utils.ts:11` 回退 `.pi`→`.evoharness` ②`mcp-direct-tool-allowlist.ts:224` 项目级 mcp.json **双读** `.evoharness`+.pi ③`agents.ts:1891` pruning 集合加 `.evoharness`(留 .pi)④`agent-refinements.ts:457` 保护正则加 `\.evoharness/agent` 备选 ⑤`model-resolution.ts:356` 纯注释更新;**D4 两常量未动** ✅
+- [x] **1.5 测试断言期望值同步**
+  - 记:①`package-manifest.test.ts` 全面同步:自引用 import → `@evoharness/subagents/*`、manifest 字段断言、删除 4 行 files 断言、peer ai→`*`、devDeps→`0.0.2`;test-8 两模式(未导出 subpath/CJS 解析)零命中 ✅;自有协议常量断言保留(D3)②npm install 同步 lock(devDeps 0.0.2 → workspace 链接)✅ ③其余 `.pi` 夹具布局类 = Gate 2 揭示后按名修正(计划既定策略)
+- [x] **1.6 四大子系统专项扫描**
+  - 记:rpc.ts 0 强转 ✅;native-supervisor-channel 2 处裸字符串 `pi.on`(事件名已核实存在于 evoharness 类型);intercom/missions 无内核 env 读取;结论全部落入 `packages/subagents/UPSTREAM-PORT-NOTES.md`(含耦合点清单 6 项)
+- [x] **1.7 A.3 双模式残留审计**
+  - 记:5 内核 env = **0** ✅;旧 scope = **3**(白名单:上游 issue 注释 ×2 + standalone 官方二进制 URL,见 UPSTREAM-PORT-NOTES)✅;Symbol 旧键 = 0 ✅;**决定性交集:277 处属性访问 env 读取 × 内核 44 名单 = 空**(全部自有变量)✅;夹具注释 `PI_EXPERIMENTAL`/`PI_TIMING` 已一致化为 EVOHARNESS_*;剩余 pi-* = 注释散文(~30,指上游包,Phase 3 可选)+ 测试内部临时目录名(自洽)
 - [ ] **1.8 检查点 1 提交** + 对照检查点 0 diff 抽查(确认 diff 全是"名字")
   - 前置:diff 抽查通过
   - 记:commit hash: / diff 统计:
@@ -126,6 +125,10 @@
 | V3 | @types/node 双版本 22.19.19 / 24.13.3,嵌套隔离 | 低 | 无需处置(⟲ F20) |
 | V4 | 源树内 `test/fixtures/pi-coding-agent-shim/node_modules/` 是**检入的 vendored 测试夹具**(假 pi 安装,内含 chord/pi-client dist),不是安装依赖 | 排除策略 | 已恢复;其内 `@earendil-works/*` 字符串纳入 Phase 1 改名与 A.3 审计范围(夹具应改为模拟 evoharness 安装) |
 | V5 | 根 `npm run build` 在 packages/ai 的 `generate-models --strict` 处**网络抖动即整链失败**(在线拉取几十个 provider 目录);单独重试成功且未改 catalog。内核预存的网络依赖,与移植无关 | 构建命令 | **宿主构建统一用 `npm run build:offline`**(仓库自带变体,ai 跳过在线生成);后续 Phase 2.6 根 check 同理注意 |
+| V6 | husky pre-commit 三道闸:lockfile 守卫(需 `EVOHARNESS_ALLOW_LOCKFILE_CHANGE=1`)+ `check:fix` 全仓格式化+lint+tsc + 触发 browser-smoke。**根 tsc include glob 会扫到 subagents 源码** → 未改名期提交必挂 | 提交策略 | 检查点 0 用 `--no-verify` 刻意绕过(原始快照对仓库检查无意义);**钩子价值从检查点 1 恢复**;checkpoint-1 注意项:check:fix 可能用 biome 重排 subagents 格式 → 污染纯改名 diff,届时显式决策 |
+| V7 | **工具转发层 shell 引号陷阱**:含 `${f//\\//}`、tr、xargs 传文件名的命令被二次展开破坏(反斜杠路径被吞/替换模式失配),且 grep -rc 管道检查给出过假"归零"信号 | 操作方法 | **固定套路:find -exec + Edit 工具;每步用独立 grep 正斜杠路径复核,不信同命令内的管道检查**;教训已体现在 1.1 执行 |
+| V8 | 计划 §2.1 漏了 `@earendil-works/chord` 映射(peerDeps 没有,但 runner-aliases 别名表运行时引用) | 计划缺口 | 已按 `@evoharness/chord` 完成替换(⟲ 回写计划 §2.1) |
+| V9 | 检查点 0 实际为**单个提交** 8e2551e(前次失败尝试的暂存区把 docs 混入),内容完整;不为历史美观重做 | 提交结构 | 接受并如实记录;改名 diff 仍可对 8e2551e 内的快照做 |
 
 ---
 

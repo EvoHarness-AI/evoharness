@@ -8,7 +8,15 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { awaitExistingAsyncRun, claimWorkflowAwaitedResult } from "../../src/runs/background/await-async-run.ts";
 import { resetBootIdForTesting } from "../../src/runs/background/boot-id.ts";
 import { currentPidNamespaceScope } from "../../src/runs/background/pid-namespace.ts";
-import { resultFilesForToolCall, resultPayloadPathForIndexedRun, resultPayloadPathForSessionRun, retireResultSnapshot, withResultRunLease, writeAsyncResultFile, writePendingAsyncResultFile } from "../../src/runs/background/result-files.ts";
+import {
+	resultFilesForToolCall,
+	resultPayloadPathForIndexedRun,
+	resultPayloadPathForSessionRun,
+	retireResultSnapshot,
+	withResultRunLease,
+	writeAsyncResultFile,
+	writePendingAsyncResultFile,
+} from "../../src/runs/background/result-files.ts";
 
 let tempDir: string;
 
@@ -74,7 +82,11 @@ describe("awaitExistingAsyncRun", () => {
 		assert.equal(outcome.status === "settled" && outcome.result.output, "finished output");
 		assert.equal(outcome.status === "settled" && outcome.result.success, true);
 		assert.equal(outcome.status === "settled" && outcome.result.exitCode, 0);
-		assert.deepEqual(outcome.status === "settled" && outcome.result.importedPublication, { sessionId: "session-a", toolCallId: "tool-call-a", snapshot: before[1]!.toString("utf-8") });
+		assert.deepEqual(outcome.status === "settled" && outcome.result.importedPublication, {
+			sessionId: "session-a",
+			toolCallId: "tool-call-a",
+			snapshot: before[1]!.toString("utf-8"),
+		});
 		files.forEach((file, index) => assert.deepEqual(fs.readFileSync(file), before[index], file));
 	});
 
@@ -83,7 +95,11 @@ describe("awaitExistingAsyncRun", () => {
 		writeStatus(asyncDir, { pid: process.pid });
 		setTimeout(() => {
 			writeResult(asyncDir, "late output");
-			writeStatus(asyncDir, { pid: process.pid, state: "complete", steps: [{ agent: "worker", status: "complete" }] });
+			writeStatus(asyncDir, {
+				pid: process.pid,
+				state: "complete",
+				steps: [{ agent: "worker", status: "complete" }],
+			});
 		}, 50);
 
 		const outcome = await awaitExistingAsyncRun(asyncDir, "child-run", new AbortController().signal);
@@ -148,58 +164,69 @@ describe("awaitExistingAsyncRun", () => {
 		}
 	});
 
-	it("ends a zombie wait only when the runner's PID namespace is verified", { skip: process.platform !== "linux", timeout: 10_000 }, async () => {
-		const script = String.raw`
+	it(
+		"ends a zombie wait only when the runner's PID namespace is verified",
+		{ skip: process.platform !== "linux", timeout: 10_000 },
+		async () => {
+			const script = String.raw`
 			const { spawn } = require("node:child_process");
 			const fs = require("node:fs");
 			const child = spawn(process.execPath, ["-e", 'process.title = "pi) zombie"; process.exit(0);'], { stdio: "ignore" });
 			process.stdout.write(String(child.pid) + "\n");
 			fs.readSync(0, Buffer.alloc(1), 0, 1, null);
 		`;
-		const parent = spawn(process.execPath, ["--eval", script], { stdio: ["pipe", "pipe", "pipe"] });
-		const closed = once(parent, "close");
-		parent.stdin.on("error", () => {});
-		try {
-			const [output] = await once(parent.stdout, "data", { signal: AbortSignal.timeout(5_000) });
-			const pid = Number(String(output).trim());
-			assert.ok(Number.isSafeInteger(pid) && pid > 0);
-			const deadline = Date.now() + 5_000;
-			let stat = "";
-			while (Date.now() < deadline) {
-				stat = fs.readFileSync(`/proc/${pid}/stat`, "utf-8");
-				if (stat[stat.lastIndexOf(") ") + 2] === "Z") break;
-				await new Promise((resolve) => setTimeout(resolve, 10));
-			}
-			assert.match(stat, /\(pi\) zombie\) Z /);
-			assert.equal(process.kill(pid, 0), true);
-			const scope = fs.readlinkSync("/proc/self/ns/pid", "utf-8").trim();
-			for (const scenario of [
-				{ name: "matching", recorded: scope, exited: true },
-				{ name: "missing-recorded", recorded: undefined, exited: false },
-				{ name: "different", recorded: "pid:[other]", exited: false },
-			]) {
-				const runId = `zombie-${scenario.name}`;
-				const asyncDir = childDir(runId);
-				writeStatus(asyncDir, { pid, ...(scenario.recorded !== undefined ? { pidNamespaceScope: scenario.recorded } : {}) });
-				const statusPath = path.join(asyncDir, "status.json");
-				const before = fs.readFileSync(statusPath);
-				const publication = scenario.exited ? undefined : setTimeout(() => writeResult(asyncDir, "late output"), 50);
-				try {
-					const outcome = await awaitExistingAsyncRun(asyncDir, runId, AbortSignal.timeout(1500))
-						.catch((error) => ({ status: "aborted" as const, reason: String(error) }));
-					assert.equal(outcome.status, scenario.exited ? "unavailable" : "settled", scenario.name);
-					if (outcome.status === "unavailable") assert.match(outcome.reason, /exited without publishing a result/);
-					if (outcome.status === "settled") assert.equal(outcome.result.output, "late output");
-					assert.deepEqual(fs.readFileSync(statusPath), before, "the exit probe must remain read-only");
-				} finally {
-					clearTimeout(publication);
+			const parent = spawn(process.execPath, ["--eval", script], { stdio: ["pipe", "pipe", "pipe"] });
+			const closed = once(parent, "close");
+			parent.stdin.on("error", () => {});
+			try {
+				const [output] = await once(parent.stdout, "data", { signal: AbortSignal.timeout(5_000) });
+				const pid = Number(String(output).trim());
+				assert.ok(Number.isSafeInteger(pid) && pid > 0);
+				const deadline = Date.now() + 5_000;
+				let stat = "";
+				while (Date.now() < deadline) {
+					stat = fs.readFileSync(`/proc/${pid}/stat`, "utf-8");
+					if (stat[stat.lastIndexOf(") ") + 2] === "Z") break;
+					await new Promise((resolve) => setTimeout(resolve, 10));
 				}
+				assert.match(stat, /\(pi\) zombie\) Z /);
+				assert.equal(process.kill(pid, 0), true);
+				const scope = fs.readlinkSync("/proc/self/ns/pid", "utf-8").trim();
+				for (const scenario of [
+					{ name: "matching", recorded: scope, exited: true },
+					{ name: "missing-recorded", recorded: undefined, exited: false },
+					{ name: "different", recorded: "pid:[other]", exited: false },
+				]) {
+					const runId = `zombie-${scenario.name}`;
+					const asyncDir = childDir(runId);
+					writeStatus(asyncDir, {
+						pid,
+						...(scenario.recorded !== undefined ? { pidNamespaceScope: scenario.recorded } : {}),
+					});
+					const statusPath = path.join(asyncDir, "status.json");
+					const before = fs.readFileSync(statusPath);
+					const publication = scenario.exited
+						? undefined
+						: setTimeout(() => writeResult(asyncDir, "late output"), 50);
+					try {
+						const outcome = await awaitExistingAsyncRun(asyncDir, runId, AbortSignal.timeout(1500)).catch(
+							(error) => ({ status: "aborted" as const, reason: String(error) }),
+						);
+						assert.equal(outcome.status, scenario.exited ? "unavailable" : "settled", scenario.name);
+						if (outcome.status === "unavailable")
+							assert.match(outcome.reason, /exited without publishing a result/);
+						if (outcome.status === "settled") assert.equal(outcome.result.output, "late output");
+						assert.deepEqual(fs.readFileSync(statusPath), before, "the exit probe must remain read-only");
+					} finally {
+						clearTimeout(publication);
+					}
+				}
+			} finally {
+				parent.stdin.end("reap");
+				await closed;
 			}
-		} finally {
-			parent.stdin.end("reap");
-			await closed;
-		}
-	});
+		},
+	);
 
 	it("rejects with the abort reason while waiting", async () => {
 		const asyncDir = childDir();
@@ -230,8 +257,22 @@ describe("claimWorkflowAwaitedResult", () => {
 	});
 
 	// The runner's paused result has no tool-call id and its final result adds one; state and timestamp can match.
-	const paused = { id: "child-run", runId: "child-run", sessionId: "session-a", state: "paused", timestamp: 1_000, results: [{ agent: "worker", output: "", success: false }] };
-	const final = { id: "child-run", toolCallId: "tool-call-a", sessionId: "session-a", state: "paused", timestamp: 1_000, results: [{ agent: "worker", output: "paused after interrupt", success: false }] };
+	const paused = {
+		id: "child-run",
+		runId: "child-run",
+		sessionId: "session-a",
+		state: "paused",
+		timestamp: 1_000,
+		results: [{ agent: "worker", output: "", success: false }],
+	};
+	const final = {
+		id: "child-run",
+		toolCallId: "tool-call-a",
+		sessionId: "session-a",
+		state: "paused",
+		timestamp: 1_000,
+		results: [{ agent: "worker", output: "paused after interrupt", success: false }],
+	};
 
 	async function importPaused(asyncDir: string) {
 		writeStatus(asyncDir, { state: "paused", steps: [{ agent: "worker", status: "paused" }] });
@@ -274,7 +315,9 @@ describe("claimWorkflowAwaitedResult", () => {
 	it("does not claim while another process holds the run's lease", async () => {
 		const asyncDir = childDir();
 		const read = await importPaused(asyncDir);
-		withResultRunLease(asyncDir, "child-run", () => assert.equal(claimWorkflowAwaitedResult(asyncDir, "workflow-b", read), undefined));
+		withResultRunLease(asyncDir, "child-run", () =>
+			assert.equal(claimWorkflowAwaitedResult(asyncDir, "workflow-b", read), undefined),
+		);
 		assert.equal(fs.readFileSync(path.join(asyncDir, "workflow-result.json"), "utf-8"), read.snapshot);
 	});
 });

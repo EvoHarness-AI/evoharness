@@ -4,8 +4,17 @@ import { syncBuiltinESMExports } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { ACTIVE_RUN_INDEX_DIR, readActiveRunToolCallIndex, releaseActiveRunIndex, updateActiveRunIndex } from "../../src/runs/background/active-run-index.ts";
-import { encodeIndexSegment, indexSegmentAliases, MAX_INDEX_SEGMENT_BYTES } from "../../src/runs/background/index-segment.ts";
+import {
+	ACTIVE_RUN_INDEX_DIR,
+	readActiveRunToolCallIndex,
+	releaseActiveRunIndex,
+	updateActiveRunIndex,
+} from "../../src/runs/background/active-run-index.ts";
+import {
+	encodeIndexSegment,
+	indexSegmentAliases,
+	MAX_INDEX_SEGMENT_BYTES,
+} from "../../src/runs/background/index-segment.ts";
 import { readStatus } from "../../src/shared/utils.ts";
 
 describe("bounded index segments", () => {
@@ -67,7 +76,10 @@ describe("bounded index segments", () => {
 		});
 		syncBuiltinESMExports();
 		try {
-			assert.throws(() => readActiveRunToolCallIndex("/tmp/async", "call-a"), (thrown) => thrown === error);
+			assert.throws(
+				() => readActiveRunToolCallIndex("/tmp/async", "call-a"),
+				(thrown) => thrown === error,
+			);
 		} finally {
 			t.mock.restoreAll();
 			syncBuiltinESMExports();
@@ -117,10 +129,13 @@ describe("bounded index segments", () => {
 		});
 		syncBuiltinESMExports();
 		try {
-			assert.throws(() => readStatus(path.join(os.tmpdir(), "short-status-id")), (thrown) =>
-				thrown instanceof Error
-				&& /Failed to inspect async status file/.test(thrown.message)
-				&& (thrown as Error & { cause?: unknown }).cause === error);
+			assert.throws(
+				() => readStatus(path.join(os.tmpdir(), "short-status-id")),
+				(thrown) =>
+					thrown instanceof Error &&
+					/Failed to inspect async status file/.test(thrown.message) &&
+					(thrown as Error & { cause?: unknown }).cause === error,
+			);
 		} finally {
 			t.mock.restoreAll();
 			syncBuiltinESMExports();
@@ -140,10 +155,13 @@ describe("bounded index segments", () => {
 				throw error;
 			});
 			syncBuiltinESMExports();
-			assert.throws(() => readStatus(asyncDir), (thrown) =>
-				thrown instanceof Error
-				&& /Failed to read async status file/.test(thrown.message)
-				&& (thrown as Error & { cause?: unknown }).cause === error);
+			assert.throws(
+				() => readStatus(asyncDir),
+				(thrown) =>
+					thrown instanceof Error &&
+					/Failed to read async status file/.test(thrown.message) &&
+					(thrown as Error & { cause?: unknown }).cause === error,
+			);
 		} finally {
 			t.mock.restoreAll();
 			syncBuiltinESMExports();

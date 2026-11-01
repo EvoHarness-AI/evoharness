@@ -4,7 +4,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { DefaultResourceLoader, SettingsManager } from "@evoharness/coding-agent";
-import { createDefaultChildSessionFactory, type ChildSessionLaunch, type PiCodingAgentModule } from "../../src/runs/shared/child-session.ts";
+import {
+	type ChildSessionLaunch,
+	createDefaultChildSessionFactory,
+	type PiCodingAgentModule,
+} from "../../src/runs/shared/child-session.ts";
 
 // Real Pi resource loading, stopped right before a session is created.
 function piCapturingAppendPrompt(captured: string[][]): PiCodingAgentModule {
@@ -21,7 +25,10 @@ function piCapturingAppendPrompt(captured: string[][]): PiCodingAgentModule {
 	} as unknown as PiCodingAgentModule;
 }
 
-function launch(cwd: string, prompt: Pick<ChildSessionLaunch, "systemPrompt" | "appendSystemPrompt">): ChildSessionLaunch {
+function launch(
+	cwd: string,
+	prompt: Pick<ChildSessionLaunch, "systemPrompt" | "appendSystemPrompt">,
+): ChildSessionLaunch {
 	return {
 		cwd,
 		storage: { kind: "memory" },
@@ -31,7 +38,12 @@ function launch(cwd: string, prompt: Pick<ChildSessionLaunch, "systemPrompt" | "
 		noSkills: true,
 		noContextFiles: true,
 		// SAFETY: the loader path under test reads no other runtime field.
-		runtime: { fanoutChild: false, depth: 1, waitTool: { enabled: false }, fast: false } as ChildSessionLaunch["runtime"],
+		runtime: {
+			fanoutChild: false,
+			depth: 1,
+			waitTool: { enabled: false },
+			fast: false,
+		} as ChildSessionLaunch["runtime"],
 		...prompt,
 	};
 }
@@ -58,7 +70,9 @@ describe("default child factory and the operator's APPEND_SYSTEM.md", () => {
 
 	it("keeps it out of replace-mode, append-mode, and prompt-less children", async () => {
 		const captured: string[][] = [];
-		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: async () => piCapturingAppendPrompt(captured) });
+		const factory = createDefaultChildSessionFactory({
+			loadPiCodingAgent: async () => piCapturingAppendPrompt(captured),
+		});
 		const cwd = path.join(root, "project");
 		try {
 			await assert.rejects(() => factory.create(launch(cwd, { systemPrompt: "ROLE" })), /stop/);

@@ -1,8 +1,16 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import type {
+	AcceptanceLedger,
+	ArtifactPaths,
+	AsyncStatus,
+	CostSummary,
+	EffectsProjection,
+	ExecutionProjection,
+	Usage,
+} from "../../shared/types.ts";
+import { readStatus, SUBAGENT_STOPPED_MESSAGE, SUBAGENT_TIMED_OUT_MESSAGE } from "../../shared/utils.ts";
 import { resultFilePath, resultPayloadPathForSessionRun } from "./result-files.ts";
-import type { AcceptanceLedger, ArtifactPaths, AsyncStatus, CostSummary, EffectsProjection, ExecutionProjection, Usage } from "../../shared/types.ts";
-import { SUBAGENT_STOPPED_MESSAGE, SUBAGENT_TIMED_OUT_MESSAGE, readStatus } from "../../shared/utils.ts";
 
 export interface ImportedAsyncRoot {
 	runId: string;
@@ -89,7 +97,12 @@ function readResultFile(resultPath: string): { data: AsyncResultFile; raw: strin
 	try {
 		raw = fs.readFileSync(resultPath, "utf-8");
 	} catch (error) {
-		if (typeof error === "object" && error !== null && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT") {
+		if (
+			typeof error === "object" &&
+			error !== null &&
+			"code" in error &&
+			(error as NodeJS.ErrnoException).code === "ENOENT"
+		) {
 			return undefined;
 		}
 		throw error;
@@ -97,14 +110,20 @@ function readResultFile(resultPath: string): { data: AsyncResultFile; raw: strin
 	return { data: JSON.parse(raw) as AsyncResultFile, raw };
 }
 
-function readImportedResultFile(root: ImportedAsyncRoot, status: AsyncStatus | null): { data: AsyncResultFile; raw: string } | undefined {
+function readImportedResultFile(
+	root: ImportedAsyncRoot,
+	status: AsyncStatus | null,
+): { data: AsyncResultFile; raw: string } | undefined {
 	const direct = readResultFile(root.resultPath);
 	if (direct || !status?.sessionId) return direct;
 	const indexedPath = resultPayloadPathForSessionRun(path.dirname(root.resultPath), status.sessionId, root.runId);
 	return indexedPath ? readResultFile(indexedPath) : undefined;
 }
 
-function selectedStatusStep(status: AsyncStatus | null, index: number): NonNullable<AsyncStatus["steps"]>[number] | undefined {
+function selectedStatusStep(
+	status: AsyncStatus | null,
+	index: number,
+): NonNullable<AsyncStatus["steps"]>[number] | undefined {
 	return status?.steps?.[index];
 }
 
@@ -113,33 +132,63 @@ function isTerminalStatus(status: AsyncStatus | null, index: number): boolean {
 	// A workflow-owned single runner publishes its result after completing its
 	// step. Keep that window open while root process proof is absent or pending;
 	// explicit terminal/unavailable proof retains the existing step fallback.
-	if (status.mode === "single" && status.parentWorkflowRunId
-		&& (!status.processTerminal || status.processTerminal.state === "pending")) return TERMINAL_STATES.has(status.state);
+	if (
+		status.mode === "single" &&
+		status.parentWorkflowRunId &&
+		(!status.processTerminal || status.processTerminal.state === "pending")
+	)
+		return TERMINAL_STATES.has(status.state);
 	const step = selectedStatusStep(status, index);
 	if (step && TERMINAL_STEP_STATUSES.has(step.status)) return true;
 	return TERMINAL_STATES.has(status.state);
 }
 
-function resultState(result: AsyncResultFile | undefined, child: NonNullable<AsyncResultFile["results"]>[number] | undefined): "complete" | "failed" | "partial" | "paused" | "stopped" | undefined {
+function resultState(
+	result: AsyncResultFile | undefined,
+	child: NonNullable<AsyncResultFile["results"]>[number] | undefined,
+): "complete" | "failed" | "partial" | "paused" | "stopped" | undefined {
 	if (!result) return undefined;
 	if (child?.stopped === true) return "stopped";
 	if (child?.success === true) return "complete";
-	if (child?.success === false) return result.state === "stopped" ? "stopped" : result.state === "paused" ? "paused" : result.state === "partial" ? "partial" : "failed";
-	if (result.state === "complete" || result.state === "failed" || result.state === "partial" || result.state === "paused" || result.state === "stopped") return result.state;
+	if (child?.success === false)
+		return result.state === "stopped"
+			? "stopped"
+			: result.state === "paused"
+				? "paused"
+				: result.state === "partial"
+					? "partial"
+					: "failed";
+	if (
+		result.state === "complete" ||
+		result.state === "failed" ||
+		result.state === "partial" ||
+		result.state === "paused" ||
+		result.state === "stopped"
+	)
+		return result.state;
 	if (result.success === true) return "complete";
 	if (result.success === false) return "failed";
 	return undefined;
 }
 
-function outputFromTerminalStatus(root: ImportedAsyncRoot, status: AsyncStatus, step: NonNullable<AsyncStatus["steps"]>[number] | undefined): ImportedAsyncRootResult {
+function outputFromTerminalStatus(
+	root: ImportedAsyncRoot,
+	status: AsyncStatus,
+	step: NonNullable<AsyncStatus["steps"]>[number] | undefined,
+): ImportedAsyncRootResult {
 	const agent = step?.agent ?? status.steps?.[root.index]?.agent ?? "subagent";
 	const timedOut = step?.timedOut === true || status.timedOut === true;
 	const stopped = step?.stopped === true || status.stopped === true || status.state === "stopped";
-	const message = step?.error ?? status.error ?? (stopped ? SUBAGENT_STOPPED_MESSAGE : `Attached async root ${root.runId} ended without a result file at ${root.resultPath}.`);
+	const message =
+		step?.error ??
+		status.error ??
+		(stopped
+			? SUBAGENT_STOPPED_MESSAGE
+			: `Attached async root ${root.runId} ended without a result file at ${root.resultPath}.`);
 	const partialStatus = status.state === "partial" || step?.status === "partial";
-	const execution = step?.execution ?? (partialStatus
-		? { status: "partial" as const, success: false, exitCode: 1, error: message }
-		: undefined);
+	const execution =
+		step?.execution ??
+		(partialStatus ? { status: "partial" as const, success: false, exitCode: 1, error: message } : undefined);
 	return {
 		agent,
 		output: message,
@@ -149,7 +198,7 @@ function outputFromTerminalStatus(root: ImportedAsyncRoot, status: AsyncStatus, 
 		...(timedOut ? { timedOut: true } : {}),
 		...(stopped ? { stopped: true } : {}),
 		...(step?.sessionName ? { sessionName: step.sessionName } : {}),
-		...(step?.sessionFile ?? status.sessionFile ? { sessionFile: step?.sessionFile ?? status.sessionFile } : {}),
+		...((step?.sessionFile ?? status.sessionFile) ? { sessionFile: step?.sessionFile ?? status.sessionFile } : {}),
 		...(step?.model ? { model: step.model } : {}),
 		...(step?.requestedModel ? { requestedModel: step.requestedModel } : {}),
 		...(step?.contextOverflow ? { contextOverflow: true } : {}),
@@ -164,7 +213,12 @@ function outputFromTerminalStatus(root: ImportedAsyncRoot, status: AsyncStatus, 
 	};
 }
 
-function outputFromTimeout(root: ImportedAsyncRoot, status: AsyncStatus | null, message: string, stopped = false): ImportedAsyncRootResult {
+function outputFromTimeout(
+	root: ImportedAsyncRoot,
+	status: AsyncStatus | null,
+	message: string,
+	stopped = false,
+): ImportedAsyncRootResult {
 	const step = selectedStatusStep(status, root.index);
 	return {
 		agent: step?.agent ?? status?.steps?.[root.index]?.agent ?? "subagent",
@@ -174,7 +228,7 @@ function outputFromTimeout(root: ImportedAsyncRoot, status: AsyncStatus | null, 
 		error: message,
 		...(stopped ? { stopped: true } : { timedOut: true }),
 		...(step?.sessionName ? { sessionName: step.sessionName } : {}),
-		...(step?.sessionFile ?? status?.sessionFile ? { sessionFile: step?.sessionFile ?? status?.sessionFile } : {}),
+		...((step?.sessionFile ?? status?.sessionFile) ? { sessionFile: step?.sessionFile ?? status?.sessionFile } : {}),
 		...(step?.model ? { model: step.model } : {}),
 		...(step?.requestedModel ? { requestedModel: step.requestedModel } : {}),
 		...(step?.contextOverflow ? { contextOverflow: true } : {}),
@@ -183,17 +237,43 @@ function outputFromTimeout(root: ImportedAsyncRoot, status: AsyncStatus | null, 
 	};
 }
 
-function buildImportedResult(root: ImportedAsyncRoot, status: AsyncStatus | null, { data: result, raw }: { data: AsyncResultFile; raw: string }): ImportedAsyncRootResult {
+function buildImportedResult(
+	root: ImportedAsyncRoot,
+	status: AsyncStatus | null,
+	{ data: result, raw }: { data: AsyncResultFile; raw: string },
+): ImportedAsyncRootResult {
 	const child = result.results?.[root.index];
 	const step = selectedStatusStep(status, root.index);
 	const state = resultState(result, child);
 	const agent = child?.agent ?? step?.agent ?? status?.steps?.[root.index]?.agent ?? "subagent";
 	const output = child?.output ?? result.summary ?? "";
-	const timedOut = child?.timedOut === true || step?.timedOut === true || result.timedOut === true || status?.timedOut === true;
-	const stopped = child?.stopped === true || step?.stopped === true || result.stopped === true || status?.stopped === true || state === "stopped";
+	const timedOut =
+		child?.timedOut === true || step?.timedOut === true || result.timedOut === true || status?.timedOut === true;
+	const stopped =
+		child?.stopped === true ||
+		step?.stopped === true ||
+		result.stopped === true ||
+		status?.stopped === true ||
+		state === "stopped";
 	const success = state === "complete" && !timedOut && !stopped;
-	const error = child?.error ?? (success ? undefined : stopped ? SUBAGENT_STOPPED_MESSAGE : result.error ?? result.summary ?? status?.error ?? `Attached async root ${root.runId} did not complete successfully.`);
-	const execution = state ? { status: state === "complete" ? "completed" as const : state, success, exitCode: success ? 0 : 1, ...(error ? { error } : {}) } : undefined;
+	const error =
+		child?.error ??
+		(success
+			? undefined
+			: stopped
+				? SUBAGENT_STOPPED_MESSAGE
+				: (result.error ??
+					result.summary ??
+					status?.error ??
+					`Attached async root ${root.runId} did not complete successfully.`));
+	const execution = state
+		? {
+				status: state === "complete" ? ("completed" as const) : state,
+				success,
+				exitCode: success ? 0 : 1,
+				...(error ? { error } : {}),
+			}
+		: undefined;
 	const usage = child?.usage;
 	return {
 		agent,
@@ -202,37 +282,58 @@ function buildImportedResult(root: ImportedAsyncRoot, status: AsyncStatus | null
 			...(typeof result.toolCallId === "string" ? { toolCallId: result.toolCallId } : {}),
 			snapshot: raw,
 		},
-		output: success ? output : (output || error || ""),
+		output: success ? output : output || error || "",
 		success,
 		exitCode: success ? 0 : 1,
 		...(error ? { error } : {}),
 		...(timedOut ? { timedOut: true } : {}),
 		...(stopped ? { stopped: true } : {}),
-		...(child?.sessionName ?? step?.sessionName ? { sessionName: child?.sessionName ?? step?.sessionName } : {}),
-		...(child?.sessionFile ?? step?.sessionFile ?? status?.sessionFile ? { sessionFile: child?.sessionFile ?? step?.sessionFile ?? status?.sessionFile } : {}),
+		...((child?.sessionName ?? step?.sessionName) ? { sessionName: child?.sessionName ?? step?.sessionName } : {}),
+		...((child?.sessionFile ?? step?.sessionFile ?? status?.sessionFile)
+			? { sessionFile: child?.sessionFile ?? step?.sessionFile ?? status?.sessionFile }
+			: {}),
 		...(child?.intercomTarget ? { intercomTarget: child.intercomTarget } : {}),
-		...(child?.model ?? step?.model ? { model: child?.model ?? step?.model } : {}),
-		...(child?.requestedModel ?? step?.requestedModel ? { requestedModel: child?.requestedModel ?? step?.requestedModel } : {}),
+		...((child?.model ?? step?.model) ? { model: child?.model ?? step?.model } : {}),
+		...((child?.requestedModel ?? step?.requestedModel)
+			? { requestedModel: child?.requestedModel ?? step?.requestedModel }
+			: {}),
 		...(child?.contextOverflow || step?.contextOverflow ? { contextOverflow: true } : {}),
-		...(child?.totalCost ?? step?.totalCost ? { totalCost: child?.totalCost ?? step?.totalCost } : {}),
+		...((child?.totalCost ?? step?.totalCost) ? { totalCost: child?.totalCost ?? step?.totalCost } : {}),
 		...(usage ? { usage } : {}),
-		...(child?.structuredOutput !== undefined ? { structuredOutput: child.structuredOutput } : step?.structuredOutput !== undefined ? { structuredOutput: step.structuredOutput } : {}),
-		...(child?.structuredOutputPath ?? step?.structuredOutputPath ? { structuredOutputPath: child?.structuredOutputPath ?? step?.structuredOutputPath } : {}),
-		...(child?.structuredOutputSchemaPath ?? step?.structuredOutputSchemaPath ? { structuredOutputSchemaPath: child?.structuredOutputSchemaPath ?? step?.structuredOutputSchemaPath } : {}),
-		...(child?.acceptance ?? step?.acceptance ? { acceptance: child?.acceptance ?? step?.acceptance } : {}),
+		...(child?.structuredOutput !== undefined
+			? { structuredOutput: child.structuredOutput }
+			: step?.structuredOutput !== undefined
+				? { structuredOutput: step.structuredOutput }
+				: {}),
+		...((child?.structuredOutputPath ?? step?.structuredOutputPath)
+			? { structuredOutputPath: child?.structuredOutputPath ?? step?.structuredOutputPath }
+			: {}),
+		...((child?.structuredOutputSchemaPath ?? step?.structuredOutputSchemaPath)
+			? { structuredOutputSchemaPath: child?.structuredOutputSchemaPath ?? step?.structuredOutputSchemaPath }
+			: {}),
+		...((child?.acceptance ?? step?.acceptance) ? { acceptance: child?.acceptance ?? step?.acceptance } : {}),
 		...(child?.artifactPaths ? { artifactPaths: child.artifactPaths } : {}),
 		...(child?.savedOutputPath ? { savedOutputPath: child.savedOutputPath } : {}),
 		...(child?.outputSaveError ? { outputSaveError: child.outputSaveError } : {}),
-		...(child?.transcriptPath ?? step?.transcriptPath ? { transcriptPath: child?.transcriptPath ?? step?.transcriptPath } : {}),
+		...((child?.transcriptPath ?? step?.transcriptPath)
+			? { transcriptPath: child?.transcriptPath ?? step?.transcriptPath }
+			: {}),
 		...(child?.transcriptError ? { transcriptError: child.transcriptError } : {}),
 		...(execution ? { execution } : {}),
-		...(child?.effects ?? step?.effects ? { effects: child?.effects ?? step?.effects } : {}),
+		...((child?.effects ?? step?.effects) ? { effects: child?.effects ?? step?.effects } : {}),
 	};
 }
 
 export async function waitForImportedAsyncRoot(
 	root: ImportedAsyncRoot,
-	options: { pollIntervalMs?: number; terminalResultGraceMs?: number; now?: () => number; shouldAbort?: () => boolean; timeoutMessage?: string; abortedAsStopped?: boolean } = {},
+	options: {
+		pollIntervalMs?: number;
+		terminalResultGraceMs?: number;
+		now?: () => number;
+		shouldAbort?: () => boolean;
+		timeoutMessage?: string;
+		abortedAsStopped?: boolean;
+	} = {},
 ): Promise<ImportedAsyncRootResult> {
 	const pollIntervalMs = options.pollIntervalMs ?? 500;
 	const terminalResultGraceMs = options.terminalResultGraceMs ?? 1_000;
@@ -240,7 +341,13 @@ export async function waitForImportedAsyncRoot(
 	let terminalSince: number | undefined;
 	for (;;) {
 		const status = readStatus(root.asyncDir);
-		if (options.shouldAbort?.()) return outputFromTimeout(root, status, options.timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE, options.abortedAsStopped === true);
+		if (options.shouldAbort?.())
+			return outputFromTimeout(
+				root,
+				status,
+				options.timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE,
+				options.abortedAsStopped === true,
+			);
 		const result = readImportedResultFile(root, status);
 		if (result) return buildImportedResult(root, status, result);
 		if (isTerminalStatus(status, root.index)) {

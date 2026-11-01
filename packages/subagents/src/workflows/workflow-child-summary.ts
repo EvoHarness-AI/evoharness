@@ -5,8 +5,18 @@ import type { WorkflowScriptChildResult, WorkflowScriptTraceEntry } from "./scri
 const KEY_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
 const TERMINAL_STATES = new Set(["completed", "failed", "paused", "stopped", "rejected", "detached"]);
 const MAX_REQUIRED_ID_BYTES = 4_096;
-const ACTIVITY_COUNTERS = ["currentToolStartedAt", "lastActivityAt", "durationMs", "toolCount", "turnCount", "tokens", "inputTokens", "outputTokens"] as const;
-type WorkflowChildLiveProgress = WorkflowChildActivity & Pick<AgentProgress, "agent" | "sessionName" | "model" | "thinking">;
+const ACTIVITY_COUNTERS = [
+	"currentToolStartedAt",
+	"lastActivityAt",
+	"durationMs",
+	"toolCount",
+	"turnCount",
+	"tokens",
+	"inputTokens",
+	"outputTokens",
+] as const;
+type WorkflowChildLiveProgress = WorkflowChildActivity &
+	Pick<AgentProgress, "agent" | "sessionName" | "model" | "thinking">;
 
 export function workflowChildProgress(progress: AgentProgress): WorkflowChildLiveProgress {
 	return {
@@ -31,10 +41,19 @@ export function workflowChildActivity(progress: WorkflowChildActivity): Workflow
 
 function parseActivity(value: unknown): WorkflowChildActivity | undefined {
 	if (value === undefined) return undefined;
-	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("workflowChildren child activity is invalid.");
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw new Error("workflowChildren child activity is invalid.");
 	const input = value as Record<string, unknown>;
 	for (const [key, value] of Object.entries(input)) {
-		if (key === "currentTool" ? !bounded(value, 256) : !ACTIVITY_COUNTERS.includes(key as typeof ACTIVITY_COUNTERS[number]) || typeof value !== "number" || !Number.isFinite(value) || value < 0) throw new Error("workflowChildren child activity is invalid.");
+		if (
+			key === "currentTool"
+				? !bounded(value, 256)
+				: !ACTIVITY_COUNTERS.includes(key as (typeof ACTIVITY_COUNTERS)[number]) ||
+					typeof value !== "number" ||
+					!Number.isFinite(value) ||
+					value < 0
+		)
+			throw new Error("workflowChildren child activity is invalid.");
 	}
 	return { ...input } as WorkflowChildActivity;
 }
@@ -52,7 +71,8 @@ function requiredId(value: string, label: string): string {
 
 /** Provider tool-call ids can be multi-kilobyte; the verbatim id stays in AsyncStatus.toolCallId, so an oversize id is recorded as its digest. */
 function parentToolCallId(value: string, label: string): string {
-	if (typeof value === "string" && value.trim() && Buffer.byteLength(value, "utf8") > MAX_REQUIRED_ID_BYTES) return hashedSegment(value);
+	if (typeof value === "string" && value.trim() && Buffer.byteLength(value, "utf8") > MAX_REQUIRED_ID_BYTES)
+		return hashedSegment(value);
 	return requiredId(value, label);
 }
 
@@ -70,15 +90,22 @@ export function workflowChildSummary(input: {
 	launches?: ReadonlyMap<string, { agent: string; runId?: string }>;
 }): WorkflowChildSummary {
 	const rows = new Map<string, WorkflowChildSummary["children"][number]>();
-	const runningAsyncKeys = new Set(input.children?.filter((child) => child.state === "running").map((child) => child.key));
+	const runningAsyncKeys = new Set(
+		input.children?.filter((child) => child.state === "running").map((child) => child.key),
+	);
 	for (const entry of input.trace ?? []) {
 		if (entry.operation !== "run" || !KEY_PATTERN.test(entry.key)) continue;
 		const previous = rows.get(entry.key);
-		const state = entry.state === "completed" ? "completed"
-			: entry.state === "failed" ? "failed"
-				: entry.state === "stopped" ? "stopped"
-					: entry.state === "detached" ? "detached"
-						: previous?.state ?? "running";
+		const state =
+			entry.state === "completed"
+				? "completed"
+				: entry.state === "failed"
+					? "failed"
+					: entry.state === "stopped"
+						? "stopped"
+						: entry.state === "detached"
+							? "detached"
+							: (previous?.state ?? "running");
 		rows.set(entry.key, {
 			childId: entry.key,
 			state,
@@ -93,13 +120,25 @@ export function workflowChildSummary(input: {
 		const key = step.workflowKey;
 		if (!key || !KEY_PATTERN.test(key)) continue;
 		if (step.async && step.runId && step.status === "running") runningAsyncKeys.add(key);
-		const state = step.status === "complete" || step.status === "completed" ? "completed"
-			: step.status === "failed" ? "failed"
-				: step.status === "paused" ? "paused"
-					: step.status === "stopped" ? "stopped"
-						: step.status === "rejected" ? "rejected"
-							: step.status === "pending" ? "pending" : "running";
-		const launchResolved = step.async !== undefined || step.sessionFile !== undefined || step.runId !== undefined || step.model !== undefined;
+		const state =
+			step.status === "complete" || step.status === "completed"
+				? "completed"
+				: step.status === "failed"
+					? "failed"
+					: step.status === "paused"
+						? "paused"
+						: step.status === "stopped"
+							? "stopped"
+							: step.status === "rejected"
+								? "rejected"
+								: step.status === "pending"
+									? "pending"
+									: "running";
+		const launchResolved =
+			step.async !== undefined ||
+			step.sessionFile !== undefined ||
+			step.runId !== undefined ||
+			step.model !== undefined;
 		rows.set(key, {
 			childId: key,
 			state,
@@ -112,8 +151,25 @@ export function workflowChildSummary(input: {
 	}
 	for (const child of input.children ?? []) {
 		if (!KEY_PATTERN.test(child.key)) continue;
-		const result = Array.isArray(child.results) ? child.results.find((value) => value && typeof value === "object") as Record<string, unknown> | undefined : undefined;
-		const state = child.state === "running" ? "running" : child.detached ? "detached" : child.stopped ? "stopped" : child.interrupted ? "paused" : child.ok ? "completed" : result?.acceptance && typeof result.acceptance === "object" && (result.acceptance as { status?: unknown }).status === "rejected" ? "rejected" : "failed";
+		const result = Array.isArray(child.results)
+			? (child.results.find((value) => value && typeof value === "object") as Record<string, unknown> | undefined)
+			: undefined;
+		const state =
+			child.state === "running"
+				? "running"
+				: child.detached
+					? "detached"
+					: child.stopped
+						? "stopped"
+						: child.interrupted
+							? "paused"
+							: child.ok
+								? "completed"
+								: result?.acceptance &&
+										typeof result.acceptance === "object" &&
+										(result.acceptance as { status?: unknown }).status === "rejected"
+									? "rejected"
+									: "failed";
 		rows.set(child.key, {
 			childId: child.key,
 			state,
@@ -126,7 +182,8 @@ export function workflowChildSummary(input: {
 	}
 	if (input.inventoryComplete) {
 		for (const [key, row] of rows) {
-			if (!TERMINAL_STATES.has(row.state) && !runningAsyncKeys.has(key)) rows.set(key, { ...row, state: input.workflowState === "stopped" ? "stopped" : "failed" });
+			if (!TERMINAL_STATES.has(row.state) && !runningAsyncKeys.has(key))
+				rows.set(key, { ...row, state: input.workflowState === "stopped" ? "stopped" : "failed" });
 		}
 	}
 	for (const [key, launch] of input.launches ?? []) {
@@ -162,29 +219,88 @@ export function workflowChildSummary(input: {
 
 export function parseWorkflowChildSummary(value: unknown): WorkflowChildSummary | undefined {
 	if (value === undefined) return undefined;
-	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("workflowChildren must be an object.");
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw new Error("workflowChildren must be an object.");
 	const input = value as Record<string, unknown>;
-	const allowed = new Set(["version", "parentToolCallId", "workflowRunId", "inventoryComplete", "workflowState", "children"]);
+	const allowed = new Set([
+		"version",
+		"parentToolCallId",
+		"workflowRunId",
+		"inventoryComplete",
+		"workflowState",
+		"children",
+	]);
 	if (Object.keys(input).some((key) => !allowed.has(key))) throw new Error("workflowChildren has unsupported fields.");
-	if (input.version !== 1 || typeof input.inventoryComplete !== "boolean" || !Array.isArray(input.children)) throw new Error("workflowChildren is invalid.");
+	if (input.version !== 1 || typeof input.inventoryComplete !== "boolean" || !Array.isArray(input.children))
+		throw new Error("workflowChildren is invalid.");
 	const workflowState = input.workflowState;
-	if (workflowState !== "queued" && workflowState !== "running" && workflowState !== "completed" && workflowState !== "failed" && workflowState !== "paused" && workflowState !== "stopped") throw new Error("workflowChildren.workflowState is invalid.");
+	if (
+		workflowState !== "queued" &&
+		workflowState !== "running" &&
+		workflowState !== "completed" &&
+		workflowState !== "failed" &&
+		workflowState !== "paused" &&
+		workflowState !== "stopped"
+	)
+		throw new Error("workflowChildren.workflowState is invalid.");
 	const children = input.children.map((row): WorkflowChildSummary["children"][number] => {
-		if (!row || typeof row !== "object" || Array.isArray(row)) throw new Error("workflowChildren child row is invalid.");
+		if (!row || typeof row !== "object" || Array.isArray(row))
+			throw new Error("workflowChildren child row is invalid.");
 		const child = row as Record<string, unknown>;
-		if (Object.keys(child).some((key) => !["childId", "runId", "agent", "sessionName", "model", "thinking", "state", "activity"].includes(key))) throw new Error("workflowChildren child row has unsupported fields.");
-		if (typeof child.childId !== "string" || !KEY_PATTERN.test(child.childId)) throw new Error("workflowChildren childId is invalid.");
+		if (
+			Object.keys(child).some(
+				(key) =>
+					!["childId", "runId", "agent", "sessionName", "model", "thinking", "state", "activity"].includes(key),
+			)
+		)
+			throw new Error("workflowChildren child row has unsupported fields.");
+		if (typeof child.childId !== "string" || !KEY_PATTERN.test(child.childId))
+			throw new Error("workflowChildren childId is invalid.");
 		const state = child.state;
-		if (state !== "pending" && state !== "running" && state !== "completed" && state !== "failed" && state !== "paused" && state !== "stopped" && state !== "rejected" && state !== "detached") throw new Error("workflowChildren child state is invalid.");
-		for (const [field, maxBytes] of [["runId", 256], ["agent", 256], ["sessionName", 256], ["model", 256], ["thinking", 32]] as const) {
-			if (child[field] !== undefined && bounded(child[field], maxBytes) === undefined) throw new Error(`workflowChildren child ${field} is invalid.`);
+		if (
+			state !== "pending" &&
+			state !== "running" &&
+			state !== "completed" &&
+			state !== "failed" &&
+			state !== "paused" &&
+			state !== "stopped" &&
+			state !== "rejected" &&
+			state !== "detached"
+		)
+			throw new Error("workflowChildren child state is invalid.");
+		for (const [field, maxBytes] of [
+			["runId", 256],
+			["agent", 256],
+			["sessionName", 256],
+			["model", 256],
+			["thinking", 32],
+		] as const) {
+			if (child[field] !== undefined && bounded(child[field], maxBytes) === undefined)
+				throw new Error(`workflowChildren child ${field} is invalid.`);
 		}
 		const activity = parseActivity(child.activity);
 		if (activity && state !== "running") throw new Error("workflowChildren child activity requires running state.");
-		return { childId: child.childId, state, ...(activity ? { activity } : {}), ...(child.runId ? { runId: child.runId as string } : {}), ...(child.agent ? { agent: child.agent as string } : {}), ...(child.sessionName ? { sessionName: child.sessionName as string } : {}), ...(child.model ? { model: child.model as string } : {}), ...(child.thinking ? { thinking: child.thinking as string } : {}) };
+		return {
+			childId: child.childId,
+			state,
+			...(activity ? { activity } : {}),
+			...(child.runId ? { runId: child.runId as string } : {}),
+			...(child.agent ? { agent: child.agent as string } : {}),
+			...(child.sessionName ? { sessionName: child.sessionName as string } : {}),
+			...(child.model ? { model: child.model as string } : {}),
+			...(child.thinking ? { thinking: child.thinking as string } : {}),
+		};
 	});
-	if (new Set(children.map((child) => child.childId)).size !== children.length) throw new Error("workflowChildren has duplicate childId values.");
+	if (new Set(children.map((child) => child.childId)).size !== children.length)
+		throw new Error("workflowChildren has duplicate childId values.");
 	if (typeof input.parentToolCallId !== "string") throw new Error("workflowChildren.parentToolCallId is invalid.");
 	if (typeof input.workflowRunId !== "string") throw new Error("workflowChildren.workflowRunId is invalid.");
-	return { version: 1, parentToolCallId: parentToolCallId(input.parentToolCallId, "workflowChildren.parentToolCallId"), workflowRunId: requiredId(input.workflowRunId, "workflowChildren.workflowRunId"), inventoryComplete: input.inventoryComplete, workflowState, children };
+	return {
+		version: 1,
+		parentToolCallId: parentToolCallId(input.parentToolCallId, "workflowChildren.parentToolCallId"),
+		workflowRunId: requiredId(input.workflowRunId, "workflowChildren.workflowRunId"),
+		inventoryComplete: input.inventoryComplete,
+		workflowState,
+		children,
+	};
 }

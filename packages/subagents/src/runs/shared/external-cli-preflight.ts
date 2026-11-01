@@ -37,9 +37,7 @@ type CachedPreflight = Omit<ExternalCliPreflightResult, "cacheHit">;
 const cache = new Map<string, CachedPreflight>();
 const lookup = new Map<string, string>();
 
-export type ExternalCliBinaryAvailability =
-	| { available: true }
-	| { available: false; unavailableReason: string };
+export type ExternalCliBinaryAvailability = { available: true } | { available: false; unavailableReason: string };
 
 const BATCH_FILE = /\.(cmd|bat)$/i;
 
@@ -51,7 +49,8 @@ function resolveBinary(command: string, env: NodeJS.ProcessEnv, platform: NodeJS
 		return resolved;
 	}
 	// Windows environment names are case-insensitive, and a copied process.env keeps its spelling (often `Path`).
-	const read = (name: string) => windows ? Object.entries(env).find(([key]) => key.toUpperCase() === name)?.[1] : env[name];
+	const read = (name: string) =>
+		windows ? Object.entries(env).find(([key]) => key.toUpperCase() === name)?.[1] : env[name];
 	const pathExt = windows ? (read("PATHEXT") ?? ".EXE;.CMD;.BAT;.COM").split(";").filter(Boolean) : [];
 	const named = pathExt.some((extension) => command.toLowerCase().endsWith(extension.toLowerCase()));
 	const extensions = windows ? (named ? ["", ...pathExt] : pathExt) : [""];
@@ -70,7 +69,10 @@ function resolveBinary(command: string, env: NodeJS.ProcessEnv, platform: NodeJS
 }
 
 /** Resolve only the configured command; unlike preflight, this never starts a child process. */
-export function resolveExternalCliBinaryAvailability(command: string, env: NodeJS.ProcessEnv): ExternalCliBinaryAvailability {
+export function resolveExternalCliBinaryAvailability(
+	command: string,
+	env: NodeJS.ProcessEnv,
+): ExternalCliBinaryAvailability {
 	try {
 		resolveBinary(command, env);
 		return { available: true };
@@ -81,7 +83,8 @@ export function resolveExternalCliBinaryAvailability(command: string, env: NodeJ
 }
 
 // npm's cmd-shim output for a `#!/usr/bin/env node` bin, with CRLF normalized; the target path sits between the two parts.
-const NPM_NODE_SHIM_HEAD = '@ECHO off\nGOTO start\n:find_dp0\nSET dp0=%~dp0\nEXIT /b\n:start\nSETLOCAL\nCALL :find_dp0\n\nIF EXIST "%dp0%\\node.exe" (\n  SET "_prog=%dp0%\\node.exe"\n) ELSE (\n  SET "_prog=node"\n  SET PATHEXT=%PATHEXT:;.JS;=;%\n)\n\nendLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\';
+const NPM_NODE_SHIM_HEAD =
+	'@ECHO off\nGOTO start\n:find_dp0\nSET dp0=%~dp0\nEXIT /b\n:start\nSETLOCAL\nCALL :find_dp0\n\nIF EXIST "%dp0%\\node.exe" (\n  SET "_prog=%dp0%\\node.exe"\n) ELSE (\n  SET "_prog=node"\n  SET PATHEXT=%PATHEXT:;.JS;=;%\n)\n\nendLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\';
 const NPM_NODE_SHIM_TAIL = '" %*\n';
 
 export interface ExternalCliSpawn {
@@ -94,7 +97,12 @@ export interface ExternalCliSpawn {
  * `%` and `!` inside operator- and project-controlled arguments. On Windows, an npm Node shim is launched
  * by running Node on its script directly; every other batch wrapper is rejected.
  */
-export function resolveExternalCliSpawn(command: string, args: readonly string[], env: NodeJS.ProcessEnv, platform: NodeJS.Platform = process.platform): ExternalCliSpawn {
+export function resolveExternalCliSpawn(
+	command: string,
+	args: readonly string[],
+	env: NodeJS.ProcessEnv,
+	platform: NodeJS.Platform = process.platform,
+): ExternalCliSpawn {
 	const unchanged = { command, args };
 	if (platform !== "win32") return unchanged;
 	let resolved: string;
@@ -106,19 +114,29 @@ export function resolveExternalCliSpawn(command: string, args: readonly string[]
 	}
 	if (!BATCH_FILE.test(resolved)) return unchanged;
 	const shim = fs.readFileSync(resolved, "utf-8").replace(/\r\n/g, "\n");
-	const target = /\.cmd$/i.test(resolved) && shim.startsWith(NPM_NODE_SHIM_HEAD) && shim.endsWith(NPM_NODE_SHIM_TAIL)
-		? shim.slice(NPM_NODE_SHIM_HEAD.length, shim.length - NPM_NODE_SHIM_TAIL.length)
-		: "";
+	const target =
+		/\.cmd$/i.test(resolved) && shim.startsWith(NPM_NODE_SHIM_HEAD) && shim.endsWith(NPM_NODE_SHIM_TAIL)
+			? shim.slice(NPM_NODE_SHIM_HEAD.length, shim.length - NPM_NODE_SHIM_TAIL.length)
+			: "";
 	const directory = path.dirname(resolved);
 	const script = path.resolve(directory, target.split("\\").join(path.sep));
 	if (!target || /^\\|["%:/\n]/.test(target) || !fs.statSync(script, { throwIfNoEntry: false })?.isFile()) {
-		throw new Error(`External CLI '${resolved}' is a batch wrapper that cannot run without a shell. On Windows, only npm-generated Node shims and .exe files can launch.`);
+		throw new Error(
+			`External CLI '${resolved}' is a batch wrapper that cannot run without a shell. On Windows, only npm-generated Node shims and .exe files can launch.`,
+		);
 	}
 	const bundledNode = path.join(directory, "node.exe");
 	return { command: fs.existsSync(bundledNode) ? bundledNode : resolveNodeExecutable(), args: [script, ...args] };
 }
 
-function probeWithTimeout(binaryPath: string, args: readonly string[], env: NodeJS.ProcessEnv, label: string, timeoutMs: number, cwd?: string): string {
+function probeWithTimeout(
+	binaryPath: string,
+	args: readonly string[],
+	env: NodeJS.ProcessEnv,
+	label: string,
+	timeoutMs: number,
+	cwd?: string,
+): string {
 	const launch = resolveExternalCliSpawn(binaryPath, args, env);
 	const result = spawnSync(launch.command, launch.args, {
 		cwd,
@@ -129,22 +147,40 @@ function probeWithTimeout(binaryPath: string, args: readonly string[], env: Node
 		timeout: timeoutMs,
 		windowsHide: true,
 	});
-	if (result.error) throw new Error(`External CLI ${label} preflight failed: ${result.error.message}`, { cause: result.error });
-	if (result.status !== 0) throw new Error(`External CLI ${label} preflight exited with code ${result.status}: ${(result.stderr || result.stdout).trim()}`);
+	if (result.error)
+		throw new Error(`External CLI ${label} preflight failed: ${result.error.message}`, { cause: result.error });
+	if (result.status !== 0)
+		throw new Error(
+			`External CLI ${label} preflight exited with code ${result.status}: ${(result.stderr || result.stdout).trim()}`,
+		);
 	return result.stdout.trim();
 }
 
 function narrowPositiveInteger(value: number | undefined, ceiling: number, label: string): number {
 	if (value === undefined) return ceiling;
-	if (!Number.isSafeInteger(value) || value <= 0 || value > ceiling) throw new Error(`${label} may only narrow the code-owned ceiling of ${ceiling}.`);
+	if (!Number.isSafeInteger(value) || value <= 0 || value > ceiling)
+		throw new Error(`${label} may only narrow the code-owned ceiling of ${ceiling}.`);
 	return value;
 }
 
 function specKey(spec: ExternalCliPreflightSpec): string {
-	return JSON.stringify([spec.id, spec.versionArgs, spec.helpArgs, spec.evidenceArgs, spec.evidenceLabel, spec.probeTimeoutMs, spec.remote === true]);
+	return JSON.stringify([
+		spec.id,
+		spec.versionArgs,
+		spec.helpArgs,
+		spec.evidenceArgs,
+		spec.evidenceLabel,
+		spec.probeTimeoutMs,
+		spec.remote === true,
+	]);
 }
 
-export function preflightExternalCli(command: string, spec: ExternalCliPreflightSpec, env: NodeJS.ProcessEnv, cwd?: string): ExternalCliPreflightResult {
+export function preflightExternalCli(
+	command: string,
+	spec: ExternalCliPreflightSpec,
+	env: NodeJS.ProcessEnv,
+	cwd?: string,
+): ExternalCliPreflightResult {
 	const binaryPath = resolveBinary(command, env);
 	const binaryMtimeMs = fs.statSync(binaryPath).mtimeMs;
 	const lookupKey = JSON.stringify([binaryPath, binaryMtimeMs, specKey(spec)]);
@@ -170,16 +206,22 @@ export function preflightExternalCli(command: string, spec: ExternalCliPreflight
 		while (cache.size > MAX_CACHE_ENTRIES) {
 			const oldest = cache.keys().next().value as string;
 			cache.delete(oldest);
-			for (const [candidateLookup, candidateCache] of lookup) if (candidateCache === oldest) lookup.delete(candidateLookup);
+			for (const [candidateLookup, candidateCache] of lookup)
+				if (candidateCache === oldest) lookup.delete(candidateLookup);
 		}
 	}
 	return result;
 }
 
-export function invalidateExternalCliPreflight(command: string, spec: ExternalCliPreflightSpec, _reason: ExternalCliPreflightInvalidationReason): void {
+export function invalidateExternalCliPreflight(
+	command: string,
+	spec: ExternalCliPreflightSpec,
+	_reason: ExternalCliPreflightInvalidationReason,
+): void {
 	const key = specKey(spec);
 	for (const [cacheKey, entry] of cache) {
-		if (entry.binaryPath === command || entry.binaryPath.endsWith(`${path.sep}${command}`) || cacheKey.includes(key)) cache.delete(cacheKey);
+		if (entry.binaryPath === command || entry.binaryPath.endsWith(`${path.sep}${command}`) || cacheKey.includes(key))
+			cache.delete(cacheKey);
 	}
 	for (const [lookupKey, cacheKey] of lookup) if (!cache.has(cacheKey)) lookup.delete(lookupKey);
 }

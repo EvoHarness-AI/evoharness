@@ -1,21 +1,25 @@
 import { createHash } from "node:crypto";
 import type { ExtensionContext, InputEvent } from "@evoharness/coding-agent";
-import { computeWatchdogRepoChangeSignature, eventIndicatesRepoEdit, type WatchdogRepoChangeSignature } from "./change-signature.ts";
+import {
+	computeWatchdogRepoChangeSignature,
+	eventIndicatesRepoEdit,
+	type WatchdogRepoChangeSignature,
+} from "./change-signature.ts";
 import { WatchdogEmissionGuard } from "./emission-guard.ts";
 import {
 	collectWatchdogLspDiagnostics,
 	formatWatchdogLspDiagnosticsBlock,
+	type WatchdogLspDiagnosticsFunction,
 	WatchdogLspDiagnosticsLedger,
 	watchdogWarningFromLspDiagnostics,
-	type WatchdogLspDiagnosticsFunction,
 } from "./lsp-diagnostics.ts";
 import { ruleViolationWarning, type WatchdogRuleViolation } from "./rules.ts";
 import { WatchdogScopeArtifact } from "./scope.ts";
 import { resolveWatchdogConfig } from "./settings.ts";
 import { formatWatchdogOrchestrationActivity, formatWatchdogTurnDelta } from "./turn-delta.ts";
 import {
-	WATCHDOG_WARNING_IMPORTANCES,
 	type ResolvedWatchdogConfig,
+	WATCHDOG_WARNING_IMPORTANCES,
 	type WatchdogEndpointConfig,
 	type WatchdogLspRuntimeSnapshot,
 	type WatchdogRuntimeStatus,
@@ -48,7 +52,9 @@ export interface WatchdogReviewRequest {
 	signal?: AbortSignal;
 }
 
-export type WatchdogReviewFunction = (request: WatchdogReviewRequest) => Promise<WatchdogReviewResult | void> | WatchdogReviewResult | void;
+export type WatchdogReviewFunction = (
+	request: WatchdogReviewRequest,
+) => Promise<WatchdogReviewResult | void> | WatchdogReviewResult | void;
 
 export interface WatchdogRuntimeSnapshot {
 	status: WatchdogRuntimeStatus;
@@ -128,11 +134,16 @@ function reviewInputSignature(input: string): string {
 
 export class MainWatchdogRuntime {
 	private cwd: string;
-	private readonly resolveConfig: (cwd: string, options?: { session?: Record<string, unknown> }) => WatchdogSettingsResult;
+	private readonly resolveConfig: (
+		cwd: string,
+		options?: { session?: Record<string, unknown> },
+	) => WatchdogSettingsResult;
 	private readonly review: WatchdogReviewFunction;
 	private readonly reviewConnected: boolean;
 	private readonly reviewDescription: string;
-	private readonly displayWarning: ((warning: WatchdogWarningDetails, options?: WatchdogWarningSendOptions) => void) | undefined;
+	private readonly displayWarning:
+		| ((warning: WatchdogWarningDetails, options?: WatchdogWarningSendOptions) => void)
+		| undefined;
 	private readonly displayUserWarning: ((warning: WatchdogWarningDetails) => void) | undefined;
 	private readonly reviewChangesOnly: boolean;
 	private readonly lspDiagnostics: WatchdogLspDiagnosticsFunction;
@@ -208,7 +219,12 @@ export class MainWatchdogRuntime {
 		this.sessionOverrideEnabled = undefined;
 		this.sessionModelOverride = undefined;
 		this.refreshConfig(ctx.cwd);
-		this.reset("session_start", { clearReviewInputSignature: true, resetChangeSignature: true, clearLspLedger: true, clearScope: true });
+		this.reset("session_start", {
+			clearReviewInputSignature: true,
+			resetChangeSignature: true,
+			clearLspLedger: true,
+			clearScope: true,
+		});
 		this.resetBoundaryRepeats();
 	}
 
@@ -217,15 +233,16 @@ export class MainWatchdogRuntime {
 		const wasEnabled = this.isEnabled();
 		const hadClarification = this.configResult.config.clarification;
 		const previousMain = this.configResult.config.main;
-		const session = this.sessionOverrideEnabled === undefined && this.sessionModelOverride === undefined
-			? undefined
-			: {
-				...(this.sessionOverrideEnabled === undefined ? {} : { enabled: this.sessionOverrideEnabled }),
-				main: {
-					...(this.sessionOverrideEnabled === undefined ? {} : { enabled: this.sessionOverrideEnabled }),
-					...(this.sessionModelOverride ?? {}),
-				},
-			};
+		const session =
+			this.sessionOverrideEnabled === undefined && this.sessionModelOverride === undefined
+				? undefined
+				: {
+						...(this.sessionOverrideEnabled === undefined ? {} : { enabled: this.sessionOverrideEnabled }),
+						main: {
+							...(this.sessionOverrideEnabled === undefined ? {} : { enabled: this.sessionOverrideEnabled }),
+							...(this.sessionModelOverride ?? {}),
+						},
+					};
 		this.configResult = this.resolveConfig(this.cwd, session === undefined ? undefined : { session });
 		if (this.configResult.config.maxWarnings !== this.guardMaxWarnings) {
 			this.guardMaxWarnings = this.configResult.config.maxWarnings;
@@ -233,8 +250,17 @@ export class MainWatchdogRuntime {
 		}
 		if (wasEnabled && !this.isEnabled()) this.invalidateActiveReview("watchdog disabled");
 		if (!this.isEnabled() || !this.configResult.config.clarification) this.clearActivity();
-		if (this.displayClarification && (hadClarification || this.configResult.config.clarification) && (this.reviewing || this.waitingAtAgentEnd)) {
-			if (!this.configResult.config.clarification || previousMain.model !== this.configResult.config.main.model || previousMain.thinking !== this.configResult.config.main.thinking) this.invalidateActiveReview("clarification configuration changed");
+		if (
+			this.displayClarification &&
+			(hadClarification || this.configResult.config.clarification) &&
+			(this.reviewing || this.waitingAtAgentEnd)
+		) {
+			if (
+				!this.configResult.config.clarification ||
+				previousMain.model !== this.configResult.config.main.model ||
+				previousMain.thinking !== this.configResult.config.main.thinking
+			)
+				this.invalidateActiveReview("clarification configuration changed");
 		}
 		return this.configResult;
 	}
@@ -246,7 +272,10 @@ export class MainWatchdogRuntime {
 		return this.getSnapshot();
 	}
 
-	setSessionModel(patch: { model?: string | null; thinking?: WatchdogEndpointConfig["thinking"] | null }, cwd = this.cwd): WatchdogRuntimeSnapshot {
+	setSessionModel(
+		patch: { model?: string | null; thinking?: WatchdogEndpointConfig["thinking"] | null },
+		cwd = this.cwd,
+	): WatchdogRuntimeSnapshot {
 		const next = { ...(this.sessionModelOverride ?? {}) };
 		if (patch.model === null) delete next.model;
 		else if (patch.model !== undefined) next.model = patch.model;
@@ -273,7 +302,16 @@ export class MainWatchdogRuntime {
 		return this.getSnapshot();
 	}
 
-	reset(_reason = "reset", options: { clearReviewInputSignature?: boolean; resetChangeSignature?: boolean; clearLspLedger?: boolean; clearScope?: boolean; clearActivity?: boolean } = {}): void {
+	reset(
+		_reason = "reset",
+		options: {
+			clearReviewInputSignature?: boolean;
+			resetChangeSignature?: boolean;
+			clearLspLedger?: boolean;
+			clearScope?: boolean;
+			clearActivity?: boolean;
+		} = {},
+	): void {
 		this.activeReviewAbortController?.abort();
 		this.abortActiveAgentEnd();
 		this.epoch++;
@@ -352,7 +390,10 @@ export class MainWatchdogRuntime {
 			if (this.displayClarification && this.configResult.config.clarification && this.boundaryRepeats === 0) {
 				const activity = formatWatchdogOrchestrationActivity(event);
 				if (activity) {
-					this.activityTail = [this.activityTail, boundWatchdogReviewText(activity, 3_000)].filter(Boolean).join(REVIEW_DELTA_SEPARATOR).slice(-6_000);
+					this.activityTail = [this.activityTail, boundWatchdogReviewText(activity, 3_000)]
+						.filter(Boolean)
+						.join(REVIEW_DELTA_SEPARATOR)
+						.slice(-6_000);
 					this.activityPending = true;
 				}
 			}
@@ -396,7 +437,13 @@ export class MainWatchdogRuntime {
 		if (!this.isEnabled()) return;
 		if (ctx.signal?.aborted) return;
 		const changeSignature = this.resolveReviewChangeSignature(this.currentRepoChangeSignature(ctx.cwd), ctx.cwd);
-		const activityReview = Boolean(this.displayClarification && this.configResult.config.clarification && !this.activityReviewUsed && this.boundaryRepeats === 0 && this.activityPending);
+		const activityReview = Boolean(
+			this.displayClarification &&
+				this.configResult.config.clarification &&
+				!this.activityReviewUsed &&
+				this.boundaryRepeats === 0 &&
+				this.activityPending,
+		);
 		const knownEvidence = changeSignature && changeSignature.key === this.lastReviewedChangeSignature;
 		if (!activityReview && (knownEvidence || (this.reviewChangesOnly && !changeSignature))) {
 			this.clearPendingDeltas();
@@ -437,7 +484,9 @@ export class MainWatchdogRuntime {
 				this.resolveWaiters(true);
 				return;
 			}
-			const outcome = await this.reviewDelta(delta, this.configResult.config.agentEndTimeoutMs, { allowClarification: true });
+			const outcome = await this.reviewDelta(delta, this.configResult.config.agentEndTimeoutMs, {
+				allowClarification: true,
+			});
 			if (!this.isAgentEndCurrent(agentEndEpoch, agentEndId)) return;
 			this.waitingAtAgentEnd = false;
 			if (outcome === "timeout") {
@@ -448,16 +497,25 @@ export class MainWatchdogRuntime {
 				this.resolveWaiters(true);
 				return;
 			}
-			if ((outcome === "completed" || typeof outcome === "object") && this.status !== "failed" && this.status !== "stale") {
+			if (
+				(outcome === "completed" || typeof outcome === "object") &&
+				this.status !== "failed" &&
+				this.status !== "stale"
+			) {
 				// A question consumes this evidence just like a completed review, not a pending exchange.
 				this.lastReviewInputSignature = signature;
 				if (changeSignature) this.lastReviewedChangeSignature = changeSignature.key;
 				this.currentChangedPaths = changeSignature?.changedPaths;
 				this.status = "idle";
-				if (typeof outcome === "object" && !ctx.signal?.aborted) this.displayClarification?.([
-					"Main watchdog clarification:", outcome.question, `Evidence: ${outcome.evidence}`,
-					"Consider this missing context as you continue the task. This is not approval, permission, or a warning. The reviewer has yielded; no reply or follow-up review is required.",
-				].join("\n"));
+				if (typeof outcome === "object" && !ctx.signal?.aborted)
+					this.displayClarification?.(
+						[
+							"Main watchdog clarification:",
+							outcome.question,
+							`Evidence: ${outcome.evidence}`,
+							"Consider this missing context as you continue the task. This is not approval, permission, or a warning. The reviewer has yielded; no reply or follow-up review is required.",
+						].join("\n"),
+					);
 			}
 			this.resolveWaiters(true);
 		} finally {
@@ -469,13 +527,19 @@ export class MainWatchdogRuntime {
 	displayRuleWarning(violation: WatchdogRuleViolation): void {
 		if (this.disposed || this.ruleWarningsThisRun.has(violation.summary)) return;
 		this.ruleWarningsThisRun.add(violation.summary);
-		const details = normalizeWatchdogWarningDetails(ruleViolationWarning(violation), { state: "displayed", displayedAt: new Date().toISOString() });
+		const details = normalizeWatchdogWarningDetails(ruleViolationWarning(violation), {
+			state: "displayed",
+			displayedAt: new Date().toISOString(),
+		});
 		this.lastWarning = details;
 		this.routeWarning(details, { deliverAs: "steer" });
 	}
 
 	displayRecordedWarning(warning: WatchdogWarning): void {
-		const details = normalizeWatchdogWarningDetails(warning, { state: "displayed", source: warning.source ?? "main" });
+		const details = normalizeWatchdogWarningDetails(warning, {
+			state: "displayed",
+			source: warning.source ?? "main",
+		});
 		this.lastWarning = details;
 		this.routeWarning(details);
 	}
@@ -511,12 +575,22 @@ export class MainWatchdogRuntime {
 	/** A real user input sent while the agent streams reaches the loop without before_agent_start, so record it in scope here. */
 	handleUserInput(event: Pick<InputEvent, "text" | "source" | "streamingBehavior">): void {
 		if (this.disposed || event.source === "extension") return;
-		if (this.displayClarification && this.configResult.config.clarification && (this.reviewing || this.waitingAtAgentEnd)) this.reset("new user input");
+		if (
+			this.displayClarification &&
+			this.configResult.config.clarification &&
+			(this.reviewing || this.waitingAtAgentEnd)
+		)
+			this.reset("new user input");
 		if (event.streamingBehavior) this.scope.addPrompt(event.text);
 	}
 
 	handleModelChange(): void {
-		if (this.displayClarification && this.configResult.config.clarification && (this.reviewing || this.waitingAtAgentEnd)) this.reset("model changed");
+		if (
+			this.displayClarification &&
+			this.configResult.config.clarification &&
+			(this.reviewing || this.waitingAtAgentEnd)
+		)
+			this.reset("model changed");
 	}
 
 	async waitForIdle(timeoutMs = 1_000): Promise<boolean> {
@@ -534,7 +608,13 @@ export class MainWatchdogRuntime {
 	}
 
 	private isAgentEndCurrent(epoch: number, agentEndId: number): boolean {
-		return !this.disposed && this.epoch === epoch && this.activeAgentEndId === agentEndId && this.waitingAtAgentEnd && this.isEnabled();
+		return (
+			!this.disposed &&
+			this.epoch === epoch &&
+			this.activeAgentEndId === agentEndId &&
+			this.waitingAtAgentEnd &&
+			this.isEnabled()
+		);
 	}
 
 	private isCurrent(epoch: number, reviewId: number): boolean {
@@ -542,8 +622,10 @@ export class MainWatchdogRuntime {
 	}
 
 	private warningMeetsThreshold(warning: WatchdogWarning): boolean {
-		return (WATCHDOG_WARNING_IMPORTANCES as readonly string[]).includes(warning.importance)
-			&& (this.configResult.config.severityThreshold === "concern" || warning.severity === "blocker");
+		return (
+			(WATCHDOG_WARNING_IMPORTANCES as readonly string[]).includes(warning.importance) &&
+			(this.configResult.config.severityThreshold === "concern" || warning.severity === "blocker")
+		);
 	}
 
 	private routeWarning(details: WatchdogWarningDetails, options?: WatchdogWarningSendOptions): void {
@@ -596,7 +678,9 @@ export class MainWatchdogRuntime {
 		this.midRunReviewing = true;
 		const generation = this.midRunGeneration;
 		try {
-			const outcome = await this.reviewDelta(delta, this.configResult.config.agentEndTimeoutMs, { correction: true });
+			const outcome = await this.reviewDelta(delta, this.configResult.config.agentEndTimeoutMs, {
+				correction: true,
+			});
 			if (generation !== this.midRunGeneration) return;
 			if (outcome === "timeout") {
 				this.staleReviews++;
@@ -625,7 +709,11 @@ export class MainWatchdogRuntime {
 		this.activeReviewWarning = undefined;
 	}
 
-	private async reviewDelta(delta: string, timeoutMs: number, options: { correction?: boolean; allowClarification?: boolean } = {}): Promise<ReviewDeltaOutcome> {
+	private async reviewDelta(
+		delta: string,
+		timeoutMs: number,
+		options: { correction?: boolean; allowClarification?: boolean } = {},
+	): Promise<ReviewDeltaOutcome> {
 		if (this.reviewing || this.disposed) return "stale";
 		this.reviewing = true;
 		const reviewEpoch = this.epoch;
@@ -636,17 +724,25 @@ export class MainWatchdogRuntime {
 		let timeout: ReturnType<typeof setTimeout> | undefined;
 		const abortController = new AbortController();
 		this.activeReviewAbortController = abortController;
-		const allowClarification = Boolean(options.allowClarification && this.displayClarification && this.configResult.config.clarification && !this.askedThisPrompt && !this.stalemate);
-		const reviewPromise = Promise.resolve().then(() => this.review({
-			delta,
-			epoch: reviewEpoch,
-			reviewId,
-			config: this.configResult.config,
-			hasScope: this.scopeBlock().trim().length > 0,
-			signal: abortController.signal,
-			emitWarning: (warning) => this.acceptWarning(reviewEpoch, reviewId, warning),
-			...(allowClarification ? { allowClarification: true } : {}),
-		}));
+		const allowClarification = Boolean(
+			options.allowClarification &&
+				this.displayClarification &&
+				this.configResult.config.clarification &&
+				!this.askedThisPrompt &&
+				!this.stalemate,
+		);
+		const reviewPromise = Promise.resolve().then(() =>
+			this.review({
+				delta,
+				epoch: reviewEpoch,
+				reviewId,
+				config: this.configResult.config,
+				hasScope: this.scopeBlock().trim().length > 0,
+				signal: abortController.signal,
+				emitWarning: (warning) => this.acceptWarning(reviewEpoch, reviewId, warning),
+				...(allowClarification ? { allowClarification: true } : {}),
+			}),
+		);
 		try {
 			const result = await Promise.race([
 				reviewPromise,
@@ -660,17 +756,30 @@ export class MainWatchdogRuntime {
 			}
 			if (!this.isCurrent(reviewEpoch, reviewId)) return "stale";
 			if (!result) return "stale";
-			if (allowClarification && this.configResult.config.clarification && result.clarification && (!result.stopReason || result.stopReason === "stop") && !this.activeReviewWarning && !result.warnings?.length && !abortController.signal.aborted) {
+			if (
+				allowClarification &&
+				this.configResult.config.clarification &&
+				result.clarification &&
+				(!result.stopReason || result.stopReason === "stop") &&
+				!this.activeReviewWarning &&
+				!result.warnings?.length &&
+				!abortController.signal.aborted
+			) {
 				const question = result.clarification.question.trim();
 				const evidence = result.clarification.evidence.trim();
 				if (question && evidence) {
 					this.askedThisPrompt = true;
-					return { question: boundWatchdogReviewText(question, 1_000), evidence: boundWatchdogReviewText(evidence, 2_000) };
+					return {
+						question: boundWatchdogReviewText(question, 1_000),
+						evidence: boundWatchdogReviewText(evidence, 2_000),
+					};
 				}
 			}
 			for (const warning of result.warnings ?? []) this.acceptWarning(reviewEpoch, reviewId, warning);
 			if (result.stopReason && result.stopReason !== "stop") {
-				const detail = result.errorMessage?.trim() ? ` ${boundWatchdogReviewText(result.errorMessage.trim(), 600)}` : "";
+				const detail = result.errorMessage?.trim()
+					? ` ${boundWatchdogReviewText(result.errorMessage.trim(), 600)}`
+					: "";
 				this.fail(`Watchdog review ended with stop reason '${result.stopReason}'.${detail}`);
 				return "completed";
 			}
@@ -712,7 +821,8 @@ export class MainWatchdogRuntime {
 	// A displayed boundary warning continues the run; the same identity back from consecutive
 	// boundaries means no progress, so it is shown held instead of continuing again.
 	private deliverBoundaryWarning(details: WatchdogWarningDetails): void {
-		const identity = details.identity ?? reviewInputSignature([details.severity, details.summary, details.evidence].join("\n"));
+		const identity =
+			details.identity ?? reviewInputSignature([details.severity, details.summary, details.evidence].join("\n"));
 		if (this.lastBoundaryIdentity === identity) this.boundaryRepeats++;
 		else {
 			this.lastBoundaryIdentity = identity;
@@ -750,7 +860,10 @@ export class MainWatchdogRuntime {
 		this.observedRepoEditThisTurn = false;
 	}
 
-	private resolveReviewChangeSignature(current: WatchdogRepoChangeSignature | undefined, cwd: string): WatchdogRepoChangeSignature | undefined {
+	private resolveReviewChangeSignature(
+		current: WatchdogRepoChangeSignature | undefined,
+		cwd: string,
+	): WatchdogRepoChangeSignature | undefined {
 		if (!this.reviewChangesOnly) return undefined;
 		if (current) {
 			this.currentChangedPaths = current.changedPaths;
@@ -759,11 +872,18 @@ export class MainWatchdogRuntime {
 			return current;
 		}
 		return this.observedRepoEditThisTurn
-			? { root: cwd, key: `observed-edit:${this.epoch}:${this.reviewIdCounter}:${this.pendingDeltaChars}`, changedPaths: [] }
+			? {
+					root: cwd,
+					key: `observed-edit:${this.epoch}:${this.reviewIdCounter}:${this.pendingDeltaChars}`,
+					changedPaths: [],
+				}
 			: undefined;
 	}
 
-	private async collectLspDiagnostics(changeSignature: WatchdogRepoChangeSignature | undefined, current: { epoch: number; agentEndId: number; signal: AbortSignal }): Promise<string> {
+	private async collectLspDiagnostics(
+		changeSignature: WatchdogRepoChangeSignature | undefined,
+		current: { epoch: number; agentEndId: number; signal: AbortSignal },
+	): Promise<string> {
 		const config = this.configResult.config.lsp;
 		if (!config.enabled || !changeSignature?.changedPaths.length) {
 			this.lastLspSnapshot = {
@@ -817,12 +937,13 @@ export class MainWatchdogRuntime {
 	}
 
 	private lspSnapshot(): WatchdogLspRuntimeSnapshot {
-		if (this.lastLspSnapshot) return {
-			...this.lastLspSnapshot,
-			checkedPaths: [...this.lastLspSnapshot.checkedPaths],
-			skippedPaths: [...this.lastLspSnapshot.skippedPaths],
-			diagnostics: [...this.lastLspSnapshot.diagnostics],
-		};
+		if (this.lastLspSnapshot)
+			return {
+				...this.lastLspSnapshot,
+				checkedPaths: [...this.lastLspSnapshot.checkedPaths],
+				skippedPaths: [...this.lastLspSnapshot.skippedPaths],
+				diagnostics: [...this.lastLspSnapshot.diagnostics],
+			};
 		const enabled = this.isEnabled() && this.configResult.config.lsp.enabled;
 		return {
 			enabled,
@@ -841,7 +962,11 @@ export class MainWatchdogRuntime {
 		if (entry.length > MAX_REVIEW_INPUT_CHARS) entry = boundWatchdogReviewText(entry);
 		this.pendingDeltas.push(entry);
 		this.pendingDeltaChars += entry.length;
-		while (this.pendingDeltas.length > 1 && this.pendingDeltaChars + (this.pendingDeltas.length - 1) * REVIEW_DELTA_SEPARATOR.length > MAX_REVIEW_INPUT_CHARS) {
+		while (
+			this.pendingDeltas.length > 1 &&
+			this.pendingDeltaChars + (this.pendingDeltas.length - 1) * REVIEW_DELTA_SEPARATOR.length >
+				MAX_REVIEW_INPUT_CHARS
+		) {
 			const removed = this.pendingDeltas.shift();
 			if (removed) this.pendingDeltaChars -= removed.length;
 		}
@@ -851,17 +976,28 @@ export class MainWatchdogRuntime {
 		const input = this.pendingDeltas.join(REVIEW_DELTA_SEPARATOR);
 		const scopeBlock = this.scopeBlock();
 		const changes = changeSignature?.changedPaths.length
-			? ["Changed repo paths: every dirty path in the working tree. Authorship is not verified; a path may predate this session or come from another session.", ...changeSignature.changedPaths.slice(0, 200).map((file) => `- ${file}`)].join("\n")
+			? [
+					"Changed repo paths: every dirty path in the working tree. Authorship is not verified; a path may predate this session or come from another session.",
+					...changeSignature.changedPaths.slice(0, 200).map((file) => `- ${file}`),
+				].join("\n")
 			: "";
-		const activity = this.activityTail ? `Recent delivered orchestration activity (oldest first; bounded observations, not a task board; waits/holds are not evidence of neglect):\n${this.activityTail}` : "";
+		const activity = this.activityTail
+			? `Recent delivered orchestration activity (oldest first; bounded observations, not a task board; waits/holds are not evidence of neglect):\n${this.activityTail}`
+			: "";
 		const contextPieces = [scopeBlock, changes, lspBlock, activity].filter(Boolean);
 		if (!contextPieces.length) return boundWatchdogReviewText(input);
 
 		const maxContextLength = Math.floor(MAX_REVIEW_INPUT_CHARS / 2);
 		const maxPieceLength = Math.max(1_000, Math.floor(maxContextLength / contextPieces.length));
-		const boundedContext = contextPieces.map((piece) => piece.length > maxPieceLength
-			? piece === activity ? boundWatchdogReviewText(piece, maxPieceLength) : `${piece.slice(0, maxPieceLength - 6)}\n- ...`
-			: piece).join(REVIEW_DELTA_SEPARATOR);
+		const boundedContext = contextPieces
+			.map((piece) =>
+				piece.length > maxPieceLength
+					? piece === activity
+						? boundWatchdogReviewText(piece, maxPieceLength)
+						: `${piece.slice(0, maxPieceLength - 6)}\n- ...`
+					: piece,
+			)
+			.join(REVIEW_DELTA_SEPARATOR);
 		const separatorLength = input ? REVIEW_DELTA_SEPARATOR.length : 0;
 		const inputBudget = MAX_REVIEW_INPUT_CHARS - boundedContext.length - separatorLength;
 		const boundedInput = inputBudget <= 0 ? "" : boundWatchdogReviewText(input, inputBudget);

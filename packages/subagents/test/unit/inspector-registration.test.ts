@@ -5,7 +5,12 @@ import * as path from "node:path";
 import { describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 import { createEventBus } from "@evoharness/coding-agent";
-import { INSPECTOR_REGISTER_EVENT, registerInspector, type InspectorPlugin, type InspectorRegistrationRequest } from "../../src/api/inspectors.ts";
+import {
+	INSPECTOR_REGISTER_EVENT,
+	type InspectorPlugin,
+	type InspectorRegistrationRequest,
+	registerInspector,
+} from "../../src/api/inspectors.ts";
 import { handleInspectorAction } from "../../src/inspectors/actions.ts";
 import { getInspectorPlugins, registerInspectorEventListener } from "../../src/inspectors/plugins.ts";
 
@@ -28,7 +33,10 @@ describe("external inspector registration", () => {
 		t.after(registerInspectorEventListener(otherOwner));
 		const plugin = provider();
 		const registration = registerInspector(consumer, plugin);
-		assert.deepEqual(getInspectorPlugins(owner).map((item) => item.name), ["herdr", "ghostty", "tmux", "test-host"]);
+		assert.deepEqual(
+			getInspectorPlugins(owner).map((item) => item.name),
+			["herdr", "ghostty", "tmux", "test-host"],
+		);
 		assert.equal(getInspectorPlugins(otherOwner).length, 3);
 		assert.throws(() => registerInspector(consumer, plugin), /already registered/);
 		assert.throws(() => registerInspector(consumer, provider("herdr")), /already registered/);
@@ -55,7 +63,10 @@ describe("external inspector registration", () => {
 		const registration = registerInspector({ events }, provider());
 		const cleanupReplacement = registerInspectorEventListener(replacement);
 		cleanupClaimed();
-		assert.deepEqual(getInspectorPlugins(replacement).map((item) => item.name), ["herdr", "ghostty", "tmux", "test-host"]);
+		assert.deepEqual(
+			getInspectorPlugins(replacement).map((item) => item.name),
+			["herdr", "ghostty", "tmux", "test-host"],
+		);
 		registration.dispose();
 		assert.equal(getInspectorPlugins(replacement).length, 3);
 		registerInspector({ events }, provider()).dispose();
@@ -87,15 +98,28 @@ describe("external inspector registration", () => {
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		const asyncDir = path.join(root, "run-provider");
 		fs.mkdirSync(asyncDir);
-		fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-			runId: "run-provider", mode: "single", state: "running", cwd: root,
-			steps: [{ agent: "worker", status: "running" }],
-		}));
+		fs.writeFileSync(
+			path.join(asyncDir, "status.json"),
+			JSON.stringify({
+				runId: "run-provider",
+				mode: "single",
+				state: "running",
+				cwd: root,
+				steps: [{ agent: "worker", status: "running" }],
+			}),
+		);
 		const owner = { events: createEventBus() };
 		t.after(registerInspectorEventListener(owner));
 		const calls: string[] = [];
-		const reply = (text: string) => ({ content: [{ type: "text" as const, text }], details: { mode: "management" as const, results: [] } });
-		registerInspector(owner, { ...provider("unavailable"), available: () => false, open: async () => assert.fail("unavailable provider opened") });
+		const reply = (text: string) => ({
+			content: [{ type: "text" as const, text }],
+			details: { mode: "management" as const, results: [] },
+		});
+		registerInspector(owner, {
+			...provider("unavailable"),
+			available: () => false,
+			open: async () => assert.fail("unavailable provider opened"),
+		});
 		const registration = registerInspector(owner, {
 			...provider(),
 			owns: (context) => context.target.runId === "run-provider",
@@ -108,11 +132,20 @@ describe("external inspector registration", () => {
 				calls.push("open");
 				return reply("opened");
 			},
-			status: async () => { calls.push("status"); return reply("present"); },
-			close: async () => { calls.push("close"); return reply("closed"); },
+			status: async () => {
+				calls.push("status");
+				return reply("present");
+			},
+			close: async () => {
+				calls.push("close");
+				return reply("closed");
+			},
 		});
 		const deps = () => ({
-			cwd: root, asyncDirRoot: root, env: {}, plugins: getInspectorPlugins(owner),
+			cwd: root,
+			asyncDirRoot: root,
+			env: {},
+			plugins: getInspectorPlugins(owner),
 			authorityPolicy: { steerRun: "forbid" as const, stopRun: "forbid" as const },
 		});
 		const params = { id: "run-provider", index: 0, focus: true };
@@ -123,15 +156,27 @@ describe("external inspector registration", () => {
 		}
 		assert.deepEqual(calls, ["open", "status", "close"]);
 		registration.dispose();
-		registerInspector(owner, { ...provider("failing"), open: async () => { throw new Error("host failed after opening"); } });
-		registerInspector(owner, { ...provider("fallback"), open: async () => assert.fail("must not open a second pane after failure") });
+		registerInspector(owner, {
+			...provider("failing"),
+			open: async () => {
+				throw new Error("host failed after opening");
+			},
+		});
+		registerInspector(owner, {
+			...provider("fallback"),
+			open: async () => assert.fail("must not open a second pane after failure"),
+		});
 		await assert.rejects(handleInspectorAction("inspector.open", params, deps()), /host failed after opening/);
 	});
 });
 
 describe("inspector open and close serialization", () => {
-	const reply = (text: string) => ({ content: [{ type: "text" as const, text }], details: { mode: "management" as const, results: [] } });
-	const text = (response: Awaited<ReturnType<typeof handleInspectorAction>>) => response.content.map((part) => part.type === "text" ? part.text : "").join("");
+	const reply = (text: string) => ({
+		content: [{ type: "text" as const, text }],
+		details: { mode: "management" as const, results: [] },
+	});
+	const text = (response: Awaited<ReturnType<typeof handleInspectorAction>>) =>
+		response.content.map((part) => (part.type === "text" ? part.text : "")).join("");
 
 	/** A provider that reuses a saved binding and takes a moment between reading and writing it, like a real pane split. */
 	function bindingProvider(log: string[], options: { gate?: Promise<void>; throwOnOpen?: () => boolean } = {}) {
@@ -171,29 +216,45 @@ describe("inspector open and close serialization", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-inspector-serialize-"));
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		fs.mkdirSync(path.join(root, "run-serial"));
-		fs.writeFileSync(path.join(root, "run-serial", "status.json"), JSON.stringify({
-			runId: "run-serial", mode: "parallel", state: "running", cwd: root,
-			steps: [{ agent: "worker", status: "running" }, { agent: "worker", status: "running" }],
-		}));
+		fs.writeFileSync(
+			path.join(root, "run-serial", "status.json"),
+			JSON.stringify({
+				runId: "run-serial",
+				mode: "parallel",
+				state: "running",
+				cwd: root,
+				steps: [
+					{ agent: "worker", status: "running" },
+					{ agent: "worker", status: "running" },
+				],
+			}),
+		);
 		return root;
 	}
 
-	it("runs concurrent opens of one target one at a time and opens one pane, without holding up other targets", { timeout: 5_000 }, async (t) => {
-		const root = runDir(t);
-		const log: string[] = [];
-		const host = bindingProvider(log);
-		const deps = { cwd: root, asyncDirRoot: root, env: {}, plugins: [host.plugin] };
-		const responses = await Promise.all([
-			handleInspectorAction("inspector.open", { id: "run-serial", index: 0 }, deps),
-			handleInspectorAction("inspector.open", { id: "run-serial", index: 0 }, deps),
-			handleInspectorAction("inspector.open", { id: "run-serial", index: 1 }, deps),
-		]);
-		assert.deepEqual(responses.map(text), ["opened pane-1", "reused pane-1", "opened pane-2"]);
-		assert.equal(host.panes(), 2);
-		const sameTarget = log.filter((entry) => entry.startsWith("open 0"));
-		assert.deepEqual(sameTarget, ["open 0 start", "open 0 end", "open 0 start", "open 0 end"]);
-		assert.ok(log.indexOf("open 1 start") < log.indexOf("open 0 end"), `another child's open must not wait: ${log.join(", ")}`);
-	});
+	it(
+		"runs concurrent opens of one target one at a time and opens one pane, without holding up other targets",
+		{ timeout: 5_000 },
+		async (t) => {
+			const root = runDir(t);
+			const log: string[] = [];
+			const host = bindingProvider(log);
+			const deps = { cwd: root, asyncDirRoot: root, env: {}, plugins: [host.plugin] };
+			const responses = await Promise.all([
+				handleInspectorAction("inspector.open", { id: "run-serial", index: 0 }, deps),
+				handleInspectorAction("inspector.open", { id: "run-serial", index: 0 }, deps),
+				handleInspectorAction("inspector.open", { id: "run-serial", index: 1 }, deps),
+			]);
+			assert.deepEqual(responses.map(text), ["opened pane-1", "reused pane-1", "opened pane-2"]);
+			assert.equal(host.panes(), 2);
+			const sameTarget = log.filter((entry) => entry.startsWith("open 0"));
+			assert.deepEqual(sameTarget, ["open 0 start", "open 0 end", "open 0 start", "open 0 end"]);
+			assert.ok(
+				log.indexOf("open 1 start") < log.indexOf("open 0 end"),
+				`another child's open must not wait: ${log.join(", ")}`,
+			);
+		},
+	);
 
 	it("waits for an in-flight open before closing the same target", { timeout: 5_000 }, async (t) => {
 		const root = runDir(t);
@@ -209,51 +270,82 @@ describe("inspector open and close serialization", () => {
 		assert.equal(host.bindings.size, 0, "the close must remove the binding the open wrote");
 	});
 
-	it("refuses to open while another open holds the target past the wait, and releases the target after a failed open", { timeout: 5_000 }, async (t) => {
-		const root = runDir(t);
-		const log: string[] = [];
-		let releaseGate = () => {};
-		const gate = new Promise<void>((resolve) => { releaseGate = resolve; });
-		let throwNext = false;
-		const host = bindingProvider(log, { gate, throwOnOpen: () => throwNext });
-		const deps = { cwd: root, asyncDirRoot: root, env: {}, plugins: [host.plugin] };
-		const held = handleInspectorAction("inspector.open", { id: "run-serial" }, deps);
-		await delay(5);
-		const timedOut = await handleInspectorAction("inspector.open", { id: "run-serial" }, { ...deps, leaseWaitMs: 100 });
-		assert.equal(timedOut.isError, true);
-		assert.match(text(timedOut), /Another inspector open or close for async run run-serial is still in progress/);
-		const aborted = new AbortController();
-		aborted.abort();
-		const cancelled = await handleInspectorAction("inspector.close", { id: "run-serial" }, { ...deps, signal: aborted.signal });
-		assert.equal(cancelled.isError, true);
-		assert.match(text(cancelled), /cancelled while waiting/);
-		assert.deepEqual(log, ["open root start"], "neither waiting call may reach the provider");
-		releaseGate();
-		assert.equal(text(await held), "opened pane-1");
+	it(
+		"refuses to open while another open holds the target past the wait, and releases the target after a failed open",
+		{ timeout: 5_000 },
+		async (t) => {
+			const root = runDir(t);
+			const log: string[] = [];
+			let releaseGate = () => {};
+			const gate = new Promise<void>((resolve) => {
+				releaseGate = resolve;
+			});
+			let throwNext = false;
+			const host = bindingProvider(log, { gate, throwOnOpen: () => throwNext });
+			const deps = { cwd: root, asyncDirRoot: root, env: {}, plugins: [host.plugin] };
+			const held = handleInspectorAction("inspector.open", { id: "run-serial" }, deps);
+			await delay(5);
+			const timedOut = await handleInspectorAction(
+				"inspector.open",
+				{ id: "run-serial" },
+				{ ...deps, leaseWaitMs: 100 },
+			);
+			assert.equal(timedOut.isError, true);
+			assert.match(text(timedOut), /Another inspector open or close for async run run-serial is still in progress/);
+			const aborted = new AbortController();
+			aborted.abort();
+			const cancelled = await handleInspectorAction(
+				"inspector.close",
+				{ id: "run-serial" },
+				{ ...deps, signal: aborted.signal },
+			);
+			assert.equal(cancelled.isError, true);
+			assert.match(text(cancelled), /cancelled while waiting/);
+			assert.deepEqual(log, ["open root start"], "neither waiting call may reach the provider");
+			releaseGate();
+			assert.equal(text(await held), "opened pane-1");
 
-		throwNext = true;
-		await assert.rejects(handleInspectorAction("inspector.open", { id: "run-serial" }, deps), /host failed/);
-		throwNext = false;
-		const afterFailure = await handleInspectorAction("inspector.open", { id: "run-serial" }, { ...deps, leaseWaitMs: 0 });
-		assert.equal(text(afterFailure), "reused pane-1");
-	});
+			throwNext = true;
+			await assert.rejects(handleInspectorAction("inspector.open", { id: "run-serial" }, deps), /host failed/);
+			throwNext = false;
+			const afterFailure = await handleInspectorAction(
+				"inspector.open",
+				{ id: "run-serial" },
+				{ ...deps, leaseWaitMs: 0 },
+			);
+			assert.equal(text(afterFailure), "reused pane-1");
+		},
+	);
 
-	it("does not open for a caller cancelled while it waited, even when the target frees up at the same moment", { timeout: 5_000 }, async (t) => {
-		const root = runDir(t);
-		const log: string[] = [];
-		let releaseGate = () => {};
-		const gate = new Promise<void>((resolve) => { releaseGate = resolve; });
-		const host = bindingProvider(log, { gate });
-		const deps = { cwd: root, asyncDirRoot: root, env: {}, plugins: [host.plugin] };
-		const held = handleInspectorAction("inspector.open", { id: "run-serial" }, deps);
-		await delay(5);
-		const controller = new AbortController();
-		const waiting = handleInspectorAction("inspector.open", { id: "run-serial" }, { ...deps, signal: controller.signal });
-		await delay(5);
-		controller.abort();
-		releaseGate();
-		assert.equal(text(await held), "opened pane-1");
-		assert.match(text(await waiting), /cancelled while waiting/);
-		assert.deepEqual(log.filter((entry) => entry.endsWith("start")), ["open root start"]);
-	});
+	it(
+		"does not open for a caller cancelled while it waited, even when the target frees up at the same moment",
+		{ timeout: 5_000 },
+		async (t) => {
+			const root = runDir(t);
+			const log: string[] = [];
+			let releaseGate = () => {};
+			const gate = new Promise<void>((resolve) => {
+				releaseGate = resolve;
+			});
+			const host = bindingProvider(log, { gate });
+			const deps = { cwd: root, asyncDirRoot: root, env: {}, plugins: [host.plugin] };
+			const held = handleInspectorAction("inspector.open", { id: "run-serial" }, deps);
+			await delay(5);
+			const controller = new AbortController();
+			const waiting = handleInspectorAction(
+				"inspector.open",
+				{ id: "run-serial" },
+				{ ...deps, signal: controller.signal },
+			);
+			await delay(5);
+			controller.abort();
+			releaseGate();
+			assert.equal(text(await held), "opened pane-1");
+			assert.match(text(await waiting), /cancelled while waiting/);
+			assert.deepEqual(
+				log.filter((entry) => entry.endsWith("start")),
+				["open root start"],
+			);
+		},
+	);
 });

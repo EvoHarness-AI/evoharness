@@ -29,7 +29,10 @@ export interface MockPi {
 	callCount(): number;
 }
 
-const RUNNER_FACTORY_MODULE = path.join(path.dirname(fileURLToPath(import.meta.url)), "runner-child-session-factory.ts");
+const RUNNER_FACTORY_MODULE = path.join(
+	path.dirname(fileURLToPath(import.meta.url)),
+	"runner-child-session-factory.ts",
+);
 const CALL_PREFIX = "call-";
 const DEFAULT_RESPONSE_FILE = "default-response.json";
 const QUEUED_PREFIX = "pending-";
@@ -40,7 +43,8 @@ function ensureDir(dir: string): void {
 
 function listQueueFiles(queueDir: string, prefix: string): string[] {
 	try {
-		return fs.readdirSync(queueDir)
+		return fs
+			.readdirSync(queueDir)
 			.filter((name) => name.startsWith(prefix))
 			.sort();
 	} catch {

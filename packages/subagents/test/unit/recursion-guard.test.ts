@@ -1,16 +1,16 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { afterEach, beforeEach, describe, it } from "node:test";
 import {
 	checkSubagentDepth,
-	resolveChildDepth,
 	DEFAULT_SUBAGENT_MAX_DEPTH,
 	normalizeMaxSubagentDepth,
 	normalizeMaxSubagentSpawnsPerSession,
+	resolveChildDepth,
+	resolveChildMaxSubagentDepth,
+	resolveCurrentMaxSubagentDepth,
 	resolveMaxSubagentSpawnsPerSession,
 	resolveTopLevelParallelConcurrency,
 	resolveTopLevelParallelMaxTasks,
-	resolveChildMaxSubagentDepth,
-	resolveCurrentMaxSubagentDepth,
 } from "../../src/shared/types.ts";
 
 let savedMaxSpawns: string | undefined;

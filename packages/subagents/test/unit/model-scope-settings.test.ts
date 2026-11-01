@@ -42,17 +42,32 @@ describe("subagents.modelScope discovery", () => {
 
 	it("exposes a user modelScope from discoverAgents", () => {
 		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
-			subagents: { modelScope: { enforce: true, strict: true, allow: ["anthropic/*", "openai/gpt-5-*"], agents: { reviewer: { allow: ["inherit"] } } } },
+			subagents: {
+				modelScope: {
+					enforce: true,
+					strict: true,
+					allow: ["anthropic/*", "openai/gpt-5-*"],
+					agents: { reviewer: { allow: ["inherit"] } },
+				},
+			},
 		});
 		const result = discoverAgents(tempProject, "both");
-		assert.deepEqual(result.modelScope, { enforce: true, strict: true, allow: ["anthropic/*", "openai/gpt-5-*"], agents: { reviewer: { allow: ["inherit"] } } });
+		assert.deepEqual(result.modelScope, {
+			enforce: true,
+			strict: true,
+			allow: ["anthropic/*", "openai/gpt-5-*"],
+			agents: { reviewer: { allow: ["inherit"] } },
+		});
 	});
 
 	it("accepts enforcement with only named agent allow lists", () => {
 		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
 			subagents: { modelScope: { enforce: true, agents: { worker: { allow: ["openai/gpt-5-mini"] } } } },
 		});
-		assert.deepEqual(discoverAgents(tempProject, "both").modelScope, { enforce: true, agents: { worker: { allow: ["openai/gpt-5-mini"] } } });
+		assert.deepEqual(discoverAgents(tempProject, "both").modelScope, {
+			enforce: true,
+			agents: { worker: { allow: ["openai/gpt-5-mini"] } },
+		});
 	});
 
 	it("returns undefined when no modelScope is configured", () => {
@@ -61,7 +76,9 @@ describe("subagents.modelScope discovery", () => {
 
 	it("prefers project modelScope over user modelScope", () => {
 		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
-			subagents: { modelScope: { enforce: true, allow: ["anthropic/*"], agents: { reviewer: { allow: ["inherit"] } } } },
+			subagents: {
+				modelScope: { enforce: true, allow: ["anthropic/*"], agents: { reviewer: { allow: ["inherit"] } } },
+			},
 		});
 		writeJson(path.join(tempProject, ".pi", "settings.json"), {
 			subagents: { modelScope: { enforce: true, agents: { worker: { allow: ["deepseek/*"] } } } },

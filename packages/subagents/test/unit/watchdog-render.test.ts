@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { formatWatchdogWarningRenderText } from "../../src/watchdog/render.ts";
-import { createWatchdogWarningMessage, formatWatchdogWarningContent } from "../../src/watchdog/warning-format.ts";
 import { SUBAGENT_WATCHDOG_WARNING_TYPE, type WatchdogWarningDetails } from "../../src/watchdog/types.ts";
+import { createWatchdogWarningMessage, formatWatchdogWarningContent } from "../../src/watchdog/warning-format.ts";
 
 describe("watchdog warning formatting and rendering", () => {
 	it("puts all LLM-needed warning fields in custom message content", () => {
@@ -19,7 +19,10 @@ describe("watchdog warning formatting and rendering", () => {
 			stale: true,
 		});
 
-		assert.match(content, /^<subagent_watchdog severity="blocker" importance="high" category="correctness" source="main" guidance="weigh, don't blindly obey">/);
+		assert.match(
+			content,
+			/^<subagent_watchdog severity="blocker" importance="high" category="correctness" source="main" guidance="weigh, don't blindly obey">/,
+		);
 		assert.match(content, /<summary>Fix &lt;bug&gt;<\/summary>/);
 		assert.match(content, /<evidence>The failing assertion says A &amp; B differ\.<\/evidence>/);
 		assert.match(content, /<recommended_action>Update the parser before finalizing\.<\/recommended_action>/);

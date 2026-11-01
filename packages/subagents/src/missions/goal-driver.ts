@@ -24,7 +24,7 @@ function bounded(value: string): string {
 function tokenUsage(value: unknown): number | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const total = (value as { total?: unknown }).total;
-	return Number.isSafeInteger(total) && (total as number) >= 0 ? total as number : undefined;
+	return Number.isSafeInteger(total) && (total as number) >= 0 ? (total as number) : undefined;
 }
 
 function readLinkedRun(run: MissionRunLink): MissionRunLink {
@@ -35,17 +35,23 @@ function readLinkedRun(run: MissionRunLink): MissionRunLink {
 	try {
 		parsed = JSON.parse(fs.readFileSync(statusPath, "utf-8"));
 	} catch (error) {
-		throw new Error(`Failed to read linked run status '${statusPath}': ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+		throw new Error(
+			`Failed to read linked run status '${statusPath}': ${error instanceof Error ? error.message : String(error)}`,
+			{ cause: error },
+		);
 	}
-	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error(`Linked run status '${statusPath}' must be an object`);
+	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
+		throw new Error(`Linked run status '${statusPath}' must be an object`);
 	const status = parsed as Record<string, unknown>;
-	if (typeof status.state !== "string" || !status.state.trim()) throw new Error(`Linked run status '${statusPath}' is missing state`);
-	const tokens = tokenUsage(status.totalTokens)
-		?? (Array.isArray(status.steps)
+	if (typeof status.state !== "string" || !status.state.trim())
+		throw new Error(`Linked run status '${statusPath}' is missing state`);
+	const tokens =
+		tokenUsage(status.totalTokens) ??
+		(Array.isArray(status.steps)
 			? status.steps.reduce((total, step) => {
-				if (!step || typeof step !== "object") return total;
-				return total + (tokenUsage((step as { tokens?: unknown }).tokens) ?? 0);
-			}, 0)
+					if (!step || typeof step !== "object") return total;
+					return total + (tokenUsage((step as { tokens?: unknown }).tokens) ?? 0);
+				}, 0)
 			: undefined);
 	return {
 		...run,
@@ -106,16 +112,23 @@ function missionStateAction(location: MissionStoreLocation, record: MissionRecor
 function retainedResumeTarget(record: MissionRecord, retainedChildren: RetainedChild[]): RetainedChild | undefined {
 	const latestRun = record.runs.at(-1);
 	if (!latestRun) return undefined;
-	return retainedChildren.find((child) =>
-		child.resumability.state === "resumable" && (child.runId === latestRun.runId || child.parentRunId === latestRun.runId)
+	return retainedChildren.find(
+		(child) =>
+			child.resumability.state === "resumable" &&
+			(child.runId === latestRun.runId || child.parentRunId === latestRun.runId),
 	);
 }
 
-function nextReadyAction(location: MissionStoreLocation, record: MissionRecord, retainedChildren: RetainedChild[]): string {
+function nextReadyAction(
+	location: MissionStoreLocation,
+	record: MissionRecord,
+	retainedChildren: RetainedChild[],
+): string {
 	const stateAction = missionStateAction(location, record);
 	const latestRun = record.runs.at(-1);
-	const action = stateAction
-		?? (latestRun?.status === "failed" || latestRun?.status === "paused"
+	const action =
+		stateAction ??
+		(latestRun?.status === "failed" || latestRun?.status === "paused"
 			? `Inspect linked run ${latestRun.runId} and continue the mission`
 			: `Continue objective: ${record.objective}`);
 	const retained = retainedResumeTarget(record, retainedChildren);
@@ -134,9 +147,16 @@ export function collectGoalContinuationNotices(input: {
 }): GoalContinuationNotice[] {
 	const notices: GoalContinuationNotice[] = [];
 	const seen = new Set<string>();
-	const onError = input.onError ?? ((missionId: string, error: unknown) => console.error("Failed to evaluate goal mission", missionId, error));
+	const onError =
+		input.onError ??
+		((missionId: string, error: unknown) => console.error("Failed to evaluate goal mission", missionId, error));
 	for (const listed of listMissions(input.location).records) {
-		if (listed.ownerSessionId !== input.ownerSessionId || !listed.goal || TERMINAL_MISSION_STATUSES.has(listed.status)) continue;
+		if (
+			listed.ownerSessionId !== input.ownerSessionId ||
+			!listed.goal ||
+			TERMINAL_MISSION_STATUSES.has(listed.status)
+		)
+			continue;
 		try {
 			let record = refreshGoalMission(input.location, readMission(input.location, listed.id));
 			if (!record.goal || record.goal.status !== "active" || !record.budget) continue;

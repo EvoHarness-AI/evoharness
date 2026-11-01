@@ -1,12 +1,17 @@
-import type { JsonSchemaObject, ResolvedToolBudget, RunFanoutBudgetDescriptor, SubagentState } from "../../shared/types.ts";
 import type { ThinkingLevel } from "../../shared/model-info.ts";
-import type { NestedPathEntry } from "./nested-path.ts";
-import type { PermissionRules } from "./permissions.ts";
+import type { RequiredChildExtensionSnapshot } from "../../shared/required-child-extensions.ts";
+import type {
+	JsonSchemaObject,
+	ResolvedToolBudget,
+	RunFanoutBudgetDescriptor,
+	SubagentState,
+} from "../../shared/types.ts";
 import type { ChildWatchdogConfig, ChildWatchdogStatusEvent } from "../../watchdog/child-status.ts";
 import type { ResolvedWaitToolConfig } from "../background/wait-config.ts";
-import type { ChildToolDiagnostic } from "./tool-availability.ts";
 import type { ResolvedSubagentCapabilityCeiling } from "./capability-ceiling.ts";
-import type { RequiredChildExtensionSnapshot } from "../../shared/required-child-extensions.ts";
+import type { NestedPathEntry } from "./nested-path.ts";
+import type { PermissionRules } from "./permissions.ts";
+import type { ChildToolDiagnostic } from "./tool-availability.ts";
 
 /**
  * Set in processes that host child sessions (the async runner). The extension
@@ -113,7 +118,14 @@ export interface ChildRuntimeConfig {
 }
 
 export function childSupervisorMetadata(config: ChildRuntimeConfig): ChildSupervisorMetadata | undefined {
-	if (!config.supervisorChannelDir || !config.runId || !config.agent || !config.orchestratorSessionId || config.childIndex === undefined) return undefined;
+	if (
+		!config.supervisorChannelDir ||
+		!config.runId ||
+		!config.agent ||
+		!config.orchestratorSessionId ||
+		config.childIndex === undefined
+	)
+		return undefined;
 	return {
 		channelDir: config.supervisorChannelDir,
 		runId: config.runId,
@@ -126,12 +138,17 @@ export function childSupervisorMetadata(config: ChildRuntimeConfig): ChildSuperv
 }
 
 /** Compute the child tool-availability diagnostic; undefined when every required tool is present. */
-export function evaluateChildToolDiagnostic(config: Pick<ChildRuntimeConfig, "agent" | "requiredTools" | "mcpDirectTools">, availableTools: string[]): ChildToolDiagnostic | undefined {
+export function evaluateChildToolDiagnostic(
+	config: Pick<ChildRuntimeConfig, "agent" | "requiredTools" | "mcpDirectTools">,
+	availableTools: string[],
+): ChildToolDiagnostic | undefined {
 	if (!config.requiredTools) return undefined;
 	const available = new Set(availableTools);
 	const missing = config.requiredTools.filter((name) => !available.has(name));
 	if (missing.length === 0) return undefined;
-	const missingMcpDirectTools = config.mcpDirectTools?.length ? missing.filter((name) => config.mcpDirectTools!.includes(name)) : [];
+	const missingMcpDirectTools = config.mcpDirectTools?.length
+		? missing.filter((name) => config.mcpDirectTools!.includes(name))
+		: [];
 	return {
 		...(config.agent ? { agent: config.agent } : {}),
 		required: config.requiredTools,

@@ -34,7 +34,10 @@ function readSetting(file: string): { present: boolean; value?: unknown; error?:
 		raw = fs.readFileSync(file, "utf8");
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") return { present: false };
-		return { present: false, error: `cannot read ${file}: ${error instanceof Error ? error.message : String(error)}` };
+		return {
+			present: false,
+			error: `cannot read ${file}: ${error instanceof Error ? error.message : String(error)}`,
+		};
 	}
 	try {
 		const parsed = JSON.parse(raw) as unknown;
@@ -42,7 +45,10 @@ function readSetting(file: string): { present: boolean; value?: unknown; error?:
 		if (!Object.hasOwn(parsed, "httpIdleTimeoutMs")) return { present: false };
 		return { present: true, value: (parsed as Record<string, unknown>).httpIdleTimeoutMs };
 	} catch (error) {
-		return { present: false, error: `cannot parse ${file}: ${error instanceof Error ? error.message : String(error)}` };
+		return {
+			present: false,
+			error: `cannot parse ${file}: ${error instanceof Error ? error.message : String(error)}`,
+		};
 	}
 }
 
@@ -75,7 +81,11 @@ export function resolveHttpIdleTimeoutMs(options: { agentDir: string; cwd: strin
 		}
 		return { timeoutMs, source: candidate.source, ...(warnings.length ? { warning: warnings.join("; ") } : {}) };
 	}
-	return { timeoutMs: DEFAULT_HTTP_IDLE_TIMEOUT_MS, source: "default", ...(warnings.length ? { warning: warnings.join("; ") } : {}) };
+	return {
+		timeoutMs: DEFAULT_HTTP_IDLE_TIMEOUT_MS,
+		source: "default",
+		...(warnings.length ? { warning: warnings.join("; ") } : {}),
+	};
 }
 
 /** Dispatcher options shared by the runner and its regression test. */
@@ -117,6 +127,8 @@ export function installRunnerHttpDispatcher(options: { agentDir: string; cwd: st
 		undici.setGlobalDispatcher(dispatcher);
 		undici.install();
 	} catch (error) {
-		console.error(`[pi-subagents] proxy-aware HTTP dispatcher not installed: ${error instanceof Error ? error.message : String(error)}`);
+		console.error(
+			`[pi-subagents] proxy-aware HTTP dispatcher not installed: ${error instanceof Error ? error.message : String(error)}`,
+		);
 	}
 }

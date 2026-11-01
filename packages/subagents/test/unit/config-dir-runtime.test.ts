@@ -5,7 +5,12 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import { resolveAsyncByDefault } from "../../src/extension/config.ts";
-import { getConfigDirName, PI_CODING_AGENT_PACKAGE_ROOT_ENV, resolveConfigDirName, resolveWatchPath } from "../../src/shared/utils.ts";
+import {
+	getConfigDirName,
+	PI_CODING_AGENT_PACKAGE_ROOT_ENV,
+	resolveConfigDirName,
+	resolveWatchPath,
+} from "../../src/shared/utils.ts";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 let previousPackageRootEnv: string | undefined;
@@ -39,10 +44,14 @@ describe("config directory resolution", () => {
 			fs.mkdirSync(distDir, { recursive: true });
 			const cliPath = path.join(distDir, "cli.js");
 			fs.writeFileSync(cliPath, "", "utf-8");
-			fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({
-				name: "@evoharness/coding-agent",
-				piConfig: { configDir: ".custom-pi" },
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(packageRoot, "package.json"),
+				JSON.stringify({
+					name: "@evoharness/coding-agent",
+					piConfig: { configDir: ".custom-pi" },
+				}),
+				"utf-8",
+			);
 
 			assert.equal(resolveConfigDirName(undefined, cliPath), ".custom-pi");
 		} finally {
@@ -55,10 +64,14 @@ describe("config directory resolution", () => {
 		try {
 			const packageRoot = path.join(tempDir, "coding-agent-root");
 			fs.mkdirSync(packageRoot, { recursive: true });
-			fs.writeFileSync(path.join(packageRoot, "package.json"), JSON.stringify({
-				name: "@evoharness/coding-agent",
-				piConfig: { configDir: ".root-pi" },
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(packageRoot, "package.json"),
+				JSON.stringify({
+					name: "@evoharness/coding-agent",
+					piConfig: { configDir: ".root-pi" },
+				}),
+				"utf-8",
+			);
 
 			assert.equal(resolveConfigDirName(undefined, undefined, packageRoot), ".root-pi");
 		} finally {
@@ -71,12 +84,19 @@ describe("config directory resolution", () => {
 		try {
 			const firstRoot = path.join(tempDir, "first");
 			const secondRoot = path.join(tempDir, "second");
-			for (const [root, configDir] of [[firstRoot, ".first-pi"], [secondRoot, ".second-pi"]] as const) {
+			for (const [root, configDir] of [
+				[firstRoot, ".first-pi"],
+				[secondRoot, ".second-pi"],
+			] as const) {
 				fs.mkdirSync(root, { recursive: true });
-				fs.writeFileSync(path.join(root, "package.json"), JSON.stringify({
-					name: "@evoharness/coding-agent",
-					piConfig: { configDir },
-				}), "utf-8");
+				fs.writeFileSync(
+					path.join(root, "package.json"),
+					JSON.stringify({
+						name: "@evoharness/coding-agent",
+						piConfig: { configDir },
+					}),
+					"utf-8",
+				);
 			}
 
 			process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = firstRoot;
@@ -96,8 +116,16 @@ describe("config directory resolution", () => {
 	});
 
 	it("canonicalizes watcher paths and preserves the original path when native realpath fails", () => {
-		assert.equal(resolveWatchPath("C:\\SHORT~1\\watch", () => "C:\\Long Path\\watch"), "C:\\Long Path\\watch");
-		assert.equal(resolveWatchPath("C:\\SHORT~1\\watch", () => { throw new Error("missing"); }), "C:\\SHORT~1\\watch");
+		assert.equal(
+			resolveWatchPath("C:\\SHORT~1\\watch", () => "C:\\Long Path\\watch"),
+			"C:\\Long Path\\watch",
+		);
+		assert.equal(
+			resolveWatchPath("C:\\SHORT~1\\watch", () => {
+				throw new Error("missing");
+			}),
+			"C:\\SHORT~1\\watch",
+		);
 	});
 
 	it("does not runtime-import the coding agent peer from shared utils", () => {

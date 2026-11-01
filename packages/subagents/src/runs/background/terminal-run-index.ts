@@ -1,10 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { writeAtomicJson } from "../../shared/atomic-json.ts";
 import type { AsyncStatus } from "../../shared/types.ts";
 import { readStatus } from "../../shared/utils.ts";
-import { writeAtomicJson } from "../../shared/atomic-json.ts";
-import { encodeIndexSegment } from "./index-segment.ts";
 import { isSafeNestedPathId } from "../shared/nested-path.ts";
+import { encodeIndexSegment } from "./index-segment.ts";
 
 export const TERMINAL_RUN_INDEX_DIR = ".terminal-runs";
 
@@ -21,20 +21,34 @@ interface TerminalRunIndexEntry {
 }
 
 function isTerminalState(state: AsyncStatus["state"]): boolean {
-	return state === "complete" || state === "failed" || state === "partial" || state === "paused" || state === "stopped" || state === "rejected";
+	return (
+		state === "complete" ||
+		state === "failed" ||
+		state === "partial" ||
+		state === "paused" ||
+		state === "stopped" ||
+		state === "rejected"
+	);
 }
 
 function isCorruptStatusError(error: unknown, statusPath: string): boolean {
 	const message = error instanceof Error ? error.message : String(error);
-	return message.startsWith(`Failed to parse async status file '${statusPath}'`)
-		|| message.startsWith(`Failed to validate async status file '${statusPath}'`);
+	return (
+		message.startsWith(`Failed to parse async status file '${statusPath}'`) ||
+		message.startsWith(`Failed to validate async status file '${statusPath}'`)
+	);
 }
 
 // A corrupt indexed status is retried on every read. Emit a warning only when
 // its observed file identity or parse outcome changes, like active-run diagnostics.
 const reportedCorruptTerminalStatus = new Map<string, string>();
 
-function warnCorruptTerminalStatus(runId: string, statusPath: string, error: unknown, onCorruptStatus?: (warning: string) => void): void {
+function warnCorruptTerminalStatus(
+	runId: string,
+	statusPath: string,
+	error: unknown,
+	onCorruptStatus?: (warning: string) => void,
+): void {
 	let fileSignature = "unavailable";
 	try {
 		const stat = fs.statSync(statusPath);
@@ -78,11 +92,22 @@ function markerPath(asyncDir: string, sessionId: string, endedAt: number): strin
 function parseEntry(value: unknown): TerminalRunIndexEntry | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const entry = value as Partial<TerminalRunIndexEntry>;
-	if (entry.version !== TERMINAL_RUN_INDEX_VERSION
-		|| typeof entry.runId !== "string" || !entry.runId
-		|| typeof entry.sessionId !== "string" || !entry.sessionId
-		|| typeof entry.endedAt !== "number" || !Number.isFinite(entry.endedAt)) return undefined;
-	return { version: TERMINAL_RUN_INDEX_VERSION, runId: entry.runId, sessionId: entry.sessionId, endedAt: entry.endedAt };
+	if (
+		entry.version !== TERMINAL_RUN_INDEX_VERSION ||
+		typeof entry.runId !== "string" ||
+		!entry.runId ||
+		typeof entry.sessionId !== "string" ||
+		!entry.sessionId ||
+		typeof entry.endedAt !== "number" ||
+		!Number.isFinite(entry.endedAt)
+	)
+		return undefined;
+	return {
+		version: TERMINAL_RUN_INDEX_VERSION,
+		runId: entry.runId,
+		sessionId: entry.sessionId,
+		endedAt: entry.endedAt,
+	};
 }
 
 export function updateTerminalRunIndex(asyncDir: string, status: AsyncStatus): void {
@@ -98,7 +123,10 @@ export function updateTerminalRunIndex(asyncDir: string, status: AsyncStatus): v
 	writeAtomicJson(marker, entry);
 	if (status.toolCallId) {
 		try {
-			writeAtomicJson(path.join(toolCallIndexDir(path.dirname(asyncDir), status.toolCallId), toolCallMarkerName(entry.runId)), entry);
+			writeAtomicJson(
+				path.join(toolCallIndexDir(path.dirname(asyncDir), status.toolCallId), toolCallMarkerName(entry.runId)),
+				entry,
+			);
 		} catch (error) {
 			// Optional aliases must not block authoritative terminal indexing or capacity release.
 			console.error(`Failed to write async terminal-run tool-call index for '${asyncDir}':`, error);
@@ -121,7 +149,8 @@ interface MarkerFile {
 
 function markerFiles(dir: string): MarkerFile[] {
 	try {
-		return fs.readdirSync(dir, { withFileTypes: true })
+		return fs
+			.readdirSync(dir, { withFileTypes: true })
 			.filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
 			.map((entry) => ({ dir, name: entry.name }));
 	} catch (error) {
@@ -134,7 +163,8 @@ function markerFiles(dir: string): MarkerFile[] {
 function sessionDirs(asyncDirRoot: string, sessionId: string | undefined): string[] {
 	if (sessionId) return [sessionIndexDir(asyncDirRoot, sessionId)];
 	try {
-		return fs.readdirSync(indexRoot(asyncDirRoot), { withFileTypes: true })
+		return fs
+			.readdirSync(indexRoot(asyncDirRoot), { withFileTypes: true })
 			.filter((entry) => entry.isDirectory() && entry.name !== TOOL_CALL_INDEX_DIR)
 			.map((entry) => path.join(indexRoot(asyncDirRoot), entry.name));
 	} catch (error) {
@@ -145,12 +175,15 @@ function sessionDirs(asyncDirRoot: string, sessionId: string | undefined): strin
 }
 
 function recentMarkerFiles(dirs: string[], limit: number, endedAfter?: number): string[] {
-	return dirs.flatMap(markerFiles)
-		// The name starts with the run's end time, so an old run is skipped without reading its marker.
-		.filter((marker) => endedAfter === undefined || !(Number(marker.name.slice(0, TIMESTAMP_WIDTH)) < endedAfter))
-		.sort((left, right) => right.name.localeCompare(left.name))
-		.slice(0, limit)
-		.map((marker) => path.join(marker.dir, marker.name));
+	return (
+		dirs
+			.flatMap(markerFiles)
+			// The name starts with the run's end time, so an old run is skipped without reading its marker.
+			.filter((marker) => endedAfter === undefined || !(Number(marker.name.slice(0, TIMESTAMP_WIDTH)) < endedAfter))
+			.sort((left, right) => right.name.localeCompare(left.name))
+			.slice(0, limit)
+			.map((marker) => path.join(marker.dir, marker.name))
+	);
 }
 
 export function readTerminalRunToolCallIndex(asyncDirRoot: string, toolCallId: string): string[] {
@@ -169,8 +202,13 @@ export function readTerminalRunToolCallIndex(asyncDirRoot: string, toolCallId: s
 			continue;
 		}
 		const status = readStatus(path.join(asyncDirRoot, entry.runId));
-		if (!status || !isTerminalState(status.state) || status.runId !== entry.runId
-			|| status.sessionId !== entry.sessionId || status.toolCallId !== toolCallId) {
+		if (
+			!status ||
+			!isTerminalState(status.state) ||
+			status.runId !== entry.runId ||
+			status.sessionId !== entry.sessionId ||
+			status.toolCallId !== toolCallId
+		) {
 			removeInvalidMarker(marker);
 			continue;
 		}
@@ -179,7 +217,15 @@ export function readTerminalRunToolCallIndex(asyncDirRoot: string, toolCallId: s
 	return runIds;
 }
 
-export function readRecentTerminalRunIndex(asyncDirRoot: string, options: { sessionId?: string; limit?: number; endedAfter?: number; onCorruptStatus?: (warning: string) => void } = {}): string[] {
+export function readRecentTerminalRunIndex(
+	asyncDirRoot: string,
+	options: {
+		sessionId?: string;
+		limit?: number;
+		endedAfter?: number;
+		onCorruptStatus?: (warning: string) => void;
+	} = {},
+): string[] {
 	const limit = options.limit === undefined ? Number.POSITIVE_INFINITY : Math.max(0, Math.floor(options.limit));
 	const candidates = recentMarkerFiles(sessionDirs(asyncDirRoot, options.sessionId), limit, options.endedAfter);
 	const runIds: string[] = [];
@@ -205,7 +251,12 @@ export function readRecentTerminalRunIndex(asyncDirRoot: string, options: { sess
 			warnCorruptTerminalStatus(entry.runId, statusPath, error, options.onCorruptStatus);
 			continue;
 		}
-		if (!status || !isTerminalState(status.state) || status.sessionId !== entry.sessionId || (status.runId && status.runId !== entry.runId)) {
+		if (
+			!status ||
+			!isTerminalState(status.state) ||
+			status.sessionId !== entry.sessionId ||
+			(status.runId && status.runId !== entry.runId)
+		) {
 			removeInvalidMarker(marker);
 			continue;
 		}

@@ -1,6 +1,13 @@
-import type { AsyncJobStep, HostStepNode, WorkflowGraphNode, WorkflowGraphSnapshot, WorkflowPreflightLane, WorkflowPreflight } from "../shared/types.ts";
-import { childThinkingLevel, type ThinkingLevel } from "../shared/model-info.ts";
 import { sanitizeDisplayText } from "../shared/display-text.ts";
+import { childThinkingLevel, type ThinkingLevel } from "../shared/model-info.ts";
+import type {
+	AsyncJobStep,
+	HostStepNode,
+	WorkflowGraphNode,
+	WorkflowGraphSnapshot,
+	WorkflowPreflight,
+	WorkflowPreflightLane,
+} from "../shared/types.ts";
 import { workflowPreflightLaneForRuntimeKey as laneFor } from "./workflow-preflight.ts";
 
 export type WorkflowChecklistState = "complete" | "running" | "queued" | "blocked" | "failed" | "paused" | "stopped";
@@ -142,50 +149,80 @@ function count(value: unknown): number | undefined {
 	return number !== undefined && number >= 0 ? Math.round(number) : undefined;
 }
 
-function explicitBlocked(source: Pick<WorkflowChecklistStep, "activityState" | "toolBudgetBlocked" | "turnBudgetExceeded" | "timedOut" | "acceptance" | "review" | "watchdog"> & { verdict?: unknown; stale?: unknown }): boolean {
+function explicitBlocked(
+	source: Pick<
+		WorkflowChecklistStep,
+		"activityState" | "toolBudgetBlocked" | "turnBudgetExceeded" | "timedOut" | "acceptance" | "review" | "watchdog"
+	> & { verdict?: unknown; stale?: unknown },
+): boolean {
 	const acceptance = normalizedStatus(source.acceptance?.status);
 	const review = normalizedStatus(source.review?.status ?? source.acceptance?.reviewResult?.status);
-	return source.toolBudgetBlocked === true
-		|| source.turnBudgetExceeded === true
-		|| source.activityState === "needs_attention"
-		|| source.timedOut === true
-		|| source.watchdog?.phase === "stale"
-		|| source.stale === true
-		|| source.verdict === "inconclusive"
-		|| acceptance === "rejected"
-		|| acceptance === "blockers"
-		|| review === "blockers"
-		|| review === "review-required";
+	return (
+		source.toolBudgetBlocked === true ||
+		source.turnBudgetExceeded === true ||
+		source.activityState === "needs_attention" ||
+		source.timedOut === true ||
+		source.watchdog?.phase === "stale" ||
+		source.stale === true ||
+		source.verdict === "inconclusive" ||
+		acceptance === "rejected" ||
+		acceptance === "blockers" ||
+		review === "blockers" ||
+		review === "review-required"
+	);
 }
 
-function checklistState(source: Pick<WorkflowChecklistStep, "status" | "activityState" | "toolBudgetBlocked" | "turnBudgetExceeded" | "timedOut" | "acceptance" | "review" | "watchdog"> & { verdict?: unknown; stale?: unknown }): WorkflowChecklistState {
+function checklistState(
+	source: Pick<
+		WorkflowChecklistStep,
+		| "status"
+		| "activityState"
+		| "toolBudgetBlocked"
+		| "turnBudgetExceeded"
+		| "timedOut"
+		| "acceptance"
+		| "review"
+		| "watchdog"
+	> & { verdict?: unknown; stale?: unknown },
+): WorkflowChecklistState {
 	if (explicitBlocked(source)) return "blocked";
 	switch (normalizedStatus(source.status)) {
 		case "complete":
 		case "completed":
 		case "done":
 		case "pass":
-		case "accepted": return "complete";
+		case "accepted":
+			return "complete";
 		case "running":
 		case "started":
-		case "active": return "running";
+		case "active":
+			return "running";
 		case "failed":
 		case "error":
-		case "fail": return "failed";
+		case "fail":
+			return "failed";
 		case "blocked":
 		case "rejected":
 		case "partial":
-		case "needs_attention": return "blocked";
+		case "needs_attention":
+			return "blocked";
 		case "paused":
-		case "detached": return "paused";
+		case "detached":
+			return "paused";
 		case "stopped":
 		case "cancelled":
-		case "canceled": return "stopped";
-		default: return "queued";
+		case "canceled":
+			return "stopped";
+		default:
+			return "queued";
 	}
 }
 
-function duration(step: Pick<WorkflowChecklistStep, "durationMs" | "startedAt" | "endedAt">, now: number | undefined, state: WorkflowChecklistState): number | undefined {
+function duration(
+	step: Pick<WorkflowChecklistStep, "durationMs" | "startedAt" | "endedAt">,
+	now: number | undefined,
+	state: WorkflowChecklistState,
+): number | undefined {
 	const explicit = finite(step.durationMs);
 	const startedAt = finite(step.startedAt);
 	if (explicit !== undefined) return Math.max(0, explicit);
@@ -198,7 +235,14 @@ function stepKey(step: WorkflowChecklistStep): string | undefined {
 	return step.key ?? step.workflowKey ?? step.runId;
 }
 
-function stepItem(step: WorkflowChecklistStep, index: number, phase: string, key = stepKey(step) ?? `step-${index + 1}`, label = step.label ?? step.description ?? stepKey(step) ?? step.agent ?? key, preflight?: WorkflowPreflightLane): WorkflowChecklistItem {
+function stepItem(
+	step: WorkflowChecklistStep,
+	index: number,
+	phase: string,
+	key = stepKey(step) ?? `step-${index + 1}`,
+	label = step.label ?? step.description ?? stepKey(step) ?? step.agent ?? key,
+	preflight?: WorkflowPreflightLane,
+): WorkflowChecklistItem {
 	const state = checklistState(step);
 	const thinking = childThinkingLevel(step);
 	return {
@@ -212,7 +256,9 @@ function stepItem(step: WorkflowChecklistStep, index: number, phase: string, key
 		...(finite(step.startedAt) !== undefined ? { startedAt: finite(step.startedAt) } : {}),
 		...(duration(step, undefined, state) !== undefined ? { durationMs: duration(step, undefined, state) } : {}),
 		...(text(step.currentTool) ? { currentTool: text(step.currentTool) } : {}),
-		...(finite(step.currentToolStartedAt) !== undefined ? { currentToolStartedAt: finite(step.currentToolStartedAt) } : {}),
+		...(finite(step.currentToolStartedAt) !== undefined
+			? { currentToolStartedAt: finite(step.currentToolStartedAt) }
+			: {}),
 		...(text(step.currentPath) ? { currentPath: text(step.currentPath) } : {}),
 		...(count(step.toolCount) !== undefined ? { toolCount: count(step.toolCount) } : {}),
 		...(text(step.outputName) ? { outputName: text(step.outputName) } : {}),
@@ -259,16 +305,44 @@ function traceSources(trace: readonly WorkflowChecklistTraceEntry[] | undefined)
 	const latest = new Map<string, WorkflowChecklistTraceEntry>();
 	for (const entry of trace ?? []) {
 		const state = normalizedStatus(entry.state);
-		if ((entry.operation !== undefined && entry.operation !== "run" && entry.operation !== "host") || !entry.key || state === "delivered" || state === "missed") continue;
+		if (
+			(entry.operation !== undefined && entry.operation !== "run" && entry.operation !== "host") ||
+			!entry.key ||
+			state === "delivered" ||
+			state === "missed"
+		)
+			continue;
 		const existing = latest.get(entry.key);
-		latest.set(entry.key, state === "reused" && existing ? { ...existing, ...entry, state: existing.state } : { ...existing, ...entry });
+		latest.set(
+			entry.key,
+			state === "reused" && existing ? { ...existing, ...entry, state: existing.state } : { ...existing, ...entry },
+		);
 	}
 	return [...latest.values()];
 }
 
-function traceItem(entry: WorkflowChecklistTraceEntry, index: number, preflight: WorkflowPreflightLane | undefined): WorkflowChecklistItem {
+function traceItem(
+	entry: WorkflowChecklistTraceEntry,
+	index: number,
+	preflight: WorkflowPreflightLane | undefined,
+): WorkflowChecklistItem {
 	const phase = keyText(preflight?.key ?? entry.generatedLaneKey ?? entry.phase, "Workflow");
-	const item = stepItem({ key: entry.key, label: entry.label, phase, agent: entry.agent, status: entry.state === "started" ? "running" : entry.state, durationMs: entry.durationMs, error: entry.error }, index, phase, entry.key, entry.label ?? entry.key, preflight);
+	const item = stepItem(
+		{
+			key: entry.key,
+			label: entry.label,
+			phase,
+			agent: entry.agent,
+			status: entry.state === "started" ? "running" : entry.state,
+			durationMs: entry.durationMs,
+			error: entry.error,
+		},
+		index,
+		phase,
+		entry.key,
+		entry.label ?? entry.key,
+		preflight,
+	);
 	if (entry.operation === "host") item.kind = "host";
 	return item;
 }
@@ -276,7 +350,21 @@ function traceItem(entry: WorkflowChecklistTraceEntry, index: number, preflight:
 function phaseFor(phases: Map<string, WorkflowChecklistPhase>, label: string): WorkflowChecklistPhase {
 	let phase = phases.get(label);
 	if (!phase) {
-		phase = { key: label, label, state: "queued", items: [], total: 0, done: 0, running: 0, queued: 0, blocked: 0, failed: 0, paused: 0, stopped: 0, parallel: false };
+		phase = {
+			key: label,
+			label,
+			state: "queued",
+			items: [],
+			total: 0,
+			done: 0,
+			running: 0,
+			queued: 0,
+			blocked: 0,
+			failed: 0,
+			paused: 0,
+			stopped: 0,
+			parallel: false,
+		};
 		phases.set(label, phase);
 	}
 	return phase;
@@ -286,23 +374,69 @@ function add(phases: Map<string, WorkflowChecklistPhase>, phase: string, item: W
 	phaseFor(phases, phase).items.push(item);
 }
 
-function mergeNodeStep(node: WorkflowGraphNode, step: WorkflowChecklistStep, phase: string, trace: WorkflowChecklistTraceEntry | undefined, preflight: WorkflowPreflightLane | undefined): WorkflowChecklistItem {
+function mergeNodeStep(
+	node: WorkflowGraphNode,
+	step: WorkflowChecklistStep,
+	phase: string,
+	trace: WorkflowChecklistTraceEntry | undefined,
+	preflight: WorkflowPreflightLane | undefined,
+): WorkflowChecklistItem {
 	const state = checklistState(step);
-	const nodeState = checklistState({ status: node.status, acceptance: node.acceptanceStatus ? { status: node.acceptanceStatus } : undefined });
-	const status = TERMINAL_STATES.has(nodeState) && !TERMINAL_STATES.has(state)
-		? nodeState
-		: trace && !TERMINAL_STATES.has(state)
-		? (trace.state === "started" ? "running" : trace.state)
-		: normalizedStatus(step.status) === "pending" && normalizedStatus(node.status) !== "pending" ? node.status : step.status;
-	return stepItem({ ...step, status, key: node.id, label: step.label ?? node.label, phase: step.phase ?? phase, agent: step.agent ?? node.agent, outputName: step.outputName ?? node.outputName, error: step.error ?? trace?.error ?? node.error, acceptance: step.acceptance ?? (node.acceptanceStatus ? { status: node.acceptanceStatus } : undefined), durationMs: step.durationMs ?? trace?.durationMs }, node.flatIndex ?? 0, phase, node.id, step.label ?? node.label, preflight);
+	const nodeState = checklistState({
+		status: node.status,
+		acceptance: node.acceptanceStatus ? { status: node.acceptanceStatus } : undefined,
+	});
+	const status =
+		TERMINAL_STATES.has(nodeState) && !TERMINAL_STATES.has(state)
+			? nodeState
+			: trace && !TERMINAL_STATES.has(state)
+				? trace.state === "started"
+					? "running"
+					: trace.state
+				: normalizedStatus(step.status) === "pending" && normalizedStatus(node.status) !== "pending"
+					? node.status
+					: step.status;
+	return stepItem(
+		{
+			...step,
+			status,
+			key: node.id,
+			label: step.label ?? node.label,
+			phase: step.phase ?? phase,
+			agent: step.agent ?? node.agent,
+			outputName: step.outputName ?? node.outputName,
+			error: step.error ?? trace?.error ?? node.error,
+			acceptance: step.acceptance ?? (node.acceptanceStatus ? { status: node.acceptanceStatus } : undefined),
+			durationMs: step.durationMs ?? trace?.durationMs,
+		},
+		node.flatIndex ?? 0,
+		phase,
+		node.id,
+		step.label ?? node.label,
+		preflight,
+	);
 }
 
 function priority(item: WorkflowChecklistItem): number {
-	return item.state === "blocked" ? 0 : item.state === "failed" ? 1 : item.state === "running" ? 2 : item.state === "paused" ? 3 : item.state === "stopped" ? 4 : item.state === "queued" ? 5 : 6;
+	return item.state === "blocked"
+		? 0
+		: item.state === "failed"
+			? 1
+			: item.state === "running"
+				? 2
+				: item.state === "paused"
+					? 3
+					: item.state === "stopped"
+						? 4
+						: item.state === "queued"
+							? 5
+							: 6;
 }
 
 function applyNow(item: WorkflowChecklistItem, now: number | undefined): WorkflowChecklistItem {
-	return item.state === "running" && item.startedAt !== undefined && now !== undefined ? { ...item, durationMs: Math.max(0, now - item.startedAt) } : item;
+	return item.state === "running" && item.startedAt !== undefined && now !== undefined
+		? { ...item, durationMs: Math.max(0, now - item.startedAt) }
+		: item;
 }
 
 function finalize(phase: WorkflowChecklistPhase): void {
@@ -315,7 +449,19 @@ function finalize(phase: WorkflowChecklistPhase): void {
 	phase.paused = phase.items.filter((item) => item.state === "paused").length;
 	phase.stopped = phase.items.filter((item) => item.state === "stopped").length;
 	phase.parallel = phase.total > 1;
-	phase.state = phase.blocked ? "blocked" : phase.failed ? "failed" : phase.running ? "running" : phase.paused ? "paused" : phase.stopped ? "stopped" : phase.queued ? "queued" : "complete";
+	phase.state = phase.blocked
+		? "blocked"
+		: phase.failed
+			? "failed"
+			: phase.running
+				? "running"
+				: phase.paused
+					? "paused"
+					: phase.stopped
+						? "stopped"
+						: phase.queued
+							? "queued"
+							: "complete";
 }
 
 export function projectWorkflowChecklist(input: WorkflowChecklistInput): WorkflowChecklistProjection {
@@ -356,11 +502,46 @@ export function projectWorkflowChecklist(input: WorkflowChecklistInput): Workflo
 		if (matches.length) {
 			for (const match of matches) {
 				usedSteps.add(match.index);
-				add(phases, phase, applyNow(mergeNodeStep(node, match.step, phase, traceByKey.get(stepKey(match.step) ?? node.id), laneFor(input.preflight, node.id, [phase])), input.now));
+				add(
+					phases,
+					phase,
+					applyNow(
+						mergeNodeStep(
+							node,
+							match.step,
+							phase,
+							traceByKey.get(stepKey(match.step) ?? node.id),
+							laneFor(input.preflight, node.id, [phase]),
+						),
+						input.now,
+					),
+				);
 			}
 			continue;
 		}
-		add(phases, phase, applyNow(mergeNodeStep(node, { key: node.id, label: node.label, phase, agent: node.agent, status: node.status, outputName: node.outputName, error: node.error, acceptance: node.acceptanceStatus ? { status: node.acceptanceStatus } : undefined }, phase, traceByKey.get(node.id), laneFor(input.preflight, node.id, [phase])), input.now));
+		add(
+			phases,
+			phase,
+			applyNow(
+				mergeNodeStep(
+					node,
+					{
+						key: node.id,
+						label: node.label,
+						phase,
+						agent: node.agent,
+						status: node.status,
+						outputName: node.outputName,
+						error: node.error,
+						acceptance: node.acceptanceStatus ? { status: node.acceptanceStatus } : undefined,
+					},
+					phase,
+					traceByKey.get(node.id),
+					laneFor(input.preflight, node.id, [phase]),
+				),
+				input.now,
+			),
+		);
 	}
 
 	for (const [index, step] of steps.entries()) {
@@ -369,13 +550,22 @@ export function projectWorkflowChecklist(input: WorkflowChecklistInput): Workflo
 		const traceEntry = traceByKey.get(key);
 		const lane = laneFor(input.preflight, key, [step.phase, traceEntry?.generatedLaneKey, traceEntry?.phase]);
 		const phase = keyText(lane?.key ?? step.phase ?? traceEntry?.generatedLaneKey ?? traceEntry?.phase, "Workflow");
-		add(phases, phase, applyNow(stepItem(step, index, phase, key, step.label ?? step.key ?? step.agent, lane), input.now));
+		add(
+			phases,
+			phase,
+			applyNow(stepItem(step, index, phase, key, step.label ?? step.key ?? step.agent, lane), input.now),
+		);
 	}
 
-	for (const host of hostById.values()) add(phases, keyText(host.label, "Host"), hostItem(host, keyText(host.label, "Host")));
+	for (const host of hostById.values())
+		add(phases, keyText(host.label, "Host"), hostItem(host, keyText(host.label, "Host")));
 	for (const entry of trace) {
 		if (graphKeys.has(entry.key) || stepKeys.has(entry.key) || hostKeys.has(entry.key)) continue;
-		const item = traceItem(entry, phases.size, laneFor(input.preflight, entry.key, [entry.generatedLaneKey, entry.phase]));
+		const item = traceItem(
+			entry,
+			phases.size,
+			laneFor(input.preflight, entry.key, [entry.generatedLaneKey, entry.phase]),
+		);
 		add(phases, item.phase, item);
 	}
 
@@ -387,7 +577,18 @@ export function projectWorkflowChecklist(input: WorkflowChecklistInput): Workflo
 	const all = finalized.flatMap((phase) => phase.items);
 	const counts = (state: WorkflowChecklistState): number => all.filter((item) => item.state === state).length;
 	const bottleneck = [...all].sort((left, right) => priority(left) - priority(right))[0];
-	return { phases: finalized, total: all.length, done: counts("complete"), running: counts("running"), queued: counts("queued"), blocked: counts("blocked"), failed: counts("failed"), paused: counts("paused"), stopped: counts("stopped"), ...(bottleneck && bottleneck.state !== "complete" ? { bottleneck } : {}) };
+	return {
+		phases: finalized,
+		total: all.length,
+		done: counts("complete"),
+		running: counts("running"),
+		queued: counts("queued"),
+		blocked: counts("blocked"),
+		failed: counts("failed"),
+		paused: counts("paused"),
+		stopped: counts("stopped"),
+		...(bottleneck && bottleneck.state !== "complete" ? { bottleneck } : {}),
+	};
 }
 
 function stateLabel(state: WorkflowChecklistState): string {
@@ -396,26 +597,77 @@ function stateLabel(state: WorkflowChecklistState): string {
 
 export function formatWorkflowChecklistSummary(projection: WorkflowChecklistProjection): string {
 	if (!projection.total) return "";
-	return [`${projection.done}/${projection.total} done`, projection.running ? `${projection.running} active` : undefined, projection.queued ? `${projection.queued} queued` : undefined, projection.blocked ? `${projection.blocked} blocked` : undefined, projection.failed ? `${projection.failed} failed` : undefined, projection.paused ? `${projection.paused} paused` : undefined, projection.stopped ? `${projection.stopped} stopped` : undefined].filter((value): value is string => Boolean(value)).join(" · ");
+	return [
+		`${projection.done}/${projection.total} done`,
+		projection.running ? `${projection.running} active` : undefined,
+		projection.queued ? `${projection.queued} queued` : undefined,
+		projection.blocked ? `${projection.blocked} blocked` : undefined,
+		projection.failed ? `${projection.failed} failed` : undefined,
+		projection.paused ? `${projection.paused} paused` : undefined,
+		projection.stopped ? `${projection.stopped} stopped` : undefined,
+	]
+		.filter((value): value is string => Boolean(value))
+		.join(" · ");
 }
 
 export function formatWorkflowChecklistPhase(phase: WorkflowChecklistPhase): string {
-	const counts = [phase.total > 1 && phase.done ? `${phase.done} done` : undefined, phase.running ? `${phase.running} active` : undefined, phase.queued ? `${phase.queued} queued` : undefined, phase.blocked ? `${phase.blocked} blocked` : undefined, phase.failed ? `${phase.failed} failed` : undefined, phase.paused ? `${phase.paused} paused` : undefined, phase.stopped ? `${phase.stopped} stopped` : undefined].filter((value): value is string => Boolean(value));
+	const counts = [
+		phase.total > 1 && phase.done ? `${phase.done} done` : undefined,
+		phase.running ? `${phase.running} active` : undefined,
+		phase.queued ? `${phase.queued} queued` : undefined,
+		phase.blocked ? `${phase.blocked} blocked` : undefined,
+		phase.failed ? `${phase.failed} failed` : undefined,
+		phase.paused ? `${phase.paused} paused` : undefined,
+		phase.stopped ? `${phase.stopped} stopped` : undefined,
+	].filter((value): value is string => Boolean(value));
 	return counts.length ? `${phase.label} ${counts.join(" · ")}` : phase.label;
 }
 
-export function formatWorkflowChecklistBottleneck(item: WorkflowChecklistItem | undefined, options: { includeOutput?: boolean; includeError?: boolean } = {}): string | undefined {
+export function formatWorkflowChecklistBottleneck(
+	item: WorkflowChecklistItem | undefined,
+	options: { includeOutput?: boolean; includeError?: boolean } = {},
+): string | undefined {
 	if (!item) return undefined;
-	const identity = [item.label, item.agent && item.agent !== item.label ? item.agent : undefined].filter((value): value is string => Boolean(value)).join(" · ") || item.key;
+	const identity =
+		[item.label, item.agent && item.agent !== item.label ? item.agent : undefined]
+			.filter((value): value is string => Boolean(value))
+			.join(" · ") || item.key;
 	const includeOutput = options.includeOutput ?? true;
 	const includeError = options.includeError ?? true;
-	const details = [item.context ? `(${item.context})` : undefined, item.currentTool ? `${item.currentTool}${item.durationMs !== undefined ? ` ${formatDurationText(item.durationMs)}` : ""}` : undefined, !item.currentTool && item.currentPath ? item.currentPath : undefined, !item.currentTool && item.durationMs !== undefined ? formatDurationText(item.durationMs) : undefined, item.toolCount !== undefined ? `${item.toolCount} tools` : undefined, includeOutput && item.outputName ? `out:${item.outputName}` : undefined, includeError && item.error ? `error:${item.error.replace(/\bOutput:/g, "output:")}` : undefined].filter((value): value is string => Boolean(value));
+	const details = [
+		item.context ? `(${item.context})` : undefined,
+		item.currentTool
+			? `${item.currentTool}${item.durationMs !== undefined ? ` ${formatDurationText(item.durationMs)}` : ""}`
+			: undefined,
+		!item.currentTool && item.currentPath ? item.currentPath : undefined,
+		!item.currentTool && item.durationMs !== undefined ? formatDurationText(item.durationMs) : undefined,
+		item.toolCount !== undefined ? `${item.toolCount} tools` : undefined,
+		includeOutput && item.outputName ? `out:${item.outputName}` : undefined,
+		includeError && item.error ? `error:${item.error.replace(/\bOutput:/g, "output:")}` : undefined,
+	].filter((value): value is string => Boolean(value));
 	return [identity, ...details].join(" · ");
 }
 
 function formatWorkflowChecklistItem(item: WorkflowChecklistItem): string {
-	const identity = [item.label, item.agent && item.agent !== item.label ? item.agent : undefined].filter((value): value is string => Boolean(value)).join(" · ") || item.key;
-	const details = [item.kind && item.monitorKind ? item.monitorKind : undefined, item.provider ? `provider:${item.provider}` : undefined, item.role ? `role:${item.role}` : undefined, item.target, item.currentTool, !item.currentTool && item.currentPath ? item.currentPath : undefined, item.durationMs !== undefined ? formatDurationText(item.durationMs) : undefined, item.toolCount !== undefined ? `${item.toolCount} tools` : undefined, item.outputName ? `out:${item.outputName}` : undefined, item.reportPath ? `out:${item.reportPath}` : undefined, item.stale ? "stale" : undefined, item.reasonCode ? `reason:${item.reasonCode}` : undefined, item.error ? `error:${item.error.replace(/\bOutput:/g, "output:")}` : undefined].filter((value): value is string => Boolean(value));
+	const identity =
+		[item.label, item.agent && item.agent !== item.label ? item.agent : undefined]
+			.filter((value): value is string => Boolean(value))
+			.join(" · ") || item.key;
+	const details = [
+		item.kind && item.monitorKind ? item.monitorKind : undefined,
+		item.provider ? `provider:${item.provider}` : undefined,
+		item.role ? `role:${item.role}` : undefined,
+		item.target,
+		item.currentTool,
+		!item.currentTool && item.currentPath ? item.currentPath : undefined,
+		item.durationMs !== undefined ? formatDurationText(item.durationMs) : undefined,
+		item.toolCount !== undefined ? `${item.toolCount} tools` : undefined,
+		item.outputName ? `out:${item.outputName}` : undefined,
+		item.reportPath ? `out:${item.reportPath}` : undefined,
+		item.stale ? "stale" : undefined,
+		item.reasonCode ? `reason:${item.reasonCode}` : undefined,
+		item.error ? `error:${item.error.replace(/\bOutput:/g, "output:")}` : undefined,
+	].filter((value): value is string => Boolean(value));
 	return `${identity}${item.context ? ` (${item.context})` : ""}${item.state === "complete" ? "" : ` · ${stateLabel(item.state)}`}${details.length ? ` · ${details.join(" · ")}` : ""}`;
 }
 
@@ -424,19 +676,47 @@ function formatDurationText(ms: number): string {
 	return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;
 }
 
-export function formatWorkflowChecklistText(projection: WorkflowChecklistProjection, indent = "", options: { includeItems?: boolean } = {}): string[] {
+export function formatWorkflowChecklistText(
+	projection: WorkflowChecklistProjection,
+	indent = "",
+	options: { includeItems?: boolean } = {},
+): string[] {
 	if (!projection.total) return [];
 	const lines = [`${indent}Workflow checklist: ${formatWorkflowChecklistSummary(projection)}`];
 	for (const phase of projection.phases) {
-		const phaseMarker = phase.state === "complete" ? "✓" : phase.state === "running" ? "⠼" : phase.state === "blocked" ? "!" : phase.state === "failed" ? "✗" : phase.state === "paused" || phase.state === "stopped" ? "■" : "◦";
+		const phaseMarker =
+			phase.state === "complete"
+				? "✓"
+				: phase.state === "running"
+					? "⠼"
+					: phase.state === "blocked"
+						? "!"
+						: phase.state === "failed"
+							? "✗"
+							: phase.state === "paused" || phase.state === "stopped"
+								? "■"
+								: "◦";
 		lines.push(`${indent}  ${phaseMarker} ${formatWorkflowChecklistPhase(phase)}`);
 		if (options.includeItems === false) continue;
 		for (const item of phase.items) {
-			const marker = item.state === "complete" ? "✓" : item.state === "running" ? "⠼" : item.state === "blocked" ? "!" : item.state === "failed" ? "✗" : item.state === "paused" || item.state === "stopped" ? "■" : "◦";
+			const marker =
+				item.state === "complete"
+					? "✓"
+					: item.state === "running"
+						? "⠼"
+						: item.state === "blocked"
+							? "!"
+							: item.state === "failed"
+								? "✗"
+								: item.state === "paused" || item.state === "stopped"
+									? "■"
+									: "◦";
 			lines.push(`${indent}    ${marker} ${formatWorkflowChecklistItem(item)}`);
 		}
 	}
-	const bottleneck = formatWorkflowChecklistBottleneck(projection.bottleneck, { includeError: options.includeItems === false });
+	const bottleneck = formatWorkflowChecklistBottleneck(projection.bottleneck, {
+		includeError: options.includeItems === false,
+	});
 	if (bottleneck) lines.push(`${indent}  bottleneck · ${bottleneck}`);
 	return lines;
 }

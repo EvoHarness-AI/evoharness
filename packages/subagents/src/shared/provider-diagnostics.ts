@@ -1,4 +1,4 @@
-import { isRetryableAssistantError, type AssistantMessage } from "@evoharness/ai";
+import { type AssistantMessage, isRetryableAssistantError } from "@evoharness/ai";
 import type { SubagentDelegationProviderDiagnostics } from "../api/delegation.ts";
 import type { ChildSessionEvent } from "../runs/shared/child-session.ts";
 
@@ -6,8 +6,10 @@ type Diagnostics = SubagentDelegationProviderDiagnostics;
 
 // Account exhaustion can also carry 429. Do not present it as transient throttling.
 // Pi's classifier supplies its own provider-specific quota/billing exclusions too.
-const ACCOUNT_LIMIT = /quota|billing|out of budget|available balance|(?:account|subscription|credits?|balance|usage)[\s_-]*(?:(?:is|are|has been|have been)[\s_-]*)?(?:limit|exhaust|deplet|exceed)|(?:insufficient|exhausted|depleted|low|no(?:[\s_-]+remaining)?)[\s_-]*(?:credits?|balance|fund)/i;
-const RATE_LIMIT = /\brate[\s_-]*limit(?:ed|ing|s|_(?:exceeded|error))?\b|\btoo[\s_-]+many[\s_-]+requests\b|\b(?:HTTP(?:\/\d(?:\.\d)?)?\s*[:=]?\s*429|(?:status|statusCode|status_code)["']?\s*[:=]?\s*429)\b|^\s*429\b/i;
+const ACCOUNT_LIMIT =
+	/quota|billing|out of budget|available balance|(?:account|subscription|credits?|balance|usage)[\s_-]*(?:(?:is|are|has been|have been)[\s_-]*)?(?:limit|exhaust|deplet|exceed)|(?:insufficient|exhausted|depleted|low|no(?:[\s_-]+remaining)?)[\s_-]*(?:credits?|balance|fund)/i;
+const RATE_LIMIT =
+	/\brate[\s_-]*limit(?:ed|ing|s|_(?:exceeded|error))?\b|\btoo[\s_-]+many[\s_-]+requests\b|\b(?:HTTP(?:\/\d(?:\.\d)?)?\s*[:=]?\s*429|(?:status|statusCode|status_code)["']?\s*[:=]?\s*429)\b|^\s*429\b/i;
 
 function classifyError(message: AssistantMessage): NonNullable<Diagnostics["lastError"]>["kind"] {
 	const text = message.errorMessage;
@@ -22,7 +24,11 @@ const SAFE_ERROR_MESSAGES = {
 } as const;
 
 /** Immutable, bounded observations only. This never decides whether to retry. */
-export function observeProviderDiagnostics(current: Diagnostics | undefined, event: ChildSessionEvent, at: number): Diagnostics | undefined {
+export function observeProviderDiagnostics(
+	current: Diagnostics | undefined,
+	event: ChildSessionEvent,
+	at: number,
+): Diagnostics | undefined {
 	if (event.type === "message_end") {
 		const message = event.message as AssistantMessage | undefined;
 		if (message?.role === "assistant" && message.stopReason === "error") {
@@ -35,10 +41,22 @@ export function observeProviderDiagnostics(current: Diagnostics | undefined, eve
 		}
 	} else if (event.type === "auto_retry_start") {
 		const { attempt, maxAttempts, delayMs } = event;
-		if (typeof attempt === "number" && Number.isSafeInteger(attempt) && attempt > 0
-			&& typeof maxAttempts === "number" && Number.isSafeInteger(maxAttempts) && maxAttempts >= attempt
-			&& typeof delayMs === "number" && Number.isFinite(delayMs) && delayMs >= 0) {
-			return { ...current, errorCount: current?.errorCount ?? 0, retry: { phase: "backoff", attempt, maxAttempts, delayMs, scheduledAt: at } };
+		if (
+			typeof attempt === "number" &&
+			Number.isSafeInteger(attempt) &&
+			attempt > 0 &&
+			typeof maxAttempts === "number" &&
+			Number.isSafeInteger(maxAttempts) &&
+			maxAttempts >= attempt &&
+			typeof delayMs === "number" &&
+			Number.isFinite(delayMs) &&
+			delayMs >= 0
+		) {
+			return {
+				...current,
+				errorCount: current?.errorCount ?? 0,
+				retry: { phase: "backoff", attempt, maxAttempts, delayMs, scheduledAt: at },
+			};
 		}
 	} else if ((event.type === "agent_start" || event.type === "turn_start") && current?.retry?.phase === "backoff") {
 		return { ...current, retry: { ...current.retry, phase: "in_flight" } };
@@ -66,13 +84,15 @@ export function snapshotProviderDiagnostics(current: Diagnostics | undefined): D
 export function sameProviderDiagnostics(left: Diagnostics | undefined, right: Diagnostics | undefined): boolean {
 	if (left === right) return true;
 	if (!left || !right) return false;
-	return left.errorCount === right.errorCount
-		&& left.lastError?.kind === right.lastError?.kind
-		&& left.lastError?.message === right.lastError?.message
-		&& left.lastError?.at === right.lastError?.at
-		&& left.retry?.phase === right.retry?.phase
-		&& left.retry?.attempt === right.retry?.attempt
-		&& left.retry?.maxAttempts === right.retry?.maxAttempts
-		&& left.retry?.delayMs === right.retry?.delayMs
-		&& left.retry?.scheduledAt === right.retry?.scheduledAt;
+	return (
+		left.errorCount === right.errorCount &&
+		left.lastError?.kind === right.lastError?.kind &&
+		left.lastError?.message === right.lastError?.message &&
+		left.lastError?.at === right.lastError?.at &&
+		left.retry?.phase === right.retry?.phase &&
+		left.retry?.attempt === right.retry?.attempt &&
+		left.retry?.maxAttempts === right.retry?.maxAttempts &&
+		left.retry?.delayMs === right.retry?.delayMs &&
+		left.retry?.scheduledAt === right.retry?.scheduledAt
+	);
 }

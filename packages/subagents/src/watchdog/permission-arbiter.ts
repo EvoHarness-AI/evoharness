@@ -1,6 +1,6 @@
 import { Agent, type AgentTool, type StreamFn } from "@evoharness/agent-core";
 import { convertToLlm, type ExtensionContext } from "@evoharness/coding-agent";
-import { Type, type Static } from "typebox";
+import { type Static, Type } from "typebox";
 import { appendPermissionAudit, permissionArgsPreview } from "../runs/shared/permissions.ts";
 import { agentStreamOptions } from "../shared/agent-stream-options.ts";
 import { opencodeSessionHeaders } from "../shared/opencode-session-headers.ts";
@@ -8,10 +8,13 @@ import { decodeChildWatchdogConfig } from "./child-status.ts";
 import { childResolvedConfig } from "./register-child.ts";
 import { formatWatchdogCwdSection, resolveWatchdogReviewModel } from "./review.ts";
 
-const PermissionDecisionParams = Type.Object({
-	decision: Type.String({ enum: ["approve", "deny"] }),
-	reason: Type.String({ description: "One concise reason for this exact decision." }),
-}, { additionalProperties: false });
+const PermissionDecisionParams = Type.Object(
+	{
+		decision: Type.String({ enum: ["approve", "deny"] }),
+		reason: Type.String({ description: "One concise reason for this exact decision." }),
+	},
+	{ additionalProperties: false },
+);
 
 type PermissionDecisionParams = Static<typeof PermissionDecisionParams>;
 
@@ -43,7 +46,14 @@ export function createWatchdogPermissionArbiter(options: WatchdogPermissionArbit
 	return async (request: WatchdogPermissionRequest): Promise<WatchdogPermissionResult> => {
 		const preview = permissionArgsPreview(request.args);
 		const createdAt = Date.now();
-		const auditBase = { type: "permission.request", createdAt, toolName: request.toolName, preview, matchedRule: "ask", decisionSource: "watchdog" };
+		const auditBase = {
+			type: "permission.request",
+			createdAt,
+			toolName: request.toolName,
+			preview,
+			matchedRule: "ask",
+			decisionSource: "watchdog",
+		};
 		appendPermissionAudit(request.auditPath, auditBase);
 		let completed = false;
 		const finish = (approved: boolean, reason: string, decision: string): WatchdogPermissionResult => {
@@ -70,8 +80,14 @@ export function createWatchdogPermissionArbiter(options: WatchdogPermissionArbit
 			const reason = error instanceof Error ? error.message : String(error);
 			return finish(false, `Watchdog permission arbiter configuration is invalid: ${reason}`, "unavailable");
 		}
-		if (!childConfig) return finish(false, "Watchdog permission arbiter is unavailable because the child watchdog is disabled.", "unavailable");
-		if (request.signal?.aborted || request.ctx.signal?.aborted) return finish(false, "Watchdog permission decision was cancelled.", "cancelled");
+		if (!childConfig)
+			return finish(
+				false,
+				"Watchdog permission arbiter is unavailable because the child watchdog is disabled.",
+				"unavailable",
+			);
+		if (request.signal?.aborted || request.ctx.signal?.aborted)
+			return finish(false, "Watchdog permission decision was cancelled.", "cancelled");
 
 		let decision: PermissionDecisionParams | undefined;
 		const tool: AgentTool<typeof PermissionDecisionParams, { recorded: boolean }> = {
@@ -95,13 +111,24 @@ export function createWatchdogPermissionArbiter(options: WatchdogPermissionArbit
 				const selection = await resolveWatchdogReviewModel(request.ctx, config);
 				const auth = selection.auth;
 				const sessionId = request.ctx.sessionManager.getSessionId();
-				const baseStreamFn: StreamFn = options.streamFn ?? ((model, context, streamOptions) => request.ctx.modelRegistry.streamSimple(model, context, streamOptions));
-				const streamFn: StreamFn = (model, context, streamOptions) => baseStreamFn(model, context, {
-					...streamOptions,
-					...(auth.apiKey ? { apiKey: auth.apiKey } : {}),
-					env: auth.env || streamOptions?.env ? { ...(auth.env ?? {}), ...(streamOptions?.env ?? {}) } : undefined,
-					headers: { ...opencodeSessionHeaders(model, sessionId), ...(streamOptions?.headers ?? {}), ...(auth.headers ?? {}) },
-				});
+				const baseStreamFn: StreamFn =
+					options.streamFn ??
+					((model, context, streamOptions) =>
+						request.ctx.modelRegistry.streamSimple(model, context, streamOptions));
+				const streamFn: StreamFn = (model, context, streamOptions) =>
+					baseStreamFn(model, context, {
+						...streamOptions,
+						...(auth.apiKey ? { apiKey: auth.apiKey } : {}),
+						env:
+							auth.env || streamOptions?.env
+								? { ...(auth.env ?? {}), ...(streamOptions?.env ?? {}) }
+								: undefined,
+						headers: {
+							...opencodeSessionHeaders(model, sessionId),
+							...(streamOptions?.headers ?? {}),
+							...(auth.headers ?? {}),
+						},
+					});
 				const systemPrompt = [
 					"You are the pi-subagents watchdog permission arbiter.",
 					"Decide only whether this exact non-bash child tool call should proceed.",
@@ -120,8 +147,11 @@ export function createWatchdogPermissionArbiter(options: WatchdogPermissionArbit
 					},
 					convertToLlm,
 					...agentStreamOptions(streamFn),
-					getApiKey: (providerName) => providerName === selection.model.provider ? auth.apiKey : undefined,
-					beforeToolCall: async ({ toolCall }) => toolCall.name === tool.name ? undefined : { block: true, reason: `Permission arbiter tool '${toolCall.name}' is not allowed.` },
+					getApiKey: (providerName) => (providerName === selection.model.provider ? auth.apiKey : undefined),
+					beforeToolCall: async ({ toolCall }) =>
+						toolCall.name === tool.name
+							? undefined
+							: { block: true, reason: `Permission arbiter tool '${toolCall.name}' is not allowed.` },
 					toolExecution: "sequential",
 				});
 				await agent.prompt(`Tool: ${request.toolName}\nRedacted arguments: ${preview}`);
@@ -131,16 +161,28 @@ export function createWatchdogPermissionArbiter(options: WatchdogPermissionArbit
 			};
 			return await Promise.race([
 				run(),
-				new Promise<WatchdogPermissionResult>((resolve) => { timeout = setTimeout(() => { agent?.abort(); resolve(finish(false, "Watchdog permission decision timed out.", "timeout")); }, childConfig.agentEndTimeoutMs); }),
 				new Promise<WatchdogPermissionResult>((resolve) => {
-					abort = () => { agent?.abort(); resolve(finish(false, "Watchdog permission decision was cancelled.", "cancelled")); };
+					timeout = setTimeout(() => {
+						agent?.abort();
+						resolve(finish(false, "Watchdog permission decision timed out.", "timeout"));
+					}, childConfig.agentEndTimeoutMs);
+				}),
+				new Promise<WatchdogPermissionResult>((resolve) => {
+					abort = () => {
+						agent?.abort();
+						resolve(finish(false, "Watchdog permission decision was cancelled.", "cancelled"));
+					};
 					request.signal?.addEventListener("abort", abort, { once: true });
 					request.ctx.signal?.addEventListener("abort", abort, { once: true });
 				}),
 			]);
 		} catch (error) {
 			const reason = error instanceof Error ? error.message : String(error);
-			return finish(false, `Watchdog permission arbiter failed closed: ${reason}`, reason.includes("timed out") ? "timeout" : "error");
+			return finish(
+				false,
+				`Watchdog permission arbiter failed closed: ${reason}`,
+				reason.includes("timed out") ? "timeout" : "error",
+			);
 		} finally {
 			if (timeout) clearTimeout(timeout);
 			if (abort) {

@@ -1,11 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-	WORKFLOW_PREFLIGHT_MAX_BYTES,
-	WORKFLOW_PREFLIGHT_MAX_CLAIMS,
-	WORKFLOW_PREFLIGHT_MAX_LANES,
-	WORKFLOW_PREFLIGHT_MAX_STRING_LENGTH,
-	WORKFLOW_PREFLIGHT_MAX_WARNINGS,
 	annotateWorkflowPreflightTrace,
 	formatWorkflowPreflight,
 	formatWorkflowPreflightPlanSummary,
@@ -13,6 +8,11 @@ import {
 	formatWorkflowPreflightWarningSummary,
 	normalizeWorkflowPreflight,
 	validateWorkflowPreflight,
+	WORKFLOW_PREFLIGHT_MAX_BYTES,
+	WORKFLOW_PREFLIGHT_MAX_CLAIMS,
+	WORKFLOW_PREFLIGHT_MAX_LANES,
+	WORKFLOW_PREFLIGHT_MAX_STRING_LENGTH,
+	WORKFLOW_PREFLIGHT_MAX_WARNINGS,
 	workflowPreflightLaneForRuntimeKey,
 	workflowPreflightWarnings,
 } from "../../src/workflows/workflow-preflight.ts";
@@ -20,37 +20,43 @@ import {
 const preflight = {
 	version: 1 as const,
 	coverage: "complete" as const,
-	lanes: [{
-		key: "issue1624-writer",
-		mode: "mutation" as const,
-		decision: "Implement bounded preflight",
-		claims: ["src/workflows/workflow-preflight.ts"],
-		expectedOutput: "writer and review report",
-		independence: "does not touch cleanup",
-	}],
+	lanes: [
+		{
+			key: "issue1624-writer",
+			mode: "mutation" as const,
+			decision: "Implement bounded preflight",
+			claims: ["src/workflows/workflow-preflight.ts"],
+			expectedOutput: "writer and review report",
+			independence: "does not touch cleanup",
+		},
+	],
 };
 
 describe("workflow preflight metadata", () => {
 	it("normalizes bounded display hints and renders the compact table", () => {
 		const normalized = normalizeWorkflowPreflight({
 			...preflight,
-			lanes: [{
-				...preflight.lanes[0],
-				key: " issue1624-writer ",
-				decision: "Implement\n bounded\tpreflight",
-			}],
+			lanes: [
+				{
+					...preflight.lanes[0],
+					key: " issue1624-writer ",
+					decision: "Implement\n bounded\tpreflight",
+				},
+			],
 		});
 		assert.deepEqual(normalized, {
 			version: 1,
 			coverage: "complete",
-			lanes: [{
-				key: "issue1624-writer",
-				mode: "mutation",
-				decision: "Implement bounded preflight",
-				claims: ["src/workflows/workflow-preflight.ts"],
-				expectedOutput: "writer and review report",
-				independence: "does not touch cleanup",
-			}],
+			lanes: [
+				{
+					key: "issue1624-writer",
+					mode: "mutation",
+					decision: "Implement bounded preflight",
+					claims: ["src/workflows/workflow-preflight.ts"],
+					expectedOutput: "writer and review report",
+					independence: "does not touch cleanup",
+				},
+			],
 		});
 		const table = formatWorkflowPreflight(normalized);
 		assert.match(table, /Preflight: v1 · complete · 1 lane/);
@@ -58,7 +64,10 @@ describe("workflow preflight metadata", () => {
 		assert.match(table, /issue1624-writer \| mutation \| Implement bounded preflight/);
 		assert.match(formatWorkflowPreflightSummary(normalized), /preflight · complete · 1 lane: issue1624-writer/);
 		assert.equal(formatWorkflowPreflightPlanSummary(normalized), "Plan: 1 lane · Implement bounded preflight");
-		assert.equal(formatWorkflowPreflightWarningSummary(["one", "two"], { indent: "  ", hint: "expand for debug" }), "  Plan note: 2 preflight mismatches · expand for debug.");
+		assert.equal(
+			formatWorkflowPreflightWarningSummary(["one", "two"], { indent: "  ", hint: "expand for debug" }),
+			"  Plan note: 2 preflight mismatches · expand for debug.",
+		);
 	});
 
 	it("rejects unsupported, malformed, duplicate, and over-bound metadata", () => {
@@ -69,11 +78,52 @@ describe("workflow preflight metadata", () => {
 			[{ version: 1, lanes: [{ key: "bad key" }] }, /lanes\[0\]\.key/],
 			[{ version: 1, lanes: [{ key: "same" }, { key: "same" }] }, /duplicate key/],
 			[{ version: 1, lanes: [{ key: "same", mode: "owner" }] }, /mode/],
-			[{ version: 1, lanes: [{ key: "same", claims: ["claim", "claim", "claim", "claim", "claim", "claim", "claim", "claim", "claim", "claim", "claim", "claim", "claim", "claim", "claim", "claim", "claim"] }] }, /at most/],
-			[{ version: 1, lanes: [{ key: "same", decision: "x".repeat(WORKFLOW_PREFLIGHT_MAX_STRING_LENGTH + 1) }] }, /maximum length/],
+			[
+				{
+					version: 1,
+					lanes: [
+						{
+							key: "same",
+							claims: [
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+								"claim",
+							],
+						},
+					],
+				},
+				/at most/,
+			],
+			[
+				{ version: 1, lanes: [{ key: "same", decision: "x".repeat(WORKFLOW_PREFLIGHT_MAX_STRING_LENGTH + 1) }] },
+				/maximum length/,
+			],
 		];
 		for (const [value, pattern] of invalidValues) assert.throws(() => normalizeWorkflowPreflight(value), pattern);
-		assert.throws(() => normalizeWorkflowPreflight({ version: 1, lanes: Array.from({ length: WORKFLOW_PREFLIGHT_MAX_LANES + 1 }, (_, index) => ({ key: `lane-${index}` })) }), /at most/);
+		assert.throws(
+			() =>
+				normalizeWorkflowPreflight({
+					version: 1,
+					lanes: Array.from({ length: WORKFLOW_PREFLIGHT_MAX_LANES + 1 }, (_, index) => ({
+						key: `lane-${index}`,
+					})),
+				}),
+			/at most/,
+		);
 		const getter = { version: 1, lanes: [] } as Record<string, unknown>;
 		Object.defineProperty(getter, "lanes", { enumerable: true, get: () => [] });
 		assert.throws(() => normalizeWorkflowPreflight(getter), /must be an enumerable data property/);
@@ -114,11 +164,23 @@ describe("workflow preflight metadata", () => {
 			version: 1,
 			lanes: Array.from({ length: WORKFLOW_PREFLIGHT_MAX_LANES }, (_, index) => ({ key: `declared-${index}` })),
 		});
-		const warnings = workflowPreflightWarnings(manyLanes, Array.from({ length: WORKFLOW_PREFLIGHT_MAX_LANES }, (_, index) => ({ operation: "run", key: `extra-${index}`, state: "started" as const })), { settled: true });
+		const warnings = workflowPreflightWarnings(
+			manyLanes,
+			Array.from({ length: WORKFLOW_PREFLIGHT_MAX_LANES }, (_, index) => ({
+				operation: "run",
+				key: `extra-${index}`,
+				state: "started" as const,
+			})),
+			{ settled: true },
+		);
 		assert.equal(warnings.length, WORKFLOW_PREFLIGHT_MAX_WARNINGS);
 		assert.match(warnings.at(-1) ?? "", /additional mismatch warning\(s\) omitted/);
 		assert.deepEqual(workflowPreflightWarnings(manyLanes, [], { settled: false }), []);
-		assert.ok(workflowPreflightWarnings(manyLanes, [], { settled: true }).some((warning) => warning.includes("declared lane 'declared-0' was not launched")));
+		assert.ok(
+			workflowPreflightWarnings(manyLanes, [], { settled: true }).some((warning) =>
+				warning.includes("declared lane 'declared-0' was not launched"),
+			),
+		);
 		assert.ok(WORKFLOW_PREFLIGHT_MAX_CLAIMS > 0);
 	});
 
@@ -148,7 +210,10 @@ describe("workflow preflight metadata", () => {
 			{ operation: "run", key: "audit.review", generatedLaneKey: "audit", state: "completed" as const },
 		];
 		assert.deepEqual(workflowPreflightWarnings(lanes, generatedStageTrace, { settled: true }), []);
-		assert.equal(annotateWorkflowPreflightTrace(generatedStageTrace, lanes).some((entry) => entry.warning), false);
+		assert.equal(
+			annotateWorkflowPreflightTrace(generatedStageTrace, lanes).some((entry) => entry.warning),
+			false,
+		);
 
 		// Direct runs.run keys intentionally use the same lane.stage convention without provenance.
 		const directStageTrace = [

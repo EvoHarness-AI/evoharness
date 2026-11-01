@@ -4,7 +4,12 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 import { discoverAgents } from "../../src/agents/agents.ts";
-import { assertThinkingWithinCeiling, compareThinkingLevels, intersectThinkingCeilings, parseThinkingLevel } from "../../src/shared/thinking-ceiling.ts";
+import {
+	assertThinkingWithinCeiling,
+	compareThinkingLevels,
+	intersectThinkingCeilings,
+	parseThinkingLevel,
+} from "../../src/shared/thinking-ceiling.ts";
 
 let home = "";
 let project = "";
@@ -27,9 +32,12 @@ describe("thinking ceilings", () => {
 	});
 
 	afterEach(() => {
-		if (previousHome === undefined) delete process.env.HOME; else process.env.HOME = previousHome;
-		if (previousUserProfile === undefined) delete process.env.USERPROFILE; else process.env.USERPROFILE = previousUserProfile;
-		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR; else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
+		if (previousHome === undefined) delete process.env.HOME;
+		else process.env.HOME = previousHome;
+		if (previousUserProfile === undefined) delete process.env.USERPROFILE;
+		else process.env.USERPROFILE = previousUserProfile;
+		if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+		else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
 		fs.rmSync(home, { recursive: true, force: true });
 		fs.rmSync(project, { recursive: true, force: true });
 	});
@@ -46,12 +54,17 @@ describe("thinking ceilings", () => {
 	it("intersects inherited ceilings and validates concrete model suffixes", () => {
 		assert.equal(intersectThinkingCeilings("xhigh", "high"), "high");
 		assert.equal(intersectThinkingCeilings("low", "xhigh"), "low");
-		assert.doesNotThrow(() => assertThinkingWithinCeiling({ model: "test/model:xhigh", ceiling: "xhigh", agent: "worker" }));
+		assert.doesNotThrow(() =>
+			assertThinkingWithinCeiling({ model: "test/model:xhigh", ceiling: "xhigh", agent: "worker" }),
+		);
 		assert.throws(
-			() => assertThinkingWithinCeiling({ model: "test/model:max", ceiling: "xhigh", agent: "worker", runId: "run-1" }),
+			() =>
+				assertThinkingWithinCeiling({ model: "test/model:max", ceiling: "xhigh", agent: "worker", runId: "run-1" }),
 			/Thinking level 'max'.*maximum 'xhigh'.*worker.*run-1/,
 		);
-		assert.doesNotThrow(() => assertThinkingWithinCeiling({ model: "test/model", configThinking: false, ceiling: "off" }));
+		assert.doesNotThrow(() =>
+			assertThinkingWithinCeiling({ model: "test/model", configThinking: false, ceiling: "off" }),
+		);
 	});
 
 	it("loads maxThinking with project precedence and attaches it to discovered agents", () => {
@@ -67,7 +80,11 @@ describe("thinking ceilings", () => {
 		const settingsPath = path.join(home, ".pi", "agent", "settings.json");
 		for (const value of ["", "turbo", 42, false]) {
 			writeJson(settingsPath, { subagents: { maxThinking: value } });
-			assert.throws(() => discoverAgents(project, "both"), (error: unknown) => error instanceof Error && error.message.includes(settingsPath) && error.message.includes("maxThinking"));
+			assert.throws(
+				() => discoverAgents(project, "both"),
+				(error: unknown) =>
+					error instanceof Error && error.message.includes(settingsPath) && error.message.includes("maxThinking"),
+			);
 		}
 	});
 });

@@ -3,16 +3,35 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { after, before, describe, it } from "node:test";
-import { fauxAssistantMessage, fauxProvider, fauxToolCall, getSystemMessageText, type FauxResponseFactory } from "@evoharness/ai";
+import {
+	type FauxResponseFactory,
+	fauxAssistantMessage,
+	fauxProvider,
+	fauxToolCall,
+	getSystemMessageText,
+} from "@evoharness/ai";
 import type { ExtensionAPI } from "@evoharness/coding-agent";
 import { buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
 import { createDefaultChildSessionFactory } from "../../src/runs/shared/child-session.ts";
 import { createStructuredOutputRuntime } from "../../src/runs/shared/structured-output.ts";
-import { CHILD_FANOUT_BOUNDARY_INSTRUCTIONS, CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS, rewriteSubagentPrompt } from "../../src/runs/shared/subagent-prompt-runtime.ts";
+import {
+	CHILD_FANOUT_BOUNDARY_INSTRUCTIONS,
+	CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS,
+	rewriteSubagentPrompt,
+} from "../../src/runs/shared/subagent-prompt-runtime.ts";
 
 type Flags = { inheritProjectContext: boolean; inheritGlobalContext: boolean; inheritSkills: boolean };
 type Fixture = { globalContext?: boolean; repoContext?: boolean; orchestrationSkill?: boolean };
-type Run = { flags: Flags; fixture?: Fixture; unsetFlags?: boolean; fanout?: boolean; structured?: boolean; prompts?: string[]; toolTurn?: boolean; hooks?: Array<(pi: ExtensionAPI) => void> };
+type Run = {
+	flags: Flags;
+	fixture?: Fixture;
+	unsetFlags?: boolean;
+	fanout?: boolean;
+	structured?: boolean;
+	prompts?: string[];
+	toolTurn?: boolean;
+	hooks?: Array<(pi: ExtensionAPI) => void>;
+};
 
 const count = (text: string, part: string) => text.split(part).length - 1;
 
@@ -40,13 +59,21 @@ describe("child provider system prompt", () => {
 
 	function writeSkill(name: string): void {
 		fs.mkdirSync(path.join(agentDir, "skills", name), { recursive: true });
-		fs.writeFileSync(path.join(agentDir, "skills", name, "SKILL.md"), `---\nname: ${name}\ndescription: ${name} skill.\n---\nBody`);
+		fs.writeFileSync(
+			path.join(agentDir, "skills", name, "SKILL.md"),
+			`---\nname: ${name}\ndescription: ${name} skill.\n---\nBody`,
+		);
 	}
 
 	function setFixture({ globalContext = true, repoContext = true, orchestrationSkill = false }: Fixture): void {
-		const toggle = (file: string, present: boolean, write: () => void) => present ? write() : fs.rmSync(file, { recursive: true, force: true });
-		toggle(path.join(agentDir, "AGENTS.md"), globalContext, () => fs.writeFileSync(path.join(agentDir, "AGENTS.md"), "GLOBAL-CONTEXT-MARKER"));
-		toggle(path.join(repo, "AGENTS.md"), repoContext, () => fs.writeFileSync(path.join(repo, "AGENTS.md"), "REPO-CONTEXT-MARKER"));
+		const toggle = (file: string, present: boolean, write: () => void) =>
+			present ? write() : fs.rmSync(file, { recursive: true, force: true });
+		toggle(path.join(agentDir, "AGENTS.md"), globalContext, () =>
+			fs.writeFileSync(path.join(agentDir, "AGENTS.md"), "GLOBAL-CONTEXT-MARKER"),
+		);
+		toggle(path.join(repo, "AGENTS.md"), repoContext, () =>
+			fs.writeFileSync(path.join(repo, "AGENTS.md"), "REPO-CONTEXT-MARKER"),
+		);
 		toggle(path.join(agentDir, "skills", "pi-subagents"), orchestrationSkill, () => writeSkill("pi-subagents"));
 	}
 
@@ -55,24 +82,56 @@ describe("child provider system prompt", () => {
 		setFixture(run.fixture ?? {});
 		const faux = fauxProvider({ provider: "probe", models: [{ id: "local" }], tokensPerSecond: 100_000 });
 		const requests: string[] = [];
-		const reply = (message: ReturnType<typeof fauxAssistantMessage>): FauxResponseFactory => (context) => {
-			requests.push(context.messages.filter((entry) => entry.role === "system").map((entry) => getSystemMessageText(entry as never)).join("\n\n"));
-			return message;
-		};
-		faux.setResponses((run.prompts ?? ["Task"]).flatMap(() => run.toolTurn
-			? [reply(fauxAssistantMessage(fauxToolCall("read", { path: "notes.txt" }), { stopReason: "toolUse" })), reply(fauxAssistantMessage("done"))]
-			: [reply(fauxAssistantMessage("done"))]));
+		const reply =
+			(message: ReturnType<typeof fauxAssistantMessage>): FauxResponseFactory =>
+			(context) => {
+				requests.push(
+					context.messages
+						.filter((entry) => entry.role === "system")
+						.map((entry) => getSystemMessageText(entry as never))
+						.join("\n\n"),
+				);
+				return message;
+			};
+		faux.setResponses(
+			(run.prompts ?? ["Task"]).flatMap(() =>
+				run.toolTurn
+					? [
+							reply(
+								fauxAssistantMessage(fauxToolCall("read", { path: "notes.txt" }), { stopReason: "toolUse" }),
+							),
+							reply(fauxAssistantMessage("done")),
+						]
+					: [reply(fauxAssistantMessage("done"))],
+			),
+		);
 		const { session, config } = buildInProcessChildLaunch({
-			host: "parent", cwd: repo, childAgentName: "worker", childIndex: 0, sessionEnabled: false, waitToolEnabled: false,
-			model: "probe/local", systemPrompt: "Role instructions.", systemPromptMode: "append", ...run.flags,
+			host: "parent",
+			cwd: repo,
+			childAgentName: "worker",
+			childIndex: 0,
+			sessionEnabled: false,
+			waitToolEnabled: false,
+			model: "probe/local",
+			systemPrompt: "Role instructions.",
+			systemPromptMode: "append",
+			...run.flags,
 			...(run.fanout ? { allowNestedSubagents: true } : {}),
 			...(run.structured ? { structuredOutput: createStructuredOutputRuntime({ type: "object" }, repo) } : {}),
 		});
 		// Unset flags make the prompt runtime leave the prompt alone, so the same launch yields Pi's original render.
-		if (run.unsetFlags) Object.assign(config, { inheritProjectContext: undefined, inheritGlobalContext: undefined, inheritSkills: undefined });
+		if (run.unsetFlags)
+			Object.assign(config, {
+				inheritProjectContext: undefined,
+				inheritGlobalContext: undefined,
+				inheritSkills: undefined,
+			});
 		const factory = createDefaultChildSessionFactory({ loadPiCodingAgent: () => import("@evoharness/coding-agent") });
-		const hooks = [(pi: ExtensionAPI) => pi.registerProvider(faux.provider as never), ...run.hooks ?? []];
-		const child = await factory.create({ ...session, hooks: [...session.hooks, ...hooks.map((factory, index) => ({ name: `probe-${index}`, factory }))] });
+		const hooks = [(pi: ExtensionAPI) => pi.registerProvider(faux.provider as never), ...(run.hooks ?? [])];
+		const child = await factory.create({
+			...session,
+			hooks: [...session.hooks, ...hooks.map((factory, index) => ({ name: `probe-${index}`, factory }))],
+		});
 		try {
 			for (const prompt of run.prompts ?? ["Task"]) await child.prompt(prompt);
 		} finally {
@@ -89,8 +148,14 @@ describe("child provider system prompt", () => {
 			prompts: ["Task", "Next task"],
 			toolTurn: true,
 			hooks: [
-				(pi) => pi.on("before_agent_start", (event) => { captured.push(event.systemPrompt); }),
-				(pi) => pi.on("before_agent_start", (event) => { event.systemPromptOptions.sections.probe = "PROBE-SECTION-MARKER"; }),
+				(pi) =>
+					pi.on("before_agent_start", (event) => {
+						captured.push(event.systemPrompt);
+					}),
+				(pi) =>
+					pi.on("before_agent_start", (event) => {
+						event.systemPromptOptions.sections.probe = "PROBE-SECTION-MARKER";
+					}),
 			],
 		});
 
@@ -120,10 +185,18 @@ describe("child provider system prompt", () => {
 	const noGlobal = { inheritProjectContext: true, inheritGlobalContext: false, inheritSkills: true };
 	for (const [label, run, absent] of [
 		["nothing to remove", { flags: inheritAll }, {}],
-		["context and skills not loaded", { flags: { inheritProjectContext: false, inheritGlobalContext: false, inheritSkills: false } }, {}],
+		[
+			"context and skills not loaded",
+			{ flags: { inheritProjectContext: false, inheritGlobalContext: false, inheritSkills: false } },
+			{},
+		],
 		["global context removed", { flags: noGlobal }, { globalContext: false }],
 		["the only context file removed", { flags: noGlobal, fixture: { repoContext: false } }, { globalContext: false }],
-		["pi-subagents skill removed next to another skill", { flags: inheritAll, fixture: { orchestrationSkill: true } }, { orchestrationSkill: false }],
+		[
+			"pi-subagents skill removed next to another skill",
+			{ flags: inheritAll, fixture: { orchestrationSkill: true } },
+			{ orchestrationSkill: false },
+		],
 		["structured output", { flags: noGlobal, structured: true }, { globalContext: false }],
 	] as Array<[string, Run, Fixture]>) {
 		it(`sends a child without other extensions Pi's render of the launch without the removed resources, plus the boundary (${label})`, async () => {
@@ -137,7 +210,16 @@ describe("child provider system prompt", () => {
 	it("keeps the fanout child's provider prompt byte-identical", async () => {
 		const flags = inheritAll;
 		const seen: string[] = [];
-		const [rewritten] = await providerPrompts({ flags, fanout: true, hooks: [(pi) => pi.on("before_agent_start", (event) => { seen.push(event.systemPrompt); })] });
+		const [rewritten] = await providerPrompts({
+			flags,
+			fanout: true,
+			hooks: [
+				(pi) =>
+					pi.on("before_agent_start", (event) => {
+						seen.push(event.systemPrompt);
+					}),
+			],
+		});
 		// With everything inherited the filter removes nothing, so the prompt seen mid-chain is Pi's original render.
 		assert.equal(rewritten, rewriteSubagentPrompt(seen[0]!, { ...flags, fanoutChild: true }));
 		assert.ok(rewritten!.endsWith(`\n\n${CHILD_FANOUT_BOUNDARY_INSTRUCTIONS}`));

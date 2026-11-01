@@ -1,10 +1,14 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { buildTimeoutRecoverySummary, collectTrackedMutationEvidence, snapshotTrackedMutations } from "../../src/runs/shared/mutation-evidence.ts";
+import { describe, it } from "node:test";
+import {
+	buildTimeoutRecoverySummary,
+	collectTrackedMutationEvidence,
+	snapshotTrackedMutations,
+} from "../../src/runs/shared/mutation-evidence.ts";
 
 function git(cwd: string, args: string[]): void {
 	execFileSync("git", args, { cwd, stdio: "ignore" });
@@ -91,7 +95,11 @@ describe("tracked mutation evidence", () => {
 		withRepo((repo) => {
 			const marker = path.join(repo, "fsmonitor-invoked");
 			const hook = path.join(repo, "fsmonitor-hook.cjs");
-			fs.writeFileSync(hook, `require("node:fs").appendFileSync(${JSON.stringify(marker)}, "invoked\\n");\n`, "utf-8");
+			fs.writeFileSync(
+				hook,
+				`require("node:fs").appendFileSync(${JSON.stringify(marker)}, "invoked\\n");\n`,
+				"utf-8",
+			);
 			git(repo, ["config", "core.fsmonitor", `${JSON.stringify(process.execPath)} ${JSON.stringify(hook)}`]);
 			git(repo, ["status", "--short"]);
 			assert.equal(fs.existsSync(marker), true);
@@ -129,7 +137,10 @@ describe("tracked mutation evidence", () => {
 	});
 
 	it("classifies dirty timeouts with a missing requested report as recovery-needed", () => {
-		const changedFiles = Array.from({ length: 25 }, (_, index) => `src/file-${String(index + 1).padStart(2, "0")}.ts`);
+		const changedFiles = Array.from(
+			{ length: 25 },
+			(_, index) => `src/file-${String(index + 1).padStart(2, "0")}.ts`,
+		);
 		const summary = buildTimeoutRecoverySummary({
 			termination: "timed-out",
 			evidence: {

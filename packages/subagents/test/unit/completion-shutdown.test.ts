@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import { it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
+
 const tick = () => sleep(5);
+
 import registerNotify, { PENDING_NOTICE_ENTRY, unreplayedPendingNotices } from "../../src/runs/background/notify.ts";
 
 type Entry = { type: string; customType?: string; content?: unknown; data?: unknown };
@@ -14,29 +16,57 @@ function session() {
 	const id = randomUUID();
 	const entries: Entry[] = [];
 	const abandoned: Entry[] = [];
-	return { entries, abandoned, manager: () => ({ getSessionId: () => id, getEntries: () => [...entries, ...abandoned], getBranch: () => entries }) };
+	return {
+		entries,
+		abandoned,
+		manager: () => ({
+			getSessionId: () => id,
+			getEntries: () => [...entries, ...abandoned],
+			getBranch: () => entries,
+		}),
+	};
 }
 
 // A reload keeps Pi's session manager object; a new process creates a new one.
 function processOn(file: ReturnType<typeof session>, appended = false, manager = file.manager()) {
 	const sent: Array<{ message: any; options: any }> = [];
-	const notifier = registerNotify({
-		events: { on: () => () => {} }, isHeld: () => false, on: () => () => {},
-		sendMessage(message: any, options: any) {
-			sent.push({ message, options });
-			if (appended) file.entries.push({ type: "custom_message", customType: message.customType, content: message.content });
-			return appended;
-		},
-		appendEntry(customType: string, data: unknown) { file.entries.push({ type: "custom", customType, data }); },
-	} as never, { currentSessionId: manager.getSessionId(), completionOwnerId: randomUUID() }, { batchConfig: { enabled: false }, ownership: { owns: () => true, claimedSessionIds: () => [] } });
+	const notifier = registerNotify(
+		{
+			events: { on: () => () => {} },
+			isHeld: () => false,
+			on: () => () => {},
+			sendMessage(message: any, options: any) {
+				sent.push({ message, options });
+				if (appended)
+					file.entries.push({ type: "custom_message", customType: message.customType, content: message.content });
+				return appended;
+			},
+			appendEntry(customType: string, data: unknown) {
+				file.entries.push({ type: "custom", customType, data });
+			},
+		} as never,
+		{ currentSessionId: manager.getSessionId(), completionOwnerId: randomUUID() },
+		{ batchConfig: { enabled: false }, ownership: { owns: () => true, claimedSessionIds: () => [] } },
+	);
 	return {
-		notifier, sent, manager,
+		notifier,
+		sent,
+		manager,
 		bind: () => notifier.bindSession(manager),
-		deliver: (runId = randomUUID()) => notifier.deliver({
-			id: runId, runId, sessionId: manager.getSessionId(), completionOwnerId: "owner",
-			success: true, agent: "worker", summary: "Saved report ready.",
-		}),
-		quit() { notifier.sessionShutdown("quit"); notifier.dispose(); },
+		deliver: (runId = randomUUID()) =>
+			notifier.deliver({
+				id: runId,
+				runId,
+				sessionId: manager.getSessionId(),
+				completionOwnerId: "owner",
+				success: true,
+				agent: "worker",
+				summary: "Saved report ready.",
+			}),
+		quit() {
+			notifier.sessionShutdown("quit");
+			notifier.dispose();
+		},
 	};
 }
 
@@ -48,7 +78,11 @@ it("resends a notice whose wake Pi never started when the next process opens the
 	assert.equal(await first.deliver(runId), true);
 	assert.equal(first.sent[0]!.options.triggerTurn, true);
 	first.quit();
-	assert.equal(unreplayedPendingNotices(file.entries).length, 1, "shutdown records the unstarted notice in the session");
+	assert.equal(
+		unreplayedPendingNotices(file.entries).length,
+		1,
+		"shutdown records the unstarted notice in the session",
+	);
 
 	const second = processOn(file, true);
 	second.bind();
@@ -80,7 +114,11 @@ it("resends a pending notice that only another branch of the session carries", a
 	first.bind();
 	await first.deliver();
 	first.quit();
-	file.abandoned.push({ type: "custom_message", customType: "subagent-notify", content: first.sent[0]!.message.content });
+	file.abandoned.push({
+		type: "custom_message",
+		customType: "subagent-notify",
+		content: first.sent[0]!.message.content,
+	});
 	const second = processOn(file, true);
 	second.bind();
 	await tick();

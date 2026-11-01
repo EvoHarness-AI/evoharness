@@ -8,8 +8,8 @@ import {
 	registerPiWebSessionLiveness,
 	retainLiveForegroundNestedRoute,
 } from "../../src/integrations/pi-web-session-liveness.ts";
-import { createNestedRoute, writeNestedEvent } from "../../src/runs/shared/nested-events.ts";
 import { removeForegroundControlIfIdle } from "../../src/runs/foreground/subagent-executor.ts";
+import { createNestedRoute, writeNestedEvent } from "../../src/runs/shared/nested-events.ts";
 import type { SubagentState } from "../../src/shared/types.ts";
 
 function clearRegistry(): void {
@@ -143,7 +143,12 @@ describe("pi-web session liveness integration", () => {
 		});
 		let tracked: string | undefined;
 
-		assert.equal(removeForegroundControlIfIdle(state, route.rootRunId, (rootRunId) => { tracked = rootRunId; }), true);
+		assert.equal(
+			removeForegroundControlIfIdle(state, route.rootRunId, (rootRunId) => {
+				tracked = rootRunId;
+			}),
+			true,
+		);
 		assert.equal(state.foregroundControls.has(route.rootRunId), false);
 		assert.equal(state.retainedForegroundNestedRoutes?.has(route.rootRunId), true);
 		assert.equal(tracked, route.rootRunId);
@@ -185,7 +190,9 @@ describe("pi-web session liveness integration", () => {
 			version: 1,
 			register(value: typeof provider) {
 				provider = value;
-				return () => { released += 1; };
+				return () => {
+					released += 1;
+				};
 			},
 		};
 

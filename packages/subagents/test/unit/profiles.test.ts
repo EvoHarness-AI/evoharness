@@ -13,8 +13,8 @@ import {
 	getProviderModelsPath,
 	getSubagentProfilesDir,
 	listSubagentProfiles,
-	refreshProviderModelCatalog,
 	readProviderModelCatalog,
+	refreshProviderModelCatalog,
 } from "../../src/profiles/profiles.ts";
 import { PI_SUBAGENT_PI_BINARY_ENV } from "../../src/runs/shared/pi-spawn.ts";
 
@@ -58,27 +58,41 @@ describe("profiles helpers", () => {
 	it("applies a saved profile while preserving unrelated subagent settings", () => {
 		const profilesDir = getSubagentProfilesDir();
 		fs.mkdirSync(profilesDir, { recursive: true });
-		fs.writeFileSync(path.join(profilesDir, "openai-codex.quota.json"), JSON.stringify({
-			subagents: {
-				agentOverrides: {
-					scout: {
-						model: "openai-codex/gpt-5.3-codex-spark",
-						thinking: "medium",
+		fs.writeFileSync(
+			path.join(profilesDir, "openai-codex.quota.json"),
+			JSON.stringify(
+				{
+					subagents: {
+						agentOverrides: {
+							scout: {
+								model: "openai-codex/gpt-5.3-codex-spark",
+								thinking: "medium",
+							},
+							reviewer: { thinking: false },
+						},
 					},
-					reviewer: { thinking: false },
 				},
-			},
-		}, null, 2));
+				null,
+				2,
+			),
+		);
 		const settingsPath = path.join(homeDir, ".pi", "agent", "settings.json");
 		fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-		fs.writeFileSync(settingsPath, JSON.stringify({
-			defaultModel: "openai/gpt-5",
-			subagents: {
-				disableBuiltins: true,
-				modelScope: { enforce: true, allow: ["openai-codex/*"] },
-				agentOverrides: { scout: { model: "old" }, stale: { model: "remove-me" } },
-			},
-		}, null, 2));
+		fs.writeFileSync(
+			settingsPath,
+			JSON.stringify(
+				{
+					defaultModel: "openai/gpt-5",
+					subagents: {
+						disableBuiltins: true,
+						modelScope: { enforce: true, allow: ["openai-codex/*"] },
+						agentOverrides: { scout: { model: "old" }, stale: { model: "remove-me" } },
+					},
+				},
+				null,
+				2,
+			),
+		);
 
 		const result = applySubagentProfile("openai-codex.quota");
 		const written = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
@@ -99,14 +113,39 @@ describe("profiles helpers", () => {
 	it("keeps machine placement when a model profile replaces the override map", () => {
 		const profilesDir = getSubagentProfilesDir();
 		fs.mkdirSync(profilesDir, { recursive: true });
-		fs.writeFileSync(path.join(profilesDir, "quota.json"), JSON.stringify({
-			subagents: { agentOverrides: { scout: { model: "openai-codex/gpt-5.3-codex-spark" }, "claude-code": { thinking: false } } },
-		}, null, 2));
+		fs.writeFileSync(
+			path.join(profilesDir, "quota.json"),
+			JSON.stringify(
+				{
+					subagents: {
+						agentOverrides: {
+							scout: { model: "openai-codex/gpt-5.3-codex-spark" },
+							"claude-code": { thinking: false },
+						},
+					},
+				},
+				null,
+				2,
+			),
+		);
 		const settingsPath = path.join(homeDir, ".pi", "agent", "settings.json");
 		fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-		fs.writeFileSync(settingsPath, JSON.stringify({
-			subagents: { agentOverrides: { "claude-code": { machine: "workmac", model: "old" }, "codex-exec": { machine: "workmac" }, stale: { model: "remove-me" } } },
-		}, null, 2));
+		fs.writeFileSync(
+			settingsPath,
+			JSON.stringify(
+				{
+					subagents: {
+						agentOverrides: {
+							"claude-code": { machine: "workmac", model: "old" },
+							"codex-exec": { machine: "workmac" },
+							stale: { model: "remove-me" },
+						},
+					},
+				},
+				null,
+				2,
+			),
+		);
 
 		applySubagentProfile("quota");
 		const written = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
@@ -122,17 +161,24 @@ describe("profiles helpers", () => {
 		fs.mkdirSync(profilesDir, { recursive: true });
 		const settingsPath = path.join(homeDir, ".pi", "agent", "settings.json");
 		fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-		const originalSettings = '{\n  "defaultModel": "openai/gpt-5",\n  "subagents": {\n    "agentOverrides": {\n      "worker": {\n        "machine": "workmac",\n        "model": "old"\n      }\n    }\n  }\n}\n';
+		const originalSettings =
+			'{\n  "defaultModel": "openai/gpt-5",\n  "subagents": {\n    "agentOverrides": {\n      "worker": {\n        "machine": "workmac",\n        "model": "old"\n      }\n    }\n  }\n}\n';
 		fs.writeFileSync(settingsPath, originalSettings);
 		const agentDir = path.join(homeDir, ".pi", "agent", "agents");
 		fs.mkdirSync(agentDir, { recursive: true });
-		fs.writeFileSync(path.join(agentDir, "worker.md"), `---\nname: worker\ndescription: Existing worker\n---\n\nDo work.\n`);
+		fs.writeFileSync(
+			path.join(agentDir, "worker.md"),
+			`---\nname: worker\ndescription: Existing worker\n---\n\nDo work.\n`,
+		);
 
 		const invalidMachines: unknown[] = [7, {}, null, "", "   ", "m".repeat(129), "work\u0000mac"];
 		for (const [index, machine] of invalidMachines.entries()) {
-			fs.writeFileSync(path.join(profilesDir, `invalid-machine-${index}.json`), JSON.stringify({
-				subagents: { agentOverrides: { worker: { machine } } },
-			}));
+			fs.writeFileSync(
+				path.join(profilesDir, `invalid-machine-${index}.json`),
+				JSON.stringify({
+					subagents: { agentOverrides: { worker: { machine } } },
+				}),
+			);
 
 			assert.throws(() => applySubagentProfile(`invalid-machine-${index}`), /has invalid machine for 'worker'/u);
 			assert.equal(fs.readFileSync(settingsPath, "utf-8"), originalSettings);
@@ -144,12 +190,18 @@ describe("profiles helpers", () => {
 	it("applies a normalized machine and discovers the resulting pin", () => {
 		const profilesDir = getSubagentProfilesDir();
 		fs.mkdirSync(profilesDir, { recursive: true });
-		fs.writeFileSync(path.join(profilesDir, "machine.json"), JSON.stringify({
-			subagents: { agentOverrides: { worker: { machine: " local-runner " } } },
-		}));
+		fs.writeFileSync(
+			path.join(profilesDir, "machine.json"),
+			JSON.stringify({
+				subagents: { agentOverrides: { worker: { machine: " local-runner " } } },
+			}),
+		);
 		const agentDir = path.join(homeDir, ".pi", "agent", "agents");
 		fs.mkdirSync(agentDir, { recursive: true });
-		fs.writeFileSync(path.join(agentDir, "worker.md"), `---\nname: worker\ndescription: Profile-managed worker\n---\n\nDo work.\n`);
+		fs.writeFileSync(
+			path.join(agentDir, "worker.md"),
+			`---\nname: worker\ndescription: Profile-managed worker\n---\n\nDo work.\n`,
+		);
 
 		applySubagentProfile("machine");
 		const settings = JSON.parse(fs.readFileSync(path.join(homeDir, ".pi", "agent", "settings.json"), "utf-8"));
@@ -161,17 +213,26 @@ describe("profiles helpers", () => {
 	it("lets false clear an existing machine pin when applying a profile", () => {
 		const profilesDir = getSubagentProfilesDir();
 		fs.mkdirSync(profilesDir, { recursive: true });
-		fs.writeFileSync(path.join(profilesDir, "clear-machine.json"), JSON.stringify({
-			subagents: { agentOverrides: { worker: { machine: false } } },
-		}));
+		fs.writeFileSync(
+			path.join(profilesDir, "clear-machine.json"),
+			JSON.stringify({
+				subagents: { agentOverrides: { worker: { machine: false } } },
+			}),
+		);
 		const agentDir = path.join(homeDir, ".pi", "agent", "agents");
 		fs.mkdirSync(agentDir, { recursive: true });
-		fs.writeFileSync(path.join(agentDir, "worker.md"), `---\nname: worker\ndescription: Profile-managed worker\n---\n\nDo work.\n`);
+		fs.writeFileSync(
+			path.join(agentDir, "worker.md"),
+			`---\nname: worker\ndescription: Profile-managed worker\n---\n\nDo work.\n`,
+		);
 		const settingsPath = path.join(homeDir, ".pi", "agent", "settings.json");
 		fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-		fs.writeFileSync(settingsPath, JSON.stringify({
-			subagents: { agentOverrides: { worker: { machine: "workmac" } } },
-		}));
+		fs.writeFileSync(
+			settingsPath,
+			JSON.stringify({
+				subagents: { agentOverrides: { worker: { machine: "workmac" } } },
+			}),
+		);
 
 		applySubagentProfile("clear-machine");
 		const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
@@ -183,20 +244,30 @@ describe("profiles helpers", () => {
 	it("applies profile models and thinking to user agents without frontmatter pins", () => {
 		const profilesDir = getSubagentProfilesDir();
 		fs.mkdirSync(profilesDir, { recursive: true });
-		fs.writeFileSync(path.join(profilesDir, "azure-fallback.json"), JSON.stringify({
-			subagents: {
-				disableBuiltins: true,
-				agentOverrides: {
-					worker: {
-						model: "bluebox-azure-openai/gpt-5_6-luna",
-						thinking: "high",
+		fs.writeFileSync(
+			path.join(profilesDir, "azure-fallback.json"),
+			JSON.stringify(
+				{
+					subagents: {
+						disableBuiltins: true,
+						agentOverrides: {
+							worker: {
+								model: "bluebox-azure-openai/gpt-5_6-luna",
+								thinking: "high",
+							},
+						},
 					},
 				},
-			},
-		}, null, 2));
+				null,
+				2,
+			),
+		);
 		const agentDir = path.join(homeDir, ".pi", "agent", "agents");
 		fs.mkdirSync(agentDir, { recursive: true });
-		fs.writeFileSync(path.join(agentDir, "worker.md"), `---\nname: worker\ndescription: Profile-managed worker\n---\n\nDo work.\n`);
+		fs.writeFileSync(
+			path.join(agentDir, "worker.md"),
+			`---\nname: worker\ndescription: Profile-managed worker\n---\n\nDo work.\n`,
+		);
 
 		applySubagentProfile("azure-fallback");
 		const agents = discoverAgents(process.cwd(), "both").agents;
@@ -205,19 +276,29 @@ describe("profiles helpers", () => {
 		assert.equal(worker?.model, "bluebox-azure-openai/gpt-5_6-luna");
 		assert.equal(worker?.thinking, "high");
 		assert.equal(worker?.override?.scope, "user");
-		assert.equal(agents.some((agent) => agent.source === "builtin"), false);
+		assert.equal(
+			agents.some((agent) => agent.source === "builtin"),
+			false,
+		);
 	});
 
 	it("rejects removed profile fallback models", () => {
 		const profilesDir = getSubagentProfilesDir();
 		fs.mkdirSync(profilesDir, { recursive: true });
-		fs.writeFileSync(path.join(profilesDir, "invalid.json"), JSON.stringify({
-			subagents: {
-				agentOverrides: {
-					worker: { fallbackModels: ["openai/gpt-5", 42] },
+		fs.writeFileSync(
+			path.join(profilesDir, "invalid.json"),
+			JSON.stringify(
+				{
+					subagents: {
+						agentOverrides: {
+							worker: { fallbackModels: ["openai/gpt-5", 42] },
+						},
+					},
 				},
-			},
-		}, null, 2));
+				null,
+				2,
+			),
+		);
 
 		assert.throws(() => applySubagentProfile("invalid"), /removed field fallbackModels/);
 	});
@@ -226,7 +307,11 @@ describe("profiles helpers", () => {
 		assert.throws(() => applySubagentProfile("../escape"), /safe file name/);
 		assert.throws(() => getProviderModelsPath("../escape"), /safe file name/);
 		await assert.rejects(
-			refreshProviderModelCatalog({ exec: async () => ({ stdout: "OK\n", stderr: "", code: 0, killed: false }) }, makeCtx(process.cwd(), []) as never, "../escape"),
+			refreshProviderModelCatalog(
+				{ exec: async () => ({ stdout: "OK\n", stderr: "", code: 0, killed: false }) },
+				makeCtx(process.cwd(), []) as never,
+				"../escape",
+			),
 			/safe file name/,
 		);
 	});
@@ -256,15 +341,24 @@ describe("profiles helpers", () => {
 		assert.equal(fs.existsSync(result.filePath), true);
 		assert.equal(result.catalog.models.length, 4);
 		assert.equal(execCalls.length, 4);
-		assert.equal(execCalls.every((call) => call.includes("--no-tools")), true);
-		assert.equal(execCalls.some((call) => call.includes("--tools read")), false);
+		assert.equal(
+			execCalls.every((call) => call.includes("--no-tools")),
+			true,
+		);
+		assert.equal(
+			execCalls.some((call) => call.includes("--tools read")),
+			false,
+		);
 		assert.deepEqual(execCwds, [os.tmpdir(), os.tmpdir(), os.tmpdir(), os.tmpdir()]);
-		assert.deepEqual(result.catalog.models.map((entry) => entry.fullId), [
-			"openai-codex/gpt-5.3-codex-spark",
-			"openai-codex/gpt-5.4-mini",
-			"openai-codex/gpt-5.4",
-			"openai-codex/gpt-5.5",
-		]);
+		assert.deepEqual(
+			result.catalog.models.map((entry) => entry.fullId),
+			[
+				"openai-codex/gpt-5.3-codex-spark",
+				"openai-codex/gpt-5.4-mini",
+				"openai-codex/gpt-5.4",
+				"openai-codex/gpt-5.5",
+			],
+		);
 		assert.equal(readProviderModelCatalog("openai-codex")?.provider, "openai-codex");
 		assert.equal(result.heuristicFallbackCount, 4);
 		assert.deepEqual(result.catalog.models[0]?.derived.classificationSources, ["heuristic-name"]);
@@ -297,7 +391,10 @@ describe("profiles helpers", () => {
 		]);
 		const result = await refreshProviderModelCatalog(pi, ctx as never, "openai");
 		assert.equal(result.heuristicFallbackCount, 0);
-		assert.deepEqual(result.catalog.models[0]?.derived.classificationSources, ["official-metadata", "heuristic-name"]);
+		assert.deepEqual(result.catalog.models[0]?.derived.classificationSources, [
+			"official-metadata",
+			"heuristic-name",
+		]);
 		assert.deepEqual(result.catalog.models[0]?.warnings, []);
 	});
 
@@ -309,13 +406,20 @@ describe("profiles helpers", () => {
 		};
 		const filePath = getProviderModelsPath("openai-codex");
 		fs.mkdirSync(path.dirname(filePath), { recursive: true });
-		fs.writeFileSync(filePath, JSON.stringify({
-			provider: "openai-codex",
-			refreshedAt: new Date().toISOString(),
-			maxAgeDays: DEFAULT_PROVIDER_MODELS_MAX_AGE_DAYS,
-			sources: ["runtime-registry"],
-			models: [],
-		}, null, 2));
+		fs.writeFileSync(
+			filePath,
+			JSON.stringify(
+				{
+					provider: "openai-codex",
+					refreshedAt: new Date().toISOString(),
+					maxAgeDays: DEFAULT_PROVIDER_MODELS_MAX_AGE_DAYS,
+					sources: ["runtime-registry"],
+					models: [],
+				},
+				null,
+				2,
+			),
+		);
 		const result = await refreshProviderModelCatalog(pi, makeCtx(process.cwd(), []) as never, "openai-codex");
 		assert.equal(result.reused, true);
 	});
@@ -395,14 +499,21 @@ describe("profiles helpers", () => {
 	it("checks a profile against the registry and live probe", async () => {
 		const profilesDir = getSubagentProfilesDir();
 		fs.mkdirSync(profilesDir, { recursive: true });
-		fs.writeFileSync(path.join(profilesDir, "demo.json"), JSON.stringify({
-			subagents: {
-				agentOverrides: {
-					scout: { model: "openai-codex/gpt-5.3-codex-spark" },
-					worker: { model: "openai-codex/gpt-5.9" },
+		fs.writeFileSync(
+			path.join(profilesDir, "demo.json"),
+			JSON.stringify(
+				{
+					subagents: {
+						agentOverrides: {
+							scout: { model: "openai-codex/gpt-5.3-codex-spark" },
+							worker: { model: "openai-codex/gpt-5.9" },
+						},
+					},
 				},
-			},
-		}, null, 2));
+				null,
+				2,
+			),
+		);
 		const pi = {
 			exec: async (_command: string, args: string[]) => {
 				const model = args[2];
@@ -433,9 +544,16 @@ describe("profiles helpers", () => {
 	it("checks short model ids and thinking suffixes against the registry", async () => {
 		const profilesDir = getSubagentProfilesDir();
 		fs.mkdirSync(profilesDir, { recursive: true });
-		fs.writeFileSync(path.join(profilesDir, "demo.json"), JSON.stringify({
-			subagents: { agentOverrides: { scout: { model: "gpt-5.3-codex-spark:high" } } },
-		}, null, 2));
+		fs.writeFileSync(
+			path.join(profilesDir, "demo.json"),
+			JSON.stringify(
+				{
+					subagents: { agentOverrides: { scout: { model: "gpt-5.3-codex-spark:high" } } },
+				},
+				null,
+				2,
+			),
+		);
 		const probedModels: unknown[] = [];
 		const pi = {
 			exec: async (_command: string, args: string[]) => {

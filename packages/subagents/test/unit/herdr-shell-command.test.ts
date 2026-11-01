@@ -11,7 +11,11 @@ describe("formatShellCommand on POSIX shells", () => {
 
 	it("keeps a shell-safe executable bare so Nushell parses it as a command", () => {
 		assert.equal(
-			formatShellCommand("/usr/bin/node", ["/home/u/.pi/inspector-runner.mjs", "--async-dir", "/tmp/run-1|fc_abc"], platform),
+			formatShellCommand(
+				"/usr/bin/node",
+				["/home/u/.pi/inspector-runner.mjs", "--async-dir", "/tmp/run-1|fc_abc"],
+				platform,
+			),
 			"/usr/bin/node '/home/u/.pi/inspector-runner.mjs' '--async-dir' '/tmp/run-1|fc_abc'",
 		);
 	});
@@ -40,7 +44,9 @@ describe("formatShellCommand on POSIX shells", () => {
 			const executable = path.join(root, "tool=' value");
 			fs.writeFileSync(executable, "#!/bin/sh\nprintf '%s' \"$1\"\n", "utf-8");
 			fs.chmodSync(executable, 0o755);
-			const launched = spawnSync("/bin/sh", ["-c", formatShellCommand(executable, ["arg=' value"], platform)], { encoding: "utf-8" });
+			const launched = spawnSync("/bin/sh", ["-c", formatShellCommand(executable, ["arg=' value"], platform)], {
+				encoding: "utf-8",
+			});
 			assert.equal(launched.status, 0, launched.stderr);
 			assert.equal(launched.stdout, "arg=' value");
 		} finally {

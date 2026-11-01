@@ -4,7 +4,11 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 import type { WorkflowScriptChildResult } from "../../src/workflows/scripted-workflow.ts";
-import { appendWorkflowChildJournal, matchWorkflowReuse, readNamedWorkflowReuseSource } from "../../src/workflows/workflow-reuse.ts";
+import {
+	appendWorkflowChildJournal,
+	matchWorkflowReuse,
+	readNamedWorkflowReuseSource,
+} from "../../src/workflows/workflow-reuse.ts";
 
 const CWD = "/repo";
 
@@ -14,19 +18,61 @@ function okResult(runId: string): WorkflowScriptChildResult {
 }
 
 describe("workflow reuse across a relaunch chain", () => {
-	const withRoot = (body: (root: string, writeRun: (runId: string, options?: { reusedFrom?: string; mode?: string; scriptDigest?: string; head?: boolean; records?: Array<{ key: string; start?: string; settle?: string }> }) => void) => void) => {
+	const withRoot = (
+		body: (
+			root: string,
+			writeRun: (
+				runId: string,
+				options?: {
+					reusedFrom?: string;
+					mode?: string;
+					scriptDigest?: string;
+					head?: boolean;
+					records?: Array<{ key: string; start?: string; settle?: string }>;
+				},
+			) => void,
+		) => void,
+	) => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-reuse-chain-"));
 		try {
 			body(root, (runId, options = {}) => {
 				const asyncDir = path.join(root, runId);
 				fs.mkdirSync(asyncDir, { recursive: true });
-				fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-					runId, sessionId: "session", mode: options.mode ?? "workflow", state: "failed", startedAt: 1, endedAt: 2, cwd: CWD,
-					workflow: { trace: [], emits: [], console: [], scriptDigest: options.scriptDigest ?? "digest", ...(options.head ? { stopCause: "runtime-replaced" } : {}), ...(options.reusedFrom ? { reusedFrom: options.reusedFrom } : {}) },
-				}));
+				fs.writeFileSync(
+					path.join(asyncDir, "status.json"),
+					JSON.stringify({
+						runId,
+						sessionId: "session",
+						mode: options.mode ?? "workflow",
+						state: "failed",
+						startedAt: 1,
+						endedAt: 2,
+						cwd: CWD,
+						workflow: {
+							trace: [],
+							emits: [],
+							console: [],
+							scriptDigest: options.scriptDigest ?? "digest",
+							...(options.head ? { stopCause: "runtime-replaced" } : {}),
+							...(options.reusedFrom ? { reusedFrom: options.reusedFrom } : {}),
+						},
+					}),
+				);
 				for (const record of options.records ?? []) {
-					if (record.start) appendWorkflowChildJournal(asyncDir, { type: "start", key: record.key, fingerprint: "fp", runId: record.start });
-					if (record.settle) appendWorkflowChildJournal(asyncDir, { type: "settle", key: record.key, fingerprint: "fp", result: okResult(record.settle) });
+					if (record.start)
+						appendWorkflowChildJournal(asyncDir, {
+							type: "start",
+							key: record.key,
+							fingerprint: "fp",
+							runId: record.start,
+						});
+					if (record.settle)
+						appendWorkflowChildJournal(asyncDir, {
+							type: "settle",
+							key: record.key,
+							fingerprint: "fp",
+							result: okResult(record.settle),
+						});
 				}
 			});
 		} finally {
@@ -36,8 +82,20 @@ describe("workflow reuse across a relaunch chain", () => {
 
 	it("takes each key from the newest run that recorded it", () => {
 		withRoot((root, writeRun) => {
-			writeRun("a", { records: [{ key: "k3", settle: "a-k3" }, { key: "k4", settle: "a-k4" }] });
-			writeRun("b", { reusedFrom: "a", records: [{ key: "k1", settle: "b-k1" }, { key: "k2", settle: "b-k2" }, { key: "k3", start: "b-k3" }] });
+			writeRun("a", {
+				records: [
+					{ key: "k3", settle: "a-k3" },
+					{ key: "k4", settle: "a-k4" },
+				],
+			});
+			writeRun("b", {
+				reusedFrom: "a",
+				records: [
+					{ key: "k1", settle: "b-k1" },
+					{ key: "k2", settle: "b-k2" },
+					{ key: "k3", start: "b-k3" },
+				],
+			});
 			writeRun("c", { reusedFrom: "b", head: true, records: [{ key: "k1", start: "c-k1" }] });
 			const source = readNamedWorkflowReuseSource(root, "c", "digest", CWD);
 			assert.equal(source.runId, "c");
@@ -55,7 +113,8 @@ describe("workflow reuse across a relaunch chain", () => {
 			["other script", { scriptDigest: "other" }],
 		] as const) {
 			withRoot((root, writeRun) => {
-				if (link) writeRun("link", { ...link, reusedFrom: "beyond", records: [{ key: "link-key", settle: "link-run" }] });
+				if (link)
+					writeRun("link", { ...link, reusedFrom: "beyond", records: [{ key: "link-key", settle: "link-run" }] });
 				writeRun("beyond", { records: [{ key: "beyond-key", settle: "beyond-run" }] });
 				writeRun("good", { reusedFrom: "link", records: [{ key: "good-key", settle: "good-run" }] });
 				writeRun("head", { head: true, reusedFrom: "good", records: [{ key: "head-key", settle: "head-run" }] });
@@ -91,7 +150,11 @@ describe("workflow reuse across a relaunch chain", () => {
 			assert.equal(matchWorkflowReuse(source, "y-key", "fp")?.kind, "settled");
 		});
 		withRoot((root, writeRun) => {
-			for (let link = 1; link <= 17; link++) writeRun(`link-${link}`, { reusedFrom: `link-${link + 1}`, records: [{ key: `key-${link}`, settle: `run-${link}` }] });
+			for (let link = 1; link <= 17; link++)
+				writeRun(`link-${link}`, {
+					reusedFrom: `link-${link + 1}`,
+					records: [{ key: `key-${link}`, settle: `run-${link}` }],
+				});
 			writeRun("long-head", { head: true, reusedFrom: "link-1" });
 			const source = readNamedWorkflowReuseSource(root, "long-head", "digest", CWD);
 			assert.equal(matchWorkflowReuse(source, "key-16", "fp")?.kind, "settled");

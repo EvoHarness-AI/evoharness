@@ -4,10 +4,17 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 import type { ExtensionAPI } from "@evoharness/coding-agent";
-import { buildAsyncRunnerSteps, assertClaudeCodeOverrideIsLocal, DEFAULT_ASYNC_TIMEOUT_MS, emitProcessTerminalEvent, formatAsyncStartedMessage, resolveAsyncRunnerLogPaths } from "../../src/runs/background/async-execution.ts";
 import type { AgentConfig } from "../../src/agents/agents.ts";
-import { SUBAGENT_PROCESS_TERMINAL_EVENT } from "../../src/shared/types.ts";
 import { registerRequiredChildExtensions } from "../../src/api/required-child-extensions.ts";
+import {
+	assertClaudeCodeOverrideIsLocal,
+	buildAsyncRunnerSteps,
+	DEFAULT_ASYNC_TIMEOUT_MS,
+	emitProcessTerminalEvent,
+	formatAsyncStartedMessage,
+	resolveAsyncRunnerLogPaths,
+} from "../../src/runs/background/async-execution.ts";
+import { SUBAGENT_PROCESS_TERMINAL_EVENT } from "../../src/shared/types.ts";
 
 const agent = (name: string, toolBudget?: AgentConfig["toolBudget"]): AgentConfig => ({
 	name,
@@ -30,63 +37,99 @@ const ctx = {
 };
 
 describe("async runner execution", () => {
-	it("propagates static parallel machine placement before agent pins and rejects group worktrees", { skip: process.platform === "win32" ? "Herdr saved-machine launches are unsupported on Windows" : undefined }, (t) => {
-		const bin = fs.mkdtempSync(path.join(os.tmpdir(), "herdr-bin-"));
-		const herdr = path.join(bin, "herdr");
-		fs.writeFileSync(herdr, "#!/bin/sh\necho '[{\"id\":\"machine-1\",\"label\":\"workmac\",\"target\":\"host.example\",\"enabled\":true}]'\n", "utf-8");
-		fs.chmodSync(herdr, 0o755);
-		const previousHerdrBin = process.env.HERDR_BIN;
-		process.env.HERDR_BIN = herdr;
-		t.after(() => {
-			if (previousHerdrBin === undefined) delete process.env.HERDR_BIN;
-			else process.env.HERDR_BIN = previousHerdrBin;
-			fs.rmSync(bin, { recursive: true, force: true });
-		});
-		const external = { ...agent("external"), machine: "agent-pin", runner: { type: "external-cli" as const, adapter: "codex-exec" as const, command: "codex" } };
-		const built = buildAsyncRunnerSteps("parallel-machine", {
-			chain: [{ machine: "workmac", parallel: [{ agent: "external", task: "Review", cwd: "/remote/repo" }] }],
-			agents: [external],
-			ctx,
-			asyncDir: path.join(process.cwd(), ".tmp-parallel-machine"),
-			maxSubagentDepth: 1,
-		});
-		assert.ok("steps" in built);
-		const parallel = built.steps[0];
-		assert.ok(parallel && "parallel" in parallel && Array.isArray(parallel.parallel));
-		assert.equal(parallel.parallel[0]?.machine?.label, "workmac");
+	it(
+		"propagates static parallel machine placement before agent pins and rejects group worktrees",
+		{ skip: process.platform === "win32" ? "Herdr saved-machine launches are unsupported on Windows" : undefined },
+		(t) => {
+			const bin = fs.mkdtempSync(path.join(os.tmpdir(), "herdr-bin-"));
+			const herdr = path.join(bin, "herdr");
+			fs.writeFileSync(
+				herdr,
+				'#!/bin/sh\necho \'[{"id":"machine-1","label":"workmac","target":"host.example","enabled":true}]\'\n',
+				"utf-8",
+			);
+			fs.chmodSync(herdr, 0o755);
+			const previousHerdrBin = process.env.HERDR_BIN;
+			process.env.HERDR_BIN = herdr;
+			t.after(() => {
+				if (previousHerdrBin === undefined) delete process.env.HERDR_BIN;
+				else process.env.HERDR_BIN = previousHerdrBin;
+				fs.rmSync(bin, { recursive: true, force: true });
+			});
+			const external = {
+				...agent("external"),
+				machine: "agent-pin",
+				runner: { type: "external-cli" as const, adapter: "codex-exec" as const, command: "codex" },
+			};
+			const built = buildAsyncRunnerSteps("parallel-machine", {
+				chain: [{ machine: "workmac", parallel: [{ agent: "external", task: "Review", cwd: "/remote/repo" }] }],
+				agents: [external],
+				ctx,
+				asyncDir: path.join(process.cwd(), ".tmp-parallel-machine"),
+				maxSubagentDepth: 1,
+			});
+			assert.ok("steps" in built);
+			const parallel = built.steps[0];
+			assert.ok(parallel && "parallel" in parallel && Array.isArray(parallel.parallel));
+			assert.equal(parallel.parallel[0]?.machine?.label, "workmac");
 
-		const rejected = buildAsyncRunnerSteps("parallel-machine-worktree", {
-			chain: [{ machine: "workmac", worktree: true, parallel: [{ agent: "external", task: "Review" }] }],
-			agents: [external],
-			ctx,
-			asyncDir: path.join(process.cwd(), ".tmp-parallel-machine-worktree"),
-			maxSubagentDepth: 1,
-		});
-		assert.ok("error" in rejected);
-		assert.match(rejected.error, /managed worktrees are local git operations/u);
-	});
+			const rejected = buildAsyncRunnerSteps("parallel-machine-worktree", {
+				chain: [{ machine: "workmac", worktree: true, parallel: [{ agent: "external", task: "Review" }] }],
+				agents: [external],
+				ctx,
+				asyncDir: path.join(process.cwd(), ".tmp-parallel-machine-worktree"),
+				maxSubagentDepth: 1,
+			});
+			assert.ok("error" in rejected);
+			assert.match(rejected.error, /managed worktrees are local git operations/u);
+		},
+	);
 
-	it("resolves machine 'local' to the parent's Rex session at the async step call site", { skip: process.platform === "win32" ? "Rex placement is POSIX-only" : undefined }, (t) => {
-		const bin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "rex-bin-")));
-		fs.writeFileSync(path.join(bin, "rex"), "#!/bin/sh\ncase \"$*\" in *\" session inspect session:parent-1 \"*) echo '{\"session_id\":\"session:parent-1\"}';; *) exit 9;; esac\n", { mode: 0o755 });
-		const names = ["REX_BIN_DIR", "REX_SESSION", "REX_SERVER", "HERDR_BIN"] as const, previous = names.map((name) => process.env[name]);
-		Object.assign(process.env, { REX_BIN_DIR: bin, REX_SESSION: "session:parent-1", REX_SERVER: "unix:///tmp/parent-rex.sock", HERDR_BIN: path.join(bin, "no-herdr") });
-		t.after(() => {
-			names.forEach((name, index) => { const value = previous[index]; if (value === undefined) delete process.env[name]; else process.env[name] = value; });
-			fs.rmSync(bin, { recursive: true, force: true });
-		});
-		const built = buildAsyncRunnerSteps("local-machine", {
-			chain: [{ agent: "worker", task: "Inspect", machine: "local" }],
-			agents: [agent("worker")],
-			ctx: { ...ctx, cwd: bin },
-			asyncDir: path.join(bin, "async"),
-			maxSubagentDepth: 1,
-		});
-		assert.ok("steps" in built, "error" in built ? built.error : undefined);
-		const step = built.steps[0];
-		assert.ok(step && "machine" in step);
-		assert.deepEqual(step.machine, { provider: "rex", id: "local", session: "session:parent-1", server: "unix:///tmp/parent-rex.sock", cwd: bin });
-	});
+	it(
+		"resolves machine 'local' to the parent's Rex session at the async step call site",
+		{ skip: process.platform === "win32" ? "Rex placement is POSIX-only" : undefined },
+		(t) => {
+			const bin = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "rex-bin-")));
+			fs.writeFileSync(
+				path.join(bin, "rex"),
+				'#!/bin/sh\ncase "$*" in *" session inspect session:parent-1 "*) echo \'{"session_id":"session:parent-1"}\';; *) exit 9;; esac\n',
+				{ mode: 0o755 },
+			);
+			const names = ["REX_BIN_DIR", "REX_SESSION", "REX_SERVER", "HERDR_BIN"] as const,
+				previous = names.map((name) => process.env[name]);
+			Object.assign(process.env, {
+				REX_BIN_DIR: bin,
+				REX_SESSION: "session:parent-1",
+				REX_SERVER: "unix:///tmp/parent-rex.sock",
+				HERDR_BIN: path.join(bin, "no-herdr"),
+			});
+			t.after(() => {
+				names.forEach((name, index) => {
+					const value = previous[index];
+					if (value === undefined) delete process.env[name];
+					else process.env[name] = value;
+				});
+				fs.rmSync(bin, { recursive: true, force: true });
+			});
+			const built = buildAsyncRunnerSteps("local-machine", {
+				chain: [{ agent: "worker", task: "Inspect", machine: "local" }],
+				agents: [agent("worker")],
+				ctx: { ...ctx, cwd: bin },
+				asyncDir: path.join(bin, "async"),
+				maxSubagentDepth: 1,
+			});
+			assert.ok("steps" in built, "error" in built ? built.error : undefined);
+			const step = built.steps[0];
+			assert.ok(step && "machine" in step);
+			assert.deepEqual(step.machine, {
+				provider: "rex",
+				id: "local",
+				session: "session:parent-1",
+				server: "unix:///tmp/parent-rex.sock",
+				cwd: bin,
+			});
+		},
+	);
 
 	it("uses supplied discovery context for missing async agents", () => {
 		const result = buildAsyncRunnerSteps("missing-agent", {
@@ -130,7 +173,17 @@ describe("async runner execution", () => {
 		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(repo, "agent-home");
 		try {
 			fs.mkdirSync(path.join(app, ".pi"), { recursive: true });
-			fs.writeFileSync(path.join(app, ".pi", "settings.json"), JSON.stringify({ subagents: { watchdog: { rules: { action: "block", roleModels: { worker: { deny: ["mock/*"] } } } } } }, null, 2), "utf-8");
+			fs.writeFileSync(
+				path.join(app, ".pi", "settings.json"),
+				JSON.stringify(
+					{
+						subagents: { watchdog: { rules: { action: "block", roleModels: { worker: { deny: ["mock/*"] } } } } },
+					},
+					null,
+					2,
+				),
+				"utf-8",
+			);
 			const result = buildAsyncRunnerSteps("async-step-rules", {
 				chain: [{ agent: "worker", task: "Do work", cwd: "packages/app" }],
 				agents: [{ ...agent("worker"), model: "mock/denied" }],
@@ -141,7 +194,10 @@ describe("async runner execution", () => {
 			});
 
 			assert.ok("error" in result);
-			assert.match(result.error, /Launch blocked by subagents\.watchdog\.rules: Agent 'worker' was launched with denied model 'mock\/denied'/);
+			assert.match(
+				result.error,
+				/Launch blocked by subagents\.watchdog\.rules: Agent 'worker' was launched with denied model 'mock\/denied'/,
+			);
 		} finally {
 			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
@@ -152,7 +208,10 @@ describe("async runner execution", () => {
 	it("formats interactive yield and headless auto-drain guidance separately", () => {
 		const interactive = formatAsyncStartedMessage("Async: worker [interactive]", true);
 		assert.match(interactive, /^Async: worker \[interactive\]\n/);
-		assert.match(interactive, /Return control now: native completion wakes you, so do not sleep, poll, or call bg_wait for it\./);
+		assert.match(
+			interactive,
+			/Return control now: native completion wakes you, so do not sleep, poll, or call bg_wait for it\./,
+		);
 		assert.match(interactive, /subagent\(\{ action: "status", id: "\.\.\." \}\)/);
 		assert.ok(interactive.length <= 400, `interactive receipt is ${interactive.length} chars`);
 		assert.doesNotMatch(interactive, /bg_wait\(\{ id:/i);
@@ -245,7 +304,10 @@ describe("async runner execution", () => {
 		assert.equal(result.steps[0]?.timeoutMs, DEFAULT_ASYNC_TIMEOUT_MS);
 		const parallel = result.steps[1];
 		assert.ok(parallel && "parallel" in parallel && Array.isArray(parallel.parallel));
-		assert.deepEqual(parallel.parallel.map((step) => step.timeoutMs), [DEFAULT_ASYNC_TIMEOUT_MS, 7_000]);
+		assert.deepEqual(
+			parallel.parallel.map((step) => step.timeoutMs),
+			[DEFAULT_ASYNC_TIMEOUT_MS, 7_000],
+		);
 	});
 
 	it("uses agent tool budget before config default when no run override exists", () => {
@@ -265,7 +327,10 @@ describe("async runner execution", () => {
 	it("attaches external runner config and rejects unsupported Pi-only overrides", (t) => {
 		const external = agent("external");
 		external.runner = { type: "external-cli", command: process.execPath, args: ["fake.mjs"] };
-		const registration = registerRequiredChildExtensions({ sessionId: ctx.currentSessionId, extensions: [{ id: "native-only", path: import.meta.filename }] });
+		const registration = registerRequiredChildExtensions({
+			sessionId: ctx.currentSessionId,
+			extensions: [{ id: "native-only", path: import.meta.filename }],
+		});
 		t.after(registration.dispose);
 		const built = buildAsyncRunnerSteps("external-run", {
 			chain: [{ agent: "external", task: "review" }],
@@ -286,13 +351,19 @@ describe("async runner execution", () => {
 			asyncDir: path.join(process.cwd(), ".tmp-external-test"),
 			maxSubagentDepth: 2,
 		});
-		assert.deepEqual(rejected, { error: "Agent 'external' uses runner.type='external-cli' and does not support: model override." });
+		assert.deepEqual(rejected, {
+			error: "Agent 'external' uses runner.type='external-cli' and does not support: model override.",
+		});
 	});
 
 	it("rejects an external runner step when the host required extensions are mandatory for all runners", (t) => {
 		const external = agent("external");
 		external.runner = { type: "external-cli", command: process.execPath, args: ["fake.mjs"] };
-		const registration = registerRequiredChildExtensions({ sessionId: ctx.currentSessionId, extensions: [{ id: "host-policy", path: import.meta.filename }], requireForAllRunners: true });
+		const registration = registerRequiredChildExtensions({
+			sessionId: ctx.currentSessionId,
+			extensions: [{ id: "host-policy", path: import.meta.filename }],
+			requireForAllRunners: true,
+		});
 		t.after(registration.dispose);
 		const rejected = buildAsyncRunnerSteps("external-mandatory", {
 			chain: [{ agent: "external", task: "review" }],
@@ -315,7 +386,9 @@ describe("async runner execution", () => {
 			/cannot be honored on a saved machine/u,
 		);
 		// A local launch, or one that pins nothing, is unaffected.
-		assert.doesNotThrow(() => assertClaudeCodeOverrideIsLocal("cc", undefined, { args: ["--model", "opus"], model: "opus" }));
+		assert.doesNotThrow(() =>
+			assertClaudeCodeOverrideIsLocal("cc", undefined, { args: ["--model", "opus"], model: "opus" }),
+		);
 		assert.doesNotThrow(() => assertClaudeCodeOverrideIsLocal("cc", "workmac", undefined));
 	});
 
@@ -335,7 +408,13 @@ describe("async runner execution", () => {
 });
 
 describe("async runner process terminal events", () => {
-	const proof = { version: 1, runId: "run-terminal", runnerProcessInstanceId: "runner-1", state: "unknown", reason: "writer-close-unverified" };
+	const proof = {
+		version: 1,
+		runId: "run-terminal",
+		runnerProcessInstanceId: "runner-1",
+		state: "unknown",
+		reason: "writer-close-unverified",
+	};
 	const staleMessage = "This extension ctx is stale after session replacement or reload.";
 
 	const makeCtx = (emit: (name: string, payload?: unknown) => unknown) => ({
@@ -345,25 +424,42 @@ describe("async runner process terminal events", () => {
 
 	it("emits the process terminal proof on a live event bus", () => {
 		const emitted: Array<[string, unknown]> = [];
-		emitProcessTerminalEvent(makeCtx((name, payload) => { emitted.push([name, payload]); }), proof);
+		emitProcessTerminalEvent(
+			makeCtx((name, payload) => {
+				emitted.push([name, payload]);
+			}),
+			proof,
+		);
 
 		assert.deepEqual(emitted, [[SUBAGENT_PROCESS_TERMINAL_EVENT, proof]]);
 	});
 
 	it("drops stale extension ctx failures without throwing", () => {
-		assert.doesNotThrow(() => emitProcessTerminalEvent(makeCtx(() => {
-			throw new Error(staleMessage);
-		}), proof));
+		assert.doesNotThrow(() =>
+			emitProcessTerminalEvent(
+				makeCtx(() => {
+					throw new Error(staleMessage);
+				}),
+				proof,
+			),
+		);
 	});
 
 	it("logs non-stale event bus failures without throwing", () => {
 		const originalError = console.error;
 		let logged: unknown[] | undefined;
-		console.error = (...args: unknown[]) => { logged = args; };
+		console.error = (...args: unknown[]) => {
+			logged = args;
+		};
 		try {
-			assert.doesNotThrow(() => emitProcessTerminalEvent(makeCtx(() => {
-				throw new Error("event bus unavailable");
-			}), proof));
+			assert.doesNotThrow(() =>
+				emitProcessTerminalEvent(
+					makeCtx(() => {
+						throw new Error("event bus unavailable");
+					}),
+					proof,
+				),
+			);
 		} finally {
 			console.error = originalError;
 		}

@@ -83,9 +83,12 @@ function runScript(root: string, env: Record<string, string | undefined>) {
 		encoding: "utf-8",
 		env: {
 			...process.env,
-			HOME: path.join(root, "home"), USERPROFILE: path.join(root, "home"),
+			HOME: path.join(root, "home"),
+			USERPROFILE: path.join(root, "home"),
 			EVOHARNESS_CODING_AGENT_DIR: path.join(root, "agent"),
-			TMPDIR: root, TMP: root, TEMP: root,
+			TMPDIR: root,
+			TMP: root,
+			TEMP: root,
 			PI_SUBAGENT_CHILD: undefined,
 			...env,
 		},
@@ -98,7 +101,10 @@ function runScript(root: string, env: Record<string, string | undefined>) {
 		errors: string[];
 		missionId: string;
 		sentByAgentEnd: number;
-		sent: Array<{ message: { customType: string; content: string; details: { source?: string } }; options: { triggerTurn: boolean } }>;
+		sent: Array<{
+			message: { customType: string; content: string; details: { source?: string } };
+			options: { triggerTurn: boolean };
+		}>;
 	};
 }
 
@@ -115,15 +121,23 @@ describe("headless agent_end auto-drain", () => {
 					PI_SUBAGENTS_TEST_DRAIN_FAILURE: scenario.failedDrain ? "1" : "0",
 					PI_SUBAGENTS_TEST_NO_OWNER: scenario.hasOwner ? "0" : "1",
 				});
-				assert.equal(payload.rejected, !scenario.hasOwner
-					? "Cannot auto-drain background work without an active session identity."
-					: scenario.failedDrain ? "Background-work provider 'agent-end-drain-test' listActiveWork failed: synthetic drain failure" : null);
+				assert.equal(
+					payload.rejected,
+					!scenario.hasOwner
+						? "Cannot auto-drain background work without an active session identity."
+						: scenario.failedDrain
+							? "Background-work provider 'agent-end-drain-test' listActiveWork failed: synthetic drain failure"
+							: null,
+				);
 				assert.equal(payload.preservedCause, scenario.failedDrain);
 				assert.deepEqual(payload.errors, []);
 				const notices = payload.sent.filter(({ message }) => message.details?.source === "goal");
 				assert.equal(notices.length, scenario.hasOwner ? 1 : 0);
 				if (!scenario.hasOwner) return;
-				assert.match(notices[0]!.message.content, /Next ready action: Continue objective: Deliver the goal reminder/);
+				assert.match(
+					notices[0]!.message.content,
+					/Next ready action: Continue objective: Deliver the goal reminder/,
+				);
 				assert.ok(notices[0]!.message.content.includes(payload.missionId));
 				assert.deepEqual(notices[0]!.options, { triggerTurn: false });
 			} finally {
@@ -138,7 +152,9 @@ describe("headless agent_end auto-drain", () => {
 			const payload = runScript(root, { PI_SUBAGENTS_TEST_FINISHED_RUN: "1" });
 			assert.equal(payload.rejected, null);
 			assert.deepEqual(payload.errors, []);
-			const completions = payload.sent.slice(0, payload.sentByAgentEnd).filter(({ message }) => message.customType === "subagent-notify");
+			const completions = payload.sent
+				.slice(0, payload.sentByAgentEnd)
+				.filter(({ message }) => message.customType === "subagent-notify");
 			assert.equal(completions.length, 1);
 			assert.match(completions[0]!.message.content, /CHILD_DONE/);
 			assert.deepEqual(completions[0]!.options, { triggerTurn: true });

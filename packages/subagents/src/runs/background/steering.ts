@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { writePrivateAtomicJson } from "../../shared/atomic-json.ts";
+import { previewDisplayText } from "../../shared/display-text.ts";
 import type {
 	AsyncStatus,
 	ResolvedToolBudget,
@@ -12,7 +13,6 @@ import type {
 	SteeringTargetStatus,
 } from "../../shared/types.ts";
 import { readStatus } from "../../shared/utils.ts";
-import { previewDisplayText } from "../../shared/display-text.ts";
 import { redactSecretValues } from "../shared/permissions.ts";
 import type { SteerDeliveryMode } from "./control-channel.ts";
 
@@ -24,7 +24,10 @@ export function steeringMessagePreview(message: string): string {
 }
 
 /** FIFO match of one accepted steer to an emitted user message; equal text claims the oldest entry. */
-export function takeMatchingAcceptedSteer<T extends { text: string }>(accepted: T[], messageText: string): T | undefined {
+export function takeMatchingAcceptedSteer<T extends { text: string }>(
+	accepted: T[],
+	messageText: string,
+): T | undefined {
 	const index = accepted.findIndex((entry) => entry.text === messageText);
 	if (index < 0) return undefined;
 	const [entry] = accepted.splice(index, 1);
@@ -55,7 +58,13 @@ export function steeringStatus(status: Pick<AsyncStatus, "steering">): SteeringS
 
 export function recordSteeringRequest(
 	status: SteeringStatus,
-	input: { id: string; requestedAt: number; source?: string; message: string; targets: Array<{ index: number; state: SteeringTargetState; reason?: string }> },
+	input: {
+		id: string;
+		requestedAt: number;
+		source?: string;
+		message: string;
+		targets: Array<{ index: number; state: SteeringTargetState; reason?: string }>;
+	},
 ): SteeringRequestStatus {
 	const existing = status.recent.find((request) => request.id === input.id);
 	if (existing) return existing;
@@ -64,7 +73,11 @@ export function recordSteeringRequest(
 		requestedAt: input.requestedAt,
 		...(input.source ? { source: input.source } : {}),
 		messagePreview: steeringMessagePreview(input.message),
-		targets: input.targets.map((target) => ({ index: target.index, state: target.state, ...(target.reason ? { reason: target.reason } : {}) })),
+		targets: input.targets.map((target) => ({
+			index: target.index,
+			state: target.state,
+			...(target.reason ? { reason: target.reason } : {}),
+		})),
 	};
 	status.requested++;
 	status.lastRequestedAt = input.requestedAt;
@@ -134,7 +147,12 @@ export function findSteeringRequest(status: SteeringStatus, requestId: string): 
 	return status.recent.find((request) => request.id === requestId);
 }
 
-export function actionResultFromSteeringStatus(status: SteeringStatus, sourceRunId: string, requestId: string, replacementRunId?: string): SteerActionResult | undefined {
+export function actionResultFromSteeringStatus(
+	status: SteeringStatus,
+	sourceRunId: string,
+	requestId: string,
+	replacementRunId?: string,
+): SteerActionResult | undefined {
 	const request = findSteeringRequest(status, requestId);
 	if (!request) return undefined;
 	const targets = request.targets.map((target) => ({
@@ -150,21 +168,53 @@ export function actionResultFromSteeringStatus(status: SteeringStatus, sourceRun
 	if (states.length > 0 && states.every((candidate) => candidate === "delivered")) state = "delivered";
 	else if (states.length > 0 && states.every((candidate) => candidate === "scheduled")) state = "scheduled";
 	else if (states.length > 0 && states.every((candidate) => candidate === "recovered")) state = "recovered";
-	else if (states.length > 0 && states.every((candidate) => candidate === "failed" || candidate === "late")) state = "failed";
-	else if (states.some((candidate) => candidate === "failed" || candidate === "late") && states.some((candidate) => candidate !== "failed" && candidate !== "late")) state = "partial";
-	const effectiveReplacementRunId = replacementRunId ?? request.targets.find((target) => target.replacementRunId)?.replacementRunId;
-	const deliveryStatus = states.length > 0 && states.every((candidate) => candidate === "delivered" || candidate === "recovered") ? "delivered" as const : "queued" as const;
-	return { requestId, state, deliveryStatus, sourceRunId, ...(effectiveReplacementRunId ? { replacementRunId: effectiveReplacementRunId } : {}), targets };
+	else if (states.length > 0 && states.every((candidate) => candidate === "failed" || candidate === "late"))
+		state = "failed";
+	else if (
+		states.some((candidate) => candidate === "failed" || candidate === "late") &&
+		states.some((candidate) => candidate !== "failed" && candidate !== "late")
+	)
+		state = "partial";
+	const effectiveReplacementRunId =
+		replacementRunId ?? request.targets.find((target) => target.replacementRunId)?.replacementRunId;
+	const deliveryStatus =
+		states.length > 0 && states.every((candidate) => candidate === "delivered" || candidate === "recovered")
+			? ("delivered" as const)
+			: ("queued" as const);
+	return {
+		requestId,
+		state,
+		deliveryStatus,
+		sourceRunId,
+		...(effectiveReplacementRunId ? { replacementRunId: effectiveReplacementRunId } : {}),
+		targets,
+	};
 }
 
 export function steeringActionIsTerminal(result: SteerActionResult | undefined): boolean {
-	return (result?.targets.length ?? 0) > 0 && result?.targets.every((target) => target.state === "queued" || target.state === "delivered") === true
-		|| result?.state === "delivered" || result?.state === "scheduled" || result?.state === "partial" || result?.state === "recovered" || result?.state === "failed";
+	return (
+		((result?.targets.length ?? 0) > 0 &&
+			result?.targets.every((target) => target.state === "queued" || target.state === "delivered") === true) ||
+		result?.state === "delivered" ||
+		result?.state === "scheduled" ||
+		result?.state === "partial" ||
+		result?.state === "recovered" ||
+		result?.state === "failed"
+	);
 }
 
-export function terminalSteeringNoticeState(status: SteeringStatus, requestId: string): "failed" | "partial" | undefined {
+export function terminalSteeringNoticeState(
+	status: SteeringStatus,
+	requestId: string,
+): "failed" | "partial" | undefined {
 	const request = status.recent.find((candidate) => candidate.id === requestId);
-	if (!request || request.targets.some((target) => target.state === "routed" || target.state === "queued" || target.state === "scheduled")) return undefined;
+	if (
+		!request ||
+		request.targets.some(
+			(target) => target.state === "routed" || target.state === "queued" || target.state === "scheduled",
+		)
+	)
+		return undefined;
 	const hasSuccess = request.targets.some((target) => target.state === "delivered" || target.state === "recovered");
 	const hasFailure = request.targets.some((target) => target.state === "failed" || target.state === "late");
 	if (hasSuccess && hasFailure) return "partial";
@@ -230,7 +280,8 @@ export function remainingSteeringRecoveryLimits(
 		const consumed = status.toolBudget?.toolCount ?? status.toolCount ?? 0;
 		const hard = descriptor.initialToolBudget.hard - consumed;
 		if (hard <= 0) throw new Error("Source run has no remaining tool budget; it remains paused.");
-		const soft = descriptor.initialToolBudget.soft === undefined ? undefined : descriptor.initialToolBudget.soft - consumed;
+		const soft =
+			descriptor.initialToolBudget.soft === undefined ? undefined : descriptor.initialToolBudget.soft - consumed;
 		limits.toolBudget = {
 			hard,
 			...(soft !== undefined && soft > 0 && soft < hard ? { soft } : {}),

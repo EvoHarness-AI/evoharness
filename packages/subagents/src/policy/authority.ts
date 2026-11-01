@@ -9,7 +9,7 @@ export const AUTHORITY_ACTIONS = [
 	"projectOpen",
 ] as const;
 
-export type AuthorityAction = typeof AUTHORITY_ACTIONS[number];
+export type AuthorityAction = (typeof AUTHORITY_ACTIONS)[number];
 export type AuthorityDecision = "auto" | "confirm" | "forbid";
 export type AuthorityPolicyConfig = Partial<Record<AuthorityAction, AuthorityDecision>>;
 
@@ -31,7 +31,10 @@ export function resolveAuthorityDecision(input: {
 	return input.policy?.[input.action] ?? DEFAULT_AUTHORITY_POLICY[input.action];
 }
 
-export function validateAuthorityPolicy(value: unknown, label = "config.authorityPolicy"): AuthorityPolicyConfig | undefined {
+export function validateAuthorityPolicy(
+	value: unknown,
+	label = "config.authorityPolicy",
+): AuthorityPolicyConfig | undefined {
 	if (value === undefined) return undefined;
 	if (!value || typeof value !== "object" || Array.isArray(value)) {
 		throw new Error(`${label} must be a JSON object`);

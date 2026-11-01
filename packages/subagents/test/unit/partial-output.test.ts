@@ -1,9 +1,13 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { createPartialOutputTracker, formatPartialOutput } from "../../src/runs/shared/partial-output.ts";
 import { toWaitCompletion } from "../../src/runs/background/wait-completions.ts";
+import { createPartialOutputTracker, formatPartialOutput } from "../../src/runs/shared/partial-output.ts";
 
-const assistant = (text: string, extra: Record<string, unknown> = {}) => ({ role: "assistant", content: [{ type: "text", text }], ...extra });
+const assistant = (text: string, extra: Record<string, unknown> = {}) => ({
+	role: "assistant",
+	content: [{ type: "text", text }],
+	...extra,
+});
 
 describe("partial output tracker", () => {
 	it("keeps the latest streamed assistant text", () => {
@@ -24,13 +28,19 @@ describe("partial output tracker", () => {
 		const tracker = createPartialOutputTracker();
 		tracker.observe({ type: "message_update", message: assistant("streaming") });
 		tracker.observe({ type: "message_end", message: { role: "user", content: [{ type: "text", text: "hi" }] } });
-		tracker.observe({ type: "message_end", message: { role: "toolResult", content: [{ type: "text", text: "out" }] } });
+		tracker.observe({
+			type: "message_end",
+			message: { role: "toolResult", content: [{ type: "text", text: "out" }] },
+		});
 		assert.equal(tracker.text(), "streaming");
 	});
 
 	it("keeps the text of a failed provider message, which final output skips", () => {
 		const tracker = createPartialOutputTracker();
-		tracker.observe({ type: "message_end", message: assistant("cut off", { stopReason: "error", errorMessage: "overloaded" }) });
+		tracker.observe({
+			type: "message_end",
+			message: assistant("cut off", { stopReason: "error", errorMessage: "overloaded" }),
+		});
 		assert.equal(tracker.text(), "cut off");
 	});
 
@@ -42,7 +52,10 @@ describe("partial output tracker", () => {
 
 describe("wait completion projection", () => {
 	it("carries the partial flag", () => {
-		const completion = toWaitCompletion({ results: [{ agent: "worker", outputState: "present", outputPartial: true }] }, "run-1");
+		const completion = toWaitCompletion(
+			{ results: [{ agent: "worker", outputState: "present", outputPartial: true }] },
+			"run-1",
+		);
 		assert.equal(completion.results?.[0]?.outputPartial, true);
 	});
 

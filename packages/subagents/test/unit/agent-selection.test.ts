@@ -3,7 +3,11 @@ import { describe, it } from "node:test";
 import { mergeAgentsForScope } from "../../src/agents/agent-selection.ts";
 import type { AgentConfig } from "../../src/agents/agents.ts";
 
-function makeAgent(name: string, source: "builtin" | "package" | "user" | "project", systemPrompt: string): AgentConfig {
+function makeAgent(
+	name: string,
+	source: "builtin" | "package" | "user" | "project",
+	systemPrompt: string,
+): AgentConfig {
 	return {
 		name,
 		description: `${name} agent`,
@@ -75,7 +79,10 @@ describe("mergeAgentsForScope", () => {
 
 		assert.equal(mergeAgentsForScope("both", [], [], builtinAgents, packageAgents)[0]?.source, "package");
 		assert.equal(mergeAgentsForScope("user", userAgents, [], builtinAgents, packageAgents)[0]?.source, "user");
-		assert.equal(mergeAgentsForScope("project", [], projectAgents, builtinAgents, packageAgents)[0]?.source, "project");
+		assert.equal(
+			mergeAgentsForScope("project", [], projectAgents, builtinAgents, packageAgents)[0]?.source,
+			"project",
+		);
 	});
 
 	it("project agents override builtins with the same name", () => {

@@ -1,39 +1,48 @@
-import type { ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { renderWidget, widgetRenderKey } from "../../tui/render.ts";
-import { formatControlNoticeMessage } from "../shared/subagent-control.ts";
+import type { ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
+import { OWNING_SESSION_COMPLETION_OWNER } from "../../shared/completion-owner.ts";
+import { withCachedUiContext } from "../../shared/extension-context.ts";
 import {
 	type AsyncJobState,
 	type AsyncStartedEvent,
 	type AsyncWidgetLayout,
 	type ControlEvent,
-	type SteeringNotice,
-	type SubagentChildStatusEvent,
-	type SubagentState,
 	DIRS,
+	type SteeringNotice,
 	SUBAGENT_CHILD_STATUS_EVENT,
 	SUBAGENT_CONTROL_EVENT,
 	SUBAGENT_CONTROL_INTERCOM_EVENT,
 	SUBAGENT_JOBS_CHANGED_EVENT,
 	SUBAGENT_STEERING_NOTICE_EVENT,
+	type SubagentChildStatusEvent,
+	type SubagentState,
 	WIDGET_ANIMATION_INTERVAL_MS,
 } from "../../shared/types.ts";
 import { readStatus, resolveWatchPath } from "../../shared/utils.ts";
-import { normalizeParallelGroups } from "./parallel-groups.ts";
-import { reconcileAsyncRun, reconcileNestedAsyncDescendants } from "./stale-run-reconciler.ts";
-import { findNestedRouteForRootId, hasLiveNestedDescendants, retainNestedLookupRoute, updateAsyncJobNestedProjection } from "../shared/nested-events.ts";
-import { listAsyncRuns, type AsyncRunSummary } from "./async-status.ts";
-import type { RawDrainStatusObserver } from "../shared/readonly-drain-observation.ts";
-import { EXTERNAL_JOB_BRIDGE_REQUEST_DIR, externalJobBridgeEligibility, serviceExternalJobBridgeRequests } from "../shared/external-job-bridge.ts";
 import { shouldUseNativeFsWatch } from "../../shared/watch-strategy.ts";
+import { renderWidget, widgetRenderKey } from "../../tui/render.ts";
 import { parseWorkflowChildSummary } from "../../workflows/workflow-child-summary.ts";
-import { withWorkflowChildRunModel } from "./workflow-terminal-proof.ts";
+import {
+	EXTERNAL_JOB_BRIDGE_REQUEST_DIR,
+	externalJobBridgeEligibility,
+	serviceExternalJobBridgeRequests,
+} from "../shared/external-job-bridge.ts";
 import { validHostStepNodes } from "../shared/host-step-status.ts";
+import {
+	findNestedRouteForRootId,
+	hasLiveNestedDescendants,
+	retainNestedLookupRoute,
+	updateAsyncJobNestedProjection,
+} from "../shared/nested-events.ts";
+import type { RawDrainStatusObserver } from "../shared/readonly-drain-observation.ts";
+import { formatControlNoticeMessage } from "../shared/subagent-control.ts";
+import { type AsyncRunSummary, listAsyncRuns } from "./async-status.ts";
+import { normalizeParallelGroups } from "./parallel-groups.ts";
 import { readProcessTerminal } from "./process-terminal.ts";
-import { withCachedUiContext } from "../../shared/extension-context.ts";
-import { OWNING_SESSION_COMPLETION_OWNER } from "../../shared/completion-owner.ts";
 import type { ResultDeliveryOwnership } from "./result-delivery-ownership.ts";
+import { reconcileAsyncRun, reconcileNestedAsyncDescendants } from "./stale-run-reconciler.ts";
+import { withWorkflowChildRunModel } from "./workflow-terminal-proof.ts";
 
 interface AsyncJobTrackerOptions {
 	completionRetentionMs?: number;
@@ -67,11 +76,28 @@ const WATCH_ATTACHMENT_RETRY_MS = 100;
 /** A native supervisor request is already its own parent turn; its attention notice only escalates an unanswered one. */
 const SUPERVISOR_NOTICE_GRACE_MS = 60_000;
 
-type ControlRecord = { event: ControlEvent; channels: string[]; childIntercomTarget?: string; noticeText?: string; intercom?: { to?: string; message?: string } };
-type ControlPayload = { event: ControlEvent; source: "async"; asyncDir: string; childIntercomTarget?: string; noticeText: string };
+type ControlRecord = {
+	event: ControlEvent;
+	channels: string[];
+	childIntercomTarget?: string;
+	noticeText?: string;
+	intercom?: { to?: string; message?: string };
+};
+type ControlPayload = {
+	event: ControlEvent;
+	source: "async";
+	asyncDir: string;
+	childIntercomTarget?: string;
+	noticeText: string;
+};
 
 const isTerminalJobStatus = (status: AsyncJobState["status"]): boolean =>
-	status === "complete" || status === "failed" || status === "partial" || status === "paused" || status === "rejected" || status === "stopped";
+	status === "complete" ||
+	status === "failed" ||
+	status === "partial" ||
+	status === "paused" ||
+	status === "rejected" ||
+	status === "stopped";
 
 function rememberFleetJob(state: SubagentState, job: AsyncJobState): void {
 	state.fleetJobs ??= new Map();
@@ -82,7 +108,12 @@ function rememberFleetJob(state: SubagentState, job: AsyncJobState): void {
 	for (const stale of terminal.slice(MAX_RECENT_FLEET_JOBS)) state.fleetJobs.delete(stale.asyncId);
 }
 
-export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: SubagentState, asyncDirRoot: string, options: AsyncJobTrackerOptions = {}): {
+export function createAsyncJobTracker(
+	pi: Pick<ExtensionAPI, "events">,
+	state: SubagentState,
+	asyncDirRoot: string,
+	options: AsyncJobTrackerOptions = {},
+): {
 	ensurePoller: () => void;
 	refreshWidget: (ctx: ExtensionContext) => void;
 	handleStarted: (data: unknown) => void;
@@ -96,7 +127,10 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 	const livenessIntervalMs = options.pollIntervalMs ?? DEFAULT_LIVENESS_INTERVAL_MS;
 	const resultsDir = options.resultsDir ?? DIRS.results;
 	const steeringNoticeSeen = new Map<string, number>();
-	const jobWatchers = new Map<string, { watchers: Map<string, fs.FSWatcher>; retryTimer?: ReturnType<typeof setTimeout> }>();
+	const jobWatchers = new Map<
+		string,
+		{ watchers: Map<string, fs.FSWatcher>; retryTimer?: ReturnType<typeof setTimeout> }
+	>();
 	const refreshTimers = new Map<string, ReturnType<typeof setTimeout>>();
 	let widgetRerenderTimer: ReturnType<typeof setTimeout> | undefined;
 	const runningJobIds = new Set<string>();
@@ -112,9 +146,13 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 	const useNativeWatcher = () => shouldUseNativeFsWatch("async-job-tracker", options.platform);
 	const withLastUiContext = <T>(run: (ctx: ExtensionContext) => T): T | undefined => {
 		const cached = state.lastUiContext;
-		return withCachedUiContext(cached, () => {
-			if (state.lastUiContext === cached) state.lastUiContext = null;
-		}, run);
+		return withCachedUiContext(
+			cached,
+			() => {
+				if (state.lastUiContext === cached) state.lastUiContext = null;
+			},
+			run,
+		);
 	};
 	const rerenderWidget = (ctx: ExtensionContext, jobs = Array.from(state.asyncJobs.values())) => {
 		options.onJobsChanged?.();
@@ -161,12 +199,19 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 		}
 	};
 	const summaryToJob = (run: AsyncRunSummary): AsyncJobState => {
-		const groups = normalizeParallelGroups(run.parallelGroups, run.steps.length, run.chainStepCount ?? run.steps.length);
-		const activeGroup = run.currentStep !== undefined
-			? groups.find((group) => run.currentStep! >= group.start && run.currentStep! < group.start + group.count)
-			: undefined;
+		const groups = normalizeParallelGroups(
+			run.parallelGroups,
+			run.steps.length,
+			run.chainStepCount ?? run.steps.length,
+		);
+		const activeGroup =
+			run.currentStep !== undefined
+				? groups.find((group) => run.currentStep! >= group.start && run.currentStep! < group.start + group.count)
+				: undefined;
 		const visibleSteps = activeGroup
-			? run.steps.slice(activeGroup.start, activeGroup.start + activeGroup.count).map((step, index) => ({ ...step, index: activeGroup.start + index }))
+			? run.steps
+					.slice(activeGroup.start, activeGroup.start + activeGroup.count)
+					.map((step, index) => ({ ...step, index: activeGroup.start + index }))
 			: run.steps.map((step, index) => ({ ...step, index }));
 		return {
 			asyncId: run.id,
@@ -196,7 +241,8 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 			steps: visibleSteps,
 			stepsTotal: visibleSteps.length,
 			runningSteps: visibleSteps.filter((step) => step.status === "running").length,
-			completedSteps: visibleSteps.filter((step) => step.status === "complete" || step.status === "completed").length,
+			completedSteps: visibleSteps.filter((step) => step.status === "complete" || step.status === "completed")
+				.length,
 			hasParallelGroups: groups.length > 0,
 			activeParallelGroup: Boolean(activeGroup),
 			startedAt: run.startedAt,
@@ -244,7 +290,12 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 		if (record.channels.includes("event")) {
 			pi.events.emit(SUBAGENT_CONTROL_EVENT, payload);
 		}
-		if (record.event.type !== "active_long_running" && record.channels.includes("intercom") && record.intercom?.to && record.intercom.message) {
+		if (
+			record.event.type !== "active_long_running" &&
+			record.channels.includes("intercom") &&
+			record.intercom?.to &&
+			record.intercom.message
+		) {
 			pi.events.emit(SUBAGENT_CONTROL_INTERCOM_EVENT, {
 				...payload,
 				to: record.intercom.to,
@@ -298,9 +349,8 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 			if (startedFromTail) cursor = stat.size - CONTROL_EVENT_SCAN_WINDOW_BYTES;
 			if (stat.size <= cursor) return;
 			const previousByte = Buffer.alloc(1);
-			const startsMidLine = cursor > 0
-				&& fs.readSync(fd, previousByte, 0, 1, cursor - 1) === 1
-				&& previousByte[0] !== 0x0a;
+			const startsMidLine =
+				cursor > 0 && fs.readSync(fd, previousByte, 0, 1, cursor - 1) === 1 && previousByte[0] !== 0x0a;
 			const scanEnd = Math.min(stat.size, cursor + CONTROL_EVENT_SCAN_WINDOW_BYTES);
 			const handleLine = (line: string) => {
 				if (!line.trim()) return;
@@ -314,7 +364,14 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 				if (!parsed || typeof parsed !== "object") return;
 				if ((parsed as { type?: unknown }).type === "subagent.child-status") {
 					const event = parsed as Partial<SubagentChildStatusEvent>;
-					if (event.version !== 1 || typeof event.runId !== "string" || typeof event.childId !== "string" || (event.status !== "started" && event.status !== "stopping" && event.status !== "stopped") || typeof event.ts !== "number") return;
+					if (
+						event.version !== 1 ||
+						typeof event.runId !== "string" ||
+						typeof event.childId !== "string" ||
+						(event.status !== "started" && event.status !== "stopping" && event.status !== "stopped") ||
+						typeof event.ts !== "number"
+					)
+						return;
 					try {
 						pi.events.emit(SUBAGENT_CHILD_STATUS_EVENT, {
 							type: "subagent.child-status",
@@ -340,18 +397,31 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 				}
 				if ((parsed as { type?: unknown }).type === "subagent.steering.notice") {
 					const notice = parsed as Partial<SteeringNotice>;
-					if (typeof notice.requestId !== "string" || typeof notice.runId !== "string" || (notice.state !== "failed" && notice.state !== "partial" && notice.state !== "recovered") || typeof notice.message !== "string") return;
-					if (typeof state.currentSessionId === "string" && notice.currentSessionId !== state.currentSessionId) return;
+					if (
+						typeof notice.requestId !== "string" ||
+						typeof notice.runId !== "string" ||
+						(notice.state !== "failed" && notice.state !== "partial" && notice.state !== "recovered") ||
+						typeof notice.message !== "string"
+					)
+						return;
+					if (typeof state.currentSessionId === "string" && notice.currentSessionId !== state.currentSessionId)
+						return;
 					const key = `${notice.runId}:${notice.requestId}:${notice.state}`;
 					if (steeringNoticeSeen.has(key)) return;
 					const now = Date.now();
 					steeringNoticeSeen.set(key, now);
 					if (steeringNoticeSeen.size > 200) {
 						for (const [seenKey, seenAt] of steeringNoticeSeen) {
-							if (now - seenAt > 10 * 60 * 1000 || steeringNoticeSeen.size > 200) steeringNoticeSeen.delete(seenKey);
+							if (now - seenAt > 10 * 60 * 1000 || steeringNoticeSeen.size > 200)
+								steeringNoticeSeen.delete(seenKey);
 						}
 					}
-					pi.events.emit(SUBAGENT_STEERING_NOTICE_EVENT, { ...notice, source: "async", asyncDir: job.asyncDir, noticeText: notice.message });
+					pi.events.emit(SUBAGENT_STEERING_NOTICE_EVENT, {
+						...notice,
+						source: "async",
+						asyncDir: job.asyncDir,
+						noticeText: notice.message,
+					});
 					return;
 				}
 				if ((parsed as { type?: unknown }).type !== "subagent.control") return;
@@ -359,7 +429,10 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 				if (!candidate.event || !Array.isArray(candidate.channels)) return;
 				// SAFETY: event is present and channels is an array; every other ControlRecord field is optional.
 				const record = candidate as ControlRecord;
-				const supervisorRequest = record.event.type === "needs_attention" && record.event.reason === "supervisor_request" && options.supervisorRequestState !== undefined;
+				const supervisorRequest =
+					record.event.type === "needs_attention" &&
+					record.event.reason === "supervisor_request" &&
+					options.supervisorRequestState !== undefined;
 				if (supervisorRequest && readSupervisorRequestState(record.event, job.asyncDir) === "resolved") return;
 				const payload: ControlPayload = {
 					event: record.event,
@@ -371,7 +444,8 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 				// External intercom asks have no native lifecycle to re-check, so they keep the immediate notice.
 				if (supervisorRequest && record.event.currentTool !== "intercom") {
 					// Status and waits still react now; the parent notice and intercom copy wait for the grace period.
-					if (record.channels.includes("event")) pi.events.emit(SUBAGENT_CONTROL_EVENT, { ...payload, noticeDeferred: true });
+					if (record.channels.includes("event"))
+						pi.events.emit(SUBAGENT_CONTROL_EVENT, { ...payload, noticeDeferred: true });
 					scheduleSupervisorNotice(job.asyncId, record, payload);
 					return;
 				}
@@ -454,14 +528,16 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 		let bridgeSweepAttempted = false;
 		try {
 			emitNewControlEvents(job);
-			const bridgeAlreadyRequired = externalJobBridgeRuns.has(job.asyncId) || externalJobBridgeEligibility(job.steps) === "required";
+			const bridgeAlreadyRequired =
+				externalJobBridgeRuns.has(job.asyncId) || externalJobBridgeEligibility(job.steps) === "required";
 			if (bridgeAlreadyRequired) {
 				externalJobBridgeRuns.add(job.asyncId);
 				bridgeSweepAttempted = true;
 				serviceExternalJobBridgeRequests(job.asyncDir);
 			}
 			try {
-				if (job.nestedRoute) reconcileNestedAsyncDescendants(job.nestedRoute, { resultsDir, kill: options.kill, now: options.now });
+				if (job.nestedRoute)
+					reconcileNestedAsyncDescendants(job.nestedRoute, { resultsDir, kill: options.kill, now: options.now });
 			} catch (error) {
 				nestedRefreshFailed = true;
 				console.error(`Failed to refresh nested async descendants for '${job.asyncDir}':`, error);
@@ -518,33 +594,50 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 				if (status.mode === "workflow") job.workflowGraph = status.workflowGraph ?? job.workflowGraph;
 				job.hostSteps = validHostStepNodes(status.workflowGraph);
 				const workflowChildren = parseWorkflowChildSummary(status.workflowChildren);
-				if (workflowChildren && status.mode === "workflow") workflowChildren.children = workflowChildren.children.map((child) => withWorkflowChildRunModel(job.asyncDir, child));
-				if (workflowChildren && workflowChildren.workflowRunId !== status.runId) throw new Error("workflowChildren.workflowRunId does not match async status runId.");
+				if (workflowChildren && status.mode === "workflow")
+					workflowChildren.children = workflowChildren.children.map((child) =>
+						withWorkflowChildRunModel(job.asyncDir, child),
+					);
+				if (workflowChildren && workflowChildren.workflowRunId !== status.runId)
+					throw new Error("workflowChildren.workflowRunId does not match async status runId.");
 				job.workflowChildren = workflowChildren ?? job.workflowChildren;
 				job.currentStep = status.currentStep ?? job.currentStep;
 				job.chainStepCount = status.chainStepCount ?? job.chainStepCount;
 				job.startedAt = status.startedAt ?? job.startedAt;
 				if (status.lastUpdate !== undefined) job.updatedAt = status.lastUpdate;
 				if (status.steps?.length) {
-					const groups = normalizeParallelGroups(status.parallelGroups, status.steps.length, status.chainStepCount ?? status.steps.length);
+					const groups = normalizeParallelGroups(
+						status.parallelGroups,
+						status.steps.length,
+						status.chainStepCount ?? status.steps.length,
+					);
 					job.parallelGroups = groups.length ? groups : job.parallelGroups;
 					job.hasParallelGroups = groups.length > 0 || job.hasParallelGroups;
-					const activeGroup = status.currentStep !== undefined
-						? groups.find((group) => status.currentStep! >= group.start && status.currentStep! < group.start + group.count)
-						: undefined;
+					const activeGroup =
+						status.currentStep !== undefined
+							? groups.find(
+									(group) =>
+										status.currentStep! >= group.start && status.currentStep! < group.start + group.count,
+								)
+							: undefined;
 					const visibleSteps = activeGroup
-						? status.steps.slice(activeGroup.start, activeGroup.start + activeGroup.count).map((step, index) => ({ ...step, index: activeGroup.start + index }))
+						? status.steps
+								.slice(activeGroup.start, activeGroup.start + activeGroup.count)
+								.map((step, index) => ({ ...step, index: activeGroup.start + index }))
 						: status.steps.map((step, index) => ({ ...step, index }));
 					job.activeParallelGroup = Boolean(activeGroup);
 					if (status.mode === "workflow") {
-						for (const step of visibleSteps) if (step.async === true) Object.assign(step, withWorkflowChildRunModel(job.asyncDir, step));
+						for (const step of visibleSteps)
+							if (step.async === true) Object.assign(step, withWorkflowChildRunModel(job.asyncDir, step));
 					}
 					job.agents = visibleSteps.map((step) => step.agent);
 					job.steps = visibleSteps;
 					refreshNestedProjection();
 					job.stepsTotal = visibleSteps.length;
 					job.runningSteps = visibleSteps.filter((step) => step.status === "running").length;
-					job.completedSteps = visibleSteps.filter((step) => step.status === "complete" || step.status === "completed").length;
+					job.completedSteps = visibleSteps.filter(
+						(step) => step.status === "complete" || step.status === "completed",
+					).length;
 					if (status.state === "complete") job.completedSteps = visibleSteps.length;
 				}
 				job.sessionDir = status.sessionDir ?? job.sessionDir;
@@ -560,12 +653,23 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 				job.sessionFile = status.sessionFile ?? job.sessionFile;
 				if (isTerminalJobStatus(job.status)) {
 					let publication = terminalPublications.get(job.asyncId);
-					if (!publication && status.mode !== "workflow" && status.processTerminal?.state === "pending"
-						&& status.runId === job.asyncId && status.completionOwnerId
-						&& ((status.sessionId === state.currentSessionId && status.completionOwnerId === state.completionOwnerId)
+					if (
+						!publication &&
+						status.mode !== "workflow" &&
+						status.processTerminal?.state === "pending" &&
+						status.runId === job.asyncId &&
+						status.completionOwnerId &&
+						((status.sessionId === state.currentSessionId &&
+							status.completionOwnerId === state.completionOwnerId) ||
 							// Also covers a session inherited after /new or /resume: deliveryOwnerId checks run ownership.
-							|| (typeof status.sessionId === "string"
-								&& options.deliveryOwnerId?.(status.sessionId, status.completionOwnerId, status.completionOwnerProcess, status.parentWorkflowRunId) === OWNING_SESSION_COMPLETION_OWNER))) {
+							(typeof status.sessionId === "string" &&
+								options.deliveryOwnerId?.(
+									status.sessionId,
+									status.completionOwnerId,
+									status.completionOwnerProcess,
+									status.parentWorkflowRunId,
+								) === OWNING_SESSION_COMPLETION_OWNER))
+					) {
 						publication = { instanceId: status.processTerminal.runnerProcessInstanceId, pending: true };
 						terminalPublications.set(job.asyncId, publication);
 					}
@@ -574,18 +678,27 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 						// Reconciliation resolves pending as well as public payloads. The
 						// watcher already discovers exact tracked run IDs without promotion.
 						const published = reconciliation.resultPath && fs.existsSync(reconciliation.resultPath);
-						const closed = !published && readProcessTerminal(job.asyncDir, {
-							runId: job.asyncId, runnerProcessInstanceId: publication.instanceId,
-						})?.state === "observed";
+						const closed =
+							!published &&
+							readProcessTerminal(job.asyncDir, {
+								runId: job.asyncId,
+								runnerProcessInstanceId: publication.instanceId,
+							})?.state === "observed";
 						if (published || closed) {
 							publication = { pending: false };
 							terminalPublications.set(job.asyncId, publication);
 						} else cancelCleanup(job.asyncId);
 					}
 					// Scan on close too: publication may have raced the payload check.
-					if (!isTerminalJobStatus(previousStatus) || (wasPending && !publication?.pending)) options.onJobTerminal?.(job);
+					if (!isTerminalJobStatus(previousStatus) || (wasPending && !publication?.pending))
+						options.onJobTerminal?.(job);
 					rememberFleetJob(state, job);
-					if (!publication?.pending && !nestedRefreshFailed && !hasLiveNestedDescendants(job.nestedChildren) && (previousStatus !== job.status || !state.cleanupTimers.has(job.asyncId))) {
+					if (
+						!publication?.pending &&
+						!nestedRefreshFailed &&
+						!hasLiveNestedDescendants(job.nestedChildren) &&
+						(previousStatus !== job.status || !state.cleanupTimers.has(job.asyncId))
+					) {
 						scheduleCleanup(job.asyncId);
 					}
 				}
@@ -612,7 +725,12 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 			}
 			runningJobIds.delete(job.asyncId);
 			rememberFleetJob(state, job);
-			if (!terminalPublications.get(job.asyncId)?.pending && !hasLiveNestedDescendants(job.nestedChildren) && !state.cleanupTimers.has(job.asyncId)) scheduleCleanup(job.asyncId);
+			if (
+				!terminalPublications.get(job.asyncId)?.pending &&
+				!hasLiveNestedDescendants(job.nestedChildren) &&
+				!state.cleanupTimers.has(job.asyncId)
+			)
+				scheduleCleanup(job.asyncId);
 		}
 		return widgetRenderKey(job, widgetExpanded) !== widgetStateBefore;
 	};
@@ -640,8 +758,15 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 				watcher = watch(resolveWatchPath(watchPath), (_event, file) => {
 					const rawFileName = file?.toString();
 					const fileName = rawFileName ?? path.basename(watchPath);
-					const nestedEventFile = nestedEventSink && (!rawFileName || rawFileName.endsWith(".json") || rawFileName.endsWith(".jsonl"));
-					if (fileName === "status.json" || fileName === "events.jsonl" || fileName === EXTERNAL_JOB_BRIDGE_REQUEST_DIR || fileName.endsWith(".json") || nestedEventFile) {
+					const nestedEventFile =
+						nestedEventSink && (!rawFileName || rawFileName.endsWith(".json") || rawFileName.endsWith(".jsonl"));
+					if (
+						fileName === "status.json" ||
+						fileName === "events.jsonl" ||
+						fileName === EXTERNAL_JOB_BRIDGE_REQUEST_DIR ||
+						fileName.endsWith(".json") ||
+						nestedEventFile
+					) {
 						scheduleJobRefresh(job.asyncId);
 					}
 					if (watchPath !== job.asyncDir && !nestedEventSink) {
@@ -711,30 +836,33 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 		watchAsyncRoot();
 		if (state.poller) return;
 		nextLivenessAt = Date.now() + livenessIntervalMs;
-		state.poller = setInterval(() => {
-			if (state.asyncJobs.size === 0) {
-				rerenderLastWidget([]);
-				if (state.poller) clearInterval(state.poller);
-				state.poller = null;
-				rootWatcher?.close();
-				rootWatcher = undefined;
-				return;
-			}
-			const now = Date.now();
-			if (now >= nextLivenessAt) {
-				nextLivenessAt = now + livenessIntervalMs;
-				let widgetChanged = false;
-				for (const job of state.asyncJobs.values()) {
-					watchJob(job);
-					if (refreshJob(job)) widgetChanged = true;
+		state.poller = setInterval(
+			() => {
+				if (state.asyncJobs.size === 0) {
+					rerenderLastWidget([]);
+					if (state.poller) clearInterval(state.poller);
+					state.poller = null;
+					rootWatcher?.close();
+					rootWatcher = undefined;
+					return;
 				}
-				if (widgetChanged) rerenderLastWidget();
-			}
-			if (runningJobIds.size > 0 && now >= nextWidgetAnimationAt) {
-				nextWidgetAnimationAt = now + WIDGET_ANIMATION_INTERVAL_MS;
-				requestLastWidgetRender();
-			}
-		}, Math.min(WIDGET_ANIMATION_INTERVAL_MS, livenessIntervalMs));
+				const now = Date.now();
+				if (now >= nextLivenessAt) {
+					nextLivenessAt = now + livenessIntervalMs;
+					let widgetChanged = false;
+					for (const job of state.asyncJobs.values()) {
+						watchJob(job);
+						if (refreshJob(job)) widgetChanged = true;
+					}
+					if (widgetChanged) rerenderLastWidget();
+				}
+				if (runningJobIds.size > 0 && now >= nextWidgetAnimationAt) {
+					nextWidgetAnimationAt = now + WIDGET_ANIMATION_INTERVAL_MS;
+					requestLastWidgetRender();
+				}
+			},
+			Math.min(WIDGET_ANIMATION_INTERVAL_MS, livenessIntervalMs),
+		);
 		state.poller.unref?.();
 	};
 
@@ -744,13 +872,21 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 		if (typeof state.currentSessionId === "string" && info.sessionId !== state.currentSessionId) return;
 		const now = Date.now();
 		const asyncDir = info.asyncDir ?? path.join(asyncDirRoot, info.id);
-		const rawAgents = info.agents?.length ? info.agents : info.chain && info.chain.length > 0 ? info.chain : info.agent ? [info.agent] : undefined;
-		const validParallelGroups = normalizeParallelGroups(info.parallelGroups, Number.MAX_SAFE_INTEGER, info.chainStepCount ?? Number.MAX_SAFE_INTEGER);
+		const rawAgents = info.agents?.length
+			? info.agents
+			: info.chain && info.chain.length > 0
+				? info.chain
+				: info.agent
+					? [info.agent]
+					: undefined;
+		const validParallelGroups = normalizeParallelGroups(
+			info.parallelGroups,
+			Number.MAX_SAFE_INTEGER,
+			info.chainStepCount ?? Number.MAX_SAFE_INTEGER,
+		);
 		const firstGroup = validParallelGroups.find((group) => group.start === 0);
 		const firstGroupCount = firstGroup?.count;
-		const agents = firstGroupCount && firstGroupCount > 0
-			? rawAgents?.slice(0, firstGroupCount)
-			: rawAgents;
+		const agents = firstGroupCount && firstGroupCount > 0 ? rawAgents?.slice(0, firstGroupCount) : rawAgents;
 		const existingJob = state.asyncJobs.get(info.id);
 		const sessionRoot = state.liveAsyncSessionRoots?.get(info.id) ?? existingJob?.sessionRoot;
 		state.liveAsyncSessionRoots?.delete(info.id);
@@ -793,7 +929,14 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 	};
 
 	const handleComplete = (data: unknown) => {
-		const result = data as { id?: string; success?: boolean; state?: AsyncJobState["status"]; asyncDir?: string; sessionId?: string; stopped?: boolean };
+		const result = data as {
+			id?: string;
+			success?: boolean;
+			state?: AsyncJobState["status"];
+			asyncDir?: string;
+			sessionId?: string;
+			stopped?: boolean;
+		};
 		if (typeof state.currentSessionId === "string" && result.sessionId !== state.currentSessionId) return;
 		const asyncId = result.id;
 		if (!asyncId) return;
@@ -864,7 +1007,18 @@ export function createAsyncJobTracker(pi: Pick<ExtensionAPI, "events">, state: S
 		let runs: AsyncRunSummary[];
 		try {
 			// A workflow whose Pi exited is repaired here, in the session that owns it, which then delivers its notice.
-			runs = listAsyncRuns(asyncDirRoot, { states: ["queued", "running"], sessionId: state.currentSessionId, resultsDir, kill: options.kill, now: options.now, adoptCompletionOwnerId: state.completionOwnerId }, observeStatus);
+			runs = listAsyncRuns(
+				asyncDirRoot,
+				{
+					states: ["queued", "running"],
+					sessionId: state.currentSessionId,
+					resultsDir,
+					kill: options.kill,
+					now: options.now,
+					adoptCompletionOwnerId: state.completionOwnerId,
+				},
+				observeStatus,
+			);
 		} catch (error) {
 			console.error(`Failed to restore active async jobs from '${asyncDirRoot}':`, error);
 			return;

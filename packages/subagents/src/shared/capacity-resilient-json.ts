@@ -1,5 +1,5 @@
-import { isStorageCapacityError } from "./file-system-retry.ts";
 import { writeAtomicJson } from "./atomic-json.ts";
+import { isStorageCapacityError } from "./file-system-retry.ts";
 
 type TimerApi = {
 	setTimeout(handler: () => void, delayMs: number): unknown;
@@ -33,12 +33,15 @@ export type CapacityResilientJsonWriter = {
  * Initial/ordinary writes remain synchronous and preserve their throwing contract;
  * only ENOSPC-like failures enter the guarded retry loop.
  */
-export function createCapacityResilientJsonWriter(options: CapacityResilientJsonWriterOptions = {}): CapacityResilientJsonWriter {
+export function createCapacityResilientJsonWriter(
+	options: CapacityResilientJsonWriterOptions = {},
+): CapacityResilientJsonWriter {
 	const defaultWrite = options.write ?? writeAtomicJson;
 	const keepAlive = options.keepAlive ?? false;
 	const retryDelayMs = options.retryDelayMs ?? 1_000;
 	const timerApi = options.timerApi ?? defaultTimerApi;
-	const onError = options.onError ?? ((error, filePath) => console.error(`Failed to persist JSON '${filePath}':`, error));
+	const onError =
+		options.onError ?? ((error, filePath) => console.error(`Failed to persist JSON '${filePath}':`, error));
 	const onSuccess = options.onSuccess;
 	const reportError = (error: unknown, filePath: string): void => {
 		try {
@@ -75,7 +78,13 @@ export function createCapacityResilientJsonWriter(options: CapacityResilientJson
 			}
 			if (pending.size > 0) scheduleRetry();
 		}, retryDelayMs);
-		if (!keepAlive && typeof retryTimer === "object" && retryTimer !== null && "unref" in retryTimer && typeof retryTimer.unref === "function") {
+		if (
+			!keepAlive &&
+			typeof retryTimer === "object" &&
+			retryTimer !== null &&
+			"unref" in retryTimer &&
+			typeof retryTimer.unref === "function"
+		) {
 			retryTimer.unref();
 		}
 	};

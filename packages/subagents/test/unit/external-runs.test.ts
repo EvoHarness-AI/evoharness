@@ -4,12 +4,12 @@ import {
 	EXTERNAL_RUN_LIMITS,
 	EXTERNAL_RUN_REGISTRY_KEY,
 	EXTERNAL_RUN_REGISTRY_VERSION,
+	type ExternalRun,
 	listExternalRuns,
 	registerExternalRun,
 	snapshotExternalRuns,
 	unregisterExternalRun,
 	updateExternalRun,
-	type ExternalRun,
 } from "../../src/api/external-runs.ts";
 
 function clearRegistry(): void {
@@ -19,43 +19,49 @@ function clearRegistry(): void {
 
 test("external runs register, update, list, and unregister cached display records", () => {
 	clearRegistry();
-	assert.deepEqual(registerExternalRun({
-		id: "review-1083",
-		sessionId: "session-a",
-		source: "interactive-shell",
-		label: "Dependency review",
-		state: "running",
-		startedAt: 100,
-		currentAction: "Inspecting package metadata",
-	}), {
-		id: "review-1083",
-		sessionId: "session-a",
-		source: "interactive-shell",
-		label: "Dependency review",
-		state: "running",
-		startedAt: 100,
-		currentAction: "Inspecting package metadata",
-	});
+	assert.deepEqual(
+		registerExternalRun({
+			id: "review-1083",
+			sessionId: "session-a",
+			source: "interactive-shell",
+			label: "Dependency review",
+			state: "running",
+			startedAt: 100,
+			currentAction: "Inspecting package metadata",
+		}),
+		{
+			id: "review-1083",
+			sessionId: "session-a",
+			source: "interactive-shell",
+			label: "Dependency review",
+			state: "running",
+			startedAt: 100,
+			currentAction: "Inspecting package metadata",
+		},
+	);
 	assert.deepEqual(snapshotExternalRuns("session-b"), []);
-	assert.deepEqual(updateExternalRun("session-a", "review-1083", {
-		state: "completed",
-		updatedAt: 190,
-		endedAt: 200,
-		preview: "Review complete",
-		reportPath: "/tmp/review.md",
-	}), {
-		id: "review-1083",
-		sessionId: "session-a",
-		source: "interactive-shell",
-		label: "Dependency review",
-		state: "completed",
-		startedAt: 100,
-		updatedAt: 190,
-		endedAt: 200,
-		currentAction: "Inspecting package metadata",
-		preview: "Review complete",
-		reportPath: "/tmp/review.md",
-	});
+	assert.deepEqual(
+		updateExternalRun("session-a", "review-1083", {
+			state: "completed",
+			updatedAt: 190,
+			endedAt: 200,
+			preview: "Review complete",
+			reportPath: "/tmp/review.md",
+		}),
+		{
+			id: "review-1083",
+			sessionId: "session-a",
+			source: "interactive-shell",
+			label: "Dependency review",
+			state: "completed",
+			startedAt: 100,
+			updatedAt: 190,
+			endedAt: 200,
+			currentAction: "Inspecting package metadata",
+			preview: "Review complete",
+			reportPath: "/tmp/review.md",
+		},
+	);
 	assert.deepEqual(listExternalRuns("session-a"), snapshotExternalRuns("session-a"));
 	assert.equal(unregisterExternalRun("session-a", "review-1083"), true);
 	assert.equal(unregisterExternalRun("session-a", "review-1083"), false);
@@ -74,7 +80,9 @@ test("external snapshots reuse validated records, detect direct mutations, and c
 			state: "running",
 			startedAt: 1,
 		});
-		const registry = (globalThis as Record<PropertyKey, unknown>)[Symbol.for(EXTERNAL_RUN_REGISTRY_KEY)] as { runs: Map<string, ExternalRun> };
+		const registry = (globalThis as Record<PropertyKey, unknown>)[Symbol.for(EXTERNAL_RUN_REGISTRY_KEY)] as {
+			runs: Map<string, ExternalRun>;
+		};
 		const stored = registry.runs.get("session-a\0trusted")!;
 		assert.notEqual(stored, registered, "callers receive a clone rather than the cached object");
 		const snapshot = snapshotExternalRuns("session-a");
@@ -119,7 +127,15 @@ test("external snapshots do not trust forged public-symbol metadata", () => {
 		};
 		(globalThis as Record<PropertyKey, unknown>)[Symbol.for(EXTERNAL_RUN_REGISTRY_KEY)] = registry;
 		(globalThis as Record<PropertyKey, unknown>)[Symbol.for(`${EXTERNAL_RUN_REGISTRY_KEY}.trusted`)] = new Map([
-			["session-a\0forged", { value: malformed, normalized: forgedNormalized, keys: Object.keys(malformed), values: Object.values(malformed) }],
+			[
+				"session-a\0forged",
+				{
+					value: malformed,
+					normalized: forgedNormalized,
+					keys: Object.keys(malformed),
+					values: Object.values(malformed),
+				},
+			],
 		]);
 
 		assert.throws(() => snapshotExternalRuns("session-a"), /state is invalid/);
@@ -153,10 +169,15 @@ test("external snapshots filter unrelated cache keys before normalizing records"
 				throw new Error("unrelated record was normalized");
 			},
 		});
-		const registry = (globalThis as Record<PropertyKey, unknown>)[Symbol.for(EXTERNAL_RUN_REGISTRY_KEY)] as { runs: Map<string, ExternalRun> };
+		const registry = (globalThis as Record<PropertyKey, unknown>)[Symbol.for(EXTERNAL_RUN_REGISTRY_KEY)] as {
+			runs: Map<string, ExternalRun>;
+		};
 		registry.runs.set("session-b\0bad", malformed as unknown as ExternalRun);
 
-		assert.deepEqual(snapshotExternalRuns("session-a").map((run) => run.id), ["good"]);
+		assert.deepEqual(
+			snapshotExternalRuns("session-a").map((run) => run.id),
+			["good"],
+		);
 		assert.throws(() => snapshotExternalRuns("session-b"), /unrelated record was normalized/);
 	} finally {
 		clearRegistry();
@@ -187,15 +208,40 @@ test("external run validation is atomic and display text is bounded", () => {
 	assert.doesNotMatch(updated.label, /\u001b/);
 	assert.doesNotMatch(updated.preview!, /\n/);
 	assert.throws(
-		() => registerExternalRun({ id: "unsafe\nrun", sessionId: "session-a", source: "tool", label: "Unsafe", state: "running", startedAt: 1 }),
+		() =>
+			registerExternalRun({
+				id: "unsafe\nrun",
+				sessionId: "session-a",
+				source: "tool",
+				label: "Unsafe",
+				state: "running",
+				startedAt: 1,
+			}),
 		/display-safe/,
 	);
 	assert.throws(
-		() => registerExternalRun({ id: "extra", sessionId: "session-a", source: "tool", label: "Extra", state: "running", startedAt: 1, cwd: "/private" } as never),
+		() =>
+			registerExternalRun({
+				id: "extra",
+				sessionId: "session-a",
+				source: "tool",
+				label: "Extra",
+				state: "running",
+				startedAt: 1,
+				cwd: "/private",
+			} as never),
 		/unknown fields: cwd/,
 	);
 	assert.throws(
-		() => registerExternalRun({ id: "invalid-date", sessionId: "session-a", source: "tool", label: "Invalid date", state: "running", startedAt: Number.MAX_SAFE_INTEGER }),
+		() =>
+			registerExternalRun({
+				id: "invalid-date",
+				sessionId: "session-a",
+				source: "tool",
+				label: "Invalid date",
+				state: "running",
+				startedAt: Number.MAX_SAFE_INTEGER,
+			}),
 		/safe timestamp/,
 	);
 	clearRegistry();
@@ -207,8 +253,21 @@ test("external snapshots throw on malformed cached records by default", () => {
 		(globalThis as Record<PropertyKey, unknown>)[Symbol.for(EXTERNAL_RUN_REGISTRY_KEY)] = {
 			version: EXTERNAL_RUN_REGISTRY_VERSION,
 			runs: new Map<string, unknown>([
-				["session-a\0bad", { id: "bad", sessionId: "session-a", source: "tool", label: "Bad", state: "running", startedAt: Number.NaN }],
-				["session-a\0good", { id: "good", sessionId: "session-a", source: "tool", label: "Good", state: "running", startedAt: 1 }],
+				[
+					"session-a\0bad",
+					{
+						id: "bad",
+						sessionId: "session-a",
+						source: "tool",
+						label: "Bad",
+						state: "running",
+						startedAt: Number.NaN,
+					},
+				],
+				[
+					"session-a\0good",
+					{ id: "good", sessionId: "session-a", source: "tool", label: "Good", state: "running", startedAt: 1 },
+				],
 			]),
 		};
 		assert.throws(
@@ -227,13 +286,37 @@ test("external snapshots can remove malformed cached records for display-only ca
 		(globalThis as Record<PropertyKey, unknown>)[Symbol.for(EXTERNAL_RUN_REGISTRY_KEY)] = {
 			version: EXTERNAL_RUN_REGISTRY_VERSION,
 			runs: new Map<string, unknown>([
-				["session-a\0bad", { id: "bad", sessionId: "session-a", source: "tool", label: "Bad", state: "running", startedAt: Number.NaN }],
-				["session-a\0good", { id: "good", sessionId: "session-a", source: "tool", label: "Good", state: "running", startedAt: 1 }],
+				[
+					"session-a\0bad",
+					{
+						id: "bad",
+						sessionId: "session-a",
+						source: "tool",
+						label: "Bad",
+						state: "running",
+						startedAt: Number.NaN,
+					},
+				],
+				[
+					"session-a\0good",
+					{ id: "good", sessionId: "session-a", source: "tool", label: "Good", state: "running", startedAt: 1 },
+				],
 			]),
 		};
-		assert.deepEqual(snapshotExternalRuns("session-a", { ignoreMalformed: true, onMalformedRecord: (message) => diagnostics.push(message) }).map((run) => run.id), ["good"]);
-		assert.deepEqual(diagnostics, ["Malformed cached external run 'bad': External run startedAt must be a non-negative safe timestamp."]);
-		assert.deepEqual(snapshotExternalRuns("session-a").map((run) => run.id), ["good"]);
+		assert.deepEqual(
+			snapshotExternalRuns("session-a", {
+				ignoreMalformed: true,
+				onMalformedRecord: (message) => diagnostics.push(message),
+			}).map((run) => run.id),
+			["good"],
+		);
+		assert.deepEqual(diagnostics, [
+			"Malformed cached external run 'bad': External run startedAt must be a non-negative safe timestamp.",
+		]);
+		assert.deepEqual(
+			snapshotExternalRuns("session-a").map((run) => run.id),
+			["good"],
+		);
 	} finally {
 		clearRegistry();
 	}
@@ -264,9 +347,24 @@ test("external run identities accept session-file paths with Unicode spaces and 
 	clearRegistry();
 	const nbsp = String.fromCodePoint(0xa0);
 	const sessionFile = `/tmp/pCloud${nbsp}Drive/My  Project/session.jsonl`;
-	registerExternalRun({ id: "nbsp-run", sessionId: sessionFile, source: "interactive-shell", label: "Run", state: "running", startedAt: 1 });
-	assert.deepEqual(snapshotExternalRuns(sessionFile).map((run) => run.id), ["nbsp-run"]);
-	for (const unsafe of [`session${String.fromCodePoint(0x1b)}[31m`, "session\nnext", `session${String.fromCodePoint(0x202e)}x`, `session${String.fromCodePoint(0x2028)}x`]) {
+	registerExternalRun({
+		id: "nbsp-run",
+		sessionId: sessionFile,
+		source: "interactive-shell",
+		label: "Run",
+		state: "running",
+		startedAt: 1,
+	});
+	assert.deepEqual(
+		snapshotExternalRuns(sessionFile).map((run) => run.id),
+		["nbsp-run"],
+	);
+	for (const unsafe of [
+		`session${String.fromCodePoint(0x1b)}[31m`,
+		"session\nnext",
+		`session${String.fromCodePoint(0x202e)}x`,
+		`session${String.fromCodePoint(0x2028)}x`,
+	]) {
 		assert.throws(() => snapshotExternalRuns(unsafe), /display-safe text/);
 	}
 	clearRegistry();

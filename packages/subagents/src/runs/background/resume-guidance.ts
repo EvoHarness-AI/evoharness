@@ -1,14 +1,18 @@
 import * as fs from "node:fs";
-import type { AsyncRunSummary } from "./async-status.ts";
-import { readAsyncRecoveryDescriptor } from "./async-resume.ts";
 import { errorWithoutReplyText } from "../shared/model-resolution.ts";
+import { readAsyncRecoveryDescriptor } from "./async-resume.ts";
+import type { AsyncRunSummary } from "./async-status.ts";
 
 const INTERCOM_DETACH_ERROR = "detached for intercom coordination";
 
 function isIntercomDetached(run: AsyncRunSummary): boolean {
-	return run.steps.some((step) => step.execution?.status === "detached"
-		|| errorWithoutReplyText(step.error)?.toLowerCase().includes(INTERCOM_DETACH_ERROR) === true)
-		|| errorWithoutReplyText(run.error)?.toLowerCase().includes(INTERCOM_DETACH_ERROR) === true;
+	return (
+		run.steps.some(
+			(step) =>
+				step.execution?.status === "detached" ||
+				errorWithoutReplyText(step.error)?.toLowerCase().includes(INTERCOM_DETACH_ERROR) === true,
+		) || errorWithoutReplyText(run.error)?.toLowerCase().includes(INTERCOM_DETACH_ERROR) === true
+	);
 }
 
 function formatIntercomDetachGuidance(run: AsyncRunSummary): string | undefined {
@@ -48,10 +52,11 @@ export function formatResumeFirstFailedRunsNote(runs: AsyncRunSummary[]): string
 		.filter((run) => !isIntercomDetached(run))
 		.map((run) => ({ run, command: formatAsyncReviveCommand(run) }))
 		.filter((entry): entry is { run: AsyncRunSummary; command: string } => Boolean(entry.command));
-	const resumeGuidance = resumable.length === 0
-		? ""
-		: resumable.length === 1
-			? ` Resume-first: failed run "${resumable[0]!.run.id}" has a persisted child session. Revive the original run with ${resumable[0]!.command} before reporting failure or launching a replacement. Launch a replacement only if revive fails or the user explicitly asks for one.`
-			: ` Resume-first: ${resumable.length} failed runs have persisted child sessions. Inspect status and revive each original run before reporting failure or launching a replacement. Launch a replacement only if revive fails or the user explicitly asks for one.`;
+	const resumeGuidance =
+		resumable.length === 0
+			? ""
+			: resumable.length === 1
+				? ` Resume-first: failed run "${resumable[0]!.run.id}" has a persisted child session. Revive the original run with ${resumable[0]!.command} before reporting failure or launching a replacement. Launch a replacement only if revive fails or the user explicitly asks for one.`
+				: ` Resume-first: ${resumable.length} failed runs have persisted child sessions. Inspect status and revive each original run before reporting failure or launching a replacement. Launch a replacement only if revive fails or the user explicitly asks for one.`;
 	return `${detachGuidance.length > 0 ? ` ${detachGuidance.join(" ")}` : ""}${resumeGuidance}`;
 }

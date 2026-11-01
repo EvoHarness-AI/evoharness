@@ -3,9 +3,23 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
-import { EXTERNAL_JOB_PROVIDER_REGISTRY_KEY, ExternalJobProviderError, registerExternalJobProvider } from "../../src/api/external-job-provider.ts";
-import { EXTERNAL_JOB_BRIDGE_REQUEST_DIR, requestExternalJobOperation, serviceExternalJobBridgeRequestFile, serviceExternalJobBridgeRequests } from "../../src/runs/shared/external-job-bridge.ts";
-import { externalJobFollowUpRequestDigest, externalJobFollowUpRequestId, externalJobPromptDigest, runExternalJob } from "../../src/runs/shared/external-job-runner.ts";
+import {
+	EXTERNAL_JOB_PROVIDER_REGISTRY_KEY,
+	ExternalJobProviderError,
+	registerExternalJobProvider,
+} from "../../src/api/external-job-provider.ts";
+import {
+	EXTERNAL_JOB_BRIDGE_REQUEST_DIR,
+	requestExternalJobOperation,
+	serviceExternalJobBridgeRequestFile,
+	serviceExternalJobBridgeRequests,
+} from "../../src/runs/shared/external-job-bridge.ts";
+import {
+	externalJobFollowUpRequestDigest,
+	externalJobFollowUpRequestId,
+	externalJobPromptDigest,
+	runExternalJob,
+} from "../../src/runs/shared/external-job-runner.ts";
 
 const tempDirs: string[] = [];
 
@@ -26,7 +40,14 @@ function tempDir(prefix: string): string {
 
 async function serviceUntil<T>(asyncDir: string, promise: Promise<T>): Promise<T> {
 	let done = false;
-	promise.then(() => { done = true; }, () => { done = true; });
+	promise.then(
+		() => {
+			done = true;
+		},
+		() => {
+			done = true;
+		},
+	);
 	while (!done) {
 		serviceExternalJobBridgeRequests(asyncDir);
 		await new Promise((resolve) => setTimeout(resolve, 10));
@@ -57,16 +78,19 @@ describe("external-job runner bridge", () => {
 			result: () => ({ providerJobId: "job-1", state: "completed", output: "advisor result" }),
 		});
 
-		const result = await serviceUntil(dir, runExternalJob({
-			provider: "surf-oracle",
-			options: { tier: "pro" },
-			cwd: dir,
-			prompt: "prompt text",
-			asyncDir: dir,
-			stepIndex: 0,
-			runId: "run-1",
-			agent: "gpt-pro",
-		}));
+		const result = await serviceUntil(
+			dir,
+			runExternalJob({
+				provider: "surf-oracle",
+				options: { tier: "pro" },
+				cwd: dir,
+				prompt: "prompt text",
+				asyncDir: dir,
+				stepIndex: 0,
+				runId: "run-1",
+				agent: "gpt-pro",
+			}),
+		);
 
 		assert.equal(result.exitCode, 0);
 		assert.equal(result.output, "advisor result");
@@ -80,35 +104,49 @@ describe("external-job runner bridge", () => {
 	it("reattaches an existing provider job instead of redispatching the prompt", async () => {
 		const dir = tempDir("pi-external-job-reattach-");
 		const prompt = "same prompt";
-		fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify({
-			steps: [{
-				externalJob: {
-					provider: "surf-oracle",
-					providerJobId: "job-existing",
-					promptDigest: externalJobPromptDigest(prompt),
-					options: {},
-					state: "running",
-				},
-			}],
-		}), "utf-8");
+		fs.writeFileSync(
+			path.join(dir, "status.json"),
+			JSON.stringify({
+				steps: [
+					{
+						externalJob: {
+							provider: "surf-oracle",
+							providerJobId: "job-existing",
+							promptDigest: externalJobPromptDigest(prompt),
+							options: {},
+							state: "running",
+						},
+					},
+				],
+			}),
+			"utf-8",
+		);
 		let reattached = false;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { throw new Error("start must not be called"); },
-			reattach: (providerJobId) => { reattached = true; return { providerJobId, state: "completed" }; },
+			start: () => {
+				throw new Error("start must not be called");
+			},
+			reattach: (providerJobId) => {
+				reattached = true;
+				return { providerJobId, state: "completed" };
+			},
 			status: (providerJobId) => ({ providerJobId, state: "completed" }),
 			result: (providerJobId) => ({ providerJobId, state: "completed", output: "recovered result" }),
 		});
 
-		const result = await serviceUntil(dir, runExternalJob({
-			provider: "surf-oracle",
-			cwd: dir,
-			prompt,
-			asyncDir: dir,
-			stepIndex: 0,
-			runId: "run-reattach",
-			agent: "gpt-pro",
-		}));
+		const result = await serviceUntil(
+			dir,
+			runExternalJob({
+				provider: "surf-oracle",
+				cwd: dir,
+				prompt,
+				asyncDir: dir,
+				stepIndex: 0,
+				runId: "run-reattach",
+				agent: "gpt-pro",
+			}),
+		);
 
 		assert.equal(reattached, true);
 		assert.equal(result.exitCode, 0);
@@ -120,21 +158,29 @@ describe("external-job runner bridge", () => {
 		const dir = tempDir("pi-external-job-capacity-");
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { throw new ExternalJobProviderError("Surf capacity is occupied", { code: "capacity", blockingJobId: "job-blocking" }); },
+			start: () => {
+				throw new ExternalJobProviderError("Surf capacity is occupied", {
+					code: "capacity",
+					blockingJobId: "job-blocking",
+				});
+			},
 			status: () => ({ providerJobId: "unused", state: "failed" }),
 			reattach: () => ({ providerJobId: "unused", state: "failed" }),
 			result: () => ({ providerJobId: "unused", state: "failed" }),
 		});
 
-		const result = await serviceUntil(dir, runExternalJob({
-			provider: "surf-oracle",
-			cwd: dir,
-			prompt: "prompt",
-			asyncDir: dir,
-			stepIndex: 0,
-			runId: "run-capacity",
-			agent: "gpt-pro",
-		}));
+		const result = await serviceUntil(
+			dir,
+			runExternalJob({
+				provider: "surf-oracle",
+				cwd: dir,
+				prompt: "prompt",
+				asyncDir: dir,
+				stepIndex: 0,
+				runId: "run-capacity",
+				agent: "gpt-pro",
+			}),
+		);
 
 		assert.equal(result.exitCode, 1);
 		assert.equal(result.externalJob.state, "blocked");
@@ -147,7 +193,10 @@ describe("external-job runner bridge", () => {
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { starts += 1; return { providerJobId: "job-duplicate", state: "completed" }; },
+			start: () => {
+				starts += 1;
+				return { providerJobId: "job-duplicate", state: "completed" };
+			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
 			result: () => ({ providerJobId: "unused", state: "completed" }),
@@ -155,26 +204,32 @@ describe("external-job runner bridge", () => {
 		const requestDir = path.join(dir, EXTERNAL_JOB_BRIDGE_REQUEST_DIR);
 		fs.mkdirSync(requestDir, { recursive: true });
 		fs.mkdirSync(path.join(requestDir, "start-timeout.claim"));
-		fs.writeFileSync(path.join(requestDir, "start-timeout.json"), JSON.stringify({
-			id: "start-timeout",
-			operation: "start",
-			provider: "surf-oracle",
-			createdAt: 1,
-			start: {
-				prompt: "prompt",
-				promptDigest: externalJobPromptDigest("prompt"),
-				cwd: dir,
-				runId: "run-timeout",
-				stepIndex: 0,
-				agent: "gpt-pro",
-				options: {},
-			},
-		}), "utf-8");
+		fs.writeFileSync(
+			path.join(requestDir, "start-timeout.json"),
+			JSON.stringify({
+				id: "start-timeout",
+				operation: "start",
+				provider: "surf-oracle",
+				createdAt: 1,
+				start: {
+					prompt: "prompt",
+					promptDigest: externalJobPromptDigest("prompt"),
+					cwd: dir,
+					runId: "run-timeout",
+					stepIndex: 0,
+					agent: "gpt-pro",
+					options: {},
+				},
+			}),
+			"utf-8",
+		);
 
 		serviceExternalJobBridgeRequests(dir);
 		serviceExternalJobBridgeRequests(dir);
 		await waitForFile(path.join(dir, "external-job-responses", "start-timeout.json"));
-		const response = JSON.parse(fs.readFileSync(path.join(dir, "external-job-responses", "start-timeout.json"), "utf-8"));
+		const response = JSON.parse(
+			fs.readFileSync(path.join(dir, "external-job-responses", "start-timeout.json"), "utf-8"),
+		);
 
 		assert.equal(starts, 1);
 		assert.equal(response.ok, true);
@@ -191,7 +246,9 @@ describe("external-job runner bridge", () => {
 			name: "surf-oracle",
 			start: () => {
 				starts += 1;
-				return new Promise((resolve) => { resolveStart = resolve; });
+				return new Promise((resolve) => {
+					resolveStart = resolve;
+				});
 			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
@@ -199,21 +256,25 @@ describe("external-job runner bridge", () => {
 		});
 		const requestDir = path.join(dir, EXTERNAL_JOB_BRIDGE_REQUEST_DIR);
 		fs.mkdirSync(requestDir, { recursive: true });
-		fs.writeFileSync(path.join(requestDir, "start-race.json"), JSON.stringify({
-			id: "start-race",
-			operation: "start",
-			provider: "surf-oracle",
-			createdAt: Date.now(),
-			start: {
-				prompt: "prompt",
-				promptDigest: externalJobPromptDigest("prompt"),
-				cwd: dir,
-				runId: "run-race",
-				stepIndex: 0,
-				agent: "gpt-pro",
-				options: {},
-			},
-		}), "utf-8");
+		fs.writeFileSync(
+			path.join(requestDir, "start-race.json"),
+			JSON.stringify({
+				id: "start-race",
+				operation: "start",
+				provider: "surf-oracle",
+				createdAt: Date.now(),
+				start: {
+					prompt: "prompt",
+					promptDigest: externalJobPromptDigest("prompt"),
+					cwd: dir,
+					runId: "run-race",
+					stepIndex: 0,
+					agent: "gpt-pro",
+					options: {},
+				},
+			}),
+			"utf-8",
+		);
 
 		serviceExternalJobBridgeRequests(dir);
 		serviceExternalJobBridgeRequests(dir);
@@ -222,7 +283,9 @@ describe("external-job runner bridge", () => {
 		assert.equal(fs.existsSync(path.join(dir, "external-job-responses", "start-race.json")), false);
 		resolveStart!({ providerJobId: "job-race", state: "completed" });
 		await waitForFile(path.join(dir, "external-job-responses", "start-race.json"));
-		const response = JSON.parse(fs.readFileSync(path.join(dir, "external-job-responses", "start-race.json"), "utf-8"));
+		const response = JSON.parse(
+			fs.readFileSync(path.join(dir, "external-job-responses", "start-race.json"), "utf-8"),
+		);
 		assert.equal(response.ok, true);
 		assert.equal(response.result.providerJobId, "job-race");
 		assert.equal(starts, 1);
@@ -233,7 +296,10 @@ describe("external-job runner bridge", () => {
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { starts += 1; return { providerJobId: "job-duplicate", state: "completed" }; },
+			start: () => {
+				starts += 1;
+				return { providerJobId: "job-duplicate", state: "completed" };
+			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
 			result: () => ({ providerJobId: "unused", state: "completed" }),
@@ -242,23 +308,31 @@ describe("external-job runner bridge", () => {
 		const claimDir = path.join(requestDir, "start-long.claim");
 		fs.mkdirSync(requestDir, { recursive: true });
 		fs.mkdirSync(claimDir);
-		fs.writeFileSync(path.join(claimDir, "owner.json"), JSON.stringify({ version: 1, pid: process.pid, hostname: os.hostname(), claimedAt: 1 }), "utf-8");
-		fs.writeFileSync(path.join(claimDir, "request.json"), JSON.stringify({
-			id: "start-long",
-			operation: "start",
-			provider: "surf-oracle",
-			createdAt: 1,
-			claimedAt: 2,
-			start: {
-				prompt: "prompt",
-				promptDigest: externalJobPromptDigest("prompt"),
-				cwd: dir,
-				runId: "run-long",
-				stepIndex: 0,
-				agent: "gpt-pro",
-				options: {},
-			},
-		}), "utf-8");
+		fs.writeFileSync(
+			path.join(claimDir, "owner.json"),
+			JSON.stringify({ version: 1, pid: process.pid, hostname: os.hostname(), claimedAt: 1 }),
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(claimDir, "request.json"),
+			JSON.stringify({
+				id: "start-long",
+				operation: "start",
+				provider: "surf-oracle",
+				createdAt: 1,
+				claimedAt: 2,
+				start: {
+					prompt: "prompt",
+					promptDigest: externalJobPromptDigest("prompt"),
+					cwd: dir,
+					runId: "run-long",
+					stepIndex: 0,
+					agent: "gpt-pro",
+					options: {},
+				},
+			}),
+			"utf-8",
+		);
 
 		serviceExternalJobBridgeRequestFile(dir, "start-long.claim");
 
@@ -272,7 +346,10 @@ describe("external-job runner bridge", () => {
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { starts += 1; return { providerJobId: "job-duplicate", state: "completed" }; },
+			start: () => {
+				starts += 1;
+				return { providerJobId: "job-duplicate", state: "completed" };
+			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
 			result: () => ({ providerJobId: "unused", state: "completed" }),
@@ -280,28 +357,38 @@ describe("external-job runner bridge", () => {
 		const requestDir = path.join(dir, EXTERNAL_JOB_BRIDGE_REQUEST_DIR);
 		const claimDir = path.join(requestDir, "start-abandoned.claim");
 		fs.mkdirSync(claimDir, { recursive: true });
-		fs.writeFileSync(path.join(claimDir, "owner.json"), JSON.stringify({ version: 1, pid: 9_999_999, hostname: os.hostname(), claimedAt: 1 }), "utf-8");
-		fs.writeFileSync(path.join(claimDir, "request.json"), JSON.stringify({
-			id: "start-abandoned",
-			operation: "start",
-			provider: "surf-oracle",
-			createdAt: 1,
-			claimedAt: 2,
-			start: {
-				prompt: "prompt",
-				promptDigest: externalJobPromptDigest("prompt"),
-				cwd: dir,
-				runId: "run-abandoned",
-				stepIndex: 0,
-				agent: "gpt-pro",
-				options: {},
-			},
-		}), "utf-8");
+		fs.writeFileSync(
+			path.join(claimDir, "owner.json"),
+			JSON.stringify({ version: 1, pid: 9_999_999, hostname: os.hostname(), claimedAt: 1 }),
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(claimDir, "request.json"),
+			JSON.stringify({
+				id: "start-abandoned",
+				operation: "start",
+				provider: "surf-oracle",
+				createdAt: 1,
+				claimedAt: 2,
+				start: {
+					prompt: "prompt",
+					promptDigest: externalJobPromptDigest("prompt"),
+					cwd: dir,
+					runId: "run-abandoned",
+					stepIndex: 0,
+					agent: "gpt-pro",
+					options: {},
+				},
+			}),
+			"utf-8",
+		);
 
 		serviceExternalJobBridgeRequests(dir);
 
 		assert.equal(starts, 0);
-		const response = JSON.parse(fs.readFileSync(path.join(dir, "external-job-responses", "start-abandoned.json"), "utf-8"));
+		const response = JSON.parse(
+			fs.readFileSync(path.join(dir, "external-job-responses", "start-abandoned.json"), "utf-8"),
+		);
 		assert.equal(response.ok, false);
 		assert.equal(response.code, "start-dispatch-abandoned");
 		assert.match(response.message, /Refusing to redispatch/);
@@ -313,8 +400,13 @@ describe("external-job runner bridge", () => {
 		let followUps = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { throw new Error("start must not be called"); },
-			followUp: () => { followUps += 1; return { providerJobId: "job-duplicate", state: "completed" }; },
+			start: () => {
+				throw new Error("start must not be called");
+			},
+			followUp: () => {
+				followUps += 1;
+				return { providerJobId: "job-duplicate", state: "completed" };
+			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
 			result: () => ({ providerJobId: "unused", state: "completed" }),
@@ -322,33 +414,43 @@ describe("external-job runner bridge", () => {
 		const requestDir = path.join(dir, EXTERNAL_JOB_BRIDGE_REQUEST_DIR);
 		const claimDir = path.join(requestDir, "follow-up-abandoned.claim");
 		fs.mkdirSync(claimDir, { recursive: true });
-		fs.writeFileSync(path.join(claimDir, "owner.json"), JSON.stringify({ version: 1, pid: 9_999_999, hostname: os.hostname(), claimedAt: 1 }), "utf-8");
-		fs.writeFileSync(path.join(claimDir, "request.json"), JSON.stringify({
-			id: "follow-up-abandoned",
-			operation: "follow-up",
-			provider: "surf-oracle",
-			createdAt: 1,
-			claimedAt: 2,
-			followUp: {
-				prompt: "prompt",
-				promptDigest: externalJobPromptDigest("prompt"),
-				cwd: dir,
-				runId: "run-abandoned-follow-up",
-				stepIndex: 0,
-				agent: "gpt-pro",
-				options: {},
-				sourceRunId: "run-parent",
-				sourceStepIndex: 0,
-				parentProviderJobId: "job-parent",
-				requestId: "request-abandoned-follow-up",
-				requestDigest: "digest-abandoned-follow-up",
-			},
-		}), "utf-8");
+		fs.writeFileSync(
+			path.join(claimDir, "owner.json"),
+			JSON.stringify({ version: 1, pid: 9_999_999, hostname: os.hostname(), claimedAt: 1 }),
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(claimDir, "request.json"),
+			JSON.stringify({
+				id: "follow-up-abandoned",
+				operation: "follow-up",
+				provider: "surf-oracle",
+				createdAt: 1,
+				claimedAt: 2,
+				followUp: {
+					prompt: "prompt",
+					promptDigest: externalJobPromptDigest("prompt"),
+					cwd: dir,
+					runId: "run-abandoned-follow-up",
+					stepIndex: 0,
+					agent: "gpt-pro",
+					options: {},
+					sourceRunId: "run-parent",
+					sourceStepIndex: 0,
+					parentProviderJobId: "job-parent",
+					requestId: "request-abandoned-follow-up",
+					requestDigest: "digest-abandoned-follow-up",
+				},
+			}),
+			"utf-8",
+		);
 
 		serviceExternalJobBridgeRequests(dir);
 
 		assert.equal(followUps, 0);
-		const response = JSON.parse(fs.readFileSync(path.join(dir, "external-job-responses", "follow-up-abandoned.json"), "utf-8"));
+		const response = JSON.parse(
+			fs.readFileSync(path.join(dir, "external-job-responses", "follow-up-abandoned.json"), "utf-8"),
+		);
 		assert.equal(response.ok, false);
 		assert.equal(response.code, "follow-up-dispatch-abandoned");
 		assert.match(response.message, /External-job follow-up/);
@@ -360,7 +462,10 @@ describe("external-job runner bridge", () => {
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { starts += 1; return { providerJobId: "job-duplicate", state: "completed" }; },
+			start: () => {
+				starts += 1;
+				return { providerJobId: "job-duplicate", state: "completed" };
+			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
 			result: () => ({ providerJobId: "unused", state: "completed" }),
@@ -368,29 +473,43 @@ describe("external-job runner bridge", () => {
 		const requestDir = path.join(dir, EXTERNAL_JOB_BRIDGE_REQUEST_DIR);
 		const claimDir = path.join(requestDir, "start-recovered.claim");
 		fs.mkdirSync(claimDir, { recursive: true });
-		fs.writeFileSync(path.join(claimDir, "owner.json"), JSON.stringify({ version: 1, pid: 9_999_999, hostname: os.hostname(), claimedAt: 1 }), "utf-8");
-		fs.writeFileSync(path.join(claimDir, "request.json"), JSON.stringify({
-			id: "start-recovered",
-			operation: "start",
-			provider: "surf-oracle",
-			createdAt: 1,
-			claimedAt: 2,
-			start: {
-				prompt: "prompt",
-				promptDigest: externalJobPromptDigest("prompt"),
-				cwd: dir,
-				runId: "run-recovered",
-				stepIndex: 0,
-				agent: "gpt-pro",
-				options: {},
-			},
-		}), "utf-8");
-		fs.writeFileSync(path.join(claimDir, "handle.json"), JSON.stringify({ providerJobId: "job-recovered", state: "running" }), "utf-8");
+		fs.writeFileSync(
+			path.join(claimDir, "owner.json"),
+			JSON.stringify({ version: 1, pid: 9_999_999, hostname: os.hostname(), claimedAt: 1 }),
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(claimDir, "request.json"),
+			JSON.stringify({
+				id: "start-recovered",
+				operation: "start",
+				provider: "surf-oracle",
+				createdAt: 1,
+				claimedAt: 2,
+				start: {
+					prompt: "prompt",
+					promptDigest: externalJobPromptDigest("prompt"),
+					cwd: dir,
+					runId: "run-recovered",
+					stepIndex: 0,
+					agent: "gpt-pro",
+					options: {},
+				},
+			}),
+			"utf-8",
+		);
+		fs.writeFileSync(
+			path.join(claimDir, "handle.json"),
+			JSON.stringify({ providerJobId: "job-recovered", state: "running" }),
+			"utf-8",
+		);
 
 		serviceExternalJobBridgeRequests(dir);
 
 		assert.equal(starts, 0);
-		const response = JSON.parse(fs.readFileSync(path.join(dir, "external-job-responses", "start-recovered.json"), "utf-8"));
+		const response = JSON.parse(
+			fs.readFileSync(path.join(dir, "external-job-responses", "start-recovered.json"), "utf-8"),
+		);
 		assert.equal(response.ok, true);
 		assert.equal(response.result.providerJobId, "job-recovered");
 		assert.equal(fs.existsSync(path.join(claimDir, "completed.json")), true);
@@ -404,7 +523,9 @@ describe("external-job runner bridge", () => {
 			name: "surf-oracle",
 			start: () => {
 				starts += 1;
-				return new Promise((resolve) => { resolveStart = resolve; });
+				return new Promise((resolve) => {
+					resolveStart = resolve;
+				});
 			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
@@ -412,21 +533,25 @@ describe("external-job runner bridge", () => {
 		});
 		const requestDir = path.join(dir, EXTERNAL_JOB_BRIDGE_REQUEST_DIR);
 		fs.mkdirSync(requestDir, { recursive: true });
-		fs.writeFileSync(path.join(requestDir, "start-stale.json"), JSON.stringify({
-			id: "start-stale",
-			operation: "start",
-			provider: "surf-oracle",
-			createdAt: Date.now(),
-			start: {
-				prompt: "prompt",
-				promptDigest: externalJobPromptDigest("prompt"),
-				cwd: dir,
-				runId: "run-stale",
-				stepIndex: 0,
-				agent: "gpt-pro",
-				options: {},
-			},
-		}), "utf-8");
+		fs.writeFileSync(
+			path.join(requestDir, "start-stale.json"),
+			JSON.stringify({
+				id: "start-stale",
+				operation: "start",
+				provider: "surf-oracle",
+				createdAt: Date.now(),
+				start: {
+					prompt: "prompt",
+					promptDigest: externalJobPromptDigest("prompt"),
+					cwd: dir,
+					runId: "run-stale",
+					stepIndex: 0,
+					agent: "gpt-pro",
+					options: {},
+				},
+			}),
+			"utf-8",
+		);
 
 		serviceExternalJobBridgeRequests(dir);
 		serviceExternalJobBridgeRequestFile(dir, "start-stale.json");
@@ -435,7 +560,9 @@ describe("external-job runner bridge", () => {
 		assert.equal(fs.existsSync(path.join(dir, "external-job-responses", "start-stale.json")), false);
 		resolveStart!({ providerJobId: "job-stale", state: "completed" });
 		await waitForFile(path.join(dir, "external-job-responses", "start-stale.json"));
-		const response = JSON.parse(fs.readFileSync(path.join(dir, "external-job-responses", "start-stale.json"), "utf-8"));
+		const response = JSON.parse(
+			fs.readFileSync(path.join(dir, "external-job-responses", "start-stale.json"), "utf-8"),
+		);
 		assert.equal(response.ok, true);
 		assert.equal(response.result.providerJobId, "job-stale");
 		assert.equal(starts, 1);
@@ -446,7 +573,10 @@ describe("external-job runner bridge", () => {
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { starts += 1; return { providerJobId: "job-completed", state: "completed" }; },
+			start: () => {
+				starts += 1;
+				return { providerJobId: "job-completed", state: "completed" };
+			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
 			result: () => ({ providerJobId: "unused", state: "completed" }),
@@ -485,7 +615,10 @@ describe("external-job runner bridge", () => {
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { starts += 1; return { providerJobId: "job-after-tombstones", state: "completed" }; },
+			start: () => {
+				starts += 1;
+				return { providerJobId: "job-after-tombstones", state: "completed" };
+			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
 			result: () => ({ providerJobId: "unused", state: "completed" }),
@@ -497,37 +630,45 @@ describe("external-job runner bridge", () => {
 			const claimDir = path.join(requestDir, `${id}.claim`);
 			fs.mkdirSync(claimDir);
 			fs.writeFileSync(path.join(claimDir, "completed.json"), JSON.stringify({ completedAt: 1 }), "utf-8");
-			fs.writeFileSync(path.join(requestDir, `${id}.json`), JSON.stringify({
-				id,
+			fs.writeFileSync(
+				path.join(requestDir, `${id}.json`),
+				JSON.stringify({
+					id,
+					operation: "start",
+					provider: "surf-oracle",
+					createdAt: Date.now(),
+					start: {
+						prompt: "stale prompt",
+						promptDigest: externalJobPromptDigest("stale prompt"),
+						cwd: dir,
+						runId: "run-stale-completed",
+						stepIndex: 0,
+						agent: "gpt-pro",
+						options: {},
+					},
+				}),
+				"utf-8",
+			);
+		}
+		fs.writeFileSync(
+			path.join(requestDir, "zzz.json"),
+			JSON.stringify({
+				id: "zzz",
 				operation: "start",
 				provider: "surf-oracle",
 				createdAt: Date.now(),
 				start: {
-					prompt: "stale prompt",
-					promptDigest: externalJobPromptDigest("stale prompt"),
+					prompt: "prompt",
+					promptDigest: externalJobPromptDigest("prompt"),
 					cwd: dir,
-					runId: "run-stale-completed",
+					runId: "run-after-tombstones",
 					stepIndex: 0,
 					agent: "gpt-pro",
 					options: {},
 				},
-			}), "utf-8");
-		}
-		fs.writeFileSync(path.join(requestDir, "zzz.json"), JSON.stringify({
-			id: "zzz",
-			operation: "start",
-			provider: "surf-oracle",
-			createdAt: Date.now(),
-			start: {
-				prompt: "prompt",
-				promptDigest: externalJobPromptDigest("prompt"),
-				cwd: dir,
-				runId: "run-after-tombstones",
-				stepIndex: 0,
-				agent: "gpt-pro",
-				options: {},
-			},
-		}), "utf-8");
+			}),
+			"utf-8",
+		);
 
 		serviceExternalJobBridgeRequests(dir);
 		await waitForFile(path.join(dir, "external-job-responses", "zzz.json"));
@@ -538,22 +679,31 @@ describe("external-job runner bridge", () => {
 	it("does not start again after a bridge timeout without provider job id", async () => {
 		const dir = tempDir("pi-external-job-timeout-retry-");
 		const prompt = "prompt";
-		fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify({
-			steps: [{
-				externalJob: {
-					provider: "surf-oracle",
-					promptDigest: externalJobPromptDigest(prompt),
-					options: {},
-					state: "failed",
-					failureCode: "bridge-timeout",
-					failureMessage: "Bridge timed out before a provider job id was committed.",
-				},
-			}],
-		}), "utf-8");
+		fs.writeFileSync(
+			path.join(dir, "status.json"),
+			JSON.stringify({
+				steps: [
+					{
+						externalJob: {
+							provider: "surf-oracle",
+							promptDigest: externalJobPromptDigest(prompt),
+							options: {},
+							state: "failed",
+							failureCode: "bridge-timeout",
+							failureMessage: "Bridge timed out before a provider job id was committed.",
+						},
+					},
+				],
+			}),
+			"utf-8",
+		);
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { starts += 1; return { providerJobId: "job-2", state: "completed" }; },
+			start: () => {
+				starts += 1;
+				return { providerJobId: "job-2", state: "completed" };
+			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
 			result: () => ({ providerJobId: "unused", state: "completed" }),
@@ -582,7 +732,10 @@ describe("external-job runner bridge", () => {
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { starts += 1; return { providerJobId: "job-new", state: "completed" }; },
+			start: () => {
+				starts += 1;
+				return { providerJobId: "job-new", state: "completed" };
+			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
 			result: () => ({ providerJobId: "unused", state: "completed" }),
@@ -611,7 +764,10 @@ describe("external-job runner bridge", () => {
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { starts += 1; return { providerJobId: "job-new", state: "completed" }; },
+			start: () => {
+				starts += 1;
+				return { providerJobId: "job-new", state: "completed" };
+			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
 			result: () => ({ providerJobId: "unused", state: "completed" }),
@@ -636,27 +792,37 @@ describe("external-job runner bridge", () => {
 
 	it("starts when existing status.json has a pending step without an external job", async () => {
 		const dir = tempDir("pi-external-job-pending-step-");
-		fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify({
-			steps: [{ agent: "gpt-pro", status: "pending" }],
-		}), "utf-8");
+		fs.writeFileSync(
+			path.join(dir, "status.json"),
+			JSON.stringify({
+				steps: [{ agent: "gpt-pro", status: "pending" }],
+			}),
+			"utf-8",
+		);
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { starts += 1; return { providerJobId: "job-1", state: "completed" }; },
+			start: () => {
+				starts += 1;
+				return { providerJobId: "job-1", state: "completed" };
+			},
 			status: () => ({ providerJobId: "job-1", state: "completed" }),
 			reattach: () => ({ providerJobId: "job-1", state: "completed" }),
 			result: () => ({ providerJobId: "job-1", state: "completed", output: "first start" }),
 		});
 
-		const result = await serviceUntil(dir, runExternalJob({
-			provider: "surf-oracle",
-			cwd: dir,
-			prompt: "prompt",
-			asyncDir: dir,
-			stepIndex: 0,
-			runId: "run-pending-step",
-			agent: "gpt-pro",
-		}));
+		const result = await serviceUntil(
+			dir,
+			runExternalJob({
+				provider: "surf-oracle",
+				cwd: dir,
+				prompt: "prompt",
+				asyncDir: dir,
+				stepIndex: 0,
+				runId: "run-pending-step",
+				agent: "gpt-pro",
+			}),
+		);
 
 		assert.equal(starts, 1);
 		assert.equal(result.exitCode, 0);
@@ -686,7 +852,9 @@ describe("external-job runner bridge", () => {
 			stepIndex: 0,
 			runId: "run-local-timeout",
 			agent: "gpt-pro",
-			registerTimeout: (registered) => { timeout = registered; },
+			registerTimeout: (registered) => {
+				timeout = registered;
+			},
 		});
 		timeout!();
 		const result = await operation;
@@ -700,21 +868,25 @@ describe("external-job runner bridge", () => {
 		const tombstone = fs.readdirSync(requestDir).find((entry) => entry.endsWith(".claim"));
 		assert.ok(tombstone);
 		const staleId = tombstone.replace(/\.claim$/, "");
-		fs.writeFileSync(path.join(requestDir, `${staleId}.json`), JSON.stringify({
-			id: staleId,
-			operation: "start",
-			provider: "surf-oracle",
-			createdAt: Date.now(),
-			start: {
-				prompt: "prompt",
-				promptDigest: externalJobPromptDigest("prompt"),
-				cwd: dir,
-				runId: "run-local-timeout",
-				stepIndex: 0,
-				agent: "gpt-pro",
-				options: {},
-			},
-		}), "utf-8");
+		fs.writeFileSync(
+			path.join(requestDir, `${staleId}.json`),
+			JSON.stringify({
+				id: staleId,
+				operation: "start",
+				provider: "surf-oracle",
+				createdAt: Date.now(),
+				start: {
+					prompt: "prompt",
+					promptDigest: externalJobPromptDigest("prompt"),
+					cwd: dir,
+					runId: "run-local-timeout",
+					stepIndex: 0,
+					agent: "gpt-pro",
+					options: {},
+				},
+			}),
+			"utf-8",
+		);
 		serviceExternalJobBridgeRequests(dir);
 		assert.equal(starts, 0);
 	});
@@ -728,25 +900,33 @@ describe("external-job runner bridge", () => {
 			name: "surf-oracle",
 			start: () => {
 				starts += 1;
-				return new Promise((resolve) => { resolveStart = resolve; });
+				return new Promise((resolve) => {
+					resolveStart = resolve;
+				});
 			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
 			result: () => ({ providerJobId: "unused", state: "completed" }),
 		});
-		const operation = requestExternalJobOperation(dir, {
-			operation: "start",
-			provider: "surf-oracle",
-			start: {
-				prompt: "prompt",
-				promptDigest: externalJobPromptDigest("prompt"),
-				cwd: dir,
-				runId: "run-slow",
-				stepIndex: 0,
-				agent: "gpt-pro",
-				options: {},
+		const operation = requestExternalJobOperation(
+			dir,
+			{
+				operation: "start",
+				provider: "surf-oracle",
+				start: {
+					prompt: "prompt",
+					promptDigest: externalJobPromptDigest("prompt"),
+					cwd: dir,
+					runId: "run-slow",
+					stepIndex: 0,
+					agent: "gpt-pro",
+					options: {},
+				},
 			},
-		}, 1).finally(() => { settled = true; });
+			1,
+		).finally(() => {
+			settled = true;
+		});
 
 		serviceExternalJobBridgeRequests(dir);
 		await new Promise((resolve) => setTimeout(resolve, 30));
@@ -766,18 +946,23 @@ describe("external-job runner bridge", () => {
 			name: "surf-oracle",
 			kind: "external-job",
 			wakeChannels: ["surf-oracle:finished"],
-			follow: () => { throw new Error("follow must not be called"); },
+			follow: () => {
+				throw new Error("follow must not be called");
+			},
 			start: () => ({ providerJobId: "job-extra", state: "completed" }),
 			status: () => ({ providerJobId: "job-extra", state: "completed" }),
 			reattach: () => ({ providerJobId: "job-extra", state: "completed" }),
 			result: () => ({ providerJobId: "job-extra", state: "completed", output: "advisor result" }),
 		} as never);
 
-		const result = await serviceUntil(dir, requestExternalJobOperation(dir, {
-			operation: "status",
-			provider: "surf-oracle",
-			providerJobId: "job-extra",
-		}));
+		const result = await serviceUntil(
+			dir,
+			requestExternalJobOperation(dir, {
+				operation: "status",
+				provider: "surf-oracle",
+				providerJobId: "job-extra",
+			}),
+		);
 
 		assert.equal(result.providerJobId, "job-extra");
 		assert.equal(result.state, "completed");
@@ -787,35 +972,67 @@ describe("external-job runner bridge", () => {
 		const dir = tempDir("pi-external-job-follow-up-");
 		const prompt = "ask a follow-up";
 		const promptDigest = externalJobPromptDigest(prompt);
-		const requestDigest = externalJobFollowUpRequestDigest({ provider: "surf-oracle", parentProviderJobId: "job-parent", promptDigest, options: { tier: "pro" } });
-		let followUpInput: { parentProviderJobId: string; requestId: string; requestDigest: string; promptDigest: string } | undefined;
+		const requestDigest = externalJobFollowUpRequestDigest({
+			provider: "surf-oracle",
+			parentProviderJobId: "job-parent",
+			promptDigest,
+			options: { tier: "pro" },
+		});
+		let followUpInput:
+			| { parentProviderJobId: string; requestId: string; requestDigest: string; promptDigest: string }
+			| undefined;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { throw new Error("start must not be called"); },
+			start: () => {
+				throw new Error("start must not be called");
+			},
 			followUp: (input) => {
-				followUpInput = { parentProviderJobId: input.parentProviderJobId, requestId: input.requestId, requestDigest: input.requestDigest, promptDigest: input.promptDigest };
-				return { providerJobId: "job-child", state: "completed", conversationUrl: "https://surf.example/jobs/job-child" };
+				followUpInput = {
+					parentProviderJobId: input.parentProviderJobId,
+					requestId: input.requestId,
+					requestDigest: input.requestDigest,
+					promptDigest: input.promptDigest,
+				};
+				return {
+					providerJobId: "job-child",
+					state: "completed",
+					conversationUrl: "https://surf.example/jobs/job-child",
+				};
 			},
 			status: (providerJobId) => ({ providerJobId, state: "completed" }),
 			reattach: (providerJobId) => ({ providerJobId, state: "completed" }),
 			result: (providerJobId) => ({ providerJobId, state: "completed", output: "follow-up result" }),
 		});
 
-		const result = await serviceUntil(dir, runExternalJob({
-			provider: "surf-oracle",
-			options: { tier: "pro" },
-			cwd: dir,
-			prompt,
-			asyncDir: dir,
-			stepIndex: 0,
-			runId: "run-follow-up",
-			agent: "gpt-pro",
-			followUp: { sourceRunId: "run-parent", sourceStepIndex: 0, parentProviderJobId: "job-parent", requestId: externalJobFollowUpRequestId(requestDigest), requestDigest },
-		}));
+		const result = await serviceUntil(
+			dir,
+			runExternalJob({
+				provider: "surf-oracle",
+				options: { tier: "pro" },
+				cwd: dir,
+				prompt,
+				asyncDir: dir,
+				stepIndex: 0,
+				runId: "run-follow-up",
+				agent: "gpt-pro",
+				followUp: {
+					sourceRunId: "run-parent",
+					sourceStepIndex: 0,
+					parentProviderJobId: "job-parent",
+					requestId: externalJobFollowUpRequestId(requestDigest),
+					requestDigest,
+				},
+			}),
+		);
 
 		assert.equal(result.exitCode, 0);
 		assert.equal(result.output, "follow-up result");
-		assert.deepEqual(followUpInput, { parentProviderJobId: "job-parent", requestId: externalJobFollowUpRequestId(requestDigest), requestDigest, promptDigest });
+		assert.deepEqual(followUpInput, {
+			parentProviderJobId: "job-parent",
+			requestId: externalJobFollowUpRequestId(requestDigest),
+			requestDigest,
+			promptDigest,
+		});
 		assert.equal(result.externalJob.operation, "follow-up");
 		assert.equal(result.externalJob.sourceRunId, "run-parent");
 		assert.equal(result.externalJob.sourceStepIndex, 0);
@@ -859,23 +1076,39 @@ describe("external-job runner bridge", () => {
 		const dir = tempDir("pi-external-job-follow-up-capacity-");
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { throw new Error("start must not be called"); },
-			followUp: () => { throw new ExternalJobProviderError("Surf capacity is occupied", { code: "capacity", blockingJobId: "job-blocking" }); },
+			start: () => {
+				throw new Error("start must not be called");
+			},
+			followUp: () => {
+				throw new ExternalJobProviderError("Surf capacity is occupied", {
+					code: "capacity",
+					blockingJobId: "job-blocking",
+				});
+			},
 			status: () => ({ providerJobId: "unused", state: "failed" }),
 			reattach: () => ({ providerJobId: "unused", state: "failed" }),
 			result: () => ({ providerJobId: "unused", state: "failed" }),
 		});
 
-		const result = await serviceUntil(dir, runExternalJob({
-			provider: "surf-oracle",
-			cwd: dir,
-			prompt: "prompt",
-			asyncDir: dir,
-			stepIndex: 0,
-			runId: "run-follow-up-capacity",
-			agent: "gpt-pro",
-			followUp: { sourceRunId: "run-parent", sourceStepIndex: 0, parentProviderJobId: "job-parent", requestId: "request-capacity", requestDigest: "digest-capacity" },
-		}));
+		const result = await serviceUntil(
+			dir,
+			runExternalJob({
+				provider: "surf-oracle",
+				cwd: dir,
+				prompt: "prompt",
+				asyncDir: dir,
+				stepIndex: 0,
+				runId: "run-follow-up-capacity",
+				agent: "gpt-pro",
+				followUp: {
+					sourceRunId: "run-parent",
+					sourceStepIndex: 0,
+					parentProviderJobId: "job-parent",
+					requestId: "request-capacity",
+					requestDigest: "digest-capacity",
+				},
+			}),
+		);
 
 		assert.equal(result.exitCode, 1);
 		assert.equal(result.externalJob.state, "blocked");
@@ -885,29 +1118,40 @@ describe("external-job runner bridge", () => {
 
 	it("does not redispatch an ambiguous follow-up without a provider job id", async () => {
 		const dir = tempDir("pi-external-job-follow-up-in-doubt-");
-		fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify({
-			steps: [{
-				externalJob: {
-					provider: "surf-oracle",
-					promptDigest: externalJobPromptDigest("prompt"),
-					operation: "follow-up",
-					sourceRunId: "run-parent",
-					sourceStepIndex: 0,
-					parentProviderJobId: "job-parent",
-					requestId: "request-in-doubt",
-					requestDigest: "digest-in-doubt",
-					options: {},
-					state: "failed",
-					failureCode: "in-doubt",
-					failureMessage: "Browser submission became ambiguous.",
-				},
-			}],
-		}), "utf-8");
+		fs.writeFileSync(
+			path.join(dir, "status.json"),
+			JSON.stringify({
+				steps: [
+					{
+						externalJob: {
+							provider: "surf-oracle",
+							promptDigest: externalJobPromptDigest("prompt"),
+							operation: "follow-up",
+							sourceRunId: "run-parent",
+							sourceStepIndex: 0,
+							parentProviderJobId: "job-parent",
+							requestId: "request-in-doubt",
+							requestDigest: "digest-in-doubt",
+							options: {},
+							state: "failed",
+							failureCode: "in-doubt",
+							failureMessage: "Browser submission became ambiguous.",
+						},
+					},
+				],
+			}),
+			"utf-8",
+		);
 		let followUps = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { throw new Error("start must not be called"); },
-			followUp: () => { followUps += 1; return { providerJobId: "job-child", state: "completed" }; },
+			start: () => {
+				throw new Error("start must not be called");
+			},
+			followUp: () => {
+				followUps += 1;
+				return { providerJobId: "job-child", state: "completed" };
+			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
 			result: () => ({ providerJobId: "unused", state: "completed" }),
@@ -921,7 +1165,13 @@ describe("external-job runner bridge", () => {
 			stepIndex: 0,
 			runId: "run-follow-up-in-doubt",
 			agent: "gpt-pro",
-			followUp: { sourceRunId: "run-parent", sourceStepIndex: 0, parentProviderJobId: "job-parent", requestId: "request-in-doubt", requestDigest: "digest-in-doubt" },
+			followUp: {
+				sourceRunId: "run-parent",
+				sourceStepIndex: 0,
+				parentProviderJobId: "job-parent",
+				requestId: "request-in-doubt",
+				requestDigest: "digest-in-doubt",
+			},
 		});
 
 		assert.equal(followUps, 0);
@@ -935,23 +1185,37 @@ describe("external-job runner bridge", () => {
 		let starts = 0;
 		registerExternalJobProvider({
 			name: "surf-oracle",
-			start: () => { starts += 1; return { providerJobId: "fresh-thread", state: "completed" }; },
-			followUp: () => { throw new ExternalJobProviderError("Parent conversation is unavailable", { code: "parent-missing" }); },
+			start: () => {
+				starts += 1;
+				return { providerJobId: "fresh-thread", state: "completed" };
+			},
+			followUp: () => {
+				throw new ExternalJobProviderError("Parent conversation is unavailable", { code: "parent-missing" });
+			},
 			status: () => ({ providerJobId: "unused", state: "completed" }),
 			reattach: () => ({ providerJobId: "unused", state: "completed" }),
 			result: () => ({ providerJobId: "unused", state: "completed" }),
 		});
 
-		const result = await serviceUntil(dir, runExternalJob({
-			provider: "surf-oracle",
-			cwd: dir,
-			prompt: "prompt",
-			asyncDir: dir,
-			stepIndex: 0,
-			runId: "run-follow-up-parent-missing",
-			agent: "gpt-pro",
-			followUp: { sourceRunId: "run-parent", sourceStepIndex: 0, parentProviderJobId: "job-parent", requestId: "request-parent-missing", requestDigest: "digest-parent-missing" },
-		}));
+		const result = await serviceUntil(
+			dir,
+			runExternalJob({
+				provider: "surf-oracle",
+				cwd: dir,
+				prompt: "prompt",
+				asyncDir: dir,
+				stepIndex: 0,
+				runId: "run-follow-up-parent-missing",
+				agent: "gpt-pro",
+				followUp: {
+					sourceRunId: "run-parent",
+					sourceStepIndex: 0,
+					parentProviderJobId: "job-parent",
+					requestId: "request-parent-missing",
+					requestDigest: "digest-parent-missing",
+				},
+			}),
+		);
 
 		assert.equal(starts, 0);
 		assert.equal(result.exitCode, 1);

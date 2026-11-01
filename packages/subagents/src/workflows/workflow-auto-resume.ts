@@ -2,8 +2,18 @@ import * as path from "node:path";
 import { readRecentTerminalRunIndex } from "../runs/background/terminal-run-index.ts";
 import type { AsyncStatus } from "../shared/types.ts";
 import { readStatus } from "../shared/utils.ts";
-import { hasWorkflowResumeRefusal, recordWorkflowResumeRefusal, refusalSentence, releaseWorkflowResumeClaim, workflowResumeClaimState } from "./workflow-resume-claim.ts";
-import { prepareWorkflowResume, type PreparedWorkflowResume, type WorkflowResumeRefusalReason } from "./workflow-resume.ts";
+import {
+	type PreparedWorkflowResume,
+	prepareWorkflowResume,
+	type WorkflowResumeRefusalReason,
+} from "./workflow-resume.ts";
+import {
+	hasWorkflowResumeRefusal,
+	recordWorkflowResumeRefusal,
+	refusalSentence,
+	releaseWorkflowResumeClaim,
+	workflowResumeClaimState,
+} from "./workflow-resume-claim.ts";
 import { isReusableWorkflowStopCause, WORKFLOW_STOP_CAUSE_OWNER_EXITED } from "./workflow-stop-cause.ts";
 
 /** Custom message posted when an auto-resume launch did not start. */
@@ -15,7 +25,9 @@ const AUTO_RESUME_SCAN_LIMIT = 50;
 
 /** When the run was interrupted: the dead owner's last update, or the runtime replacement. */
 function interruptedAt(status: AsyncStatus): number | undefined {
-	return status.workflow?.stopCause === WORKFLOW_STOP_CAUSE_OWNER_EXITED ? status.workflow.ownerExitedAt : status.endedAt;
+	return status.workflow?.stopCause === WORKFLOW_STOP_CAUSE_OWNER_EXITED
+		? status.workflow.ownerExitedAt
+		: status.endedAt;
 }
 
 /** One planned auto-resume: its claim is held from session start until the launch starts or is cancelled. */
@@ -31,7 +43,8 @@ export interface PendingWorkflowAutoResume {
 // Shared by every runtime in the process: a reload's new runtime must see the old runtime's pending claims.
 const registryKey = Symbol.for("pi-subagents.workflow-auto-resume.v1");
 const registryGlobal = globalThis as typeof globalThis & { [registryKey]?: Set<PendingWorkflowAutoResume> };
-const pendingAutoResumes = registryGlobal[registryKey] ?? (registryGlobal[registryKey] = new Set<PendingWorkflowAutoResume>());
+const pendingAutoResumes =
+	registryGlobal[registryKey] ?? (registryGlobal[registryKey] = new Set<PendingWorkflowAutoResume>());
 
 /** Cancels matching launches that have not started and gives their claims back, synchronously. */
 export function cancelPendingWorkflowAutoResumes(match: (entry: PendingWorkflowAutoResume) => boolean): void {
@@ -61,7 +74,12 @@ export function finishWorkflowAutoResume(entry: PendingWorkflowAutoResume): void
  * that another runtime (or an earlier session start) planned but did not start are cancelled first,
  * so their claims do not hide the runs from this scan.
  */
-export function planWorkflowAutoResumes(input: { asyncDirRoot: string; currentSessionId: string; now: number; owner: object }): PendingWorkflowAutoResume[] {
+export function planWorkflowAutoResumes(input: {
+	asyncDirRoot: string;
+	currentSessionId: string;
+	now: number;
+	owner: object;
+}): PendingWorkflowAutoResume[] {
 	const { asyncDirRoot, currentSessionId, now } = input;
 	cancelPendingWorkflowAutoResumes((entry) => entry.sessionId === currentSessionId);
 	const reusableRunIds = new Map<string, string>();
@@ -72,7 +90,11 @@ export function planWorkflowAutoResumes(input: { asyncDirRoot: string; currentSe
 	}
 	let runIds: readonly string[];
 	try {
-		runIds = readRecentTerminalRunIndex(asyncDirRoot, { sessionId: currentSessionId, limit: AUTO_RESUME_SCAN_LIMIT, endedAfter: now - AUTO_RESUME_MAX_AGE_MS });
+		runIds = readRecentTerminalRunIndex(asyncDirRoot, {
+			sessionId: currentSessionId,
+			limit: AUTO_RESUME_SCAN_LIMIT,
+			endedAfter: now - AUTO_RESUME_MAX_AGE_MS,
+		});
 	} catch (error) {
 		console.error("Failed to read interrupted workflows for auto-resume:", error);
 		return [];
@@ -82,14 +104,32 @@ export function planWorkflowAutoResumes(input: { asyncDirRoot: string; currentSe
 		const asyncDir = path.join(asyncDirRoot, runId);
 		try {
 			const status = readStatus(asyncDir);
-			if (!status || status.mode !== "workflow" || status.parentWorkflowRunId !== undefined || status.sessionId !== currentSessionId) continue;
+			if (
+				!status ||
+				status.mode !== "workflow" ||
+				status.parentWorkflowRunId !== undefined ||
+				status.sessionId !== currentSessionId
+			)
+				continue;
 			if (!isReusableWorkflowStopCause(status.workflow?.stopCause)) continue;
 			const at = interruptedAt(status);
 			if (at === undefined || now - at > AUTO_RESUME_MAX_AGE_MS) continue;
 			if (workflowResumeClaimState(asyncDir).kind !== "none" || hasWorkflowResumeRefusal(asyncDir)) continue;
-			const preparation = prepareWorkflowResume({ asyncDirRoot, sourceRunId: runId, trigger: "auto", now, currentSessionId, newRunId: reusableRunIds.get(runId) });
+			const preparation = prepareWorkflowResume({
+				asyncDirRoot,
+				sourceRunId: runId,
+				trigger: "auto",
+				now,
+				currentSessionId,
+				newRunId: reusableRunIds.get(runId),
+			});
 			if (preparation.ok) {
-				const entry: PendingWorkflowAutoResume = { sessionId: currentSessionId, owner: input.owner, prepared: preparation.prepared, state: "pending" };
+				const entry: PendingWorkflowAutoResume = {
+					sessionId: currentSessionId,
+					owner: input.owner,
+					prepared: preparation.prepared,
+					state: "pending",
+				};
 				pendingAutoResumes.add(entry);
 				planned.push(entry);
 				continue;
@@ -105,6 +145,9 @@ export function planWorkflowAutoResumes(input: { asyncDirRoot: string; currentSe
 }
 
 /** The one line posted when an auto-resume launch did not start. */
-export function autoResumeFailureText(sourceRunId: string, refusal: Pick<WorkflowResumeRefusalReason, "reason" | "byHand">): string {
+export function autoResumeFailureText(
+	sourceRunId: string,
+	refusal: Pick<WorkflowResumeRefusalReason, "reason" | "byHand">,
+): string {
 	return `Workflow ${sourceRunId} was not auto-resumed: ${refusalSentence(refusal.reason, refusal.byHand)}`;
 }

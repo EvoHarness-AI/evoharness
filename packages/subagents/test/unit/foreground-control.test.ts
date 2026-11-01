@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import type { AgentProgress, ForegroundRunControl } from "../../src/shared/types.ts";
 import {
 	beginForegroundChild,
 	finishForegroundChild,
@@ -10,6 +9,7 @@ import {
 	updateForegroundChild,
 } from "../../src/runs/foreground/foreground-control.ts";
 import { getLivePromptAudit } from "../../src/runs/foreground/prompt-audit.ts";
+import type { AgentProgress, ForegroundRunControl } from "../../src/shared/types.ts";
 
 function progress(index: number, agent: string, tokens: number): AgentProgress {
 	return {
@@ -50,8 +50,14 @@ describe("foreground child control", () => {
 			authoredTask: "review",
 			effectivePrompt: "review",
 			description: "Review correctness",
-			interrupt: () => { firstInterrupts++; return true; },
-			detach: () => { firstDetaches++; return true; },
+			interrupt: () => {
+				firstInterrupts++;
+				return true;
+			},
+			detach: () => {
+				firstDetaches++;
+				return true;
+			},
 		});
 		beginForegroundChild(control, {
 			index: 1,
@@ -60,7 +66,10 @@ describe("foreground child control", () => {
 			effectivePrompt: "review next",
 			description: "Review quality",
 			rerun: { params: { agent: "reviewer", task: "review next" } },
-			interrupt: () => { secondInterrupts++; return true; },
+			interrupt: () => {
+				secondInterrupts++;
+				return true;
+			},
 		});
 
 		assert.equal(control.activeChildren?.size, 2);

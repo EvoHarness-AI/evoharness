@@ -1,5 +1,9 @@
 import type { ExtensionAPI } from "@evoharness/coding-agent";
-import { registerRuntimeAgent, type RuntimeAgentDefinition, type RuntimeAgentRegistration } from "./runtime-agent-registry.ts";
+import {
+	type RuntimeAgentDefinition,
+	type RuntimeAgentRegistration,
+	registerRuntimeAgent,
+} from "./runtime-agent-registry.ts";
 
 export const RUNTIME_AGENT_REGISTER_EVENT = "pi-subagents:runtime-agent-register:v1";
 export const RUNTIME_AGENT_REGISTER_VERSION = 1;
@@ -35,11 +39,18 @@ export function registerAgentViaEvents(input: RegisterRuntimeAgentViaEventsInput
 	input.pi.events.emit(RUNTIME_AGENT_REGISTER_EVENT, request);
 	const result = request.result as unknown;
 	if (result === undefined) {
-		throw new Error("pi-subagents is not installed, not ready, or does not support runtime agent event registration.");
+		throw new Error(
+			"pi-subagents is not installed, not ready, or does not support runtime agent event registration.",
+		);
 	}
 	if (result && typeof result === "object" && !Array.isArray(result)) {
 		const candidate = result as Record<string, unknown>;
-		if (candidate.ok === true && candidate.registration && typeof candidate.registration === "object" && typeof (candidate.registration as { dispose?: unknown }).dispose === "function") {
+		if (
+			candidate.ok === true &&
+			candidate.registration &&
+			typeof candidate.registration === "object" &&
+			typeof (candidate.registration as { dispose?: unknown }).dispose === "function"
+		) {
 			return candidate.registration as RuntimeAgentRegistration;
 		}
 		if (candidate.ok === false && candidate.error instanceof Error) throw candidate.error;

@@ -1,11 +1,15 @@
 /** Native runner construction, separate from its executable entrypoint and attempt loop. */
 import * as path from "node:path";
-import { buildInProcessChildLaunch, type BuildInProcessChildLaunchInput, type InheritedChildRuntime } from "../shared/child-launch.ts";
+import { formatAcceptancePrompt } from "../shared/acceptance.ts";
+import { isAgentContract } from "../shared/agent-contract.ts";
+import {
+	type BuildInProcessChildLaunchInput,
+	buildInProcessChildLaunch,
+	type InheritedChildRuntime,
+} from "../shared/child-launch.ts";
 import { deriveForkPromptCacheKey } from "../shared/child-tool-plan.ts";
 import { normalizeExtensionBindings } from "../shared/extension-bindings.ts";
 import type { RunnerSubagentStep } from "../shared/parallel-utils.ts";
-import { formatAcceptancePrompt } from "../shared/acceptance.ts";
-import { isAgentContract } from "../shared/agent-contract.ts";
 
 export interface RunnerChildLaunchContext {
 	cwd: string;
@@ -21,18 +25,25 @@ export interface RunnerChildLaunchContext {
 	projectTrusted?: boolean;
 }
 
-export function buildRunnerChildLaunch(step: RunnerSubagentStep, ctx: RunnerChildLaunchContext, attempt: {
-	model?: string;
-	sessionEnabled: boolean;
-	sessionDir?: string;
-	sessionName?: string;
-	structuredOutput?: BuildInProcessChildLaunchInput["structuredOutput"];
-	childWatchdog?: BuildInProcessChildLaunchInput["childWatchdog"];
-	watchdogStatus: NonNullable<BuildInProcessChildLaunchInput["watchdogStatus"]>;
-}) {
+export function buildRunnerChildLaunch(
+	step: RunnerSubagentStep,
+	ctx: RunnerChildLaunchContext,
+	attempt: {
+		model?: string;
+		sessionEnabled: boolean;
+		sessionDir?: string;
+		sessionName?: string;
+		structuredOutput?: BuildInProcessChildLaunchInput["structuredOutput"];
+		childWatchdog?: BuildInProcessChildLaunchInput["childWatchdog"];
+		watchdogStatus: NonNullable<BuildInProcessChildLaunchInput["watchdogStatus"]>;
+	},
+) {
 	// Resource-backed system instructions survive SDK split-turn compaction verbatim.
 	const acceptancePrompt = step.effectiveAcceptance
-		? formatAcceptancePrompt(step.effectiveAcceptance, { reportOptional: isAgentContract(step.agentContract), structuredOutput: Boolean(step.structuredOutput?.acceptanceReportPath) })
+		? formatAcceptancePrompt(step.effectiveAcceptance, {
+				reportOptional: isAgentContract(step.agentContract),
+				structuredOutput: Boolean(step.structuredOutput?.acceptanceReportPath),
+			})
 		: "";
 	return buildInProcessChildLaunch({
 		machine: step.machine,
@@ -57,7 +68,7 @@ export function buildRunnerChildLaunch(step: RunnerSubagentStep, ctx: RunnerChil
 		subagentOnlyExtensions: step.subagentOnlyExtensions,
 		requiredExtensions: step.requiredExtensions,
 		fast: step.fast,
-		systemPrompt: acceptancePrompt ? `${step.systemPrompt ?? ""}\n${acceptancePrompt}` : step.systemPrompt ?? "",
+		systemPrompt: acceptancePrompt ? `${step.systemPrompt ?? ""}\n${acceptancePrompt}` : (step.systemPrompt ?? ""),
 		systemPromptMode: step.systemPromptMode,
 		mcpDirectTools: step.mcpDirectTools,
 		builtinMcpTools: step.builtinMcpTools,
@@ -72,15 +83,23 @@ export function buildRunnerChildLaunch(step: RunnerSubagentStep, ctx: RunnerChil
 		childAgentName: step.agent,
 		childIndex: ctx.flatIndex,
 		nestedRoute: ctx.nestedRoute,
-		runFanoutBudget: ctx.runFanoutBudget ? {
-			...ctx.runFanoutBudget,
-			...(step.runFanoutPath ? { parentPath: `${ctx.runFanoutBudget.parentPath ? `${ctx.runFanoutBudget.parentPath}/` : ""}${step.runFanoutPath}` } : {}),
-		} : undefined,
+		runFanoutBudget: ctx.runFanoutBudget
+			? {
+					...ctx.runFanoutBudget,
+					...(step.runFanoutPath
+						? {
+								parentPath: `${ctx.runFanoutBudget.parentPath ? `${ctx.runFanoutBudget.parentPath}/` : ""}${step.runFanoutPath}`,
+							}
+						: {}),
+				}
+			: undefined,
 		structuredOutput: attempt.structuredOutput,
 		toolBudget: step.toolBudget,
 		permissionRules: step.permissionRules,
-		permissionAuditPath: step.permissionRules && ctx.artifactsDir
-			? path.join(ctx.artifactsDir, "permission-audit", `${ctx.id}-${ctx.flatIndex}.jsonl`) : undefined,
+		permissionAuditPath:
+			step.permissionRules && ctx.artifactsDir
+				? path.join(ctx.artifactsDir, "permission-audit", `${ctx.id}-${ctx.flatIndex}.jsonl`)
+				: undefined,
 		childWatchdog: attempt.childWatchdog,
 		// registerChildWatchdog returns before reading the sink when unconfigured.
 		...(attempt.childWatchdog ? { watchdogStatus: attempt.watchdogStatus } : {}),

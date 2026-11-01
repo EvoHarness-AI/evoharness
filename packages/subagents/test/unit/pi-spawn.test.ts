@@ -3,11 +3,7 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import {
-	getPiSpawnCommand,
-	resolvePiCliScript,
-	type PiSpawnDeps,
-} from "../../src/runs/shared/pi-spawn.ts";
+import { getPiSpawnCommand, type PiSpawnDeps, resolvePiCliScript } from "../../src/runs/shared/pi-spawn.ts";
 import { PI_CODING_AGENT_PACKAGE_ROOT_ENV } from "../../src/shared/utils.ts";
 
 function makeDeps(input: {
@@ -35,9 +31,7 @@ function makeDeps(input: {
 			return packageJsonContent;
 		},
 		resolvePackageJson: packageJsonPath ? () => packageJsonPath : undefined,
-		resolvePackageEntry: input.packageEntry
-			? () => input.packageEntry!
-			: undefined,
+		resolvePackageEntry: input.packageEntry ? () => input.packageEntry! : undefined,
 		env: input.env ?? {},
 	};
 }
@@ -108,10 +102,7 @@ describe("getPiSpawnCommand", () => {
 	] as const) {
 		it(`uses the standalone Pi executable directly on ${platform}`, () => {
 			const packageJsonPath = "/opt/pi-package/package.json";
-			const cliPath = path.resolve(
-				path.dirname(packageJsonPath),
-				"dist/cli.js",
-			);
+			const cliPath = path.resolve(path.dirname(packageJsonPath), "dist/cli.js");
 			const deps = makeDeps({
 				platform,
 				execPath,
@@ -130,17 +121,12 @@ describe("getPiSpawnCommand", () => {
 
 	for (const platform of ["darwin", "linux", "win32"] as const) {
 		it(`uses node + argv1 on ${platform} when argv1 belongs to the Pi package`, () => {
-			const tempDir = fs.mkdtempSync(
-				path.join(os.tmpdir(), "pi-spawn-argv-entry-"),
-			);
+			const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-spawn-argv-entry-"));
 			try {
 				const argv1 = path.join(tempDir, "dist", "cli.js");
 				fs.mkdirSync(path.dirname(argv1), { recursive: true });
 				fs.writeFileSync(argv1, "#!/usr/bin/env node\n");
-				fs.writeFileSync(
-					path.join(tempDir, "package.json"),
-					JSON.stringify({ name: "@evoharness/coding-agent" }),
-				);
+				fs.writeFileSync(path.join(tempDir, "package.json"), JSON.stringify({ name: "@evoharness/coding-agent" }));
 				const args = ["--mode", "json", 'Task: review "quotes" & pipes | too'];
 				const result = getPiSpawnCommand(args, {
 					platform,
@@ -160,10 +146,7 @@ describe("getPiSpawnCommand", () => {
 
 	it("uses node + package bin on POSIX when argv1 is not a verified Pi entry", () => {
 		const packageJsonPath = "/opt/pi/package.json";
-		const cliPath = path.resolve(
-			path.dirname(packageJsonPath),
-			"dist/cli/index.js",
-		);
+		const cliPath = path.resolve(path.dirname(packageJsonPath), "dist/cli/index.js");
 		const deps = makeDeps({
 			platform: "darwin",
 			execPath: "/usr/local/bin/node",
@@ -182,10 +165,7 @@ describe("getPiSpawnCommand", () => {
 
 	it("fails closed until the Windows CLI script becomes available", () => {
 		const packageJsonPath = "/opt/pi/package.json";
-		const cliPath = path.resolve(
-			path.dirname(packageJsonPath),
-			"dist/cli/index.js",
-		);
+		const cliPath = path.resolve(path.dirname(packageJsonPath), "dist/cli/index.js");
 		let cliAvailable = false;
 		const deps = makeDeps({
 			platform: "win32",
@@ -195,14 +175,10 @@ describe("getPiSpawnCommand", () => {
 			packageJsonContent: JSON.stringify({ name: "@evoharness/coding-agent", bin: { pi: "dist/cli/index.js" } }),
 			existing: [packageJsonPath],
 		});
-		deps.existsSync = (filePath) =>
-			filePath === packageJsonPath || (cliAvailable && filePath === cliPath);
+		deps.existsSync = (filePath) => filePath === packageJsonPath || (cliAvailable && filePath === cliPath);
 		const args = ["-p", "Task: hello"];
 
-		assert.throws(
-			() => getPiSpawnCommand(args, deps),
-			/Could not resolve the Pi CLI on Windows/,
-		);
+		assert.throws(() => getPiSpawnCommand(args, deps), /Could not resolve the Pi CLI on Windows/);
 		cliAvailable = true;
 		assert.deepEqual(getPiSpawnCommand(args, deps), {
 			command: "C:\\Program Files\\nodejs\\node.exe",
@@ -212,10 +188,7 @@ describe("getPiSpawnCommand", () => {
 
 	it("resolves the Windows CLI from the forwarded package-root env for wrapper hosts", () => {
 		const packageJsonPath = "/opt/pi/package.json";
-		const cliPath = path.resolve(
-			path.dirname(packageJsonPath),
-			"dist/cli/index.js",
-		);
+		const cliPath = path.resolve(path.dirname(packageJsonPath), "dist/cli/index.js");
 		const args = ["-p", "Task: hello"];
 		const result = getPiSpawnCommand(args, {
 			platform: "win32",
@@ -223,10 +196,11 @@ describe("getPiSpawnCommand", () => {
 			argv1: "/opt/pi-web/dist/server.js",
 			env: { [PI_CODING_AGENT_PACKAGE_ROOT_ENV]: "/opt/pi" },
 			existsSync: (filePath) => filePath === packageJsonPath || filePath === cliPath,
-			readFileSync: () => JSON.stringify({
-				name: "@evoharness/coding-agent",
-				bin: { pi: "dist/cli/index.js" },
-			}),
+			readFileSync: () =>
+				JSON.stringify({
+					name: "@evoharness/coding-agent",
+					bin: { pi: "dist/cli/index.js" },
+				}),
 		});
 
 		assert.deepEqual(result, {
@@ -236,9 +210,7 @@ describe("getPiSpawnCommand", () => {
 	});
 
 	it("rejects an unverified forwarded package-root env instead of resolving a different Pi package", () => {
-		const tempDir = fs.mkdtempSync(
-			path.join(os.tmpdir(), "pi-spawn-unverified-env-root-"),
-		);
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-spawn-unverified-env-root-"));
 		try {
 			const wrongRoot = path.join(tempDir, "not-pi");
 			const wrongCli = path.join(wrongRoot, "bin", "evil.js");
@@ -248,18 +220,28 @@ describe("getPiSpawnCommand", () => {
 			fs.mkdirSync(path.dirname(wrongCli), { recursive: true });
 			fs.mkdirSync(path.dirname(piCli), { recursive: true });
 			fs.writeFileSync(wrongCli, "console.log('evil');\n");
-			fs.writeFileSync(path.join(wrongRoot, "package.json"), JSON.stringify({ name: "not-pi", bin: { pi: "bin/evil.js" } }));
+			fs.writeFileSync(
+				path.join(wrongRoot, "package.json"),
+				JSON.stringify({ name: "not-pi", bin: { pi: "bin/evil.js" } }),
+			);
 			fs.writeFileSync(piEntry, "export {};\n");
 			fs.writeFileSync(piCli, "#!/usr/bin/env node\n");
-			fs.writeFileSync(path.join(piRoot, "package.json"), JSON.stringify({ name: "@evoharness/coding-agent", bin: { pi: "dist/cli.js" } }));
+			fs.writeFileSync(
+				path.join(piRoot, "package.json"),
+				JSON.stringify({ name: "@evoharness/coding-agent", bin: { pi: "dist/cli.js" } }),
+			);
 
-			assert.throws(() => getPiSpawnCommand(["-p", "Task: hello"], {
-				platform: "win32",
-				execPath: "C:\\Program Files\\nodejs\\node.exe",
-				argv1: "/opt/pi-web/dist/server.js",
-				env: { [PI_CODING_AGENT_PACKAGE_ROOT_ENV]: wrongRoot },
-				resolvePackageEntry: () => piEntry,
-			}), /expected "@evoharness\/pi-coding-agent"/);
+			assert.throws(
+				() =>
+					getPiSpawnCommand(["-p", "Task: hello"], {
+						platform: "win32",
+						execPath: "C:\\Program Files\\nodejs\\node.exe",
+						argv1: "/opt/pi-web/dist/server.js",
+						env: { [PI_CODING_AGENT_PACKAGE_ROOT_ENV]: wrongRoot },
+						resolvePackageEntry: () => piEntry,
+					}),
+				/expected "@evoharness\/pi-coding-agent"/,
+			);
 		} finally {
 			fs.rmSync(tempDir, { recursive: true, force: true });
 		}
@@ -280,27 +262,17 @@ describe("getPiSpawnCommand", () => {
 	});
 
 	it("ignores embedded host entry points and resolves the Pi package bin on every platform", () => {
-		const tempDir = fs.realpathSync(fs.mkdtempSync(
-			path.join(os.tmpdir(), "pi-spawn-embedded-host-"),
-		));
+		const tempDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pi-spawn-embedded-host-")));
 		try {
 			const hostRoot = path.join(tempDir, "pi-web");
 			const hostEntry = path.join(hostRoot, "dist", "server.js");
 			const hostPackageJson = path.join(hostRoot, "package.json");
-			const piRoot = path.join(
-				tempDir,
-				"node_modules",
-				"@evoharness",
-				"coding-agent",
-			);
+			const piRoot = path.join(tempDir, "node_modules", "@evoharness", "coding-agent");
 			const piCli = path.join(piRoot, "dist", "cli.js");
 			fs.mkdirSync(path.dirname(hostEntry), { recursive: true });
 			fs.mkdirSync(path.dirname(piCli), { recursive: true });
 			fs.writeFileSync(hostEntry, "export {};\n");
-			fs.writeFileSync(
-				hostPackageJson,
-				JSON.stringify({ name: "@jmfederico/pi-web" }),
-			);
+			fs.writeFileSync(hostPackageJson, JSON.stringify({ name: "@jmfederico/pi-web" }));
 			fs.writeFileSync(piCli, "#!/usr/bin/env node\n");
 			fs.writeFileSync(
 				path.join(piRoot, "package.json"),
@@ -344,9 +316,7 @@ describe("getPiSpawnCommand", () => {
 	});
 
 	it("validates argv1 ownership against its canonical target", () => {
-		const tempDir = fs.realpathSync(fs.mkdtempSync(
-			path.join(os.tmpdir(), "pi-spawn-canonical-entry-"),
-		));
+		const tempDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "pi-spawn-canonical-entry-")));
 		try {
 			const hostRoot = path.join(tempDir, "embedded-host");
 			const hostEntry = path.join(hostRoot, "dist", "server.js");
@@ -358,16 +328,19 @@ describe("getPiSpawnCommand", () => {
 			fs.writeFileSync(hostEntry, "export {};\n");
 			fs.writeFileSync(path.join(hostRoot, "package.json"), JSON.stringify({ name: "embedded-host" }));
 			fs.writeFileSync(piCli, "#!/usr/bin/env node\n");
-			fs.writeFileSync(path.join(piRoot, "package.json"), JSON.stringify({
-				name: "@evoharness/coding-agent",
-				bin: { pi: "dist/real-cli.js" },
-			}));
+			fs.writeFileSync(
+				path.join(piRoot, "package.json"),
+				JSON.stringify({
+					name: "@evoharness/coding-agent",
+					bin: { pi: "dist/real-cli.js" },
+				}),
+			);
 
 			const result = getPiSpawnCommand(["-p", "Task: hello"], {
 				execPath: "/usr/local/bin/node",
 				argv1: disguisedEntry,
 				existsSync: (filePath) => filePath === disguisedEntry || fs.existsSync(filePath),
-				realpathSync: (filePath) => filePath === disguisedEntry ? hostEntry : fs.realpathSync(filePath),
+				realpathSync: (filePath) => (filePath === disguisedEntry ? hostEntry : fs.realpathSync(filePath)),
 				resolvePackageJson: () => path.join(piRoot, "package.json"),
 				env: {},
 			});
@@ -385,10 +358,7 @@ describe("getPiSpawnCommand", () => {
 		// Compute expected path the same way the production code does:
 		// path.resolve(path.dirname(packageJsonPath), binPath) — which on Windows
 		// prepends the current drive letter to POSIX absolute paths.
-		const cliPath = path.resolve(
-			path.dirname(packageJsonPath),
-			"dist/cli/index.js",
-		);
+		const cliPath = path.resolve(path.dirname(packageJsonPath), "dist/cli/index.js");
 		const deps = makeDeps({
 			platform: "win32",
 			execPath: "/usr/local/bin/node",
@@ -403,16 +373,9 @@ describe("getPiSpawnCommand", () => {
 	});
 
 	it("walks from package main entry to resolve package bin", () => {
-		const tempDir = fs.mkdtempSync(
-			path.join(os.tmpdir(), "pi-spawn-package-root-"),
-		);
+		const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-spawn-package-root-"));
 		try {
-			const packageRoot = path.join(
-				tempDir,
-				"node_modules",
-				"@evoharness",
-				"coding-agent",
-			);
+			const packageRoot = path.join(tempDir, "node_modules", "@evoharness", "coding-agent");
 			const entry = path.join(packageRoot, "dist", "index.js");
 			const cliPath = path.join(packageRoot, "dist", "cli", "index.js");
 			fs.mkdirSync(path.dirname(entry), { recursive: true });
@@ -444,10 +407,7 @@ describe("getPiSpawnCommand", () => {
 describe("getPiSpawnCommand with piPackageRoot", () => {
 	it("resolves CLI script via piPackageRoot when argv1 is not runnable", () => {
 		const packageJsonPath = "/opt/pi/package.json";
-		const cliPath = path.resolve(
-			path.dirname(packageJsonPath),
-			"dist/cli/index.js",
-		);
+		const cliPath = path.resolve(path.dirname(packageJsonPath), "dist/cli/index.js");
 		const deps = makeDeps({
 			platform: "win32",
 			execPath: "/usr/local/bin/node",
@@ -477,10 +437,7 @@ describe("resolvePiCliScript", () => {
 
 	it("supports package bin as string", () => {
 		const packageJsonPath = "/opt/pi/package.json";
-		const cliPath = path.resolve(
-			path.dirname(packageJsonPath),
-			"dist/cli/index.mjs",
-		);
+		const cliPath = path.resolve(path.dirname(packageJsonPath), "dist/cli/index.mjs");
 		const deps = makeDeps({
 			platform: "win32",
 			argv1: "/opt/pi/subagent-runner.ts",

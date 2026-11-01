@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, describe, it } from "node:test";
 
-import { registerProgramStatusReporter, type ProgramStatusReporter } from "../../src/integrations/program-status.ts";
+import { type ProgramStatusReporter, registerProgramStatusReporter } from "../../src/integrations/program-status.ts";
 import type { AsyncJobState } from "../../src/shared/types.ts";
 
 type Job = Pick<AsyncJobState, "asyncId" | "status"> & Partial<AsyncJobState>;
@@ -13,10 +13,12 @@ function job(asyncId: string, status: AsyncJobState["status"], extra: Partial<As
 function decode(report: string): Record<string, string> {
 	const match = /^\x1b\]7501;(.*)\x1b\\$/.exec(report);
 	assert.ok(match, `not an OSC 7501 report: ${JSON.stringify(report)}`);
-	const fields = Object.fromEntries(match[1]!.split(":").map((pair) => {
-		const at = pair.indexOf("=");
-		return [pair.slice(0, at), pair.slice(at + 1)];
-	}));
+	const fields = Object.fromEntries(
+		match[1]!.split(":").map((pair) => {
+			const at = pair.indexOf("=");
+			return [pair.slice(0, at), pair.slice(at + 1)];
+		}),
+	);
 	for (const key of ["title", "msg"]) {
 		if (fields[key] !== undefined) fields[key] = Buffer.from(fields[key], "base64").toString("utf-8");
 	}
@@ -25,9 +27,21 @@ function decode(report: string): Record<string, string> {
 
 const reporters: ProgramStatusReporter[] = [];
 
-function reporter(input: { jobs?: Job[]; pending?: Array<{ id: string; runId: string }>; enabled?: boolean; isTTY?: boolean; env?: Record<string, string>; hasUI?: boolean; mode?: string } = {}) {
+function reporter(
+	input: {
+		jobs?: Job[];
+		pending?: Array<{ id: string; runId: string }>;
+		enabled?: boolean;
+		isTTY?: boolean;
+		env?: Record<string, string>;
+		hasUI?: boolean;
+		mode?: string;
+	} = {},
+) {
 	const writes: string[] = [];
-	const jobs = new Map<string, AsyncJobState>((input.jobs ?? []).map((entry) => [entry.asyncId, entry as AsyncJobState]));
+	const jobs = new Map<string, AsyncJobState>(
+		(input.jobs ?? []).map((entry) => [entry.asyncId, entry as AsyncJobState]),
+	);
 	const pending = input.pending ?? [];
 	const instance = registerProgramStatusReporter({
 		enabled: input.enabled ?? true,
@@ -51,7 +65,10 @@ describe("OSC 7501 program status", () => {
 	it("reports one record per run under subagents/, and only when a record changes", () => {
 		const runId = "0f1e2d3c-4b5a-6978-8796-a5b4c3d2e1f0";
 		const { instance, writes, jobs, records } = reporter({ jobs: [job(runId, "running", { currentTool: "bash" })] });
-		assert.equal(writes[0], `\x1b]7501;state=working:id=subagents/0f1e2d3c4b5a:app=pi-subagents:title=${Buffer.from("worker").toString("base64")}:msg=${Buffer.from("Running bash").toString("base64")}\x1b\\`);
+		assert.equal(
+			writes[0],
+			`\x1b]7501;state=working:id=subagents/0f1e2d3c4b5a:app=pi-subagents:title=${Buffer.from("worker").toString("base64")}:msg=${Buffer.from("Running bash").toString("base64")}\x1b\\`,
+		);
 		instance.sync();
 		instance.sync();
 		assert.equal(writes.length, 1);
@@ -68,7 +85,13 @@ describe("OSC 7501 program status", () => {
 		for (const [status, state, msg] of states) {
 			jobs.set(runId, job(runId, status));
 			instance.sync();
-			assert.deepEqual(records().at(-1), { state, id: "subagents/0f1e2d3c4b5a", app: "pi-subagents", title: "worker", msg });
+			assert.deepEqual(records().at(-1), {
+				state,
+				id: "subagents/0f1e2d3c4b5a",
+				app: "pi-subagents",
+				title: "worker",
+				msg,
+			});
 		}
 	});
 
@@ -79,7 +102,14 @@ describe("OSC 7501 program status", () => {
 		assert.equal(records().length, 1, "a new request is the parent's to handle first");
 		instance.agentStarted();
 		instance.agentSettled();
-		assert.deepEqual(records().at(-1), { state: "blocked", id: "subagents/runa", app: "pi-subagents", kind: "question", title: "worker", msg: "Waiting for a reply" });
+		assert.deepEqual(records().at(-1), {
+			state: "blocked",
+			id: "subagents/runa",
+			app: "pi-subagents",
+			kind: "question",
+			title: "worker",
+			msg: "Waiting for a reply",
+		});
 		instance.agentStarted();
 		assert.equal(records().at(-1)?.state, "working", "the parent is working on it again");
 		pending.length = 0;
@@ -90,7 +120,9 @@ describe("OSC 7501 program status", () => {
 
 	it("keeps title and msg free of control characters and within 192 and 2048 bytes", () => {
 		const longTool = `bash\x1b[31m\u0085${"界".repeat(1000)}`;
-		const { records } = reporter({ jobs: [job("run-b", "running", { currentTool: longTool, workflowKey: `lane\x1b[2J${"界".repeat(100)}` })] });
+		const { records } = reporter({
+			jobs: [job("run-b", "running", { currentTool: longTool, workflowKey: `lane\x1b[2J${"界".repeat(100)}` })],
+		});
 		const record = records()[0]!;
 		const bytes = Buffer.byteLength(record.msg!, "utf-8");
 		assert.ok(bytes <= 2048, `msg is ${bytes} bytes`);
@@ -102,29 +134,50 @@ describe("OSC 7501 program status", () => {
 	});
 
 	it("shows at most 64 records, active runs first", () => {
-		const running = reporter({ jobs: Array.from({ length: 65 }, (_, index) => job(`run-${index}`, "running", { updatedAt: index + 1 })) });
+		const running = reporter({
+			jobs: Array.from({ length: 65 }, (_, index) => job(`run-${index}`, "running", { updatedAt: index + 1 })),
+		});
 		assert.equal(running.writes.length, 64);
-		assert.ok(!running.records().some((record) => record.id === "subagents/run0"), "the least recently updated run is not shown");
+		assert.ok(
+			!running.records().some((record) => record.id === "subagents/run0"),
+			"the least recently updated run is not shown",
+		);
 		running.jobs.set("done-new", job("done-new", "complete", { updatedAt: 1000 }));
 		running.instance.sync();
 		running.instance.sync();
-		assert.equal(running.writes.length, 64, "a finished run never displaces an active one, and unchanged jobs write nothing");
+		assert.equal(
+			running.writes.length,
+			64,
+			"a finished run never displaces an active one, and unchanged jobs write nothing",
+		);
 	});
 
 	it("clears the least recently updated finished record when an active run needs the room", () => {
-		const { instance, jobs, records } = reporter({ jobs: Array.from({ length: 64 }, (_, index) => job(`done-${index}`, "complete", { updatedAt: index + 1 })) });
+		const { instance, jobs, records } = reporter({
+			jobs: Array.from({ length: 64 }, (_, index) => job(`done-${index}`, "complete", { updatedAt: index + 1 })),
+		});
 		jobs.set("new-run", job("new-run", "running", { updatedAt: 100 }));
 		instance.sync();
-		assert.deepEqual(records().slice(64).map(({ state, id }) => `${state} ${id}`), ["clear subagents/done0", "working subagents/newrun"]);
+		assert.deepEqual(
+			records()
+				.slice(64)
+				.map(({ state, id }) => `${state} ${id}`),
+			["clear subagents/done0", "working subagents/newrun"],
+		);
 	});
 
 	it("gives a workflow child one flat id segment next to its run, so clearing the run never touches the child", () => {
 		const workflowRunId = "abcdef12-3456-7890-abcd-ef1234567890";
-		const { instance, jobs, records } = reporter({ jobs: [
-			job(workflowRunId, "complete", { mode: "workflow", updatedAt: 1 }),
-			job("child-run", "running", { parentWorkflowRunId: workflowRunId, workflowKey: "worker", updatedAt: 2 }),
-		] });
-		assert.deepEqual(records().map(({ state, id }) => `${state} ${id}`), ["working subagents/abcdef123456.worker", "done subagents/abcdef123456"]);
+		const { instance, jobs, records } = reporter({
+			jobs: [
+				job(workflowRunId, "complete", { mode: "workflow", updatedAt: 1 }),
+				job("child-run", "running", { parentWorkflowRunId: workflowRunId, workflowKey: "worker", updatedAt: 2 }),
+			],
+		});
+		assert.deepEqual(
+			records().map(({ state, id }) => `${state} ${id}`),
+			["working subagents/abcdef123456.worker", "done subagents/abcdef123456"],
+		);
 		jobs.delete(workflowRunId);
 		instance.sync();
 		instance.sync();
@@ -135,11 +188,13 @@ describe("OSC 7501 program status", () => {
 		const parentWorkflowRunId = "abcdef12-3456-7890-abcd-ef1234567890";
 		const longA = `review-${"a".repeat(30)}-one`;
 		const longB = `review-${"a".repeat(30)}-two`;
-		const { records } = reporter({ jobs: [
-			job("child-dots", "running", { parentWorkflowRunId, workflowKey: "lint.fix/s1 x", updatedAt: 3 }),
-			job("child-a", "running", { parentWorkflowRunId, workflowKey: longA, updatedAt: 2 }),
-			job("child-b", "running", { parentWorkflowRunId, workflowKey: longB, updatedAt: 1 }),
-		] });
+		const { records } = reporter({
+			jobs: [
+				job("child-dots", "running", { parentWorkflowRunId, workflowKey: "lint.fix/s1 x", updatedAt: 3 }),
+				job("child-a", "running", { parentWorkflowRunId, workflowKey: longA, updatedAt: 2 }),
+				job("child-b", "running", { parentWorkflowRunId, workflowKey: longB, updatedAt: 1 }),
+			],
+		});
 		const ids = records().map((record) => record.id!);
 		assert.equal(new Set(ids).size, ids.length, ids.join(" "));
 		for (const id of ids) {
@@ -152,10 +207,12 @@ describe("OSC 7501 program status", () => {
 
 	it("keeps keys apart that differ only in characters the id cannot carry", () => {
 		const parentWorkflowRunId = "abcdef12-3456-7890-abcd-ef1234567890";
-		const { records } = reporter({ jobs: [
-			job("child-dot", "running", { parentWorkflowRunId, workflowKey: "a.b", updatedAt: 2 }),
-			job("child-dash", "running", { parentWorkflowRunId, workflowKey: "a-b", updatedAt: 1 }),
-		] });
+		const { records } = reporter({
+			jobs: [
+				job("child-dot", "running", { parentWorkflowRunId, workflowKey: "a.b", updatedAt: 2 }),
+				job("child-dash", "running", { parentWorkflowRunId, workflowKey: "a-b", updatedAt: 1 }),
+			],
+		});
 		const ids = records().map((record) => record.id);
 		assert.equal(ids[1], "subagents/abcdef123456.a-b");
 		assert.notEqual(ids[0], ids[1]);
@@ -166,7 +223,14 @@ describe("OSC 7501 program status", () => {
 		const reloaded = reporter({ jobs });
 		reloaded.instance.dispose("reload");
 		reloaded.instance.sync();
-		assert.deepEqual(reloaded.records().slice(2).map(({ state, id }) => `${state} ${id}`).sort(), ["clear subagents/runf", "clear subagents/rung"]);
+		assert.deepEqual(
+			reloaded
+				.records()
+				.slice(2)
+				.map(({ state, id }) => `${state} ${id}`)
+				.sort(),
+			["clear subagents/runf", "clear subagents/rung"],
+		);
 
 		const replaced = reporter({ jobs });
 		replaced.instance.dispose();
@@ -195,13 +259,17 @@ describe("OSC 7501 program status", () => {
 		}
 	});
 
-	it("sends its records again when Pi resumes from a suspend, until it is disposed", { skip: process.platform === "win32" ? "no SIGCONT on Windows" : undefined }, () => {
-		const { instance, writes } = reporter({ jobs: [job("run-h", "running"), job("run-i", "complete")] });
-		const shown = [...writes];
-		process.emit("SIGCONT");
-		assert.deepEqual(writes.slice(2), shown);
-		instance.dispose("quit");
-		process.emit("SIGCONT");
-		assert.equal(writes.length, 4);
-	});
+	it(
+		"sends its records again when Pi resumes from a suspend, until it is disposed",
+		{ skip: process.platform === "win32" ? "no SIGCONT on Windows" : undefined },
+		() => {
+			const { instance, writes } = reporter({ jobs: [job("run-h", "running"), job("run-i", "complete")] });
+			const shown = [...writes];
+			process.emit("SIGCONT");
+			assert.deepEqual(writes.slice(2), shown);
+			instance.dispose("quit");
+			process.emit("SIGCONT");
+			assert.equal(writes.length, 4);
+		},
+	);
 });

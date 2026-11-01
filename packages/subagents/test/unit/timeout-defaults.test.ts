@@ -70,14 +70,20 @@ describe("single-agent launch timeout wiring", () => {
 
 	it("does not apply the async default to async workflowScript", () => {
 		assert.deepEqual(
-			resolveSingleAgentLaunchTimeout({ workflowScript: "return runs.run('a', { agent: 'worker', task: 'x' })" }, true),
+			resolveSingleAgentLaunchTimeout(
+				{ workflowScript: "return runs.run('a', { agent: 'worker', task: 'x' })" },
+				true,
+			),
 			{},
 		);
 	});
 
 	it("explicit top-level timeout still applies to async chains", () => {
 		assert.deepEqual(
-			resolveSingleAgentLaunchTimeout({ agent: "worker", task: "x", chain: [{ agent: "worker", task: "y" }], timeoutMs: 5_000 }, true),
+			resolveSingleAgentLaunchTimeout(
+				{ agent: "worker", task: "x", chain: [{ agent: "worker", task: "y" }], timeoutMs: 5_000 },
+				true,
+			),
 			{ timeoutMs: 5_000 },
 		);
 	});
@@ -92,11 +98,19 @@ describe("single-agent launch timeout wiring", () => {
 
 	it("applies the global config default to composite foreground runs (parallel/chain)", () => {
 		assert.deepEqual(
-			resolveSingleAgentLaunchTimeout({ agent: "worker", task: "x", tasks: [{ agent: "worker", task: "y" }] }, false, NINETY_MIN),
+			resolveSingleAgentLaunchTimeout(
+				{ agent: "worker", task: "x", tasks: [{ agent: "worker", task: "y" }] },
+				false,
+				NINETY_MIN,
+			),
 			{ timeoutMs: NINETY_MIN },
 		);
 		assert.deepEqual(
-			resolveSingleAgentLaunchTimeout({ agent: "worker", task: "x", chain: [{ agent: "worker", task: "y" }] }, false, NINETY_MIN),
+			resolveSingleAgentLaunchTimeout(
+				{ agent: "worker", task: "x", chain: [{ agent: "worker", task: "y" }] },
+				false,
+				NINETY_MIN,
+			),
 			{ timeoutMs: NINETY_MIN },
 		);
 	});
@@ -115,7 +129,11 @@ describe("single-agent launch timeout wiring", () => {
 
 	it("keeps composite async runs unbounded even with a global config default", () => {
 		assert.deepEqual(
-			resolveSingleAgentLaunchTimeout({ agent: "worker", task: "x", tasks: [{ agent: "worker", task: "y" }] }, true, NINETY_MIN),
+			resolveSingleAgentLaunchTimeout(
+				{ agent: "worker", task: "x", tasks: [{ agent: "worker", task: "y" }] },
+				true,
+				NINETY_MIN,
+			),
 			{},
 		);
 	});

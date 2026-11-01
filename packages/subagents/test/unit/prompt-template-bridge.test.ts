@@ -7,8 +7,8 @@ import {
 	PROMPT_TEMPLATE_SUBAGENT_RESPONSE_EVENT,
 	PROMPT_TEMPLATE_SUBAGENT_STARTED_EVENT,
 	PROMPT_TEMPLATE_SUBAGENT_UPDATE_EVENT,
-	registerPromptTemplateDelegationBridge,
 	type PromptTemplateBridgeEvents,
+	registerPromptTemplateDelegationBridge,
 } from "../../src/slash/prompt-template-bridge.ts";
 
 class FakeEvents implements PromptTemplateBridgeEvents {
@@ -20,12 +20,15 @@ class FakeEvents implements PromptTemplateBridgeEvents {
 		this.handlers.set(event, list);
 		return () => {
 			const current = this.handlers.get(event) ?? [];
-			this.handlers.set(event, current.filter((h) => h !== handler));
+			this.handlers.set(
+				event,
+				current.filter((h) => h !== handler),
+			);
 		};
 	}
 
 	emit(event: string, data: unknown): void {
-		for (const handler of [...this.handlers.get(event) ?? []]) handler(data);
+		for (const handler of [...(this.handlers.get(event) ?? [])]) handler(data);
 	}
 }
 
@@ -65,17 +68,19 @@ describe("prompt-template delegation bridge", () => {
 				onUpdate({
 					details: {
 						results: [{ agent: "worker", model: "openai/gpt-5-mini" }],
-						progress: [{
-							index: 0,
-							agent: "worker",
-							currentTool: "read",
-							currentToolArgs: "src/extension/index.ts",
-							recentOutput: ["line 1"],
-							recentTools: [{ tool: "read", args: '{"path":"src/extension/index.ts"}' }],
-							toolCount: 1,
-							durationMs: 10,
-							tokens: 42,
-						}],
+						progress: [
+							{
+								index: 0,
+								agent: "worker",
+								currentTool: "read",
+								currentToolArgs: "src/extension/index.ts",
+								recentOutput: ["line 1"],
+								recentTools: [{ tool: "read", args: '{"path":"src/extension/index.ts"}' }],
+								toolCount: 1,
+								durationMs: 10,
+								tokens: 42,
+							},
+						],
 					},
 				});
 				return {
@@ -84,7 +89,9 @@ describe("prompt-template delegation bridge", () => {
 					},
 				};
 			},
-			execute: async () => { throw new Error("structured request should use executeStructured"); },
+			execute: async () => {
+				throw new Error("structured request should use executeStructured");
+			},
 		});
 
 		const startedPromise = once(events, PROMPT_TEMPLATE_SUBAGENT_STARTED_EVENT);
@@ -93,10 +100,10 @@ describe("prompt-template delegation bridge", () => {
 
 		events.emit(PROMPT_TEMPLATE_SUBAGENT_REQUEST_EVENT, structuredRequest());
 
-		const started = await startedPromise as { requestId: string; ownerRunId: string; nodeId: string };
+		const started = (await startedPromise) as { requestId: string; ownerRunId: string; nodeId: string };
 		assert.deepEqual(started, { requestId: "r1", ownerRunId: "owner-1", nodeId: "node-1" });
 
-		const update = await updatePromise as {
+		const update = (await updatePromise) as {
 			requestId: string;
 			ownerRunId: string;
 			nodeId: string;
@@ -115,7 +122,13 @@ describe("prompt-template delegation bridge", () => {
 		assert.deepEqual(update.recentOutputLines, ["line 1"]);
 		assert.deepEqual(update.recentTools, [{ tool: "read", args: '{"path":"src/extension/index.ts"}' }]);
 
-		const response = await responsePromise as { requestId: string; ownerRunId: string; nodeId: string; status: string; result?: { kind: string; text?: string } };
+		const response = (await responsePromise) as {
+			requestId: string;
+			ownerRunId: string;
+			nodeId: string;
+			status: string;
+			result?: { kind: string; text?: string };
+		};
 		assert.equal(response.requestId, "r1");
 		assert.equal(response.ownerRunId, "owner-1");
 		assert.equal(response.nodeId, "node-1");
@@ -137,7 +150,7 @@ describe("prompt-template delegation bridge", () => {
 		const responsePromise = once(events, PROMPT_TEMPLATE_SUBAGENT_RESPONSE_EVENT);
 		events.emit(PROMPT_TEMPLATE_SUBAGENT_REQUEST_EVENT, structuredRequest({ requestId: "r2" }));
 
-		const response = await responsePromise as { status: string; error?: string };
+		const response = (await responsePromise) as { status: string; error?: string };
 		assert.equal(response.status, "unavailable_context");
 		assert.match(response.error ?? "", /No active extension context/);
 
@@ -160,7 +173,7 @@ describe("prompt-template delegation bridge", () => {
 		const responsePromise = once(events, PROMPT_TEMPLATE_SUBAGENT_RESPONSE_EVENT);
 		events.emit(PROMPT_TEMPLATE_SUBAGENT_REQUEST_EVENT, structuredRequest({ requestId: "r4" }));
 
-		const response = await responsePromise as { status: string };
+		const response = (await responsePromise) as { status: string };
 		assert.equal(response.status, "cancelled");
 		assert.equal(executeCalls, 0);
 
@@ -186,7 +199,7 @@ describe("prompt-template delegation bridge", () => {
 		await startedPromise;
 		events.emit(PROMPT_TEMPLATE_SUBAGENT_CANCEL_EVENT, { requestId: "r5", ownerRunId: "owner-1", nodeId: "node-1" });
 
-		const response = await responsePromise as { status: string; error?: string };
+		const response = (await responsePromise) as { status: string; error?: string };
 		assert.equal(response.status, "cancelled");
 
 		bridge.dispose();
@@ -198,7 +211,10 @@ describe("prompt-template delegation bridge", () => {
 		const bridge = registerPromptTemplateDelegationBridge({
 			events,
 			getContext: () => ({ cwd: "/repo" }),
-			execute: async () => { executeCalls++; return {}; },
+			execute: async () => {
+				executeCalls++;
+				return {};
+			},
 		});
 
 		const responsePromise = once(events, PROMPT_TEMPLATE_SUBAGENT_RESPONSE_EVENT);
@@ -211,7 +227,7 @@ describe("prompt-template delegation bridge", () => {
 			cwd: "/repo",
 		});
 
-		const response = await responsePromise as { isError: boolean; errorText?: string };
+		const response = (await responsePromise) as { isError: boolean; errorText?: string };
 		assert.equal(response.isError, true);
 		assert.match(response.errorText ?? "", /Legacy prompt-template direct delegation was removed/);
 		assert.equal(executeCalls, 0);
@@ -224,7 +240,10 @@ describe("prompt-template delegation bridge", () => {
 		const bridge = registerPromptTemplateDelegationBridge({
 			events,
 			getContext: () => ({ cwd: "/repo" }),
-			execute: async () => { executeCalls++; return {}; },
+			execute: async () => {
+				executeCalls++;
+				return {};
+			},
 		});
 
 		const tasksResponse = once(events, PROMPT_TEMPLATE_SUBAGENT_RESPONSE_EVENT);
@@ -235,7 +254,7 @@ describe("prompt-template delegation bridge", () => {
 			model: "openai/gpt-5",
 			cwd: "/repo",
 		});
-		const response = await tasksResponse as { isError: boolean; errorText?: string };
+		const response = (await tasksResponse) as { isError: boolean; errorText?: string };
 		assert.equal(response.isError, true);
 		assert.match(response.errorText ?? "", /removed.*workflow script/i);
 		assert.equal(executeCalls, 0);

@@ -6,15 +6,26 @@ import { formatShellCommand } from "../../src/inspectors/shell-command.ts";
 
 describe("session roots codec", () => {
 	it("round-trips an empty array, plain paths, and paths with spaces/quotes", () => {
-		for (const roots of [[], ["/tmp/a"], ["C:\\Users\\a b\\.pi", "D:\\work"], ['has "quotes"', "has\\backslashes\\"]]) {
+		for (const roots of [
+			[],
+			["/tmp/a"],
+			["C:\\Users\\a b\\.pi", "D:\\work"],
+			['has "quotes"', "has\\backslashes\\"],
+		]) {
 			assert.deepEqual(decodeSessionRoots(encodeSessionRoots(roots)), roots);
 		}
 	});
 
 	it("rejects malformed input", () => {
 		assert.throws(() => decodeSessionRoots("not base64"), /base64-encoded JSON array of strings/);
-		assert.throws(() => decodeSessionRoots(Buffer.from(JSON.stringify({ not: "an array" })).toString("base64")), /base64-encoded JSON array of strings/);
-		assert.throws(() => decodeSessionRoots(Buffer.from(JSON.stringify([1, 2])).toString("base64")), /base64-encoded JSON array of strings/);
+		assert.throws(
+			() => decodeSessionRoots(Buffer.from(JSON.stringify({ not: "an array" })).toString("base64")),
+			/base64-encoded JSON array of strings/,
+		);
+		assert.throws(
+			() => decodeSessionRoots(Buffer.from(JSON.stringify([1, 2])).toString("base64")),
+			/base64-encoded JSON array of strings/,
+		);
 	});
 
 	it("produces plain-ASCII base64 output with no quote, backslash, or space characters for a shell to mangle", () => {
@@ -34,7 +45,11 @@ describe("session roots codec", () => {
 		}
 
 		function runThroughPowerShell(command: string): string[] {
-			return JSON.parse(execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", command], { encoding: "utf-8" }));
+			return JSON.parse(
+				execFileSync("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", command], {
+					encoding: "utf-8",
+				}),
+			);
 		}
 
 		it("mangles a raw JSON.stringify payload (documents the bug this PR fixes)", () => {
@@ -43,7 +58,11 @@ describe("session roots codec", () => {
 			const argv = runThroughPowerShell(echoArgvCommand(rawJson));
 			const received = argv[argv.indexOf("--session-roots") + 1];
 			assert.notEqual(received, rawJson, "expected PowerShell to corrupt the unescaped JSON payload");
-			assert.throws(() => JSON.parse(received ?? ""), /Unexpected token/, "corrupted payload should no longer be valid JSON");
+			assert.throws(
+				() => JSON.parse(received ?? ""),
+				/Unexpected token/,
+				"corrupted payload should no longer be valid JSON",
+			);
 		});
 
 		it("survives base64 encoding byte-for-byte", () => {

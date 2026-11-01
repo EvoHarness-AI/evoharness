@@ -3,7 +3,7 @@ import type { Usage } from "../../shared/types.ts";
 type UsageMessage = { role?: unknown; timestamp?: unknown; usage?: object };
 
 const usageFields = ["input", "output", "cacheRead", "cacheWrite", "cost"] as const;
-type UsageField = typeof usageFields[number];
+type UsageField = (typeof usageFields)[number];
 
 const aliases: Record<Exclude<UsageField, "cost">, readonly string[]> = {
 	input: ["input", "inputTokens"],
@@ -45,13 +45,20 @@ export function reconcileAttemptUsage(live: Usage, messages: readonly UsageMessa
 	if (!Number.isInteger(baseline) || baseline < 0 || messages.length < baseline) return { ...live };
 
 	const persisted: Usage = { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 0 };
-	const complete: Record<UsageField, boolean> = { input: true, output: true, cacheRead: true, cacheWrite: true, cost: true };
+	const complete: Record<UsageField, boolean> = {
+		input: true,
+		output: true,
+		cacheRead: true,
+		cacheWrite: true,
+		cost: true,
+	};
 	let previous: UsageMessage | undefined;
 	for (let index = baseline; index < messages.length; index++) {
 		const message = messages[index]!;
 		if (message.role === "assistant") {
 			const timestamp = validTimestamp(message);
-			const duplicate = previous?.role === "assistant" && timestamp !== undefined && validTimestamp(previous) === timestamp;
+			const duplicate =
+				previous?.role === "assistant" && timestamp !== undefined && validTimestamp(previous) === timestamp;
 			if (!duplicate) {
 				persisted.turns++;
 				for (const field of usageFields) {

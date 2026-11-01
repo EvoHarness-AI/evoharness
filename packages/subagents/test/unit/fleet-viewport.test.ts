@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { it } from "node:test";
-import { FleetViewport } from "../../src/tui/fleet-viewport.ts";
 import { fleetContains, fleetLayout } from "../../src/tui/fleet-layout.ts";
+import { FleetViewport } from "../../src/tui/fleet-viewport.ts";
 
 it("uses native clamping, line/page movement, and follow-end across growth and resize", () => {
 	let requests = 0;

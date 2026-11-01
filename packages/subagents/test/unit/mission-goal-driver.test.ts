@@ -30,24 +30,59 @@ describe("goal mission continuation", () => {
 				ownerSessionId: "session-1",
 			});
 			fs.mkdirSync(path.dirname(missionStatePath(test.location, mission.id)), { recursive: true });
-			fs.writeFileSync(missionStatePath(test.location, mission.id), JSON.stringify({ lanes: { review: { status: "ready", action: "Review the token refresh diff" } } }));
+			fs.writeFileSync(
+				missionStatePath(test.location, mission.id),
+				JSON.stringify({ lanes: { review: { status: "ready", action: "Review the token refresh diff" } } }),
+			);
 
-			const first = collectGoalContinuationNotices({ location: test.location, ownerSessionId: "session-1", retainedChildren: [], turnId: 1 });
+			const first = collectGoalContinuationNotices({
+				location: test.location,
+				ownerSessionId: "session-1",
+				retainedChildren: [],
+				turnId: 1,
+			});
 			assert.equal(first.length, 1);
 			assert.match(first[0]!.message, /Remaining budget: 100 tokens/);
 			assert.match(first[0]!.message, /Next ready action: Review the token refresh diff/);
 
 			const asyncDir = path.join(test.root, "run-1");
 			fs.mkdirSync(asyncDir);
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({ state: "running", totalTokens: { input: 10, output: 5, total: 15 } }));
-			updateMission(test.location, mission.id, { addRuns: [{ runId: "workflow-1", mode: "workflow", asyncDir, status: "running" }] });
-			assert.deepEqual(collectGoalContinuationNotices({ location: test.location, ownerSessionId: "session-1", retainedChildren: [], turnId: 2 }), []);
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify({ state: "running", totalTokens: { input: 10, output: 5, total: 15 } }),
+			);
+			updateMission(test.location, mission.id, {
+				addRuns: [{ runId: "workflow-1", mode: "workflow", asyncDir, status: "running" }],
+			});
+			assert.deepEqual(
+				collectGoalContinuationNotices({
+					location: test.location,
+					ownerSessionId: "session-1",
+					retainedChildren: [],
+					turnId: 2,
+				}),
+				[],
+			);
 
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({ state: "complete", totalTokens: { input: 25, output: 15, total: 40 } }));
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify({ state: "complete", totalTokens: { input: 25, output: 15, total: 40 } }),
+			);
 			const resumed = collectGoalContinuationNotices({
 				location: test.location,
 				ownerSessionId: "session-1",
-				retainedChildren: [{ runId: "child-review", parentRunId: "workflow-1", state: "complete", agent: "reviewer", taskSummary: "Review", completedAt: 1, sessionPath: "/tmp/child.jsonl", resumability: { state: "resumable", sessionPath: "/tmp/child.jsonl" } }],
+				retainedChildren: [
+					{
+						runId: "child-review",
+						parentRunId: "workflow-1",
+						state: "complete",
+						agent: "reviewer",
+						taskSummary: "Review",
+						completedAt: 1,
+						sessionPath: "/tmp/child.jsonl",
+						resumability: { state: "resumable", sessionPath: "/tmp/child.jsonl" },
+					},
+				],
 				turnId: 3,
 			});
 			assert.equal(resumed.length, 1);
@@ -55,8 +90,19 @@ describe("goal mission continuation", () => {
 			assert.match(resumed[0]!.message, /Resume retained child child-review \(reviewer\)/);
 			assert.equal(readMission(test.location, mission.id).usage?.tokens, 40);
 
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({ state: "complete", totalTokens: { input: 60, output: 40, total: 100 } }));
-			assert.deepEqual(collectGoalContinuationNotices({ location: test.location, ownerSessionId: "session-1", retainedChildren: [], turnId: 4 }), []);
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify({ state: "complete", totalTokens: { input: 60, output: 40, total: 100 } }),
+			);
+			assert.deepEqual(
+				collectGoalContinuationNotices({
+					location: test.location,
+					ownerSessionId: "session-1",
+					retainedChildren: [],
+					turnId: 4,
+				}),
+				[],
+			);
 			assert.equal(readMission(test.location, mission.id).goal?.status, "budget-exhausted");
 			assert.equal(readMission(test.location, mission.id).status, "active");
 		} finally {
@@ -84,7 +130,11 @@ describe("goal mission continuation", () => {
 				});
 				const brokenDir = path.join(test.root, "broken-run");
 				fs.mkdirSync(brokenDir);
-				fs.writeFileSync(path.join(brokenDir, "status.json"), damaged.file === "run" ? damaged.contents : JSON.stringify({ state: "complete" }), "utf-8");
+				fs.writeFileSync(
+					path.join(brokenDir, "status.json"),
+					damaged.file === "run" ? damaged.contents : JSON.stringify({ state: "complete" }),
+					"utf-8",
+				);
 				updateMission(test.location, broken.id, {
 					addRuns: [{ runId: "broken-workflow", mode: "workflow", asyncDir: brokenDir, status: "running" }],
 				});
@@ -118,7 +168,10 @@ describe("goal mission continuation", () => {
 				assert.equal(errors.length, 1);
 				assert.equal(errors[0]!.missionId, broken.id);
 				if (damaged.file === "run") {
-					assert.match(errors[0]!.error instanceof Error ? errors[0]!.error.message : String(errors[0]!.error), /status\.json/);
+					assert.match(
+						errors[0]!.error instanceof Error ? errors[0]!.error.message : String(errors[0]!.error),
+						/status\.json/,
+					);
 				} else {
 					assert.ok(errors[0]!.error instanceof SyntaxError);
 				}
@@ -150,8 +203,26 @@ describe("goal mission continuation", () => {
 				location: test.location,
 				ownerSessionId: "session-1",
 				retainedChildren: [
-					{ runId: "child-old", parentRunId: "workflow-old", state: "complete", agent: "reviewer", taskSummary: "Old", completedAt: 2, sessionPath: "/tmp/old.jsonl", resumability: { state: "resumable", sessionPath: "/tmp/old.jsonl" } },
-					{ runId: "child-new", parentRunId: "workflow-new", state: "complete", agent: "reviewer", taskSummary: "New", completedAt: 1, sessionPath: "/tmp/new.jsonl", resumability: { state: "resumable", sessionPath: "/tmp/new.jsonl" } },
+					{
+						runId: "child-old",
+						parentRunId: "workflow-old",
+						state: "complete",
+						agent: "reviewer",
+						taskSummary: "Old",
+						completedAt: 2,
+						sessionPath: "/tmp/old.jsonl",
+						resumability: { state: "resumable", sessionPath: "/tmp/old.jsonl" },
+					},
+					{
+						runId: "child-new",
+						parentRunId: "workflow-new",
+						state: "complete",
+						agent: "reviewer",
+						taskSummary: "New",
+						completedAt: 1,
+						sessionPath: "/tmp/new.jsonl",
+						resumability: { state: "resumable", sessionPath: "/tmp/new.jsonl" },
+					},
 				],
 				turnId: 1,
 			});
@@ -175,13 +246,31 @@ describe("goal mission continuation", () => {
 				status: "active",
 				ownerSessionId: "session-1",
 			});
-			updateMission(test.location, mission.id, { addRuns: [{ runId: "workflow-mission", mode: "workflow", status: "complete" }] });
+			updateMission(test.location, mission.id, {
+				addRuns: [{ runId: "workflow-mission", mode: "workflow", status: "complete" }],
+			});
 			const retainedChildren: RetainedChild[] = [
 				...Array.from({ length: 10 }, (_, offset) => {
 					const index = 10 - offset;
-					return { runId: `child-${index}`, parentRunId: `workflow-unrelated-${index}`, state: "complete" as const, agent: "worker", taskSummary: "Unrelated", completedAt: index, resumability: { state: "resumable" as const, sessionPath: `/tmp/child-${index}.jsonl` } };
+					return {
+						runId: `child-${index}`,
+						parentRunId: `workflow-unrelated-${index}`,
+						state: "complete" as const,
+						agent: "worker",
+						taskSummary: "Unrelated",
+						completedAt: index,
+						resumability: { state: "resumable" as const, sessionPath: `/tmp/child-${index}.jsonl` },
+					};
 				}),
-				{ runId: "child-0", parentRunId: "workflow-mission", state: "complete", agent: "worker", taskSummary: "Linked", completedAt: 0, resumability: { state: "resumable", sessionPath: "/tmp/child-0.jsonl" } },
+				{
+					runId: "child-0",
+					parentRunId: "workflow-mission",
+					state: "complete",
+					agent: "worker",
+					taskSummary: "Linked",
+					completedAt: 0,
+					resumability: { state: "resumable", sessionPath: "/tmp/child-0.jsonl" },
+				},
 			];
 			const notices = collectGoalContinuationNotices({
 				location: test.location,
@@ -210,18 +299,33 @@ describe("goal mission continuation", () => {
 				status: "active",
 				ownerSessionId: "session-1",
 			});
-			updateMission(test.location, mission.id, { addRuns: [{ runId: "workflow-stopped", mode: "workflow", status: "complete" }] });
+			updateMission(test.location, mission.id, {
+				addRuns: [{ runId: "workflow-stopped", mode: "workflow", status: "complete" }],
+			});
 
 			const notices = collectGoalContinuationNotices({
 				location: test.location,
 				ownerSessionId: "session-1",
-				retainedChildren: [{ runId: "child-stopped", parentRunId: "workflow-stopped", state: "stopped", agent: "worker", taskSummary: "Stopped", completedAt: 1, resumability: { state: "not-resumable", reason: "stopped run" } }],
+				retainedChildren: [
+					{
+						runId: "child-stopped",
+						parentRunId: "workflow-stopped",
+						state: "stopped",
+						agent: "worker",
+						taskSummary: "Stopped",
+						completedAt: 1,
+						resumability: { state: "not-resumable", reason: "stopped run" },
+					},
+				],
 				turnId: 1,
 			});
 
 			assert.equal(notices.length, 1);
 			assert.doesNotMatch(notices[0]!.message, /Resume retained child/);
-			assert.match(notices[0]!.message, /Next ready action: Continue objective: Implement and validate token refresh/);
+			assert.match(
+				notices[0]!.message,
+				/Next ready action: Continue objective: Implement and validate token refresh/,
+			);
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
 		}
@@ -231,12 +335,36 @@ describe("goal mission continuation", () => {
 		const test = fixture();
 		try {
 			const ctx = { cwd: test.projectRoot, agentDir: path.join(test.root, "agent"), currentSessionId: "session-1" };
-			const created = handleMissionAction("mission.create", { mission: { title: "Goal controls", objective: "Exercise controls", goal: true, budget: { tokens: 50 } } }, ctx);
+			const created = handleMissionAction(
+				"mission.create",
+				{ mission: { title: "Goal controls", objective: "Exercise controls", goal: true, budget: { tokens: 50 } } },
+				ctx,
+			);
 			const missionId = created.details!.missionId!;
-			assert.equal(handleMissionAction("mission.update", { missionId, missionUpdate: { goal: { paused: true } } }, ctx).details?.mission?.goal?.status, "paused");
-			assert.deepEqual(collectGoalContinuationNotices({ location: test.location, ownerSessionId: "session-1", retainedChildren: [], turnId: 1 }), []);
-			assert.equal(handleMissionAction("mission.update", { missionId, missionUpdate: { goal: { paused: false } } }, ctx).details?.mission?.goal?.status, "active");
-			assert.equal(handleMissionAction("mission.update", { missionId, missionUpdate: { goal: false } }, ctx).details?.mission?.goal, undefined);
+			assert.equal(
+				handleMissionAction("mission.update", { missionId, missionUpdate: { goal: { paused: true } } }, ctx).details
+					?.mission?.goal?.status,
+				"paused",
+			);
+			assert.deepEqual(
+				collectGoalContinuationNotices({
+					location: test.location,
+					ownerSessionId: "session-1",
+					retainedChildren: [],
+					turnId: 1,
+				}),
+				[],
+			);
+			assert.equal(
+				handleMissionAction("mission.update", { missionId, missionUpdate: { goal: { paused: false } } }, ctx)
+					.details?.mission?.goal?.status,
+				"active",
+			);
+			assert.equal(
+				handleMissionAction("mission.update", { missionId, missionUpdate: { goal: false } }, ctx).details?.mission
+					?.goal,
+				undefined,
+			);
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
 		}

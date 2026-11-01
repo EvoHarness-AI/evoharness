@@ -4,7 +4,12 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { captureWatchdogDiffBaseline, createWatchdogDiffTool, startWatchdogDiffBaselineCapture, WATCHDOG_DIFF_MAX_CHARS } from "../../src/watchdog/diff-tool.ts";
+import {
+	captureWatchdogDiffBaseline,
+	createWatchdogDiffTool,
+	startWatchdogDiffBaselineCapture,
+	WATCHDOG_DIFF_MAX_CHARS,
+} from "../../src/watchdog/diff-tool.ts";
 
 let repo = "";
 
@@ -12,7 +17,10 @@ function git(...args: string[]): string {
 	return execFileSync("git", args, { cwd: repo, encoding: "utf-8", stdio: ["ignore", "pipe", "ignore"] });
 }
 
-async function run(tool: ReturnType<typeof createWatchdogDiffTool>, params: { path?: string; stat?: boolean } = {}): Promise<string> {
+async function run(
+	tool: ReturnType<typeof createWatchdogDiffTool>,
+	params: { path?: string; stat?: boolean } = {},
+): Promise<string> {
 	const result = await tool.execute("call", params, undefined as never, undefined as never, undefined as never);
 	return result.content.map((part) => (part as { text?: string }).text ?? "").join("\n");
 }
@@ -37,7 +45,11 @@ describe("watchdog diff tool", () => {
 	it("captures the session baseline and reports no changes when clean", async () => {
 		const baseline = await startWatchdogDiffBaselineCapture(path.join(repo, "src"));
 		assert.ok(baseline);
-		assert.equal(fs.realpathSync.native(baseline.root), fs.realpathSync.native(repo), "git expands Windows 8.3 short names; compare native real paths");
+		assert.equal(
+			fs.realpathSync.native(baseline.root),
+			fs.realpathSync.native(repo),
+			"git expands Windows 8.3 short names; compare native real paths",
+		);
 		assert.equal(baseline.ref, git("rev-parse", "HEAD").trim());
 		assert.match(await run(createWatchdogDiffTool(baseline)), /^No changes since baseline/);
 		assert.equal(await startWatchdogDiffBaselineCapture(os.tmpdir()), undefined);
@@ -94,7 +106,11 @@ describe("watchdog diff tool", () => {
 		assert.match(changed, /\+unstaged after reviewer launch/, "unstaged changes are included");
 		assert.match(changed, /Untracked files \(use read to inspect\):\n untracked\.txt/);
 		assert.equal(git("rev-parse", "HEAD").trim(), baseline.ref, "inspection does not move HEAD");
-		assert.equal(git("status", "--short"), " M README.md\nM  src/a.ts\n?? untracked.txt\n", "inspection preserves staged, unstaged, and untracked state");
+		assert.equal(
+			git("status", "--short"),
+			" M README.md\nM  src/a.ts\n?? untracked.txt\n",
+			"inspection preserves staged, unstaged, and untracked state",
+		);
 	});
 
 	it("fails closed when HEAD advances after reviewer launch", async () => {
@@ -121,7 +137,8 @@ describe("watchdog diff tool", () => {
 		assert.ok(bounded.length <= WATCHDOG_DIFF_MAX_CHARS, `bounded output was ${bounded.length}`);
 		assert.match(bounded, /characters omitted; call again with a narrower path/);
 
-		for (let index = 0; index < 52; index++) fs.writeFileSync(path.join(repo, `untracked-${String(index).padStart(2, "0")}.txt`), "x", "utf-8");
+		for (let index = 0; index < 52; index++)
+			fs.writeFileSync(path.join(repo, `untracked-${String(index).padStart(2, "0")}.txt`), "x", "utf-8");
 		const inventory = await run(tool, { stat: true });
 		assert.match(inventory, /\.\.\. 2 more untracked files/);
 		assert.equal((inventory.match(/^ untracked-/gm) ?? []).length, 50);

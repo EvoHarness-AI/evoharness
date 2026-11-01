@@ -1,9 +1,11 @@
 import type { ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
 
 /** Ends a waking notice that reports results. */
-export const COMPLETION_ACTION = "Read the saved results above and resume the already-authorized parent task, or report completion. If approval is required, explicitly ask the user. Do not silently yield, rerun completed work, or infer new authorization.";
+export const COMPLETION_ACTION =
+	"Read the saved results above and resume the already-authorized parent task, or report completion. If approval is required, explicitly ask the user. Do not silently yield, rerun completed work, or infer new authorization.";
 /** Ends a waking notice that reports a problem or a run state rather than results. */
-export const STATUS_ACTION = "Check the run status and details above, then resume the already-authorized parent task or report the problem. If approval is required, explicitly ask the user. Do not silently yield, rerun completed work, or infer new authorization.";
+export const STATUS_ACTION =
+	"Check the run status and details above, then resume the already-authorized parent task or report the problem. If approval is required, explicitly ask the user. Do not silently yield, rerun completed work, or infer new authorization.";
 
 // A wake whose run never starts emits no agent_start; past this deadline an idle parent's wake counts as abandoned.
 // Pi persists the waking notice only when its run reaches message_end, so a run that never starts loses it;
@@ -16,7 +18,8 @@ const WAKE_PENDING_MS = 10_000;
 type WakeReservation = { sessionId: string; sentAt?: number };
 const reservationsSymbol = Symbol.for("pi.idle-wake.v1");
 const wakeGlobal = globalThis as typeof globalThis & { [reservationsSymbol]?: WeakMap<object, WakeReservation> };
-const reservations = wakeGlobal[reservationsSymbol] ?? (wakeGlobal[reservationsSymbol] = new WeakMap<object, WakeReservation>());
+const reservations =
+	wakeGlobal[reservationsSymbol] ?? (wakeGlobal[reservationsSymbol] = new WeakMap<object, WakeReservation>());
 
 export interface ParentWake {
 	/**
@@ -84,8 +87,12 @@ export function createParentWake(pi: Pick<ExtensionAPI, "sendMessage">, now: () 
 			reservation().sentAt = undefined;
 			held = false;
 		},
-		userAborted: () => { held = true; },
-		releaseHold: () => { held = false; },
+		userAborted: () => {
+			held = true;
+		},
+		releaseHold: () => {
+			held = false;
+		},
 		isHeld: () => held,
 		sessionShutdown(reason) {
 			if (reason !== "reload") reservation().sentAt = undefined;

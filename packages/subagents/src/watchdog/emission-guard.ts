@@ -2,17 +2,19 @@ import type { WatchdogSeverity, WatchdogWarning } from "./types.ts";
 
 export type WatchdogEmissionSuppressionReason = "content-free" | "duplicate" | "max-warnings" | "update-budget";
 
-export type WatchdogEmissionDecision = {
-	accepted: true;
-	identity: string;
-	underlyingIdentity: string;
-	escalation: boolean;
-} | {
-	accepted: false;
-	reason: WatchdogEmissionSuppressionReason;
-	identity?: string;
-	underlyingIdentity?: string;
-};
+export type WatchdogEmissionDecision =
+	| {
+			accepted: true;
+			identity: string;
+			underlyingIdentity: string;
+			escalation: boolean;
+	  }
+	| {
+			accepted: false;
+			reason: WatchdogEmissionSuppressionReason;
+			identity?: string;
+			underlyingIdentity?: string;
+	  };
 
 export interface WatchdogEmissionGuardOptions {
 	maxWarnings?: number | null;
@@ -90,7 +92,11 @@ export class WatchdogEmissionGuard {
 
 	/** `allowRepeatOf`: one already-accepted identity that may repeat (boundary re-findings before stalemate). */
 	evaluate(warning: WatchdogWarning, options: { allowRepeatOf?: string } = {}): WatchdogEmissionDecision {
-		if (isContentFree(warning.summary) || isContentFree(warning.evidence) || isContentFree(warning.recommendedAction)) {
+		if (
+			isContentFree(warning.summary) ||
+			isContentFree(warning.evidence) ||
+			isContentFree(warning.recommendedAction)
+		) {
 			return { accepted: false, reason: "content-free" };
 		}
 		const underlyingIdentity = watchdogWarningUnderlyingIdentity(warning);
@@ -98,13 +104,15 @@ export class WatchdogEmissionGuard {
 		const priorSeverity = this.acceptedByUnderlyingIdentity.get(underlyingIdentity);
 		const escalation = priorSeverity === "concern" && warning.severity === "blocker";
 		if (this.updateAcceptedUnderlyingIdentity !== undefined) {
-			const updateEscalation = this.updateAcceptedUnderlyingIdentity === underlyingIdentity
-				&& this.updateAcceptedSeverity === "concern"
-				&& warning.severity === "blocker";
+			const updateEscalation =
+				this.updateAcceptedUnderlyingIdentity === underlyingIdentity &&
+				this.updateAcceptedSeverity === "concern" &&
+				warning.severity === "blocker";
 			if (!updateEscalation) return { accepted: false, reason: "update-budget", identity, underlyingIdentity };
 		}
 		const repeat = priorSeverity !== undefined && options.allowRepeatOf === identity;
-		if (priorSeverity !== undefined && !escalation && !repeat) return { accepted: false, reason: "duplicate", identity, underlyingIdentity };
+		if (priorSeverity !== undefined && !escalation && !repeat)
+			return { accepted: false, reason: "duplicate", identity, underlyingIdentity };
 		if (this.maxWarnings !== null && this.acceptedCount >= this.maxWarnings && !escalation && !repeat) {
 			return { accepted: false, reason: "max-warnings", identity, underlyingIdentity };
 		}

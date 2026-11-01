@@ -5,15 +5,15 @@ import * as path from "node:path";
 import { describe, it } from "node:test";
 import type { AgentConfig } from "../../src/agents/agents.ts";
 import {
-	NATIVE_INTERCOM_EXTENSION_DIR,
 	applyIntercomBridgeToAgent,
 	diagnoseIntercomBridge,
+	type IntercomBridgeState,
+	NATIVE_INTERCOM_EXTENSION_DIR,
 	resolveIntercomBridge,
+	resolveIntercomBridgeMode,
 	resolveIntercomSessionTarget,
 	resolveSubagentIntercomTarget,
-	resolveIntercomBridgeMode,
 	validateIntercomBridgeConfig,
-	type IntercomBridgeState,
 } from "../../src/intercom/intercom-bridge.ts";
 import { agentDefinitionDigest } from "../../src/shared/launch-contract.ts";
 
@@ -54,15 +54,24 @@ describe("resolveIntercomSessionTarget", () => {
 	});
 
 	it("uses the current pi-intercom runtime id for unnamed fallback when present", () => {
-		assert.equal(resolveIntercomSessionTarget(undefined, "session-12345678", "session-stableabcdef"), "subagent-chat-stableabcdef");
-		assert.equal(resolveIntercomSessionTarget(undefined, "session-12345678", "session-abcdefghijklmnopqrst"), "subagent-chat-abcdefghijklmnopqr");
+		assert.equal(
+			resolveIntercomSessionTarget(undefined, "session-12345678", "session-stableabcdef"),
+			"subagent-chat-stableabcdef",
+		);
+		assert.equal(
+			resolveIntercomSessionTarget(undefined, "session-12345678", "session-abcdefghijklmnopqrst"),
+			"subagent-chat-abcdefghijklmnopqr",
+		);
 	});
 });
 
 describe("resolveSubagentIntercomTarget", () => {
 	it("builds stable child session targets from run metadata", () => {
 		assert.equal(resolveSubagentIntercomTarget("78f659a3", "worker"), "subagent-worker-78f659a3");
-		assert.equal(resolveSubagentIntercomTarget("78f659a3", "senior executor", 1), "subagent-senior-executor-78f659a3-2");
+		assert.equal(
+			resolveSubagentIntercomTarget("78f659a3", "senior executor", 1),
+			"subagent-senior-executor-78f659a3-2",
+		);
 	});
 });
 
@@ -157,8 +166,16 @@ describe("resolveIntercomBridge", () => {
 	});
 
 	it("keeps the default instruction independent of the parent session", () => {
-		const first = resolveIntercomBridge({ config: { mode: "always" }, context: "fresh", orchestratorTarget: "subagent-chat-first" });
-		const second = resolveIntercomBridge({ config: { mode: "always" }, context: "fresh", orchestratorTarget: "subagent-chat-second" });
+		const first = resolveIntercomBridge({
+			config: { mode: "always" },
+			context: "fresh",
+			orchestratorTarget: "subagent-chat-first",
+		});
+		const second = resolveIntercomBridge({
+			config: { mode: "always" },
+			context: "fresh",
+			orchestratorTarget: "subagent-chat-second",
+		});
 		assert.equal(first.active, true);
 		assert.equal(first.interpolatesOrchestratorTarget, false);
 		assert.equal(first.instruction, second.instruction);
@@ -189,7 +206,8 @@ describe("applyIntercomBridgeToAgent", () => {
 		resultDelivery: true,
 		orchestratorTarget: "main",
 		extensionDir: NATIVE_INTERCOM_EXTENSION_DIR,
-		instruction: "Intercom orchestration channel:\n- Need a decision or blocked: contact_supervisor({ reason: \"need_decision\", message: \"<question>\" })\n- Blocked/update: contact_supervisor({ reason: \"progress_update\", message: \"UPDATE: <summary>\" })",
+		instruction:
+			'Intercom orchestration channel:\n- Need a decision or blocked: contact_supervisor({ reason: "need_decision", message: "<question>" })\n- Blocked/update: contact_supervisor({ reason: "progress_update", message: "UPDATE: <summary>" })',
 		interpolatesOrchestratorTarget: false,
 	};
 
@@ -236,7 +254,10 @@ describe("applyIntercomBridgeToAgent", () => {
 		assert.deepEqual(emptyTools.tools, []);
 		assert.match(emptyTools.systemPrompt, /contact_supervisor/);
 
-		const mcpOnly = applyIntercomBridgeToAgent(makeAgent({ tools: [], mcpDirectTools: ["github/search_repositories"] }), activeBridge);
+		const mcpOnly = applyIntercomBridgeToAgent(
+			makeAgent({ tools: [], mcpDirectTools: ["github/search_repositories"] }),
+			activeBridge,
+		);
 		assert.deepEqual(mcpOnly.tools, []);
 		assert.deepEqual(mcpOnly.mcpDirectTools, ["github/search_repositories"]);
 		assert.match(mcpOnly.systemPrompt, /contact_supervisor/);
@@ -245,8 +266,14 @@ describe("applyIntercomBridgeToAgent", () => {
 
 describe("validateIntercomBridgeConfig", () => {
 	it("accepts the documented fields and drops nothing", () => {
-		const result = validateIntercomBridgeConfig({ value: { mode: "fork-only", instructionFile: "./bridge.md", resultDelivery: true }, label: "intercomBridge" });
-		assert.deepEqual(result, { ok: true, value: { mode: "fork-only", instructionFile: "./bridge.md", resultDelivery: true } });
+		const result = validateIntercomBridgeConfig({
+			value: { mode: "fork-only", instructionFile: "./bridge.md", resultDelivery: true },
+			label: "intercomBridge",
+		});
+		assert.deepEqual(result, {
+			ok: true,
+			value: { mode: "fork-only", instructionFile: "./bridge.md", resultDelivery: true },
+		});
 		assert.deepEqual(validateIntercomBridgeConfig({ value: {}, label: "intercomBridge" }), { ok: true, value: {} });
 	});
 

@@ -1,21 +1,21 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
+import { editableAgentConfig, preservedAgentFrontmatterFields } from "../agents/agent-management.ts";
+import { serializeAgent } from "../agents/agent-serializer.ts";
 import {
+	type AgentConfig,
+	type BuiltinAgentOverrideBase,
 	discoverAgentsAll,
 	EXTRA_AGENT_DIRS_ENV,
 	frontmatterNameForConfig,
 	mergeBuiltinAgentOverride,
 	removeBuiltinAgentOverrideFields,
-	type AgentConfig,
-	type BuiltinAgentOverrideBase,
 } from "../agents/agents.ts";
-import { serializeAgent } from "../agents/agent-serializer.ts";
 import { mergeRuntimeAgents, type RuntimeAgentOwner } from "../agents/runtime-agent-registry.ts";
-import { editableAgentConfig, preservedAgentFrontmatterFields } from "../agents/agent-management.ts";
+import { canRenderComponents } from "../shared/extension-context.ts";
 import { findModelInfo, getSupportedThinkingLevels, toModelInfo } from "../shared/model-info.ts";
 import { SelectorComponent, type SelectorItem, type SelectorResult } from "./selector.ts";
-import { canRenderComponents } from "../shared/extension-context.ts";
 
 export const ADMIN_MESSAGE_TYPE = "subagents-admin";
 const INHERIT_MODEL_CHOICE = "Default / inherit session model";
@@ -35,7 +35,11 @@ function allVisibleAgents(pi: RuntimeAgentOwner, cwd: string, preferredModelProv
 	const allConfigured = [...d.project, ...d.user, ...d.package, ...d.builtin];
 	const visibleConfigured = allConfigured.filter((agent) => !agent.disabled);
 	// Disabled definitions remain in collision checks even though the panel hides them.
-	const agents = mergeRuntimeAgents(pi, { agents: visibleConfigured }, allConfigured, { cwd, scope: "both", preferredModelProvider }).agents;
+	const agents = mergeRuntimeAgents(pi, { agents: visibleConfigured }, allConfigured, {
+		cwd,
+		scope: "both",
+		preferredModelProvider,
+	}).agents;
 	return agents.sort((a, b) => a.name.localeCompare(b.name) || sourceRank(a.source) - sourceRank(b.source));
 }
 
@@ -48,10 +52,12 @@ function agentChoices(agents: AgentConfig[]): Map<string, AgentConfig> {
 	const labels = agents.map(agentLabel);
 	const counts = new Map<string, number>();
 	for (const label of labels) counts.set(label, (counts.get(label) ?? 0) + 1);
-	return new Map(agents.map((agent, index) => {
-		const label = labels[index]!;
-		return [counts.get(label) === 1 ? label : `${label} · ${agent.filePath}`, agent] as const;
-	}));
+	return new Map(
+		agents.map((agent, index) => {
+			const label = labels[index]!;
+			return [counts.get(label) === 1 ? label : `${label} · ${agent.filePath}`, agent] as const;
+		}),
+	);
 }
 
 function agentSelectItems(byLabel: Map<string, AgentConfig>): SelectorItem[] {
@@ -81,7 +87,10 @@ async function liveAvailableModels(ctx: ExtensionContext) {
 		const result = await ctx.modelRegistry.refresh?.({ allowNetwork: false, signal: AbortSignal.timeout(5_000) });
 		const firstError = result?.errors.entries().next().value;
 		if (firstError) {
-			ctx.ui.notify(`Could not refresh ${firstError[0]}; using the currently loaded choices. ${firstError[1].message}`, "warning");
+			ctx.ui.notify(
+				`Could not refresh ${firstError[0]}; using the currently loaded choices. ${firstError[1].message}`,
+				"warning",
+			);
 		} else if (result?.aborted) {
 			ctx.ui.notify("Model registry refresh timed out; using the currently loaded choices.", "warning");
 		}
@@ -108,7 +117,9 @@ function buildBuiltinBase(agent: AgentConfig): BuiltinAgentOverrideBase {
 		...(agent.tools !== undefined ? { tools: [...agent.tools] } : {}),
 		...(agent.excludeTools !== undefined ? { excludeTools: [...agent.excludeTools] } : {}),
 		...(agent.mcpDirectTools !== undefined ? { mcpDirectTools: [...agent.mcpDirectTools] } : {}),
-		...(agent.subagentOnlyExtensions !== undefined ? { subagentOnlyExtensions: [...agent.subagentOnlyExtensions] } : {}),
+		...(agent.subagentOnlyExtensions !== undefined
+			? { subagentOnlyExtensions: [...agent.subagentOnlyExtensions] }
+			: {}),
 		...(agent.mutationTools !== undefined ? { mutationTools: [...agent.mutationTools] } : {}),
 		...(agent.toolBudget !== undefined ? { toolBudget: agent.toolBudget } : {}),
 	};
@@ -140,11 +151,17 @@ function isReadOnlyExtraAgent(agent: AgentConfig): boolean {
 	const configured = process.env[EXTRA_AGENT_DIRS_ENV];
 	if (!configured || agent.source !== "user") return false;
 	const filePath = path.resolve(agent.filePath);
-	return configured.split(path.delimiter).map((dir) => dir.trim()).filter(Boolean).some((dir) => {
-		const root = path.resolve(dir);
-		const relative = path.relative(root, filePath);
-		return relative !== "" && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative);
-	});
+	return configured
+		.split(path.delimiter)
+		.map((dir) => dir.trim())
+		.filter(Boolean)
+		.some((dir) => {
+			const root = path.resolve(dir);
+			const relative = path.relative(root, filePath);
+			return (
+				relative !== "" && relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative)
+			);
+		});
 }
 
 function readOnlyAgentMessage(agent: AgentConfig, field: EditableOverrideField): string | undefined {
@@ -170,7 +187,12 @@ async function selectAgent(pi: RuntimeAgentOwner, ctx: ExtensionContext, args: s
 		if (matches.length > 1 && !ctx.hasUI) return { kind: "ambiguous", requestedName, matches };
 		if (matches.length > 1) {
 			const byLabel = agentChoices(matches);
-			const choice = await selectFromList(ctx, `Multiple subagents named '${requestedName}'`, undefined, agentSelectItems(byLabel));
+			const choice = await selectFromList(
+				ctx,
+				`Multiple subagents named '${requestedName}'`,
+				undefined,
+				agentSelectItems(byLabel),
+			);
 			return choice ? { kind: "selected", agent: byLabel.get(choice)! } : { kind: "cancelled" };
 		}
 		return { kind: "not-found", agents, requestedName };
@@ -213,7 +235,12 @@ function metadataFor(agent: AgentConfig): string {
 	return lines.join("\n");
 }
 
-async function selectFromList(ctx: ExtensionContext, title: string, subtitle: string | undefined, items: SelectorItem[]): Promise<string | undefined> {
+async function selectFromList(
+	ctx: ExtensionContext,
+	title: string,
+	subtitle: string | undefined,
+	items: SelectorItem[],
+): Promise<string | undefined> {
 	// Hosts that expose only the RPC no-op stub cannot show the component; they use `ui.select` below.
 	if (canRenderComponents(ctx)) {
 		const result = await ctx.ui.custom<SelectorResult>(
@@ -224,7 +251,10 @@ async function selectFromList(ctx: ExtensionContext, title: string, subtitle: st
 	}
 	const flatTitle = subtitle ? `${title}\nCurrent: ${subtitle}` : title;
 	const labelToValue = new Map(items.map((item) => [item.label, item.value] as const));
-	const choice = await ctx.ui.select(flatTitle, items.map((item) => item.value));
+	const choice = await ctx.ui.select(
+		flatTitle,
+		items.map((item) => item.value),
+	);
 	return choice ? (items.find((item) => item.value === choice)?.value ?? labelToValue.get(choice)) : undefined;
 }
 
@@ -249,7 +279,7 @@ async function chooseThinking(ctx: ExtensionContext, agent: AgentConfig): Promis
 	const effectiveModel = agent.model ?? (ctx.model ? modelFullId(ctx.model) : undefined);
 	const modelInfo = findModelInfo(effectiveModel, availableModels, ctx.model?.provider);
 	const levels = getSupportedThinkingLevels(modelInfo);
-	const current = agent.thinking === false ? "off" : agent.thinking ?? INHERIT_THINKING_CHOICE;
+	const current = agent.thinking === false ? "off" : (agent.thinking ?? INHERIT_THINKING_CHOICE);
 	const values: string[] = [INHERIT_THINKING_CHOICE, ...levels];
 	if (current !== INHERIT_THINKING_CHOICE && !values.includes(current)) values.splice(1, 0, current);
 	const modelNote = agent.model
@@ -258,7 +288,12 @@ async function chooseThinking(ctx: ExtensionContext, agent: AgentConfig): Promis
 			? `Session model: ${effectiveModel}`
 			: "Model: default / inherit";
 	const items: SelectorItem[] = values.map((value) => ({ value, label: value, current: value === current }));
-	const choice = await selectFromList(ctx, `Select thinking level for ${agent.name}`, `${modelNote} · ${current}`, items);
+	const choice = await selectFromList(
+		ctx,
+		`Select thinking level for ${agent.name}`,
+		`${modelNote} · ${current}`,
+		items,
+	);
 	if (choice === undefined) return null;
 	return choice === INHERIT_THINKING_CHOICE ? undefined : choice;
 }
@@ -266,7 +301,9 @@ async function chooseThinking(ctx: ExtensionContext, agent: AgentConfig): Promis
 async function chooseOverrideScope(ctx: ExtensionContext, agent: AgentConfig): Promise<"user" | "project" | undefined> {
 	const d = discoverAgentsAll(ctx.cwd);
 	if (agent.override?.scope) {
-		return agent.source === "project" && agent.override.scope === "user" && d.projectSettingsPath ? "project" : agent.override.scope;
+		return agent.source === "project" && agent.override.scope === "user" && d.projectSettingsPath
+			? "project"
+			: agent.override.scope;
 	}
 	if (!d.projectSettingsPath || !ctx.hasUI) return "user";
 	const choice = await ctx.ui.select(`Save subagent override for ${agent.name}`, ["user", "project"]);
@@ -283,11 +320,14 @@ function persistSettingsField(
 	const base = agent.override?.base ?? buildBuiltinBase(agent);
 	const shadowsLowerScope = scope === "project" && agent.override?.fieldScopes?.[field]?.includes("user") === true;
 	if (shadowsLowerScope && (value === undefined || value === base[field])) {
-		const filePath = field === "model"
-			? mergeBuiltinAgentOverride(ctx.cwd, agent.name, scope, { model: value ?? base.model ?? false })
-			: field === "thinking"
-				? mergeBuiltinAgentOverride(ctx.cwd, agent.name, scope, { thinking: value ?? (base.thinking === false ? "off" : base.thinking) ?? false })
-				: mergeBuiltinAgentOverride(ctx.cwd, agent.name, scope, { systemPrompt: value ?? base.systemPrompt });
+		const filePath =
+			field === "model"
+				? mergeBuiltinAgentOverride(ctx.cwd, agent.name, scope, { model: value ?? base.model ?? false })
+				: field === "thinking"
+					? mergeBuiltinAgentOverride(ctx.cwd, agent.name, scope, {
+							thinking: value ?? (base.thinking === false ? "off" : base.thinking) ?? false,
+						})
+					: mergeBuiltinAgentOverride(ctx.cwd, agent.name, scope, { systemPrompt: value ?? base.systemPrompt });
 		return {
 			filePath,
 			overridden: true,
@@ -305,7 +345,11 @@ function persistSettingsField(
 	};
 }
 
-async function saveAgentModel(ctx: ExtensionContext, agent: AgentConfig, selectedModel: string | undefined): Promise<string | null> {
+async function saveAgentModel(
+	ctx: ExtensionContext,
+	agent: AgentConfig,
+	selectedModel: string | undefined,
+): Promise<string | null> {
 	if (savesThroughSettings(agent, "model")) {
 		const scope = await chooseOverrideScope(ctx, agent);
 		if (!scope) return null;
@@ -320,15 +364,23 @@ async function saveAgentModel(ctx: ExtensionContext, agent: AgentConfig, selecte
 	const updated = editableAgentConfig(agent);
 	if (selectedModel === undefined) delete updated.model;
 	else updated.model = selectedModel;
-	fs.writeFileSync(updated.filePath, serializeAgent(updated, {
-		preserveFrontmatterFields: preservedAgentFrontmatterFields(agent, { model: selectedModel }),
-	}), "utf-8");
+	fs.writeFileSync(
+		updated.filePath,
+		serializeAgent(updated, {
+			preserveFrontmatterFields: preservedAgentFrontmatterFields(agent, { model: selectedModel }),
+		}),
+		"utf-8",
+	);
 	return selectedModel
 		? `Updated '${agent.name}' model to '${selectedModel}' in ${updated.filePath}.`
 		: `Cleared '${agent.name}' model in ${updated.filePath}.`;
 }
 
-async function saveAgentThinking(ctx: ExtensionContext, agent: AgentConfig, selectedThinking: string | undefined): Promise<string | null> {
+async function saveAgentThinking(
+	ctx: ExtensionContext,
+	agent: AgentConfig,
+	selectedThinking: string | undefined,
+): Promise<string | null> {
 	if (savesThroughSettings(agent, "thinking")) {
 		const scope = await chooseOverrideScope(ctx, agent);
 		if (!scope) return null;
@@ -343,9 +395,13 @@ async function saveAgentThinking(ctx: ExtensionContext, agent: AgentConfig, sele
 	const updated = editableAgentConfig(agent);
 	if (selectedThinking === undefined) delete updated.thinking;
 	else updated.thinking = selectedThinking;
-	fs.writeFileSync(updated.filePath, serializeAgent(updated, {
-		preserveFrontmatterFields: preservedAgentFrontmatterFields(agent, { thinking: selectedThinking }),
-	}), "utf-8");
+	fs.writeFileSync(
+		updated.filePath,
+		serializeAgent(updated, {
+			preserveFrontmatterFields: preservedAgentFrontmatterFields(agent, { thinking: selectedThinking }),
+		}),
+		"utf-8",
+	);
 	return selectedThinking
 		? `Updated '${agent.name}' thinking to '${selectedThinking}' in ${updated.filePath}.`
 		: `Cleared '${agent.name}' thinking in ${updated.filePath}.`;
@@ -356,11 +412,15 @@ function metadataSummary(agent: AgentConfig): string {
 	return [
 		`Source: ${agent.source}`,
 		`Model: ${agent.model ?? "default / inherit"}`,
-		`Thinking: ${agent.thinking === false ? "off" : agent.thinking ?? "default / inherit"}`,
+		`Thinking: ${agent.thinking === false ? "off" : (agent.thinking ?? "default / inherit")}`,
 	].join(" · ");
 }
 
-async function saveAgentSystemPrompt(ctx: ExtensionContext, agent: AgentConfig, systemPrompt: string): Promise<string | null> {
+async function saveAgentSystemPrompt(
+	ctx: ExtensionContext,
+	agent: AgentConfig,
+	systemPrompt: string,
+): Promise<string | null> {
 	const nextPrompt = systemPrompt.replace(/\s+$/, "");
 	if (savesThroughSettings(agent, "systemPrompt")) {
 		const scope = await chooseOverrideScope(ctx, agent);
@@ -373,9 +433,13 @@ async function saveAgentSystemPrompt(ctx: ExtensionContext, agent: AgentConfig, 
 	const readOnlyMessage = readOnlyAgentMessage(agent, "systemPrompt");
 	if (readOnlyMessage) return readOnlyMessage;
 	const updated: AgentConfig = { ...editableAgentConfig(agent), systemPrompt: nextPrompt };
-	fs.writeFileSync(updated.filePath, serializeAgent(updated, {
-		preserveFrontmatterFields: preservedAgentFrontmatterFields(agent, { systemPrompt: nextPrompt }),
-	}), "utf-8");
+	fs.writeFileSync(
+		updated.filePath,
+		serializeAgent(updated, {
+			preserveFrontmatterFields: preservedAgentFrontmatterFields(agent, { systemPrompt: nextPrompt }),
+		}),
+		"utf-8",
+	);
 	return `Updated '${agent.name}' system prompt in ${updated.filePath}.`;
 }
 
@@ -387,8 +451,12 @@ async function editSystemPrompt(ctx: ExtensionContext, agent: AgentConfig): Prom
 	}
 	const edited = await ctx.ui.editor(`Edit '${agent.name}' system prompt`, agent.systemPrompt ?? "");
 	if (edited === undefined) return null;
-	const projectOwnsLowerScopeOverride = agent.source === "project" && agent.override?.scope === "user" && discoverAgentsAll(ctx.cwd).projectSettingsPath;
-	if (edited.replace(/\s+$/, "") === (agent.systemPrompt ?? "").replace(/\s+$/, "") && !(saveThroughSettings && projectOwnsLowerScopeOverride)) {
+	const projectOwnsLowerScopeOverride =
+		agent.source === "project" && agent.override?.scope === "user" && discoverAgentsAll(ctx.cwd).projectSettingsPath;
+	if (
+		edited.replace(/\s+$/, "") === (agent.systemPrompt ?? "").replace(/\s+$/, "") &&
+		!(saveThroughSettings && projectOwnsLowerScopeOverride)
+	) {
 		return `System prompt for '${agent.name}' left unchanged.`;
 	}
 	return saveAgentSystemPrompt(ctx, agent, edited);
@@ -398,7 +466,10 @@ export async function openSubagentsAdmin(pi: ExtensionAPI, ctx: ExtensionContext
 	const selection = await selectAgent(pi, ctx, args);
 	if (selection.kind === "cancelled") return;
 	if (selection.kind === "ambiguous") {
-		sendAdminMessage(pi, `Subagent '${selection.requestedName}' is ambiguous. Choose a scope in interactive mode:\n${selection.matches.map((agent) => `- ${agent.source}: ${agent.filePath}`).join("\n")}`);
+		sendAdminMessage(
+			pi,
+			`Subagent '${selection.requestedName}' is ambiguous. Choose a scope in interactive mode:\n${selection.matches.map((agent) => `- ${agent.source}: ${agent.filePath}`).join("\n")}`,
+		);
 		return;
 	}
 	if (selection.kind === "not-found") {
@@ -420,13 +491,17 @@ export async function openSubagentsAdmin(pi: ExtensionAPI, ctx: ExtensionContext
 	let action: string | undefined;
 	if (requestedAction === "model") action = "Change model";
 	else if (requestedAction === "thinking") action = "Change thinking level";
-	else if (requestedAction === "prompt" || requestedAction === "system-prompt" || requestedAction === "edit") action = "Edit system prompt";
+	else if (requestedAction === "prompt" || requestedAction === "system-prompt" || requestedAction === "edit")
+		action = "Edit system prompt";
 	else if (requestedAction === "details" || requestedAction === "info") action = "Show details";
 	if (!action) {
-		action = await ctx.ui.select(
-			`Administer ${agent.name}\n${metadataSummary(agent)}`,
-			["Change model", "Change thinking level", "Edit system prompt", "Show details", "Done"],
-		);
+		action = await ctx.ui.select(`Administer ${agent.name}\n${metadataSummary(agent)}`, [
+			"Change model",
+			"Change thinking level",
+			"Edit system prompt",
+			"Show details",
+			"Done",
+		]);
 	}
 
 	try {

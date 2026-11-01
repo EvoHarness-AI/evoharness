@@ -1,12 +1,12 @@
 import { spawn } from "node:child_process";
+import { createHash, randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { createHash, randomUUID } from "node:crypto";
 import type { Message } from "@evoharness/ai";
-import { resolveNodeExecutable } from "../../shared/node-executable.ts";
 import { getProjectSubagentsDir } from "../../shared/artifacts.ts";
+import { resolveNodeExecutable } from "../../shared/node-executable.ts";
 import { resolvePiSessionId } from "../../shared/session-identity.ts";
-import { TEMP_ROOT_DIR, type OrcaProgressTabsConfig } from "../../shared/types.ts";
+import { type OrcaProgressTabsConfig, TEMP_ROOT_DIR } from "../../shared/types.ts";
 import { extractTextFromContent, extractToolArgsPreview, getAgentDir } from "../../shared/utils.ts";
 
 const ORCA_CREATE_TIMEOUT_MS = 20_000;
@@ -78,7 +78,11 @@ function executableFile(candidate: string): boolean {
 function executableNames(command: string, env: NodeJS.ProcessEnv): string[] {
 	if (process.platform !== "win32") return [command];
 	const extensions = (env.PATHEXT ?? ".EXE;.CMD;.BAT").split(";").filter(Boolean);
-	return [command, ...extensions.map((extension) => `${command}${extension.toLowerCase()}`), ...extensions.map((extension) => `${command}${extension.toUpperCase()}`)];
+	return [
+		command,
+		...extensions.map((extension) => `${command}${extension.toLowerCase()}`),
+		...extensions.map((extension) => `${command}${extension.toUpperCase()}`),
+	];
 }
 
 export function resolveOrcaCommand(env: NodeJS.ProcessEnv = process.env): string | undefined {
@@ -136,11 +140,20 @@ function progressRoot(): string {
 function pruneStaleProgressFiles(root: string, now = Date.now()): void {
 	try {
 		for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-			if (!entry.isFile() || (!entry.name.endsWith(".log") && !entry.name.endsWith(".done") && !entry.name.endsWith(".ready") && !entry.name.endsWith(".pending"))) continue;
+			if (
+				!entry.isFile() ||
+				(!entry.name.endsWith(".log") &&
+					!entry.name.endsWith(".done") &&
+					!entry.name.endsWith(".ready") &&
+					!entry.name.endsWith(".pending"))
+			)
+				continue;
 			const file = path.join(root, entry.name);
 			try {
 				if (now - fs.statSync(file).mtimeMs > STALE_PROGRESS_MAX_AGE_MS) fs.rmSync(file, { force: true });
-			} catch { /* best-effort stale cleanup */ }
+			} catch {
+				/* best-effort stale cleanup */
+			}
 		}
 	} catch {
 		// The observer remains optional when temp cleanup is unavailable.
@@ -149,7 +162,12 @@ function pruneStaleProgressFiles(root: string, now = Date.now()): void {
 
 function safeSegment(value: unknown, fallback = "subagent"): string {
 	if (typeof value !== "string") return fallback;
-	return value.replace(/[^A-Za-z0-9._-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 48) || fallback;
+	return (
+		value
+			.replace(/[^A-Za-z0-9._-]+/g, "-")
+			.replace(/^-+|-+$/g, "")
+			.slice(0, 48) || fallback
+	);
 }
 
 interface OrcaObserverManifest {
@@ -194,11 +212,17 @@ function sleepSync(ms: number): void {
 
 function resolveSequenceScope(cwd: string): string {
 	let current = path.resolve(cwd);
-	try { current = fs.realpathSync(current); } catch { /* use the lexical cwd */ }
+	try {
+		current = fs.realpathSync(current);
+	} catch {
+		/* use the lexical cwd */
+	}
 	while (true) {
 		try {
 			if (fs.existsSync(path.join(current, ".git"))) return current;
-		} catch { /* keep walking */ }
+		} catch {
+			/* keep walking */
+		}
 		const parent = path.dirname(current);
 		if (parent === current) return path.resolve(cwd);
 		current = parent;
@@ -224,7 +248,9 @@ function withSequenceLock<T>(root: string, key: string, fn: () => T): T | undefi
 					fs.rmSync(lockPath, { recursive: true, force: true });
 					continue;
 				}
-			} catch { /* another process released the lock */ }
+			} catch {
+				/* another process released the lock */
+			}
 			sleepSync(COUNTER_LOCK_RETRY_MS);
 		}
 	}
@@ -232,7 +258,11 @@ function withSequenceLock<T>(root: string, key: string, fn: () => T): T | undefi
 	try {
 		return fn();
 	} finally {
-		try { fs.rmSync(lockPath, { recursive: true, force: true }); } catch { /* stale lock cleanup handles crashes */ }
+		try {
+			fs.rmSync(lockPath, { recursive: true, force: true });
+		} catch {
+			/* stale lock cleanup handles crashes */
+		}
 	}
 }
 
@@ -244,7 +274,10 @@ function predecessorMarker(pathValue: string | undefined): string | undefined {
 	return undefined;
 }
 
-function reserveTabSequence(root: string, cwd: string): { sequence: number; previousCreateDone?: string; createDone: string } | undefined {
+function reserveTabSequence(
+	root: string,
+	cwd: string,
+): { sequence: number; previousCreateDone?: string; createDone: string } | undefined {
 	const key = sequenceKey(cwd);
 	const counterPath = path.join(root, `counter-${key}`);
 	const createDone = path.join(root, `create-${key}-${randomUUID()}.pending`);
@@ -257,14 +290,20 @@ function reserveTabSequence(root: string, cwd: string): { sequence: number; prev
 			const parsed = Number.parseInt(countLine ?? "", 10);
 			if (Number.isSafeInteger(parsed) && parsed >= 0) current = parsed;
 			previousCreateDone = predecessorMarker(previousLine?.trim());
-		} catch { /* first tab for this worktree */ }
+		} catch {
+			/* first tab for this worktree */
+		}
 		const next = current + 1;
 		try {
 			fs.writeFileSync(createDone, "", { encoding: "utf-8", mode: 0o600 });
 			fs.writeFileSync(counterPath, `${next}\n${createDone}\n`, { encoding: "utf-8", mode: 0o600 });
 			return { sequence: next, previousCreateDone, createDone };
 		} catch {
-			try { fs.rmSync(createDone, { force: true }); } catch { /* best effort */ }
+			try {
+				fs.rmSync(createDone, { force: true });
+			} catch {
+				/* best effort */
+			}
 			return undefined;
 		}
 	});
@@ -330,12 +369,19 @@ export function createOrcaProgressTab(input: {
 	if (reservation === undefined) return undefined;
 	const tabSequence = reservation.sequence;
 	const stem = `${runId}-${index}-${randomUUID()}`;
-	const stepCount = typeof input.stepCount === "number" && Number.isInteger(input.stepCount) && input.stepCount > 0 ? input.stepCount : 1;
+	const stepCount =
+		typeof input.stepCount === "number" && Number.isInteger(input.stepCount) && input.stepCount > 0
+			? input.stepCount
+			: 1;
 	const logPath = path.join(root, `${stem}.log`);
 	const donePath = path.join(root, `${stem}.done`);
 	const title = `subagents · ${agent} · ${tabSequence}`;
 	const markCreateReady = () => {
-		try { fs.writeFileSync(reservation.createDone.replace(/\.pending$/, ".ready"), ""); } catch { /* unblock later tabs */ }
+		try {
+			fs.writeFileSync(reservation.createDone.replace(/\.pending$/, ".ready"), "");
+		} catch {
+			/* unblock later tabs */
+		}
 	};
 	const manifestPath = observerManifestPath(cwd, stem);
 	writeObserverManifest(manifestPath, {
@@ -351,7 +397,11 @@ export function createOrcaProgressTab(input: {
 		logPath,
 	});
 	try {
-		fs.writeFileSync(logPath, `pi-subagents / ${agent}\nrun ${runId} · ${stepCount === 1 ? "1 child" : `${stepCount} children`}\n${"─".repeat(48)}\n`, { encoding: "utf-8", mode: 0o600 });
+		fs.writeFileSync(
+			logPath,
+			`pi-subagents / ${agent}\nrun ${runId} · ${stepCount === 1 ? "1 child" : `${stepCount} children`}\n${"─".repeat(48)}\n`,
+			{ encoding: "utf-8", mode: 0o600 },
+		);
 		fs.rmSync(donePath, { force: true });
 	} catch {
 		markCreateReady();
@@ -367,8 +417,16 @@ export function createOrcaProgressTab(input: {
 		if (!available) return;
 		available = false;
 		logStream.destroy();
-		try { fs.rmSync(logPath, { force: true }); } catch { /* best effort */ }
-		try { fs.rmSync(donePath, { force: true }); } catch { /* best effort */ }
+		try {
+			fs.rmSync(logPath, { force: true });
+		} catch {
+			/* best effort */
+		}
+		try {
+			fs.rmSync(donePath, { force: true });
+		} catch {
+			/* best effort */
+		}
 	};
 	logStream.once("error", failObserver);
 	const writeProgress = (text: string) => {
@@ -387,7 +445,9 @@ export function createOrcaProgressTab(input: {
 	};
 	let createSettled = false;
 	let resolveCreationSettled!: () => void;
-	const creationSettled = new Promise<void>((resolve) => { resolveCreationSettled = resolve; });
+	const creationSettled = new Promise<void>((resolve) => {
+		resolveCreationSettled = resolve;
+	});
 	let cleanupPaths: string[] | undefined;
 	const scheduleDeferredCleanup = () => {
 		if (!createSettled || cleanupPaths === undefined) return;
@@ -395,27 +455,36 @@ export function createOrcaProgressTab(input: {
 		cleanupPaths = undefined;
 	};
 	try {
-		const watchdog = spawn(nodeExecutable, [
-			"-e", ORCA_CREATE_WATCHDOG_SCRIPT,
-			String(ORCA_CREATE_TIMEOUT_MS),
-			String(ORCA_KILL_GRACE_MS),
-			String(ORCA_CREATE_WAIT_TIMEOUT_MS),
-			reservation.previousCreateDone ?? "-",
-			reservation.createDone,
-			manifestPath ?? "-",
-			command,
-			"terminal", "create",
-			"--worktree", `path:${path.resolve(cwd)}`,
-			"--title", title,
-			"--command", viewerCommand(nodeExecutable, logPath, donePath),
-			"--json",
-		], {
-			cwd,
-			detached: true,
-			stdio: "ignore",
-			windowsHide: true,
-			env: input.env ?? process.env,
-		});
+		const watchdog = spawn(
+			nodeExecutable,
+			[
+				"-e",
+				ORCA_CREATE_WATCHDOG_SCRIPT,
+				String(ORCA_CREATE_TIMEOUT_MS),
+				String(ORCA_KILL_GRACE_MS),
+				String(ORCA_CREATE_WAIT_TIMEOUT_MS),
+				reservation.previousCreateDone ?? "-",
+				reservation.createDone,
+				manifestPath ?? "-",
+				command,
+				"terminal",
+				"create",
+				"--worktree",
+				`path:${path.resolve(cwd)}`,
+				"--title",
+				title,
+				"--command",
+				viewerCommand(nodeExecutable, logPath, donePath),
+				"--json",
+			],
+			{
+				cwd,
+				detached: true,
+				stdio: "ignore",
+				windowsHide: true,
+				env: input.env ?? process.env,
+			},
+		);
 		watchdog.once("close", (code) => {
 			createSettled = true;
 			if (code !== 0) failObserver();
@@ -452,9 +521,10 @@ export function createOrcaProgressTab(input: {
 		event(event) {
 			if (!available || finished) return;
 			if (event.type === "tool_execution_start" && event.toolName) {
-				const args = event.args && typeof event.args === "object" && !Array.isArray(event.args)
-					? extractToolArgsPreview(event.args as Record<string, unknown>)
-					: "";
+				const args =
+					event.args && typeof event.args === "object" && !Array.isArray(event.args)
+						? extractToolArgsPreview(event.args as Record<string, unknown>)
+						: "";
 				writeProgress(`\n› ${event.toolName}${args ? `: ${args}` : ""}\n`);
 				return;
 			}
@@ -469,7 +539,11 @@ export function createOrcaProgressTab(input: {
 			const sessionId = status === "completed" ? resolvePiSessionId(sessionFile) : undefined;
 			let verifiedSessionFile: string | undefined;
 			if (sessionId && sessionFile) {
-				try { verifiedSessionFile = fs.realpathSync(sessionFile); } catch { /* the session is no longer available */ }
+				try {
+					verifiedSessionFile = fs.realpathSync(sessionFile);
+				} catch {
+					/* the session is no longer available */
+				}
 			}
 			const terminalMessage = verifiedSessionFile
 				? `completed. To remove the Pi session for this run, run rm -- ${shellQuote(verifiedSessionFile)}`
@@ -480,7 +554,11 @@ export function createOrcaProgressTab(input: {
 			return new Promise<void>((resolve) => {
 				logStream.end(footer, () => {
 					if (available) {
-						try { fs.writeFileSync(donePath, `${status}\n`, { encoding: "utf-8", mode: 0o600 }); } catch { /* best effort */ }
+						try {
+							fs.writeFileSync(donePath, `${status}\n`, { encoding: "utf-8", mode: 0o600 });
+						} catch {
+							/* best effort */
+						}
 						cleanupPaths = [logPath, donePath];
 						scheduleDeferredCleanup();
 					}

@@ -4,20 +4,34 @@ import { syncBuiltinESMExports } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
-import type { AsyncStatus, SubagentState } from "../../src/shared/types.ts";
-import { readActiveRunIndex, releaseActiveRunIndex, updateActiveRunIndex } from "../../src/runs/background/active-run-index.ts";
-import { resultFilePath, writeAsyncResultFile, writePendingAsyncResultFile } from "../../src/runs/background/result-files.ts";
-import { resolveSubagentRunId } from "../../src/runs/background/run-id-resolver.ts";
-import { readRecentTerminalRunIndex, readTerminalRunToolCallIndex, updateTerminalRunIndex, TERMINAL_RUN_INDEX_DIR } from "../../src/runs/background/terminal-run-index.ts";
+import {
+	readActiveRunIndex,
+	releaseActiveRunIndex,
+	updateActiveRunIndex,
+} from "../../src/runs/background/active-run-index.ts";
 import { encodeIndexSegment } from "../../src/runs/background/index-segment.ts";
-import { createNestedRoute, writeNestedEvent } from "../../src/runs/shared/nested-events.ts";
-import { removeForegroundControlIfIdle } from "../../src/runs/foreground/subagent-executor.ts";
+import {
+	resultFilePath,
+	writeAsyncResultFile,
+	writePendingAsyncResultFile,
+} from "../../src/runs/background/result-files.ts";
+import { resolveSubagentRunId } from "../../src/runs/background/run-id-resolver.ts";
 import { inspectSubagentStatus } from "../../src/runs/background/run-status.ts";
+import {
+	readRecentTerminalRunIndex,
+	readTerminalRunToolCallIndex,
+	TERMINAL_RUN_INDEX_DIR,
+	updateTerminalRunIndex,
+} from "../../src/runs/background/terminal-run-index.ts";
+import { removeForegroundControlIfIdle } from "../../src/runs/foreground/subagent-executor.ts";
+import { createNestedRoute, writeNestedEvent } from "../../src/runs/shared/nested-events.ts";
+import type { AsyncStatus, SubagentState } from "../../src/shared/types.ts";
 
 const routeRoots: string[] = [];
 
 afterEach(() => {
-	for (const root of routeRoots.splice(0)) fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
+	for (const root of routeRoots.splice(0))
+		fs.rmSync(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 20 });
 });
 
 function stateWithForeground(id: string): SubagentState {
@@ -46,19 +60,38 @@ function nested(rootRunId: string, id: string) {
 	return route;
 }
 
-function writeNestedChild(route: ReturnType<typeof createNestedRoute>, parentRunId: string, id: string, parentStepIndex?: number) {
+function writeNestedChild(
+	route: ReturnType<typeof createNestedRoute>,
+	parentRunId: string,
+	id: string,
+	parentStepIndex?: number,
+) {
 	writeNestedEvent(route, {
 		type: "subagent.nested.updated",
 		ts: 100,
 		parentRunId,
 		...(parentStepIndex !== undefined ? { parentStepIndex } : {}),
-		child: { id, parentRunId, ...(parentStepIndex !== undefined ? { parentStepIndex } : {}), depth: 1, path: [{ runId: parentRunId, ...(parentStepIndex !== undefined ? { stepIndex: parentStepIndex } : {}) }], state: "running", agent: "worker" },
+		child: {
+			id,
+			parentRunId,
+			...(parentStepIndex !== undefined ? { parentStepIndex } : {}),
+			depth: 1,
+			path: [{ runId: parentRunId, ...(parentStepIndex !== undefined ? { stepIndex: parentStepIndex } : {}) }],
+			state: "running",
+			agent: "worker",
+		},
 	});
 }
 
 function stateWithNestedRoute(route: ReturnType<typeof createNestedRoute>): SubagentState {
 	const state = stateWithForeground("foreground-only");
-	state.foregroundControls.set(route.rootRunId, { runId: route.rootRunId, mode: "single", startedAt: 1, updatedAt: 1, nestedRoute: route });
+	state.foregroundControls.set(route.rootRunId, {
+		runId: route.rootRunId,
+		mode: "single",
+		startedAt: 1,
+		updatedAt: 1,
+		nestedRoute: route,
+	});
 	return state;
 }
 
@@ -73,7 +106,14 @@ describe("subagent run id resolver", () => {
 			nested("root-shared", "shared-id");
 			nested("root-prefix", "shared-id-child");
 
-			assert.equal(resolveSubagentRunId("shared-id", { state: stateWithForeground("shared-id"), asyncDirRoot: asyncRoot, resultsDir })?.kind, "foreground");
+			assert.equal(
+				resolveSubagentRunId("shared-id", {
+					state: stateWithForeground("shared-id"),
+					asyncDirRoot: asyncRoot,
+					resultsDir,
+				})?.kind,
+				"foreground",
+			);
 			assert.equal(resolveSubagentRunId("shared-id", { asyncDirRoot: asyncRoot, resultsDir })?.kind, "async");
 			fs.rmSync(path.join(asyncRoot, "shared-id"), { recursive: true, force: true });
 			const resolved = resolveSubagentRunId("shared-id", { asyncDirRoot: asyncRoot, resultsDir });
@@ -104,11 +144,31 @@ describe("subagent run id resolver", () => {
 
 	it("retains session-owned nested lookup after coordinator removal and descendant completion", () => {
 		const route = nested("retired-root", "finished-coordinator");
-		writeNestedEvent(route, { type: "subagent.nested.started", ts: 110, parentRunId: "finished-coordinator",
-			child: { id: "retired-child", parentRunId: "finished-coordinator", depth: 2, path: [{ runId: route.rootRunId }, { runId: "finished-coordinator" }], state: "running", agent: "worker" },
+		writeNestedEvent(route, {
+			type: "subagent.nested.started",
+			ts: 110,
+			parentRunId: "finished-coordinator",
+			child: {
+				id: "retired-child",
+				parentRunId: "finished-coordinator",
+				depth: 2,
+				path: [{ runId: route.rootRunId }, { runId: "finished-coordinator" }],
+				state: "running",
+				agent: "worker",
+			},
 		});
-		writeNestedEvent(route, { type: "subagent.nested.completed", ts: 120, parentRunId: route.rootRunId,
-			child: { id: "finished-coordinator", parentRunId: route.rootRunId, depth: 1, path: [{ runId: route.rootRunId }], state: "complete", agent: "coordinator" },
+		writeNestedEvent(route, {
+			type: "subagent.nested.completed",
+			ts: 120,
+			parentRunId: route.rootRunId,
+			child: {
+				id: "finished-coordinator",
+				parentRunId: route.rootRunId,
+				depth: 1,
+				path: [{ runId: route.rootRunId }],
+				state: "complete",
+				agent: "coordinator",
+			},
 		});
 		const state = stateWithNestedRoute(route);
 		state.currentSessionId = "owner";
@@ -116,13 +176,27 @@ describe("subagent run id resolver", () => {
 		assert.equal(resolveSubagentRunId("retired-child", { state })?.kind, "nested");
 		assert.equal(removeForegroundControlIfIdle(state, route.rootRunId), true);
 		assert.equal(resolveSubagentRunId("retired-child", { state })?.kind, "nested");
-		writeNestedEvent(route, { type: "subagent.nested.completed", ts: 200, parentRunId: "finished-coordinator",
-			child: { id: "retired-child", parentRunId: "finished-coordinator", depth: 2, path: [{ runId: route.rootRunId }, { runId: "finished-coordinator" }], state: "complete", agent: "worker" },
+		writeNestedEvent(route, {
+			type: "subagent.nested.completed",
+			ts: 200,
+			parentRunId: "finished-coordinator",
+			child: {
+				id: "retired-child",
+				parentRunId: "finished-coordinator",
+				depth: 2,
+				path: [{ runId: route.rootRunId }, { runId: "finished-coordinator" }],
+				state: "complete",
+				agent: "worker",
+			},
 		});
 		const status = inspectSubagentStatus({ id: "retired-child" }, { state });
 		assert.notEqual(status.isError, true);
 		assert.match(status.content[0].text, /State: complete/);
-		assert.equal(resolveSubagentRunId("retired-child", { state, nested: { routes: [] } }), undefined, "child subtree restriction still wins");
+		assert.equal(
+			resolveSubagentRunId("retired-child", { state, nested: { routes: [] } }),
+			undefined,
+			"child subtree restriction still wins",
+		);
 		state.currentSessionId = "foreign";
 		assert.equal(resolveSubagentRunId("retired-child", { state }), undefined);
 	});
@@ -168,7 +242,9 @@ describe("subagent run id resolver", () => {
 			() => resolveSubagentRunId("same-child", { nested: { routes: [route] } }),
 			/Ambiguous subagent run id prefix 'same-child'/,
 		);
-		const resolved = resolveSubagentRunId("same-child", { nested: { routes: [route], descendantOf: { parentRunId: "root-scoped", parentStepIndex: 0 } } });
+		const resolved = resolveSubagentRunId("same-child", {
+			nested: { routes: [route], descendantOf: { parentRunId: "root-scoped", parentStepIndex: 0 } },
+		});
 		assert.equal(resolved?.kind, "nested");
 		assert.equal(resolved?.id, "same-child-zero");
 		assert.equal(resolved?.kind === "nested" ? resolved.match.run.parentStepIndex : undefined, 0);
@@ -199,7 +275,11 @@ describe("subagent run id resolver", () => {
 			const asyncRoot = path.join(root, "runs");
 			const resultsDir = path.join(root, "results");
 			fs.mkdirSync(resultsDir, { recursive: true });
-			fs.writeFileSync(path.join(resultsDir, "legacy-run.json"), JSON.stringify({ id: "legacy-run", sessionId: "session-a", success: true }), "utf-8");
+			fs.writeFileSync(
+				path.join(resultsDir, "legacy-run.json"),
+				JSON.stringify({ id: "legacy-run", sessionId: "session-a", success: true }),
+				"utf-8",
+			);
 
 			const exact = resolveSubagentRunId("legacy-run", { asyncDirRoot: asyncRoot, resultsDir });
 			assert.equal(exact?.kind, "async");
@@ -217,7 +297,19 @@ describe("subagent run id resolver", () => {
 			const resultsDir = path.join(root, "results");
 			const activeDir = path.join(asyncRoot, "workflow-active");
 			fs.mkdirSync(activeDir, { recursive: true });
-			fs.writeFileSync(path.join(activeDir, "status.json"), JSON.stringify({ runId: "workflow-active", toolCallId: "call-active", state: "running", mode: "workflow", startedAt: 1, lastUpdate: 1, steps: [] }), "utf-8");
+			fs.writeFileSync(
+				path.join(activeDir, "status.json"),
+				JSON.stringify({
+					runId: "workflow-active",
+					toolCallId: "call-active",
+					state: "running",
+					mode: "workflow",
+					startedAt: 1,
+					lastUpdate: 1,
+					steps: [],
+				}),
+				"utf-8",
+			);
 			updateActiveRunIndex(activeDir, "running", "call-active");
 
 			const active = resolveSubagentRunId("call-active", { asyncDirRoot: asyncRoot, resultsDir });
@@ -226,7 +318,14 @@ describe("subagent run id resolver", () => {
 			releaseActiveRunIndex(activeDir);
 			assert.equal(resolveSubagentRunId("call-active", { asyncDirRoot: asyncRoot, resultsDir }), undefined);
 
-			writeAsyncResultFile(resultFilePath(resultsDir, "workflow-done"), { id: "workflow-done", runId: "workflow-done", toolCallId: "call-done", sessionId: "session-a", state: "complete", success: true });
+			writeAsyncResultFile(resultFilePath(resultsDir, "workflow-done"), {
+				id: "workflow-done",
+				runId: "workflow-done",
+				toolCallId: "call-done",
+				sessionId: "session-a",
+				state: "complete",
+				success: true,
+			});
 			const done = resolveSubagentRunId("call-done", { asyncDirRoot: asyncRoot, resultsDir });
 			assert.equal(done?.kind, "async");
 			assert.equal(done?.id, "workflow-done");
@@ -244,7 +343,15 @@ describe("subagent run id resolver", () => {
 			["unrelated", "tool-calls", 2, undefined],
 		] as const) {
 			const dir = path.join(root, runId);
-			const status: AsyncStatus = { runId, sessionId, state: "complete", mode: "single", startedAt: 1, endedAt, ...(alias ? { toolCallId: alias } : {}) };
+			const status: AsyncStatus = {
+				runId,
+				sessionId,
+				state: "complete",
+				mode: "single",
+				startedAt: 1,
+				endedAt,
+				...(alias ? { toolCallId: alias } : {}),
+			};
 			fs.mkdirSync(dir, { recursive: true });
 			fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify(status));
 			updateTerminalRunIndex(dir, status);
@@ -261,7 +368,10 @@ describe("subagent run id resolver", () => {
 		});
 		syncBuiltinESMExports();
 		try {
-			assert.equal(resolveSubagentRunId(toolCallId, { asyncDirRoot: root, resultsDir: path.join(root, "results") })?.id, "retained");
+			assert.equal(
+				resolveSubagentRunId(toolCallId, { asyncDirRoot: root, resultsDir: path.join(root, "results") })?.id,
+				"retained",
+			);
 		} finally {
 			t.mock.restoreAll();
 			syncBuiltinESMExports();
@@ -273,16 +383,31 @@ describe("subagent run id resolver", () => {
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		const toolCallId = "rpc-spawn-original-request";
 		const retainedDir = path.join(root, "retained-run");
-		const retained: AsyncStatus = { runId: "retained-run", sessionId: "s", state: "complete", mode: "single", startedAt: 1, endedAt: 2, toolCallId };
+		const retained: AsyncStatus = {
+			runId: "retained-run",
+			sessionId: "s",
+			state: "complete",
+			mode: "single",
+			startedAt: 1,
+			endedAt: 2,
+			toolCallId,
+		};
 		fs.mkdirSync(retainedDir, { recursive: true });
 		fs.writeFileSync(path.join(retainedDir, "status.json"), JSON.stringify(retained));
 		updateTerminalRunIndex(retainedDir, retained);
 		const liveDir = path.join(root, "live-run");
 		fs.mkdirSync(liveDir, { recursive: true });
-		const state = { asyncJobs: new Map([["live-run", { asyncId: "live-run", asyncDir: liveDir, toolCallId }]]), foregroundControls: new Map() } as unknown as SubagentState;
+		const state = {
+			asyncJobs: new Map([["live-run", { asyncId: "live-run", asyncDir: liveDir, toolCallId }]]),
+			foregroundControls: new Map(),
+		} as unknown as SubagentState;
 		const deps = { asyncDirRoot: root, resultsDir: path.join(root, "results") };
 		assert.throws(() => resolveSubagentRunId(toolCallId, { ...deps, state }), /ambiguous across async runs/);
-		assert.equal(resolveSubagentRunId(toolCallId, deps)?.id, "retained-run", "without a live run the delivered run's alias is unique");
+		assert.equal(
+			resolveSubagentRunId(toolCallId, deps)?.id,
+			"retained-run",
+			"without a live run the delivered run's alias is unique",
+		);
 	});
 
 	it("cleans stale and mismatched terminal alias pointers without resolving them", (t) => {
@@ -291,26 +416,57 @@ describe("subagent run id resolver", () => {
 		const toolCallId = "call-retained";
 		for (const mismatch of ["missing", "runId", "sessionId", "toolCallId", "state", "malformed", "unsafe"] as const) {
 			const dir = path.join(root, mismatch);
-			const status: AsyncStatus = { runId: mismatch, sessionId: "owner", toolCallId, mode: "single", state: "complete", startedAt: 1 };
+			const status: AsyncStatus = {
+				runId: mismatch,
+				sessionId: "owner",
+				toolCallId,
+				mode: "single",
+				state: "complete",
+				startedAt: 1,
+			};
 			fs.mkdirSync(dir, { recursive: true });
 			fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify(status));
 			updateTerminalRunIndex(dir, status);
-			const marker = path.join(root, TERMINAL_RUN_INDEX_DIR, "@tool-calls", encodeIndexSegment(toolCallId), `${mismatch}.json`);
+			const marker = path.join(
+				root,
+				TERMINAL_RUN_INDEX_DIR,
+				"@tool-calls",
+				encodeIndexSegment(toolCallId),
+				`${mismatch}.json`,
+			);
 			if (mismatch === "missing") fs.unlinkSync(path.join(dir, "status.json"));
 			else if (mismatch === "malformed") fs.writeFileSync(marker, "{");
-			else if (mismatch === "unsafe") fs.writeFileSync(marker, JSON.stringify({ version: 1, runId: "../outside", sessionId: "owner", endedAt: 1 }));
-			else fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify({ ...status, [mismatch]: mismatch === "state" ? "running" : "different" }));
+			else if (mismatch === "unsafe")
+				fs.writeFileSync(
+					marker,
+					JSON.stringify({ version: 1, runId: "../outside", sessionId: "owner", endedAt: 1 }),
+				);
+			else
+				fs.writeFileSync(
+					path.join(dir, "status.json"),
+					JSON.stringify({ ...status, [mismatch]: mismatch === "state" ? "running" : "different" }),
+				);
 			assert.deepEqual(readTerminalRunToolCallIndex(root, toolCallId), []);
 			assert.equal(fs.existsSync(marker), false, `${mismatch} pointer was removed`);
 		}
-		assert.equal(resolveSubagentRunId(toolCallId, { asyncDirRoot: root, resultsDir: path.join(root, "results") }), undefined);
+		assert.equal(
+			resolveSubagentRunId(toolCallId, { asyncDirRoot: root, resultsDir: path.join(root, "results") }),
+			undefined,
+		);
 	});
 
 	it("reports optional terminal alias write failures without blocking active marker release", (t) => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-terminal-alias-write-"));
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		const dir = path.join(root, "retained");
-		const status: AsyncStatus = { runId: "retained", sessionId: "owner", toolCallId: "call-retained", mode: "single", state: "complete", startedAt: 1 };
+		const status: AsyncStatus = {
+			runId: "retained",
+			sessionId: "owner",
+			toolCallId: "call-retained",
+			mode: "single",
+			state: "complete",
+			startedAt: 1,
+		};
 		fs.mkdirSync(dir, { recursive: true });
 		updateActiveRunIndex(dir, "running", status.toolCallId);
 		fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify(status));
@@ -318,8 +474,13 @@ describe("subagent run id resolver", () => {
 		// A file at the alias namespace blocks only the optional alias publication.
 		fs.writeFileSync(path.join(root, TERMINAL_RUN_INDEX_DIR, "@tool-calls"), "blocked");
 		const errors: unknown[][] = [];
-		t.mock.method(console, "error", (...args) => { errors.push(args); });
-		updateActiveRunIndex(dir, "complete", status.toolCallId, { terminalIndexBeforeRelease: true, retryCapacityErrors: true });
+		t.mock.method(console, "error", (...args) => {
+			errors.push(args);
+		});
+		updateActiveRunIndex(dir, "complete", status.toolCallId, {
+			terminalIndexBeforeRelease: true,
+			retryCapacityErrors: true,
+		});
 		assert.deepEqual(readActiveRunIndex(root), []);
 		assert.deepEqual(readRecentTerminalRunIndex(root), ["retained"]);
 		assert.equal(errors.length, 1);
@@ -332,7 +493,14 @@ describe("subagent run id resolver", () => {
 		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 		const dir = path.join(root, "retained");
 		const toolCallId = "call-retained";
-		const status: AsyncStatus = { runId: "retained", sessionId: "owner", toolCallId, mode: "single", state: "complete", startedAt: 1 };
+		const status: AsyncStatus = {
+			runId: "retained",
+			sessionId: "owner",
+			toolCallId,
+			mode: "single",
+			state: "complete",
+			startedAt: 1,
+		};
 		fs.mkdirSync(dir, { recursive: true });
 		fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify(status));
 		updateTerminalRunIndex(dir, status);
@@ -345,7 +513,10 @@ describe("subagent run id resolver", () => {
 		});
 		syncBuiltinESMExports();
 		try {
-			assert.throws(() => resolveSubagentRunId(toolCallId, { asyncDirRoot: root, resultsDir: path.join(root, "results") }), (error) => error === failure);
+			assert.throws(
+				() => resolveSubagentRunId(toolCallId, { asyncDirRoot: root, resultsDir: path.join(root, "results") }),
+				(error) => error === failure,
+			);
 			assert.equal(fs.existsSync(marker), true);
 		} finally {
 			t.mock.restoreAll();
@@ -359,8 +530,20 @@ describe("subagent run id resolver", () => {
 			const asyncRoot = path.join(root, "async");
 			const resultsDir = path.join(root, "results");
 			const resultPath = resultFilePath(resultsDir, "workflow-done");
-			writeAsyncResultFile(resultPath, { id: "workflow-done", runId: "workflow-done", toolCallId: "call-done", sessionId: "session-a", success: false });
-			writePendingAsyncResultFile(resultPath, { id: "workflow-done", runId: "workflow-done", toolCallId: "call-done", sessionId: "session-a", success: true });
+			writeAsyncResultFile(resultPath, {
+				id: "workflow-done",
+				runId: "workflow-done",
+				toolCallId: "call-done",
+				sessionId: "session-a",
+				success: false,
+			});
+			writePendingAsyncResultFile(resultPath, {
+				id: "workflow-done",
+				runId: "workflow-done",
+				toolCallId: "call-done",
+				sessionId: "session-a",
+				success: true,
+			});
 
 			t.mock.method(fsDefault, "renameSync", () => {
 				const error = new Error("destination exists") as NodeJS.ErrnoException;
@@ -395,14 +578,39 @@ describe("subagent run id resolver", () => {
 			const toolCallId = `call_${"界".repeat(100)}`;
 			const activeDir = path.join(asyncRoot, "workflow-active-long");
 			fs.mkdirSync(activeDir, { recursive: true });
-			fs.writeFileSync(path.join(activeDir, "status.json"), JSON.stringify({ runId: "workflow-active-long", toolCallId, state: "running", mode: "workflow", startedAt: 1, lastUpdate: 1, steps: [] }), "utf-8");
+			fs.writeFileSync(
+				path.join(activeDir, "status.json"),
+				JSON.stringify({
+					runId: "workflow-active-long",
+					toolCallId,
+					state: "running",
+					mode: "workflow",
+					startedAt: 1,
+					lastUpdate: 1,
+					steps: [],
+				}),
+				"utf-8",
+			);
 			updateActiveRunIndex(activeDir, "running", toolCallId);
 
-			assert.equal(resolveSubagentRunId(toolCallId, { asyncDirRoot: asyncRoot, resultsDir })?.id, "workflow-active-long");
+			assert.equal(
+				resolveSubagentRunId(toolCallId, { asyncDirRoot: asyncRoot, resultsDir })?.id,
+				"workflow-active-long",
+			);
 			releaseActiveRunIndex(activeDir);
 
-			writeAsyncResultFile(resultFilePath(resultsDir, "workflow-done-long"), { id: "workflow-done-long", runId: "workflow-done-long", toolCallId, sessionId: "session-a", state: "complete", success: true });
-			assert.equal(resolveSubagentRunId(toolCallId, { asyncDirRoot: asyncRoot, resultsDir })?.id, "workflow-done-long");
+			writeAsyncResultFile(resultFilePath(resultsDir, "workflow-done-long"), {
+				id: "workflow-done-long",
+				runId: "workflow-done-long",
+				toolCallId,
+				sessionId: "session-a",
+				state: "complete",
+				success: true,
+			});
+			assert.equal(
+				resolveSubagentRunId(toolCallId, { asyncDirRoot: asyncRoot, resultsDir })?.id,
+				"workflow-done-long",
+			);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}

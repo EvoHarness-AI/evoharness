@@ -1,4 +1,3 @@
-import { withHandoffWriteLock, withRepositoryWorktreeLock } from "./worktree-lock.ts";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { writeAtomicJson } from "../../shared/atomic-json.ts";
@@ -6,23 +5,24 @@ import { stableJsonDigest } from "../../shared/launch-contract.ts";
 import type {
 	CleanupEligibility,
 	ParallelHandoffGroup,
-	ParallelHandoffManifest,
-	ParallelHandoffReference,
 	ParallelHandoffLaneBinding,
+	ParallelHandoffManifest,
 	ParallelHandoffMergeEvidence,
+	ParallelHandoffReference,
 	ParallelHandoffSupersessionEvidence,
 	SubagentResultStatus,
 	WorkflowLaneMetadata,
 } from "../../shared/types.ts";
+import { assertWorkflowLaneKey, normalizeWorkflowLaneMetadata } from "./lane-metadata.ts";
 import type {
+	WorktreeCleanupIntent,
 	WorktreeCleanupReport,
 	WorktreeDiff,
 	WorktreeSetup,
 	WorktreeSetupProgress,
-	WorktreeCleanupIntent,
 } from "./worktree.ts";
 import { cleanupWorktrees, withWorktreeTransaction } from "./worktree.ts";
-import { assertWorkflowLaneKey, normalizeWorkflowLaneMetadata } from "./lane-metadata.ts";
+import { withHandoffWriteLock, withRepositoryWorktreeLock } from "./worktree-lock.ts";
 
 export interface ParallelHandoffResult {
 	agent: string;
@@ -44,14 +44,17 @@ function optionalIdentity(value: unknown, label: string): string | undefined {
 }
 
 function nonNegativeIndex(value: unknown, label: string): number {
-	if (!Number.isSafeInteger(value) || (value as number) < 0) throw new Error(`${label} must be a non-negative integer.`);
+	if (!Number.isSafeInteger(value) || (value as number) < 0)
+		throw new Error(`${label} must be a non-negative integer.`);
 	return value as number;
 }
 
 function normalizeLaneBinding(value: unknown, label: string): ParallelHandoffLaneBinding {
 	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} must be an object.`);
 	const binding = value as Record<string, unknown>;
-	const unknown = Object.keys(binding).filter((field) => !["index", "taskIndex", "workflowKey", "runId", "lane"].includes(field));
+	const unknown = Object.keys(binding).filter(
+		(field) => !["index", "taskIndex", "workflowKey", "runId", "lane"].includes(field),
+	);
 	if (unknown.length > 0) throw new Error(`${label} has unsupported fields: ${unknown.join(", ")}.`);
 	const index = nonNegativeIndex(binding.index, `${label}.index`);
 	const taskIndex = nonNegativeIndex(binding.taskIndex, `${label}.taskIndex`);
@@ -72,43 +75,96 @@ function validateManifestIdentity(parsed: ParallelHandoffManifest, manifestPath:
 	if (parsed.version !== 1 || !Array.isArray(parsed.groups)) {
 		throw new Error(`Invalid parallel handoff manifest: ${manifestPath}`);
 	}
-	if (typeof parsed.runId !== "string" || !parsed.runId.trim()) throw new Error(`Invalid parallel handoff manifest '${manifestPath}': runId must be a non-empty string.`);
+	if (typeof parsed.runId !== "string" || !parsed.runId.trim())
+		throw new Error(`Invalid parallel handoff manifest '${manifestPath}': runId must be a non-empty string.`);
 	parsed.runId = parsed.runId.trim();
 	const workflowKeys = new Set<string>();
 	const childRunIds = new Set<string>();
 	const childIndexes = new Set<number>();
 	for (const [groupIndex, group] of parsed.groups.entries()) {
-		if (!group || typeof group !== "object" || !Array.isArray(group.children) || !group.cleanup || !Array.isArray(group.cleanup.tasks)) throw new Error(`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}] is malformed.`);
+		if (
+			!group ||
+			typeof group !== "object" ||
+			!Array.isArray(group.children) ||
+			!group.cleanup ||
+			!Array.isArray(group.cleanup.tasks)
+		)
+			throw new Error(`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}] is malformed.`);
 		if (group.laneBindings !== undefined) {
-			if (!Array.isArray(group.laneBindings)) throw new Error(`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].laneBindings must be an array.`);
+			if (!Array.isArray(group.laneBindings))
+				throw new Error(
+					`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].laneBindings must be an array.`,
+				);
 			const taskIndexes = new Set<number>();
 			const cleanupIndexes = new Set(group.cleanup.tasks.map((task) => task.index));
 			group.laneBindings = group.laneBindings.map((binding, bindingIndex) => {
-				const normalized = normalizeLaneBinding(binding, `Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].laneBindings[${bindingIndex}]`);
-				if (taskIndexes.has(normalized.taskIndex)) throw new Error(`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}] has duplicate lane binding taskIndex ${normalized.taskIndex}.`);
-				if (!cleanupIndexes.has(normalized.taskIndex)) throw new Error(`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].laneBindings[${bindingIndex}] has no cleanup task for taskIndex ${normalized.taskIndex}.`);
+				const normalized = normalizeLaneBinding(
+					binding,
+					`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].laneBindings[${bindingIndex}]`,
+				);
+				if (taskIndexes.has(normalized.taskIndex))
+					throw new Error(
+						`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}] has duplicate lane binding taskIndex ${normalized.taskIndex}.`,
+					);
+				if (!cleanupIndexes.has(normalized.taskIndex))
+					throw new Error(
+						`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].laneBindings[${bindingIndex}] has no cleanup task for taskIndex ${normalized.taskIndex}.`,
+					);
 				taskIndexes.add(normalized.taskIndex);
 				return normalized;
 			});
 		}
 		const taskIndexes = new Set<number>();
 		for (const [childIndex, child] of group.children.entries()) {
-			if (!child || typeof child !== "object" || !child.patch || typeof child.patch !== "object") throw new Error(`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}] is malformed.`);
+			if (!child || typeof child !== "object" || !child.patch || typeof child.patch !== "object")
+				throw new Error(
+					`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}] is malformed.`,
+				);
 			const childRecord = child as unknown as Record<string, unknown>;
-			const index = nonNegativeIndex(childRecord.index, `Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}].index`);
-			const taskIndex = nonNegativeIndex(childRecord.taskIndex, `Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}].taskIndex`);
-			if (taskIndexes.has(taskIndex)) throw new Error(`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}] has duplicate child taskIndex ${taskIndex}.`);
+			const index = nonNegativeIndex(
+				childRecord.index,
+				`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}].index`,
+			);
+			const taskIndex = nonNegativeIndex(
+				childRecord.taskIndex,
+				`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}].taskIndex`,
+			);
+			if (taskIndexes.has(taskIndex))
+				throw new Error(
+					`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}] has duplicate child taskIndex ${taskIndex}.`,
+				);
 			taskIndexes.add(taskIndex);
-			if (childIndexes.has(index)) throw new Error(`Invalid parallel handoff manifest '${manifestPath}': duplicate child index ${index}.`);
+			if (childIndexes.has(index))
+				throw new Error(`Invalid parallel handoff manifest '${manifestPath}': duplicate child index ${index}.`);
 			childIndexes.add(index);
-			if (!group.cleanup.tasks.some((task) => task.index === taskIndex)) throw new Error(`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}] has no cleanup task for taskIndex ${taskIndex}.`);
-			const workflowKey = optionalIdentity(childRecord.workflowKey, `Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}].workflowKey`);
-			const runId = optionalIdentity(childRecord.runId, `Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}].runId`);
-			const lane = normalizeWorkflowLaneMetadata(childRecord.lane, `Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}].lane`);
-			assertWorkflowLaneKey(lane, workflowKey, `Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}].lane`);
-			if (workflowKey && workflowKeys.has(workflowKey)) throw new Error(`Invalid parallel handoff manifest '${manifestPath}': duplicate workflow key '${workflowKey}'.`);
+			if (!group.cleanup.tasks.some((task) => task.index === taskIndex))
+				throw new Error(
+					`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}] has no cleanup task for taskIndex ${taskIndex}.`,
+				);
+			const workflowKey = optionalIdentity(
+				childRecord.workflowKey,
+				`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}].workflowKey`,
+			);
+			const runId = optionalIdentity(
+				childRecord.runId,
+				`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}].runId`,
+			);
+			const lane = normalizeWorkflowLaneMetadata(
+				childRecord.lane,
+				`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}].lane`,
+			);
+			assertWorkflowLaneKey(
+				lane,
+				workflowKey,
+				`Invalid parallel handoff manifest '${manifestPath}': groups[${groupIndex}].children[${childIndex}].lane`,
+			);
+			if (workflowKey && workflowKeys.has(workflowKey))
+				throw new Error(
+					`Invalid parallel handoff manifest '${manifestPath}': duplicate workflow key '${workflowKey}'.`,
+				);
 			if (workflowKey) workflowKeys.add(workflowKey);
-			if (runId && childRunIds.has(runId)) throw new Error(`Invalid parallel handoff manifest '${manifestPath}': duplicate child run id '${runId}'.`);
+			if (runId && childRunIds.has(runId))
+				throw new Error(`Invalid parallel handoff manifest '${manifestPath}': duplicate child run id '${runId}'.`);
 			if (runId) childRunIds.add(runId);
 			if (lane) childRecord.lane = lane;
 			if (workflowKey) childRecord.workflowKey = workflowKey;
@@ -134,16 +190,23 @@ export function resolveParallelHandoffChild(input: {
 }): { group: ParallelHandoffGroup; child: ParallelHandoffGroup["children"][number] } | undefined {
 	const manifest = readParallelHandoffManifest(input.manifestPath);
 	if (!manifest) return undefined;
-	if (manifest.runId !== input.runId) throw new Error(`Managed worktree handoff belongs to run '${manifest.runId}', not '${input.runId}'.`);
+	if (manifest.runId !== input.runId)
+		throw new Error(`Managed worktree handoff belongs to run '${manifest.runId}', not '${input.runId}'.`);
 	const workflowKey = input.workflowKey?.trim() || undefined;
 	const childRunId = input.childRunId?.trim() || undefined;
-	if (!workflowKey && !childRunId) throw new Error("Parallel handoff child resolution requires workflowKey or childRunId.");
-	const matches = manifest.groups.flatMap((group) => group.children.map((child) => ({ group, child }))).filter(({ child }) => {
-		if (workflowKey && child.workflowKey !== workflowKey) return false;
-		if (childRunId && child.runId !== childRunId) return false;
-		return true;
-	});
-	if (matches.length > 1) throw new Error(`Parallel handoff has multiple children matching workflow identity${workflowKey ? ` '${workflowKey}'` : ` '${childRunId}'`}.`);
+	if (!workflowKey && !childRunId)
+		throw new Error("Parallel handoff child resolution requires workflowKey or childRunId.");
+	const matches = manifest.groups
+		.flatMap((group) => group.children.map((child) => ({ group, child })))
+		.filter(({ child }) => {
+			if (workflowKey && child.workflowKey !== workflowKey) return false;
+			if (childRunId && child.runId !== childRunId) return false;
+			return true;
+		});
+	if (matches.length > 1)
+		throw new Error(
+			`Parallel handoff has multiple children matching workflow identity${workflowKey ? ` '${workflowKey}'` : ` '${childRunId}'`}.`,
+		);
 	return matches[0];
 }
 
@@ -160,44 +223,72 @@ function pathInside(root: string, candidate: string): boolean {
 	return relative === "" || (relative !== ".." && !relative.startsWith(`..${path.sep}`) && !path.isAbsolute(relative));
 }
 
-export async function protectRetainedWorktreeForResume(manifestPath: string, runId: string, childIndex: number, signal?: AbortSignal): Promise<string> {
+export async function protectRetainedWorktreeForResume(
+	manifestPath: string,
+	runId: string,
+	childIndex: number,
+	signal?: AbortSignal,
+): Promise<string> {
 	const original = readParallelHandoffManifest(manifestPath);
 	const group = original?.groups.find((item) => item.children.some((child) => child.index === childIndex));
 	if (!group) throw new Error("Retained worktree handoff disappeared before resume admission.");
-	return withWorktreeTransaction(() => withRepositoryWorktreeLock(group.repoRoot, () => withHandoffWriteLock(manifestPath, () => {
-		signal?.throwIfAborted();
-		const cwd = resolveRetainedWorktreeCwd(manifestPath, runId, childIndex);
-		if (!cwd) throw new Error("Retained worktree ownership disappeared before resume admission.");
-		const manifest = readParallelHandoffManifest(manifestPath)!;
-		const currentGroup = manifest.groups.find((item) => item.children.some((child) => child.index === childIndex))!;
-		const child = currentGroup.children.find((item) => item.index === childIndex)!;
-		const task = currentGroup.cleanup.tasks.find((item) => item.index === child.taskIndex)!;
-		task.preserved = true;
-		task.reason = "retained child resume requires managed worktree cwd";
-		manifest.updatedAt = Date.now();
-		writeAtomicJson(manifestPath, manifest);
-		return cwd;
-	}), { signal }));
+	return withWorktreeTransaction(() =>
+		withRepositoryWorktreeLock(
+			group.repoRoot,
+			() =>
+				withHandoffWriteLock(manifestPath, () => {
+					signal?.throwIfAborted();
+					const cwd = resolveRetainedWorktreeCwd(manifestPath, runId, childIndex);
+					if (!cwd) throw new Error("Retained worktree ownership disappeared before resume admission.");
+					const manifest = readParallelHandoffManifest(manifestPath)!;
+					const currentGroup = manifest.groups.find((item) =>
+						item.children.some((child) => child.index === childIndex),
+					)!;
+					const child = currentGroup.children.find((item) => item.index === childIndex)!;
+					const task = currentGroup.cleanup.tasks.find((item) => item.index === child.taskIndex)!;
+					task.preserved = true;
+					task.reason = "retained child resume requires managed worktree cwd";
+					manifest.updatedAt = Date.now();
+					writeAtomicJson(manifestPath, manifest);
+					return cwd;
+				}),
+			{ signal },
+		),
+	);
 }
 
-export function resolveRetainedWorktreeCwd(manifestPath: string, runId: string, childIndex: number, recordedWorktreePath?: string): string | undefined {
+export function resolveRetainedWorktreeCwd(
+	manifestPath: string,
+	runId: string,
+	childIndex: number,
+	recordedWorktreePath?: string,
+): string | undefined {
 	const manifest = readParallelHandoffManifest(manifestPath);
-	if (manifest && manifest.runId !== runId) throw new Error(`Managed worktree handoff belongs to run '${manifest.runId}', not '${runId}'.`);
+	if (manifest && manifest.runId !== runId)
+		throw new Error(`Managed worktree handoff belongs to run '${manifest.runId}', not '${runId}'.`);
 	const match = manifest?.groups
 		.flatMap((group) => group.children.map((child) => ({ group, child })))
 		.find(({ child }) => child.index === childIndex);
 	if (!manifest || !match) {
-		if (recordedWorktreePath) throw new Error(`Async run '${runId}' child ${childIndex} ran in managed worktree ${recordedWorktreePath}, but its handoff has no resumable record yet. Retry after the run settles; if it already ended, inspect ${manifestPath}.`);
+		if (recordedWorktreePath)
+			throw new Error(
+				`Async run '${runId}' child ${childIndex} ran in managed worktree ${recordedWorktreePath}, but its handoff has no resumable record yet. Retry after the run settles; if it already ended, inspect ${manifestPath}.`,
+			);
 		return undefined;
 	}
 	const cleanup = match.group.cleanup.tasks.find((task) => task.index === match.child.taskIndex);
 	if (!cleanup) throw new Error(`Async run '${runId}' child ${childIndex} has no managed worktree cleanup record.`);
 	const relativeCwd = path.relative(resolveExistingPath(match.group.repoRoot), resolveExistingPath(manifest.cwd));
-	if (path.isAbsolute(relativeCwd) || relativeCwd === ".." || relativeCwd.startsWith(`..${path.sep}`)) throw new Error(`Async run '${runId}' has an invalid managed worktree cwd.`);
+	if (path.isAbsolute(relativeCwd) || relativeCwd === ".." || relativeCwd.startsWith(`..${path.sep}`))
+		throw new Error(`Async run '${runId}' has an invalid managed worktree cwd.`);
 	const requiredCwd = path.join(cleanup.path, relativeCwd);
-	if (cleanup.worktreeRemoved || cleanup.branchRemoved) throw new Error(`Async run '${runId}' required managed worktree was removed: ${requiredCwd}`);
+	if (cleanup.worktreeRemoved || cleanup.branchRemoved)
+		throw new Error(`Async run '${runId}' required managed worktree was removed: ${requiredCwd}`);
 	// The runner removes the worktree right after this marker, without the locks that guard resume admission.
-	if (cleanup.reason?.includes("pending durable handoff capture")) throw new Error(`Async run '${runId}' child ${childIndex} is still finalizing its managed worktree: ${requiredCwd}. Retry after the run settles; if it already ended, inspect ${manifestPath}.`);
+	if (cleanup.reason?.includes("pending durable handoff capture"))
+		throw new Error(
+			`Async run '${runId}' child ${childIndex} is still finalizing its managed worktree: ${requiredCwd}. Retry after the run settles; if it already ended, inspect ${manifestPath}.`,
+		);
 	let worktreeRoot = "";
 	let resolvedRequiredCwd = "";
 	try {
@@ -207,9 +298,12 @@ export function resolveRetainedWorktreeCwd(manifestPath: string, runId: string, 
 		if (!fs.statSync(requiredCwd).isDirectory()) throw new Error("path is not a directory");
 		resolvedRequiredCwd = fs.realpathSync(requiredCwd);
 	} catch (error) {
-		throw new Error(`Async run '${runId}' required managed worktree cwd is missing: ${requiredCwd}`, { cause: error instanceof Error ? error : undefined });
+		throw new Error(`Async run '${runId}' required managed worktree cwd is missing: ${requiredCwd}`, {
+			cause: error instanceof Error ? error : undefined,
+		});
 	}
-	if (!pathInside(worktreeRoot, resolvedRequiredCwd)) throw new Error(`Async run '${runId}' has an invalid managed worktree cwd.`);
+	if (!pathInside(worktreeRoot, resolvedRequiredCwd))
+		throw new Error(`Async run '${runId}' has an invalid managed worktree cwd.`);
 	return requiredCwd;
 }
 
@@ -222,7 +316,7 @@ function referenceFor(manifestPath: string, manifest: ParallelHandoffManifest): 
 		childCount: children.length,
 		changedPatches: children.filter((child) => child.patch.changed).length,
 		cleanupState: manifest.groups.every((group) => group.cleanup.state === "complete") ? "complete" : "partial",
-		...(Object.prototype.hasOwnProperty.call(manifest, "cleanupEligibility")
+		...(Object.hasOwn(manifest, "cleanupEligibility")
 			? { cleanupEligibility: trustedStoredCleanupEligibility(manifest) }
 			: {}),
 	};
@@ -238,7 +332,8 @@ function boundedString(value: unknown, label: string, maxBytes: number): string 
 	if (typeof value !== "string" || !value.trim()) throw new Error(`${label} must be a non-empty string.`);
 	const normalized = value.trim();
 	if (normalized.includes("\n") || normalized.includes("\r")) throw new Error(`${label} must not contain newlines.`);
-	if (Buffer.byteLength(normalized, "utf-8") > maxBytes) throw new Error(`${label} must be at most ${maxBytes} bytes.`);
+	if (Buffer.byteLength(normalized, "utf-8") > maxBytes)
+		throw new Error(`${label} must be at most ${maxBytes} bytes.`);
 	return normalized;
 }
 
@@ -250,7 +345,8 @@ function commitString(value: unknown, label: string): string {
 
 function manifestDigestString(value: unknown, label: string): string {
 	const normalized = boundedString(value, label, 64).toLowerCase();
-	if (!MANIFEST_DIGEST_PATTERN.test(normalized)) throw new Error(`${label} must be a full 64-character SHA-256 digest.`);
+	if (!MANIFEST_DIGEST_PATTERN.test(normalized))
+		throw new Error(`${label} must be a full 64-character SHA-256 digest.`);
 	return normalized;
 }
 
@@ -275,11 +371,14 @@ function normalizeMergeEvidence(value: unknown): ParallelHandoffMergeEvidence {
 	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("merge must be an object.");
 	const merge = value as Record<string, unknown>;
 	const prNumber = merge.prNumber;
-	if (typeof prNumber !== "number" || !Number.isInteger(prNumber) || prNumber < 1) throw new Error("merge.prNumber must be a positive integer.");
+	if (typeof prNumber !== "number" || !Number.isInteger(prNumber) || prNumber < 1)
+		throw new Error("merge.prNumber must be a positive integer.");
 	const treeEquivalent = merge.treeEquivalent;
-	if (treeEquivalent !== true && treeEquivalent !== false && treeEquivalent !== "unknown") throw new Error("merge.treeEquivalent must be true, false, or 'unknown'.");
+	if (treeEquivalent !== true && treeEquivalent !== false && treeEquivalent !== "unknown")
+		throw new Error("merge.treeEquivalent must be true, false, or 'unknown'.");
 	const postMergeChecks = merge.postMergeChecks;
-	if (postMergeChecks !== "recorded" && postMergeChecks !== "unknown") throw new Error("merge.postMergeChecks must be 'recorded' or 'unknown'.");
+	if (postMergeChecks !== "recorded" && postMergeChecks !== "unknown")
+		throw new Error("merge.postMergeChecks must be 'recorded' or 'unknown'.");
 	return {
 		prNumber,
 		reviewedHead: commitString(merge.reviewedHead, "merge.reviewedHead"),
@@ -288,7 +387,9 @@ function normalizeMergeEvidence(value: unknown): ParallelHandoffMergeEvidence {
 		postMergeChecks,
 		attestedBy: boundedString(merge.attestedBy, "merge.attestedBy", MAX_ATTESTATION_ACTOR_LENGTH),
 		attestedAt: attestationTimestamp(merge.attestedAt),
-		...(merge.manifestDigest === undefined ? {} : { manifestDigest: manifestDigestString(merge.manifestDigest, "merge.manifestDigest") }),
+		...(merge.manifestDigest === undefined
+			? {}
+			: { manifestDigest: manifestDigestString(merge.manifestDigest, "merge.manifestDigest") }),
 	};
 }
 
@@ -299,38 +400,111 @@ function normalizeSupersessionEvidence(value: unknown): ParallelHandoffSupersess
 		supersededBy: boundedString(supersession.supersededBy, "supersession.supersededBy", MAX_SUPERSESSION_ID_LENGTH),
 		attestedBy: boundedString(supersession.attestedBy, "supersession.attestedBy", MAX_ATTESTATION_ACTOR_LENGTH),
 		attestedAt: attestationTimestamp(supersession.attestedAt),
-		...(supersession.manifestDigest === undefined ? {} : { manifestDigest: manifestDigestString(supersession.manifestDigest, "supersession.manifestDigest") }),
+		...(supersession.manifestDigest === undefined
+			? {}
+			: { manifestDigest: manifestDigestString(supersession.manifestDigest, "supersession.manifestDigest") }),
 	};
 }
 
 function normalizeStoredCleanupEligibility(value: unknown): CleanupEligibility {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return { state: "unknown" };
 	const eligibility = value as Record<string, unknown>;
-	if (eligibility.state === "active" || eligibility.state === "terminal-eligible" || eligibility.state === "superseded-eligible" || eligibility.state === "unknown") {
+	if (
+		eligibility.state === "active" ||
+		eligibility.state === "terminal-eligible" ||
+		eligibility.state === "superseded-eligible" ||
+		eligibility.state === "unknown"
+	) {
 		return { state: eligibility.state };
 	}
-	if (eligibility.state === "terminal-blocked" && typeof eligibility.reason === "string" && eligibility.reason.trim() && !eligibility.reason.includes("\n") && !eligibility.reason.includes("\r")) {
+	if (
+		eligibility.state === "terminal-blocked" &&
+		typeof eligibility.reason === "string" &&
+		eligibility.reason.trim() &&
+		!eligibility.reason.includes("\n") &&
+		!eligibility.reason.includes("\r")
+	) {
 		return { state: "terminal-blocked", reason: eligibility.reason.trim().slice(0, 256) };
 	}
 	return { state: "unknown" };
 }
 
-const STORED_CHILD_STATUSES = new Set(["pending", "running", "completed", "complete", "failed", "paused", "stopped", "detached", "rejected"]);
+const STORED_CHILD_STATUSES = new Set([
+	"pending",
+	"running",
+	"completed",
+	"complete",
+	"failed",
+	"paused",
+	"stopped",
+	"detached",
+	"rejected",
+]);
 
 export function isTerminalParallelHandoffChildStatus(status: unknown): boolean {
-	return status === "completed" || status === "complete" || status === "failed" || status === "paused" || status === "stopped" || status === "rejected";
+	return (
+		status === "completed" ||
+		status === "complete" ||
+		status === "failed" ||
+		status === "paused" ||
+		status === "stopped" ||
+		status === "rejected"
+	);
 }
 
 function hasValidStoredLaneShape(manifest: ParallelHandoffManifest): boolean {
-	if (!manifest || typeof manifest !== "object" || manifest.version !== 1 || typeof manifest.runId !== "string" || !manifest.runId.trim() || !Array.isArray(manifest.groups) || manifest.groups.length === 0) return false;
+	if (
+		!manifest ||
+		typeof manifest !== "object" ||
+		manifest.version !== 1 ||
+		typeof manifest.runId !== "string" ||
+		!manifest.runId.trim() ||
+		!Array.isArray(manifest.groups) ||
+		manifest.groups.length === 0
+	)
+		return false;
 	let hasManagedTask = false;
 	const valid = manifest.groups.every((group) => {
-		if (!group || typeof group !== "object" || typeof group.baseCommit !== "string" || !group.baseCommit.trim() || typeof group.repoRoot !== "string" || !group.repoRoot.trim()) return false;
+		if (
+			!group ||
+			typeof group !== "object" ||
+			typeof group.baseCommit !== "string" ||
+			!group.baseCommit.trim() ||
+			typeof group.repoRoot !== "string" ||
+			!group.repoRoot.trim()
+		)
+			return false;
 		const cleanup = group.cleanup;
-		if (!cleanup || typeof cleanup !== "object" || (cleanup.state !== "complete" && cleanup.state !== "partial") || !Array.isArray(cleanup.tasks) || !Array.isArray(group.children)) return false;
-		if (cleanup.tasks.some((task) => !task || typeof task !== "object" || !Number.isSafeInteger(task.index) || task.index < 0 || typeof task.path !== "string" || !task.path.trim() || typeof task.branch !== "string" || !task.branch.trim())) return false;
+		if (
+			!cleanup ||
+			typeof cleanup !== "object" ||
+			(cleanup.state !== "complete" && cleanup.state !== "partial") ||
+			!Array.isArray(cleanup.tasks) ||
+			!Array.isArray(group.children)
+		)
+			return false;
+		if (
+			cleanup.tasks.some(
+				(task) =>
+					!task ||
+					typeof task !== "object" ||
+					!Number.isSafeInteger(task.index) ||
+					task.index < 0 ||
+					typeof task.path !== "string" ||
+					!task.path.trim() ||
+					typeof task.branch !== "string" ||
+					!task.branch.trim(),
+			)
+		)
+			return false;
 		if (cleanup.tasks.length > 0) hasManagedTask = true;
-		return group.children.every((child) => Boolean(child) && typeof child === "object" && typeof child.status === "string" && STORED_CHILD_STATUSES.has(child.status));
+		return group.children.every(
+			(child) =>
+				Boolean(child) &&
+				typeof child === "object" &&
+				typeof child.status === "string" &&
+				STORED_CHILD_STATUSES.has(child.status),
+		);
 	});
 	return valid && hasManagedTask;
 }
@@ -342,34 +516,60 @@ function trustedStoredCleanupEligibility(manifest: ParallelHandoffManifest): Cle
 	if (eligibility.state === "active") return cleanupEligibilityForEvidence(manifest);
 	if (eligibility.state === "terminal-eligible" || eligibility.state === "superseded-eligible") {
 		const current = cleanupEligibilityForEvidence(manifest);
-		if (current.state === eligibility.state || (current.state === "terminal-blocked" && / evidence is stale$/.test(current.reason))) return current;
+		if (
+			current.state === eligibility.state ||
+			(current.state === "terminal-blocked" && / evidence is stale$/.test(current.reason))
+		)
+			return current;
 		return { state: "unknown" };
 	}
 	return eligibility;
 }
 
 function hasActiveChildren(manifest: ParallelHandoffManifest): boolean {
-	return Array.isArray(manifest.groups) && manifest.groups.some((group) => {
-		if (!group || typeof group !== "object") return false;
-		const children = Array.isArray(group.children) ? group.children : [];
-		if (children.length === 0 && Array.isArray(group.cleanup?.tasks) && group.cleanup.tasks.length > 0) return true;
-		return children.some((child) => !child || typeof child !== "object" || !isTerminalParallelHandoffChildStatus(child.status));
-	});
+	return (
+		Array.isArray(manifest.groups) &&
+		manifest.groups.some((group) => {
+			if (!group || typeof group !== "object") return false;
+			const children = Array.isArray(group.children) ? group.children : [];
+			if (children.length === 0 && Array.isArray(group.cleanup?.tasks) && group.cleanup.tasks.length > 0)
+				return true;
+			return children.some(
+				(child) => !child || typeof child !== "object" || !isTerminalParallelHandoffChildStatus(child.status),
+			);
+		})
+	);
 }
 
 function hasManagedWorktreeTasks(manifest: ParallelHandoffManifest): boolean {
-	return manifest.groups.length > 0 && manifest.groups.some((group) => Array.isArray(group.cleanup?.tasks) && group.cleanup.tasks.length > 0);
+	return (
+		manifest.groups.length > 0 &&
+		manifest.groups.some((group) => Array.isArray(group.cleanup?.tasks) && group.cleanup.tasks.length > 0)
+	);
 }
 
 function validateManifestForLaneEvidence(manifest: ParallelHandoffManifest, laneId: string): void {
 	if (manifest.runId !== laneId) throw new Error(`Lane '${laneId}' does not match manifest run '${manifest.runId}'.`);
 	if (!hasValidStoredLaneShape(manifest)) throw new Error("Lane manifest is malformed.");
-	if (!manifest.groups.length || !hasManagedWorktreeTasks(manifest)) throw new Error("Lane manifest has no managed worktree tasks.");
-	if (hasActiveChildren(manifest)) throw new Error("Lane has an active child owner; merge evidence must be recorded after local reconciliation.");
+	if (!manifest.groups.length || !hasManagedWorktreeTasks(manifest))
+		throw new Error("Lane manifest has no managed worktree tasks.");
+	if (hasActiveChildren(manifest))
+		throw new Error("Lane has an active child owner; merge evidence must be recorded after local reconciliation.");
 	for (const group of manifest.groups) {
-		if (typeof group.repoRoot !== "string" || !group.repoRoot.trim()) throw new Error("Lane manifest has no valid repository root.");
-		if (group.cleanup.state !== "complete" && group.cleanup.state !== "partial") throw new Error("Lane manifest has an invalid cleanup state.");
-		if (!Array.isArray(group.cleanup.tasks) || group.cleanup.tasks.some((task) => typeof task.path !== "string" || !task.path.trim() || typeof task.branch !== "string" || !task.branch.trim())) {
+		if (typeof group.repoRoot !== "string" || !group.repoRoot.trim())
+			throw new Error("Lane manifest has no valid repository root.");
+		if (group.cleanup.state !== "complete" && group.cleanup.state !== "partial")
+			throw new Error("Lane manifest has an invalid cleanup state.");
+		if (
+			!Array.isArray(group.cleanup.tasks) ||
+			group.cleanup.tasks.some(
+				(task) =>
+					typeof task.path !== "string" ||
+					!task.path.trim() ||
+					typeof task.branch !== "string" ||
+					!task.branch.trim(),
+			)
+		) {
 			throw new Error("Lane manifest has an invalid cleanup task.");
 		}
 		if (!Array.isArray(group.children)) throw new Error("Lane manifest has invalid child records.");
@@ -394,33 +594,51 @@ function cleanupEligibilityForEvidence(manifest: ParallelHandoffManifest): Clean
 	if (manifest.supersession) {
 		try {
 			const supersession = normalizeSupersessionEvidence(manifest.supersession);
-			if (supersession.manifestDigest !== manifestFactsDigest(manifest)) return { state: "terminal-blocked", reason: "stored supersession evidence is stale" };
+			if (supersession.manifestDigest !== manifestFactsDigest(manifest))
+				return { state: "terminal-blocked", reason: "stored supersession evidence is stale" };
 		} catch {
 			return { state: "terminal-blocked", reason: "stored supersession evidence is invalid" };
 		}
 		return { state: "superseded-eligible" };
 	}
 	if (!merge) return { state: "terminal-blocked", reason: "no merge or supersession evidence recorded" };
-	if (merge.manifestDigest !== manifestFactsDigest(manifest)) return { state: "terminal-blocked", reason: "stored merge evidence is stale" };
+	if (merge.manifestDigest !== manifestFactsDigest(manifest))
+		return { state: "terminal-blocked", reason: "stored merge evidence is stale" };
 	if (merge.treeEquivalent !== true) {
-		return { state: "terminal-blocked", reason: merge.treeEquivalent === "unknown" ? "merged tree equivalence was not attested" : "merged tree is not equivalent to the reviewed head" };
+		return {
+			state: "terminal-blocked",
+			reason:
+				merge.treeEquivalent === "unknown"
+					? "merged tree equivalence was not attested"
+					: "merged tree is not equivalent to the reviewed head",
+		};
 	}
-	if (merge.postMergeChecks !== "recorded") return { state: "terminal-blocked", reason: "required post-merge checks were not recorded" };
+	if (merge.postMergeChecks !== "recorded")
+		return { state: "terminal-blocked", reason: "required post-merge checks were not recorded" };
 	return { state: "terminal-eligible" };
 }
 
 function sameMergeEvidence(left: ParallelHandoffMergeEvidence, right: ParallelHandoffMergeEvidence): boolean {
-	return left.prNumber === right.prNumber
-		&& left.reviewedHead === right.reviewedHead
-		&& left.mergeCommit === right.mergeCommit
-		&& left.treeEquivalent === right.treeEquivalent
-		&& left.postMergeChecks === right.postMergeChecks
-		&& left.attestedBy === right.attestedBy
-		&& left.attestedAt === right.attestedAt;
+	return (
+		left.prNumber === right.prNumber &&
+		left.reviewedHead === right.reviewedHead &&
+		left.mergeCommit === right.mergeCommit &&
+		left.treeEquivalent === right.treeEquivalent &&
+		left.postMergeChecks === right.postMergeChecks &&
+		left.attestedBy === right.attestedBy &&
+		left.attestedAt === right.attestedAt
+	);
 }
 
-function sameSupersessionEvidence(left: ParallelHandoffSupersessionEvidence, right: ParallelHandoffSupersessionEvidence): boolean {
-	return left.supersededBy === right.supersededBy && left.attestedBy === right.attestedBy && left.attestedAt === right.attestedAt;
+function sameSupersessionEvidence(
+	left: ParallelHandoffSupersessionEvidence,
+	right: ParallelHandoffSupersessionEvidence,
+): boolean {
+	return (
+		left.supersededBy === right.supersededBy &&
+		left.attestedBy === right.attestedBy &&
+		left.attestedAt === right.attestedAt
+	);
 }
 
 function firstRepositoryRoot(manifest: ParallelHandoffManifest): string | undefined {
@@ -430,7 +648,9 @@ function firstRepositoryRoot(manifest: ParallelHandoffManifest): string | undefi
 
 function formatCleanupCommand(manifestPath: string, manifest: ParallelHandoffManifest): string | undefined {
 	const repoRoot = firstRepositoryRoot(manifest);
-	return repoRoot ? `subagent({ action: "worktree.cleanup", options: { repo: ${JSON.stringify(repoRoot)}, handoffPath: ${JSON.stringify(manifestPath)}, mode: "plan" } })` : undefined;
+	return repoRoot
+		? `subagent({ action: "worktree.cleanup", options: { repo: ${JSON.stringify(repoRoot)}, handoffPath: ${JSON.stringify(manifestPath)}, mode: "plan" } })`
+		: undefined;
 }
 
 export function formatStoredParallelHandoffCleanup(manifestPath: string, manifest?: ParallelHandoffManifest): string {
@@ -442,11 +662,17 @@ export function formatStoredParallelHandoffCleanup(manifestPath: string, manifes
 			stored = undefined;
 		}
 	}
-	if (!stored) return ["Cleanup eligibility: unknown", "Reason: lane manifest is missing or invalid; removal is not safe.", `Plan command: subagent({ action: "worktree.cleanup", options: { handoffPath: ${JSON.stringify(manifestPath)}, mode: "plan" } })`].join("\n");
+	if (!stored)
+		return [
+			"Cleanup eligibility: unknown",
+			"Reason: lane manifest is missing or invalid; removal is not safe.",
+			`Plan command: subagent({ action: "worktree.cleanup", options: { handoffPath: ${JSON.stringify(manifestPath)}, mode: "plan" } })`,
+		].join("\n");
 	const eligibility = trustedStoredCleanupEligibility(stored);
 	const lines = [`Cleanup eligibility: ${eligibility.state}`];
 	if (eligibility.state === "terminal-blocked") lines.push(`Reason: ${eligibility.reason}`);
-	if (eligibility.state === "unknown") lines.push("Reason: stored eligibility is missing or invalid; removal is not safe.");
+	if (eligibility.state === "unknown")
+		lines.push("Reason: stored eligibility is missing or invalid; removal is not safe.");
 	if (eligibility.state === "active") lines.push("Reason: a child owner is still active; removal is not safe.");
 	const command = formatCleanupCommand(manifestPath, stored);
 	if (command) lines.push(`Plan command: ${command}`);
@@ -459,55 +685,104 @@ export interface ParallelHandoffEvidenceResult {
 	text: string;
 }
 
-export function recordParallelHandoffMerge(...args: Parameters<typeof recordParallelHandoffMergeUnlocked>): ReturnType<typeof recordParallelHandoffMergeUnlocked> {
+export function recordParallelHandoffMerge(
+	...args: Parameters<typeof recordParallelHandoffMergeUnlocked>
+): ReturnType<typeof recordParallelHandoffMergeUnlocked> {
 	return withHandoffWriteLock(args[0].manifestPath, () => recordParallelHandoffMergeUnlocked(...args));
 }
 
-function recordParallelHandoffMergeUnlocked(input: { manifestPath: string; laneId: string; merge: unknown; now?: number }): ParallelHandoffEvidenceResult {
+function recordParallelHandoffMergeUnlocked(input: {
+	manifestPath: string;
+	laneId: string;
+	merge: unknown;
+	now?: number;
+}): ParallelHandoffEvidenceResult {
 	const manifest = readParallelHandoffManifest(input.manifestPath);
 	if (!manifest) throw new Error(`Parallel handoff manifest not found: ${input.manifestPath}`);
 	validateManifestForLaneEvidence(manifest, boundedString(input.laneId, "laneId", MAX_SUPERSESSION_ID_LENGTH));
-	if (hasActiveChildren(manifest)) throw new Error("Lane has an active child owner; merge evidence must be recorded after local reconciliation.");
+	if (hasActiveChildren(manifest))
+		throw new Error("Lane has an active child owner; merge evidence must be recorded after local reconciliation.");
 	const merge = { ...normalizeMergeEvidence(input.merge), manifestDigest: manifestFactsDigest(manifest) };
 	if (manifest.merge) {
 		const existing = normalizeMergeEvidence(manifest.merge);
-		if (existing.reviewedHead !== merge.reviewedHead) throw new Error(`Lane manifest is stale: reviewed head is already recorded as ${existing.reviewedHead}.`);
-		if (!sameMergeEvidence(existing, merge)) throw new Error("Lane manifest already contains different merge evidence for this reviewed head.");
+		if (existing.reviewedHead !== merge.reviewedHead)
+			throw new Error(`Lane manifest is stale: reviewed head is already recorded as ${existing.reviewedHead}.`);
+		if (!sameMergeEvidence(existing, merge))
+			throw new Error("Lane manifest already contains different merge evidence for this reviewed head.");
 	}
 	const reconciled: ParallelHandoffManifest = { ...manifest, merge };
 	delete reconciled.supersession;
-	const updated: ParallelHandoffManifest = { ...reconciled, cleanupEligibility: cleanupEligibilityForEvidence(reconciled), updatedAt: input.now ?? Date.now() };
+	const updated: ParallelHandoffManifest = {
+		...reconciled,
+		cleanupEligibility: cleanupEligibilityForEvidence(reconciled),
+		updatedAt: input.now ?? Date.now(),
+	};
 	writeAtomicJson(input.manifestPath, updated);
-	return { manifest: updated, reference: referenceFor(input.manifestPath, updated), text: formatStoredParallelHandoffCleanup(input.manifestPath, updated) };
+	return {
+		manifest: updated,
+		reference: referenceFor(input.manifestPath, updated),
+		text: formatStoredParallelHandoffCleanup(input.manifestPath, updated),
+	};
 }
 
-export function recordParallelHandoffSupersession(...args: Parameters<typeof recordParallelHandoffSupersessionUnlocked>): ReturnType<typeof recordParallelHandoffSupersessionUnlocked> {
+export function recordParallelHandoffSupersession(
+	...args: Parameters<typeof recordParallelHandoffSupersessionUnlocked>
+): ReturnType<typeof recordParallelHandoffSupersessionUnlocked> {
 	return withHandoffWriteLock(args[0].manifestPath, () => recordParallelHandoffSupersessionUnlocked(...args));
 }
 
-function recordParallelHandoffSupersessionUnlocked(input: { manifestPath: string; laneId: string; supersession: unknown; now?: number }): ParallelHandoffEvidenceResult {
+function recordParallelHandoffSupersessionUnlocked(input: {
+	manifestPath: string;
+	laneId: string;
+	supersession: unknown;
+	now?: number;
+}): ParallelHandoffEvidenceResult {
 	const manifest = readParallelHandoffManifest(input.manifestPath);
 	if (!manifest) throw new Error(`Parallel handoff manifest not found: ${input.manifestPath}`);
 	const laneId = boundedString(input.laneId, "laneId", MAX_SUPERSESSION_ID_LENGTH);
 	validateManifestForLaneEvidence(manifest, laneId);
-	if (hasActiveChildren(manifest)) throw new Error("Lane has an active child owner; supersession must be recorded after local reconciliation.");
-	const supersession = { ...normalizeSupersessionEvidence(input.supersession), manifestDigest: manifestFactsDigest(manifest) };
-	if (supersession.supersededBy === laneId) throw new Error("supersession.supersededBy must identify a different replacement lane.");
+	if (hasActiveChildren(manifest))
+		throw new Error("Lane has an active child owner; supersession must be recorded after local reconciliation.");
+	const supersession = {
+		...normalizeSupersessionEvidence(input.supersession),
+		manifestDigest: manifestFactsDigest(manifest),
+	};
+	if (supersession.supersededBy === laneId)
+		throw new Error("supersession.supersededBy must identify a different replacement lane.");
 	if (manifest.supersession) {
 		const existing = normalizeSupersessionEvidence(manifest.supersession);
-		if (!sameSupersessionEvidence(existing, supersession)) throw new Error("Lane manifest already contains different supersession evidence.");
+		if (!sameSupersessionEvidence(existing, supersession))
+			throw new Error("Lane manifest already contains different supersession evidence.");
 	}
-	const updated: ParallelHandoffManifest = { ...manifest, supersession, cleanupEligibility: cleanupEligibilityForEvidence({ ...manifest, supersession }), updatedAt: input.now ?? Date.now() };
+	const updated: ParallelHandoffManifest = {
+		...manifest,
+		supersession,
+		cleanupEligibility: cleanupEligibilityForEvidence({ ...manifest, supersession }),
+		updatedAt: input.now ?? Date.now(),
+	};
 	writeAtomicJson(input.manifestPath, updated);
-	return { manifest: updated, reference: referenceFor(input.manifestPath, updated), text: formatStoredParallelHandoffCleanup(input.manifestPath, updated) };
+	return {
+		manifest: updated,
+		reference: referenceFor(input.manifestPath, updated),
+		text: formatStoredParallelHandoffCleanup(input.manifestPath, updated),
+	};
 }
 
 function safeHandoffAgentName(agent: string): string {
 	return agent.replace(/[^\w.-]/g, "_");
 }
 
-function missingDiff(input: { manifestPath: string; stepIndex: number; taskIndex: number; agent: string; branch?: string }): WorktreeDiff {
-	const patchPath = path.join(path.dirname(input.manifestPath), `missing-diff-step-${input.stepIndex}-task-${input.taskIndex}-${safeHandoffAgentName(input.agent)}.patch`);
+function missingDiff(input: {
+	manifestPath: string;
+	stepIndex: number;
+	taskIndex: number;
+	agent: string;
+	branch?: string;
+}): WorktreeDiff {
+	const patchPath = path.join(
+		path.dirname(input.manifestPath),
+		`missing-diff-step-${input.stepIndex}-task-${input.taskIndex}-${safeHandoffAgentName(input.agent)}.patch`,
+	);
 	try {
 		fs.mkdirSync(path.dirname(patchPath), { recursive: true });
 		fs.writeFileSync(patchPath, "", "utf-8");
@@ -527,7 +802,9 @@ function missingDiff(input: { manifestPath: string; stepIndex: number; taskIndex
 	};
 }
 
-export function writeParallelHandoffGroup(...args: Parameters<typeof writeParallelHandoffGroupUnlocked>): ReturnType<typeof writeParallelHandoffGroupUnlocked> {
+export function writeParallelHandoffGroup(
+	...args: Parameters<typeof writeParallelHandoffGroupUnlocked>
+): ReturnType<typeof writeParallelHandoffGroupUnlocked> {
 	return withHandoffWriteLock(args[0].manifestPath, () => writeParallelHandoffGroupUnlocked(...args));
 }
 
@@ -548,20 +825,31 @@ function writeParallelHandoffGroupUnlocked(input: {
 }): ParallelHandoffReference {
 	const now = input.now ?? Date.now();
 	const existing = readParallelHandoffManifest(input.manifestPath);
-	if (existing && (existing.runId !== input.runId || existing.mode !== input.mode || existing.source !== input.source)) {
+	if (
+		existing &&
+		(existing.runId !== input.runId || existing.mode !== input.mode || existing.source !== input.source)
+	) {
 		throw new Error(`Parallel handoff manifest belongs to a different run: ${input.manifestPath}`);
 	}
-	const laneBindings = input.laneBindings?.map((binding, index) => normalizeLaneBinding(binding, `parallel handoff lane binding ${index}`));
+	const laneBindings = input.laneBindings?.map((binding, index) =>
+		normalizeLaneBinding(binding, `parallel handoff lane binding ${index}`),
+	);
 	if (laneBindings) {
 		const taskIndexes = new Set<number>();
 		for (const binding of laneBindings) {
-			if (taskIndexes.has(binding.taskIndex)) throw new Error(`Parallel handoff has duplicate lane binding taskIndex ${binding.taskIndex}.`);
-			if (!input.setup.worktrees.some((worktree) => worktree.index === binding.taskIndex)) throw new Error(`Parallel handoff lane binding taskIndex ${binding.taskIndex} has no managed worktree.`);
-			if (binding.index !== input.flatStartIndex + binding.taskIndex) throw new Error(`Parallel handoff lane binding index ${binding.index} does not match taskIndex ${binding.taskIndex}.`);
+			if (taskIndexes.has(binding.taskIndex))
+				throw new Error(`Parallel handoff has duplicate lane binding taskIndex ${binding.taskIndex}.`);
+			if (!input.setup.worktrees.some((worktree) => worktree.index === binding.taskIndex))
+				throw new Error(`Parallel handoff lane binding taskIndex ${binding.taskIndex} has no managed worktree.`);
+			if (binding.index !== input.flatStartIndex + binding.taskIndex)
+				throw new Error(
+					`Parallel handoff lane binding index ${binding.index} does not match taskIndex ${binding.taskIndex}.`,
+				);
 			taskIndexes.add(binding.taskIndex);
 		}
 	}
-	const bindingForTask = (taskIndex: number): ParallelHandoffLaneBinding | undefined => laneBindings?.find((binding) => binding.taskIndex === taskIndex);
+	const bindingForTask = (taskIndex: number): ParallelHandoffLaneBinding | undefined =>
+		laneBindings?.find((binding) => binding.taskIndex === taskIndex);
 	const group: ParallelHandoffGroup = {
 		stepIndex: input.stepIndex,
 		baseCommit: input.setup.baseCommit,
@@ -569,16 +857,24 @@ function writeParallelHandoffGroupUnlocked(input: {
 		children: input.results.map((result, taskIndex) => {
 			const binding = bindingForTask(taskIndex);
 			const runId = optionalIdentity(result.runId ?? binding?.runId, `parallel handoff child ${taskIndex}.runId`);
-			const lane = normalizeWorkflowLaneMetadata(result.lane ?? binding?.lane, `parallel handoff child ${taskIndex}.lane`);
-			const workflowKey = optionalIdentity(result.workflowKey ?? binding?.workflowKey, `parallel handoff child ${taskIndex}.workflowKey`);
+			const lane = normalizeWorkflowLaneMetadata(
+				result.lane ?? binding?.lane,
+				`parallel handoff child ${taskIndex}.lane`,
+			);
+			const workflowKey = optionalIdentity(
+				result.workflowKey ?? binding?.workflowKey,
+				`parallel handoff child ${taskIndex}.workflowKey`,
+			);
 			assertWorkflowLaneKey(lane, workflowKey, `parallel handoff child ${taskIndex}.lane`);
-			const diff = input.diffs[taskIndex] ?? missingDiff({
-				manifestPath: input.manifestPath,
-				stepIndex: input.stepIndex,
-				taskIndex,
-				agent: result.agent,
-				branch: input.setup.worktrees[taskIndex]?.branch,
-			});
+			const diff =
+				input.diffs[taskIndex] ??
+				missingDiff({
+					manifestPath: input.manifestPath,
+					stepIndex: input.stepIndex,
+					taskIndex,
+					agent: result.agent,
+					branch: input.setup.worktrees[taskIndex]?.branch,
+				});
 			return {
 				index: input.flatStartIndex + taskIndex,
 				taskIndex,
@@ -595,7 +891,8 @@ function writeParallelHandoffGroupUnlocked(input: {
 				patch: {
 					path: diff.patchPath,
 					branch: diff.branch,
-					changed: diff.filesChanged > 0 || diff.insertions > 0 || diff.deletions > 0 || diff.diffStat.trim().length > 0,
+					changed:
+						diff.filesChanged > 0 || diff.insertions > 0 || diff.deletions > 0 || diff.diffStat.trim().length > 0,
 					diffStat: diff.diffStat,
 					filesChanged: diff.filesChanged,
 					insertions: diff.insertions,
@@ -623,7 +920,9 @@ function writeParallelHandoffGroupUnlocked(input: {
 		},
 	};
 	for (const task of group.cleanup.tasks) {
-		const previous = existing?.groups.flatMap((item) => item.cleanup.tasks).find((item) => item.path === task.path && item.branch === task.branch);
+		const previous = existing?.groups
+			.flatMap((item) => item.cleanup.tasks)
+			.find((item) => item.path === task.path && item.branch === task.branch);
 		if (previous?.worktreeRemoved) task.worktreeRemoved = true;
 		if (previous?.branchRemoved) task.branchRemoved = true;
 		if (!task.worktreeRemoved && previous?.reason?.includes("retained child resume")) {
@@ -646,8 +945,11 @@ function writeParallelHandoffGroupUnlocked(input: {
 		...(existing && Object.hasOwn(existing, "merge") ? { merge: existing.merge } : {}),
 		...(existing && Object.hasOwn(existing, "supersession") ? { supersession: existing.supersession } : {}),
 	};
-	const carriesCleanupMetadata = existing !== undefined
-		&& (Object.hasOwn(existing, "merge") || Object.hasOwn(existing, "supersession") || Object.hasOwn(existing, "cleanupEligibility"));
+	const carriesCleanupMetadata =
+		existing !== undefined &&
+		(Object.hasOwn(existing, "merge") ||
+			Object.hasOwn(existing, "supersession") ||
+			Object.hasOwn(existing, "cleanupEligibility"));
 	const manifest: ParallelHandoffManifest = {
 		...manifestWithoutEligibility,
 		...(carriesCleanupMetadata
@@ -663,45 +965,72 @@ export function parallelHandoffPath(baseDir: string, runId?: string): string {
 }
 
 /** Synchronous onProgress projection shared by setup owners; snapshots are cumulative. */
-export function writeWorktreeSetupHandoff(input: Omit<Parameters<typeof writeParallelHandoffGroup>[0], "setup" | "diffs" | "results" | "cleanup" | "now"> & {
-	progress: WorktreeSetupProgress;
-}): ParallelHandoffReference | undefined {
+export function writeWorktreeSetupHandoff(
+	input: Omit<Parameters<typeof writeParallelHandoffGroup>[0], "setup" | "diffs" | "results" | "cleanup" | "now"> & {
+		progress: WorktreeSetupProgress;
+	},
+): ParallelHandoffReference | undefined {
 	const { progress, ...handoff } = input;
 	const { setup, attempts, cleanup } = progress;
 	// Preflight has no allocation identity yet. Its original error belongs to the caller.
 	if (attempts.length === 0 && setup.worktrees.length === 0) return undefined;
-	if (!setup.cwd || !setup.baseCommit) throw new Error("Cannot publish worktree allocation evidence without repository and base commit.");
+	if (!setup.cwd || !setup.baseCommit)
+		throw new Error("Cannot publish worktree allocation evidence without repository and base commit.");
 	const diagnostic = (text: string): string => text.slice(0, 512);
 	// Never copy argv, environment, Error objects or captured stdout/stderr into artifacts.
-	const commandEvidence = (command: WorktreeSetupProgress["command"]) => command && ({
-		pid: command.pid,
-		processGroupId: command.processGroupId,
-		...(command.result ? {
-			status: command.result.status,
-			signal: command.result.signal,
-			failed: Boolean(command.result.error),
-			outputIncomplete: command.result.outputIncomplete,
-			processTree: command.result.processTree?.state,
-		} : {}),
-	});
+	const commandEvidence = (command: WorktreeSetupProgress["command"]) =>
+		command && {
+			pid: command.pid,
+			processGroupId: command.processGroupId,
+			...(command.result
+				? {
+						status: command.result.status,
+						signal: command.result.signal,
+						failed: Boolean(command.result.error),
+						outputIncomplete: command.result.outputIncomplete,
+						processTree: command.result.processTree?.state,
+					}
+				: {}),
+		};
 	const errors = [
-		`Worktree setup ${JSON.stringify({ runId: input.runId, stepIndex: input.stepIndex, phase: progress.phase,
-			unknown: Boolean(progress.unknown), command: commandEvidence(progress.command) })}`,
+		`Worktree setup ${JSON.stringify({
+			runId: input.runId,
+			stepIndex: input.stepIndex,
+			phase: progress.phase,
+			unknown: Boolean(progress.unknown),
+			command: commandEvidence(progress.command),
+		})}`,
 		...attempts.map((attempt) => {
 			const task = cleanup?.tasks.find((candidate) => candidate.index === attempt.index);
-			return `Allocation attempt ${JSON.stringify({ index: attempt.index, branch: attempt.branch,
-				path: attempt.path ?? null, validated: attempt.validated,
-				command: commandEvidence(attempt.command), hookCommand: commandEvidence(attempt.hookCommand),
-				...(task ? { worktreeRemoved: task.worktreeRemoved, branchRemoved: task.branchRemoved,
-					preserved: task.preserved, reason: task.reason && diagnostic(task.reason), errors: task.errors?.map(diagnostic) } : {}),
+			return `Allocation attempt ${JSON.stringify({
+				index: attempt.index,
+				branch: attempt.branch,
+				path: attempt.path ?? null,
+				validated: attempt.validated,
+				command: commandEvidence(attempt.command),
+				hookCommand: commandEvidence(attempt.hookCommand),
+				...(task
+					? {
+							worktreeRemoved: task.worktreeRemoved,
+							branchRemoved: task.branchRemoved,
+							preserved: task.preserved,
+							reason: task.reason && diagnostic(task.reason),
+							errors: task.errors?.map(diagnostic),
+						}
+					: {}),
 			})}`;
 		}),
 		...(cleanup?.errors?.map(diagnostic) ?? []),
 		...(progress.unknown ? ["Setup settlement unknown; manual reconciliation required."] : []),
 	];
 	return writeParallelHandoffGroup({
-		...handoff, setup, diffs: [], results: [],
-		laneBindings: input.laneBindings?.filter((binding) => setup.worktrees.some((worktree) => worktree.index === binding.taskIndex)),
+		...handoff,
+		setup,
+		diffs: [],
+		results: [],
+		laneBindings: input.laneBindings?.filter((binding) =>
+			setup.worktrees.some((worktree) => worktree.index === binding.taskIndex),
+		),
 		cleanup: {
 			state: cleanup?.state ?? "partial",
 			pruned: cleanup?.pruned ?? false,
@@ -709,12 +1038,20 @@ export function writeWorktreeSetupHandoff(input: Omit<Parameters<typeof writePar
 			// An attempted native path is not a validated recovery task, even during rollback.
 			tasks: setup.worktrees.map((worktree) => {
 				const task = cleanup?.tasks.find((candidate) => candidate.index === worktree.index);
-				return task ? { ...task, reason: task.reason && diagnostic(task.reason), errors: task.errors?.map(diagnostic) } : {
-					index: worktree.index, path: worktree.path, branch: worktree.branch,
-					provider: worktree.provider, naming: worktree.naming, recordedBaseDir: worktree.recordedBaseDir,
-					worktreeRemoved: false, branchRemoved: false, preserved: true,
-					reason: "setup pending durable handoff capture",
-				};
+				return task
+					? { ...task, reason: task.reason && diagnostic(task.reason), errors: task.errors?.map(diagnostic) }
+					: {
+							index: worktree.index,
+							path: worktree.path,
+							branch: worktree.branch,
+							provider: worktree.provider,
+							naming: worktree.naming,
+							recordedBaseDir: worktree.recordedBaseDir,
+							worktreeRemoved: false,
+							branchRemoved: false,
+							preserved: true,
+							reason: "setup pending durable handoff capture",
+						};
 			}),
 		},
 	});
@@ -728,7 +1065,9 @@ export function formatParallelHandoffError(error: unknown): string {
 	return `Worktree handoff unavailable: ${error instanceof Error ? error.message : String(error)}`;
 }
 
-export function discardPreservedWorktrees(...args: Parameters<typeof discardPreservedWorktreesUnlocked>): ReturnType<typeof discardPreservedWorktreesUnlocked> {
+export function discardPreservedWorktrees(
+	...args: Parameters<typeof discardPreservedWorktreesUnlocked>
+): ReturnType<typeof discardPreservedWorktreesUnlocked> {
 	return withHandoffWriteLock(args[0], () => discardPreservedWorktreesUnlocked(...args));
 }
 
@@ -741,32 +1080,45 @@ function discardPreservedWorktreesUnlocked(
 	if (!manifest) throw new Error(`Parallel handoff manifest not found: ${resolvedPath}`);
 	let attempted = 0;
 	for (const group of manifest.groups) {
-		const pending = group.cleanup.tasks.filter((task) => task.preserved && (!task.worktreeRemoved || !task.branchRemoved));
+		const pending = group.cleanup.tasks.filter(
+			(task) => task.preserved && (!task.worktreeRemoved || !task.branchRemoved),
+		);
 		if (pending.length === 0) continue;
 		attempted += pending.length;
-		const report = cleanupWorktrees({
-			cwd: group.repoRoot,
-			baseCommit: group.baseCommit,
-			worktrees: pending.map((task) => ({
-				path: task.path,
-				agentCwd: task.path,
-				branch: task.branch,
-				...(task.provider ? { provider: task.provider } : {}),
-				...(task.naming ? { naming: task.naming } : {}),
-				...(task.recordedBaseDir ? { recordedBaseDir: task.recordedBaseDir } : {}),
-				index: task.index,
-				nodeModulesLinked: false,
-				syntheticPaths: [],
-			})),
-		}, { kind: "discard", authorization });
-		const updates = new Map(report.tasks.map((task) => [task.index, task.worktreeRemoved && task.branchRemoved
-			? task
-			: { ...task, preserved: true, reason: task.reason ?? "discard cleanup remains incomplete" }]));
+		const report = cleanupWorktrees(
+			{
+				cwd: group.repoRoot,
+				baseCommit: group.baseCommit,
+				worktrees: pending.map((task) => ({
+					path: task.path,
+					agentCwd: task.path,
+					branch: task.branch,
+					...(task.provider ? { provider: task.provider } : {}),
+					...(task.naming ? { naming: task.naming } : {}),
+					...(task.recordedBaseDir ? { recordedBaseDir: task.recordedBaseDir } : {}),
+					index: task.index,
+					nodeModulesLinked: false,
+					syntheticPaths: [],
+				})),
+			},
+			{ kind: "discard", authorization },
+		);
+		const updates = new Map(
+			report.tasks.map((task) => [
+				task.index,
+				task.worktreeRemoved && task.branchRemoved
+					? task
+					: { ...task, preserved: true, reason: task.reason ?? "discard cleanup remains incomplete" },
+			]),
+		);
 		group.cleanup = {
-			state: group.cleanup.tasks.every((task) => {
-				const next = updates.get(task.index) ?? task;
-				return next.worktreeRemoved && next.branchRemoved;
-			}) && report.pruned ? "complete" : "partial",
+			state:
+				group.cleanup.tasks.every((task) => {
+					const next = updates.get(task.index) ?? task;
+					return next.worktreeRemoved && next.branchRemoved;
+				}) && report.pruned
+					? "complete"
+					: "partial",
 			tasks: group.cleanup.tasks.map((task) => updates.get(task.index) ?? task),
 			pruned: report.pruned,
 			...(report.errors ? { errors: report.errors } : {}),
@@ -774,11 +1126,16 @@ function discardPreservedWorktreesUnlocked(
 	}
 	manifest.updatedAt = Date.now();
 	writeAtomicJson(resolvedPath, manifest);
-	const remaining = manifest.groups.flatMap((group) => group.cleanup.tasks.map((task) => ({ group, task })))
+	const remaining = manifest.groups
+		.flatMap((group) => group.cleanup.tasks.map((task) => ({ group, task })))
 		.filter(({ task }) => task.preserved && (!task.worktreeRemoved || !task.branchRemoved));
-	const lines = attempted === 0
-		? [`No preserved worktrees remain in ${resolvedPath}.`]
-		: [`Discard processed ${attempted} preserved worktree${attempted === 1 ? "" : "s"}.`, `Manifest: ${resolvedPath}`];
+	const lines =
+		attempted === 0
+			? [`No preserved worktrees remain in ${resolvedPath}.`]
+			: [
+					`Discard processed ${attempted} preserved worktree${attempted === 1 ? "" : "s"}.`,
+					`Manifest: ${resolvedPath}`,
+				];
 	if (remaining.length > 0) {
 		lines.push("", "Some worktrees remain. Inspect and remove them manually if appropriate:");
 		for (const { group, task } of remaining) {

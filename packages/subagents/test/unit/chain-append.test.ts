@@ -10,13 +10,20 @@ import {
 	readPendingChainAppendRequests,
 	runnerStepOutputNames,
 } from "../../src/runs/background/chain-append.ts";
-import type { AsyncStatus } from "../../src/shared/types.ts";
 import type { RunnerStep } from "../../src/runs/shared/parallel-utils.ts";
-import { claimRunFanoutBatchWithCommit, createRunFanoutBudget, getRunFanoutBudgetSnapshot } from "../../src/runs/shared/run-fanout-budget.ts";
+import {
+	claimRunFanoutBatchWithCommit,
+	createRunFanoutBudget,
+	getRunFanoutBudgetSnapshot,
+} from "../../src/runs/shared/run-fanout-budget.ts";
+import type { AsyncStatus } from "../../src/shared/types.ts";
 import { PROMPT_REDACTED } from "../../src/shared/utils.ts";
 import { createTempDir, removeTempDir } from "../support/helpers.ts";
 
-function writeStatus(asyncDir: string, status: Partial<AsyncStatus> & Pick<AsyncStatus, "runId" | "mode" | "state" | "startedAt">): void {
+function writeStatus(
+	asyncDir: string,
+	status: Partial<AsyncStatus> & Pick<AsyncStatus, "runId" | "mode" | "state" | "startedAt">,
+): void {
 	fs.mkdirSync(asyncDir, { recursive: true });
 	fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify(status), "utf-8");
 }
@@ -124,11 +131,12 @@ describe("chain append requests", () => {
 				runId: "run-bookkeeping",
 				steps: [runnerStep("worker")],
 				now: 200,
-				admit: (persist) => claimRunFanoutBatchWithCommit(budget, ["chain[1]"], () => {
-					persist();
-					fs.rmSync(statusPath, { force: true });
-					fs.mkdirSync(statusPath);
-				}),
+				admit: (persist) =>
+					claimRunFanoutBatchWithCommit(budget, ["chain[1]"], () => {
+						persist();
+						fs.rmSync(statusPath, { force: true });
+						fs.mkdirSync(statusPath);
+					}),
 			});
 
 			assert.equal(result.pendingCount, 1);
@@ -156,12 +164,14 @@ describe("chain append requests", () => {
 			enqueueChainAppendRequest({
 				asyncDir,
 				runId: "run-pending",
-				steps: [{
-					parallel: [
-						{ ...runnerStep("worker"), outputName: "draft" },
-						{ ...runnerStep("reviewer"), outputName: "review" },
-					],
-				}],
+				steps: [
+					{
+						parallel: [
+							{ ...runnerStep("worker"), outputName: "draft" },
+							{ ...runnerStep("reviewer"), outputName: "review" },
+						],
+					},
+				],
 				now: 200,
 			});
 
@@ -187,7 +197,8 @@ describe("chain append requests", () => {
 				steps: [{ agent: "scout", status: "complete" }],
 			});
 			assert.throws(
-				() => enqueueChainAppendRequest({ asyncDir: completeDir, runId: "complete", steps: [runnerStep("worker")] }),
+				() =>
+					enqueueChainAppendRequest({ asyncDir: completeDir, runId: "complete", steps: [runnerStep("worker")] }),
 				/only running chain runs/,
 			);
 
@@ -200,7 +211,8 @@ describe("chain append requests", () => {
 				steps: [{ agent: "scout", status: "running" }],
 			});
 			assert.throws(
-				() => enqueueChainAppendRequest({ asyncDir: parallelDir, runId: "parallel", steps: [runnerStep("worker")] }),
+				() =>
+					enqueueChainAppendRequest({ asyncDir: parallelDir, runId: "parallel", steps: [runnerStep("worker")] }),
 				/only active chain runs/,
 			);
 
@@ -235,24 +247,23 @@ describe("chain append requests", () => {
 				runId: "run-graph",
 				mode: "chain",
 				phases: [],
-				nodes: [{
-					id: "step-0",
-					kind: "step",
-					agent: "scout",
-					label: "scout",
-					status: "completed",
-					flatIndex: 0,
-					stepIndex: 0,
-				}],
+				nodes: [
+					{
+						id: "step-0",
+						kind: "step",
+						agent: "scout",
+						label: "scout",
+						status: "completed",
+						flatIndex: 0,
+						stepIndex: 0,
+					},
+				],
 			},
 		};
 		const appended: RunnerStep[] = [
 			runnerStep("worker"),
 			{
-				parallel: [
-					runnerStep("reviewer"),
-					runnerStep("auditor"),
-				],
+				parallel: [runnerStep("reviewer"), runnerStep("auditor")],
 				concurrency: 2,
 			},
 		];
@@ -263,21 +274,21 @@ describe("chain append requests", () => {
 		assert.equal(status.chainStepCount, 3);
 		assert.equal(status.pendingAppends, 0);
 		assert.equal(status.lastUpdate, 300);
-		assert.deepEqual(status.steps?.map((step) => `${step.agent}:${step.status}`), [
-			"scout:complete",
-			"worker:pending",
-			"reviewer:pending",
-			"auditor:pending",
-		]);
+		assert.deepEqual(
+			status.steps?.map((step) => `${step.agent}:${step.status}`),
+			["scout:complete", "worker:pending", "reviewer:pending", "auditor:pending"],
+		);
 		// Appended steps must not carry raw task text into durable status.
-		assert.deepEqual(status.steps?.slice(1).map((step) => step.description), [
-			PROMPT_REDACTED,
-			PROMPT_REDACTED,
-			PROMPT_REDACTED,
-		]);
+		assert.deepEqual(
+			status.steps?.slice(1).map((step) => step.description),
+			[PROMPT_REDACTED, PROMPT_REDACTED, PROMPT_REDACTED],
+		);
 		assert.deepEqual(status.parallelGroups, [{ start: 2, count: 2, stepIndex: 2 }]);
 		assert.equal(status.workflowGraph?.nodes[1]?.id, "step-1");
 		assert.equal(status.workflowGraph?.nodes[2]?.kind, "parallel-group");
-		assert.deepEqual(status.workflowGraph?.nodes[2]?.children?.map((child) => child.flatIndex), [2, 3]);
+		assert.deepEqual(
+			status.workflowGraph?.nodes[2]?.children?.map((child) => child.flatIndex),
+			[2, 3],
+		);
 	});
 });

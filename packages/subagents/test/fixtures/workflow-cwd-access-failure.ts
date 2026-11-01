@@ -19,13 +19,18 @@ try {
 		runWorkflowScript({
 			processCwd: target,
 			script: `return "unexpected";`,
-			async launch(key) { return { key, ok: true, output: "unexpected", artifactPaths: [] }; },
-			async status(key) { return { key, ok: true, output: "unexpected", artifactPaths: [] }; },
+			async launch(key) {
+				return { key, ok: true, output: "unexpected", artifactPaths: [] };
+			},
+			async status(key) {
+				return { key, ok: true, output: "unexpected", artifactPaths: [] };
+			},
 		}),
-		(error: unknown) => error instanceof Error
-			&& error.message.includes(target)
-			&& error.cause instanceof Error
-			&& (error.cause as NodeJS.ErrnoException).code === "EACCES",
+		(error: unknown) =>
+			error instanceof Error &&
+			error.message.includes(target) &&
+			error.cause instanceof Error &&
+			(error.cause as NodeJS.ErrnoException).code === "EACCES",
 	);
 } finally {
 	fs.accessSync = realAccessSync;

@@ -4,22 +4,33 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 import type { AgentToolResult } from "@evoharness/agent-core";
-import { closeStopInbox, consumeStopRequestPayload, stopRequestPath, stopRequestsDir } from "../../src/runs/background/control-channel.ts";
-import { getArtifactPaths, getArtifactsDir } from "../../src/shared/artifacts.ts";
-import { readStatus } from "../../src/shared/utils.ts";
-import { recordSessionReplacement } from "../../src/shared/session-succession.ts";
-import { readProcessTerminal } from "../../src/runs/background/process-terminal.ts";
-import { writeAsyncResultFile } from "../../src/runs/background/result-files.ts";
 import {
+	registerSubagentRpcBridge,
 	SUBAGENT_RPC_PROTOCOL_VERSION,
 	SUBAGENT_RPC_READY_EVENT,
 	SUBAGENT_RPC_REQUEST_EVENT,
-	registerSubagentRpcBridge,
-	subagentRpcReplyEvent,
 	type SubagentRpcReplyEnvelope,
+	subagentRpcReplyEvent,
 } from "../../src/extension/rpc.ts";
+import {
+	closeStopInbox,
+	consumeStopRequestPayload,
+	stopRequestPath,
+	stopRequestsDir,
+} from "../../src/runs/background/control-channel.ts";
+import { readProcessTerminal } from "../../src/runs/background/process-terminal.ts";
+import { writeAsyncResultFile } from "../../src/runs/background/result-files.ts";
 import type { SubagentParamsLike } from "../../src/runs/foreground/subagent-executor.ts";
-import { DIRS, SUBAGENT_CHILD_STATUS_EVENT, type Details, type SubagentChildStatusEvent, type SubagentState } from "../../src/shared/types.ts";
+import { getArtifactPaths, getArtifactsDir } from "../../src/shared/artifacts.ts";
+import { recordSessionReplacement } from "../../src/shared/session-succession.ts";
+import {
+	type Details,
+	DIRS,
+	SUBAGENT_CHILD_STATUS_EVENT,
+	type SubagentChildStatusEvent,
+	type SubagentState,
+} from "../../src/shared/types.ts";
+import { readStatus } from "../../src/shared/utils.ts";
 
 class FakeEvents {
 	readonly emitted: Array<{ event: string; data: unknown }> = [];
@@ -31,7 +42,10 @@ class FakeEvents {
 		this.handlers.set(event, list);
 		return () => {
 			const current = this.handlers.get(event) ?? [];
-			this.handlers.set(event, current.filter((candidate) => candidate !== handler));
+			this.handlers.set(
+				event,
+				current.filter((candidate) => candidate !== handler),
+			);
 		};
 	}
 
@@ -60,7 +74,12 @@ function ctx(sessionId = "session-123", sessionFile = "/sessions/parent.jsonl") 
 	} as any;
 }
 
-async function request(events: FakeEvents, requestId: string, method: string, params?: unknown): Promise<SubagentRpcReplyEnvelope> {
+async function request(
+	events: FakeEvents,
+	requestId: string,
+	method: string,
+	params?: unknown,
+): Promise<SubagentRpcReplyEnvelope> {
 	const reply = once(events, subagentRpcReplyEvent(requestId)) as Promise<SubagentRpcReplyEnvelope>;
 	events.emit(SUBAGENT_RPC_REQUEST_EVENT, {
 		version: SUBAGENT_RPC_PROTOCOL_VERSION,
@@ -82,7 +101,11 @@ describe("subagent extension RPC bridge", () => {
 
 		const readyPromise = once(events, SUBAGENT_RPC_READY_EVENT);
 		bridge.emitReady(ctx());
-		const ready = await readyPromise as { version?: number; events?: { request?: string }; session?: { cwd?: string } };
+		const ready = (await readyPromise) as {
+			version?: number;
+			events?: { request?: string };
+			session?: { cwd?: string };
+		};
 		assert.equal(ready.version, SUBAGENT_RPC_PROTOCOL_VERSION);
 		assert.equal(ready.events?.request, SUBAGENT_RPC_REQUEST_EVENT);
 		assert.equal(ready.session?.cwd, "/repo");
@@ -91,7 +114,13 @@ describe("subagent extension RPC bridge", () => {
 		assert.equal(reply.success, true);
 		assert.equal(reply.method, "ping");
 		assert.equal((reply as { data: { version?: number } }).data.version, SUBAGENT_RPC_PROTOCOL_VERSION);
-		const advertised = (reply as { data: { events?: { asyncComplete?: string; childStatus?: string; jobsChanged?: string; asyncStarted?: string } } }).data.events;
+		const advertised = (
+			reply as {
+				data: {
+					events?: { asyncComplete?: string; childStatus?: string; jobsChanged?: string; asyncStarted?: string };
+				};
+			}
+		).data.events;
 		assert.equal(advertised?.asyncComplete, "subagent:async-complete");
 		assert.equal(advertised?.childStatus, SUBAGENT_CHILD_STATUS_EVENT);
 		assert.equal(advertised?.jobsChanged, "subagent:jobs-changed");
@@ -100,30 +129,35 @@ describe("subagent extension RPC bridge", () => {
 			(reply as { data: { capabilities?: { nonRecoveringSteer?: boolean } } }).data.capabilities?.nonRecoveringSteer,
 			true,
 		);
-		assert.equal(
-			(reply as { data: { capabilities?: { resume?: boolean } } }).data.capabilities?.resume,
-			true,
-		);
+		assert.equal((reply as { data: { capabilities?: { resume?: boolean } } }).data.capabilities?.resume, true);
 		assert.deepEqual(
 			(reply as { data: { capabilities?: { managementActions?: unknown } } }).data.capabilities?.managementActions,
-			["schedule.list", "schedule.show", "schedule.history", "schedule.pause", "schedule.resume", "schedule.run", "schedule.delete"],
+			[
+				"schedule.list",
+				"schedule.show",
+				"schedule.history",
+				"schedule.pause",
+				"schedule.resume",
+				"schedule.run",
+				"schedule.delete",
+			],
 		);
 		assert.deepEqual(
 			(reply as { data: { capabilities?: { fleetStatus?: unknown } } }).data.capabilities?.fleetStatus,
 			{ version: 1 },
 		);
 		assert.deepEqual(
-			(reply as { data: { capabilities?: { asyncStatusSnapshot?: unknown } } }).data.capabilities?.asyncStatusSnapshot,
+			(reply as { data: { capabilities?: { asyncStatusSnapshot?: unknown } } }).data.capabilities
+				?.asyncStatusSnapshot,
 			{ kind: "pi-subagents.async-status-snapshot", version: 1 },
 		);
 		assert.deepEqual(
 			(reply as { data: { capabilities?: { statusProjection?: unknown } } }).data.capabilities?.statusProjection,
 			{ version: 1, untargeted: "in-memory-when-ready", targeted: "executor" },
 		);
-		assert.deepEqual(
-			(reply as { data: { capabilities?: { cost?: unknown } } }).data.capabilities?.cost,
-			{ version: 1 },
-		);
+		assert.deepEqual((reply as { data: { capabilities?: { cost?: unknown } } }).data.capabilities?.cost, {
+			version: 1,
+		});
 		assert.ok((reply as { data: { methods?: string[] } }).data.methods?.includes("cost"));
 
 		bridge.dispose();
@@ -149,7 +183,10 @@ describe("subagent extension RPC bridge", () => {
 		assert.equal(reply.success, false);
 		assert.equal(reply.requestId, "unknown");
 		assert.equal((reply as { error: { code: string } }).error.code, "invalid_request");
-		assert.equal(events.emitted.some((entry) => entry.event === subagentRpcReplyEvent(unsafeRequestId)), false);
+		assert.equal(
+			events.emitted.some((entry) => entry.event === subagentRpcReplyEvent(unsafeRequestId)),
+			false,
+		);
 
 		bridge.dispose();
 	});
@@ -162,7 +199,10 @@ describe("subagent extension RPC bridge", () => {
 			getContext: () => ctx(),
 			execute: async (_id, params) => {
 				executedParams = params;
-				return { content: [{ type: "text", text: "Run: abc123" }], details: { mode: "management", results: [] } } as any;
+				return {
+					content: [{ type: "text", text: "Run: abc123" }],
+					details: { mode: "management", results: [] },
+				} as any;
 			},
 		});
 
@@ -173,7 +213,11 @@ describe("subagent extension RPC bridge", () => {
 		assert.equal((reply as { data: { text?: string } }).data.text, "Run: abc123");
 		assert.deepEqual((reply as { data: { details?: unknown } }).data.details, { mode: "management", results: [] });
 		assert.deepEqual((reply as { data: { fleet?: unknown } }).data.fleet, {
-			version: 1, entries: [], totalActive: 0, topLevelAsyncCapacity: { used: 0, limit: 0 }, omitted: 0,
+			version: 1,
+			entries: [],
+			totalActive: 0,
+			topLevelAsyncCapacity: { used: 0, limit: 0 },
+			omitted: 0,
 		});
 
 		bridge.dispose();
@@ -185,10 +229,19 @@ describe("subagent extension RPC bridge", () => {
 			currentSessionId: "session-123",
 			statusProjectionSessionId: "session-123",
 			foregroundControls: new Map(),
-			asyncJobs: new Map([[
-				"private-id",
-				{ asyncId: "private-id", sessionId: "session-123", status: "running", mode: "single", startedAt: 100, agents: ["worker"] },
-			]]),
+			asyncJobs: new Map([
+				[
+					"private-id",
+					{
+						asyncId: "private-id",
+						sessionId: "session-123",
+						status: "running",
+						mode: "single",
+						startedAt: 100,
+						agents: ["worker"],
+					},
+				],
+			]),
 		} as any;
 		let executeCalls = 0;
 		const bridge = registerSubagentRpcBridge({
@@ -208,7 +261,10 @@ describe("subagent extension RPC bridge", () => {
 		assert.equal((reply as { data: { text?: string } }).data.text, "In-memory subagent status: 1 active child.");
 		assert.deepEqual((reply as any).data.details, { mode: "management", results: [] });
 		assert.equal((reply as any).data.fleet.totalActive, 1);
-		assert.deepEqual((reply as any).data.asyncSnapshot.runs.map((run: { id: string }) => run.id), ["private-id"]);
+		assert.deepEqual(
+			(reply as any).data.asyncSnapshot.runs.map((run: { id: string }) => run.id),
+			["private-id"],
+		);
 
 		bridge.dispose();
 	});
@@ -228,7 +284,10 @@ describe("subagent extension RPC bridge", () => {
 			state,
 			execute: async (_id, params) => {
 				executed.push(params);
-				return { content: [{ type: "text", text: "canonical status" }], details: { mode: "single", results: [] } } as any;
+				return {
+					content: [{ type: "text", text: "canonical status" }],
+					details: { mode: "single", results: [] },
+				} as any;
 			},
 		});
 
@@ -259,7 +318,12 @@ describe("subagent extension RPC bridge", () => {
 			},
 		});
 
-		const reply = await request(events, "status-transcript", "status", { id: "run-1", view: "transcript", lines: 25, index: 2 });
+		const reply = await request(events, "status-transcript", "status", {
+			id: "run-1",
+			view: "transcript",
+			lines: 25,
+			index: 2,
+		});
 		assert.equal(reply.success, true);
 		assert.deepEqual(executed, [{ action: "status", id: "run-1", index: 2, view: "transcript", lines: 25 }]);
 
@@ -279,16 +343,19 @@ describe("subagent extension RPC bridge", () => {
 			getContext: () => ctx(),
 			execute: async (_id, params) => {
 				executed.push(params);
-				return { content: [{ type: "text", text: "ok" }], details: { mode: "management", results: [] } } satisfies AgentToolResult<Details>;
+				return {
+					content: [{ type: "text", text: "ok" }],
+					details: { mode: "management", results: [] },
+				} satisfies AgentToolResult<Details>;
 			},
 		});
 
 		assert.equal((await request(events, "manage-list", "manage", { action: "schedule.list" })).success, true);
-		assert.equal((await request(events, "manage-pause", "manage", { action: "schedule.pause", id: "nightly" })).success, true);
-		assert.deepEqual(executed, [
-			{ action: "schedule.list" },
-			{ action: "schedule.pause", id: "nightly" },
-		]);
+		assert.equal(
+			(await request(events, "manage-pause", "manage", { action: "schedule.pause", id: "nightly" })).success,
+			true,
+		);
+		assert.deepEqual(executed, [{ action: "schedule.list" }, { action: "schedule.pause", id: "nightly" }]);
 
 		const denied = await request(events, "manage-denied", "manage", { action: "mission.close", id: "mission-1" });
 		assert.equal(denied.success, false);
@@ -321,16 +388,22 @@ describe("subagent extension RPC bridge", () => {
 			config: { scheduledRuns: { enabled: true } },
 			storeRoot: path.join(root, "stores"),
 			now: () => Date.parse("2030-01-01T00:00:00Z"),
-			launch: (params) => new Promise((resolve) => launches.push({ params: params as Record<string, unknown>, resolve: resolve as Launch["resolve"] })) as never,
+			launch: (params) =>
+				new Promise((resolve) =>
+					launches.push({ params: params as Record<string, unknown>, resolve: resolve as Launch["resolve"] }),
+				) as never,
 		});
 		manager.bindSession(scheduleCtx as never);
-		const created = await manager.handleToolCall({
-			action: "schedule.create",
-			id: "quiet-hourly",
-			every: "1h",
-			quiet: true,
-			workflowScript: "return runs.run('main', { agent: 'worker', task: 'Maintain backlog' })",
-		}, scheduleCtx as never);
+		const created = await manager.handleToolCall(
+			{
+				action: "schedule.create",
+				id: "quiet-hourly",
+				every: "1h",
+				quiet: true,
+				workflowScript: "return runs.run('main', { agent: 'worker', task: 'Maintain backlog' })",
+			},
+			scheduleCtx as never,
+		);
 		assert.equal(created.isError, undefined);
 
 		const events = new FakeEvents();
@@ -343,14 +416,28 @@ describe("subagent extension RPC bridge", () => {
 			const noisy = request(events, "run-noisy", "manage", { action: "schedule.run", id: "quiet-hourly" });
 			for (let i = 0; i < 8; i++) await Promise.resolve();
 			assert.equal("quiet" in (launches[0]?.params.scheduleOrigin as Record<string, unknown>), false);
-			launches[0]!.resolve({ content: [{ type: "text", text: "Async" }], details: { mode: "single", results: [], asyncId: "rpc-loud" } });
+			launches[0]!.resolve({
+				content: [{ type: "text", text: "Async" }],
+				details: { mode: "single", results: [], asyncId: "rpc-loud" },
+			});
 			assert.equal((await noisy).success, true);
 			manager.handleAsyncCompletion({ runId: "rpc-loud", success: true, summary: "Done" });
 
-			const quiet = request(events, "run-quiet", "manage", { action: "schedule.run", id: "quiet-hourly", quiet: true });
+			const quiet = request(events, "run-quiet", "manage", {
+				action: "schedule.run",
+				id: "quiet-hourly",
+				quiet: true,
+			});
 			for (let i = 0; i < 8; i++) await Promise.resolve();
-			assert.deepEqual(launches[1]?.params.scheduleOrigin, { id: "quiet-hourly", name: "workflow -> agent worker", quiet: true });
-			launches[1]!.resolve({ content: [{ type: "text", text: "Async" }], details: { mode: "single", results: [], asyncId: "rpc-quiet" } });
+			assert.deepEqual(launches[1]?.params.scheduleOrigin, {
+				id: "quiet-hourly",
+				name: "workflow -> agent worker",
+				quiet: true,
+			});
+			launches[1]!.resolve({
+				content: [{ type: "text", text: "Async" }],
+				details: { mode: "single", results: [], asyncId: "rpc-quiet" },
+			});
 			assert.equal((await quiet).success, true);
 		} finally {
 			bridge.dispose();
@@ -364,15 +451,40 @@ describe("subagent extension RPC bridge", () => {
 		const state = {
 			currentSessionId: "/sessions/parent.jsonl",
 			foregroundControls: new Map(),
-			asyncJobs: new Map([["async-private-id", {
-				asyncId: "async-private-id", sessionId: "/sessions/parent.jsonl", status: "running", mode: "single",
-				description: ["Review", "\u001b]8;;hostile\u0007", "the diff"].join("\n"),
-				startedAt: 100, steps: [{ agent: "reviewer", label: "opaque label", status: "running", startedAt: 120, model: "anthropic/claude-opus-4-8:high", thinking: "high", tokens: { input: 12, output: 34, total: 46, window: 40, windowPeak: 44 } }],
-			}]]),
+			asyncJobs: new Map([
+				[
+					"async-private-id",
+					{
+						asyncId: "async-private-id",
+						sessionId: "/sessions/parent.jsonl",
+						status: "running",
+						mode: "single",
+						description: ["Review", "\u001b]8;;hostile\u0007", "the diff"].join("\n"),
+						startedAt: 100,
+						steps: [
+							{
+								agent: "reviewer",
+								label: "opaque label",
+								status: "running",
+								startedAt: 120,
+								model: "anthropic/claude-opus-4-8:high",
+								thinking: "high",
+								tokens: { input: 12, output: 34, total: 46, window: 40, windowPeak: 44 },
+							},
+						],
+					},
+				],
+			]),
 		} as any;
 		const bridge = registerSubagentRpcBridge({
-			events, getContext: () => ctx("runtime-session-id", "/sessions/parent.jsonl"), state,
-			execute: async () => ({ content: [{ type: "text", text: "Active async runs: 1" }], details: { mode: "management", results: [] } } as any),
+			events,
+			getContext: () => ctx("runtime-session-id", "/sessions/parent.jsonl"),
+			state,
+			execute: async () =>
+				({
+					content: [{ type: "text", text: "Active async runs: 1" }],
+					details: { mode: "management", results: [] },
+				}) as any,
 		});
 		const reply = await request(events, "fleet-status", "status");
 		const fleet = (reply as { data: { fleet: { entries: Array<Record<string, unknown>> } } }).data.fleet;
@@ -380,8 +492,13 @@ describe("subagent extension RPC bridge", () => {
 		assert.equal((fleet as { totalActive?: number }).totalActive, 1);
 		assert.equal((fleet as { omitted?: number }).omitted, 0);
 		assert.deepEqual(fleet.entries[0], {
-			key: "fleet-1", agent: "reviewer", role: "opaque label", model: "anthropic/claude-opus-4-8:high", effort: "high",
-			startedAt: 120, tokens: { input: 12, output: 34, total: 46, window: 40, windowPeak: 44 },
+			key: "fleet-1",
+			agent: "reviewer",
+			role: "opaque label",
+			model: "anthropic/claude-opus-4-8:high",
+			effort: "high",
+			startedAt: 120,
+			tokens: { input: 12, output: 34, total: 46, window: 40, windowPeak: 44 },
 		});
 		assert.equal(JSON.stringify(fleet).includes("Review the diff"), false);
 		assert.equal(JSON.stringify(fleet).includes("async-private-id"), false);
@@ -393,15 +510,26 @@ describe("subagent extension RPC bridge", () => {
 		const state = {
 			currentSessionId: "session-123",
 			foregroundControls: new Map(),
-			asyncJobs: new Map([["unicode", {
-				asyncId: "unicode", sessionId: "session-123", status: "running", mode: "single", startedAt: 1,
-				description: "start\n" + "😀".repeat(257),
-				agents: [`worker\ud800broken\udc00${"😀".repeat(45)}`],
-			}]]),
+			asyncJobs: new Map([
+				[
+					"unicode",
+					{
+						asyncId: "unicode",
+						sessionId: "session-123",
+						status: "running",
+						mode: "single",
+						startedAt: 1,
+						description: "start\n" + "😀".repeat(257),
+						agents: [`worker\ud800broken\udc00${"😀".repeat(45)}`],
+					},
+				],
+			]),
 		} as any;
 		const bridge = registerSubagentRpcBridge({
-			events, getContext: () => ctx("session-123", "session-123"), state,
-			execute: async () => ({ content: [], details: { mode: "management", results: [] } } as any),
+			events,
+			getContext: () => ctx("session-123", "session-123"),
+			state,
+			execute: async () => ({ content: [], details: { mode: "management", results: [] } }) as any,
 		});
 		const reply = await request(events, "fleet-unicode", "status");
 		const entry = (reply as any).data.fleet.entries[0];
@@ -419,33 +547,50 @@ describe("subagent extension RPC bridge", () => {
 		const state = {
 			currentSessionId: "/sessions/parent.jsonl",
 			foregroundControls: new Map(),
-			asyncJobs: new Map([["run-1", {
-				asyncId: "run-1",
-				asyncDir: "/tmp/PRIVATE_RPC_LEAK/run-1",
-				cwd: "/repo/PRIVATE_RPC_LEAK",
-				sessionDir: "/sessions/PRIVATE_RPC_LEAK",
-				outputFile: "/tmp/PRIVATE_RPC_LEAK/output.log",
-				sessionId: "/sessions/parent.jsonl",
-				status: "running",
-				mode: "single",
-				agents: ["worker"],
-				currentTool: "read",
-				steps: [{ agent: "worker", status: "running", currentToolArgs: "PRIVATE_RPC_LEAK args", recentOutput: ["PRIVATE_RPC_LEAK output"] }],
-			}]]),
-			fleetJobs: new Map([["done", {
-				asyncId: "done",
-				asyncDir: "/tmp/done",
-				sessionId: "/sessions/parent.jsonl",
-				status: "complete",
-				agents: ["reviewer"],
-				updatedAt: 50,
-			}]]),
+			asyncJobs: new Map([
+				[
+					"run-1",
+					{
+						asyncId: "run-1",
+						asyncDir: "/tmp/PRIVATE_RPC_LEAK/run-1",
+						cwd: "/repo/PRIVATE_RPC_LEAK",
+						sessionDir: "/sessions/PRIVATE_RPC_LEAK",
+						outputFile: "/tmp/PRIVATE_RPC_LEAK/output.log",
+						sessionId: "/sessions/parent.jsonl",
+						status: "running",
+						mode: "single",
+						agents: ["worker"],
+						currentTool: "read",
+						steps: [
+							{
+								agent: "worker",
+								status: "running",
+								currentToolArgs: "PRIVATE_RPC_LEAK args",
+								recentOutput: ["PRIVATE_RPC_LEAK output"],
+							},
+						],
+					},
+				],
+			]),
+			fleetJobs: new Map([
+				[
+					"done",
+					{
+						asyncId: "done",
+						asyncDir: "/tmp/done",
+						sessionId: "/sessions/parent.jsonl",
+						status: "complete",
+						agents: ["reviewer"],
+						updatedAt: 50,
+					},
+				],
+			]),
 		} as any;
 		const bridge = registerSubagentRpcBridge({
 			events,
 			getContext: () => ctx("runtime-session-id", "/sessions/parent.jsonl"),
 			state,
-			execute: async () => ({ content: [], details: { mode: "management", results: [] } } as any),
+			execute: async () => ({ content: [], details: { mode: "management", results: [] } }) as any,
 		});
 
 		const reply = await request(events, "async-snapshot", "status");
@@ -463,24 +608,34 @@ describe("subagent extension RPC bridge", () => {
 		const events = new FakeEvents();
 		const state = {
 			currentSessionId: "session-123",
-			foregroundControls: new Map([["private-run", {
-				runId: "private-run",
-				sessionId: "session-123",
-				mode: "single",
-				startedAt: 90,
-				activeChildren: new Map([[0, {
-					index: 0,
-					agent: "worker",
-					description: "Implement the fix",
-					startedAt: 100,
-					updatedAt: 110,
-					model: "openai/gpt-5.6-terra:high",
-					thinking: "high",
-					inputTokens: 321,
-					outputTokens: 45,
-					tokens: 366,
-				}]]),
-			}]]),
+			foregroundControls: new Map([
+				[
+					"private-run",
+					{
+						runId: "private-run",
+						sessionId: "session-123",
+						mode: "single",
+						startedAt: 90,
+						activeChildren: new Map([
+							[
+								0,
+								{
+									index: 0,
+									agent: "worker",
+									description: "Implement the fix",
+									startedAt: 100,
+									updatedAt: 110,
+									model: "openai/gpt-5.6-terra:high",
+									thinking: "high",
+									inputTokens: 321,
+									outputTokens: 45,
+									tokens: 366,
+								},
+							],
+						]),
+					},
+				],
+			]),
 			asyncJobs: new Map(),
 			activeAsyncCapacity: { used: 2, limit: 4 },
 		} as any;
@@ -496,7 +651,7 @@ describe("subagent extension RPC bridge", () => {
 			events,
 			getContext: () => ctx("session-123", "session-123"),
 			state,
-			execute: async () => ({ content: [], details: { mode: "management", results: [] } } as any),
+			execute: async () => ({ content: [], details: { mode: "management", results: [] } }) as any,
 		});
 		const reply = await request(events, "foreground-fleet", "status");
 		assert.deepEqual((reply as any).data.fleet, {
@@ -504,14 +659,16 @@ describe("subagent extension RPC bridge", () => {
 			totalActive: 1,
 			topLevelAsyncCapacity: { used: 2, limit: 4 },
 			omitted: 0,
-			entries: [{
-				key: "fleet-1",
-				agent: "worker",
-				model: "openai/gpt-5.6-terra:high",
-				effort: "high",
-				startedAt: 100,
-				tokens: { input: 321, output: 45, total: 366 },
-			}],
+			entries: [
+				{
+					key: "fleet-1",
+					agent: "worker",
+					model: "openai/gpt-5.6-terra:high",
+					effort: "high",
+					startedAt: 100,
+					tokens: { input: 321, output: 45, total: 366 },
+				},
+			],
 		});
 		assert.equal(JSON.stringify((reply as any).data.fleet).includes("private-run"), false);
 		bridge.dispose();
@@ -520,21 +677,58 @@ describe("subagent extension RPC bridge", () => {
 	it("uses monotonic opaque keys across removal/insertion and resets them per session", async () => {
 		const events = new FakeEvents();
 		const jobs = new Map<string, any>([
-			["private-a", { asyncId: "private-a", sessionId: "A", status: "running", mode: "single", startedAt: 1, agents: ["alpha"] }],
-			["private-b", { asyncId: "private-b", sessionId: "A", status: "running", mode: "single", startedAt: 2, agents: ["beta"] }],
-			["private-unattributed", { asyncId: "private-unattributed", status: "running", mode: "single", startedAt: 3, agents: ["unknown"] }],
+			[
+				"private-a",
+				{
+					asyncId: "private-a",
+					sessionId: "A",
+					status: "running",
+					mode: "single",
+					startedAt: 1,
+					agents: ["alpha"],
+				},
+			],
+			[
+				"private-b",
+				{ asyncId: "private-b", sessionId: "A", status: "running", mode: "single", startedAt: 2, agents: ["beta"] },
+			],
+			[
+				"private-unattributed",
+				{ asyncId: "private-unattributed", status: "running", mode: "single", startedAt: 3, agents: ["unknown"] },
+			],
 		]);
 		const state = { currentSessionId: "A", foregroundControls: new Map(), asyncJobs: jobs } as any;
 		let activeSession = "A";
-		const bridge = registerSubagentRpcBridge({ events, getContext: () => ctx(activeSession, activeSession), state, execute: async () => ({ content: [], details: { mode: "management", results: [] } } as any) });
-		const keys = async (id: string) => ((await request(events, id, "status")) as any).data.fleet.entries.map((entry: { key: string }) => entry.key);
+		const bridge = registerSubagentRpcBridge({
+			events,
+			getContext: () => ctx(activeSession, activeSession),
+			state,
+			execute: async () => ({ content: [], details: { mode: "management", results: [] } }) as any,
+		});
+		const keys = async (id: string) =>
+			((await request(events, id, "status")) as any).data.fleet.entries.map((entry: { key: string }) => entry.key);
 		assert.deepEqual(await keys("keys-a"), ["fleet-1", "fleet-2"]);
-		jobs.delete("private-b"); jobs.set("private-c", { asyncId: "private-c", sessionId: "A", status: "running", mode: "single", startedAt: 3, agents: ["gamma"] });
+		jobs.delete("private-b");
+		jobs.set("private-c", {
+			asyncId: "private-c",
+			sessionId: "A",
+			status: "running",
+			mode: "single",
+			startedAt: 3,
+			agents: ["gamma"],
+		});
 		assert.deepEqual(await keys("keys-b"), ["fleet-1", "fleet-3"]);
 		state.currentSessionId = "B";
 		activeSession = "B";
 		assert.deepEqual(await keys("keys-c"), []);
-		jobs.set("private-d", { asyncId: "private-d", sessionId: "B", status: "running", mode: "single", startedAt: 4, agents: ["delta"] });
+		jobs.set("private-d", {
+			asyncId: "private-d",
+			sessionId: "B",
+			status: "running",
+			mode: "single",
+			startedAt: 4,
+			agents: ["delta"],
+		});
 		assert.deepEqual(await keys("keys-d"), ["fleet-1"]);
 		bridge.dispose();
 	});
@@ -552,14 +746,27 @@ describe("subagent extension RPC bridge", () => {
 				agents: [`worker-${index}`],
 			});
 		}
-		jobs.set("unattributed", { asyncId: "unattributed", status: "running", mode: "single", startedAt: 20, agents: ["hidden"] });
-		jobs.set("foreign", { asyncId: "foreign", sessionId: "other", status: "running", mode: "single", startedAt: 21, agents: ["hidden"] });
+		jobs.set("unattributed", {
+			asyncId: "unattributed",
+			status: "running",
+			mode: "single",
+			startedAt: 20,
+			agents: ["hidden"],
+		});
+		jobs.set("foreign", {
+			asyncId: "foreign",
+			sessionId: "other",
+			status: "running",
+			mode: "single",
+			startedAt: 21,
+			agents: ["hidden"],
+		});
 		const state = { currentSessionId: "session-123", foregroundControls: new Map(), asyncJobs: jobs } as any;
 		const bridge = registerSubagentRpcBridge({
 			events,
 			getContext: () => ctx("session-123", "session-123"),
 			state,
-			execute: async () => ({ content: [], details: { mode: "management", results: [] } } as any),
+			execute: async () => ({ content: [], details: { mode: "management", results: [] } }) as any,
 		});
 		const reply = await request(events, "fleet-overflow", "status");
 		const fleet = (reply as any).data.fleet;
@@ -579,8 +786,28 @@ describe("subagent extension RPC bridge", () => {
 			statusProjectionSessionId: "/sessions/rpc-fleet-successor.jsonl",
 			foregroundControls: new Map(),
 			asyncJobs: new Map([
-				["inherited-run", { asyncId: "inherited-run", sessionId: "/sessions/rpc-fleet-replaced.jsonl", status: "running", mode: "single", startedAt: 1, agents: ["inherited-agent"] }],
-				["foreign-run", { asyncId: "foreign-run", sessionId: "/sessions/rpc-fleet-other.jsonl", status: "running", mode: "single", startedAt: 2, agents: ["foreign-agent"] }],
+				[
+					"inherited-run",
+					{
+						asyncId: "inherited-run",
+						sessionId: "/sessions/rpc-fleet-replaced.jsonl",
+						status: "running",
+						mode: "single",
+						startedAt: 1,
+						agents: ["inherited-agent"],
+					},
+				],
+				[
+					"foreign-run",
+					{
+						asyncId: "foreign-run",
+						sessionId: "/sessions/rpc-fleet-other.jsonl",
+						status: "running",
+						mode: "single",
+						startedAt: 2,
+						agents: ["foreign-agent"],
+					},
+				],
 			]),
 		} as any;
 		const bridge = registerSubagentRpcBridge({
@@ -591,8 +818,14 @@ describe("subagent extension RPC bridge", () => {
 		});
 		const reply = await request(events, "fleet-inherited", "status");
 		const data = (reply as any).data;
-		assert.deepEqual(data.fleet.entries.map((entry: { agent: string }) => entry.agent), ["inherited-agent"]);
-		assert.deepEqual(data.asyncSnapshot.runs.map((run: { id: string }) => run.id), ["inherited-run"]);
+		assert.deepEqual(
+			data.fleet.entries.map((entry: { agent: string }) => entry.agent),
+			["inherited-agent"],
+		);
+		assert.deepEqual(
+			data.asyncSnapshot.runs.map((run: { id: string }) => run.id),
+			["inherited-run"],
+		);
 		bridge.dispose();
 	});
 
@@ -611,7 +844,9 @@ describe("subagent extension RPC bridge", () => {
 			},
 		});
 
-		const reply = await request(events, "spawn-1", "spawn", { script: "return runs.run('main', { agent: 'worker', task: 'Do work' })" });
+		const reply = await request(events, "spawn-1", "spawn", {
+			script: "return runs.run('main', { agent: 'worker', task: 'Do work' })",
+		});
 
 		assert.equal(reply.success, true);
 		assert.equal(executed[0]?.workflowScript, "return runs.run('main', { agent: 'worker', task: 'Do work' })");
@@ -623,7 +858,10 @@ describe("subagent extension RPC bridge", () => {
 		assert.deepEqual([executed[1]?.workflow, executed[1]?.workflowScript], ["./ci/sweep.js", undefined]);
 		for (const [params, message] of [
 			[{ workflowScript: "return 1" }, /workflowScript was removed; pass inline script text as script/],
-			[{ workflowScriptPath: "ci/sweep.js" }, /workflowScriptPath was removed; pass the file as workflow: "\.\/path\/to\/script\.js"/],
+			[
+				{ workflowScriptPath: "ci/sweep.js" },
+				/workflowScriptPath was removed; pass the file as workflow: "\.\/path\/to\/script\.js"/,
+			],
 			[{ workflow: true }, /no reply block for workflow: true/],
 			[{ workflow: "true" }, /no reply block for workflow: true/],
 			[{ script: "return 1", workflow: "./ci/sweep.js" }, /script cannot be combined with workflow/],
@@ -644,11 +882,17 @@ describe("subagent extension RPC bridge", () => {
 			getContext: () => ctx(),
 			execute: async (_id, params) => {
 				executedParams = params;
-				return { content: [{ type: "text", text: "Async: worker [run-1]" }], details: { mode: "single", results: [] } } as any;
+				return {
+					content: [{ type: "text", text: "Async: worker [run-1]" }],
+					details: { mode: "single", results: [] },
+				} as any;
 			},
 		});
 
-		const reply = await request(events, "spawn-worktree", "spawn", { script: "return runs.run('main', { agent: 'worker', task: 'Do work' })", worktree: true });
+		const reply = await request(events, "spawn-worktree", "spawn", {
+			script: "return runs.run('main', { agent: 'worker', task: 'Do work' })",
+			worktree: true,
+		});
 
 		assert.equal(reply.success, true);
 		assert.equal(executedParams.worktree, true);
@@ -662,17 +906,25 @@ describe("subagent extension RPC bridge", () => {
 		const bridge = registerSubagentRpcBridge({
 			events,
 			getContext: () => ctx(),
-			execute: async () => { executeCalls++; throw new Error("unreachable"); },
+			execute: async () => {
+				executeCalls++;
+				throw new Error("unreachable");
+			},
 		});
 
 		const chainReply = await request(events, "spawn-chain", "spawn", { chain: [{ agent: "worker" }] });
-		const parallelReply = await request(events, "spawn-parallel", "spawn", { tasks: [{ agent: "worker", task: "work" }] });
+		const parallelReply = await request(events, "spawn-parallel", "spawn", {
+			tasks: [{ agent: "worker", task: "work" }],
+		});
 		const worktreeReply = await request(events, "spawn-worktree", "spawn", { worktree: true });
 
 		assert.equal(chainReply.success, false);
 		assert.equal(parallelReply.success, false);
 		assert.equal(worktreeReply.success, false);
-		assert.match((chainReply as { error?: { message?: string } }).error?.message ?? "", /removed; use a workflow script/);
+		assert.match(
+			(chainReply as { error?: { message?: string } }).error?.message ?? "",
+			/removed; use a workflow script/,
+		);
 		assert.equal(executeCalls, 0);
 		bridge.dispose();
 	});
@@ -685,7 +937,10 @@ describe("subagent extension RPC bridge", () => {
 			getContext: () => ctx(),
 			execute: async (_id, params) => {
 				executedParams = params;
-				return { content: [{ type: "text", text: "Async: worker [run-1]" }], details: { mode: "workflow", results: [], asyncId: "run-1" } } as any;
+				return {
+					content: [{ type: "text", text: "Async: worker [run-1]" }],
+					details: { mode: "workflow", results: [], asyncId: "run-1" },
+				} as any;
 			},
 		});
 
@@ -711,7 +966,11 @@ describe("subagent extension RPC bridge", () => {
 			},
 		});
 
-		const foreground = await request(events, "spawn-foreground", "spawn", { agent: "worker", task: "Do work", async: false });
+		const foreground = await request(events, "spawn-foreground", "spawn", {
+			agent: "worker",
+			task: "Do work",
+			async: false,
+		});
 		const management = await request(events, "spawn-management", "spawn", { action: "list" });
 
 		assert.equal(foreground.success, false);
@@ -883,7 +1142,10 @@ describe("subagent extension RPC bridge", () => {
 			getContext: () => ctx(),
 			execute: async (_id, params) => {
 				executedParams = params;
-				return { content: [{ type: "text", text: "Interrupt requested for async run abc123." }], details: { mode: "management", results: [] } } as any;
+				return {
+					content: [{ type: "text", text: "Interrupt requested for async run abc123." }],
+					details: { mode: "management", results: [] },
+				} as any;
 			},
 		});
 
@@ -896,7 +1158,14 @@ describe("subagent extension RPC bridge", () => {
 	});
 
 	for (const inboxClosed of [false, true]) {
-		for (const proof of ["observed", "missing", "unknown", "foreign-run", "foreign-runner", "missing-identity"] as const) {
+		for (const proof of [
+			"observed",
+			"missing",
+			"unknown",
+			"foreign-run",
+			"foreign-runner",
+			"missing-identity",
+		] as const) {
 			it(`handles paused RPC stop with ${proof} proof and ${inboxClosed ? "closed" : "open"} inbox`, async (t) => {
 				const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-paused-"));
 				t.after(() => fs.rmSync(root, { recursive: true, force: true }));
@@ -906,28 +1175,60 @@ describe("subagent extension RPC bridge", () => {
 				const statusPath = path.join(asyncDir, "status.json");
 				const proofPath = path.join(asyncDir, "process-terminal.json");
 				fs.mkdirSync(asyncDir, { recursive: true });
-				fs.writeFileSync(statusPath, JSON.stringify({
-					runId, sessionId: "/sessions/parent.jsonl", mode: "single", state: "paused",
-					startedAt: 100, lastUpdate: 100,
-					...(proof !== "missing-identity" ? { processTerminal: { version: 1, state: "pending", runId, runnerProcessInstanceId: "runner-a" } } : {}),
-					steps: [{ agent: "done", status: "completed" }, { agent: "worker", status: "paused" }],
-				}));
-				if (proof !== "missing") fs.writeFileSync(proofPath, JSON.stringify({
-					version: 1, state: proof === "unknown" ? "unknown" : "observed",
-					runId: proof === "foreign-run" ? "other-run" : runId,
-					runnerProcessInstanceId: proof === "foreign-runner" ? "other-runner" : "runner-a",
-					...(proof === "unknown" ? { reason: "process-tree-unverified" } : {
-						observedAt: 300, instances: [{ kind: "runner", processInstanceId: proof === "foreign-runner" ? "other-runner" : "runner-a", closeObservedAt: 300, exitCode: 0, signal: null }],
+				fs.writeFileSync(
+					statusPath,
+					JSON.stringify({
+						runId,
+						sessionId: "/sessions/parent.jsonl",
+						mode: "single",
+						state: "paused",
+						startedAt: 100,
+						lastUpdate: 100,
+						...(proof !== "missing-identity"
+							? { processTerminal: { version: 1, state: "pending", runId, runnerProcessInstanceId: "runner-a" } }
+							: {}),
+						steps: [
+							{ agent: "done", status: "completed" },
+							{ agent: "worker", status: "paused" },
+						],
 					}),
-				}));
+				);
+				if (proof !== "missing")
+					fs.writeFileSync(
+						proofPath,
+						JSON.stringify({
+							version: 1,
+							state: proof === "unknown" ? "unknown" : "observed",
+							runId: proof === "foreign-run" ? "other-run" : runId,
+							runnerProcessInstanceId: proof === "foreign-runner" ? "other-runner" : "runner-a",
+							...(proof === "unknown"
+								? { reason: "process-tree-unverified" }
+								: {
+										observedAt: 300,
+										instances: [
+											{
+												kind: "runner",
+												processInstanceId: proof === "foreign-runner" ? "other-runner" : "runner-a",
+												closeObservedAt: 300,
+												exitCode: 0,
+												signal: null,
+											},
+										],
+									}),
+						}),
+					);
 				if (inboxClosed) closeStopInbox(asyncDir);
 				const before = fs.readFileSync(statusPath, "utf-8");
 				const proofBefore = fs.existsSync(proofPath) ? fs.readFileSync(proofPath, "utf-8") : undefined;
 				const events = new FakeEvents();
 				const bridge = registerSubagentRpcBridge({
-					events, getContext: () => ctx(), execute: async () => assert.fail("stop should not call executor"),
-					asyncDirRoot: path.join(root, "runs"), resultsDir,
-					kill: () => assert.fail("paused stop must not signal a PID"), now: () => 150,
+					events,
+					getContext: () => ctx(),
+					execute: async () => assert.fail("stop should not call executor"),
+					asyncDirRoot: path.join(root, "runs"),
+					resultsDir,
+					kill: () => assert.fail("paused stop must not signal a PID"),
+					now: () => 150,
 				});
 				t.after(() => bridge.dispose());
 
@@ -935,18 +1236,33 @@ describe("subagent extension RPC bridge", () => {
 				const reply = await request(events, "stop-paused", "stop", { id: runId });
 				if (proof === "observed") {
 					assert.deepEqual(reply, {
-						version: 1, requestId: "stop-paused", method: "stop", success: true,
-						data: { runId, asyncDir, previousState: "paused", state: "stopping", message: `Stop requested for async run ${runId}.` },
+						version: 1,
+						requestId: "stop-paused",
+						method: "stop",
+						success: true,
+						data: {
+							runId,
+							asyncDir,
+							previousState: "paused",
+							state: "stopping",
+							message: `Stop requested for async run ${runId}.`,
+						},
 					});
 					assert.equal(readStatus(asyncDir)?.state, "stopped");
-					assert.deepEqual(readStatus(asyncDir)?.steps?.map((step) => step.status), ["completed", "stopped"]);
+					assert.deepEqual(
+						readStatus(asyncDir)?.steps?.map((step) => step.status),
+						["completed", "stopped"],
+					);
 					const result = JSON.parse(fs.readFileSync(path.join(resultsDir, `${runId}.json`), "utf-8"));
 					assert.equal(result.id, runId);
 					assert.equal(result.sessionId, "/sessions/parent.jsonl");
 					assert.equal(result.state, "stopped");
 					assert.equal(result.results[0].success, true);
 					assert.equal(result.results[1].stopped, true);
-					assert.equal(readProcessTerminal(asyncDir, { runId, runnerProcessInstanceId: "runner-a" })?.state, "observed");
+					assert.equal(
+						readProcessTerminal(asyncDir, { runId, runnerProcessInstanceId: "runner-a" })?.state,
+						"observed",
+					);
 					const repeated = await request(events, "stop-again", "stop", { id: runId });
 					assert.equal(repeated.success, false);
 					if (!repeated.success) assert.equal(repeated.error.code, "invalid_state");
@@ -954,7 +1270,10 @@ describe("subagent extension RPC bridge", () => {
 					assert.equal(reply.success, false);
 					if (!reply.success) {
 						assert.equal(reply.error.code, "execution_failed");
-						assert.match(reply.error.message, /terminal proof is not ready.*Retry stop after runner shutdown is observed/);
+						assert.match(
+							reply.error.message,
+							/terminal proof is not ready.*Retry stop after runner shutdown is observed/,
+						);
 						if (proof === "missing") assert.match(reply.error.message, /process-terminal proof is missing/);
 						if (proof === "unknown") assert.match(reply.error.message, /unknown \(process-tree-unverified\)/);
 					}
@@ -962,98 +1281,196 @@ describe("subagent extension RPC bridge", () => {
 					assert.equal(fs.existsSync(path.join(resultsDir, `${runId}.json`)), false);
 				}
 				assert.equal(fs.existsSync(stopRequestsDir(asyncDir)), !inboxClosed);
-				if (!inboxClosed) assert.deepEqual(consumeStopRequestPayload(asyncDir), { type: "stop", ts: 150, source: "rpc-stop" });
+				if (!inboxClosed)
+					assert.deepEqual(consumeStopRequestPayload(asyncDir), { type: "stop", ts: 150, source: "rpc-stop" });
 				assert.equal(fs.existsSync(proofPath) ? fs.readFileSync(proofPath, "utf-8") : undefined, proofBefore);
-				assert.equal(events.emitted.some(({ event }) => event === SUBAGENT_CHILD_STATUS_EVENT), false);
+				assert.equal(
+					events.emitted.some(({ event }) => event === SUBAGENT_CHILD_STATUS_EVENT),
+					false,
+				);
 			});
 		}
 	}
 
-	for (const payloadCase of ["valid", "malformed", "foreign"] as const) it(`handles paused RPC stop with an existing ${payloadCase} result`, async (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-result-"));
-		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-		const runId = "paused-result";
-		const asyncDir = path.join(root, "runs", runId);
-		const resultsDir = path.join(root, "results");
-		const resultPath = path.join(resultsDir, `${runId}.json`);
-		fs.mkdirSync(asyncDir, { recursive: true });
-		fs.mkdirSync(resultsDir, { recursive: true });
-		fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-			runId, sessionId: "/sessions/parent.jsonl", mode: "single", state: "paused", startedAt: 100, lastUpdate: 100,
-			processTerminal: { version: 1, state: "pending", runId, runnerProcessInstanceId: "runner-a" },
-			steps: [{ agent: "worker", status: "paused" }],
-		}));
-		fs.writeFileSync(path.join(asyncDir, "process-terminal.json"), JSON.stringify({
-			version: 1, state: "observed", runId, runnerProcessInstanceId: "runner-a", observedAt: 300,
-			instances: [{ kind: "runner", processInstanceId: "runner-a", closeObservedAt: 300, exitCode: 0, signal: null }],
-		}));
-		if (payloadCase === "valid") writeAsyncResultFile(resultPath, {
-			id: runId, sessionId: "/sessions/parent.jsonl", state: "paused", success: false,
-			results: [{ agent: "worker", success: false, interrupted: true }],
+	for (const payloadCase of ["valid", "malformed", "foreign"] as const)
+		it(`handles paused RPC stop with an existing ${payloadCase} result`, async (t) => {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-result-"));
+			t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+			const runId = "paused-result";
+			const asyncDir = path.join(root, "runs", runId);
+			const resultsDir = path.join(root, "results");
+			const resultPath = path.join(resultsDir, `${runId}.json`);
+			fs.mkdirSync(asyncDir, { recursive: true });
+			fs.mkdirSync(resultsDir, { recursive: true });
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify({
+					runId,
+					sessionId: "/sessions/parent.jsonl",
+					mode: "single",
+					state: "paused",
+					startedAt: 100,
+					lastUpdate: 100,
+					processTerminal: { version: 1, state: "pending", runId, runnerProcessInstanceId: "runner-a" },
+					steps: [{ agent: "worker", status: "paused" }],
+				}),
+			);
+			fs.writeFileSync(
+				path.join(asyncDir, "process-terminal.json"),
+				JSON.stringify({
+					version: 1,
+					state: "observed",
+					runId,
+					runnerProcessInstanceId: "runner-a",
+					observedAt: 300,
+					instances: [
+						{ kind: "runner", processInstanceId: "runner-a", closeObservedAt: 300, exitCode: 0, signal: null },
+					],
+				}),
+			);
+			if (payloadCase === "valid")
+				writeAsyncResultFile(resultPath, {
+					id: runId,
+					sessionId: "/sessions/parent.jsonl",
+					state: "paused",
+					success: false,
+					results: [{ agent: "worker", success: false, interrupted: true }],
+				});
+			else
+				fs.writeFileSync(
+					resultPath,
+					payloadCase === "malformed"
+						? "{"
+						: JSON.stringify({ id: "foreign-run", sessionId: "/sessions/parent.jsonl" }),
+				);
+			const before = fs.readFileSync(resultPath, "utf-8");
+			closeStopInbox(asyncDir);
+			const events = new FakeEvents();
+			const bridge = registerSubagentRpcBridge({
+				events,
+				getContext: () => ctx(),
+				execute: async () => assert.fail("stop should not call executor"),
+				asyncDirRoot: path.join(root, "runs"),
+				resultsDir,
+			});
+			t.after(() => bridge.dispose());
+			const reply = await request(events, "stop-result", "stop", { id: runId });
+			assert.equal(reply.success, payloadCase === "valid");
+			assert.equal(readStatus(asyncDir)?.state, payloadCase === "valid" ? "stopped" : "paused");
+			if (payloadCase === "valid") {
+				const result = JSON.parse(fs.readFileSync(resultPath, "utf-8"));
+				assert.equal(result.state, "stopped");
+				assert.equal(result.results[0].stopped, true);
+				assert.equal(result.results[0].interrupted, undefined);
+			} else {
+				if (!reply.success) assert.equal(reply.error.code, "execution_failed");
+				assert.equal(fs.readFileSync(resultPath, "utf-8"), before);
+			}
+			assert.equal(fs.existsSync(stopRequestsDir(asyncDir)), false);
 		});
-		else fs.writeFileSync(resultPath, payloadCase === "malformed" ? "{" : JSON.stringify({ id: "foreign-run", sessionId: "/sessions/parent.jsonl" }));
-		const before = fs.readFileSync(resultPath, "utf-8");
-		closeStopInbox(asyncDir);
-		const events = new FakeEvents();
-		const bridge = registerSubagentRpcBridge({
-			events, getContext: () => ctx(), execute: async () => assert.fail("stop should not call executor"),
-			asyncDirRoot: path.join(root, "runs"), resultsDir,
-		});
-		t.after(() => bridge.dispose());
-		const reply = await request(events, "stop-result", "stop", { id: runId });
-		assert.equal(reply.success, payloadCase === "valid");
-		assert.equal(readStatus(asyncDir)?.state, payloadCase === "valid" ? "stopped" : "paused");
-		if (payloadCase === "valid") {
-			const result = JSON.parse(fs.readFileSync(resultPath, "utf-8"));
-			assert.equal(result.state, "stopped");
-			assert.equal(result.results[0].stopped, true);
-			assert.equal(result.results[0].interrupted, undefined);
-		} else {
-			if (!reply.success) assert.equal(reply.error.code, "execution_failed");
-			assert.equal(fs.readFileSync(resultPath, "utf-8"), before);
-		}
-		assert.equal(fs.existsSync(stopRequestsDir(asyncDir)), false);
-	});
 
-	for (const scenario of ["missing", "complete", "failed", "partial", "stopped", "rejected", "queued", "paused-child", "queued-child", "running-closed"] as const) {
+	for (const scenario of [
+		"missing",
+		"complete",
+		"failed",
+		"partial",
+		"stopped",
+		"rejected",
+		"queued",
+		"paused-child",
+		"queued-child",
+		"running-closed",
+	] as const) {
 		it(`enforces RPC stop target restrictions: ${scenario}`, async (t) => {
 			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-target-"));
 			t.after(() => fs.rmSync(root, { recursive: true, force: true }));
 			const runId = "target-run";
 			const asyncDir = path.join(root, "runs", runId);
 			const events = new FakeEvents();
-			const state = scenario === "paused-child" ? "paused" : scenario === "queued-child" ? "queued" : scenario === "running-closed" ? "running" : scenario;
+			const state =
+				scenario === "paused-child"
+					? "paused"
+					: scenario === "queued-child"
+						? "queued"
+						: scenario === "running-closed"
+							? "running"
+							: scenario;
 			if (scenario !== "missing") {
 				fs.mkdirSync(asyncDir, { recursive: true });
-				fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-					runId, sessionId: "/sessions/parent.jsonl", mode: "parallel", state, pid: 4242, startedAt: 100, lastUpdate: 100,
-					steps: [{ agent: "worker", status: "pending", childId: "worker" }, { agent: "sibling", status: "pending", childId: "sibling" }],
-				}));
+				fs.writeFileSync(
+					path.join(asyncDir, "status.json"),
+					JSON.stringify({
+						runId,
+						sessionId: "/sessions/parent.jsonl",
+						mode: "parallel",
+						state,
+						pid: 4242,
+						startedAt: 100,
+						lastUpdate: 100,
+						steps: [
+							{ agent: "worker", status: "pending", childId: "worker" },
+							{ agent: "sibling", status: "pending", childId: "sibling" },
+						],
+					}),
+				);
 			}
 			if (scenario === "running-closed") closeStopInbox(asyncDir);
 			const bridge = registerSubagentRpcBridge({
-				events, getContext: () => ctx(), execute: async () => assert.fail("stop should not call executor"),
-				asyncDirRoot: path.join(root, "runs"), resultsDir: path.join(root, "results"), kill: (_pid, signal) => {
+				events,
+				getContext: () => ctx(),
+				execute: async () => assert.fail("stop should not call executor"),
+				asyncDirRoot: path.join(root, "runs"),
+				resultsDir: path.join(root, "results"),
+				kill: (_pid, signal) => {
 					assert.equal(signal, 0, "stop must never signal an arbitrary PID");
 					return true;
-				}, now: () => 150,
+				},
+				now: () => 150,
 			});
 			t.after(() => bridge.dispose());
-			const reply = await request(events, "stop-target", "stop", { id: runId, ...(scenario.endsWith("-child") ? { childId: "worker" } : {}) });
+			const reply = await request(events, "stop-target", "stop", {
+				id: runId,
+				...(scenario.endsWith("-child") ? { childId: "worker" } : {}),
+			});
 			assert.equal(reply.success, scenario === "queued" || scenario === "queued-child");
-			if (!reply.success) assert.equal(reply.error.code, scenario === "missing" ? "not_found" : scenario === "running-closed" ? "execution_failed" : "invalid_state");
+			if (!reply.success)
+				assert.equal(
+					reply.error.code,
+					scenario === "missing"
+						? "not_found"
+						: scenario === "running-closed"
+							? "execution_failed"
+							: "invalid_state",
+				);
 			if (scenario === "queued-child") {
-				assert.deepEqual(consumeStopRequestPayload(asyncDir), { type: "stop", ts: 150, source: "rpc-stop", targetIndex: 0, childId: "worker" });
-				assert.deepEqual(events.emitted.filter(({ event }) => event === SUBAGENT_CHILD_STATUS_EVENT).map(({ data }) => (data as SubagentChildStatusEvent).childId), ["worker"]);
+				assert.deepEqual(consumeStopRequestPayload(asyncDir), {
+					type: "stop",
+					ts: 150,
+					source: "rpc-stop",
+					targetIndex: 0,
+					childId: "worker",
+				});
+				assert.deepEqual(
+					events.emitted
+						.filter(({ event }) => event === SUBAGENT_CHILD_STATUS_EVENT)
+						.map(({ data }) => (data as SubagentChildStatusEvent).childId),
+					["worker"],
+				);
 			} else if (scenario === "queued") {
 				assert.deepEqual(consumeStopRequestPayload(asyncDir), { type: "stop", ts: 150, source: "rpc-stop" });
 			} else {
 				assert.equal(fs.existsSync(stopRequestsDir(asyncDir)), false);
-				assert.equal(events.emitted.some(({ event }) => event === SUBAGENT_CHILD_STATUS_EVENT), false);
+				assert.equal(
+					events.emitted.some(({ event }) => event === SUBAGENT_CHILD_STATUS_EVENT),
+					false,
+				);
 			}
 			if (scenario !== "missing") {
 				assert.equal(readStatus(asyncDir)?.state, state);
-				assert.deepEqual(readStatus(asyncDir)?.steps?.map((step) => step.status), ["pending", "pending"]);
+				assert.deepEqual(
+					readStatus(asyncDir)?.steps?.map((step) => step.status),
+					["pending", "pending"],
+				);
 			}
 		});
 	}
@@ -1066,16 +1483,24 @@ describe("subagent extension RPC bridge", () => {
 			const resultsDir = path.join(root, "results");
 			const asyncDir = path.join(asyncRoot, "run-stop");
 			fs.mkdirSync(asyncDir, { recursive: true });
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-				runId: "run-stop",
-				sessionId: "/sessions/parent.jsonl",
-				mode: "single",
-				state: "running",
-				pid: 4242,
-				startedAt: 100,
-				lastUpdate: 100,
-				steps: [{ agent: "worker", status: "running", startedAt: 100 }],
-			}, null, 2), "utf-8");
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify(
+					{
+						runId: "run-stop",
+						sessionId: "/sessions/parent.jsonl",
+						mode: "single",
+						state: "running",
+						pid: 4242,
+						startedAt: 100,
+						lastUpdate: 100,
+						steps: [{ agent: "worker", status: "running", startedAt: 100 }],
+					},
+					null,
+					2,
+				),
+				"utf-8",
+			);
 			const bridge = registerSubagentRpcBridge({
 				events,
 				getContext: () => ctx(),
@@ -1108,16 +1533,24 @@ describe("subagent extension RPC bridge", () => {
 			const asyncRoot = path.join(root, "runs");
 			const asyncDir = path.join(asyncRoot, "run-inherited");
 			fs.mkdirSync(asyncDir, { recursive: true });
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-				runId: "run-inherited",
-				sessionId: "/sessions/rpc-stop-replaced.jsonl",
-				mode: "single",
-				state: "running",
-				pid: 4242,
-				startedAt: 100,
-				lastUpdate: 100,
-				steps: [{ agent: "worker", status: "running", startedAt: 100 }],
-			}, null, 2), "utf-8");
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify(
+					{
+						runId: "run-inherited",
+						sessionId: "/sessions/rpc-stop-replaced.jsonl",
+						mode: "single",
+						state: "running",
+						pid: 4242,
+						startedAt: 100,
+						lastUpdate: 100,
+						steps: [{ agent: "worker", status: "running", startedAt: 100 }],
+					},
+					null,
+					2,
+				),
+				"utf-8",
+			);
 			recordSessionReplacement("/sessions/rpc-stop-successor.jsonl", "/sessions/rpc-stop-replaced.jsonl");
 			const bridge = registerSubagentRpcBridge({
 				events,
@@ -1148,19 +1581,27 @@ describe("subagent extension RPC bridge", () => {
 			const resultsDir = path.join(root, "results");
 			const asyncDir = path.join(asyncRoot, "run-stop-child");
 			fs.mkdirSync(asyncDir, { recursive: true });
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-				runId: "run-stop-child",
-				sessionId: "/sessions/parent.jsonl",
-				mode: "parallel",
-				state: "running",
-				pid: 4242,
-				startedAt: 100,
-				lastUpdate: 100,
-				steps: [
-					{ agent: "fast", status: "running", runId: "child-a", startedAt: 100 },
-					{ agent: "slow", status: "running", workflowKey: "review", startedAt: 100 },
-				],
-			}, null, 2), "utf-8");
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify(
+					{
+						runId: "run-stop-child",
+						sessionId: "/sessions/parent.jsonl",
+						mode: "parallel",
+						state: "running",
+						pid: 4242,
+						startedAt: 100,
+						lastUpdate: 100,
+						steps: [
+							{ agent: "fast", status: "running", runId: "child-a", startedAt: 100 },
+							{ agent: "slow", status: "running", workflowKey: "review", startedAt: 100 },
+						],
+					},
+					null,
+					2,
+				),
+				"utf-8",
+			);
 			const bridge = registerSubagentRpcBridge({
 				events,
 				getContext: () => ctx(),
@@ -1174,11 +1615,22 @@ describe("subagent extension RPC bridge", () => {
 			const reply = await request(events, "stop-child-1", "stop", { id: "run-stop-child", childId: "review" });
 
 			assert.equal(reply.success, true);
-			assert.equal((reply as { data: { runId?: string; childId?: string; state?: string } }).data.runId, "run-stop-child");
+			assert.equal(
+				(reply as { data: { runId?: string; childId?: string; state?: string } }).data.runId,
+				"run-stop-child",
+			);
 			assert.equal((reply as { data: { childId?: string } }).data.childId, "review");
 			assert.equal((reply as { data: { state?: string } }).data.state, "stopping");
-			assert.deepEqual(consumeStopRequestPayload(asyncDir), { type: "stop", ts: 150, source: "rpc-stop", targetIndex: 1, childId: "review" });
-			const childStatus = events.emitted.find((entry) => entry.event === SUBAGENT_CHILD_STATUS_EVENT)?.data as SubagentChildStatusEvent | undefined;
+			assert.deepEqual(consumeStopRequestPayload(asyncDir), {
+				type: "stop",
+				ts: 150,
+				source: "rpc-stop",
+				targetIndex: 1,
+				childId: "review",
+			});
+			const childStatus = events.emitted.find((entry) => entry.event === SUBAGENT_CHILD_STATUS_EVENT)?.data as
+				| SubagentChildStatusEvent
+				| undefined;
 			assert.deepEqual(childStatus, {
 				type: "subagent.child-status",
 				version: 1,
@@ -1208,20 +1660,38 @@ describe("subagent extension RPC bridge", () => {
 			const resultsDir = path.join(root, "results");
 			const asyncDir = path.join(asyncRoot, "workflow-stop-child");
 			fs.mkdirSync(asyncDir, { recursive: true });
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-				runId: "workflow-stop-child",
-				sessionId: "/sessions/parent.jsonl",
-				mode: "workflow",
-				state: "running",
-				startedAt: 100,
-				lastUpdate: 100,
-				steps: [
-					{ agent: "worker", status: "running", workflowKey: "slow", startedAt: 100 },
-					{ agent: "worker", status: "running", workflowKey: "sibling", startedAt: 100 },
-				],
-			}, null, 2), "utf-8");
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify(
+					{
+						runId: "workflow-stop-child",
+						sessionId: "/sessions/parent.jsonl",
+						mode: "workflow",
+						state: "running",
+						startedAt: 100,
+						lastUpdate: 100,
+						steps: [
+							{ agent: "worker", status: "running", workflowKey: "slow", startedAt: 100 },
+							{ agent: "worker", status: "running", workflowKey: "sibling", startedAt: 100 },
+						],
+					},
+					null,
+					2,
+				),
+				"utf-8",
+			);
 			const calls: Array<{ childId: string; message?: string }> = [];
-			const state = { workflowChildStops: new Map([["workflow-stop-child", (childId: string, message?: string) => { calls.push({ childId, message }); return true; }]]) } as SubagentState;
+			const state = {
+				workflowChildStops: new Map([
+					[
+						"workflow-stop-child",
+						(childId: string, message?: string) => {
+							calls.push({ childId, message });
+							return true;
+						},
+					],
+				]),
+			} as SubagentState;
 			const bridge = registerSubagentRpcBridge({
 				events,
 				getContext: () => ctx(),
@@ -1231,14 +1701,19 @@ describe("subagent extension RPC bridge", () => {
 				state,
 			});
 
-			const reply = await request(events, "stop-workflow-child", "stop", { id: "workflow-stop-child", childId: "slow" });
+			const reply = await request(events, "stop-workflow-child", "stop", {
+				id: "workflow-stop-child",
+				childId: "slow",
+			});
 
 			assert.equal(reply.success, true);
 			assert.equal((reply as { data: { childId?: string; state?: string } }).data.childId, "slow");
 			assert.equal((reply as { data: { state?: string } }).data.state, "stopping");
 			assert.deepEqual(calls, [{ childId: "slow", message: "Workflow child 'slow' stopped by RPC." }]);
 			assert.equal(fs.existsSync(stopRequestPath(asyncDir)), false);
-			const childStatus = events.emitted.find((entry) => entry.event === SUBAGENT_CHILD_STATUS_EVENT)?.data as SubagentChildStatusEvent | undefined;
+			const childStatus = events.emitted.find((entry) => entry.event === SUBAGENT_CHILD_STATUS_EVENT)?.data as
+				| SubagentChildStatusEvent
+				| undefined;
 			assert.equal(childStatus?.runId, "workflow-stop-child");
 			assert.equal(childStatus?.childId, "slow");
 			assert.equal(childStatus?.status, "stopping");
@@ -1260,23 +1735,39 @@ describe("subagent extension RPC bridge", () => {
 			const resultsDir = path.join(root, "results");
 			const asyncDir = path.join(asyncRoot, "workflow-run-stop");
 			fs.mkdirSync(asyncDir, { recursive: true });
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-				runId: "workflow-run-stop",
-				sessionId: "/sessions/parent.jsonl",
-				mode: "workflow",
-				state: "running",
-				startedAt: 100,
-				lastUpdate: 100,
-				steps: [
-					{ agent: "worker", status: "running", childId: "child-slow", workflowKey: "slow", startedAt: 100 },
-					{ agent: "worker", status: "completed", workflowKey: "done", startedAt: 100, endedAt: 120 },
-				],
-			}, null, 2), "utf-8");
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify(
+					{
+						runId: "workflow-run-stop",
+						sessionId: "/sessions/parent.jsonl",
+						mode: "workflow",
+						state: "running",
+						startedAt: 100,
+						lastUpdate: 100,
+						steps: [
+							{ agent: "worker", status: "running", childId: "child-slow", workflowKey: "slow", startedAt: 100 },
+							{ agent: "worker", status: "completed", workflowKey: "done", startedAt: 100, endedAt: 120 },
+						],
+					},
+					null,
+					2,
+				),
+				"utf-8",
+			);
 			const controller = new AbortController();
 			const calls: Array<{ childId: string; message?: string }> = [];
 			const state = {
 				workflowControllers: new Map([["workflow-run-stop", controller]]),
-				workflowChildStops: new Map([["workflow-run-stop", (childId: string, message?: string) => { calls.push({ childId, message }); return true; }]]),
+				workflowChildStops: new Map([
+					[
+						"workflow-run-stop",
+						(childId: string, message?: string) => {
+							calls.push({ childId, message });
+							return true;
+						},
+					],
+				]),
 			} as SubagentState;
 			const bridge = registerSubagentRpcBridge({
 				events,
@@ -1290,12 +1781,20 @@ describe("subagent extension RPC bridge", () => {
 			const reply = await request(events, "stop-workflow-run", "stop", { id: "workflow-run-stop" });
 
 			assert.equal(reply.success, true);
-			assert.equal((reply as { data: { runId?: string; state?: string; childId?: string } }).data.runId, "workflow-run-stop");
+			assert.equal(
+				(reply as { data: { runId?: string; state?: string; childId?: string } }).data.runId,
+				"workflow-run-stop",
+			);
 			assert.equal((reply as { data: { state?: string } }).data.state, "stopping");
 			assert.equal((reply as { data: { childId?: string } }).data.childId, undefined);
 			assert.deepEqual(calls, [{ childId: "child-slow", message: "Workflow stopped by RPC." }]);
 			assert.equal(controller.signal.aborted, true);
-			assert.equal(controller.signal.reason instanceof Error ? controller.signal.reason.message : String(controller.signal.reason), "Workflow stopped by RPC.");
+			assert.equal(
+				controller.signal.reason instanceof Error
+					? controller.signal.reason.message
+					: String(controller.signal.reason),
+				"Workflow stopped by RPC.",
+			);
 			assert.equal(fs.existsSync(stopRequestPath(asyncDir)), false);
 
 			bridge.dispose();
@@ -1312,16 +1811,24 @@ describe("subagent extension RPC bridge", () => {
 			const resultsDir = path.join(root, "results");
 			const asyncDir = path.join(asyncRoot, "run-stop-child-reject");
 			fs.mkdirSync(asyncDir, { recursive: true });
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-				runId: "run-stop-child-reject",
-				sessionId: "/sessions/parent.jsonl",
-				mode: "parallel",
-				state: "running",
-				pid: 4242,
-				startedAt: 100,
-				lastUpdate: 100,
-				steps: [{ agent: "done", status: "complete", workflowKey: "done", startedAt: 100, endedAt: 120 }],
-			}, null, 2), "utf-8");
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify(
+					{
+						runId: "run-stop-child-reject",
+						sessionId: "/sessions/parent.jsonl",
+						mode: "parallel",
+						state: "running",
+						pid: 4242,
+						startedAt: 100,
+						lastUpdate: 100,
+						steps: [{ agent: "done", status: "complete", workflowKey: "done", startedAt: 100, endedAt: 120 }],
+					},
+					null,
+					2,
+				),
+				"utf-8",
+			);
 			const bridge = registerSubagentRpcBridge({
 				events,
 				getContext: () => ctx(),
@@ -1332,10 +1839,16 @@ describe("subagent extension RPC bridge", () => {
 				now: () => 150,
 			});
 
-			const missing = await request(events, "stop-child-missing", "stop", { id: "run-stop-child-reject", childId: "missing" });
+			const missing = await request(events, "stop-child-missing", "stop", {
+				id: "run-stop-child-reject",
+				childId: "missing",
+			});
 			assert.equal(missing.success, false);
 			assert.equal((missing as { error: { code: string } }).error.code, "not_found");
-			const terminal = await request(events, "stop-child-terminal", "stop", { id: "run-stop-child-reject", childId: "done" });
+			const terminal = await request(events, "stop-child-terminal", "stop", {
+				id: "run-stop-child-reject",
+				childId: "done",
+			});
 			assert.equal(terminal.success, false);
 			assert.equal((terminal as { error: { code: string; message: string } }).error.code, "invalid_state");
 			assert.match((terminal as { error: { message: string } }).error.message, /complete/);
@@ -1347,128 +1860,190 @@ describe("subagent extension RPC bridge", () => {
 		}
 	});
 
-	for (const scenario of ["no-state", "empty-maps", "child-no-state", "child-controller-only", "child-callback-false", "run-callback-only"] as const) it(`rejects workflow stop without the required live control: ${scenario}`, async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-workflow-"));
-		try {
-			const events = new FakeEvents();
-			const asyncRoot = path.join(root, "runs");
-			const resultsDir = path.join(root, "results");
-			const asyncDir = path.join(asyncRoot, "workflow-run");
-			let killCalls = 0;
-			const controller = new AbortController();
-			const calls: string[] = [];
-			const stopChild = (childId: string) => { calls.push(childId); return false; };
-			const childId = scenario.startsWith("child-") ? "worker" : undefined;
-			const state = scenario === "no-state" || scenario === "child-no-state" ? undefined : {
-				workflowControllers: new Map(scenario === "child-controller-only" || scenario === "child-callback-false" ? [["workflow-run", controller]] : []),
-				workflowChildStops: new Map(scenario === "child-callback-false" || scenario === "run-callback-only" ? [["workflow-run", stopChild]] : []),
-			} as SubagentState;
-			fs.mkdirSync(asyncDir, { recursive: true });
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-				runId: "workflow-run",
-				sessionId: "/sessions/parent.jsonl",
-				mode: "workflow",
-				state: "running",
-				pid: 4242,
-				startedAt: 100,
-				lastUpdate: 100,
-				steps: [
-					{ workflowKey: "worker", agent: "worker", status: "running", startedAt: 100 },
-					{ workflowKey: "sibling", agent: "worker", status: "running", startedAt: 100 },
-				],
-			}, null, 2), "utf-8");
-			const statusBefore = fs.readFileSync(path.join(asyncDir, "status.json"), "utf-8");
-			const bridge = registerSubagentRpcBridge({
-				events,
-				state,
-				getContext: () => ctx(),
-				execute: async () => assert.fail("stop should not call executor"),
-				asyncDirRoot: asyncRoot,
-				resultsDir,
-				kill: () => {
-					killCalls++;
-					return true;
-				},
-				now: () => 150,
-			});
+	for (const scenario of [
+		"no-state",
+		"empty-maps",
+		"child-no-state",
+		"child-controller-only",
+		"child-callback-false",
+		"run-callback-only",
+	] as const)
+		it(`rejects workflow stop without the required live control: ${scenario}`, async () => {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-workflow-"));
+			try {
+				const events = new FakeEvents();
+				const asyncRoot = path.join(root, "runs");
+				const resultsDir = path.join(root, "results");
+				const asyncDir = path.join(asyncRoot, "workflow-run");
+				let killCalls = 0;
+				const controller = new AbortController();
+				const calls: string[] = [];
+				const stopChild = (childId: string) => {
+					calls.push(childId);
+					return false;
+				};
+				const childId = scenario.startsWith("child-") ? "worker" : undefined;
+				const state =
+					scenario === "no-state" || scenario === "child-no-state"
+						? undefined
+						: ({
+								workflowControllers: new Map(
+									scenario === "child-controller-only" || scenario === "child-callback-false"
+										? [["workflow-run", controller]]
+										: [],
+								),
+								workflowChildStops: new Map(
+									scenario === "child-callback-false" || scenario === "run-callback-only"
+										? [["workflow-run", stopChild]]
+										: [],
+								),
+							} as SubagentState);
+				fs.mkdirSync(asyncDir, { recursive: true });
+				fs.writeFileSync(
+					path.join(asyncDir, "status.json"),
+					JSON.stringify(
+						{
+							runId: "workflow-run",
+							sessionId: "/sessions/parent.jsonl",
+							mode: "workflow",
+							state: "running",
+							pid: 4242,
+							startedAt: 100,
+							lastUpdate: 100,
+							steps: [
+								{ workflowKey: "worker", agent: "worker", status: "running", startedAt: 100 },
+								{ workflowKey: "sibling", agent: "worker", status: "running", startedAt: 100 },
+							],
+						},
+						null,
+						2,
+					),
+					"utf-8",
+				);
+				const statusBefore = fs.readFileSync(path.join(asyncDir, "status.json"), "utf-8");
+				const bridge = registerSubagentRpcBridge({
+					events,
+					state,
+					getContext: () => ctx(),
+					execute: async () => assert.fail("stop should not call executor"),
+					asyncDirRoot: asyncRoot,
+					resultsDir,
+					kill: () => {
+						killCalls++;
+						return true;
+					},
+					now: () => 150,
+				});
 
-			const reply = await request(events, "stop-workflow", "stop", { id: "workflow-run", ...(childId ? { childId } : {}) });
+				const reply = await request(events, "stop-workflow", "stop", {
+					id: "workflow-run",
+					...(childId ? { childId } : {}),
+				});
 
-			assert.equal(reply.success, false);
-			assert.equal((reply as { error: { code: string } }).error.code, "invalid_state");
-			assert.match((reply as { error: { message: string } }).error.message,
-				scenario === "child-callback-false" ? /not available to stop/ : childId ? /no live stop callback/ : /no live run controller/);
-			assert.equal(fs.existsSync(stopRequestPath(asyncDir)), false);
-			assert.equal(fs.existsSync(stopRequestsDir(asyncDir)), false);
-			assert.equal(fs.readFileSync(path.join(asyncDir, "status.json"), "utf-8"), statusBefore);
-			assert.equal(events.emitted.some(({ event }) => event === SUBAGENT_CHILD_STATUS_EVENT), false);
-			assert.equal(controller.signal.aborted, false);
-			assert.deepEqual(calls, scenario === "child-callback-false" ? ["worker"] : []);
-			assert.equal(killCalls, 0);
+				assert.equal(reply.success, false);
+				assert.equal((reply as { error: { code: string } }).error.code, "invalid_state");
+				assert.match(
+					(reply as { error: { message: string } }).error.message,
+					scenario === "child-callback-false"
+						? /not available to stop/
+						: childId
+							? /no live stop callback/
+							: /no live run controller/,
+				);
+				assert.equal(fs.existsSync(stopRequestPath(asyncDir)), false);
+				assert.equal(fs.existsSync(stopRequestsDir(asyncDir)), false);
+				assert.equal(fs.readFileSync(path.join(asyncDir, "status.json"), "utf-8"), statusBefore);
+				assert.equal(
+					events.emitted.some(({ event }) => event === SUBAGENT_CHILD_STATUS_EVENT),
+					false,
+				);
+				assert.equal(controller.signal.aborted, false);
+				assert.deepEqual(calls, scenario === "child-callback-false" ? ["worker"] : []);
+				assert.equal(killCalls, 0);
 
-			bridge.dispose();
-		} finally {
-			fs.rmSync(root, { recursive: true, force: true });
-		}
-	});
+				bridge.dispose();
+			} finally {
+				fs.rmSync(root, { recursive: true, force: true });
+			}
+		});
 
-	for (const runState of ["running", "queued", "paused"] as const) it(`rejects stop requests for ${runState} async runs from a different session`, async () => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-session-"));
-		try {
-			const events = new FakeEvents();
-			const asyncRoot = path.join(root, "runs");
-			const resultsDir = path.join(root, "results");
-			const asyncDir = path.join(asyncRoot, "run-other-session");
-			let killCalls = 0;
-			fs.mkdirSync(asyncDir, { recursive: true });
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({
-				runId: "run-other-session",
-				sessionId: "other-session",
-				mode: "single",
-				state: runState,
-				pid: 4242,
-				startedAt: 100,
-				lastUpdate: 100,
-				steps: [{ agent: "worker", status: "running", startedAt: 100 }],
-			}, null, 2), "utf-8");
-			const bridge = registerSubagentRpcBridge({
-				events,
-				getContext: () => ctx(),
-				execute: async () => assert.fail("stop should not call executor"),
-				asyncDirRoot: asyncRoot,
-				resultsDir,
-				kill: () => {
-					killCalls++;
-					return true;
-				},
-				now: () => 150,
-			});
+	for (const runState of ["running", "queued", "paused"] as const)
+		it(`rejects stop requests for ${runState} async runs from a different session`, async () => {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-rpc-stop-session-"));
+			try {
+				const events = new FakeEvents();
+				const asyncRoot = path.join(root, "runs");
+				const resultsDir = path.join(root, "results");
+				const asyncDir = path.join(asyncRoot, "run-other-session");
+				let killCalls = 0;
+				fs.mkdirSync(asyncDir, { recursive: true });
+				fs.writeFileSync(
+					path.join(asyncDir, "status.json"),
+					JSON.stringify(
+						{
+							runId: "run-other-session",
+							sessionId: "other-session",
+							mode: "single",
+							state: runState,
+							pid: 4242,
+							startedAt: 100,
+							lastUpdate: 100,
+							steps: [{ agent: "worker", status: "running", startedAt: 100 }],
+						},
+						null,
+						2,
+					),
+					"utf-8",
+				);
+				const bridge = registerSubagentRpcBridge({
+					events,
+					getContext: () => ctx(),
+					execute: async () => assert.fail("stop should not call executor"),
+					asyncDirRoot: asyncRoot,
+					resultsDir,
+					kill: () => {
+						killCalls++;
+						return true;
+					},
+					now: () => 150,
+				});
 
-			const reply = await request(events, "stop-other-session", "stop", { id: "run-other-session" });
+				const reply = await request(events, "stop-other-session", "stop", { id: "run-other-session" });
 
-			assert.equal(reply.success, false);
-			assert.equal((reply as { error: { code: string; message: string } }).error.code, "not_found");
-			assert.match((reply as { error: { message: string } }).error.message, /active session/);
-			assert.equal(fs.existsSync(stopRequestPath(asyncDir)), false);
-			assert.equal(killCalls, 0);
+				assert.equal(reply.success, false);
+				assert.equal((reply as { error: { code: string; message: string } }).error.code, "not_found");
+				assert.match((reply as { error: { message: string } }).error.message, /active session/);
+				assert.equal(fs.existsSync(stopRequestPath(asyncDir)), false);
+				assert.equal(killCalls, 0);
 
-			bridge.dispose();
-		} finally {
-			fs.rmSync(root, { recursive: true, force: true });
-		}
-	});
+				bridge.dispose();
+			} finally {
+				fs.rmSync(root, { recursive: true, force: true });
+			}
+		});
 
 	it("answers cost with structured parent-plus-child accounting from the session branch", async () => {
 		const events = new FakeEvents();
 		const childUsage = { input: 8, output: 3, cacheRead: 5, cacheWrite: 0, cost: 0.25, turns: 1 };
 		const branch = [
-			{ type: "message", message: { role: "assistant", usage: { input: 15, output: 3, cacheRead: 30, cacheWrite: 0, cost: { total: 0.25 } } } },
+			{
+				type: "message",
+				message: {
+					role: "assistant",
+					usage: { input: 15, output: 3, cacheRead: 30, cacheWrite: 0, cost: { total: 0.25 } },
+				},
+			},
 			{
 				type: "message",
 				message: {
 					role: "toolResult",
 					toolName: "subagent",
-					details: { mode: "single", results: [{ agent: "reviewer", runId: "run-a", usage: childUsage, sessionFile: "/sessions/child-a.jsonl" }] },
+					details: {
+						mode: "single",
+						results: [
+							{ agent: "reviewer", runId: "run-a", usage: childUsage, sessionFile: "/sessions/child-a.jsonl" },
+						],
+					},
 				},
 			},
 			// The same child completing through bg_wait must not be counted twice.
@@ -1477,20 +2052,31 @@ describe("subagent extension RPC bridge", () => {
 				message: {
 					role: "toolResult",
 					toolName: "bg_wait",
-					details: { mode: "single", results: [], completions: [{ mode: "single", runId: "run-a", results: [{ agent: "reviewer", runId: "run-a", usage: childUsage }] }] },
+					details: {
+						mode: "single",
+						results: [],
+						completions: [
+							{
+								mode: "single",
+								runId: "run-a",
+								results: [{ agent: "reviewer", runId: "run-a", usage: childUsage }],
+							},
+						],
+					},
 				},
 			},
 		];
 		const bridge = registerSubagentRpcBridge({
 			events,
-			getContext: () => ({
-				cwd: "/repo",
-				sessionManager: {
-					getSessionId: () => "session-123",
-					getSessionFile: () => "/sessions/parent.jsonl",
-					getBranch: () => branch,
-				},
-			}) as any,
+			getContext: () =>
+				({
+					cwd: "/repo",
+					sessionManager: {
+						getSessionId: () => "session-123",
+						getSessionFile: () => "/sessions/parent.jsonl",
+						getBranch: () => branch,
+					},
+				}) as any,
 			execute: async () => assert.fail("cost should not call executor"),
 			state: { baseCwd: "/repo" } as SubagentState,
 		});
@@ -1498,7 +2084,18 @@ describe("subagent extension RPC bridge", () => {
 		const reply = await request(events, "cost-1", "cost");
 		assert.equal(reply.success, true);
 		assert.equal(reply.method, "cost");
-		const data = (reply as { data: { version: number; parent: Record<string, number>; children: Array<{ agent?: string; runId?: string; usage: Record<string, number> }>; childTotal: Record<string, number>; total: Record<string, number>; unresolvedAsyncChildren: number } }).data;
+		const data = (
+			reply as {
+				data: {
+					version: number;
+					parent: Record<string, number>;
+					children: Array<{ agent?: string; runId?: string; usage: Record<string, number> }>;
+					childTotal: Record<string, number>;
+					total: Record<string, number>;
+					unresolvedAsyncChildren: number;
+				};
+			}
+		).data;
 		assert.equal(data.version, 1);
 		assert.deepEqual(data.parent, { input: 15, output: 3, cacheRead: 30, cacheWrite: 0, cost: 0.25, turns: 1 });
 		assert.equal(data.children.length, 1, "run identity deduplicates the bg_wait completion");
@@ -1530,42 +2127,90 @@ describe("subagent extension RPC bridge", () => {
 			fs.writeFileSync(sessionFile, "", "utf-8");
 			fs.mkdirSync(asyncDir, { recursive: true });
 			fs.mkdirSync(path.dirname(metadataPath), { recursive: true });
-			fs.writeFileSync(path.join(asyncDir, "workflow-receipt.json"), JSON.stringify({
-				version: 1,
-				workflowRunId,
-				state: "complete",
-				createdAt: Date.now(),
-				entries: {
-					recovered: { key: "recovered", agent: "reviewer", latestRunId: recoveredRunId, continuation: { runIds: [recoveredRunId] }, resumability: { state: "resumable" } },
-					unresolved: { key: "unresolved", agent: "worker", latestRunId: unresolvedRunId, continuation: { runIds: [unresolvedRunId] }, resumability: { state: "resumable" } },
-					nestedWorkflow: { key: "nestedWorkflow", latestRunId: unresolvedWorkflowRunId, continuation: { runIds: [unresolvedWorkflowRunId] }, resumability: { state: "resumable" } },
-				},
-			}, null, 2), "utf-8");
+			fs.writeFileSync(
+				path.join(asyncDir, "workflow-receipt.json"),
+				JSON.stringify(
+					{
+						version: 1,
+						workflowRunId,
+						state: "complete",
+						createdAt: Date.now(),
+						entries: {
+							recovered: {
+								key: "recovered",
+								agent: "reviewer",
+								latestRunId: recoveredRunId,
+								continuation: { runIds: [recoveredRunId] },
+								resumability: { state: "resumable" },
+							},
+							unresolved: {
+								key: "unresolved",
+								agent: "worker",
+								latestRunId: unresolvedRunId,
+								continuation: { runIds: [unresolvedRunId] },
+								resumability: { state: "resumable" },
+							},
+							nestedWorkflow: {
+								key: "nestedWorkflow",
+								latestRunId: unresolvedWorkflowRunId,
+								continuation: { runIds: [unresolvedWorkflowRunId] },
+								resumability: { state: "resumable" },
+							},
+						},
+					},
+					null,
+					2,
+				),
+				"utf-8",
+			);
 			const recoveredUsage = { input: 20, output: 4, cacheRead: 80, cacheWrite: 0, cost: 0.5, turns: 2 };
-			fs.writeFileSync(metadataPath, JSON.stringify({ runId: recoveredRunId, agent: "reviewer", usage: recoveredUsage }), "utf-8");
+			fs.writeFileSync(
+				metadataPath,
+				JSON.stringify({ runId: recoveredRunId, agent: "reviewer", usage: recoveredUsage }),
+				"utf-8",
+			);
 
 			const events = new FakeEvents();
 			const bridge = registerSubagentRpcBridge({
 				events,
-				getContext: () => ({
-					cwd: root,
-					sessionManager: {
-						getSessionId: () => "session-async-cost",
-						getSessionFile: () => sessionFile,
-						getBranch: () => [{
-							type: "message",
-							message: { role: "toolResult", toolName: "subagent", details: { mode: "workflow", runId: workflowRunId, asyncId: workflowRunId, results: [] } },
-						}],
-					},
-				}) as any,
+				getContext: () =>
+					({
+						cwd: root,
+						sessionManager: {
+							getSessionId: () => "session-async-cost",
+							getSessionFile: () => sessionFile,
+							getBranch: () => [
+								{
+									type: "message",
+									message: {
+										role: "toolResult",
+										toolName: "subagent",
+										details: { mode: "workflow", runId: workflowRunId, asyncId: workflowRunId, results: [] },
+									},
+								},
+							],
+						},
+					}) as any,
 				execute: async () => assert.fail("cost should not call executor"),
 				state: { baseCwd: root, artifactDirPreference: "session" } as SubagentState,
 			});
 
 			const reply = await request(events, "cost-async", "cost");
 			assert.equal(reply.success, true);
-			const data = (reply as { data: { children: Array<{ agent?: string; runId?: string }>; childTotal: Record<string, number>; total: Record<string, number>; unresolvedAsyncChildren: number } }).data;
-			assert.deepEqual(data.children.map(({ agent, runId }) => ({ agent, runId })), [{ agent: "reviewer", runId: recoveredRunId }]);
+			const data = (
+				reply as {
+					data: {
+						children: Array<{ agent?: string; runId?: string }>;
+						childTotal: Record<string, number>;
+						total: Record<string, number>;
+						unresolvedAsyncChildren: number;
+					};
+				}
+			).data;
+			assert.deepEqual(
+				data.children.map(({ agent, runId }) => ({ agent, runId })),
+				[{ agent: "reviewer", runId: recoveredRunId }],
+			);
 			assert.deepEqual(data.childTotal, recoveredUsage);
 			assert.deepEqual(data.total, recoveredUsage, "totals remain a lower bound when metadata is unavailable");
 			assert.equal(data.unresolvedAsyncChildren, 2);

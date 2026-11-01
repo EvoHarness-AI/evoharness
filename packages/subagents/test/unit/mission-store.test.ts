@@ -14,7 +14,11 @@ import {
 	resolveMissionStoreLocation,
 	updateMission,
 } from "../../src/missions/store.ts";
-import { createMissionWorkflowState, MISSION_STATE_MAX_BYTES, missionStatePath } from "../../src/missions/workflow-state.ts";
+import {
+	createMissionWorkflowState,
+	MISSION_STATE_MAX_BYTES,
+	missionStatePath,
+} from "../../src/missions/workflow-state.ts";
 
 function fixture() {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-missions-"));
@@ -54,7 +58,11 @@ describe("mission store", () => {
 			assert.equal(path.relative(test.projectRoot, test.location.missionDir).startsWith(".."), true);
 			assert.equal(test.location.missionDir.startsWith(path.join(test.agentDir, "missions", "projects")), true);
 			assert.equal(
-				resolveMissionStoreLocation({ projectRoot: test.projectRoot, agentDir: test.agentDir, config: { directory: ".pi/subagents/missions" } }).missionDir,
+				resolveMissionStoreLocation({
+					projectRoot: test.projectRoot,
+					agentDir: test.agentDir,
+					config: { directory: ".pi/subagents/missions" },
+				}).missionDir,
 				path.join(test.projectRoot, ".pi/subagents", "missions"),
 			);
 		} finally {
@@ -68,8 +76,15 @@ describe("mission store", () => {
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		process.env.EVOHARNESS_CODING_AGENT_DIR = test.agentDir;
 		try {
-			for (const [from, to] of [[test.realRoot, test.linkRoot], [test.linkRoot, test.realRoot]]) {
-				const created = handleMissionAction("mission.create", { mission: { title: "Linked", objective: "Find me" } }, { cwd: from, agentDir: test.agentDir });
+			for (const [from, to] of [
+				[test.realRoot, test.linkRoot],
+				[test.linkRoot, test.realRoot],
+			]) {
+				const created = handleMissionAction(
+					"mission.create",
+					{ mission: { title: "Linked", objective: "Find me" } },
+					{ cwd: from, agentDir: test.agentDir },
+				);
 				const missionId = created.details?.missionId;
 				assert.ok(missionId);
 				const ctx = { cwd: to, agentDir: test.agentDir };
@@ -77,10 +92,16 @@ describe("mission store", () => {
 				assert.equal(prepareMissionLaunch({ projectRoot: to, params: { missionId } })?.missionId, missionId);
 			}
 			const missingRoot = path.join(test.realRoot, "not", "created");
-			const beforeCreate = resolveMissionStoreLocation({ projectRoot: path.join(test.linkRoot, "not", "created"), agentDir: test.agentDir });
+			const beforeCreate = resolveMissionStoreLocation({
+				projectRoot: path.join(test.linkRoot, "not", "created"),
+				agentDir: test.agentDir,
+			});
 			assert.equal(beforeCreate.projectRoot, missingRoot);
 			fs.mkdirSync(missingRoot, { recursive: true });
-			assert.equal(resolveMissionStoreLocation({ projectRoot: missingRoot, agentDir: test.agentDir }).missionDir, beforeCreate.missionDir);
+			assert.equal(
+				resolveMissionStoreLocation({ projectRoot: missingRoot, agentDir: test.agentDir }).missionDir,
+				beforeCreate.missionDir,
+			);
 		} finally {
 			if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
 			else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
@@ -88,16 +109,23 @@ describe("mission store", () => {
 		}
 	});
 
-	it("reports a project root it cannot resolve instead of guessing a store", { skip: process.platform === "win32" ? "symlink loops need privileges on Windows" : undefined }, () => {
-		const test = symlinkedFixture();
-		try {
-			const loop = path.join(test.root, "loop");
-			fs.symlinkSync(loop, loop);
-			assert.throws(() => resolveMissionStoreLocation({ projectRoot: path.join(loop, "project"), agentDir: test.agentDir }), { code: "ELOOP" });
-		} finally {
-			fs.rmSync(test.root, { recursive: true, force: true });
-		}
-	});
+	it(
+		"reports a project root it cannot resolve instead of guessing a store",
+		{ skip: process.platform === "win32" ? "symlink loops need privileges on Windows" : undefined },
+		() => {
+			const test = symlinkedFixture();
+			try {
+				const loop = path.join(test.root, "loop");
+				fs.symlinkSync(loop, loop);
+				assert.throws(
+					() => resolveMissionStoreLocation({ projectRoot: path.join(loop, "project"), agentDir: test.agentDir }),
+					{ code: "ELOOP" },
+				);
+			} finally {
+				fs.rmSync(test.root, { recursive: true, force: true });
+			}
+		},
+	);
 
 	it("expands configured relative paths against the project root as given", () => {
 		const test = symlinkedFixture();
@@ -110,9 +138,16 @@ describe("mission store", () => {
 			assert.equal(configured.projectRoot, test.linkRoot);
 			assert.equal(configured.missionDir, path.join(test.root, "missions"));
 			assert.equal(configured.globalIndexDir, path.join(test.root, "index"));
-			const indexOnly = resolveMissionStoreLocation({ projectRoot: test.linkRoot, agentDir: test.agentDir, config: { globalIndexDir: "../index" } });
+			const indexOnly = resolveMissionStoreLocation({
+				projectRoot: test.linkRoot,
+				agentDir: test.agentDir,
+				config: { globalIndexDir: "../index" },
+			});
 			assert.equal(indexOnly.globalIndexDir, path.join(test.root, "index"));
-			assert.equal(indexOnly.missionDir, resolveMissionStoreLocation({ projectRoot: test.realRoot, agentDir: test.agentDir }).missionDir);
+			assert.equal(
+				indexOnly.missionDir,
+				resolveMissionStoreLocation({ projectRoot: test.realRoot, agentDir: test.agentDir }).missionDir,
+			);
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
 		}
@@ -129,11 +164,21 @@ describe("mission store", () => {
 				return;
 			}
 			const agentDir = path.join(root, "agent");
-			const created = handleMissionAction("mission.create", { mission: { title: "Cased", objective: "Find me" } }, { cwd: upper, agentDir });
+			const created = handleMissionAction(
+				"mission.create",
+				{ mission: { title: "Cased", objective: "Find me" } },
+				{ cwd: upper, agentDir },
+			);
 			const missionId = created.details?.missionId;
 			assert.ok(missionId);
-			assert.equal(handleMissionAction("mission.show", { missionId }, { cwd: lower, agentDir }).details?.mission?.id, missionId);
-			assert.equal(resolveMissionStoreLocation({ projectRoot: lower, agentDir }).missionDir, resolveMissionStoreLocation({ projectRoot: upper, agentDir }).missionDir);
+			assert.equal(
+				handleMissionAction("mission.show", { missionId }, { cwd: lower, agentDir }).details?.mission?.id,
+				missionId,
+			);
+			assert.equal(
+				resolveMissionStoreLocation({ projectRoot: lower, agentDir }).missionDir,
+				resolveMissionStoreLocation({ projectRoot: upper, agentDir }).missionDir,
+			);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -155,7 +200,14 @@ describe("mission store", () => {
 					{ runId: "workflow-1", mode: "workflow", status: "completed" },
 				],
 				addArtifacts: [{ kind: "status", path: path.join(test.root, "status.json") }],
-				addReceipts: [{ kind: "pull_request", status: "ready", title: "PR 733", url: "https://github.com/example/repo/pull/733" }],
+				addReceipts: [
+					{
+						kind: "pull_request",
+						status: "ready",
+						title: "PR 733",
+						url: "https://github.com/example/repo/pull/733",
+					},
+				],
 				addDecisions: [{ title: "Choose release window", options: ["now", "later"] }],
 			});
 
@@ -165,11 +217,21 @@ describe("mission store", () => {
 			assert.equal(updated.decisions[0]?.status, "open");
 			assert.equal(updated.receipts[0]?.url, "https://github.com/example/repo/pull/733");
 			const receiptUpdated = updateMission(test.location, created.id, {
-				addReceipts: [{ kind: "pull_request", status: "succeeded", title: "PR 733", url: "https://github.com/example/repo/pull/733" }],
+				addReceipts: [
+					{
+						kind: "pull_request",
+						status: "succeeded",
+						title: "PR 733",
+						url: "https://github.com/example/repo/pull/733",
+					},
+				],
 			});
 			assert.equal(receiptUpdated.receipts[0]?.status, "succeeded");
 			assert.equal(receiptUpdated.receipts[0]?.createdAt, updated.receipts[0]?.createdAt);
-			assert.deepEqual(listMissions(test.location).records.map((record) => record.id), [created.id]);
+			assert.deepEqual(
+				listMissions(test.location).records.map((record) => record.id),
+				[created.id],
+			);
 			const global = listGlobalMissions(test.location.globalIndexDir);
 			assert.equal(global.entries[0]?.missionId, created.id);
 			assert.equal(global.entries[0]?.stale, false);
@@ -181,30 +243,48 @@ describe("mission store", () => {
 	it("persists workflow child attempts and projects their latest heartbeat", () => {
 		const test = fixture();
 		try {
-			const mission = createMission(test.location, { title: "Dispatch ledger", objective: "Track workflow children", status: "active" });
-			updateMission(test.location, mission.id, {
-				upsertWorkflowChildren: [{
-					workflowRunId: "workflow-1",
-					key: "review",
-					status: "running",
-					agent: "reviewer",
-					task: "Review the diff",
-					phase: "review",
-					sessionPath: "/tmp/review.jsonl",
-					heartbeat: { status: "running", phase: "review" },
-				}],
-			}, new Date("2026-08-11T10:00:00.000Z"));
-			const completed = updateMission(test.location, mission.id, {
-				upsertWorkflowChildren: [{
-					workflowRunId: "workflow-1",
-					key: "review",
-					status: "completed",
-					runId: "child-1",
-					completedAt: "2026-08-11T10:05:00.000Z",
-					artifactPaths: ["/tmp/review.md"],
-					heartbeat: { status: "completed", phase: "review" },
-				}],
-			}, new Date("2026-08-11T10:05:00.000Z"));
+			const mission = createMission(test.location, {
+				title: "Dispatch ledger",
+				objective: "Track workflow children",
+				status: "active",
+			});
+			updateMission(
+				test.location,
+				mission.id,
+				{
+					upsertWorkflowChildren: [
+						{
+							workflowRunId: "workflow-1",
+							key: "review",
+							status: "running",
+							agent: "reviewer",
+							task: "Review the diff",
+							phase: "review",
+							sessionPath: "/tmp/review.jsonl",
+							heartbeat: { status: "running", phase: "review" },
+						},
+					],
+				},
+				new Date("2026-08-11T10:00:00.000Z"),
+			);
+			const completed = updateMission(
+				test.location,
+				mission.id,
+				{
+					upsertWorkflowChildren: [
+						{
+							workflowRunId: "workflow-1",
+							key: "review",
+							status: "completed",
+							runId: "child-1",
+							completedAt: "2026-08-11T10:05:00.000Z",
+							artifactPaths: ["/tmp/review.md"],
+							heartbeat: { status: "completed", phase: "review" },
+						},
+					],
+				},
+				new Date("2026-08-11T10:05:00.000Z"),
+			);
 
 			assert.equal(completed.workflowChildren.length, 1);
 			assert.deepEqual(completed.workflowChildren[0], {
@@ -222,8 +302,15 @@ describe("mission store", () => {
 				artifactPaths: ["/tmp/review.md"],
 				heartbeat: { status: "completed", phase: "review", updatedAt: "2026-08-11T10:05:00.000Z" },
 			});
-			const shown = handleMissionAction("mission.show", { missionId: mission.id }, { cwd: test.projectRoot, agentDir: test.agentDir });
-			assert.match(shown.content[0]?.type === "text" ? shown.content[0].text : "", /review \(child-1\): completed — reviewer \[review\]; updated .*; heartbeat completed\/review at/);
+			const shown = handleMissionAction(
+				"mission.show",
+				{ missionId: mission.id },
+				{ cwd: test.projectRoot, agentDir: test.agentDir },
+			);
+			assert.match(
+				shown.content[0]?.type === "text" ? shown.content[0].text : "",
+				/review \(child-1\): completed — reviewer \[review\]; updated .*; heartbeat completed\/review at/,
+			);
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
 		}
@@ -233,15 +320,30 @@ describe("mission store", () => {
 		const test = fixture();
 		try {
 			const ctx = { cwd: test.projectRoot, agentDir: test.agentDir };
-			const mission = createMission(test.location, { title: "Decision gate", objective: "Wait for owner", status: "active" });
-			const pending = handleMissionAction("mission.update", {
-				missionId: mission.id,
-				missionUpdate: { decisions: [{ title: "Choose release window", options: ["now", "later"], recommendation: "later" }] },
-			}, ctx);
+			const mission = createMission(test.location, {
+				title: "Decision gate",
+				objective: "Wait for owner",
+				status: "active",
+			});
+			const pending = handleMissionAction(
+				"mission.update",
+				{
+					missionId: mission.id,
+					missionUpdate: {
+						decisions: [{ title: "Choose release window", options: ["now", "later"], recommendation: "later" }],
+					},
+				},
+				ctx,
+			);
 			const decisionId = pending.details?.mission?.decisions[0]?.id;
 			assert.ok(decisionId);
 			assert.equal(pending.details?.mission?.status, "needs_decision");
-			assert.match(handleMissionAction("mission.list", {}, ctx).content[0]?.type === "text" ? handleMissionAction("mission.list", {}, ctx).content[0].text : "", /decisions: 1 open, 0 resolved/);
+			assert.match(
+				handleMissionAction("mission.list", {}, ctx).content[0]?.type === "text"
+					? handleMissionAction("mission.list", {}, ctx).content[0].text
+					: "",
+				/decisions: 1 open, 0 resolved/,
+			);
 
 			const refreshed = updateMission(test.location, mission.id, {
 				status: "active",
@@ -249,12 +351,27 @@ describe("mission store", () => {
 			});
 			assert.equal(refreshed.status, "needs_decision");
 
-			const resolved = handleMissionAction("mission.resolve-decision", { missionId: mission.id, id: decisionId, summary: "Release later" }, ctx);
+			const resolved = handleMissionAction(
+				"mission.resolve-decision",
+				{ missionId: mission.id, id: decisionId, summary: "Release later" },
+				ctx,
+			);
 			assert.equal(resolved.details?.mission?.status, "active");
 			assert.equal(resolved.details?.mission?.decisions[0]?.status, "resolved");
 			assert.equal(resolved.details?.mission?.decisions[0]?.resolution, "Release later");
-			assert.match(resolved.content[0]?.type === "text" ? resolved.content[0].text : "", /resolved — Choose release window; resolution: Release later/);
-			assert.throws(() => handleMissionAction("mission.resolve-decision", { missionId: mission.id, id: decisionId, summary: "Again" }, ctx), /already resolved/);
+			assert.match(
+				resolved.content[0]?.type === "text" ? resolved.content[0].text : "",
+				/resolved — Choose release window; resolution: Release later/,
+			);
+			assert.throws(
+				() =>
+					handleMissionAction(
+						"mission.resolve-decision",
+						{ missionId: mission.id, id: decisionId, summary: "Again" },
+						ctx,
+					),
+				/already resolved/,
+			);
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
 		}
@@ -264,13 +381,19 @@ describe("mission store", () => {
 		const test = fixture();
 		try {
 			for (const status of ["planned", "waiting"] as const) {
-				const mission = createMission(test.location, { title: `${status} decision`, objective: "Keep state", status });
+				const mission = createMission(test.location, {
+					title: `${status} decision`,
+					objective: "Keep state",
+					status,
+				});
 				const pending = updateMission(test.location, mission.id, { addDecisions: [{ title: "Choose next step" }] });
 				const decisionId = pending.decisions[0]?.id;
 				assert.ok(decisionId);
 				assert.equal(pending.status, status);
 
-				const resolved = updateMission(test.location, mission.id, { resolveDecision: { id: decisionId, resolution: "Later" } });
+				const resolved = updateMission(test.location, mission.id, {
+					resolveDecision: { id: decisionId, resolution: "Later" },
+				});
 				assert.equal(resolved.status, status);
 				assert.equal(resolved.decisions[0]?.status, "resolved");
 			}
@@ -327,19 +450,37 @@ describe("mission store", () => {
 				fs.writeFileSync(process.env.READY_FILE, "ready", "utf-8");
 				createMissionWorkflowState(location, process.env.MISSION_ID).set("reviewer", "ready");
 			`;
-			const child = spawn(process.execPath, ["--experimental-strip-types", "--input-type=module", "--eval", script], {
-				cwd: process.cwd(),
-				env: { ...process.env, MISSION_LOCATION: JSON.stringify(test.location), MISSION_ID: mission.id, READY_FILE: readyPath },
-				stdio: ["ignore", "pipe", "pipe"],
-			});
+			const child = spawn(
+				process.execPath,
+				["--experimental-strip-types", "--input-type=module", "--eval", script],
+				{
+					cwd: process.cwd(),
+					env: {
+						...process.env,
+						MISSION_LOCATION: JSON.stringify(test.location),
+						MISSION_ID: mission.id,
+						READY_FILE: readyPath,
+					},
+					stdio: ["ignore", "pipe", "pipe"],
+				},
+			);
 			let stderr = "";
-			child.stderr?.on("data", (chunk) => { stderr += String(chunk); });
+			child.stderr?.on("data", (chunk) => {
+				stderr += String(chunk);
+			});
 			await waitForFile(readyPath);
 			fs.writeFileSync(statePath, JSON.stringify({ external: true, approved: false }, null, 2), "utf-8");
 			fs.rmSync(lockPath, { recursive: true, force: true });
 			const exit = await Promise.race([
-				new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) => child.on("exit", (code, signal) => resolve({ code, signal }))),
-				new Promise<{ code: "timeout"; signal: null }>((resolve) => setTimeout(() => { child.kill(); resolve({ code: "timeout", signal: null }); }, 5_000)),
+				new Promise<{ code: number | null; signal: NodeJS.Signals | null }>((resolve) =>
+					child.on("exit", (code, signal) => resolve({ code, signal })),
+				),
+				new Promise<{ code: "timeout"; signal: null }>((resolve) =>
+					setTimeout(() => {
+						child.kill();
+						resolve({ code: "timeout", signal: null });
+					}, 5_000),
+				),
 			]);
 			assert.deepEqual(exit, { code: 0, signal: null }, stderr);
 			assert.deepEqual(JSON.parse(fs.readFileSync(statePath, "utf-8")), {
@@ -378,7 +519,16 @@ describe("mission store", () => {
 			const state = createMissionWorkflowState(test.location, mission.id);
 			const lockPath = `${state.path}.lock`;
 			fs.mkdirSync(lockPath, { recursive: true });
-			fs.writeFileSync(path.join(lockPath, "owner.json"), JSON.stringify({ pid: process.pid, token: "abandoned", createdAt: Date.now(), processKey: "stale-process" }), "utf-8");
+			fs.writeFileSync(
+				path.join(lockPath, "owner.json"),
+				JSON.stringify({
+					pid: process.pid,
+					token: "abandoned",
+					createdAt: Date.now(),
+					processKey: "stale-process",
+				}),
+				"utf-8",
+			);
 
 			state.set("reviewer", "ready");
 
@@ -392,19 +542,31 @@ describe("mission store", () => {
 	it("does not reclaim a live replacement owner after observing a reused pid identity", () => {
 		const test = fixture();
 		try {
-			const mission = createMission(test.location, { title: "Replacement owner", objective: "Keep a reused pid lock safe" });
+			const mission = createMission(test.location, {
+				title: "Replacement owner",
+				objective: "Keep a reused pid lock safe",
+			});
 			const statePath = missionStatePath(test.location, mission.id);
 			const lockPath = `${statePath}.lock`;
 			const ownerPath = path.join(lockPath, "owner.json");
 			const reusedPid = process.pid + 100_000;
-			const replacementOwner = { pid: reusedPid, token: "replacement", createdAt: Date.now(), processKey: "replacement-process" };
+			const replacementOwner = {
+				pid: reusedPid,
+				token: "replacement",
+				createdAt: Date.now(),
+				processKey: "replacement-process",
+			};
 			fs.mkdirSync(lockPath, { recursive: true });
-			fs.writeFileSync(ownerPath, JSON.stringify({ pid: reusedPid, token: "old", createdAt: Date.now(), processKey: "old-process" }), "utf-8");
+			fs.writeFileSync(
+				ownerPath,
+				JSON.stringify({ pid: reusedPid, token: "old", createdAt: Date.now(), processKey: "old-process" }),
+				"utf-8",
+			);
 
 			let currentIdentity = "old-process";
 			const state = createMissionWorkflowState(test.location, mission.id, {
 				isProcessAlive: (pid) => pid === reusedPid,
-				getProcessStartKey: (pid) => pid === reusedPid ? currentIdentity : "current-process",
+				getProcessStartKey: (pid) => (pid === reusedPid ? currentIdentity : "current-process"),
 				retryDelaysMs: [],
 			});
 
@@ -437,15 +599,30 @@ describe("mission store", () => {
 			`;
 			const spawnWriter = (key: string, value: string) => {
 				let stderr = "";
-				const child = spawn(process.execPath, ["--experimental-strip-types", "--input-type=module", "--eval", script], {
-					cwd: process.cwd(),
-					env: { ...process.env, MISSION_LOCATION: JSON.stringify(test.location), MISSION_ID: mission.id, STATE_KEY: key, STATE_VALUE: value },
-					stdio: ["ignore", "pipe", "pipe"],
+				const child = spawn(
+					process.execPath,
+					["--experimental-strip-types", "--input-type=module", "--eval", script],
+					{
+						cwd: process.cwd(),
+						env: {
+							...process.env,
+							MISSION_LOCATION: JSON.stringify(test.location),
+							MISSION_ID: mission.id,
+							STATE_KEY: key,
+							STATE_VALUE: value,
+						},
+						stdio: ["ignore", "pipe", "pipe"],
+					},
+				);
+				child.stderr?.on("data", (chunk) => {
+					stderr += String(chunk);
 				});
-				child.stderr?.on("data", (chunk) => { stderr += String(chunk); });
 				return new Promise<void>((resolve, reject) => {
 					// On Windows each writer cold-starts Node and spawns powershell.exe for lock process identity, so 5s was too short under CI load.
-					const timeout = setTimeout(() => { child.kill(); reject(new Error(`${key} writer timed out`)); }, 20_000);
+					const timeout = setTimeout(() => {
+						child.kill();
+						reject(new Error(`${key} writer timed out`));
+					}, 20_000);
 					child.on("exit", (code, signal) => {
 						clearTimeout(timeout);
 						if (code === 0 && signal === null) resolve();
@@ -509,10 +686,26 @@ describe("mission store", () => {
 		const test = fixture();
 		const location = { ...test.location, retainTerminal: 1 };
 		try {
-			const oldest = createMission(location, { title: "Old terminal", objective: "Prune me" }, new Date("2026-01-01T00:00:00Z"));
-			const newest = createMission(location, { title: "New terminal", objective: "Keep me" }, new Date("2026-01-02T00:00:00Z"));
-			const active = createMission(location, { title: "Active", objective: "Never prune", status: "active" }, new Date("2026-01-03T00:00:00Z"));
-			const planned = createMission(location, { title: "Planned", objective: "Never prune", status: "planned" }, new Date("2026-01-04T00:00:00Z"));
+			const oldest = createMission(
+				location,
+				{ title: "Old terminal", objective: "Prune me" },
+				new Date("2026-01-01T00:00:00Z"),
+			);
+			const newest = createMission(
+				location,
+				{ title: "New terminal", objective: "Keep me" },
+				new Date("2026-01-02T00:00:00Z"),
+			);
+			const active = createMission(
+				location,
+				{ title: "Active", objective: "Never prune", status: "active" },
+				new Date("2026-01-03T00:00:00Z"),
+			);
+			const planned = createMission(
+				location,
+				{ title: "Planned", objective: "Never prune", status: "planned" },
+				new Date("2026-01-04T00:00:00Z"),
+			);
 			updateMission(location, oldest.id, { status: "completed" }, new Date("2026-01-05T00:00:00Z"));
 			updateMission(location, newest.id, { status: "failed" }, new Date("2026-01-06T00:00:00Z"));
 
@@ -520,7 +713,10 @@ describe("mission store", () => {
 			assert.equal(readMission(location, newest.id).status, "failed");
 			assert.equal(readMission(location, active.id).status, "active");
 			assert.equal(readMission(location, planned.id).status, "planned");
-			assert.equal(listGlobalMissions(location.globalIndexDir).entries.some((entry) => entry.missionId === oldest.id), false);
+			assert.equal(
+				listGlobalMissions(location.globalIndexDir).entries.some((entry) => entry.missionId === oldest.id),
+				false,
+			);
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
 		}
@@ -530,18 +726,29 @@ describe("mission store", () => {
 		const test = fixture();
 		try {
 			const ctx = { cwd: test.projectRoot, agentDir: test.agentDir, currentSessionId: "session-1" };
-			const created = handleMissionAction("mission.create", { mission: { title: "Unreadable status", objective: "Keep mission readable" } }, ctx);
+			const created = handleMissionAction(
+				"mission.create",
+				{ mission: { title: "Unreadable status", objective: "Keep mission readable" } },
+				ctx,
+			);
 			const missionId = created.details?.missionId;
 			assert.ok(missionId);
 			const asyncDir = path.join(test.root, "async-run");
 			fs.mkdirSync(asyncDir, { recursive: true });
-			handleMissionAction("mission.attach-run", { missionId, runId: "run-3", runMode: "single", runStatus: "running", dir: asyncDir }, ctx);
+			handleMissionAction(
+				"mission.attach-run",
+				{ missionId, runId: "run-3", runMode: "single", runStatus: "running", dir: asyncDir },
+				ctx,
+			);
 			fs.writeFileSync(path.join(asyncDir, "status.json"), "{not json", "utf-8");
 
 			const shown = handleMissionAction("mission.show", { missionId }, ctx);
 
 			assert.equal(shown.details?.mission?.runs[0]?.status, "running");
-			assert.match(shown.content[0]?.type === "text" ? shown.content[0].text : "", /Warning: Failed to read linked run status/);
+			assert.match(
+				shown.content[0]?.type === "text" ? shown.content[0].text : "",
+				/Warning: Failed to read linked run status/,
+			);
 			assert.equal(shown.details?.missions?.warnings?.length, 1);
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
@@ -552,39 +759,102 @@ describe("mission store", () => {
 		const test = fixture();
 		try {
 			const ctx = { cwd: test.projectRoot, agentDir: test.agentDir, currentSessionId: "session-1" };
-			const created = handleMissionAction("mission.create", { mission: { title: "Action mission", objective: "Exercise actions" } }, ctx);
+			const created = handleMissionAction(
+				"mission.create",
+				{ mission: { title: "Action mission", objective: "Exercise actions" } },
+				ctx,
+			);
 			const missionId = created.details?.missionId;
 			assert.ok(missionId);
 			const asyncDir = path.join(test.root, "async-run");
 			fs.mkdirSync(asyncDir, { recursive: true });
-			const attached = handleMissionAction("mission.attach-run", { missionId, runId: "run-2", runMode: "parallel", runStatus: "running", dir: asyncDir }, ctx);
+			const attached = handleMissionAction(
+				"mission.attach-run",
+				{ missionId, runId: "run-2", runMode: "parallel", runStatus: "running", dir: asyncDir },
+				ctx,
+			);
 			assert.equal(attached.details?.mission?.runs[0]?.runId, "run-2");
 			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({ state: "complete" }), "utf-8");
 			const shown = handleMissionAction("mission.show", { missionId }, ctx);
 			assert.equal(shown.details?.mission?.status, "completed");
-			assert.match(shown.content[0]?.type === "text" ? shown.content[0].text : "", new RegExp(`State: .*${missionId}[/\\\\]state\\.json`));
+			assert.match(
+				shown.content[0]?.type === "text" ? shown.content[0].text : "",
+				new RegExp(`State: .*${missionId}[/\\\\]state\\.json`),
+			);
 			assert.equal(shown.details?.mission?.runs[0]?.status, "complete");
-			const receipt = handleMissionAction("mission.update", {
-				missionId,
-				missionUpdate: {
-					receipts: [{ kind: "ci", status: "succeeded", title: "Unit tests", url: "https://github.com/example/repo/actions/runs/1", description: "All checks passed" }],
+			const receipt = handleMissionAction(
+				"mission.update",
+				{
+					missionId,
+					missionUpdate: {
+						receipts: [
+							{
+								kind: "ci",
+								status: "succeeded",
+								title: "Unit tests",
+								url: "https://github.com/example/repo/actions/runs/1",
+								description: "All checks passed",
+							},
+						],
+					},
 				},
-			}, ctx);
+				ctx,
+			);
 			assert.equal(receipt.details?.mission?.receipts[0]?.status, "succeeded");
-			assert.match(receipt.content[0]?.type === "text" ? receipt.content[0].text : "", /Delivery receipts:\n  ci \(succeeded\): Unit tests/);
-			const updatedReceipt = handleMissionAction("mission.update", {
-				missionId,
-				missionUpdate: { receipts: [{ kind: "ci", status: "ready", title: "Unit tests", url: "https://github.com/example/repo/actions/runs/1" }] },
-			}, ctx);
+			assert.match(
+				receipt.content[0]?.type === "text" ? receipt.content[0].text : "",
+				/Delivery receipts:\n {2}ci \(succeeded\): Unit tests/,
+			);
+			const updatedReceipt = handleMissionAction(
+				"mission.update",
+				{
+					missionId,
+					missionUpdate: {
+						receipts: [
+							{
+								kind: "ci",
+								status: "ready",
+								title: "Unit tests",
+								url: "https://github.com/example/repo/actions/runs/1",
+							},
+						],
+					},
+				},
+				ctx,
+			);
 			assert.equal(updatedReceipt.details?.mission?.receipts.length, 1);
 			assert.equal(updatedReceipt.details?.mission?.receipts[0]?.status, "ready");
-			const closed = handleMissionAction("mission.close", { missionId, missionStatus: "completed", summary: "Done" }, ctx);
+			const closed = handleMissionAction(
+				"mission.close",
+				{ missionId, missionStatus: "completed", summary: "Done" },
+				ctx,
+			);
 			assert.equal(closed.details?.mission?.status, "completed");
 			const global = handleMissionAction("mission.list", { missionScope: "global" }, ctx);
 			assert.equal(global.details?.missions?.globalEntries?.length, 1);
-			assert.throws(() => handleMissionAction("mission.list", { missionScope: "everywhere" as "global" }, ctx), /missionScope/);
-			assert.throws(() => handleMissionAction("mission.update", { missionId, missionUpdate: { unsupported: true } as never }, ctx), /unknown/);
-			assert.throws(() => handleMissionAction("mission.update", { missionId, missionUpdate: { receipts: [{ kind: "ci", status: "ready", title: "Bad URL", url: "relative" }] } as never }, ctx), /absolute URL/);
+			assert.throws(
+				() => handleMissionAction("mission.list", { missionScope: "everywhere" as "global" }, ctx),
+				/missionScope/,
+			);
+			assert.throws(
+				() =>
+					handleMissionAction("mission.update", { missionId, missionUpdate: { unsupported: true } as never }, ctx),
+				/unknown/,
+			);
+			assert.throws(
+				() =>
+					handleMissionAction(
+						"mission.update",
+						{
+							missionId,
+							missionUpdate: {
+								receipts: [{ kind: "ci", status: "ready", title: "Bad URL", url: "relative" }],
+							} as never,
+						},
+						ctx,
+					),
+				/absolute URL/,
+			);
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });
 		}

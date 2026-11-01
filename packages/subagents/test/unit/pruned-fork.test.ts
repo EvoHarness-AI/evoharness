@@ -6,7 +6,12 @@ import { describe, it } from "node:test";
 import { createAssistantMessageEventStream, fauxAssistantMessage } from "@evoharness/ai";
 import type { ExtensionContext } from "@evoharness/coding-agent";
 import { createForkContextResolver } from "../../src/shared/fork-context.ts";
-import { createPrunedForkSessionWriter, pruneForkSessionFile, prunedForkRecoveryPath, type PrunedForkRecoveryPayload } from "../../src/shared/pruned-fork.ts";
+import {
+	createPrunedForkSessionWriter,
+	type PrunedForkRecoveryPayload,
+	prunedForkRecoveryPath,
+	pruneForkSessionFile,
+} from "../../src/shared/pruned-fork.ts";
 
 function writeJsonl(filePath: string, entries: unknown[]): void {
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -16,16 +21,49 @@ function writeJsonl(filePath: string, entries: unknown[]): void {
 function largeForkEntries(parentSession: string): unknown[] {
 	return [
 		{ type: "session", version: 1, id: "child", timestamp: "2026-08-24T00:00:00.000Z", cwd: "/tmp", parentSession },
-		{ type: "message", id: "user-1", parentId: null, timestamp: "2026-08-24T00:00:01.000Z", message: { role: "user", content: "Keep this recent user decision exact." } },
-		{ type: "message", id: "assistant-call", parentId: "user-1", timestamp: "2026-08-24T00:00:02.000Z", message: { role: "assistant", provider: "anthropic", api: "anthropic-messages", model: "anthropic/claude", content: [
-			{ type: "thinking", thinking: "private", thinkingSignature: "signed" },
-			{ type: "toolCall", id: "tool-1", name: "read", arguments: { path: "large.txt" } },
-		] } },
-		{ type: "message", id: "tool-result", parentId: "assistant-call", timestamp: "2026-08-24T00:00:03.000Z", message: { role: "toolResult", toolCallId: "tool-1", toolName: "read", content: [{ type: "text", text: "raw-parent-output-".repeat(6_000) }], isError: false } },
+		{
+			type: "message",
+			id: "user-1",
+			parentId: null,
+			timestamp: "2026-08-24T00:00:01.000Z",
+			message: { role: "user", content: "Keep this recent user decision exact." },
+		},
+		{
+			type: "message",
+			id: "assistant-call",
+			parentId: "user-1",
+			timestamp: "2026-08-24T00:00:02.000Z",
+			message: {
+				role: "assistant",
+				provider: "anthropic",
+				api: "anthropic-messages",
+				model: "anthropic/claude",
+				content: [
+					{ type: "thinking", thinking: "private", thinkingSignature: "signed" },
+					{ type: "toolCall", id: "tool-1", name: "read", arguments: { path: "large.txt" } },
+				],
+			},
+		},
+		{
+			type: "message",
+			id: "tool-result",
+			parentId: "assistant-call",
+			timestamp: "2026-08-24T00:00:03.000Z",
+			message: {
+				role: "toolResult",
+				toolCallId: "tool-1",
+				toolName: "read",
+				content: [{ type: "text", text: "raw-parent-output-".repeat(6_000) }],
+				isError: false,
+			},
+		},
 	];
 }
 
-function validSummaryResponse(payload: string, text = "The large read established the current implementation state."): string {
+function validSummaryResponse(
+	payload: string,
+	text = "The large read established the current implementation state.",
+): string {
 	const request = JSON.parse(payload) as { items: Array<{ itemId: string }> };
 	return JSON.stringify({ summaries: request.items.map((item) => ({ itemId: item.itemId, summary: text })) });
 }
@@ -44,7 +82,11 @@ describe("pruned fork sessions", () => {
 			writeJsonl(firstSession, largeForkEntries(parentSession));
 			writeJsonl(secondSession, largeForkEntries(parentSession));
 			type RegistryStreamArgs = Parameters<ExtensionContext["modelRegistry"]["streamSimple"]>;
-			type RegistryCall = { model: RegistryStreamArgs[0]; context: RegistryStreamArgs[1]; options: RegistryStreamArgs[2] };
+			type RegistryCall = {
+				model: RegistryStreamArgs[0];
+				context: RegistryStreamArgs[1];
+				options: RegistryStreamArgs[2];
+			};
 			const model: RegistryStreamArgs[0] = {
 				provider: "opencode",
 				id: "summary-model",
@@ -61,25 +103,37 @@ describe("pruned fork sessions", () => {
 			const calls: RegistryCall[] = [];
 			const modelRegistry = {
 				getAvailable: () => [model],
-				find: (provider: string, id: string) => provider === model.provider && id === model.id ? model : undefined,
-				streamSimple(streamModel: RegistryStreamArgs[0], context: RegistryStreamArgs[1], options?: RegistryStreamArgs[2]) {
+				find: (provider: string, id: string) =>
+					provider === model.provider && id === model.id ? model : undefined,
+				streamSimple(
+					streamModel: RegistryStreamArgs[0],
+					context: RegistryStreamArgs[1],
+					options?: RegistryStreamArgs[2],
+				) {
 					calls.push({ model: streamModel, context, options });
 					const input = context.messages[0];
-					if (input?.role !== "user" || !Array.isArray(input.content) || input.content[0]?.type !== "text") throw new Error("expected summary payload");
+					if (input?.role !== "user" || !Array.isArray(input.content) || input.content[0]?.type !== "text")
+						throw new Error("expected summary payload");
 					const stream = createAssistantMessageEventStream();
-					queueMicrotask(() => stream.push({
-						type: "done",
-						reason: "stop",
-						message: fauxAssistantMessage(validSummaryResponse(input.content[0].text), { stopReason: "stop" }),
-					}));
+					queueMicrotask(() =>
+						stream.push({
+							type: "done",
+							reason: "stop",
+							message: fauxAssistantMessage(validSummaryResponse(input.content[0].text), { stopReason: "stop" }),
+						}),
+					);
 					return stream;
 				},
 			};
 			const sessionManager = { getSessionId: () => "parent-session" } as ExtensionContext["sessionManager"];
-			const writer = await createPrunedForkSessionWriter({ modelRegistry, sessionManager }, {
-				mode: "pruned",
-				model: "opencode/summary-model",
-			}, controller.signal);
+			const writer = await createPrunedForkSessionWriter(
+				{ modelRegistry, sessionManager },
+				{
+					mode: "pruned",
+					model: "opencode/summary-model",
+				},
+				controller.signal,
+			);
 
 			await Promise.all([writer(firstSession), writer(secondSession)]);
 
@@ -117,7 +171,10 @@ describe("pruned fork sessions", () => {
 
 			assert.equal(await pruneForkSessionFile(childSession, async (payload) => validSummaryResponse(payload)), true);
 			const prunedText = fs.readFileSync(childSession, "utf-8");
-			const entries = prunedText.trim().split("\n").map((line) => JSON.parse(line));
+			const entries = prunedText
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line));
 			const recovery = readRecovery(childSession);
 			const record = recovery.records[0]!;
 			assert.equal(entries[0].parentSession, parentSession);
@@ -131,8 +188,8 @@ describe("pruned fork sessions", () => {
 			assert.equal(record.utf8Bytes, Buffer.byteLength(record.body, "utf8"));
 			assert.equal(record.utf16CodeUnits, record.body.length);
 			assert.match(record.bodyDigest, /^sha256:[a-f0-9]{64}$/);
-			assert.ok(prunedText.includes(`\\\"batchId\\\":\\\"${recovery.batchId}\\\"`));
-			assert.ok(prunedText.includes(`\\\"itemId\\\":\\\"${record.itemId}\\\"`));
+			assert.ok(prunedText.includes(`\\"batchId\\":\\"${recovery.batchId}\\"`));
+			assert.ok(prunedText.includes(`\\"itemId\\":\\"${record.itemId}\\"`));
 			assert.ok(prunedText.includes("Keep this recent user decision exact."));
 			assert.ok(!prunedText.includes("raw-parent-output-raw-parent-output"));
 			assert.ok(fs.statSync(childSession).size < fullSize / 4);
@@ -153,10 +210,22 @@ describe("pruned fork sessions", () => {
 			const assistantBody = "old-assistant-overflow-".repeat(4_000);
 			writeJsonl(childSession, [
 				{ type: "session", version: 1, id: "child", cwd: "/tmp", parentSession },
-				{ type: "message", id: "assistant-old", parentId: null, message: { role: "assistant", content: [{ type: "text", text: assistantBody }] } },
-				{ type: "message", id: "user-recent", parentId: "assistant-old", message: { role: "user", content: "Recent exact decision." } },
+				{
+					type: "message",
+					id: "assistant-old",
+					parentId: null,
+					message: { role: "assistant", content: [{ type: "text", text: assistantBody }] },
+				},
+				{
+					type: "message",
+					id: "user-recent",
+					parentId: "assistant-old",
+					message: { role: "user", content: "Recent exact decision." },
+				},
 			]);
-			await pruneForkSessionFile(childSession, async (payload) => validSummaryResponse(payload, "Older assistant context summarized."));
+			await pruneForkSessionFile(childSession, async (payload) =>
+				validSummaryResponse(payload, "Older assistant context summarized."),
+			);
 			const text = fs.readFileSync(childSession, "utf-8");
 			assert.ok(text.includes("Older assistant context summarized."));
 			assert.ok(text.includes("Recent exact decision."));
@@ -176,12 +245,24 @@ describe("pruned fork sessions", () => {
 			writeJsonl(childSession, [
 				{ type: "session", version: 3, id: "child", cwd: "/tmp", parentSession },
 				{ type: "message", id: "user-1", parentId: null, message: { role: "user", content: "Original prompt." } },
-				{ type: "context_edit", id: "edit-1", parentId: "user-1", targetId: "user-1", replacement: { content: replacement } },
+				{
+					type: "context_edit",
+					id: "edit-1",
+					parentId: "user-1",
+					targetId: "user-1",
+					replacement: { content: replacement },
+				},
 			]);
 
-			await pruneForkSessionFile(childSession, async (payload) => validSummaryResponse(payload, "Replacement context summarized."));
+			await pruneForkSessionFile(childSession, async (payload) =>
+				validSummaryResponse(payload, "Replacement context summarized."),
+			);
 
-			const entries = fs.readFileSync(childSession, "utf-8").trim().split("\n").map((line) => JSON.parse(line));
+			const entries = fs
+				.readFileSync(childSession, "utf-8")
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line));
 			assert.match(entries[2].replacement.content, /^Replacement context summarized\.\nRecovery ref:/);
 			assert.ok(!fs.readFileSync(childSession, "utf-8").includes(replacement));
 			assert.equal(readRecovery(childSession).records[0]?.sourceEntryId, "edit-1");
@@ -202,9 +283,15 @@ describe("pruned fork sessions", () => {
 				{ type: "context_edit", id: "edit-1", parentId: "user-1", targetId: "user-1", replacement: null },
 			]);
 
-			await pruneForkSessionFile(childSession, async (payload) => validSummaryResponse(payload, "Omitted raw context summarized."));
+			await pruneForkSessionFile(childSession, async (payload) =>
+				validSummaryResponse(payload, "Omitted raw context summarized."),
+			);
 
-			const entries = fs.readFileSync(childSession, "utf-8").trim().split("\n").map((line) => JSON.parse(line));
+			const entries = fs
+				.readFileSync(childSession, "utf-8")
+				.trim()
+				.split("\n")
+				.map((line) => JSON.parse(line));
 			assert.equal(entries[2].replacement, null);
 			assert.ok(!fs.readFileSync(childSession, "utf-8").includes(omitted));
 		} finally {
@@ -219,7 +306,10 @@ describe("pruned fork sessions", () => {
 			writeJsonl(childSession, largeForkEntries(path.join(tempDir, "parent.jsonl")));
 			const before = fs.readFileSync(childSession, "utf-8");
 			await assert.rejects(() => pruneForkSessionFile(childSession, async () => "not-json"), /invalid JSON/);
-			await assert.rejects(() => pruneForkSessionFile(childSession, async () => '{"summaries":[]}'), /exactly one summary/);
+			await assert.rejects(
+				() => pruneForkSessionFile(childSession, async () => '{"summaries":[]}'),
+				/exactly one summary/,
+			);
 			assert.equal(fs.readFileSync(childSession, "utf-8"), before);
 			assert.equal(fs.existsSync(prunedForkRecoveryPath(childSession)), false);
 		} finally {
@@ -235,10 +325,23 @@ describe("pruned fork sessions", () => {
 			const duplicateBody = "duplicate-overflow-body\n".repeat(1_800);
 			writeJsonl(childSession, [
 				{ type: "session", version: 1, id: "child", cwd: "/tmp", parentSession },
-				{ type: "message", id: "assistant-1", parentId: null, message: { role: "assistant", content: [{ type: "text", text: duplicateBody }] } },
-				{ type: "message", id: "assistant-2", parentId: "assistant-1", message: { role: "assistant", content: [{ type: "text", text: duplicateBody }] } },
+				{
+					type: "message",
+					id: "assistant-1",
+					parentId: null,
+					message: { role: "assistant", content: [{ type: "text", text: duplicateBody }] },
+				},
+				{
+					type: "message",
+					id: "assistant-2",
+					parentId: "assistant-1",
+					message: { role: "assistant", content: [{ type: "text", text: duplicateBody }] },
+				},
 			]);
-			await assert.rejects(() => pruneForkSessionFile(childSession, async (payload) => validSummaryResponse(payload)), /raw overflow leak/);
+			await assert.rejects(
+				() => pruneForkSessionFile(childSession, async (payload) => validSummaryResponse(payload)),
+				/raw overflow leak/,
+			);
 			assert.equal(fs.existsSync(prunedForkRecoveryPath(childSession)), false);
 		} finally {
 			fs.rmSync(tempDir, { recursive: true, force: true });
@@ -253,10 +356,43 @@ describe("pruned fork sessions", () => {
 			const duplicateValue = "duplicate-tool-call\n".repeat(2_160);
 			writeJsonl(childSession, [
 				{ type: "session", version: 1, id: "child", cwd: "/tmp", parentSession },
-				{ type: "message", id: "assistant-1", parentId: null, message: { role: "assistant", content: [{ type: "toolCall", id: "call-1", name: "write", arguments: { value: duplicateValue, path: "same.txt" } }] } },
-				{ type: "message", id: "assistant-2", parentId: "assistant-1", message: { role: "assistant", content: [{ type: "toolCall", id: "call-2", name: "write", arguments: { path: "same.txt", value: duplicateValue } }] } },
+				{
+					type: "message",
+					id: "assistant-1",
+					parentId: null,
+					message: {
+						role: "assistant",
+						content: [
+							{
+								type: "toolCall",
+								id: "call-1",
+								name: "write",
+								arguments: { value: duplicateValue, path: "same.txt" },
+							},
+						],
+					},
+				},
+				{
+					type: "message",
+					id: "assistant-2",
+					parentId: "assistant-1",
+					message: {
+						role: "assistant",
+						content: [
+							{
+								type: "toolCall",
+								id: "call-2",
+								name: "write",
+								arguments: { path: "same.txt", value: duplicateValue },
+							},
+						],
+					},
+				},
 			]);
-			await assert.rejects(() => pruneForkSessionFile(childSession, async (payload) => validSummaryResponse(payload)), /raw overflow leak/);
+			await assert.rejects(
+				() => pruneForkSessionFile(childSession, async (payload) => validSummaryResponse(payload)),
+				/raw overflow leak/,
+			);
 			assert.equal(fs.existsSync(prunedForkRecoveryPath(childSession)), false);
 		} finally {
 			fs.rmSync(tempDir, { recursive: true, force: true });
@@ -270,7 +406,10 @@ describe("pruned fork sessions", () => {
 			const invalidRecoverySession = path.join(tempDir, "invalid-recovery.jsonl");
 			writeJsonl(invalidRecoverySession, largeForkEntries(parentSession));
 			await assert.rejects(
-				() => pruneForkSessionFile(invalidRecoverySession, async (payload) => validSummaryResponse(payload), { validateRecovery: () => false }),
+				() =>
+					pruneForkSessionFile(invalidRecoverySession, async (payload) => validSummaryResponse(payload), {
+						validateRecovery: () => false,
+					}),
 				/recovery payload failed validation/,
 			);
 			assert.equal(fs.existsSync(prunedForkRecoveryPath(invalidRecoverySession)), false);
@@ -278,7 +417,13 @@ describe("pruned fork sessions", () => {
 			const opaqueSession = path.join(tempDir, "opaque.jsonl");
 			writeJsonl(opaqueSession, [
 				{ type: "session", version: 1, id: "child", cwd: "/tmp", parentSession },
-				{ type: "custom", id: "opaque-head", parentId: null, customType: "opaque", data: { raw: "x".repeat(80_000) } },
+				{
+					type: "custom",
+					id: "opaque-head",
+					parentId: null,
+					customType: "opaque",
+					data: { raw: "x".repeat(80_000) },
+				},
 			]);
 			await assert.rejects(() => pruneForkSessionFile(opaqueSession, async () => ""), /no spillable overflow items/);
 			assert.equal(fs.existsSync(prunedForkRecoveryPath(opaqueSession)), false);
@@ -294,11 +439,15 @@ describe("pruned fork sessions", () => {
 			const childSession = path.join(tempDir, "child.jsonl");
 			writeJsonl(parentSession, [{ type: "session", version: 1, id: "parent", cwd: "/tmp" }]);
 			writeJsonl(childSession, largeForkEntries(parentSession));
-			const resolver = createForkContextResolver({ getSessionFile: () => parentSession, getLeafId: () => "tool-result" }, "fork", {
-				runDirName: () => "child-run",
-				openSession: () => ({ createBranchedSession: () => childSession }),
-				pruneSession: (file) => pruneForkSessionFile(file, async (payload) => validSummaryResponse(payload)),
-			});
+			const resolver = createForkContextResolver(
+				{ getSessionFile: () => parentSession, getLeafId: () => "tool-result" },
+				"fork",
+				{
+					runDirName: () => "child-run",
+					openSession: () => ({ createBranchedSession: () => childSession }),
+					pruneSession: (file) => pruneForkSessionFile(file, async (payload) => validSummaryResponse(payload)),
+				},
+			);
 
 			assert.throws(() => resolver.sessionFileForIndex(0), /before pruning completed/);
 			await resolver.prepareSessionForIndex(0);
@@ -319,11 +468,17 @@ describe("pruned fork sessions", () => {
 			const childSession = path.join(tempDir, "child.jsonl");
 			writeJsonl(parentSession, [{ type: "session", version: 1, id: "parent", cwd: "/tmp" }]);
 			writeJsonl(childSession, largeForkEntries(parentSession));
-			const resolver = createForkContextResolver({ getSessionFile: () => parentSession, getLeafId: () => "tool-result" }, "fork", {
-				runDirName: () => "child-run",
-				openSession: () => ({ createBranchedSession: () => childSession }),
-				pruneSession: async () => { throw new Error("model failed"); },
-			});
+			const resolver = createForkContextResolver(
+				{ getSessionFile: () => parentSession, getLeafId: () => "tool-result" },
+				"fork",
+				{
+					runDirName: () => "child-run",
+					openSession: () => ({ createBranchedSession: () => childSession }),
+					pruneSession: async () => {
+						throw new Error("model failed");
+					},
+				},
+			);
 			await assert.rejects(() => resolver.prepareSessionForIndex(0), /model failed/);
 			assert.throws(() => resolver.sessionFileForIndex(0), /before pruning completed/);
 		} finally {

@@ -9,7 +9,9 @@ const WORKFLOW_LAUNCH_RECORD_FILE = "launch.json";
  * relaunched later. A named resource is saved by name (its `runs.host` permit cannot be saved);
  * structured tasks/chain launches save no params, so they cannot be relaunched from this record.
  */
-export type WorkflowLaunch = { source: "script" | "resource"; params: Record<string, unknown> } | { source: "structured" };
+export type WorkflowLaunch =
+	| { source: "script" | "resource"; params: Record<string, unknown> }
+	| { source: "structured" };
 export type WorkflowLaunchRecord = WorkflowLaunch & { version: 1; scriptDigest: string };
 
 type WorkflowLaunchRecordRead =
@@ -38,7 +40,8 @@ export function readWorkflowLaunchRecord(asyncDir: string): WorkflowLaunchRecord
 	try {
 		text = fs.readFileSync(launchRecordPath(asyncDir), "utf-8");
 	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code === "ENOENT") return { ok: false, missing: true, error: "launch.json is missing" };
+		if ((error as NodeJS.ErrnoException).code === "ENOENT")
+			return { ok: false, missing: true, error: "launch.json is missing" };
 		return invalid(`could not be read: ${error instanceof Error ? error.message : String(error)}`);
 	}
 	let value: unknown;
@@ -49,9 +52,15 @@ export function readWorkflowLaunchRecord(asyncDir: string): WorkflowLaunchRecord
 	}
 	if (!isPlainObject(value)) return invalid("not a JSON object");
 	if (value.version !== 1) return invalid("version must be 1");
-	if (typeof value.scriptDigest !== "string" || !value.scriptDigest) return invalid("scriptDigest must be a non-empty string");
-	if (value.source === "structured") return { ok: true, record: { version: 1, source: "structured", scriptDigest: value.scriptDigest } };
-	if (value.source !== "script" && value.source !== "resource") return invalid("source must be \"script\", \"resource\", or \"structured\"");
+	if (typeof value.scriptDigest !== "string" || !value.scriptDigest)
+		return invalid("scriptDigest must be a non-empty string");
+	if (value.source === "structured")
+		return { ok: true, record: { version: 1, source: "structured", scriptDigest: value.scriptDigest } };
+	if (value.source !== "script" && value.source !== "resource")
+		return invalid('source must be "script", "resource", or "structured"');
 	if (!isPlainObject(value.params)) return invalid("params must be an object");
-	return { ok: true, record: { version: 1, source: value.source, params: value.params, scriptDigest: value.scriptDigest } };
+	return {
+		ok: true,
+		record: { version: 1, source: value.source, params: value.params, scriptDigest: value.scriptDigest },
+	};
 }

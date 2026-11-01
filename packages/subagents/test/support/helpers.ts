@@ -2,8 +2,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createMockPi as _createMockPi } from "./mock-pi.ts";
 import type { MockPi } from "./mock-pi.ts";
+import { createMockPi as _createMockPi } from "./mock-pi.ts";
 
 export type { MockPi };
 
@@ -141,20 +141,22 @@ export async function tryImport<T>(specifier: string): Promise<T | null> {
 			const projectRoot = path.resolve(__dirname, "..", "..");
 			const abs = path.resolve(projectRoot, specifier);
 			const url = pathToFileURL(abs).href;
-			return await import(url) as T;
+			return (await import(url)) as T;
 		}
-		return await import(specifier) as T;
+		return (await import(specifier)) as T;
 	} catch (error: unknown) {
-		const code = typeof error === "object" && error !== null && "code" in error
-			? (error as { code?: unknown }).code
-			: undefined;
+		const code =
+			typeof error === "object" && error !== null && "code" in error
+				? (error as { code?: unknown }).code
+				: undefined;
 		const isModuleNotFound = code === "MODULE_NOT_FOUND" || code === "ERR_MODULE_NOT_FOUND";
 		if (isBare && isModuleNotFound) {
-			const msg = typeof error === "object" && error !== null && "message" in error
-				? String((error as { message?: unknown }).message ?? "")
-				: "";
-			const missing = msg.match(/Cannot find (?:package|module) ['\"]([^'\"]+)['\"]/i)?.[1];
-			if (missing === specifier || msg.includes(`'${specifier}'`) || msg.includes(`\"${specifier}\"`)) {
+			const msg =
+				typeof error === "object" && error !== null && "message" in error
+					? String((error as { message?: unknown }).message ?? "")
+					: "";
+			const missing = msg.match(/Cannot find (?:package|module) ['"]([^'"]+)['"]/i)?.[1];
+			if (missing === specifier || msg.includes(`'${specifier}'`) || msg.includes(`"${specifier}"`)) {
 				return null;
 			}
 		}
@@ -180,11 +182,23 @@ export const events = {
 
 	/** Final assistant turn carrying a satisfied acceptance report. */
 	acceptanceReport(): object {
-		const report = { criteriaSatisfied: [{ id: "criterion-1", status: "satisfied", evidence: "implemented" }], changedFiles: ["src/file.ts"], testsAddedOrUpdated: ["test/file.test.ts"], commandsRun: [{ command: "npm test", result: "passed", summary: "passed" }], validationOutput: ["tests passed"], residualRisks: [], noStagedFiles: true };
+		const report = {
+			criteriaSatisfied: [{ id: "criterion-1", status: "satisfied", evidence: "implemented" }],
+			changedFiles: ["src/file.ts"],
+			testsAddedOrUpdated: ["test/file.test.ts"],
+			commandsRun: [{ command: "npm test", result: "passed", summary: "passed" }],
+			validationOutput: ["tests passed"],
+			residualRisks: [],
+			noStagedFiles: true,
+		};
 		return events.assistantMessage(["done", "```acceptance-report", JSON.stringify(report), "```"].join("\n"));
 	},
 
-	watchdogStatusWarning(severity: "concern" | "blocker", summary: string, overrides: Record<string, unknown> = {}): object {
+	watchdogStatusWarning(
+		severity: "concern" | "blocker",
+		summary: string,
+		overrides: Record<string, unknown> = {},
+	): object {
 		const { seq = 1, runId, agent, childIndex, ...warning } = overrides;
 		return {
 			type: "subagent.watchdog.status",
@@ -194,7 +208,17 @@ export const events = {
 			...(runId ? { runId } : {}),
 			...(agent ? { agent } : {}),
 			...(childIndex !== undefined ? { childIndex, stepIndex: childIndex } : {}),
-			warning: { severity, importance: "high", category: "test-gap", summary, evidence: "The transcript claims tests passed but no test command ran.", recommendedAction: "Run the focused test before finishing.", addressed: false, stalemate: false, ...warning },
+			warning: {
+				severity,
+				importance: "high",
+				category: "test-gap",
+				summary,
+				evidence: "The transcript claims tests passed but no test command ran.",
+				recommendedAction: "Run the focused test before finishing.",
+				addressed: false,
+				stalemate: false,
+				...warning,
+			},
 		};
 	},
 

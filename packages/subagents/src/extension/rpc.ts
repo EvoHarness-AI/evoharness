@@ -3,41 +3,60 @@ import type { AgentToolResult } from "@evoharness/agent-core";
 import type { ExtensionContext } from "@evoharness/coding-agent";
 import { Compile } from "typebox/compile";
 import { resolveAsyncRunLocation } from "../runs/background/async-resume.ts";
-import { deliverAsyncRunStop } from "../runs/foreground/async-stop-action.ts";
+import {
+	ASYNC_STATUS_SNAPSHOT_KIND,
+	ASYNC_STATUS_SNAPSHOT_VERSION,
+	buildAsyncStatusSnapshotForState,
+} from "../runs/background/async-status-snapshot.ts";
 import { reconcileAsyncRun } from "../runs/background/stale-run-reconciler.ts";
+import { deliverAsyncRunStop } from "../runs/foreground/async-stop-action.ts";
 import type { SubagentParamsLike } from "../runs/foreground/subagent-executor.ts";
-import { resolveCurrentSessionId } from "../shared/session-identity.ts";
+import {
+	isStoppableAsyncStatusStep,
+	type ResolvedAsyncStatusChild,
+	resolveAsyncStatusChild,
+	stopStoppableAsyncStatusChildren,
+} from "../runs/shared/child-identity.ts";
 import { ownerSessionIds, ownsRun } from "../runs/shared/run-ownership.ts";
+import { type DisabledFeatureSurface, disabledFeatureUseError } from "../shared/disabled-features.ts";
+import { sanitizeDisplayText, truncateDisplayText } from "../shared/display-text.ts";
+import { resolveCurrentSessionId } from "../shared/session-identity.ts";
 import {
 	type AsyncJobStep,
 	type Details,
-	type SubagentState,
-	type TokenUsage,
 	DIRS,
 	SUBAGENT_ASYNC_COMPLETE_EVENT,
 	SUBAGENT_ASYNC_STARTED_EVENT,
 	SUBAGENT_CHILD_STATUS_EVENT,
 	SUBAGENT_JOBS_CHANGED_EVENT,
-	SUBAGENT_PROCESS_TERMINAL_EVENT,
 	SUBAGENT_LIFECYCLE_ARTIFACT_VERSION,
+	SUBAGENT_PROCESS_TERMINAL_EVENT,
 	type SubagentChildStatusEvent,
+	type SubagentState,
+	type TokenUsage,
 } from "../shared/types.ts";
-import { sanitizeDisplayText, truncateDisplayText } from "../shared/display-text.ts";
 import { readStatus } from "../shared/utils.ts";
-import { SubagentFlatParams } from "./schemas.ts";
-import { disabledFeatureUseError, type DisabledFeatureSurface } from "../shared/disabled-features.ts";
-import { normalizePublicSubagentExecution } from "./public-execution.ts";
 import { collectSubagentCost, SUBAGENT_COST_REPORT_VERSION } from "../slash/subagent-cost.ts";
-import { ASYNC_STATUS_SNAPSHOT_KIND, ASYNC_STATUS_SNAPSHOT_VERSION, buildAsyncStatusSnapshotForState } from "../runs/background/async-status-snapshot.ts";
-import { isStoppableAsyncStatusStep, resolveAsyncStatusChild, stopStoppableAsyncStatusChildren, type ResolvedAsyncStatusChild } from "../runs/shared/child-identity.ts";
+import { normalizePublicSubagentExecution } from "./public-execution.ts";
+import { SubagentFlatParams } from "./schemas.ts";
 
 export const SUBAGENT_RPC_PROTOCOL_VERSION = 1;
 export const SUBAGENT_RPC_REQUEST_EVENT = "subagents:rpc:v1:request";
 export const SUBAGENT_RPC_READY_EVENT = "subagents:rpc:v1:ready";
 export const SUBAGENT_RPC_REPLY_EVENT_PREFIX = "subagents:rpc:v1:reply:";
 
-export const SUBAGENT_RPC_METHODS = ["ping", "status", "manage", "spawn", "steer", "interrupt", "stop", "resume", "cost"] as const;
-export type SubagentRpcMethod = typeof SUBAGENT_RPC_METHODS[number];
+export const SUBAGENT_RPC_METHODS = [
+	"ping",
+	"status",
+	"manage",
+	"spawn",
+	"steer",
+	"interrupt",
+	"stop",
+	"resume",
+	"cost",
+] as const;
+export type SubagentRpcMethod = (typeof SUBAGENT_RPC_METHODS)[number];
 
 export interface SubagentRpcRequestEnvelope {
 	version: typeof SUBAGENT_RPC_PROTOCOL_VERSION;
@@ -50,22 +69,24 @@ export interface SubagentRpcRequestEnvelope {
 	};
 }
 
-export type SubagentRpcReplyEnvelope<T = unknown> = {
-	version: typeof SUBAGENT_RPC_PROTOCOL_VERSION;
-	requestId: string;
-	method?: SubagentRpcMethod;
-	success: true;
-	data: T;
-} | {
-	version: typeof SUBAGENT_RPC_PROTOCOL_VERSION;
-	requestId: string;
-	method?: SubagentRpcMethod;
-	success: false;
-	error: {
-		code: SubagentRpcErrorCode;
-		message: string;
-	};
-};
+export type SubagentRpcReplyEnvelope<T = unknown> =
+	| {
+			version: typeof SUBAGENT_RPC_PROTOCOL_VERSION;
+			requestId: string;
+			method?: SubagentRpcMethod;
+			success: true;
+			data: T;
+	  }
+	| {
+			version: typeof SUBAGENT_RPC_PROTOCOL_VERSION;
+			requestId: string;
+			method?: SubagentRpcMethod;
+			success: false;
+			error: {
+				code: SubagentRpcErrorCode;
+				message: string;
+			};
+	  };
 
 export const SUBAGENT_RPC_MANAGEMENT_ACTIONS = [
 	"schedule.list",
@@ -77,7 +98,7 @@ export const SUBAGENT_RPC_MANAGEMENT_ACTIONS = [
 	"schedule.delete",
 ] as const;
 
-type SubagentRpcManagementAction = typeof SUBAGENT_RPC_MANAGEMENT_ACTIONS[number];
+type SubagentRpcManagementAction = (typeof SUBAGENT_RPC_MANAGEMENT_ACTIONS)[number];
 
 type SubagentRpcErrorCode =
 	| "invalid_request"
@@ -205,14 +226,21 @@ function buildFleetStatus(
 	for (const control of state.foregroundControls.values()) {
 		if (control.sessionId !== authoritativeSessionId) continue;
 		if (control.activeChildren?.size) {
-			for (const child of control.activeChildren.values()) addCandidate({
-				internalKey: `foreground:${control.runId}:${child.index}`,
-				agent: child.agent,
-				model: child.model,
-				effort: child.thinking,
-				startedAt: child.startedAt,
-				tokens: { input: child.inputTokens ?? 0, output: child.outputTokens ?? 0, total: child.tokens ?? 0, ...(child.window !== undefined ? { window: child.window } : {}), ...(child.windowPeak !== undefined ? { windowPeak: child.windowPeak } : {}) },
-			});
+			for (const child of control.activeChildren.values())
+				addCandidate({
+					internalKey: `foreground:${control.runId}:${child.index}`,
+					agent: child.agent,
+					model: child.model,
+					effort: child.thinking,
+					startedAt: child.startedAt,
+					tokens: {
+						input: child.inputTokens ?? 0,
+						output: child.outputTokens ?? 0,
+						total: child.tokens ?? 0,
+						...(child.window !== undefined ? { window: child.window } : {}),
+						...(child.windowPeak !== undefined ? { windowPeak: child.windowPeak } : {}),
+					},
+				});
 		} else {
 			addCandidate({
 				internalKey: `foreground:${control.runId}:${control.currentIndex ?? 0}`,
@@ -220,7 +248,13 @@ function buildFleetStatus(
 				model: control.model,
 				effort: control.thinking,
 				startedAt: control.startedAt,
-				tokens: { input: control.inputTokens ?? 0, output: control.outputTokens ?? 0, total: control.tokens ?? 0, ...(control.window !== undefined ? { window: control.window } : {}), ...(control.windowPeak !== undefined ? { windowPeak: control.windowPeak } : {}) },
+				tokens: {
+					input: control.inputTokens ?? 0,
+					output: control.outputTokens ?? 0,
+					total: control.tokens ?? 0,
+					...(control.window !== undefined ? { window: control.window } : {}),
+					...(control.windowPeak !== undefined ? { windowPeak: control.windowPeak } : {}),
+				},
 			});
 		}
 	}
@@ -239,10 +273,10 @@ function buildFleetStatus(
 		const steps: AsyncJobStep[] | undefined = job.steps?.length
 			? job.steps
 			: job.agents?.map((agent, index) => ({
-				agent,
-				index,
-				status: job.status === "queued" ? "pending" : "running",
-			}));
+					agent,
+					index,
+					status: job.status === "queued" ? "pending" : "running",
+				}));
 		if (!steps?.length) {
 			addCandidate({
 				internalKey: `async:${job.asyncId}`,
@@ -255,7 +289,13 @@ function buildFleetStatus(
 		for (const [offset, step] of steps.entries()) {
 			if (!activeState(step.status)) continue;
 			const index = step.index ?? offset;
-			if (step.status === "pending" && job.mode === "chain" && !job.activeParallelGroup && index !== (job.currentStep ?? 0)) continue;
+			if (
+				step.status === "pending" &&
+				job.mode === "chain" &&
+				!job.activeParallelGroup &&
+				index !== (job.currentStep ?? 0)
+			)
+				continue;
 			addCandidate({
 				internalKey: `async:${job.asyncId}:${index}`,
 				agent: step.agent,
@@ -304,7 +344,13 @@ function buildFleetStatus(
 		if (!activeKeys.has(internalKey)) keyState.keys.delete(internalKey);
 	}
 	const omitted = Math.max(0, totalActive - entries.length);
-	return { version: 1, entries, totalActive, topLevelAsyncCapacity: state.activeAsyncCapacity ?? { used: 0, limit: 0 }, omitted };
+	return {
+		version: 1,
+		entries,
+		totalActive,
+		topLevelAsyncCapacity: state.activeAsyncCapacity ?? { used: 0, limit: 0 },
+		omitted,
+	};
 }
 
 interface RegisterSubagentRpcBridgeOptions {
@@ -365,9 +411,7 @@ function assertRecordParams(params: unknown, method: SubagentRpcMethod): Record<
 
 function assertSubagentParams(params: SubagentParamsLike, label: string): void {
 	if (subagentParamsValidator.Check(params)) return;
-	const messages = [...subagentParamsValidator.Errors(params)]
-		.slice(0, 4)
-		.map((error) => error.message);
+	const messages = [...subagentParamsValidator.Errors(params)].slice(0, 4).map((error) => error.message);
 	throw new SubagentRpcError("invalid_params", `${label}: ${messages.join("; ") || "invalid subagent parameters"}`);
 }
 
@@ -393,7 +437,9 @@ function failIfToolError(result: ToolResultWithError): void {
 	throw new SubagentRpcError("execution_failed", textFromToolResult(result) || "Subagent RPC execution failed.");
 }
 
-function normalizeTargetParamsFromRecord(input: Record<string, unknown>): Pick<SubagentParamsLike, "id" | "runId" | "dir" | "index"> {
+function normalizeTargetParamsFromRecord(
+	input: Record<string, unknown>,
+): Pick<SubagentParamsLike, "id" | "runId" | "dir" | "index"> {
 	const output: Pick<SubagentParamsLike, "id" | "runId" | "dir" | "index"> = {};
 	if (input.id !== undefined) output.id = input.id as string;
 	if (input.runId !== undefined) output.runId = input.runId as string;
@@ -402,7 +448,10 @@ function normalizeTargetParamsFromRecord(input: Record<string, unknown>): Pick<S
 	return output;
 }
 
-function normalizeTargetParams(params: unknown, method: SubagentRpcMethod): Pick<SubagentParamsLike, "id" | "runId" | "dir" | "index"> {
+function normalizeTargetParams(
+	params: unknown,
+	method: SubagentRpcMethod,
+): Pick<SubagentParamsLike, "id" | "runId" | "dir" | "index"> {
 	return normalizeTargetParamsFromRecord(assertRecordParams(params, method));
 }
 
@@ -415,22 +464,24 @@ function normalizeStatusParams(params: unknown): StatusRpcParams {
 }
 
 function hasStatusTarget(params: StatusRpcParams): boolean {
-	return params.id !== undefined
-		|| params.runId !== undefined
-		|| params.dir !== undefined
-		|| params.index !== undefined
-		|| params.view !== undefined
-		|| params.lines !== undefined;
+	return (
+		params.id !== undefined ||
+		params.runId !== undefined ||
+		params.dir !== undefined ||
+		params.index !== undefined ||
+		params.view !== undefined ||
+		params.lines !== undefined
+	);
 }
 
 function canUseInMemoryStatus(state: SubagentState | undefined, sessionId: string | undefined): state is SubagentState {
 	return Boolean(
-		state
-			&& sessionId
-			&& state.currentSessionId === sessionId
-			&& state.statusProjectionSessionId === sessionId
-			&& state.foregroundControls instanceof Map
-			&& state.asyncJobs instanceof Map,
+		state &&
+			sessionId &&
+			state.currentSessionId === sessionId &&
+			state.statusProjectionSessionId === sessionId &&
+			state.foregroundControls instanceof Map &&
+			state.asyncJobs instanceof Map,
 	);
 }
 
@@ -465,7 +516,11 @@ function pingData(ctx: ExtensionContext | null, options: RegisterSubagentRpcBrid
 			stop: true,
 			resume: true,
 			launchResolvedExtensions: { version: 1, source: "launch-resolved" },
-			runtimeAcknowledgedExtensions: { version: 1, source: "child-runtime", event: "subagent:acknowledge-extension" },
+			runtimeAcknowledgedExtensions: {
+				version: 1,
+				source: "child-runtime",
+				event: "subagent:acknowledge-extension",
+			},
 			processTerminalProof: { version: 1, lifecycleArtifactVersion: SUBAGENT_LIFECYCLE_ARTIFACT_VERSION },
 			cost: { version: SUBAGENT_COST_REPORT_VERSION },
 		},
@@ -499,11 +554,16 @@ async function executeChecked(
 
 function manageParams(params: unknown, options: RegisterSubagentRpcBridgeOptions): SubagentParamsLike {
 	const input = assertRecordParams(params, "manage");
-	if (typeof input.action !== "string" || !(SUBAGENT_RPC_MANAGEMENT_ACTIONS as readonly string[]).includes(input.action)) {
+	if (
+		typeof input.action !== "string" ||
+		!(SUBAGENT_RPC_MANAGEMENT_ACTIONS as readonly string[]).includes(input.action)
+	) {
 		const enabled = enabledManagementActions(options);
 		throw new SubagentRpcError(
 			"invalid_params",
-			enabled.length > 0 ? `RPC manage action must be one of: ${enabled.join(", ")}.` : "RPC manage actions are all disabled by config.",
+			enabled.length > 0
+				? `RPC manage action must be one of: ${enabled.join(", ")}.`
+				: "RPC manage actions are all disabled by config.",
 		);
 	}
 	if (input.id !== undefined && (typeof input.id !== "string" || !input.id.trim())) {
@@ -528,25 +588,47 @@ function manageParams(params: unknown, options: RegisterSubagentRpcBridgeOptions
 
 function spawnParams(params: unknown, options: RegisterSubagentRpcBridgeOptions): SubagentParamsLike {
 	const { script, ...input } = assertRecordParams(params, "spawn");
-	if (Object.hasOwn(input, "workflowScript")) throw new SubagentRpcError("invalid_params", "RPC spawn workflowScript was removed; pass inline script text as script.");
-	if (Object.hasOwn(input, "workflowScriptPath")) throw new SubagentRpcError("invalid_params", "RPC spawn workflowScriptPath was removed; pass the file as workflow: \"./path/to/script.js\".");
-	if (input.workflow === true || input.workflow === "true") throw new SubagentRpcError("invalid_params", "RPC spawn has no reply block for workflow: true; pass inline script text as script or a file as workflow: \"./path/to/script.js\".");
+	if (Object.hasOwn(input, "workflowScript"))
+		throw new SubagentRpcError(
+			"invalid_params",
+			"RPC spawn workflowScript was removed; pass inline script text as script.",
+		);
+	if (Object.hasOwn(input, "workflowScriptPath"))
+		throw new SubagentRpcError(
+			"invalid_params",
+			'RPC spawn workflowScriptPath was removed; pass the file as workflow: "./path/to/script.js".',
+		);
+	if (input.workflow === true || input.workflow === "true")
+		throw new SubagentRpcError(
+			"invalid_params",
+			'RPC spawn has no reply block for workflow: true; pass inline script text as script or a file as workflow: "./path/to/script.js".',
+		);
 	if (script !== undefined) {
-		if (typeof script !== "string" || !script.trim()) throw new SubagentRpcError("invalid_params", "RPC spawn script must be a non-empty string.");
-		if (input.workflow !== undefined) throw new SubagentRpcError("invalid_params", "RPC spawn script cannot be combined with workflow.");
+		if (typeof script !== "string" || !script.trim())
+			throw new SubagentRpcError("invalid_params", "RPC spawn script must be a non-empty string.");
+		if (input.workflow !== undefined)
+			throw new SubagentRpcError("invalid_params", "RPC spawn script cannot be combined with workflow.");
 		// The executor's internal carrier; the model-facing tool cannot set it.
 		input.workflowScript = script;
 	}
 	// With workflow scripts disabled, name the setting before normalization can report a script-shape error instead.
-	const disabledFeatureError = options.disabledFeatures?.features.has("workflow-scripts") ? disabledFeatureUseError(input, options.disabledFeatures, "RPC spawn") : undefined;
+	const disabledFeatureError = options.disabledFeatures?.features.has("workflow-scripts")
+		? disabledFeatureUseError(input, options.disabledFeatures, "RPC spawn")
+		: undefined;
 	if (disabledFeatureError) throw new SubagentRpcError("invalid_params", disabledFeatureError);
 	const normalized = normalizePublicSubagentExecution(input);
 	if (!normalized.ok) throw new SubagentRpcError("invalid_params", normalized.error);
 	if (normalized.params.action !== undefined) {
-		throw new SubagentRpcError("invalid_params", "RPC spawn does not accept management/control actions. Use status or interrupt RPC methods instead.");
+		throw new SubagentRpcError(
+			"invalid_params",
+			"RPC spawn does not accept management/control actions. Use status or interrupt RPC methods instead.",
+		);
 	}
 	if (input.async === false) {
-		throw new SubagentRpcError("invalid_params", "RPC spawn only supports detached async launches; omit async or set async: true.");
+		throw new SubagentRpcError(
+			"invalid_params",
+			"RPC spawn only supports detached async launches; omit async or set async: true.",
+		);
 	}
 	return { ...(normalized.params as SubagentParamsLike), async: true };
 }
@@ -556,8 +638,10 @@ function steerParams(params: unknown): SubagentParamsLike {
 	if (typeof input.message !== "string" || !input.message.trim())
 		throw new SubagentRpcError("invalid_params", "RPC steer requires a non-empty message.");
 	const target = normalizeTargetParams(input, "steer");
-	if (!target.id && !target.runId && !target.dir) throw new SubagentRpcError("invalid_params", "RPC steer requires id, runId, or dir.");
-	if (input.mode !== undefined && input.mode !== "steer" && input.mode !== "follow_up" && input.mode !== "auto") throw new SubagentRpcError("invalid_params", "RPC steer mode must be steer, follow_up, or auto.");
+	if (!target.id && !target.runId && !target.dir)
+		throw new SubagentRpcError("invalid_params", "RPC steer requires id, runId, or dir.");
+	if (input.mode !== undefined && input.mode !== "steer" && input.mode !== "follow_up" && input.mode !== "auto")
+		throw new SubagentRpcError("invalid_params", "RPC steer mode must be steer, follow_up, or auto.");
 	return {
 		action: "steer",
 		...target,
@@ -572,7 +656,8 @@ function resumeParams(params: unknown): SubagentParamsLike {
 	if (typeof input.message !== "string" || !input.message.trim())
 		throw new SubagentRpcError("invalid_params", "RPC resume requires a non-empty message.");
 	const target = normalizeTargetParams(input, "resume");
-	if (!target.id && !target.runId && !target.dir) throw new SubagentRpcError("invalid_params", "RPC resume requires id, runId, or dir.");
+	if (!target.id && !target.runId && !target.dir)
+		throw new SubagentRpcError("invalid_params", "RPC resume requires id, runId, or dir.");
 	if (input.output !== undefined && (typeof input.output !== "string" || !input.output.trim()))
 		throw new SubagentRpcError("invalid_params", "RPC resume output must be a non-empty path.");
 	if (input.outputMode !== undefined && input.outputMode !== "file-only")
@@ -592,8 +677,14 @@ function stopAsyncRun(
 ): { runId: string; asyncDir: string; previousState: string; state: "stopping"; message: string; childId?: string } {
 	const input = assertRecordParams(params, "stop");
 	const rawChildId = input.childId;
-	if (rawChildId !== undefined && (typeof rawChildId !== "string" || !rawChildId.trim() || /[\r\n]/.test(rawChildId) || rawChildId.length > 256)) {
-		throw new SubagentRpcError("invalid_params", "RPC stop childId must be a non-empty string without newlines and at most 256 characters.");
+	if (
+		rawChildId !== undefined &&
+		(typeof rawChildId !== "string" || !rawChildId.trim() || /[\r\n]/.test(rawChildId) || rawChildId.length > 256)
+	) {
+		throw new SubagentRpcError(
+			"invalid_params",
+			"RPC stop childId must be a non-empty string without newlines and at most 256 characters.",
+		);
 	}
 	const childId = typeof rawChildId === "string" ? rawChildId : undefined;
 	const target = normalizeTargetParams(input, "stop");
@@ -607,19 +698,28 @@ function stopAsyncRun(
 		throw new SubagentRpcError("invalid_params", error instanceof Error ? error.message : String(error));
 	}
 	if (!location.asyncDir) {
-		throw new SubagentRpcError("not_found", "Async run not found or already completed; stop requires a live async run directory.");
+		throw new SubagentRpcError(
+			"not_found",
+			"Async run not found or already completed; stop requires a live async run directory.",
+		);
 	}
 
 	const currentSessionId = resolveCurrentSessionId(ctx.sessionManager);
 	const initialStatus = readStatus(location.asyncDir);
 	const initialRunId = initialStatus?.runId ?? location.resolvedId ?? path.basename(location.asyncDir);
-	if (!initialStatus) throw new SubagentRpcError("not_found", `Status file not found for async run '${initialRunId}'.`);
+	if (!initialStatus)
+		throw new SubagentRpcError("not_found", `Status file not found for async run '${initialRunId}'.`);
 	if (!ownsRun(currentSessionId, initialStatus.sessionId)) {
 		throw new SubagentRpcError("not_found", `Async run '${initialRunId}' was not found in the active session.`);
 	}
 
 	let child: ResolvedAsyncStatusChild | undefined;
-	const emitChildStopping = (runId: string, asyncDir: string, stoppedChild: ResolvedAsyncStatusChild, ts = options.now?.() ?? Date.now()): void => {
+	const emitChildStopping = (
+		runId: string,
+		asyncDir: string,
+		stoppedChild: ResolvedAsyncStatusChild,
+		ts = options.now?.() ?? Date.now(),
+	): void => {
 		options.events.emit(SUBAGENT_CHILD_STATUS_EVENT, {
 			type: "subagent.child-status",
 			version: 1,
@@ -640,17 +740,28 @@ function stopAsyncRun(
 	};
 	if (childId !== undefined) {
 		const resolution = resolveAsyncStatusChild(initialStatus, childId);
-		if (!resolution.ok) throw new SubagentRpcError(resolution.code === "not_found" ? "not_found" : "invalid_params", resolution.message);
+		if (!resolution.ok)
+			throw new SubagentRpcError(
+				resolution.code === "not_found" ? "not_found" : "invalid_params",
+				resolution.message,
+			);
 		child = resolution.child;
 		if (!isStoppableAsyncStatusStep(child.step)) {
-			throw new SubagentRpcError("invalid_state", `Child '${childId}' in async run '${initialRunId}' is ${child.step.status}; stop only supports pending or running children.`);
+			throw new SubagentRpcError(
+				"invalid_state",
+				`Child '${childId}' in async run '${initialRunId}' is ${child.step.status}; stop only supports pending or running children.`,
+			);
 		}
 	}
 	if (initialStatus.mode === "workflow" && initialStatus.state === "running") {
 		const stopChild = options.state?.workflowChildStops?.get(initialRunId);
 		if (child) {
 			if (stopChild) {
-				if (!stopChild(child.id, `Workflow child '${child.id}' stopped by RPC.`)) throw new SubagentRpcError("invalid_state", `Child '${childId}' in workflow ${initialRunId} is not available to stop.`);
+				if (!stopChild(child.id, `Workflow child '${child.id}' stopped by RPC.`))
+					throw new SubagentRpcError(
+						"invalid_state",
+						`Child '${childId}' in workflow ${initialRunId} is not available to stop.`,
+					);
 				emitChildStopping(initialRunId, location.asyncDir, child);
 				return {
 					runId: initialRunId,
@@ -675,9 +786,12 @@ function stopAsyncRun(
 			};
 		}
 		// Workflow controls live in-process; a persisted run directory cannot restore them.
-		throw new SubagentRpcError("invalid_state", child
-			? `Child '${child.id}' in workflow ${initialRunId} has no live stop callback available.`
-			: `Workflow ${initialRunId} has no live run controller available to stop.`);
+		throw new SubagentRpcError(
+			"invalid_state",
+			child
+				? `Child '${child.id}' in workflow ${initialRunId} has no live stop callback available.`
+				: `Workflow ${initialRunId} has no live run controller available to stop.`,
+		);
 	}
 
 	let status;
@@ -693,14 +807,24 @@ function stopAsyncRun(
 	}
 	const pausedWholeRun = status.state === "paused" && childId === undefined;
 	if (status.state !== "running" && status.state !== "queued" && !pausedWholeRun) {
-		throw new SubagentRpcError("invalid_state", `Async run ${runId} is ${status.state}; stop only supports running or queued async runs, or a paused whole run.`);
+		throw new SubagentRpcError(
+			"invalid_state",
+			`Async run ${runId} is ${status.state}; stop only supports running or queued async runs, or a paused whole run.`,
+		);
 	}
 	if (childId !== undefined) {
 		const resolution = resolveAsyncStatusChild(status, childId);
-		if (!resolution.ok) throw new SubagentRpcError(resolution.code === "not_found" ? "not_found" : "invalid_params", resolution.message);
+		if (!resolution.ok)
+			throw new SubagentRpcError(
+				resolution.code === "not_found" ? "not_found" : "invalid_params",
+				resolution.message,
+			);
 		child = resolution.child;
 		if (!isStoppableAsyncStatusStep(child.step)) {
-			throw new SubagentRpcError("invalid_state", `Child '${childId}' in async run '${runId}' is ${child.step.status}; stop only supports pending or running children.`);
+			throw new SubagentRpcError(
+				"invalid_state",
+				`Child '${childId}' in async run '${runId}' is ${child.step.status}; stop only supports pending or running children.`,
+			);
 		}
 	}
 
@@ -715,7 +839,10 @@ function stopAsyncRun(
 			source: "rpc-stop",
 			...(child ? { targetIndex: child.index, childId: child.id } : {}),
 		});
-		if (failure) throw new Error(`Stop request persisted for paused async run ${runId}, but terminal proof is not ready (${failure}). Retry stop after runner shutdown is observed.`);
+		if (failure)
+			throw new Error(
+				`Stop request persisted for paused async run ${runId}, but terminal proof is not ready (${failure}). Retry stop after runner shutdown is observed.`,
+			);
 	} catch (error) {
 		throw new SubagentRpcError("execution_failed", error instanceof Error ? error.message : String(error));
 	}
@@ -728,7 +855,9 @@ function stopAsyncRun(
 		previousState: status.state,
 		state: "stopping",
 		...(child ? { childId: child.id } : {}),
-		message: child ? `Stop requested for child ${child.id} in async run ${runId}.` : `Stop requested for async run ${runId}.`,
+		message: child
+			? `Stop requested for child ${child.id} in async run ${runId}.`
+			: `Stop requested for async run ${runId}.`,
 	};
 }
 
@@ -767,21 +896,14 @@ async function handleRequest(
 				};
 			}
 		}
-		const status = await executeChecked(
-			options,
-			ctx,
-			request.requestId,
-			request.method,
-			{ action: "status", ...statusParams },
-		);
+		const status = await executeChecked(options, ctx, request.requestId, request.method, {
+			action: "status",
+			...statusParams,
+		});
 		sessionId ??= resolveCurrentSessionId(ctx.sessionManager);
 		return {
 			...status,
-			fleet: buildFleetStatus(
-				options.state,
-				fleetKeys,
-				sessionId,
-			),
+			fleet: buildFleetStatus(options.state, fleetKeys, sessionId),
 			asyncSnapshot: buildAsyncStatusSnapshotForState(options.state, sessionId),
 		};
 	}
@@ -789,7 +911,10 @@ async function handleRequest(
 		return executeChecked(options, ctx, request.requestId, request.method, steerParams(request.params));
 	}
 	if (request.method === "interrupt") {
-		return executeChecked(options, ctx, request.requestId, request.method, { action: "interrupt", ...normalizeTargetParams(request.params, "interrupt") });
+		return executeChecked(options, ctx, request.requestId, request.method, {
+			action: "interrupt",
+			...normalizeTargetParams(request.params, "interrupt"),
+		});
 	}
 	if (request.method === "stop") {
 		return stopAsyncRun(request.params, options, ctx);
@@ -801,7 +926,8 @@ async function handleRequest(
 		// The same parent-plus-child accounting `/subagent-cost` renders, as data.
 		// Read-only: it walks the current session branch and existing artifacts,
 		// so callers should request it on their own turn boundaries, not on a timer.
-		if (request.params !== undefined && !isRecord(request.params)) throw new SubagentRpcError("invalid_params", "RPC cost params must be an object when provided.");
+		if (request.params !== undefined && !isRecord(request.params))
+			throw new SubagentRpcError("invalid_params", "RPC cost params must be an object when provided.");
 		return collectSubagentCost(ctx, options.state ?? { baseCwd: ctx.cwd });
 	}
 	throw new SubagentRpcError("unsupported_method", `Unsupported subagent RPC method: ${String(request.method)}`);
@@ -835,12 +961,16 @@ function safeReplyRequestId(raw: unknown): string {
 
 function errorReply(raw: unknown, error: unknown): SubagentRpcReplyEnvelope {
 	const requestId = safeReplyRequestId(raw);
-	const method = isRecord(raw) && typeof raw.method === "string" && (SUBAGENT_RPC_METHODS as readonly string[]).includes(raw.method)
-		? raw.method as SubagentRpcMethod
-		: undefined;
-	const rpcError = error instanceof SubagentRpcError
-		? error
-		: new SubagentRpcError("execution_failed", error instanceof Error ? error.message : String(error));
+	const method =
+		isRecord(raw) &&
+		typeof raw.method === "string" &&
+		(SUBAGENT_RPC_METHODS as readonly string[]).includes(raw.method)
+			? (raw.method as SubagentRpcMethod)
+			: undefined;
+	const rpcError =
+		error instanceof SubagentRpcError
+			? error
+			: new SubagentRpcError("execution_failed", error instanceof Error ? error.message : String(error));
 	return {
 		version: SUBAGENT_RPC_PROTOCOL_VERSION,
 		requestId,

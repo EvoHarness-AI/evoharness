@@ -21,19 +21,24 @@ function childSource(source: string, repo: string): void {
 }
 
 function deadOwner(repo: string, handoff = false): void {
-	childSource(`
+	childSource(
+		`
 		import path from 'node:path';
 		import { withHandoffWriteLock, withRepositoryWorktreeLock } from ${JSON.stringify(moduleUrl)};
 		if (${handoff}) withHandoffWriteLock(path.join(process.argv[1], 'handoff.json'), () => process.exit(81));
 		else await withRepositoryWorktreeLock(process.argv[1], () => process.exit(81));
-	`, repo);
+	`,
+		repo,
+	);
 }
 
-for (const handoff of [false, true]) it(`recovers after the reclaimer exits immediately after retiring a ${handoff ? "handoff" : "repository"} lock`, async () => {
-	const repo = fixture();
-	try {
-		deadOwner(repo, handoff);
-		childSource(`
+for (const handoff of [false, true])
+	it(`recovers after the reclaimer exits immediately after retiring a ${handoff ? "handoff" : "repository"} lock`, async () => {
+		const repo = fixture();
+		try {
+			deadOwner(repo, handoff);
+			childSource(
+				`
 			import fs from 'node:fs';
 			import path from 'node:path';
 			import { syncBuiltinESMExports } from 'node:module';
@@ -47,21 +52,26 @@ for (const handoff of [false, true]) it(`recovers after the reclaimer exits imme
 			syncBuiltinESMExports();
 			if (${handoff}) withHandoffWriteLock(path.join(process.argv[1], 'handoff.json'), () => {});
 			else await withRepositoryWorktreeLock(process.argv[1], () => {}, { waitMs: 0 });
-		`, repo);
-		let entered = false;
-		if (handoff) withHandoffWriteLock(path.join(repo, "handoff.json"), () => entered = true);
-		else await withRepositoryWorktreeLock(repo, () => entered = true, { waitMs: 0 });
-		assert.equal(entered, true);
-		const parent = handoff ? repo : path.join(repo, ".git");
-		const retired = fs.readdirSync(parent).filter((name) => name.includes(".retired-"));
-		assert.equal(retired.length, 1);
-		assert.ok(fs.existsSync(path.join(parent, retired[0]!, "owner.json")));
-	} finally { fs.rmSync(repo, { recursive: true, force: true }); }
-});
+		`,
+				repo,
+			);
+			let entered = false;
+			if (handoff) withHandoffWriteLock(path.join(repo, "handoff.json"), () => (entered = true));
+			else await withRepositoryWorktreeLock(repo, () => (entered = true), { waitMs: 0 });
+			assert.equal(entered, true);
+			const parent = handoff ? repo : path.join(repo, ".git");
+			const retired = fs.readdirSync(parent).filter((name) => name.includes(".retired-"));
+			assert.equal(retired.length, 1);
+			assert.ok(fs.existsSync(path.join(parent, retired[0]!, "owner.json")));
+		} finally {
+			fs.rmSync(repo, { recursive: true, force: true });
+		}
+	});
 
 it("a delayed reclaimer of an old token cannot move a new live lease", async () => {
 	const repo = fixture();
-	const ready = path.join(repo, "ready"), release = path.join(repo, "release");
+	const ready = path.join(repo, "ready"),
+		release = path.join(repo, "release");
 	let child: ReturnType<typeof spawn> | undefined;
 	let exited: Promise<number | null> | undefined;
 	try {
@@ -89,25 +99,35 @@ it("a delayed reclaimer of an old token cannot move a new live lease", async () 
 		`;
 		child = spawn(process.execPath, [...nodeArgs, source, repo], { stdio: ["ignore", "pipe", "pipe"] });
 		let errors = "";
-		child.stderr!.on("data", (chunk) => errors += chunk);
-		exited = new Promise((resolve, reject) => { child!.once("error", reject); child!.once("exit", resolve); });
+		child.stderr!.on("data", (chunk) => (errors += chunk));
+		exited = new Promise((resolve, reject) => {
+			child!.once("error", reject);
+			child!.once("exit", resolve);
+		});
 		const deadline = Date.now() + 30_000;
 		while (!fs.existsSync(ready)) {
 			assert.equal(child.exitCode, null, errors);
 			assert.ok(Date.now() < deadline, "reclaimer did not reach the retirement boundary");
 			await new Promise((resolve) => setTimeout(resolve, 10));
 		}
-		await withRepositoryWorktreeLock(repo, async () => {
-			const ownerPath = path.join(repo, ".git", "pi-subagents-worktree.lock", "owner.json");
-			const before = JSON.parse(fs.readFileSync(ownerPath, "utf-8"));
-			fs.writeFileSync(release, "continue");
-			assert.equal(await exited, 84, errors);
-			const after = JSON.parse(fs.readFileSync(ownerPath, "utf-8"));
-			assert.equal(after.token, before.token);
-			assert.equal(after.pid, process.pid);
-		}, { waitMs: 0 });
+		await withRepositoryWorktreeLock(
+			repo,
+			async () => {
+				const ownerPath = path.join(repo, ".git", "pi-subagents-worktree.lock", "owner.json");
+				const before = JSON.parse(fs.readFileSync(ownerPath, "utf-8"));
+				fs.writeFileSync(release, "continue");
+				assert.equal(await exited, 84, errors);
+				const after = JSON.parse(fs.readFileSync(ownerPath, "utf-8"));
+				assert.equal(after.token, before.token);
+				assert.equal(after.pid, process.pid);
+			},
+			{ waitMs: 0 },
+		);
 	} finally {
-		if (child && child.exitCode === null) { child.kill("SIGKILL"); await exited; }
+		if (child && child.exitCode === null) {
+			child.kill("SIGKILL");
+			await exited;
+		}
 		fs.rmSync(repo, { recursive: true, force: true });
 	}
 });
@@ -117,7 +137,12 @@ it("does not evict an ownerless lock", async () => {
 	try {
 		const lockPath = path.join(repo, ".git", "pi-subagents-worktree.lock");
 		fs.mkdirSync(lockPath);
-		await assert.rejects(withRepositoryWorktreeLock(repo, () => assert.fail("unknown owner was evicted"), { waitMs: 0 }), /busy/);
+		await assert.rejects(
+			withRepositoryWorktreeLock(repo, () => assert.fail("unknown owner was evicted"), { waitMs: 0 }),
+			/busy/,
+		);
 		assert.ok(fs.existsSync(lockPath));
-	} finally { fs.rmSync(repo, { recursive: true, force: true }); }
+	} finally {
+		fs.rmSync(repo, { recursive: true, force: true });
+	}
 });

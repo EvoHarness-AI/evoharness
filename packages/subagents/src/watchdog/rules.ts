@@ -18,7 +18,10 @@ function loadWatchdogLaunchRules(cwd: string): WatchdogRulesConfig | undefined {
 
 /** `*` matches any run of characters, `?` one character; anchored, case-sensitive. */
 export function watchdogGlobMatch(pattern: string, value: string): boolean {
-	const source = pattern.split("").map((char) => char === "*" ? ".*" : char === "?" ? "." : char.replace(/[.+^${}()|[\]\\]/g, "\\$&")).join("");
+	const source = pattern
+		.split("")
+		.map((char) => (char === "*" ? ".*" : char === "?" ? "." : char.replace(/[.+^${}()|[\]\\]/g, "\\$&")))
+		.join("");
 	return new RegExp(`^${source}$`).test(value);
 }
 
@@ -28,7 +31,11 @@ function modelMatches(patterns: string[], model: string): string | undefined {
 }
 
 /** Deny wins over allow; an unknown model cannot be judged. */
-export function evaluateLaunchRule(rules: WatchdogRulesConfig | undefined, agent: string, model: string | undefined): WatchdogRuleViolation | undefined {
+export function evaluateLaunchRule(
+	rules: WatchdogRulesConfig | undefined,
+	agent: string,
+	model: string | undefined,
+): WatchdogRuleViolation | undefined {
 	const roleRule = rules?.roleModels[agent];
 	if (!roleRule || !model) return undefined;
 	const note = roleRule.note ? ` ${roleRule.note}` : "";
@@ -38,7 +45,9 @@ export function evaluateLaunchRule(rules: WatchdogRulesConfig | undefined, agent
 			agent,
 			summary: `Agent '${agent}' was launched with denied model '${model}'.`,
 			evidence: `subagents.watchdog.rules.roleModels.${agent}.deny matches '${denied}'.${note}`,
-			recommendedAction: roleRule.allow?.length ? `Use one of: ${roleRule.allow.join(", ")}.` : "Choose a different model for this role.",
+			recommendedAction: roleRule.allow?.length
+				? `Use one of: ${roleRule.allow.join(", ")}.`
+				: "Choose a different model for this role.",
 		};
 	}
 	if (!roleRule.allow?.length || modelMatches(roleRule.allow, model) !== undefined) return undefined;
@@ -54,7 +63,12 @@ export function ruleViolationWarning(violation: WatchdogRuleViolation): Watchdog
 	return { severity: "concern", category: "missed-constraint", importance: "high", source: "main", ...violation };
 }
 
-export function applyWatchdogLaunchRules(input: { cwd: string; agent: string; model?: string; warn?: (violation: WatchdogRuleViolation) => void }): string | undefined {
+export function applyWatchdogLaunchRules(input: {
+	cwd: string;
+	agent: string;
+	model?: string;
+	warn?: (violation: WatchdogRuleViolation) => void;
+}): string | undefined {
 	const rules = loadWatchdogLaunchRules(input.cwd);
 	const violation = evaluateLaunchRule(rules, input.agent, input.model);
 	if (!violation) return undefined;
@@ -64,7 +78,16 @@ export function applyWatchdogLaunchRules(input: { cwd: string; agent: string; mo
 }
 
 /** For launch paths without a main watchdog runtime (background chain steps). */
-export function sendRuleViolationWarning(pi: Pick<ExtensionAPI, "sendMessage">, violation: WatchdogRuleViolation): void {
+export function sendRuleViolationWarning(
+	pi: Pick<ExtensionAPI, "sendMessage">,
+	violation: WatchdogRuleViolation,
+): void {
 	const warning = ruleViolationWarning(violation);
-	pi.sendMessage(createWatchdogWarningMessage(warning, { display: true, details: { state: "displayed", displayedAt: new Date().toISOString() } }), { deliverAs: "steer" });
+	pi.sendMessage(
+		createWatchdogWarningMessage(warning, {
+			display: true,
+			details: { state: "displayed", displayedAt: new Date().toISOString() },
+		}),
+		{ deliverAs: "steer" },
+	);
 }

@@ -5,22 +5,32 @@ import {
 	authorizeWorkflowResourceHost,
 	consumeWorkflowResourcePermit,
 } from "../../src/shared/workflow-child-permit.ts";
-import { resolveWorkflowResource } from "../../src/workflows/workflow-resources.ts";
 import { runWorkflowScript, WorkflowScriptError } from "../../src/workflows/scripted-workflow.ts";
+import { resolveWorkflowResource } from "../../src/workflows/workflow-resources.ts";
 
 describe("named workflow resources", () => {
 	it("scopes registrations by session and snapshots definitions, args and issued grants", () => {
 		const args = { nested: { task: "original" } };
-		const expansion = { script: "return 'original';", hostCommands: [{ key: "check", command: " node check.mjs " }, { key: "other", command: "node other.mjs" }] };
+		const expansion = {
+			script: "return 'original';",
+			hostCommands: [
+				{ key: "check", command: " node check.mjs " },
+				{ key: "other", command: "node other.mjs" },
+			],
+		};
 		const definition: WorkflowResourceDefinition = {
-			name: "acme.check", version: 2,
+			name: "acme.check",
+			version: 2,
 			resolve(input) {
 				(input.nested as { task: string }).task = "changed";
 				return expansion;
 			},
 		};
 		const registration = registerWorkflowResource({ sessionId: "one", definition });
-		const other = registerWorkflowResource({ sessionId: "two", definition: { ...definition, resolve: () => ({ script: "return 'two';" }) } });
+		const other = registerWorkflowResource({
+			sessionId: "two",
+			definition: { ...definition, resolve: () => ({ script: "return 'two';" }) },
+		});
 		try {
 			definition.version = 99;
 			definition.resolve = () => ({ error: "replacement must not run" });
@@ -36,7 +46,10 @@ describe("named workflow resources", () => {
 			expansion.hostCommands[0].command = "node changed.mjs";
 			registration.dispose();
 			assert.equal(resolveWorkflowResource("acme.check", args, "one").ok, false);
-			const replacement = registerWorkflowResource({ sessionId: "one", definition: { ...definition, resolve: () => ({ script: "return 'new';" }) } });
+			const replacement = registerWorkflowResource({
+				sessionId: "one",
+				definition: { ...definition, resolve: () => ({ script: "return 'new';" }) },
+			});
 			try {
 				registration.dispose();
 				assert.equal(resolveWorkflowResource("acme.check", {}, "one").ok, true);
@@ -46,41 +59,85 @@ describe("named workflow resources", () => {
 				assert.equal(resolved.resource.script, "return 'original';");
 				assert.equal(authorizeWorkflowResourceHost(resolved.resource.permit, "check", "node check.mjs"), undefined);
 				assert.equal(authorizeWorkflowResourceHost(resolved.resource.permit, "other", "node other.mjs"), undefined);
-				assert.match(authorizeWorkflowResourceHost(resolved.resource.permit, "check", "node other.mjs")!, /not allowed/);
-				assert.match(authorizeWorkflowResourceHost(resolved.resource.permit, "other", "node check.mjs")!, /not allowed/);
-				assert.match(authorizeWorkflowResourceHost(resolved.resource.permit, "check", "node changed.mjs")!, /not allowed/);
-				assert.match(consumeWorkflowResourcePermit(resolved.resource.permit, resolved.resource.script) as string, /already consumed/);
-			} finally { replacement.dispose(); }
-		} finally { registration.dispose(); other.dispose(); }
+				assert.match(
+					authorizeWorkflowResourceHost(resolved.resource.permit, "check", "node other.mjs")!,
+					/not allowed/,
+				);
+				assert.match(
+					authorizeWorkflowResourceHost(resolved.resource.permit, "other", "node check.mjs")!,
+					/not allowed/,
+				);
+				assert.match(
+					authorizeWorkflowResourceHost(resolved.resource.permit, "check", "node changed.mjs")!,
+					/not allowed/,
+				);
+				assert.match(
+					consumeWorkflowResourcePermit(resolved.resource.permit, resolved.resource.script) as string,
+					/already consumed/,
+				);
+			} finally {
+				replacement.dispose();
+			}
+		} finally {
+			registration.dispose();
+			other.dispose();
+		}
 	});
 
 	it("lets trusted validation select fixed commands while task text remains data", async () => {
-		const registration = registerWorkflowResource({ sessionId: "binding", definition: {
-			name: "acme.review-check", version: 1,
-			resolve(args) {
-				if (Object.keys(args).some((key) => key !== "task" && key !== "check") || typeof args.task !== "string" || args.check !== "quick") return { error: "Only task and check=quick are supported." };
-				return { script: `return ${JSON.stringify(args.task)};`, hostCommands: [{ key: "check", command: "node check.mjs --quick" }] };
+		const registration = registerWorkflowResource({
+			sessionId: "binding",
+			definition: {
+				name: "acme.review-check",
+				version: 1,
+				resolve(args) {
+					if (
+						Object.keys(args).some((key) => key !== "task" && key !== "check") ||
+						typeof args.task !== "string" ||
+						args.check !== "quick"
+					)
+						return { error: "Only task and check=quick are supported." };
+					return {
+						script: `return ${JSON.stringify(args.task)};`,
+						hostCommands: [{ key: "check", command: "node check.mjs --quick" }],
+					};
+				},
 			},
-		} });
+		});
 		try {
-			const task = `\"); await runs.host("injected", { command: "bad" }); //`;
+			const task = `"); await runs.host("injected", { command: "bad" }); //`;
 			const resolved = resolveWorkflowResource("acme.review-check", { task, check: "quick" }, "binding");
 			assert.equal(resolved.ok, true);
 			if (!resolved.ok) return;
 			const execution = await runWorkflowScript({
 				script: resolved.resource.script,
-				async launch() { throw new Error("No child expected"); },
-				async status() { throw new Error("No status expected"); },
+				async launch() {
+					throw new Error("No child expected");
+				},
+				async status() {
+					throw new Error("No status expected");
+				},
 			});
 			assert.equal(execution.value, task);
-			for (const args of [{ task, check: "quick; bad" }, { task, check: "quick", flags: "--extra" }, { task, check: "quick", command: "bad" }, { task: new Date(), check: "quick" }, { task: "x".repeat(16385), check: "quick" }]) {
+			for (const args of [
+				{ task, check: "quick; bad" },
+				{ task, check: "quick", flags: "--extra" },
+				{ task, check: "quick", command: "bad" },
+				{ task: new Date(), check: "quick" },
+				{ task: "x".repeat(16385), check: "quick" },
+			]) {
 				assert.equal(resolveWorkflowResource("acme.review-check", args, "binding").ok, false);
 			}
-		} finally { registration.dispose(); }
+		} finally {
+			registration.dispose();
+		}
 	});
 
 	it("rejects invalid registrations and protects builtin names", () => {
-		const valid = { sessionId: "validation", definition: { name: "acme.check", version: 1, resolve: () => ({ script: "return true;" }) } };
+		const valid = {
+			sessionId: "validation",
+			definition: { name: "acme.check", version: 1, resolve: () => ({ script: "return true;" }) },
+		};
 		for (const input of [
 			{ ...valid, sessionId: " " },
 			{ ...valid, trusted: true },
@@ -90,44 +147,71 @@ describe("named workflow resources", () => {
 			{ ...valid, definition: { ...valid.definition, version: 0 } },
 			{ ...valid, definition: { ...valid.definition, resolve: undefined } },
 			{ ...valid, definition: { ...valid.definition, issuerPackage: "trusted" } },
-		]) assert.throws(() => registerWorkflowResource(input as typeof valid));
+		])
+			assert.throws(() => registerWorkflowResource(input as typeof valid));
 	});
 
 	it("contains throws, async results and malformed expansions without issuing permits", async () => {
 		const invalid = [
-			() => { throw new Error("x".repeat(5000)); },
+			() => {
+				throw new Error("x".repeat(5000));
+			},
 			() => Promise.reject(new Error("async rejection")),
-			() => ({ then(resolve: (value: unknown) => void) { resolve({ script: "return true;" }); } }),
+			() => ({
+				then(resolve: (value: unknown) => void) {
+					resolve({ script: "return true;" });
+				},
+			}),
 			() => null,
 			() => ({ script: " " }),
 			() => ({ script: "return true;", authority: {} }),
 			() => ({ error: 42 }),
 			() => ({ script: "return true;", hostCommands: { keys: ["a"], commands: ["node a.mjs"] } }),
-			() => ({ script: "return true;", hostCommands: [{ key: "a", command: "node a.mjs" }, { key: "a", command: "node b.mjs" }] }),
+			() => ({
+				script: "return true;",
+				hostCommands: [
+					{ key: "a", command: "node a.mjs" },
+					{ key: "a", command: "node b.mjs" },
+				],
+			}),
 			() => ({ script: "return true;", hostCommands: [{ key: "../a", command: "node a.mjs" }] }),
 			() => ({ script: "return true;", hostCommands: [{ key: "a", command: "node\0a" }] }),
 		];
 		for (const resolve of invalid) {
-			const registration = registerWorkflowResource({ sessionId: "invalid", definition: { name: "acme.invalid", version: 1, resolve: resolve as WorkflowResourceDefinition["resolve"] } });
+			const registration = registerWorkflowResource({
+				sessionId: "invalid",
+				definition: { name: "acme.invalid", version: 1, resolve: resolve as WorkflowResourceDefinition["resolve"] },
+			});
 			try {
 				const result = resolveWorkflowResource("acme.invalid", {}, "invalid");
 				assert.equal(result.ok, false);
 				assert.equal("resource" in result, false);
 				if (!result.ok) assert.ok(result.error.length <= 4096);
-			} finally { registration.dispose(); }
+			} finally {
+				registration.dispose();
+			}
 		}
 		await new Promise<void>((resolve) => setImmediate(resolve));
 	});
 
 	it("shares registrations across evaluated module copies", async () => {
 		const copy = await import(`../../src/workflows/workflow-resources.ts?copy=registration-test`);
-		const registration = copy.registerWorkflowResource({ sessionId: "copies", definition: { name: "acme.copy", version: 1, resolve: () => ({ script: "return true;" }) } });
+		const registration = copy.registerWorkflowResource({
+			sessionId: "copies",
+			definition: { name: "acme.copy", version: 1, resolve: () => ({ script: "return true;" }) },
+		});
 		try {
 			assert.notEqual(copy.resolveWorkflowResource, resolveWorkflowResource);
 			const resolved = resolveWorkflowResource("acme.copy", {}, "copies");
 			assert.equal(resolved.ok, true);
-			if (resolved.ok) assert.equal(typeof consumeWorkflowResourcePermit(resolved.resource.permit, resolved.resource.script), "object");
-		} finally { registration.dispose(); }
+			if (resolved.ok)
+				assert.equal(
+					typeof consumeWorkflowResourcePermit(resolved.resource.permit, resolved.resource.script),
+					"object",
+				);
+		} finally {
+			registration.dispose();
+		}
 		assert.equal(resolveWorkflowResource("acme.copy", {}, "copies").ok, false);
 	});
 
@@ -144,7 +228,10 @@ describe("named workflow resources", () => {
 			expansion: "resolved",
 			id: resolved.resource.provenance.id,
 		});
-		assert.equal(authorizeWorkflowResourceHost(resolved.resource.permit, "ci", "npm test"), "Workflow resource authority is unavailable.");
+		assert.equal(
+			authorizeWorkflowResourceHost(resolved.resource.permit, "ci", "npm test"),
+			"Workflow resource authority is unavailable.",
+		);
 		const consumed = consumeWorkflowResourcePermit(resolved.resource.permit, resolved.resource.script);
 		assert.equal(typeof consumed, "object");
 		assert.equal(authorizeWorkflowResourceHost(resolved.resource.permit, "ci", "npm test"), undefined);
@@ -153,16 +240,35 @@ describe("named workflow resources", () => {
 			async host(key, params) {
 				assert.equal(key, "ci");
 				assert.equal(params.command, "npm test");
-				return { key, kind: "command", ok: true, state: "passed", exitCode: 0, stdout: "ok", stderr: "", outputPath: "ci.log", durationMs: 1 };
+				return {
+					key,
+					kind: "command",
+					ok: true,
+					state: "passed",
+					exitCode: 0,
+					stdout: "ok",
+					stderr: "",
+					outputPath: "ci.log",
+					durationMs: 1,
+				};
 			},
-			async launch(key) { return { key, ok: true, output: "unused", artifactPaths: [] }; },
-			async status(key) { return { key, ok: true, output: "unused", artifactPaths: [] }; },
+			async launch(key) {
+				return { key, ok: true, output: "unused", artifactPaths: [] };
+			},
+			async status(key) {
+				return { key, ok: true, output: "unused", artifactPaths: [] };
+			},
 		});
 		assert.equal((execution.value as { ok?: boolean }).ok, true);
 	});
 
 	it("runs args.tasks in parallel through the built-in parallel workflow and rejects malformed tasks", async () => {
-		const resolved = resolveWorkflowResource("parallel", { tasks: [{ agent: "reviewer", task: "Review src/api" }, { agent: "scout", task: "Map the tests" }] });
+		const resolved = resolveWorkflowResource("parallel", {
+			tasks: [
+				{ agent: "reviewer", task: "Review src/api" },
+				{ agent: "scout", task: "Map the tests" },
+			],
+		});
 		assert.equal(resolved.ok, true);
 		if (!resolved.ok) return;
 		const launched: Array<{ key: string; agent: unknown; task: unknown }> = [];
@@ -172,25 +278,62 @@ describe("named workflow resources", () => {
 				launched.push({ key, agent: input.agent, task: input.task });
 				return { key, ok: true, output: `${input.agent} done`, artifactPaths: [] };
 			},
-			async status(key) { return { key, ok: true, output: "unused", artifactPaths: [] }; },
+			async status(key) {
+				return { key, ok: true, output: "unused", artifactPaths: [] };
+			},
 		});
-		assert.deepEqual(launched.map(({ agent, task }) => ({ agent, task })), [{ agent: "reviewer", task: "Review src/api" }, { agent: "scout", task: "Map the tests" }]);
+		assert.deepEqual(
+			launched.map(({ agent, task }) => ({ agent, task })),
+			[
+				{ agent: "reviewer", task: "Review src/api" },
+				{ agent: "scout", task: "Map the tests" },
+			],
+		);
 
-		assert.deepEqual(resolveWorkflowResource("parallel", {}), { ok: false, error: "workflow 'parallel' args.tasks must be a non-empty array of { agent, task } items." });
-		assert.match((resolveWorkflowResource("parallel", { tasks: [{ agent: "reviewer" }] }) as { error: string }).error, /args\.tasks\[0\]\.task must be a non-empty string/);
-		assert.match((resolveWorkflowResource("parallel", { tasks: [{ agent: "a", task: "b" }], concurrency: 2 }) as { error: string }).error, /unsupported fields: concurrency/);
-		assert.match((resolveWorkflowResource("parallel", { tasks: [{ agent: "a", task: "b", worktree: true }] }) as { error: string }).error, /unsupported fields: worktree\. .*Put worktree and other child controls on the subagent call itself; they apply to every child\./);
-		assert.match((resolveWorkflowResource("parallel", { tasks: [{ agent: "a", task: "b" }], worktree: true }) as { error: string }).error, /args contain unsupported fields: worktree\. .*Put worktree and other child controls on the subagent call itself/);
+		assert.deepEqual(resolveWorkflowResource("parallel", {}), {
+			ok: false,
+			error: "workflow 'parallel' args.tasks must be a non-empty array of { agent, task } items.",
+		});
+		assert.match(
+			(resolveWorkflowResource("parallel", { tasks: [{ agent: "reviewer" }] }) as { error: string }).error,
+			/args\.tasks\[0\]\.task must be a non-empty string/,
+		);
+		assert.match(
+			(
+				resolveWorkflowResource("parallel", { tasks: [{ agent: "a", task: "b" }], concurrency: 2 }) as {
+					error: string;
+				}
+			).error,
+			/unsupported fields: concurrency/,
+		);
+		assert.match(
+			(
+				resolveWorkflowResource("parallel", { tasks: [{ agent: "a", task: "b", worktree: true }] }) as {
+					error: string;
+				}
+			).error,
+			/unsupported fields: worktree\. .*Put worktree and other child controls on the subagent call itself; they apply to every child\./,
+		);
+		assert.match(
+			(
+				resolveWorkflowResource("parallel", { tasks: [{ agent: "a", task: "b" }], worktree: true }) as {
+					error: string;
+				}
+			).error,
+			/args contain unsupported fields: worktree\. .*Put worktree and other child controls on the subagent call itself/,
+		);
 	});
 
 	it("passes optional per-child cwd and model from parallel args.tasks to each launch as data", async () => {
 		const hostile = `"}); throw new Error("injected"); //`;
-		const resolved = resolveWorkflowResource("parallel", { tasks: [
-			{ agent: "a", task: "t", cwd: "/repo/a" },
-			{ agent: "b", task: "t", model: "provider/model" },
-			{ agent: "c", task: "t", cwd: hostile, model: hostile },
-			{ agent: "d", task: "t" },
-		] });
+		const resolved = resolveWorkflowResource("parallel", {
+			tasks: [
+				{ agent: "a", task: "t", cwd: "/repo/a" },
+				{ agent: "b", task: "t", model: "provider/model" },
+				{ agent: "c", task: "t", cwd: hostile, model: hostile },
+				{ agent: "d", task: "t" },
+			],
+		});
 		assert.equal(resolved.ok, true);
 		if (!resolved.ok) return;
 		const launched: Array<{ key: string; cwd: unknown; model: unknown }> = [];
@@ -200,7 +343,9 @@ describe("named workflow resources", () => {
 				launched.push({ key, cwd: input.cwd, model: input.model });
 				return { key, ok: true, output: "done", artifactPaths: [] };
 			},
-			async status(key) { return { key, ok: true, output: "unused", artifactPaths: [] }; },
+			async status(key) {
+				return { key, ok: true, output: "unused", artifactPaths: [] };
+			},
 		});
 		assert.deepEqual(launched, [
 			{ key: "task-1", cwd: "/repo/a", model: undefined },
@@ -209,19 +354,40 @@ describe("named workflow resources", () => {
 			{ key: "task-4", cwd: undefined, model: undefined },
 		]);
 
-		assert.match((resolveWorkflowResource("parallel", { tasks: [{ agent: "a", task: "b", cwd: " " }] }) as { error: string }).error, /args\.tasks\[0\]\.cwd must not be empty/);
-		assert.match((resolveWorkflowResource("parallel", { tasks: [{ agent: "a", task: "b", model: 1 }] }) as { error: string }).error, /args\.tasks\[0\]\.model must be a non-empty string/);
-		assert.match((resolveWorkflowResource("parallel", { tasks: [{ agent: "a", task: "b", thinking: "high" }] }) as { error: string }).error, /unsupported fields: thinking\. Each tasks item accepts agent and task, plus optional cwd and model/);
+		assert.match(
+			(resolveWorkflowResource("parallel", { tasks: [{ agent: "a", task: "b", cwd: " " }] }) as { error: string })
+				.error,
+			/args\.tasks\[0\]\.cwd must not be empty/,
+		);
+		assert.match(
+			(resolveWorkflowResource("parallel", { tasks: [{ agent: "a", task: "b", model: 1 }] }) as { error: string })
+				.error,
+			/args\.tasks\[0\]\.model must be a non-empty string/,
+		);
+		assert.match(
+			(
+				resolveWorkflowResource("parallel", { tasks: [{ agent: "a", task: "b", thinking: "high" }] }) as {
+					error: string;
+				}
+			).error,
+			/unsupported fields: thinking\. Each tasks item accepts agent and task, plus optional cwd and model/,
+		);
 	});
 
 	it("does not authorize raw equivalent scripts or unconsumed/forged permits", () => {
 		const forged = { __workflowResourcePermit: Symbol("forged") } as never;
-		assert.equal(authorizeWorkflowResourceHost(forged, "ci", "npm test"), "Workflow resource authority is unavailable.");
+		assert.equal(
+			authorizeWorkflowResourceHost(forged, "ci", "npm test"),
+			"Workflow resource authority is unavailable.",
+		);
 		const raw = `return await runs.host("ci", { kind: "command", command: "npm test", timeoutMs: 1000 });`;
 		const resolved = resolveWorkflowResource("run-ci", { command: "npm test", timeoutMs: 1_000 });
 		assert.equal(resolved.ok, true);
 		if (!resolved.ok) return;
-		assert.equal(authorizeWorkflowResourceHost(resolved.resource.permit, "ci", "npm test"), "Workflow resource authority is unavailable.");
+		assert.equal(
+			authorizeWorkflowResourceHost(resolved.resource.permit, "ci", "npm test"),
+			"Workflow resource authority is unavailable.",
+		);
 		assert.notEqual(raw, resolved.resource.script);
 	});
 
@@ -229,8 +395,14 @@ describe("named workflow resources", () => {
 		const resolved = resolveWorkflowResource("run-ci", { command: "npm test" });
 		assert.equal(resolved.ok, true);
 		if (!resolved.ok) return;
-		assert.equal(consumeWorkflowResourcePermit(resolved.resource.permit, `${resolved.resource.script}\n`), "Workflow resource permit does not match the resolved workflow script.");
-		assert.equal(authorizeWorkflowResourceHost(resolved.resource.permit, "shell", "npm test"), "Workflow resource authority is unavailable.");
+		assert.equal(
+			consumeWorkflowResourcePermit(resolved.resource.permit, `${resolved.resource.script}\n`),
+			"Workflow resource permit does not match the resolved workflow script.",
+		);
+		assert.equal(
+			authorizeWorkflowResourceHost(resolved.resource.permit, "shell", "npm test"),
+			"Workflow resource authority is unavailable.",
+		);
 		const consumed = consumeWorkflowResourcePermit(resolved.resource.permit, resolved.resource.script);
 		assert.equal(typeof consumed, "object");
 		assert.match(authorizeWorkflowResourceHost(resolved.resource.permit, "shell", "npm test") ?? "", /not allowed/);
@@ -262,20 +434,42 @@ describe("named workflow resources", () => {
 	});
 
 	it("rejects argument validation failures even when the error message is empty", () => {
-		const registration = registerWorkflowResource({ sessionId: "invalid-args", definition: {
-			name: "check-args", version: 1, resolve: () => assert.fail("invalid args reached the resolver"),
-		} });
+		const registration = registerWorkflowResource({
+			sessionId: "invalid-args",
+			definition: {
+				name: "check-args",
+				version: 1,
+				resolve: () => assert.fail("invalid args reached the resolver"),
+			},
+		});
 		try {
-			assert.deepEqual(resolveWorkflowResource("check-args", { get task() { throw new Error(""); } }, "invalid-args"), { ok: false, error: "" });
-		} finally { registration.dispose(); }
+			assert.deepEqual(
+				resolveWorkflowResource(
+					"check-args",
+					{
+						get task() {
+							throw new Error("");
+						},
+					},
+					"invalid-args",
+				),
+				{ ok: false, error: "" },
+			);
+		} finally {
+			registration.dispose();
+		}
 	});
 
 	it("reports unauthorized raw host execution through the workflow primitive when no host is supplied", async () => {
 		await assert.rejects(
 			runWorkflowScript({
 				script: `return await runs.host("ci", { kind: "command", command: "npm test", timeoutMs: 1000 });`,
-				async launch(key) { return { key, ok: true, output: "unused", artifactPaths: [] }; },
-				async status(key) { return { key, ok: true, output: "unused", artifactPaths: [] }; },
+				async launch(key) {
+					return { key, ok: true, output: "unused", artifactPaths: [] };
+				},
+				async status(key) {
+					return { key, ok: true, output: "unused", artifactPaths: [] };
+				},
 			}),
 			(error: unknown) => error instanceof WorkflowScriptError && /runs\.host is unavailable/.test(error.message),
 		);

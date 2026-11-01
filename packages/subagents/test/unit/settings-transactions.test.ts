@@ -17,7 +17,9 @@ function writer(root: string, project: string, target: string, role: string, ope
 		stdio: ["ignore", "ignore", "pipe", "ipc"],
 	});
 	let stderr = "";
-	child.stderr!.on("data", (data) => { stderr += data; });
+	child.stderr!.on("data", (data) => {
+		stderr += data;
+	});
 	const seen = new Set<string>();
 	const listeners: Array<() => void> = [];
 	child.on("message", (message: { type: string }) => {
@@ -25,13 +27,18 @@ function writer(root: string, project: string, target: string, role: string, ope
 		for (const listener of listeners) listener();
 	});
 	const done = new Promise<void>((resolve, reject) => {
-		child.on("exit", (code) => code === 0 ? resolve() : reject(new Error(stderr || `${role} writer exited ${code}`)));
+		child.on("exit", (code) =>
+			code === 0 ? resolve() : reject(new Error(stderr || `${role} writer exited ${code}`)),
+		);
 	});
-	const message = (type: string) => new Promise<void>((resolve) => {
-		const check = () => { if (seen.has(type)) resolve(); };
-		listeners.push(check);
-		check();
-	});
+	const message = (type: string) =>
+		new Promise<void>((resolve) => {
+			const check = () => {
+				if (seen.has(type)) resolve();
+			};
+			listeners.push(check);
+			check();
+		});
 	return { child, done, message };
 }
 
@@ -41,7 +48,10 @@ async function race(options: { first: string; second: string; fileAlias?: boolea
 	const project = path.join(root, "project");
 	const config = path.join(project, ".pi");
 	fs.mkdirSync(path.join(config, "profiles", "pi-subagents"), { recursive: true });
-	fs.writeFileSync(path.join(config, "profiles", "pi-subagents", "race.json"), JSON.stringify({ subagents: { agentOverrides: { reviewer: { model: "example/profile" } } } }));
+	fs.writeFileSync(
+		path.join(config, "profiles", "pi-subagents", "race.json"),
+		JSON.stringify({ subagents: { agentOverrides: { reviewer: { model: "example/profile" } } } }),
+	);
 	const target = path.join(config, "settings.json");
 	fs.writeFileSync(target, JSON.stringify({ unrelated: true }));
 	let secondProject = project;
@@ -52,7 +62,10 @@ async function race(options: { first: string; second: string; fileAlias?: boolea
 	}
 	const first = writer(root, project, target, "first", options.first, config);
 	const second = writer(root, secondProject, target, "second", options.second, config);
-	const timeout = setTimeout(() => { first.child.kill("SIGKILL"); second.child.kill("SIGKILL"); }, 20_000);
+	const timeout = setTimeout(() => {
+		first.child.kill("SIGKILL");
+		second.child.kill("SIGKILL");
+	}, 20_000);
 	try {
 		await Promise.all([first.message("ready"), second.message("ready")]);
 		fs.writeFileSync(path.join(root, "first.start"), "");

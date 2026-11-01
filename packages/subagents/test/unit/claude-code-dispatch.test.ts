@@ -10,10 +10,21 @@
 import assert from "node:assert/strict";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { buildAsyncRunnerSteps, executeAsyncSingle, resolveClaudeCodeThinking } from "../../src/runs/background/async-execution.ts";
 import type { AgentConfig } from "../../src/agents/agents.ts";
+import {
+	buildAsyncRunnerSteps,
+	executeAsyncSingle,
+	resolveClaudeCodeThinking,
+} from "../../src/runs/background/async-execution.ts";
 
-const artifactsOff = { enabled: false, includeInput: false, includeOutput: false, includeJsonl: false, includeMetadata: false, cleanupDays: 7 };
+const artifactsOff = {
+	enabled: false,
+	includeInput: false,
+	includeOutput: false,
+	includeJsonl: false,
+	includeMetadata: false,
+	cleanupDays: 7,
+};
 
 function agent(name: string, overrides: Partial<AgentConfig> = {}): AgentConfig {
 	return {
@@ -39,7 +50,11 @@ const ctx = {
 	modelScope: undefined,
 };
 
-function build(chain: Parameters<typeof buildAsyncRunnerSteps>[1]["chain"], agents: AgentConfig[], overrides: Partial<Parameters<typeof buildAsyncRunnerSteps>[1]> = {}) {
+function build(
+	chain: Parameters<typeof buildAsyncRunnerSteps>[1]["chain"],
+	agents: AgentConfig[],
+	overrides: Partial<Parameters<typeof buildAsyncRunnerSteps>[1]> = {},
+) {
 	return buildAsyncRunnerSteps("cc-dispatch", {
 		chain,
 		agents,
@@ -58,7 +73,10 @@ function firstArgs(built: ReturnType<typeof buildAsyncRunnerSteps>): string[] | 
 
 describe("Claude Code override dispatch", () => {
 	it("carries a model suffix into --model and --effort", () => {
-		const built = build([{ agent: "claude-code", task: "Review", model: "claude-opus-5.5:high" }], [agent("claude-code")]);
+		const built = build(
+			[{ agent: "claude-code", task: "Review", model: "claude-opus-5.5:high" }],
+			[agent("claude-code")],
+		);
 		assert.deepEqual(firstArgs(built), ["--model", "claude-opus-5.5", "--effort", "high"]);
 	});
 
@@ -66,7 +84,10 @@ describe("Claude Code override dispatch", () => {
 		const built = build([{ agent: "claude-code", task: "Review", model: ":medium" }], [agent("claude-code")]);
 		assert.deepEqual(firstArgs(built), ["--effort", "medium"]);
 
-		const pinned = build([{ agent: "claude-code", task: "Review", model: ":medium" }], [agent("claude-code", { model: "sonnet" })]);
+		const pinned = build(
+			[{ agent: "claude-code", task: "Review", model: ":medium" }],
+			[agent("claude-code", { model: "sonnet" })],
+		);
 		assert.deepEqual(firstArgs(pinned), ["--model", "sonnet", "--effort", "medium"]);
 	});
 
@@ -79,19 +100,39 @@ describe("Claude Code override dispatch", () => {
 			[agent("claude-code")],
 		);
 		assert.ok("steps" in built);
-		assert.deepEqual((built.steps[0] as { claudeCodeOverrideArgs?: string[] }).claudeCodeOverrideArgs, ["--model", "sonnet", "--effort", "low"]);
-		assert.deepEqual((built.steps[1] as { claudeCodeOverrideArgs?: string[] }).claudeCodeOverrideArgs, ["--model", "haiku", "--effort", "xhigh"]);
+		assert.deepEqual((built.steps[0] as { claudeCodeOverrideArgs?: string[] }).claudeCodeOverrideArgs, [
+			"--model",
+			"sonnet",
+			"--effort",
+			"low",
+		]);
+		assert.deepEqual((built.steps[1] as { claudeCodeOverrideArgs?: string[] }).claudeCodeOverrideArgs, [
+			"--model",
+			"haiku",
+			"--effort",
+			"xhigh",
+		]);
 
 		const parallel = build(
-			[{ parallel: [{ agent: "claude-code", task: "A", model: "sonnet:low" }, { agent: "claude-code", task: "B", model: "haiku:xhigh" }] }],
+			[
+				{
+					parallel: [
+						{ agent: "claude-code", task: "A", model: "sonnet:low" },
+						{ agent: "claude-code", task: "B", model: "haiku:xhigh" },
+					],
+				},
+			],
 			[agent("claude-code")],
 		);
 		assert.ok("steps" in parallel);
 		const items = (parallel.steps[0] as { parallel?: Array<{ claudeCodeOverrideArgs?: string[] }> }).parallel ?? [];
-		assert.deepEqual(items.map((item) => item.claudeCodeOverrideArgs), [
-			["--model", "sonnet", "--effort", "low"],
-			["--model", "haiku", "--effort", "xhigh"],
-		]);
+		assert.deepEqual(
+			items.map((item) => item.claudeCodeOverrideArgs),
+			[
+				["--model", "sonnet", "--effort", "low"],
+				["--model", "haiku", "--effort", "xhigh"],
+			],
+		);
 	});
 
 	it("never passes a Pi default model to the CLI", () => {
@@ -103,17 +144,36 @@ describe("Claude Code override dispatch", () => {
 		assert.equal(firstArgs(build([{ agent: "claude-code", task: "Review" }], [fromSettings])), undefined);
 
 		// A frontmatter model the operator wrote still reaches the CLI.
-		const pinned = agent("claude-code", { model: "claude-opus-5.5", modelSource: { type: "subagents.defaultModel", scope: "user", path: "/tmp/settings.json", model } });
-		assert.deepEqual(firstArgs(build([{ agent: "claude-code", task: "Review" }], [pinned])), ["--model", "claude-opus-5.5"]);
+		const pinned = agent("claude-code", {
+			model: "claude-opus-5.5",
+			modelSource: { type: "subagents.defaultModel", scope: "user", path: "/tmp/settings.json", model },
+		});
+		assert.deepEqual(firstArgs(build([{ agent: "claude-code", task: "Review" }], [pinned])), [
+			"--model",
+			"claude-opus-5.5",
+		]);
 	});
 
 	it("honors an explicit thinking clear instead of the agent default", () => {
 		const withDefault = agent("claude-code", { thinking: "high" });
-		assert.deepEqual(firstArgs(build([{ agent: "claude-code", task: "Review" }], [withDefault])), ["--effort", "high"]);
+		assert.deepEqual(firstArgs(build([{ agent: "claude-code", task: "Review" }], [withDefault])), [
+			"--effort",
+			"high",
+		]);
 		// An explicit clear must not fall back to the level it cleared. Chain steps
 		// carry no thinking field, so the per-step override is the channel.
-		assert.equal(firstArgs(build([{ agent: "claude-code", task: "Review" }], [withDefault], { thinkingOverridesByFlatIndex: [false] })), undefined);
-		assert.deepEqual(firstArgs(build([{ agent: "claude-code", task: "Review" }], [withDefault], { thinkingOverridesByFlatIndex: ["low"] })), ["--effort", "low"]);
+		assert.equal(
+			firstArgs(
+				build([{ agent: "claude-code", task: "Review" }], [withDefault], { thinkingOverridesByFlatIndex: [false] }),
+			),
+			undefined,
+		);
+		assert.deepEqual(
+			firstArgs(
+				build([{ agent: "claude-code", task: "Review" }], [withDefault], { thinkingOverridesByFlatIndex: ["low"] }),
+			),
+			["--effort", "low"],
+		);
 
 		// The same precedence drives the single path.
 		assert.equal(resolveClaudeCodeThinking(false, "high"), undefined);
@@ -123,12 +183,18 @@ describe("Claude Code override dispatch", () => {
 	});
 
 	it("rejects an effort above maxThinking before the child starts", () => {
-		const built = build([{ agent: "claude-code", task: "Review", model: "sonnet:max" }], [agent("claude-code", { maxThinking: "low" })]);
+		const built = build(
+			[{ agent: "claude-code", task: "Review", model: "sonnet:max" }],
+			[agent("claude-code", { maxThinking: "low" })],
+		);
 		assert.ok("error" in built);
 		assert.match(built.error, /Thinking level 'max' exceeds configured maximum 'low'/);
 
 		// The boundary compares the requested level, not the effort it maps to.
-		const boundary = build([{ agent: "claude-code", task: "Review", model: "sonnet:minimal" }], [agent("claude-code", { maxThinking: "minimal" })]);
+		const boundary = build(
+			[{ agent: "claude-code", task: "Review", model: "sonnet:minimal" }],
+			[agent("claude-code", { maxThinking: "minimal" })],
+		);
 		assert.deepEqual(firstArgs(boundary), ["--model", "sonnet", "--effort", "low"]);
 	});
 
@@ -161,17 +227,28 @@ describe("Claude Code override dispatch", () => {
 				agent: "claude-code",
 				task: "Review",
 				agentConfig: agent("claude-code"),
-				ctx: { pi: { events: { emit() {} } }, cwd: process.cwd(), currentSessionId: "session-1", ...(params.ctx as object | undefined) },
+				ctx: {
+					pi: { events: { emit() {} } },
+					cwd: process.cwd(),
+					currentSessionId: "session-1",
+					...(params.ctx as object | undefined),
+				},
 				artifactConfig: artifactsOff,
 				shareEnabled: false,
 				...params,
 			});
 
-		const overCeiling = single({ modelOverride: "sonnet:max", agentConfig: agent("claude-code", { maxThinking: "low" }) });
+		const overCeiling = single({
+			modelOverride: "sonnet:max",
+			agentConfig: agent("claude-code", { maxThinking: "low" }),
+		});
 		assert.equal(overCeiling.isError, true);
 		assert.match(overCeiling.content[0]?.text ?? "", /Thinking level 'max' exceeds configured maximum 'low'/);
 
-		const outside = single({ modelOverride: "opus", ctx: { modelScope: { enforce: true, allow: ["anthropic/claude-opus-4-5"] } } });
+		const outside = single({
+			modelOverride: "opus",
+			ctx: { modelScope: { enforce: true, allow: ["anthropic/claude-opus-4-5"] } },
+		});
 		assert.equal(outside.isError, true);
 		assert.match(outside.content[0]?.text ?? "", /outside the configured subagent model scope/);
 

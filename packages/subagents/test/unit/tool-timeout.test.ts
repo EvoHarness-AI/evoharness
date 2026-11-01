@@ -3,13 +3,13 @@ import { describe, it } from "node:test";
 import {
 	DEFAULT_FAST_TOOL_TIMEOUT_MS,
 	DEFAULT_FAST_TOOL_TIMEOUT_TOOLS,
-	TOOL_TIMEOUT_ALLOWLIST,
-	TOOL_TIMEOUT_ENV,
 	defaultToolTimeoutMs,
 	effectiveToolTimeoutMs,
 	formatToolTimeoutMessage,
 	isToolTimeoutExempt,
 	resolveToolTimeoutMs,
+	TOOL_TIMEOUT_ALLOWLIST,
+	TOOL_TIMEOUT_ENV,
 	toolTimeoutCallKey,
 	toolTimeoutFromEnv,
 } from "../../src/runs/shared/tool-timeout.ts";
@@ -39,7 +39,12 @@ describe("resolveToolTimeoutMs", () => {
 
 	it("accepts the env value as a plain integer string", () => {
 		assert.deepEqual(
-			resolveToolTimeoutMs({ envValue: "60000", callValue: undefined, agentValue: undefined, configValue: undefined }),
+			resolveToolTimeoutMs({
+				envValue: "60000",
+				callValue: undefined,
+				agentValue: undefined,
+				configValue: undefined,
+			}),
 			{ toolTimeoutMs: 60_000 },
 		);
 	});
@@ -68,7 +73,15 @@ describe("effectiveToolTimeoutMs", () => {
 		}
 		assert.equal(defaultToolTimeoutMs("bash"), undefined);
 		assert.equal(effectiveToolTimeoutMs("bash", undefined), undefined);
-		assert.deepEqual([...DEFAULT_FAST_TOOL_TIMEOUT_TOOLS].sort(), ["edit", "find", "grep", "ls", "read", "structured_output", "write"]);
+		assert.deepEqual([...DEFAULT_FAST_TOOL_TIMEOUT_TOOLS].sort(), [
+			"edit",
+			"find",
+			"grep",
+			"ls",
+			"read",
+			"structured_output",
+			"write",
+		]);
 	});
 
 	it("lets an explicit configured timeout win for non-exempt tools", () => {

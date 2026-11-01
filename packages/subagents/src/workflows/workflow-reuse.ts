@@ -1,27 +1,32 @@
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { readRecentTerminalRunIndex } from "../runs/background/terminal-run-index.ts";
 import { reconcileAsyncRun } from "../runs/background/stale-run-reconciler.ts";
-import { readStatus } from "../shared/utils.ts";
+import { readRecentTerminalRunIndex } from "../runs/background/terminal-run-index.ts";
 import type { AsyncStatus } from "../shared/types.ts";
-import { workflowResumeClaimState, type WorkflowResumeClaimOutcome } from "./workflow-resume-claim.ts";
+import { readStatus } from "../shared/utils.ts";
+import { type WorkflowScriptChildResult, workflowRunParamsFingerprint } from "./scripted-workflow.ts";
+import { type WorkflowResumeClaimOutcome, workflowResumeClaimState } from "./workflow-resume-claim.ts";
 import { isRunId } from "./workflow-revival.ts";
-import { workflowRunParamsFingerprint, type WorkflowScriptChildResult } from "./scripted-workflow.ts";
 import { isReusableWorkflowStopCause, WORKFLOW_STOP_CAUSE_RUNTIME_REPLACED } from "./workflow-stop-cause.ts";
 
 const WORKFLOW_CHILD_JOURNAL_FILE = "workflow-children.jsonl";
 
 /** What a runtime replacement left; the notice's resume line says how the run continues. */
-export const WORKFLOW_RUNTIME_REPLACED_STOP_NOTICE = "Async children that were still running keep running, and finished children are kept.";
+export const WORKFLOW_RUNTIME_REPLACED_STOP_NOTICE =
+	"Async children that were still running keep running, and finished children are kept.";
 
 /** Abort reason for workflow controllers torn down by runtime replacement; carries the cause as data, not text. */
 export function runtimeReplacedAbortReason(): Error {
-	return Object.assign(new Error("Workflow stopped because the extension session was replaced or reloaded."), { workflowStopCause: WORKFLOW_STOP_CAUSE_RUNTIME_REPLACED });
+	return Object.assign(new Error("Workflow stopped because the extension session was replaced or reloaded."), {
+		workflowStopCause: WORKFLOW_STOP_CAUSE_RUNTIME_REPLACED,
+	});
 }
 
 export function workflowStopCause(reason: unknown): typeof WORKFLOW_STOP_CAUSE_RUNTIME_REPLACED | undefined {
-	return reason instanceof Error && "workflowStopCause" in reason && reason.workflowStopCause === WORKFLOW_STOP_CAUSE_RUNTIME_REPLACED
+	return reason instanceof Error &&
+		"workflowStopCause" in reason &&
+		reason.workflowStopCause === WORKFLOW_STOP_CAUSE_RUNTIME_REPLACED
 		? WORKFLOW_STOP_CAUSE_RUNTIME_REPLACED
 		: undefined;
 }
@@ -59,9 +64,7 @@ interface WorkflowReuseSource {
 	settled: Map<string, { fingerprint: string; result: WorkflowScriptChildResult }>;
 }
 
-type WorkflowReuseMatch =
-	| { kind: "settled"; result: WorkflowScriptChildResult }
-	| { kind: "started"; runId: string };
+type WorkflowReuseMatch = { kind: "settled"; result: WorkflowScriptChildResult } | { kind: "started"; runId: string };
 
 function readWorkflowChildJournal(runId: string, workflowAsyncDir: string): WorkflowReuseSource {
 	const source: WorkflowReuseSource = { runId, started: new Map(), settled: new Map() };
@@ -74,7 +77,7 @@ function readWorkflowChildJournal(runId: string, workflowAsyncDir: string): Work
 	for (const line of text.split("\n")) {
 		let record: Partial<WorkflowChildJournalRecord> | undefined;
 		try {
-			record = line.trim() ? JSON.parse(line) as Partial<WorkflowChildJournalRecord> : undefined;
+			record = line.trim() ? (JSON.parse(line) as Partial<WorkflowChildJournalRecord>) : undefined;
 		} catch {
 			continue;
 		}
@@ -123,7 +126,11 @@ function readWorkflowReuseChain(asyncDirRoot: string, headRunId: string, headSta
 }
 
 /** Why a relaunch of `runId` is refused when another relaunch already continues it. */
-export function claimedWorkflowRunRefusal(runId: string, claim: Exclude<WorkflowResumeClaimOutcome, { kind: "owner" }>, named: boolean): string {
+export function claimedWorkflowRunRefusal(
+	runId: string,
+	claim: Exclude<WorkflowResumeClaimOutcome, { kind: "owner" }>,
+	named: boolean,
+): string {
 	const run = `${named ? "options.reuseFrom: workflow" : "Workflow"} run '${runId}'`;
 	if (claim.kind === "resumed") return `${run} was resumed as ${claim.newRunId}; wait on it or stop it.`;
 	if (claim.kind === "busy") return `${run} is being resumed by pid ${claim.pid}; wait for it.`;
@@ -141,7 +148,12 @@ function assertWorkflowRunNotClaimed(asyncDir: string, runId: string, named: boo
  * when that run stopped because its runtime was replaced or its Pi process exited.
  * Throws when another relaunch already continues that run.
  */
-export function findWorkflowReuseSource(asyncDirRoot: string, sessionId: string, scriptDigest: string, argsDigest: string | undefined): WorkflowReuseSource | undefined {
+export function findWorkflowReuseSource(
+	asyncDirRoot: string,
+	sessionId: string,
+	scriptDigest: string,
+	argsDigest: string | undefined,
+): WorkflowReuseSource | undefined {
 	let runIds: string[];
 	try {
 		runIds = readRecentTerminalRunIndex(asyncDirRoot, { sessionId });
@@ -156,7 +168,12 @@ export function findWorkflowReuseSource(asyncDirRoot: string, sessionId: string,
 		} catch {
 			continue;
 		}
-		if (status?.mode !== "workflow" || status.workflow?.scriptDigest !== scriptDigest || status.workflow.argsDigest !== argsDigest) continue;
+		if (
+			status?.mode !== "workflow" ||
+			status.workflow?.scriptDigest !== scriptDigest ||
+			status.workflow.argsDigest !== argsDigest
+		)
+			continue;
 		if (!isReusableWorkflowStopCause(status.workflow.stopCause)) return undefined;
 		assertWorkflowRunNotClaimed(asyncDir, runId, false);
 		return readWorkflowReuseChain(asyncDirRoot, runId, status);
@@ -169,24 +186,42 @@ export function findWorkflowReuseSource(asyncDirRoot: string, sessionId: string,
  * must match: each child is still reused only when its key and launch params match. The run is
  * reconciled first, so a run whose Pi process died is marked `owner-exited` before it is read.
  */
-export function readNamedWorkflowReuseSource(asyncDirRoot: string, runId: string, scriptDigest: string, cwd: string, claimOwnerRunId?: string): WorkflowReuseSource {
+export function readNamedWorkflowReuseSource(
+	asyncDirRoot: string,
+	runId: string,
+	scriptDigest: string,
+	cwd: string,
+	claimOwnerRunId?: string,
+): WorkflowReuseSource {
 	// A user-supplied id: it must name one run directory, never a path.
 	const runName = isRunId(runId);
 	if (runName) reconcileAsyncRun(path.join(asyncDirRoot, runId));
 	const status = runName ? readStatus(path.join(asyncDirRoot, runId)) : null;
 	if (!status) throw new Error(`options.reuseFrom: workflow run '${runId}' was not found.`);
 	if (status.mode !== "workflow") throw new Error(`options.reuseFrom: run '${runId}' is not a workflow run.`);
-	if (!isReusableWorkflowStopCause(status.workflow?.stopCause)) throw new Error(`options.reuseFrom: workflow run '${runId}' did not stop because its session was replaced or its Pi process exited, so its children cannot be reused.`);
-	if (status.workflow.scriptDigest !== scriptDigest) throw new Error(`options.reuseFrom: workflow run '${runId}' ran a different workflow script.`);
-	if (status.cwd !== cwd) throw new Error(`options.reuseFrom: workflow run '${runId}' ran in '${status.cwd}', not '${cwd}'.`);
+	if (!isReusableWorkflowStopCause(status.workflow?.stopCause))
+		throw new Error(
+			`options.reuseFrom: workflow run '${runId}' did not stop because its session was replaced or its Pi process exited, so its children cannot be reused.`,
+		);
+	if (status.workflow.scriptDigest !== scriptDigest)
+		throw new Error(`options.reuseFrom: workflow run '${runId}' ran a different workflow script.`);
+	if (status.cwd !== cwd)
+		throw new Error(`options.reuseFrom: workflow run '${runId}' ran in '${status.cwd}', not '${cwd}'.`);
 	assertWorkflowRunNotClaimed(path.join(asyncDirRoot, runId), runId, true, claimOwnerRunId);
 	return readWorkflowReuseChain(asyncDirRoot, runId, status);
 }
 
 /** A settled match is reusable only when that child succeeded; failed or stopped children run again. */
-export function matchWorkflowReuse(source: WorkflowReuseSource, key: string, fingerprint: string): WorkflowReuseMatch | undefined {
+export function matchWorkflowReuse(
+	source: WorkflowReuseSource,
+	key: string,
+	fingerprint: string,
+): WorkflowReuseMatch | undefined {
 	const settled = source.settled.get(key);
-	if (settled) return settled.fingerprint === fingerprint && settled.result.ok ? { kind: "settled", result: settled.result } : undefined;
+	if (settled)
+		return settled.fingerprint === fingerprint && settled.result.ok
+			? { kind: "settled", result: settled.result }
+			: undefined;
 	const started = source.started.get(key);
 	return started?.fingerprint === fingerprint ? { kind: "started", runId: started.runId } : undefined;
 }

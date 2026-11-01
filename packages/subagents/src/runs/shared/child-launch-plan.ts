@@ -1,7 +1,7 @@
 import * as path from "node:path";
 import type { AgentConfig } from "../../agents/agents.ts";
-import { resolveChildCwd } from "../../shared/utils.ts";
 import type { JsonSchemaObject, OutputMode } from "../../shared/types.ts";
+import { resolveChildCwd } from "../../shared/utils.ts";
 import { resolveSingleOutputPath } from "./single-output.ts";
 
 export interface ResolvedStepBehavior {
@@ -61,12 +61,30 @@ export function normalizeOutputOverride(output: unknown): string | false | undef
 	return typeof output === "string" && output.length > 0 ? output : undefined;
 }
 
-export const resolveEffectiveOutputSchema = (agentConfig: AgentConfig, override?: JsonSchemaObject | false): JsonSchemaObject | undefined => override === false ? undefined : override !== undefined ? override : agentConfig.outputSchema;
+export const resolveEffectiveOutputSchema = (
+	agentConfig: AgentConfig,
+	override?: JsonSchemaObject | false,
+): JsonSchemaObject | undefined =>
+	override === false ? undefined : override !== undefined ? override : agentConfig.outputSchema;
 
 type OutputSchemaStep = { agent: string; outputSchema?: JsonSchemaObject | false };
-export function projectChainOutputSchemas<S extends OutputSchemaStep, R = S, G = { parallel: R[] | R }>(chain: readonly (S | { parallel: S[] | S })[], agents: AgentConfig[], projectStep?: (step: S, outputSchema: JsonSchemaObject | undefined) => R, projectGroup?: (step: { parallel: S[] | S }, parallel: R[] | R) => G): Array<R | G> {
-	const project = (step: S): R => { const agent = agents.find((candidate) => candidate.name === step.agent); if (!agent && !projectStep) return step as unknown as R; const outputSchema = agent && resolveEffectiveOutputSchema(agent, step.outputSchema); return projectStep ? projectStep(step, outputSchema) : { ...step, outputSchema } as unknown as R; };
-	return chain.map((step) => { if (!("parallel" in step)) return project(step as S); const parallel = Array.isArray(step.parallel) ? step.parallel.map(project) : project(step.parallel as S); return projectGroup ? projectGroup(step, parallel) : { ...step, parallel } as unknown as G; });
+export function projectChainOutputSchemas<S extends OutputSchemaStep, R = S, G = { parallel: R[] | R }>(
+	chain: readonly (S | { parallel: S[] | S })[],
+	agents: AgentConfig[],
+	projectStep?: (step: S, outputSchema: JsonSchemaObject | undefined) => R,
+	projectGroup?: (step: { parallel: S[] | S }, parallel: R[] | R) => G,
+): Array<R | G> {
+	const project = (step: S): R => {
+		const agent = agents.find((candidate) => candidate.name === step.agent);
+		if (!agent && !projectStep) return step as unknown as R;
+		const outputSchema = agent && resolveEffectiveOutputSchema(agent, step.outputSchema);
+		return projectStep ? projectStep(step, outputSchema) : ({ ...step, outputSchema } as unknown as R);
+	};
+	return chain.map((step) => {
+		if (!("parallel" in step)) return project(step as S);
+		const parallel = Array.isArray(step.parallel) ? step.parallel.map(project) : project(step.parallel as S);
+		return projectGroup ? projectGroup(step, parallel) : ({ ...step, parallel } as unknown as G);
+	});
 }
 
 export function resolveStepBehavior(
@@ -75,17 +93,12 @@ export function resolveStepBehavior(
 	chainSkills?: string[],
 ): ResolvedStepBehavior {
 	const stepOutput = normalizeOutputOverride(stepOverrides.output);
-	const output = stepOutput !== undefined
-		? stepOutput
-		: normalizeOutputOverride(agentConfig.output) ?? false;
+	const output = stepOutput !== undefined ? stepOutput : (normalizeOutputOverride(agentConfig.output) ?? false);
 
-	const reads = stepOverrides.reads !== undefined
-		? stepOverrides.reads
-		: agentConfig.defaultReads ?? false;
+	const reads = stepOverrides.reads !== undefined ? stepOverrides.reads : (agentConfig.defaultReads ?? false);
 
-	const progress = stepOverrides.progress !== undefined
-		? stepOverrides.progress
-		: agentConfig.defaultProgress ?? false;
+	const progress =
+		stepOverrides.progress !== undefined ? stepOverrides.progress : (agentConfig.defaultProgress ?? false);
 
 	let skills: string[] | false;
 	if (stepOverrides.skills === false) {
@@ -106,24 +119,42 @@ export function resolveStepBehavior(
 	const model = stepOverrides.model ?? agentConfig.model;
 	const fast = stepOverrides.fast ?? agentConfig.fast;
 	const outputSchema = resolveEffectiveOutputSchema(agentConfig, stepOverrides.outputSchema);
-	return { output, outputMode, reads, progress, skills, model, fast, ...(outputSchema !== undefined ? { outputSchema } : {}) };
+	return {
+		output,
+		outputMode,
+		reads,
+		progress,
+		skills,
+		model,
+		fast,
+		...(outputSchema !== undefined ? { outputSchema } : {}),
+	};
 }
 
-export function resolveTaskTextForFileUpdatePolicy(task: string | undefined, originalTask?: string): string | undefined {
+export function resolveTaskTextForFileUpdatePolicy(
+	task: string | undefined,
+	originalTask?: string,
+): string | undefined {
 	if (!task) return originalTask;
 	return originalTask ? task.replaceAll("{task}", originalTask) : task;
 }
 
 export function taskDisallowsFileUpdates(task: string | undefined): boolean {
 	if (!task) return false;
-	return /\breview[- ]only\b/i.test(task)
-		|| /\bread[- ]only\s+(?:review|audit|inspection|pass)\b/i.test(task)
-		|| /\b(?:no|without)\s+(?:file\s+)?edits?\b/i.test(task)
-		|| /\b(?:do not|don't|must not)\s+(?:edit|modify|write|touch)\b/i.test(task)
-		|| /\bleave\s+files?\s+unchanged\b/i.test(task);
+	return (
+		/\breview[- ]only\b/i.test(task) ||
+		/\bread[- ]only\s+(?:review|audit|inspection|pass)\b/i.test(task) ||
+		/\b(?:no|without)\s+(?:file\s+)?edits?\b/i.test(task) ||
+		/\b(?:do not|don't|must not)\s+(?:edit|modify|write|touch)\b/i.test(task) ||
+		/\bleave\s+files?\s+unchanged\b/i.test(task)
+	);
 }
 
-export function suppressProgressForReadOnlyTask(behavior: ResolvedStepBehavior, task: string | undefined, originalTask?: string): ResolvedStepBehavior {
+export function suppressProgressForReadOnlyTask(
+	behavior: ResolvedStepBehavior,
+	task: string | undefined,
+	originalTask?: string,
+): ResolvedStepBehavior {
 	const policyTask = resolveTaskTextForFileUpdatePolicy(task, originalTask);
 	return behavior.progress && taskDisallowsFileUpdates(policyTask) ? { ...behavior, progress: false } : behavior;
 }
@@ -139,10 +170,10 @@ export function planChildLaunch(input: ChildLaunchPlanInput): ChildLaunchPlan {
 	);
 
 	const inheritedRelativeParallelOutput = Boolean(
-		input.parallelOutputNamespace
-		&& input.stepOverrides.output === undefined
-		&& typeof behavior.output === "string"
-		&& !path.isAbsolute(behavior.output),
+		input.parallelOutputNamespace &&
+			input.stepOverrides.output === undefined &&
+			typeof behavior.output === "string" &&
+			!path.isAbsolute(behavior.output),
 	);
 	if (inheritedRelativeParallelOutput && input.parallelOutputNamespace?.taskIndex !== undefined) {
 		behavior = {
@@ -155,9 +186,19 @@ export function planChildLaunch(input: ChildLaunchPlanInput): ChildLaunchPlan {
 		};
 	}
 
-	const namespaceOutputPath = inheritedRelativeParallelOutput && input.parallelOutputNamespace?.taskIndex === undefined;
+	const namespaceOutputPath =
+		inheritedRelativeParallelOutput && input.parallelOutputNamespace?.taskIndex === undefined;
 	const skillNames = behavior.skills === false ? [] : behavior.skills;
 	const outputPath = resolveSingleOutputPath(behavior.output, input.runtimeCwd, instructionCwd, input.outputBaseDir);
 
-	return { stepCwd, instructionCwd, readExistenceCwd, behavior, inheritedRelativeParallelOutput, namespaceOutputPath, outputPath, skillNames };
+	return {
+		stepCwd,
+		instructionCwd,
+		readExistenceCwd,
+		behavior,
+		inheritedRelativeParallelOutput,
+		namespaceOutputPath,
+		outputPath,
+		skillNames,
+	};
 }

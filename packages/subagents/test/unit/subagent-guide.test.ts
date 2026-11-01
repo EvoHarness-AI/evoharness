@@ -42,27 +42,45 @@ describe("subagent guide", () => {
 	});
 
 	it("documents external CLI runner limits in packaged guide topics", () => {
-		assert.match(readSubagentGuide("tool-reference/external-cli-agent-profiles"), /External CLI agent profiles[\s\S]*native Pi child options[\s\S]*model override[\s\S]*native Pi tools/);
-		assert.match(readSubagentGuide("agents/advisory-runner-data-boundary"), /External CLI agents use their own runner contract[\s\S]*native Pi child options/);
+		assert.match(
+			readSubagentGuide("tool-reference/external-cli-agent-profiles"),
+			/External CLI agent profiles[\s\S]*native Pi child options[\s\S]*model override[\s\S]*native Pi tools/,
+		);
+		assert.match(
+			readSubagentGuide("agents/advisory-runner-data-boundary"),
+			/External CLI agents use their own runner contract[\s\S]*native Pi child options/,
+		);
 	});
 
 	it("documents failed-lane recovery boundaries in packaged guide topics", () => {
 		const workflows = readSubagentGuide("workflows/failed-lane-recovery-and-execution-mode-boundaries");
 		const toolReference = readSubagentGuide("tool-reference/failed-lane-recovery-and-execution-mode-boundaries");
-		assert.match(workflows, /subagent workflow[\s\S]*child launch[\s\S]*prompt runtime[\s\S]*extension loading[\s\S]*child tooling setup[\s\S]*lane infrastructure blocker/);
+		assert.match(
+			workflows,
+			/subagent workflow[\s\S]*child launch[\s\S]*prompt runtime[\s\S]*extension loading[\s\S]*child tooling setup[\s\S]*lane infrastructure blocker/,
+		);
 		assert.match(workflows, /exact failure[\s\S]*run\/status[\s\S]*(?:repo|repository)\/cwd\/worktree\/branch\/ref/);
 		assert.match(workflows, /clean[\s\S]*partial diff/);
 		assert.match(workflows, /same-protocol retry/);
 		assert.match(workflows, /asking the owner/);
 		assert.match(workflows, /external\/foreground\/CLI fallback requires explicit owner approval/);
 		assert.match(workflows, /Pi core[\s\S]*pi -ne[\s\S]*out-of-repo hint[\s\S]*not protocol-approved fallback/);
-		assert.match(toolReference, /lane infrastructure blocker[\s\S]*external\/foreground\/CLI fallback requires explicit owner approval[\s\S]*interactive_shell[\s\S]*pi -ne/);
+		assert.match(
+			toolReference,
+			/lane infrastructure blocker[\s\S]*external\/foreground\/CLI fallback requires explicit owner approval[\s\S]*interactive_shell[\s\S]*pi -ne/,
+		);
 	});
 
 	it("keeps advanced workflow details in the packaged guide", () => {
-		assert.match(readSubagentGuide("workflows/parallel-sequential-lanes"), /### Parallel sequential lanes[\s\S]*runs\.lanes/);
+		assert.match(
+			readSubagentGuide("workflows/parallel-sequential-lanes"),
+			/### Parallel sequential lanes[\s\S]*runs\.lanes/,
+		);
 		assert.match(readSubagentGuide("workflows/host-command-steps"), /### Host command steps[\s\S]*runs\.host/);
-		assert.match(readSubagentGuide("workflows/advanced-rolling-child-runs"), /### Advanced rolling child runs[\s\S]*Promise\.race[\s\S]*Promise\.all/);
+		assert.match(
+			readSubagentGuide("workflows/advanced-rolling-child-runs"),
+			/### Advanced rolling child runs[\s\S]*Promise\.race[\s\S]*Promise\.all/,
+		);
 	});
 
 	it("returns a bare docs topic as a table of section addresses, not the whole document", () => {
@@ -107,7 +125,10 @@ describe("subagent guide", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-guide-crlf-"));
 		try {
 			fs.mkdirSync(path.join(root, "docs"));
-			fs.writeFileSync(path.join(root, "docs", "workflows.md"), "# Workflows\r\n\r\nIntro.\r\n\r\n## First\r\n\r\nOne.\r\n\r\n## Second\r\n\r\nTwo.\r\n");
+			fs.writeFileSync(
+				path.join(root, "docs", "workflows.md"),
+				"# Workflows\r\n\r\nIntro.\r\n\r\n## First\r\n\r\nOne.\r\n\r\n## Second\r\n\r\nTwo.\r\n",
+			);
 			assert.equal(readSubagentGuide("workflows/first", root), "## First\n\nOne.");
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
@@ -116,15 +137,33 @@ describe("subagent guide", () => {
 
 	it("resolves every guide pointer in shipped prompts, skills and source", () => {
 		const topicNames = SUBAGENT_GUIDE_TOPICS.join("|");
-		const pointer = new RegExp(`topic:\\s*\\\\?["']([a-z][a-z0-9/-]*)|guide (?:topics? )?((?:${topicNames})(?:/[a-z0-9-]+)?)\\b`, "g");
-		const files = ["src", "skills", "prompts", "agents"].flatMap((dir) => fs.readdirSync(path.join(packageRoot, dir), { recursive: true, encoding: "utf-8" })
-			.filter((file) => /\.(ts|md)$/.test(file))
-			.map((file) => path.join(packageRoot, dir, file)));
-		const pointers = files.flatMap((file) => [...fs.readFileSync(file, "utf-8").matchAll(pointer)].map((match) => ({ file, address: match[1] ?? match[2]! })));
+		const pointer = new RegExp(
+			`topic:\\s*\\\\?["']([a-z][a-z0-9/-]*)|guide (?:topics? )?((?:${topicNames})(?:/[a-z0-9-]+)?)\\b`,
+			"g",
+		);
+		const files = ["src", "skills", "prompts", "agents"].flatMap((dir) =>
+			fs
+				.readdirSync(path.join(packageRoot, dir), { recursive: true, encoding: "utf-8" })
+				.filter((file) => /\.(ts|md)$/.test(file))
+				.map((file) => path.join(packageRoot, dir, file)),
+		);
+		const pointers = files.flatMap((file) =>
+			[...fs.readFileSync(file, "utf-8").matchAll(pointer)].map((match) => ({
+				file,
+				address: match[1] ?? match[2]!,
+			})),
+		);
 
-		assert.ok(pointers.some(({ address }) => address.includes("/")), "expected section pointers");
+		assert.ok(
+			pointers.some(({ address }) => address.includes("/")),
+			"expected section pointers",
+		);
 		for (const { file, address } of pointers) {
-			assert.doesNotMatch(readSubagentGuide(address), /^Unknown/, `${path.relative(packageRoot, file)} points to ${address}`);
+			assert.doesNotMatch(
+				readSubagentGuide(address),
+				/^Unknown/,
+				`${path.relative(packageRoot, file)} points to ${address}`,
+			);
 		}
 	});
 });

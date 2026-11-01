@@ -1,18 +1,18 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { spawnSync } from "node:child_process";
 import { describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
 import {
 	ASYNC_DIR,
 	CHAIN_RUNS_DIR,
+	getAsyncConfigPath,
 	RESULTS_DIR,
+	resolveTempScopeId,
 	TEMP_ARTIFACTS_DIR,
 	TEMP_ROOT_DIR,
-	getAsyncConfigPath,
-	resolveTempScopeId,
 } from "../../src/shared/types.ts";
 
 describe("resolveTempScopeId", () => {
@@ -64,10 +64,14 @@ describe("shared temp paths", () => {
 		try {
 			const moduleUrl = new URL("../../src/shared/types.ts", import.meta.url).href;
 			const script = `import { ASYNC_DIR, RESULTS_DIR, TEMP_ROOT_DIR } from ${JSON.stringify(moduleUrl)}; console.log(JSON.stringify({ ASYNC_DIR, RESULTS_DIR, TEMP_ROOT_DIR }));`;
-			const result = spawnSync(process.execPath, ["--experimental-strip-types", "--input-type=module", "--eval", script], {
-				encoding: "utf-8",
-				env: { ...process.env, HOME: isolatedHome, USERPROFILE: isolatedHome, PI_SUBAGENTS_TEMP_ROOT: override },
-			});
+			const result = spawnSync(
+				process.execPath,
+				["--experimental-strip-types", "--input-type=module", "--eval", script],
+				{
+					encoding: "utf-8",
+					env: { ...process.env, HOME: isolatedHome, USERPROFILE: isolatedHome, PI_SUBAGENTS_TEMP_ROOT: override },
+				},
+			);
 			assert.equal(result.status, 0, result.stderr);
 			assert.deepEqual(JSON.parse(result.stdout.trim()), {
 				ASYNC_DIR: path.join(override, "async-subagent-runs"),
@@ -106,25 +110,31 @@ console.log(JSON.stringify({ agentDir: getAgentDir(), profilePath: path.join(pro
 				PI_SUBAGENTS_TEMP_ROOT: tempRoot,
 			};
 			delete env.PI_SUBAGENTS_TEST_LOADER;
-			const result = spawnSync(process.execPath, [
-				"--experimental-strip-types",
-				"--import", loaderUrl,
-				"--input-type=module",
-				"--eval", script,
-			], {
-				cwd: process.cwd(),
-				encoding: "utf-8",
-				env,
-			});
+			const result = spawnSync(
+				process.execPath,
+				["--experimental-strip-types", "--import", loaderUrl, "--input-type=module", "--eval", script],
+				{
+					cwd: process.cwd(),
+					encoding: "utf-8",
+					env,
+				},
+			);
 			assert.equal(result.status, 0, result.stderr);
-			const output = JSON.parse(result.stdout.trim()) as { agentDir: string; profilePath: string; settingsPath: string; tempDir: string; testParentPid: string };
+			const output = JSON.parse(result.stdout.trim()) as {
+				agentDir: string;
+				profilePath: string;
+				settingsPath: string;
+				tempDir: string;
+				testParentPid: string;
+			};
 			const isolatedAgentDir = path.join(tempRoot, "home", ".pi", "agent");
 			assert.equal(output.agentDir, isolatedAgentDir);
 			assert.equal(output.profilePath, path.join(isolatedAgentDir, "profiles", "pi-subagents", "isolated.json"));
 			assert.equal(output.settingsPath, path.join(isolatedAgentDir, "settings.json"));
 			assert.equal(output.tempDir, tempRoot);
 			assert.equal(output.testParentPid, String(result.pid));
-			if (process.platform === "darwin") assert.equal(fs.existsSync(path.join(tempRoot, ".metadata_never_index")), true);
+			if (process.platform === "darwin")
+				assert.equal(fs.existsSync(path.join(tempRoot, ".metadata_never_index")), true);
 			assert.equal(fs.existsSync(output.profilePath), true);
 			assert.equal(fs.existsSync(output.settingsPath), true);
 			assert.equal(fs.existsSync(callerAgentDir), false);
@@ -135,14 +145,24 @@ console.log(JSON.stringify({ agentDir: getAgentDir(), profilePath: path.join(pro
 
 	it("records a nested test process as the runner parent", () => {
 		const loaderUrl = new URL("../support/isolated-temp-root.mjs", import.meta.url).href;
-		const result = spawnSync(process.execPath, [
-			"--import", loaderUrl,
-			"--input-type=module",
-			"--eval", "console.log(process.env.PI_SUBAGENTS_TEST_PARENT_PID)",
-		], {
-			encoding: "utf-8",
-			env: { ...process.env, PI_SUBAGENTS_TEST_LOADER: "loaded", PI_SUBAGENTS_TEST_PARENT_PID: String(process.pid) },
-		});
+		const result = spawnSync(
+			process.execPath,
+			[
+				"--import",
+				loaderUrl,
+				"--input-type=module",
+				"--eval",
+				"console.log(process.env.PI_SUBAGENTS_TEST_PARENT_PID)",
+			],
+			{
+				encoding: "utf-8",
+				env: {
+					...process.env,
+					PI_SUBAGENTS_TEST_LOADER: "loaded",
+					PI_SUBAGENTS_TEST_PARENT_PID: String(process.pid),
+				},
+			},
+		);
 		assert.equal(result.status, 0, result.stderr);
 		assert.equal(result.stdout.trim(), String(result.pid));
 	});
@@ -163,16 +183,21 @@ console.log(JSON.stringify({ agentDir: getAgentDir(), profilePath: path.join(pro
 		const configPath = path.join(os.tmpdir(), "orphan-check.json");
 		fs.writeFileSync(configPath, "{}", "utf-8");
 		try {
-			const result = spawnSync(process.execPath, [
-				"--experimental-strip-types",
-				"--import", new URL("../support/register-loader.mjs", import.meta.url).href,
-				fileURLToPath(new URL("../../src/runs/background/subagent-runner-bootstrap.ts", import.meta.url)),
-				configPath,
-			], {
-				env: { ...process.env, PI_SUBAGENTS_TEST_PARENT_PID: "2147483647" },
-				encoding: "utf-8",
-				timeout: 10_000,
-			});
+			const result = spawnSync(
+				process.execPath,
+				[
+					"--experimental-strip-types",
+					"--import",
+					new URL("../support/register-loader.mjs", import.meta.url).href,
+					fileURLToPath(new URL("../../src/runs/background/subagent-runner-bootstrap.ts", import.meta.url)),
+					configPath,
+				],
+				{
+					env: { ...process.env, PI_SUBAGENTS_TEST_PARENT_PID: "2147483647" },
+					encoding: "utf-8",
+					timeout: 10_000,
+				},
+			);
 			assert.equal(result.status, 1, result.stderr);
 			assert.equal(fs.existsSync(configPath), true);
 		} finally {

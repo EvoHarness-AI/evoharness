@@ -2,18 +2,25 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
 import { writeAtomicJson } from "../../shared/atomic-json.ts";
-import { acquireSessionLease } from "../shared/session-lease.ts";
-import { readProcessTerminalCandidate, writeProcessTerminalCandidate, markProcessTerminalCandidateLeaseRelease } from "./process-terminal-candidate.ts";
-import { persistRunnerStartupFailure } from "./runner-startup-failure.ts";
-import { currentPidNamespaceScope } from "./pid-namespace.ts";
-import { primeBootId } from "./boot-id.ts";
 import type { DefaultChildSessionFactoryOptions } from "../shared/child-session.ts";
+import { acquireSessionLease } from "../shared/session-lease.ts";
+import { primeBootId } from "./boot-id.ts";
+import { currentPidNamespaceScope } from "./pid-namespace.ts";
+import {
+	markProcessTerminalCandidateLeaseRelease,
+	readProcessTerminalCandidate,
+	writeProcessTerminalCandidate,
+} from "./process-terminal-candidate.ts";
+import { persistRunnerStartupFailure } from "./runner-startup-failure.ts";
 import type { SubagentRunConfig } from "./subagent-runner.ts";
 
 export type { SubagentRunConfig } from "./subagent-runner.ts";
 
 type ExecutionModule = {
-	runConfiguredSubagentExecution(config: SubagentRunConfig, options?: DefaultChildSessionFactoryOptions): Promise<void>;
+	runConfiguredSubagentExecution(
+		config: SubagentRunConfig,
+		options?: DefaultChildSessionFactoryOptions,
+	): Promise<void>;
 };
 
 export interface RunnerBootstrapOptions extends DefaultChildSessionFactoryOptions {
@@ -85,7 +92,12 @@ export function validateSubagentRunConfig(value: unknown): asserts value is Suba
 	value.steps.forEach(validateStep);
 }
 
-async function waitForStartupControl(controlPath: string, token: string, action: "ack" | "confirm" | "proceed", timeoutMs = 30_000): Promise<void> {
+async function waitForStartupControl(
+	controlPath: string,
+	token: string,
+	action: "ack" | "confirm" | "proceed",
+	timeoutMs = 30_000,
+): Promise<void> {
 	const deadline = Date.now() + timeoutMs;
 	while (Date.now() <= deadline) {
 		if (fs.existsSync(controlPath)) {
@@ -93,7 +105,9 @@ async function waitForStartupControl(controlPath: string, token: string, action:
 			try {
 				payload = JSON.parse(fs.readFileSync(controlPath, "utf-8")) as { action?: unknown; token?: unknown };
 			} catch (error) {
-				throw new Error(`Failed to read runner startup control '${controlPath}': ${error instanceof Error ? error.message : String(error)}`);
+				throw new Error(
+					`Failed to read runner startup control '${controlPath}': ${error instanceof Error ? error.message : String(error)}`,
+				);
 			}
 			if (payload.token !== token) {
 				throw new Error("Runner startup control token does not match.");
@@ -134,7 +148,13 @@ export async function runConfiguredSubagent(rawConfig: unknown, options: RunnerB
 	try {
 		if (config.launchBarrierToken) {
 			// Behind a launcher the parent only knows the wrapper's pid; report this runner's own identity first.
-			if (config.launcher) writeAtomicJson(startupPath, { state: "identified", token: config.launchBarrierToken, pid: process.pid, pidNamespaceScope: currentPidNamespaceScope() });
+			if (config.launcher)
+				writeAtomicJson(startupPath, {
+					state: "identified",
+					token: config.launchBarrierToken,
+					pid: process.pid,
+					pidNamespaceScope: currentPidNamespaceScope(),
+				});
 			await waitForStartupControl(startupProceedPath, config.launchBarrierToken, "proceed");
 			startupCommitted = true;
 			try {
@@ -145,7 +165,13 @@ export async function runConfiguredSubagent(rawConfig: unknown, options: RunnerB
 		} else if (config.revivalLease) {
 			lease = acquireSessionLease(config.revivalLease);
 			config.revivalLeaseToken = lease.owner.token;
-			writeAtomicJson(startupPath, { state: "ready", token: lease.owner.token, pid: process.pid, owner: lease.owner, ...(config.launcher ? { pidNamespaceScope: currentPidNamespaceScope() } : {}) });
+			writeAtomicJson(startupPath, {
+				state: "ready",
+				token: lease.owner.token,
+				pid: process.pid,
+				owner: lease.owner,
+				...(config.launcher ? { pidNamespaceScope: currentPidNamespaceScope() } : {}),
+			});
 			await waitForStartupControl(startupAckPath, lease.owner.token, "ack");
 			writeAtomicJson(startupPath, { state: "acknowledged", token: lease.owner.token, pid: process.pid });
 			await waitForStartupControl(startupConfirmPath, lease.owner.token, "confirm");
@@ -174,13 +200,18 @@ export async function runConfiguredSubagent(rawConfig: unknown, options: RunnerB
 		}
 		const { loadExecutionModule, ...executionOptions } = options;
 		const testExecutionModule = process.env.PI_SUBAGENTS_TEST_RUNNER_EXECUTION_MODULE;
-		const execution = await (loadExecutionModule?.() ?? (testExecutionModule ? import(testExecutionModule) : import("./subagent-runner.ts")));
+		const execution = await (loadExecutionModule?.() ??
+			(testExecutionModule ? import(testExecutionModule) : import("./subagent-runner.ts")));
 		executionLoaded = true;
 		await execution.runConfiguredSubagentExecution(config, executionOptions);
 	} catch (error) {
 		if (!startupCommitted) {
 			try {
-				writeAtomicJson(startupPath, { state: "error", pid: process.pid, error: error instanceof Error ? error.message : String(error) });
+				writeAtomicJson(startupPath, {
+					state: "error",
+					pid: process.pid,
+					error: error instanceof Error ? error.message : String(error),
+				});
 			} catch {
 				// The parent will time out and terminate if startup evidence cannot be written.
 			}
@@ -247,7 +278,9 @@ function monitorTestParent(): void {
 	setInterval(check, 250).unref();
 }
 
-const isRunnerEntrypoint = Boolean(process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href);
+const isRunnerEntrypoint = Boolean(
+	process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href,
+);
 if (isRunnerEntrypoint) {
 	monitorTestParent();
 	const configArg = process.argv[2];

@@ -44,7 +44,8 @@ function withLstatSyncError<T>(code: string, run: () => T): T {
 
 function git(cwd: string, args: string[]): string {
 	const result = spawnSync("git", ["-C", cwd, ...args], { encoding: "utf-8" });
-	if (result.status !== 0) throw new Error(result.stderr.trim() || result.stdout.trim() || `git ${args.join(" ")} failed`);
+	if (result.status !== 0)
+		throw new Error(result.stderr.trim() || result.stdout.trim() || `git ${args.join(" ")} failed`);
 	return result.stdout.trim();
 }
 
@@ -215,11 +216,19 @@ describe("watchdog change signature", () => {
 
 		fs.writeFileSync(bPath, "cccccccc");
 		fs.utimesSync(bPath, mtime, mtime);
-		assert.equal(computeWatchdogRepoChangeSignature(repo)?.key, first?.key, "over-budget files use size+mtime metadata instead of content");
+		assert.equal(
+			computeWatchdogRepoChangeSignature(repo)?.key,
+			first?.key,
+			"over-budget files use size+mtime metadata instead of content",
+		);
 
 		fs.writeFileSync(aPath, "dddddddd");
 		fs.utimesSync(aPath, mtime, mtime);
-		assert.notEqual(computeWatchdogRepoChangeSignature(repo)?.key, first?.key, "within-budget files are still content hashed");
+		assert.notEqual(
+			computeWatchdogRepoChangeSignature(repo)?.key,
+			first?.key,
+			"within-budget files are still content hashed",
+		);
 	});
 
 	it("uses skipped markers after the entry budget", (t) => {
@@ -237,10 +246,18 @@ describe("watchdog change signature", () => {
 		assert.ok(first, "expected a signature");
 
 		fs.writeFileSync(path.join(dir, "d.txt"), "changed d\n", "utf-8");
-		assert.equal(computeWatchdogRepoChangeSignature(repo)?.key, first?.key, "over-budget entries are summarized instead of hashed individually");
+		assert.equal(
+			computeWatchdogRepoChangeSignature(repo)?.key,
+			first?.key,
+			"over-budget entries are summarized instead of hashed individually",
+		);
 
 		fs.writeFileSync(path.join(dir, "a.txt"), "changed a\n", "utf-8");
-		assert.notEqual(computeWatchdogRepoChangeSignature(repo)?.key, first?.key, "within-budget entries are still content hashed");
+		assert.notEqual(
+			computeWatchdogRepoChangeSignature(repo)?.key,
+			first?.key,
+			"within-budget entries are still content hashed",
+		);
 	});
 
 	it("produces deterministic keys keyed on size and mtime for large files", (t) => {
@@ -268,22 +285,26 @@ describe("watchdog change signature", () => {
 		assert.notEqual(afterSize?.key, afterMtime?.key, "changed size → different key");
 	});
 
-	it("handles a >2 GiB sparse file without throwing (default threshold)", { skip: process.platform === "win32" }, (t) => {
-		const repo = createRepo("watchdog-sparse-");
-		const filePath = path.join(repo, "huge.bin");
-		t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
+	it(
+		"handles a >2 GiB sparse file without throwing (default threshold)",
+		{ skip: process.platform === "win32" },
+		(t) => {
+			const repo = createRepo("watchdog-sparse-");
+			const filePath = path.join(repo, "huge.bin");
+			t.after(() => fs.rmSync(repo, { recursive: true, force: true }));
 
-		const fd = fs.openSync(filePath, "w");
-		try {
-			fs.ftruncateSync(fd, 2 * 1024 ** 3 + 1);
-		} finally {
-			fs.closeSync(fd);
-		}
+			const fd = fs.openSync(filePath, "w");
+			try {
+				fs.ftruncateSync(fd, 2 * 1024 ** 3 + 1);
+			} finally {
+				fs.closeSync(fd);
+			}
 
-		const sig = computeWatchdogRepoChangeSignature(repo);
-		assert.ok(sig, "expected a signature");
-		assert.ok(sig?.changedPaths.includes("huge.bin"));
-	});
+			const sig = computeWatchdogRepoChangeSignature(repo);
+			assert.ok(sig, "expected a signature");
+			assert.ok(sig?.changedPaths.includes("huge.bin"));
+		},
+	);
 
 	it("ignores node_modules below changed directories", (t) => {
 		const repo = createRepo("watchdog-nested-ignored-");
@@ -426,7 +447,11 @@ describe("watchdog change signature", () => {
 		// content change must alter it.
 		const laterMtime = new Date(1_600_000_100_000);
 		fs.utimesSync(filePath, laterMtime, laterMtime);
-		assert.equal(computeWatchdogRepoChangeSignature(repo)?.key, sig?.key, "mtime-only change must not alter key for small files");
+		assert.equal(
+			computeWatchdogRepoChangeSignature(repo)?.key,
+			sig?.key,
+			"mtime-only change must not alter key for small files",
+		);
 
 		fs.writeFileSync(filePath, "changed\n", "utf-8");
 		assert.notEqual(computeWatchdogRepoChangeSignature(repo)?.key, sig?.key, "content change must alter key");

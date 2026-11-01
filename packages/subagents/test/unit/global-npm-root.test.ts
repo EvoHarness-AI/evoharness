@@ -16,7 +16,9 @@ function fixture(script: string) {
 	const bin = path.join(dir, "bin");
 	fs.mkdirSync(bin);
 	const npm = path.join(bin, process.platform === "win32" ? "npm.cmd" : "npm");
-	fs.writeFileSync(npm, process.platform === "win32" ? `@echo off\r\n${script}\r\n` : `#!/bin/sh\n${script}\n`, { mode: 0o755 });
+	fs.writeFileSync(npm, process.platform === "win32" ? `@echo off\r\n${script}\r\n` : `#!/bin/sh\n${script}\n`, {
+		mode: 0o755,
+	});
 	return { dir, env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH ?? ""}` } };
 }
 
@@ -35,7 +37,13 @@ describe("resolveGlobalNpmRoot", () => {
 		const { dir, env } = fixture("exit 1");
 		const marker = path.join(dir, "called");
 		const command = path.join(dir, "bin", process.platform === "win32" ? "npm.cmd" : "npm");
-		fs.writeFileSync(command, process.platform === "win32" ? `@echo off\r\necho called > "${marker}"\r\n` : `#!/bin/sh\necho called > '${marker}'\n`, { mode: 0o755 });
+		fs.writeFileSync(
+			command,
+			process.platform === "win32"
+				? `@echo off\r\necho called > "${marker}"\r\n`
+				: `#!/bin/sh\necho called > '${marker}'\n`,
+			{ mode: 0o755 },
+		);
 		assert.equal(await resolveGlobalNpmRoot({ env: { ...env, EVOHARNESS_OFFLINE: "YeS" } }), null);
 		assert.equal(fs.existsSync(marker), false);
 	});
@@ -44,10 +52,19 @@ describe("resolveGlobalNpmRoot", () => {
 		const { dir, env } = fixture("exit 1");
 		const marker = path.join(dir, "called");
 		const command = path.join(dir, "bin", process.platform === "win32" ? "npm.cmd" : "npm");
-		fs.writeFileSync(command, process.platform === "win32" ? `@echo off\r\necho called > "${marker}"\r\n` : `#!/bin/sh\necho called > '${marker}'\n`, { mode: 0o755 });
+		fs.writeFileSync(
+			command,
+			process.platform === "win32"
+				? `@echo off\r\necho called > "${marker}"\r\n`
+				: `#!/bin/sh\necho called > '${marker}'\n`,
+			{ mode: 0o755 },
+		);
 		const root = path.join(dir, "appdata", "npm", "node_modules");
 		fs.mkdirSync(root, { recursive: true });
-		assert.equal(await resolveGlobalNpmRoot({ platform: "win32", env: { ...env, APPDATA: path.join(dir, "appdata") } }), await fs.promises.realpath(root));
+		assert.equal(
+			await resolveGlobalNpmRoot({ platform: "win32", env: { ...env, APPDATA: path.join(dir, "appdata") } }),
+			await fs.promises.realpath(root),
+		);
 		assert.equal(fs.existsSync(marker), false);
 	});
 
@@ -59,15 +76,26 @@ describe("resolveGlobalNpmRoot", () => {
 		fs.mkdirSync(root);
 		fs.symlinkSync(root, alias, process.platform === "win32" ? "junction" : "dir");
 		const binCommand = path.join(dir, "bin", process.platform === "win32" ? "npm.cmd" : "npm");
-		fs.writeFileSync(binCommand, process.platform === "win32" ? `@echo off\r\n${markAndPrint(marker, alias)}\r\n` : `#!/bin/sh\n${markAndPrint(marker, alias)}\n`, { mode: 0o755 });
+		fs.writeFileSync(
+			binCommand,
+			process.platform === "win32"
+				? `@echo off\r\n${markAndPrint(marker, alias)}\r\n`
+				: `#!/bin/sh\n${markAndPrint(marker, alias)}\n`,
+			{ mode: 0o755 },
+		);
 		const invalidAppData = path.join(dir, "not-a-directory");
 		fs.writeFileSync(invalidAppData, "file");
-		assert.equal(await resolveGlobalNpmRoot({ platform: "win32", env: { ...env, APPDATA: invalidAppData } }), await fs.promises.realpath(root));
+		assert.equal(
+			await resolveGlobalNpmRoot({ platform: "win32", env: { ...env, APPDATA: invalidAppData } }),
+			await fs.promises.realpath(root),
+		);
 		assert.equal(fs.existsSync(marker), true);
 	});
 
 	it("returns null silently when npm fails or produces a nonexistent root", async () => {
-		const { env } = fixture(process.platform === "win32" ? "echo optional failure 1>&2\r\nexit /b 1" : "echo optional failure >&2\nexit 1");
+		const { env } = fixture(
+			process.platform === "win32" ? "echo optional failure 1>&2\r\nexit /b 1" : "echo optional failure >&2\nexit 1",
+		);
 		assert.equal(await resolveGlobalNpmRoot({ env }), null);
 		const second = fixture(printRoot(path.join(os.tmpdir(), "missing-global-root-2474")));
 		assert.equal(await resolveGlobalNpmRoot({ env: second.env }), null);
@@ -91,14 +119,22 @@ describe("resolveGlobalNpmRoot", () => {
 		assert.equal(await resolveGlobalNpmRoot({ env, timeoutMs: 500 }), null);
 		const pid = Number(fs.readFileSync(pidFile, "utf8"));
 		for (let waited = 0; waited < 5_000; waited += 20) {
-			try { process.kill(pid, 0); } catch { break; }
+			try {
+				process.kill(pid, 0);
+			} catch {
+				break;
+			}
 			await new Promise<void>((resolve) => setTimeout(resolve, 20));
 		}
 		assert.throws(() => process.kill(pid, 0), { code: "ESRCH" }, "timed-out npm must exit");
 	});
 
 	it("returns immediately to the event loop while a slow npm command runs", async () => {
-		const { dir, env } = fixture(process.platform === "win32" ? "ping -n 2 127.0.0.1 > nul\r\necho %PI_TEST_ROOT%" : "sleep 0.3\nprintf '%s\\n' \"$PI_TEST_ROOT\"");
+		const { dir, env } = fixture(
+			process.platform === "win32"
+				? "ping -n 2 127.0.0.1 > nul\r\necho %PI_TEST_ROOT%"
+				: "sleep 0.3\nprintf '%s\\n' \"$PI_TEST_ROOT\"",
+		);
 		const root = path.join(dir, "global-root");
 		fs.mkdirSync(root);
 		let completed = false;

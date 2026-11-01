@@ -1,9 +1,9 @@
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { MISSION_BINDING_FILE } from "../../missions/lifecycle.ts";
 import { writeAtomicJson } from "../../shared/atomic-json.ts";
 import { withFileLease } from "../../shared/file-lease.ts";
-import { MISSION_BINDING_FILE } from "../../missions/lifecycle.ts";
 import { encodeIndexSegment, indexSegmentAliases, MAX_INDEX_SEGMENT_BYTES } from "./index-segment.ts";
 
 const RESULT_INDEX_VERSION = 1;
@@ -61,7 +61,9 @@ function sessionIndexDir(resultsDir: string, sessionId: string): string {
 }
 
 function sessionIndexDirs(resultsDir: string, sessionId: string): string[] {
-	return indexSegmentAliases(sessionId).map((segment) => path.join(resultsDir, RESULT_INDEX_DIR, SESSION_INDEX_DIR, segment));
+	return indexSegmentAliases(sessionId).map((segment) =>
+		path.join(resultsDir, RESULT_INDEX_DIR, SESSION_INDEX_DIR, segment),
+	);
 }
 
 function resultIndexPath(resultsDir: string, sessionId: string, runId: string): string {
@@ -69,7 +71,9 @@ function resultIndexPath(resultsDir: string, sessionId: string, runId: string): 
 }
 
 function resultIndexPaths(resultsDir: string, sessionId: string, runId: string): string[] {
-	return sessionIndexDirs(resultsDir, sessionId).flatMap((dir) => encodedJsonFileNames(runId).map((fileName) => path.join(dir, fileName)));
+	return sessionIndexDirs(resultsDir, sessionId).flatMap((dir) =>
+		encodedJsonFileNames(runId).map((fileName) => path.join(dir, fileName)),
+	);
 }
 
 function runIndexPath(resultsDir: string, runId: string): string {
@@ -81,7 +85,9 @@ function resultPendingPath(resultsDir: string, sessionId: string, runId: string)
 }
 
 function resultPendingPaths(resultsDir: string, sessionId: string, runId: string): string[] {
-	return indexSegmentAliases(sessionId).flatMap((segment) => encodedJsonFileNames(runId).map((fileName) => path.join(resultsDir, RESULT_PENDING_DIR, segment, fileName)));
+	return indexSegmentAliases(sessionId).flatMap((segment) =>
+		encodedJsonFileNames(runId).map((fileName) => path.join(resultsDir, RESULT_PENDING_DIR, segment, fileName)),
+	);
 }
 
 function pendingSessionDirs(resultsDir: string, sessionId: string): string[] {
@@ -119,11 +125,14 @@ function toolCallIndexPath(resultsDir: string, toolCallId: string, runId: string
 function parseResultIndexEntry(value: unknown): ResultIndexEntry | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const record = value as Partial<ResultIndexEntry>;
-	if (record.version !== RESULT_INDEX_VERSION
-		|| typeof record.runId !== "string"
-		|| typeof record.sessionId !== "string"
-		|| typeof record.file !== "string"
-		|| typeof record.writtenAt !== "number") return undefined;
+	if (
+		record.version !== RESULT_INDEX_VERSION ||
+		typeof record.runId !== "string" ||
+		typeof record.sessionId !== "string" ||
+		typeof record.file !== "string" ||
+		typeof record.writtenAt !== "number"
+	)
+		return undefined;
 	return {
 		version: RESULT_INDEX_VERSION,
 		runId: record.runId,
@@ -169,7 +178,10 @@ export function writeResultIndexForData(resultPath: string, data: Record<string,
 	}
 }
 
-function writeIndexedPendingResultFile(resultPath: string, data: Record<string, unknown>): { runId: string; sessionId: string; resultsDir: string } {
+function writeIndexedPendingResultFile(
+	resultPath: string,
+	data: Record<string, unknown>,
+): { runId: string; sessionId: string; resultsDir: string } {
 	const runId = nonEmptyString(data.runId) ?? nonEmptyString(data.id) ?? path.basename(resultPath, ".json");
 	const sessionId = nonEmptyString(data.sessionId);
 	if (!sessionId) throw new Error(`Cannot write async result '${resultPath}' without a sessionId.`);
@@ -193,14 +205,23 @@ export function writePendingAsyncResultFile(resultPath: string, data: Record<str
 	writeIndexedPendingResultFile(resultPath, data);
 }
 
-export function writeAsyncResultFile(resultPath: string, data: Record<string, unknown>): { state: "public" | "pending" } {
+export function writeAsyncResultFile(
+	resultPath: string,
+	data: Record<string, unknown>,
+): { state: "public" | "pending" } {
 	const { runId, sessionId, resultsDir } = writeIndexedPendingResultFile(resultPath, data);
-	return promotePendingResultFile(resultsDir, sessionId, runId, path.basename(resultPath), { logFailure: false }) === "promoted"
+	return promotePendingResultFile(resultsDir, sessionId, runId, path.basename(resultPath), { logFailure: false }) ===
+		"promoted"
 		? { state: "public" }
 		: { state: "pending" };
 }
 
-export function removeResultIndex(resultsDir: string, sessionId: string | undefined, runId: string | undefined, toolCallId?: string): void {
+export function removeResultIndex(
+	resultsDir: string,
+	sessionId: string | undefined,
+	runId: string | undefined,
+	toolCallId?: string,
+): void {
 	if (!runId) return;
 	if (sessionId) {
 		for (const indexPath of resultIndexPaths(resultsDir, sessionId, runId)) {
@@ -273,14 +294,18 @@ export function readResultPayload(filePath: string): string | undefined {
 	} catch (error) {
 		const code = (error as NodeJS.ErrnoException).code;
 		// A directory at the public path blocks promotion; it holds no payload.
-		if (code === "ENOENT" || code === "ENOTDIR" || code === "EISDIR" || isUnaddressableResultCandidate(error)) return undefined;
+		if (code === "ENOENT" || code === "ENOTDIR" || code === "EISDIR" || isUnaddressableResultCandidate(error))
+			return undefined;
 		throw error;
 	}
 }
 
 // Pending paths come first so a reader promoting pending to public between two reads is still seen.
 function resultPayloadCandidates(publicPath: string, read: ResultSnapshot): string[] {
-	return [...(read.sessionId ? resultPendingPaths(path.dirname(publicPath), read.sessionId, read.runId) : []), publicPath];
+	return [
+		...(read.sessionId ? resultPendingPaths(path.dirname(publicPath), read.sessionId, read.runId) : []),
+		publicPath,
+	];
 }
 
 /** A payload is one the consumer already read (or an older one it saw beside it), so not newer. */
@@ -302,48 +327,69 @@ export function resultSnapshotReplaced(publicPath: string, read: ResultSnapshot)
  * the consumer's own claimed copy goes. A payload that cannot be removed is reported after the
  * indexes are gone.
  */
-export function retireResultSnapshot(publicPath: string, read: ResultSnapshot, payloadPath = publicPath, leaseWaitMs?: number): "retired" | "replaced" {
+export function retireResultSnapshot(
+	publicPath: string,
+	read: ResultSnapshot,
+	payloadPath = publicPath,
+	leaseWaitMs?: number,
+): "retired" | "replaced" {
 	const resultsDir = path.dirname(publicPath);
-	return withResultRunLease(resultsDir, read.runId, () => {
-		// Check every shared path before deleting any: unleased reader promotion can move a newer
-		// pending payload onto the public path between two deletions.
-		if (resultSnapshotReplaced(publicPath, read)) {
-			if (payloadPath !== publicPath && readResultPayload(payloadPath) === read.snapshot) fs.rmSync(payloadPath, { force: true });
-			return "replaced";
-		}
-		let removalFailure: { error: unknown } | undefined;
-		for (const candidate of new Set([...resultPayloadCandidates(publicPath, read), payloadPath])) {
-			const current = readResultPayload(candidate);
-			if (current === undefined || !readByConsumer(publicPath, read, candidate, current)) continue;
-			try {
-				fs.rmSync(candidate, { force: true });
-			} catch (error) {
-				removalFailure ??= { error };
+	return withResultRunLease(
+		resultsDir,
+		read.runId,
+		() => {
+			// Check every shared path before deleting any: unleased reader promotion can move a newer
+			// pending payload onto the public path between two deletions.
+			if (resultSnapshotReplaced(publicPath, read)) {
+				if (payloadPath !== publicPath && readResultPayload(payloadPath) === read.snapshot)
+					fs.rmSync(payloadPath, { force: true });
+				return "replaced";
 			}
-		}
-		removeResultIndex(resultsDir, read.sessionId, read.runId, read.toolCallId);
-		if (removalFailure) throw removalFailure.error;
-		return "retired";
-	}, leaseWaitMs);
+			let removalFailure: { error: unknown } | undefined;
+			for (const candidate of new Set([...resultPayloadCandidates(publicPath, read), payloadPath])) {
+				const current = readResultPayload(candidate);
+				if (current === undefined || !readByConsumer(publicPath, read, candidate, current)) continue;
+				try {
+					fs.rmSync(candidate, { force: true });
+				} catch (error) {
+					removalFailure ??= { error };
+				}
+			}
+			removeResultIndex(resultsDir, read.sessionId, read.runId, read.toolCallId);
+			if (removalFailure) throw removalFailure.error;
+			return "retired";
+		},
+		leaseWaitMs,
+	);
 }
 
 /** Removes the mission observer index for the payload an observer handled, unless a newer payload replaced it. */
-export function acknowledgeMissionObserverSnapshot(publicPath: string, read: ResultSnapshot, leaseWaitMs?: number): "acknowledged" | "replaced" {
+export function acknowledgeMissionObserverSnapshot(
+	publicPath: string,
+	read: ResultSnapshot,
+	leaseWaitMs?: number,
+): "acknowledged" | "replaced" {
 	const resultsDir = path.dirname(publicPath);
 	// With no index there is nothing to remove; skipping keeps the lease off runs without a mission.
 	if (!fs.existsSync(observerIndexPath(resultsDir, MISSION_OBSERVER, read.runId))) return "acknowledged";
-	return withResultRunLease(resultsDir, read.runId, () => {
-		if (resultSnapshotReplaced(publicPath, read)) return "replaced";
-		removeMissionObserverIndex(resultsDir, read.runId);
-		return "acknowledged";
-	}, leaseWaitMs);
+	return withResultRunLease(
+		resultsDir,
+		read.runId,
+		() => {
+			if (resultSnapshotReplaced(publicPath, read)) return "replaced";
+			removeMissionObserverIndex(resultsDir, read.runId);
+			return "acknowledged";
+		},
+		leaseWaitMs,
+	);
 }
 
 function existingResultFile(resultPath: string): boolean {
 	try {
 		return fs.statSync(resultPath).isFile();
 	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code !== "ENOENT" && !isUnaddressableResultCandidate(error)) console.error(`Failed to inspect async result payload '${resultPath}':`, error);
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT" && !isUnaddressableResultCandidate(error))
+			console.error(`Failed to inspect async result payload '${resultPath}':`, error);
 		return false;
 	}
 }
@@ -355,14 +401,18 @@ function pendingResultExists(resultsDir: string, sessionId: string, runId: strin
 export function resultPayloadMatchesSessionRun(data: unknown, sessionId: string, runId: string): boolean {
 	if (!data || typeof data !== "object" || Array.isArray(data)) return false;
 	const record = data as Record<string, unknown>;
-	return (nonEmptyString(record.runId) ?? nonEmptyString(record.id)) === runId && nonEmptyString(record.sessionId) === sessionId;
+	return (
+		(nonEmptyString(record.runId) ?? nonEmptyString(record.id)) === runId &&
+		nonEmptyString(record.sessionId) === sessionId
+	);
 }
 
 function pendingResultPayloadMatches(filePath: string, sessionId: string, runId: string): boolean {
 	try {
 		return resultPayloadMatchesSessionRun(JSON.parse(fs.readFileSync(filePath, "utf-8")), sessionId, runId);
 	} catch (error) {
-		if ((error as NodeJS.ErrnoException).code !== "ENOENT" && !isUnaddressableResultCandidate(error)) console.error(`Ignoring invalid pending async result '${filePath}':`, error);
+		if ((error as NodeJS.ErrnoException).code !== "ENOENT" && !isUnaddressableResultCandidate(error))
+			console.error(`Ignoring invalid pending async result '${filePath}':`, error);
 		return false;
 	}
 }
@@ -371,7 +421,13 @@ function assertPendingResultPayloadMatches(filePath: string, sessionId: string, 
 	return resultPayloadMatchesSessionRun(JSON.parse(fs.readFileSync(filePath, "utf-8")), sessionId, runId);
 }
 
-export function promotePendingResultFile(resultsDir: string, sessionId: string, runId: string, file = resultFileName(runId), options: { logFailure?: boolean } = {}): "none" | "promoted" | "pending" {
+export function promotePendingResultFile(
+	resultsDir: string,
+	sessionId: string,
+	runId: string,
+	file = resultFileName(runId),
+	options: { logFailure?: boolean } = {},
+): "none" | "promoted" | "pending" {
 	if (file !== path.basename(file) || !file.endsWith(".json")) return "none";
 	const pendingPath = firstExistingResultFile(resultPendingPaths(resultsDir, sessionId, runId));
 	if (!pendingPath) return "none";
@@ -383,18 +439,29 @@ export function promotePendingResultFile(resultsDir: string, sessionId: string, 
 		return existingResultFile(resultPath) ? "promoted" : "pending";
 	} catch (error) {
 		const code = (error as NodeJS.ErrnoException).code;
-		if (code === "ENOENT" || code === "EEXIST" || code === "EPERM" || code === "EACCES" || isUnaddressableResultCandidate(error)) {
+		if (
+			code === "ENOENT" ||
+			code === "EEXIST" ||
+			code === "EPERM" ||
+			code === "EACCES" ||
+			isUnaddressableResultCandidate(error)
+		) {
 			const pendingExists = existingResultFile(pendingPath);
 			const resultExists = existingResultFile(resultPath);
 			if (pendingExists) {
-				if (!resultExists && options.logFailure !== false && !isUnaddressableResultCandidate(error)) console.error(`Failed to promote pending async result '${pendingPath}' to '${resultPath}':`, error);
+				if (!resultExists && options.logFailure !== false && !isUnaddressableResultCandidate(error))
+					console.error(`Failed to promote pending async result '${pendingPath}' to '${resultPath}':`, error);
 				return "pending";
 			}
 			if (resultExists) return "promoted";
-			if (options.logFailure !== false) console.error(`Pending async result '${pendingPath}' disappeared without a promoted result at '${resultPath}'.`);
+			if (options.logFailure !== false)
+				console.error(
+					`Pending async result '${pendingPath}' disappeared without a promoted result at '${resultPath}'.`,
+				);
 			return "none";
 		}
-		if (options.logFailure !== false) console.error(`Failed to promote pending async result '${pendingPath}' to '${resultPath}':`, error);
+		if (options.logFailure !== false)
+			console.error(`Failed to promote pending async result '${pendingPath}' to '${resultPath}':`, error);
 		return "pending";
 	}
 }
@@ -405,36 +472,60 @@ interface ResultPayloadLocation {
 	state: "public" | "pending";
 }
 
-function pendingResultLocationForSessionRun(resultsDir: string, sessionId: string, runId: string, file = resultFileName(runId)): ResultPayloadLocation | undefined {
+function pendingResultLocationForSessionRun(
+	resultsDir: string,
+	sessionId: string,
+	runId: string,
+	file = resultFileName(runId),
+): ResultPayloadLocation | undefined {
 	if (file !== path.basename(file) || !file.endsWith(".json")) return undefined;
 	const pendingPath = firstExistingResultFile(resultPendingPaths(resultsDir, sessionId, runId));
 	if (!pendingPath || !pendingResultPayloadMatches(pendingPath, sessionId, runId)) return undefined;
 	return { file, path: pendingPath, state: "pending" };
 }
 
-export function fallbackResultPayloadPathForSessionRun(resultsDir: string, sessionId: string, runId: string): string | undefined {
+export function fallbackResultPayloadPathForSessionRun(
+	resultsDir: string,
+	sessionId: string,
+	runId: string,
+): string | undefined {
 	const pendingPath = firstExistingResultFile(resultPendingPaths(resultsDir, sessionId, runId));
 	if (!pendingPath || !assertPendingResultPayloadMatches(pendingPath, sessionId, runId)) return undefined;
 	return pendingPath;
 }
 
 /** Any pending or public result file for the run, without validating its contents. */
-export function resultPayloadFileForSessionRun(resultsDir: string, sessionId: string, runId: string): string | undefined {
-	return firstExistingResultFile([...resultPendingPaths(resultsDir, sessionId, runId), resultFilePath(resultsDir, runId)]);
+export function resultPayloadFileForSessionRun(
+	resultsDir: string,
+	sessionId: string,
+	runId: string,
+): string | undefined {
+	return firstExistingResultFile([
+		...resultPendingPaths(resultsDir, sessionId, runId),
+		resultFilePath(resultsDir, runId),
+	]);
 }
 
-function resultPayloadLocationFromIndex(resultsDir: string, entry: ResultIndexEntry): ResultPayloadLocation | undefined {
+function resultPayloadLocationFromIndex(
+	resultsDir: string,
+	entry: ResultIndexEntry,
+): ResultPayloadLocation | undefined {
 	if (entry.file !== path.basename(entry.file) || !entry.file.endsWith(".json")) return undefined;
 	const pendingState = promotePendingResultFile(resultsDir, entry.sessionId, entry.runId, entry.file);
 	if (pendingState === "pending") {
 		return pendingResultLocationForSessionRun(resultsDir, entry.sessionId, entry.runId, entry.file);
 	}
 	const resultPath = path.join(resultsDir, entry.file);
-	if (pendingState === "promoted" || existingResultFile(resultPath)) return { file: entry.file, path: resultPath, state: "public" };
+	if (pendingState === "promoted" || existingResultFile(resultPath))
+		return { file: entry.file, path: resultPath, state: "public" };
 	return undefined;
 }
 
-function readResultIndexForSessionRun(resultsDir: string, sessionId: string, runId: string): ResultIndexEntry | undefined {
+function readResultIndexForSessionRun(
+	resultsDir: string,
+	sessionId: string,
+	runId: string,
+): ResultIndexEntry | undefined {
 	for (const indexPath of resultIndexPaths(resultsDir, sessionId, runId)) {
 		try {
 			const entry = parseResultIndexEntry(JSON.parse(fs.readFileSync(indexPath, "utf-8")));
@@ -451,20 +542,29 @@ function readResultIndexForSessionRun(resultsDir: string, sessionId: string, run
 	return undefined;
 }
 
-export function resultPayloadPathForSessionRun(resultsDir: string, sessionId: string, runId: string): string | undefined {
+export function resultPayloadPathForSessionRun(
+	resultsDir: string,
+	sessionId: string,
+	runId: string,
+): string | undefined {
 	const entry = readResultIndexForSessionRun(resultsDir, sessionId, runId);
-	return (entry ? resultPayloadLocationFromIndex(resultsDir, entry) : undefined)?.path
-		?? pendingResultLocationForSessionRun(resultsDir, sessionId, runId)?.path;
+	return (
+		(entry ? resultPayloadLocationFromIndex(resultsDir, entry) : undefined)?.path ??
+		pendingResultLocationForSessionRun(resultsDir, sessionId, runId)?.path
+	);
 }
 
 export function resultPayloadPathForMissionObserverRun(resultsDir: string, runId: string): string | undefined {
 	try {
-		const entry = parseResultIndexEntry(JSON.parse(fs.readFileSync(observerIndexPath(resultsDir, MISSION_OBSERVER, runId), "utf-8")));
+		const entry = parseResultIndexEntry(
+			JSON.parse(fs.readFileSync(observerIndexPath(resultsDir, MISSION_OBSERVER, runId), "utf-8")),
+		);
 		if (!entry || entry.runId !== runId) return undefined;
 		return resultPayloadLocationFromIndex(resultsDir, entry)?.path;
 	} catch (error) {
 		const code = (error as NodeJS.ErrnoException).code;
-		if (code !== "ENOENT" && code !== "ENOTDIR" && !isUnaddressableResultCandidate(error)) console.error(`Ignoring invalid async result observer index for '${runId}':`, error);
+		if (code !== "ENOENT" && code !== "ENOTDIR" && !isUnaddressableResultCandidate(error))
+			console.error(`Ignoring invalid async result observer index for '${runId}':`, error);
 		return undefined;
 	}
 }
@@ -485,7 +585,9 @@ export function resultPayloadPathForIndexedRun(resultsDir: string, runId: string
 		if (isUnaddressableResultCandidate(error)) return undefined;
 		if (code !== "ENOENT" && code !== "ENOTDIR") {
 			console.error(`Ignoring invalid async result run index '${entryPath}':`, error);
-			try { fs.rmSync(entryPath, { force: true }); } catch {
+			try {
+				fs.rmSync(entryPath, { force: true });
+			} catch {
 				// Invalid optional run-index cleanup is best-effort.
 			}
 		}
@@ -502,12 +604,20 @@ function indexedResultFile(resultsDir: string, entry: ResultIndexEntry, includeP
 function listIndexFiles(dir: string): string[] {
 	let files: string[];
 	try {
-		files = fs.readdirSync(dir, { withFileTypes: true })
+		files = fs
+			.readdirSync(dir, { withFileTypes: true })
 			.filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
 			.map((entry) => path.join(dir, entry.name));
 	} catch (error) {
 		const code = (error as NodeJS.ErrnoException).code;
-		if (code === "ENOENT" || code === "ENOTDIR" || code === "EPERM" || code === "EACCES" || isUnaddressableResultCandidate(error)) return [];
+		if (
+			code === "ENOENT" ||
+			code === "ENOTDIR" ||
+			code === "EPERM" ||
+			code === "EACCES" ||
+			isUnaddressableResultCandidate(error)
+		)
+			return [];
 		throw error;
 	}
 	return files;
@@ -525,7 +635,8 @@ function resultFilesFromIndexDir(resultsDir: string, dir: string, includePending
 			const resultFile = indexedResultFile(resultsDir, entry, includePending);
 			if (resultFile) candidates.add(resultFile);
 		} catch (error) {
-			if ((error as NodeJS.ErrnoException).code !== "ENOENT" && !isUnaddressableResultCandidate(error)) console.error(`Ignoring invalid async result index '${entryPath}':`, error);
+			if ((error as NodeJS.ErrnoException).code !== "ENOENT" && !isUnaddressableResultCandidate(error))
+				console.error(`Ignoring invalid async result index '${entryPath}':`, error);
 		}
 	}
 	return [...candidates];
@@ -547,7 +658,14 @@ function pendingResultFilesForSession(resultsDir: string, sessionId: string): st
 			entries = fs.readdirSync(dir, { withFileTypes: true });
 		} catch (error) {
 			const code = (error as NodeJS.ErrnoException).code;
-			if (code === "ENOENT" || code === "ENOTDIR" || code === "EPERM" || code === "EACCES" || isUnaddressableResultCandidate(error)) continue;
+			if (
+				code === "ENOENT" ||
+				code === "ENOTDIR" ||
+				code === "EPERM" ||
+				code === "EACCES" ||
+				isUnaddressableResultCandidate(error)
+			)
+				continue;
 			throw error;
 		}
 		for (const entry of entries) {
@@ -558,7 +676,8 @@ function pendingResultFilesForSession(resultsDir: string, sessionId: string): st
 				const runId = nonEmptyString(data.runId) ?? nonEmptyString(data.id);
 				if (runId && nonEmptyString(data.sessionId) === sessionId) files.add(resultFileName(runId));
 			} catch (error) {
-				if ((error as NodeJS.ErrnoException).code !== "ENOENT" && !isUnaddressableResultCandidate(error)) console.error(`Ignoring invalid pending async result '${pendingPath}':`, error);
+				if ((error as NodeJS.ErrnoException).code !== "ENOENT" && !isUnaddressableResultCandidate(error))
+					console.error(`Ignoring invalid pending async result '${pendingPath}':`, error);
 			}
 		}
 	}
@@ -600,14 +719,23 @@ export function cleanupResultIndexes(resultsDir: string, now = Date.now(), maxAg
 			entries = fs.readdirSync(dir, { withFileTypes: true });
 		} catch (error) {
 			const code = (error as NodeJS.ErrnoException).code;
-			if (code === "ENOENT" || code === "ENOTDIR" || code === "EPERM" || code === "EACCES" || isUnaddressableResultCandidate(error)) return;
+			if (
+				code === "ENOENT" ||
+				code === "ENOTDIR" ||
+				code === "EPERM" ||
+				code === "EACCES" ||
+				isUnaddressableResultCandidate(error)
+			)
+				return;
 			throw error;
 		}
 		for (const entry of entries) {
 			const fullPath = path.join(dir, entry.name);
 			if (entry.isDirectory()) {
 				visit(fullPath);
-				try { fs.rmdirSync(fullPath); } catch {
+				try {
+					fs.rmdirSync(fullPath);
+				} catch {
 					// Non-empty or concurrently removed index directories are left in place.
 				}
 				continue;
@@ -624,7 +752,8 @@ export function cleanupResultIndexes(resultsDir: string, now = Date.now(), maxAg
 				}
 			} catch (error) {
 				if (isUnaddressableResultCandidate(error)) continue;
-				if ((error as NodeJS.ErrnoException).code !== "ENOENT") console.error(`Ignoring invalid async result index '${fullPath}':`, error);
+				if ((error as NodeJS.ErrnoException).code !== "ENOENT")
+					console.error(`Ignoring invalid async result index '${fullPath}':`, error);
 				try {
 					fs.rmSync(fullPath, { force: true });
 					removed += 1;

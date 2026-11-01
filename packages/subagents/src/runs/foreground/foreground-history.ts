@@ -1,16 +1,17 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { writePrivateAtomicJson } from "../../shared/atomic-json.ts";
+import { validateModelResponseAliases } from "../../shared/model-response-aliases.ts";
 import type { ForegroundResumeChild, ForegroundResumeRun, SubagentState } from "../../shared/types.ts";
 import { DIRS } from "../../shared/types.ts";
-import { writePrivateAtomicJson } from "../../shared/atomic-json.ts";
 import { utf8Tail } from "../../shared/utf8.ts";
-import { validateAcceptanceInput } from "../shared/acceptance.ts";
-import { validateModelResponseAliases } from "../../shared/model-response-aliases.ts";
-import { checkRecordedPidLiveness, isRecordedPid } from "../background/stale-run-reconciler.ts";
 import { encodeIndexSegment } from "../background/index-segment.ts";
+import { checkRecordedPidLiveness, isRecordedPid } from "../background/stale-run-reconciler.ts";
+import { validateAcceptanceInput } from "../shared/acceptance.ts";
 
 export const MAX_REMEMBERED_FOREGROUND_RUNS = 50;
-export const FOREGROUND_OWNER_EXITED_STOP_ERROR = "Subagent stopped because the Pi process that ran it exited before the run finished.";
+export const FOREGROUND_OWNER_EXITED_STOP_ERROR =
+	"Subagent stopped because the Pi process that ran it exited before the run finished.";
 const MAX_INLINE_OUTPUT_BYTES = 64 * 1024;
 const MAX_RESUME_CONTRACT_BYTES = 64 * 1024;
 
@@ -77,7 +78,10 @@ function hasRunningChild(run: Pick<ForegroundResumeRun, "children">): boolean {
 
 /** A `running` record is kept only for a single run whose owning Pi process can be probed later. */
 function isAdmittedChildStatus(run: Partial<ForegroundResumeRun>, status: unknown): boolean {
-	return isRestorableForegroundStatus(status) || (status === "running" && run.mode === "single" && isRecordedPid(run.owner));
+	return (
+		isRestorableForegroundStatus(status) ||
+		(status === "running" && run.mode === "single" && isRecordedPid(run.owner))
+	);
 }
 
 function isRestorableResumeContract(value: unknown): boolean {
@@ -90,17 +94,44 @@ function isRestorableResumeContract(value: unknown): boolean {
 		return false;
 	}
 	const contract = value as NonNullable<ForegroundResumeChild["resumeContract"]>;
-	if (Object.keys(contract).some((key) => !["modelResponseAliases", "outputSchema", "agentContract", "acceptance", "output", "outputMode"].includes(key))) return false;
-	if (contract.outputSchema !== undefined && contract.outputSchema !== false && (!contract.outputSchema || typeof contract.outputSchema !== "object" || Array.isArray(contract.outputSchema))) return false;
-	if (contract.agentContract !== undefined && (!contract.agentContract || typeof contract.agentContract !== "object" || Array.isArray(contract.agentContract) || contract.agentContract.version !== 1)) return false;
+	if (
+		Object.keys(contract).some(
+			(key) =>
+				!["modelResponseAliases", "outputSchema", "agentContract", "acceptance", "output", "outputMode"].includes(
+					key,
+				),
+		)
+	)
+		return false;
+	if (
+		contract.outputSchema !== undefined &&
+		contract.outputSchema !== false &&
+		(!contract.outputSchema || typeof contract.outputSchema !== "object" || Array.isArray(contract.outputSchema))
+	)
+		return false;
+	if (
+		contract.agentContract !== undefined &&
+		(!contract.agentContract ||
+			typeof contract.agentContract !== "object" ||
+			Array.isArray(contract.agentContract) ||
+			contract.agentContract.version !== 1)
+	)
+		return false;
 	if (validateAcceptanceInput(contract.acceptance).length > 0) return false;
-	if (contract.output !== undefined && typeof contract.output !== "string" && typeof contract.output !== "boolean") return false;
+	if (contract.output !== undefined && typeof contract.output !== "string" && typeof contract.output !== "boolean")
+		return false;
 	return contract.outputMode === undefined || contract.outputMode === "inline" || contract.outputMode === "file-only";
 }
 
 function compactRun(run: ForegroundResumeRun): ForegroundResumeRun | undefined {
 	if (!run.sessionId) return undefined;
-	if (run.children.length === 0 || !run.children.every((child) => isAdmittedChildStatus(run, child.status) && isRestorableResumeContract(child.resumeContract))) return undefined;
+	if (
+		run.children.length === 0 ||
+		!run.children.every(
+			(child) => isAdmittedChildStatus(run, child.status) && isRestorableResumeContract(child.resumeContract),
+		)
+	)
+		return undefined;
 	const running = hasRunningChild(run);
 	return {
 		runId: run.runId,
@@ -135,33 +166,47 @@ function historyFiles(dir: string): string[] {
 function isRestorableRun(value: unknown): value is ForegroundResumeRun {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return false;
 	const run = value as Partial<ForegroundResumeRun>;
-	return typeof run.runId === "string" && Boolean(run.runId)
-		&& (run.mode === "single" || run.mode === "parallel" || run.mode === "chain")
-		&& typeof run.cwd === "string" && Boolean(run.cwd)
-		&& typeof run.sessionId === "string" && Boolean(run.sessionId)
-		&& typeof run.updatedAt === "number" && Number.isFinite(run.updatedAt)
-		&& Array.isArray(run.children)
-		&& run.children.length > 0
-		&& (run.owner === undefined || isRecordedPid(run.owner))
-		&& (run.parentWorkflowRunId === undefined || typeof run.parentWorkflowRunId === "string")
-		&& run.children.every((child: Partial<ForegroundResumeChild>) => Boolean(child && typeof child === "object" && !Array.isArray(child)
-			&& typeof child.agent === "string"
-			&& typeof child.index === "number"
-			&& isRestorableResumeContract(child.resumeContract)
-			&& isAdmittedChildStatus(run, child.status)));
+	return (
+		typeof run.runId === "string" &&
+		Boolean(run.runId) &&
+		(run.mode === "single" || run.mode === "parallel" || run.mode === "chain") &&
+		typeof run.cwd === "string" &&
+		Boolean(run.cwd) &&
+		typeof run.sessionId === "string" &&
+		Boolean(run.sessionId) &&
+		typeof run.updatedAt === "number" &&
+		Number.isFinite(run.updatedAt) &&
+		Array.isArray(run.children) &&
+		run.children.length > 0 &&
+		(run.owner === undefined || isRecordedPid(run.owner)) &&
+		(run.parentWorkflowRunId === undefined || typeof run.parentWorkflowRunId === "string") &&
+		run.children.every((child: Partial<ForegroundResumeChild>) =>
+			Boolean(
+				child &&
+					typeof child === "object" &&
+					!Array.isArray(child) &&
+					typeof child.agent === "string" &&
+					typeof child.index === "number" &&
+					isRestorableResumeContract(child.resumeContract) &&
+					isAdmittedChildStatus(run, child.status),
+			),
+		)
+	);
 }
 
 /** Deletes the oldest final run files beyond the cap; running records stay, so the cap can be exceeded while runs are live. */
 function pruneHistory(dir: string, limit: number): void {
 	const files = historyFiles(dir);
 	if (files.length <= limit) return;
-	const byAge = files.flatMap((name) => {
-		try {
-			return [{ name, mtimeMs: fs.statSync(path.join(dir, name)).mtimeMs }];
-		} catch {
-			return [];
-		}
-	}).sort((left, right) => left.mtimeMs - right.mtimeMs);
+	const byAge = files
+		.flatMap((name) => {
+			try {
+				return [{ name, mtimeMs: fs.statSync(path.join(dir, name)).mtimeMs }];
+			} catch {
+				return [];
+			}
+		})
+		.sort((left, right) => left.mtimeMs - right.mtimeMs);
 	for (const { name, mtimeMs } of byAge.slice(0, byAge.length - limit)) {
 		const filePath = path.join(dir, name);
 		// A running record is replaced later by its run's final save, possibly in another Pi process;
@@ -182,7 +227,10 @@ function pruneHistory(dir: string, limit: number): void {
  * Saves one foreground run to its own history file. A run with a `running` child is a launch-time
  * record; the run's final save replaces it.
  */
-export function persistForegroundRun(run: ForegroundResumeRun, options: { resultsDir?: string; limit?: number } = {}): void {
+export function persistForegroundRun(
+	run: ForegroundResumeRun,
+	options: { resultsDir?: string; limit?: number } = {},
+): void {
 	const compact = compactRun(run);
 	if (!compact) return;
 	const resultsDir = options.resultsDir ?? DIRS.results;
@@ -217,7 +265,14 @@ function restoreInterruptedRun(run: ForegroundResumeRun): ForegroundResumeRun | 
 		...rest,
 		children: run.children.map((child) => {
 			if (child.status !== "running") return child;
-			const { activityState: _activityState, currentTool: _currentTool, currentToolStartedAt: _currentToolStartedAt, currentPath: _currentPath, sessionFile, ...stopped } = child;
+			const {
+				activityState: _activityState,
+				currentTool: _currentTool,
+				currentToolStartedAt: _currentToolStartedAt,
+				currentPath: _currentPath,
+				sessionFile,
+				...stopped
+			} = child;
 			return {
 				...stopped,
 				status: "stopped" as const,
@@ -231,20 +286,35 @@ function restoreInterruptedRun(run: ForegroundResumeRun): ForegroundResumeRun | 
 }
 
 /** State text for a remembered child; a child cut off by a Pi exit names the resume target. */
-export function foregroundChildStateLabel(run: Pick<ForegroundResumeRun, "runId">, child: Pick<ForegroundResumeChild, "status" | "error" | "sessionFile">): string {
+export function foregroundChildStateLabel(
+	run: Pick<ForegroundResumeRun, "runId">,
+	child: Pick<ForegroundResumeChild, "status" | "error" | "sessionFile">,
+): string {
 	if (child.status !== "stopped" || child.error !== FOREGROUND_OWNER_EXITED_STOP_ERROR) return child.status;
 	// Without a transcript there is nothing to resume from.
 	return child.sessionFile ? `interrupted when Pi exited · resume ${run.runId}` : "interrupted when Pi exited";
 }
 
-export function restoreForegroundRunHistory(state: SubagentState, options: { resultsDir?: string; sessionId?: string | null; limit?: number; observeForeign?: (run: ForegroundResumeRun) => void } = {}): number {
+export function restoreForegroundRunHistory(
+	state: SubagentState,
+	options: {
+		resultsDir?: string;
+		sessionId?: string | null;
+		limit?: number;
+		observeForeign?: (run: ForegroundResumeRun) => void;
+	} = {},
+): number {
 	const sessionId = options.sessionId ?? state.currentSessionId;
 	if (!sessionId) return 0;
 	const dir = historyDir(options.resultsDir ?? DIRS.results);
 	const saved = historyFiles(dir).flatMap((name) => readRunFile(path.join(dir, name)) ?? []);
 	// Other sessions' records that may have been cut off, for a read-only pointer to them.
-	if (options.observeForeign) for (const run of saved) if (run.sessionId !== sessionId && hasRunningChild(run)) options.observeForeign(run);
-	const runs = saved.filter((run) => run.sessionId === sessionId).sort((left, right) => right.updatedAt - left.updatedAt).slice(0, options.limit ?? MAX_REMEMBERED_FOREGROUND_RUNS);
+	if (options.observeForeign)
+		for (const run of saved) if (run.sessionId !== sessionId && hasRunningChild(run)) options.observeForeign(run);
+	const runs = saved
+		.filter((run) => run.sessionId === sessionId)
+		.sort((left, right) => right.updatedAt - left.updatedAt)
+		.slice(0, options.limit ?? MAX_REMEMBERED_FOREGROUND_RUNS);
 	state.foregroundRuns ??= new Map();
 	let restored = 0;
 	for (const run of runs) {

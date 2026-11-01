@@ -3,7 +3,12 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { resolveWatchdogConfig, resolveWatchdogConfigStrict, writeUserWatchdogEnabled, writeWatchdogModelSettings } from "../../src/watchdog/settings.ts";
+import {
+	resolveWatchdogConfig,
+	resolveWatchdogConfigStrict,
+	writeUserWatchdogEnabled,
+	writeWatchdogModelSettings,
+} from "../../src/watchdog/settings.ts";
 
 let tempHome = "";
 let tempProject = "";
@@ -68,7 +73,10 @@ describe("watchdog settings", () => {
 	});
 
 	it("rejects removed fallbackModels settings", () => {
-		assert.equal(resolveWatchdogConfig(tempProject, { session: { main: { fallbackModels: ["model/a"] } } }).ok, false);
+		assert.equal(
+			resolveWatchdogConfig(tempProject, { session: { main: { fallbackModels: ["model/a"] } } }).ok,
+			false,
+		);
 	});
 
 	it("lets root enabled opt the main watchdog in while children stay default-off", () => {
@@ -161,11 +169,13 @@ describe("watchdog settings", () => {
 		const result = resolveWatchdogConfig(tempProject);
 
 		assert.equal(result.ok, false);
-		assert.deepEqual(result.errors, [{
-			scope: "user",
-			path: userSettingsPath(),
-			message: `Watchdog settings in '${userSettingsPath()}' have invalid 'subagents.watchdog.enabled'; expected a boolean.`,
-		}]);
+		assert.deepEqual(result.errors, [
+			{
+				scope: "user",
+				path: userSettingsPath(),
+				message: `Watchdog settings in '${userSettingsPath()}' have invalid 'subagents.watchdog.enabled'; expected a boolean.`,
+			},
+		]);
 		assert.equal(result.config.enabled, false);
 		assert.equal(result.config.main.enabled, false);
 	});
@@ -181,15 +191,20 @@ describe("watchdog settings", () => {
 
 		assert.throws(
 			() => resolveWatchdogConfigStrict(tempProject),
-			(error: unknown) => error instanceof Error
-				&& error.message === `Watchdog settings in '${userSettingsPath()}' have unknown field 'subagents.watchdog.children.overrides.worker.mode'.`,
+			(error: unknown) =>
+				error instanceof Error &&
+				error.message ===
+					`Watchdog settings in '${userSettingsPath()}' have unknown field 'subagents.watchdog.children.overrides.worker.mode'.`,
 		);
 	});
 
 	it("parses launch rules and rejects malformed rule fields", () => {
 		const rules = {
 			action: "block",
-			roleModels: { scout: { allow: ["openai-codex/gpt-5.6-luna:max"] }, oracle: { deny: ["*"], note: "ask first" } },
+			roleModels: {
+				scout: { allow: ["openai-codex/gpt-5.6-luna:max"] },
+				oracle: { deny: ["*"], note: "ask first" },
+			},
 		} as const;
 		writeJson(userSettingsPath(), {
 			subagents: {
@@ -202,9 +217,17 @@ describe("watchdog settings", () => {
 		assert.equal(resolveWatchdogConfig(tempProject, { session: { enabled: true } }).config.rules?.action, "block");
 
 		writeJson(userSettingsPath(), { subagents: { watchdog: { rules: { action: "shout" } } } });
-		assert.match(resolveWatchdogConfig(tempProject).errors[0]?.message ?? "", /invalid 'subagents\.watchdog\.rules\.action'; expected 'warn' or 'block'/);
-		writeJson(userSettingsPath(), { subagents: { watchdog: { rules: { roleModels: { scout: { allowed: ["x"] } } } } } });
-		assert.match(resolveWatchdogConfig(tempProject).errors[0]?.message ?? "", /unknown field 'subagents\.watchdog\.rules\.roleModels\.scout\.allowed'/);
+		assert.match(
+			resolveWatchdogConfig(tempProject).errors[0]?.message ?? "",
+			/invalid 'subagents\.watchdog\.rules\.action'; expected 'warn' or 'block'/,
+		);
+		writeJson(userSettingsPath(), {
+			subagents: { watchdog: { rules: { roleModels: { scout: { allowed: ["x"] } } } } },
+		});
+		assert.match(
+			resolveWatchdogConfig(tempProject).errors[0]?.message ?? "",
+			/unknown field 'subagents\.watchdog\.rules\.roleModels\.scout\.allowed'/,
+		);
 		writeJson(userSettingsPath(), { subagents: { watchdog: {} } });
 		assert.equal(resolveWatchdogConfig(tempProject).config.rules, undefined);
 	});
@@ -235,7 +258,10 @@ describe("watchdog settings", () => {
 		assert.match(result.errors[0]?.message ?? "", /invalid 'subagents\.watchdog\.cadence\.everyNTools'/);
 
 		writeJson(userSettingsPath(), { subagents: { watchdog: { children: { cadence: { everyNTools: 4 } } } } });
-		assert.match(resolveWatchdogConfig(tempProject).errors[0]?.message ?? "", /invalid 'subagents\.watchdog\.children\.cadence\.everyNTools'/);
+		assert.match(
+			resolveWatchdogConfig(tempProject).errors[0]?.message ?? "",
+			/invalid 'subagents\.watchdog\.children\.cadence\.everyNTools'/,
+		);
 	});
 
 	it("rejects invalid LSP config at settings load", () => {
@@ -325,7 +351,10 @@ describe("watchdog settings", () => {
 		assert.equal(result.ok, false);
 		assert.equal(result.errors.length, 1);
 		assert.equal(result.errors[0]?.scope, "user");
-		assert.match(result.errors[0]?.message ?? "", new RegExp(`^Failed to parse settings file '${userSettingsPath().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}': `));
+		assert.match(
+			result.errors[0]?.message ?? "",
+			new RegExp(`^Failed to parse settings file '${userSettingsPath().replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}': `),
+		);
 		assert.equal(result.config.main.enabled, false);
 	});
 

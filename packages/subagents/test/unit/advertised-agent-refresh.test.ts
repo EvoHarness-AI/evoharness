@@ -3,8 +3,8 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 import { it } from "node:test";
+import { fileURLToPath } from "node:url";
 import { SUBAGENT_CHILD_ENV } from "../../src/runs/shared/child-runtime-config.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
@@ -14,7 +14,15 @@ it("emits bounded file-only snapshots, refreshes through management, and perform
 	const env = { ...process.env, EVOHARNESS_CODING_AGENT_DIR: home };
 	delete env[SUBAGENT_CHILD_ENV];
 	try {
-		const output = execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", String.raw`
+		const output = execFileSync(
+			process.execPath,
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"--eval",
+				String.raw`
 			import assert from "node:assert/strict";
 			import fs from "node:fs";
 			import path from "node:path";
@@ -160,7 +168,10 @@ it("emits bounded file-only snapshots, refreshes through management, and perform
 			await emit();
 			assert.equal(await noIo(() => emit(prompt)), "base");
 			process.stdout.write("prompt contracts passed; zero prompt-time stat/readdir/readFile calls at 0, 250, and 277 definitions");
-		`], { cwd: root, env, encoding: "utf8", timeout: 60_000 });
+		`,
+			],
+			{ cwd: root, env, encoding: "utf8", timeout: 60_000 },
+		);
 		assert.match(output, /prompt contracts passed/);
 	} finally {
 		fs.rmSync(home, { recursive: true, force: true });
@@ -172,7 +183,15 @@ it("delivers the catalog as a structured prompt section instead of replacing the
 	const env = { ...process.env, EVOHARNESS_CODING_AGENT_DIR: home };
 	delete env[SUBAGENT_CHILD_ENV];
 	try {
-		const output = execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", String.raw`
+		const output = execFileSync(
+			process.execPath,
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"--eval",
+				String.raw`
 			import assert from "node:assert/strict";
 			import fs from "node:fs";
 			import path from "node:path";
@@ -224,7 +243,10 @@ it("delivers the catalog as a structured prompt section instead of replacing the
 			assert.equal(turn.sections.other, "kept", "other sections are untouched");
 			assert.match(turn.sections.advertised_subagents, /<name>specialist<\/name>/);
 			process.stdout.write("section delivery passed");
-		`], { cwd: root, env, encoding: "utf8", timeout: 60_000 });
+		`,
+			],
+			{ cwd: root, env, encoding: "utf8", timeout: 60_000 },
+		);
 		assert.match(output, /section delivery passed/);
 	} finally {
 		fs.rmSync(home, { recursive: true, force: true });

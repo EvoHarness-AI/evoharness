@@ -3,8 +3,14 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
-import { EXTERNAL_JOB_PROVIDER_REGISTRY_KEY, registerExternalJobProvider } from "../../src/api/external-job-provider.ts";
-import { createChildExternalJobBridgeSweeper, EXTERNAL_JOB_BRIDGE_REQUEST_DIR } from "../../src/runs/shared/external-job-bridge.ts";
+import {
+	EXTERNAL_JOB_PROVIDER_REGISTRY_KEY,
+	registerExternalJobProvider,
+} from "../../src/api/external-job-provider.ts";
+import {
+	createChildExternalJobBridgeSweeper,
+	EXTERNAL_JOB_BRIDGE_REQUEST_DIR,
+} from "../../src/runs/shared/external-job-bridge.ts";
 import { runExternalJob } from "../../src/runs/shared/external-job-runner.ts";
 
 const tempDirs: string[] = [];
@@ -21,12 +27,25 @@ function tempDir(prefix: string): string {
 }
 
 function writeStatus(asyncDir: string, state: string, runnerType: string): void {
-	fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({ state, steps: [{ runner: { type: runnerType } }] }));
+	fs.writeFileSync(
+		path.join(asyncDir, "status.json"),
+		JSON.stringify({ state, steps: [{ runner: { type: runnerType } }] }),
+	);
 }
 
-async function sweepUntil<T>(sweeper: ReturnType<typeof createChildExternalJobBridgeSweeper>, promise: Promise<T>): Promise<T> {
+async function sweepUntil<T>(
+	sweeper: ReturnType<typeof createChildExternalJobBridgeSweeper>,
+	promise: Promise<T>,
+): Promise<T> {
 	let done = false;
-	promise.then(() => { done = true; }, () => { done = true; });
+	promise.then(
+		() => {
+			done = true;
+		},
+		() => {
+			done = true;
+		},
+	);
 	while (!done) {
 		sweeper.sweep();
 		await new Promise((resolve) => setTimeout(resolve, 10));
@@ -35,7 +54,16 @@ async function sweepUntil<T>(sweeper: ReturnType<typeof createChildExternalJobBr
 }
 
 function runJob(asyncDir: string) {
-	return runExternalJob({ provider: "surf-oracle", options: {}, cwd: asyncDir, prompt: "prompt text", asyncDir, stepIndex: 0, runId: "run-1", agent: "gpt-pro" });
+	return runExternalJob({
+		provider: "surf-oracle",
+		options: {},
+		cwd: asyncDir,
+		prompt: "prompt text",
+		asyncDir,
+		stepIndex: 0,
+		runId: "run-1",
+		agent: "gpt-pro",
+	});
 }
 
 function registerProvider(onStart: () => void): void {
@@ -55,7 +83,9 @@ describe("child external-job bridge sweeper", () => {
 	it("services a tracked run before its status exists, starts the provider job once, and releases the run when final", async () => {
 		const dir = tempDir("pi-child-bridge-");
 		let starts = 0;
-		registerProvider(() => { starts += 1; });
+		registerProvider(() => {
+			starts += 1;
+		});
 		const sweeper = createChildExternalJobBridgeSweeper();
 		try {
 			sweeper.track("run-1", dir);
@@ -72,9 +102,14 @@ describe("child external-job bridge sweeper", () => {
 
 	it("keeps a run tracked while its launch status has no runner metadata, then services the bridge", async () => {
 		const dir = tempDir("pi-child-bridge-startup-");
-		fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify({ state: "running", steps: [{ agent: "gpt-pro", status: "pending" }] }));
+		fs.writeFileSync(
+			path.join(dir, "status.json"),
+			JSON.stringify({ state: "running", steps: [{ agent: "gpt-pro", status: "pending" }] }),
+		);
 		let starts = 0;
-		registerProvider(() => { starts += 1; });
+		registerProvider(() => {
+			starts += 1;
+		});
 		const sweeper = createChildExternalJobBridgeSweeper();
 		try {
 			sweeper.track("run-1", dir);

@@ -1,16 +1,27 @@
-import {
-	type SubagentDelegationProviderDiagnostics,
-	type SubagentDelegationRequest,
-	type SubagentDelegationResponse,
-	type SubagentDelegationStatus,
-	type SubagentDelegationThinking,
-	type SubagentDelegationUpdate,
-	type SubagentDelegationUpdateUsage,
-	type SubagentDelegationValue,
+import type {
+	SubagentDelegationProviderDiagnostics,
+	SubagentDelegationRequest,
+	SubagentDelegationResponse,
+	SubagentDelegationStatus,
+	SubagentDelegationThinking,
+	SubagentDelegationUpdate,
+	SubagentDelegationUpdateUsage,
+	SubagentDelegationValue,
 } from "../api/delegation.ts";
-import type { AcceptanceInput, AgentContract, AgentProgress, EffectsProjection, ExecutionProjection, IntercomBridgeConfig, JsonSchemaObject, ReviewProjection, ToolBudgetConfig, Usage } from "../shared/types.ts";
-import { cloneJsonWithinByteLimit } from "./delegation-json.ts";
 import { clearProviderRetry, snapshotProviderDiagnostics } from "../shared/provider-diagnostics.ts";
+import type {
+	AcceptanceInput,
+	AgentContract,
+	AgentProgress,
+	EffectsProjection,
+	ExecutionProjection,
+	IntercomBridgeConfig,
+	JsonSchemaObject,
+	ReviewProjection,
+	ToolBudgetConfig,
+	Usage,
+} from "../shared/types.ts";
+import { cloneJsonWithinByteLimit } from "./delegation-json.ts";
 
 export interface PromptTemplateDelegationRequest {
 	requestId: string;
@@ -192,10 +203,12 @@ function sanitizeRecentTools(
 	if (!tools || tools.length === 0) return undefined;
 	const sanitized = tools.flatMap((entry) => {
 		if (typeof entry.tool !== "string" || entry.tool.trim().length === 0) return [];
-		return [{
-			tool: entry.tool,
-			args: typeof entry.args === "string" ? entry.args : String(entry.args ?? ""),
-		}];
+		return [
+			{
+				tool: entry.tool,
+				args: typeof entry.args === "string" ? entry.args : String(entry.args ?? ""),
+			},
+		];
 	});
 	return sanitized.length > 0 ? sanitized : undefined;
 }
@@ -219,11 +232,12 @@ function resolveProgressModel(
 }
 
 function toolCallNameFromSummary(summary: { text?: string; expandedText?: string }): string | undefined {
-	const text = typeof summary.expandedText === "string" && summary.expandedText.trim().length > 0
-		? summary.expandedText.trim()
-		: typeof summary.text === "string"
-			? summary.text.trim()
-			: "";
+	const text =
+		typeof summary.expandedText === "string" && summary.expandedText.trim().length > 0
+			? summary.expandedText.trim()
+			: typeof summary.text === "string"
+				? summary.text.trim()
+				: "";
 	if (!text) return undefined;
 	if (text.startsWith("$ ")) return "bash";
 	return text.match(/^[A-Za-z_][\w.-]*/)?.[0];
@@ -236,15 +250,15 @@ function buildDelegationMessages(
 	if (Array.isArray(result.messages) && result.messages.length > 0) return result.messages;
 	const toolCallParts = (result.toolCalls ?? []).flatMap((summary) => {
 		const name = toolCallNameFromSummary(summary);
-		return name ? [{ type: "toolCall", name, arguments: { summary: summary.expandedText ?? summary.text ?? "" } }] : [];
+		return name
+			? [{ type: "toolCall", name, arguments: { summary: summary.expandedText ?? summary.text ?? "" } }]
+			: [];
 	});
-	const text = typeof result.finalOutput === "string" && result.finalOutput.trim().length > 0
-		? result.finalOutput.trim()
-		: fallbackText;
-	const content = [
-		...toolCallParts,
-		...(text ? [{ type: "text", text }] : []),
-	];
+	const text =
+		typeof result.finalOutput === "string" && result.finalOutput.trim().length > 0
+			? result.finalOutput.trim()
+			: fallbackText;
+	const content = [...toolCallParts, ...(text ? [{ type: "text", text }] : [])];
 	if (content.length === 0) return [];
 	return [{ role: "assistant", content }];
 }
@@ -253,25 +267,31 @@ function isFiniteNonNegative(value: unknown): value is number {
 	return typeof value === "number" && Number.isFinite(value) && value >= 0;
 }
 
-function buildDelegationUpdateUsage(entry: Pick<AgentProgress, "inputTokens" | "outputTokens" | "cacheRead" | "cacheWrite" | "turnCount"> | undefined): SubagentDelegationUpdateUsage | undefined {
+function buildDelegationUpdateUsage(
+	entry: Pick<AgentProgress, "inputTokens" | "outputTokens" | "cacheRead" | "cacheWrite" | "turnCount"> | undefined,
+): SubagentDelegationUpdateUsage | undefined {
 	if (!entry) return undefined;
 	const { inputTokens, outputTokens, cacheRead, cacheWrite, turnCount } = entry;
-	if (!isFiniteNonNegative(inputTokens)
-		|| !isFiniteNonNegative(outputTokens)
-		|| !isFiniteNonNegative(cacheRead)
-		|| !isFiniteNonNegative(cacheWrite)
-		|| !isFiniteNonNegative(turnCount)) return undefined;
+	if (
+		!isFiniteNonNegative(inputTokens) ||
+		!isFiniteNonNegative(outputTokens) ||
+		!isFiniteNonNegative(cacheRead) ||
+		!isFiniteNonNegative(cacheWrite) ||
+		!isFiniteNonNegative(turnCount)
+	)
+		return undefined;
 	return { input: inputTokens, output: outputTokens, cacheRead, cacheWrite, turns: turnCount };
 }
 
-export function toDelegationUpdate(requestId: string, update: PromptTemplateBridgeResult): PromptTemplateDelegationUpdate | undefined {
+export function toDelegationUpdate(
+	requestId: string,
+	update: PromptTemplateBridgeResult,
+): PromptTemplateDelegationUpdate | undefined {
 	const progress = update.details?.progress?.[0];
 	const taskProgress = update.details?.progress?.map((entry) => {
 		const lastOutput = entry.recentOutput?.[entry.recentOutput.length - 1];
 		const safeLastOutput =
-			typeof lastOutput === "string" && lastOutput.trim() && lastOutput !== "(running...)"
-				? lastOutput
-				: undefined;
+			typeof lastOutput === "string" && lastOutput.trim() && lastOutput !== "(running...)" ? lastOutput : undefined;
 		return {
 			index: entry.index,
 			agent: entry.agent ?? "delegate",
@@ -290,9 +310,7 @@ export function toDelegationUpdate(requestId: string, update: PromptTemplateBrid
 	if (!progress && (!taskProgress || taskProgress.length === 0)) return undefined;
 	const lastOutput = progress?.recentOutput?.[progress.recentOutput.length - 1];
 	const safeLastOutput =
-		typeof lastOutput === "string" && lastOutput.trim() && lastOutput !== "(running...)"
-			? lastOutput
-			: undefined;
+		typeof lastOutput === "string" && lastOutput.trim() && lastOutput !== "(running...)" ? lastOutput : undefined;
 	return {
 		requestId,
 		...(update.details?.runId ? { runId: update.details.runId } : {}),
@@ -310,7 +328,9 @@ export function toDelegationUpdate(requestId: string, update: PromptTemplateBrid
 	};
 }
 
-export function toSubagentDelegationExecutionParams(request: SubagentDelegationRequest): DelegatedSubagentExecutionParams {
+export function toSubagentDelegationExecutionParams(
+	request: SubagentDelegationRequest,
+): DelegatedSubagentExecutionParams {
 	return {
 		agent: request.agent,
 		task: request.task,
@@ -353,9 +373,11 @@ export function toSubagentDelegationUpdate(
 		...(typeof legacy.durationMs === "number" ? { durationMs: legacy.durationMs } : {}),
 		...(typeof legacy.tokens === "number" ? { tokens: legacy.tokens } : {}),
 		...(legacy.usage ? { usage: legacy.usage } : {}),
-		...(result.details?.progress?.[0]?.providerDiagnostics ? {
-			providerDiagnostics: snapshotProviderDiagnostics(result.details.progress[0].providerDiagnostics),
-		} : {}),
+		...(result.details?.progress?.[0]?.providerDiagnostics
+			? {
+					providerDiagnostics: snapshotProviderDiagnostics(result.details.progress[0].providerDiagnostics),
+				}
+			: {}),
 	};
 }
 
@@ -405,9 +427,10 @@ export function toSubagentDelegationResponse(
 			const inspected = cloneJsonWithinByteLimit(child.structuredOutput, MAX_RESULT_BYTES);
 			if (inspected.ok === false) {
 				status = "failed";
-				error = inspected.reason === "too_large"
-					? "Delegated structured result exceeds 1 MiB when encoded."
-					: "Delegated structured result is not plain JSON data.";
+				error =
+					inspected.reason === "too_large"
+						? "Delegated structured result exceeds 1 MiB when encoded."
+						: "Delegated structured result is not plain JSON data.";
 			} else {
 				projectedResult = { kind: "structured", value: inspected.value };
 			}
@@ -428,21 +451,25 @@ export function toSubagentDelegationResponse(
 		...(typeof child?.exitCode === "number" ? { exitCode: child.exitCode } : {}),
 		...(childLaunchContractDigest ? { launchContractDigest: childLaunchContractDigest } : {}),
 		...(projectedResult ? { result: projectedResult } : {}),
-		...(child?.providerDiagnostics ? {
-			providerDiagnostics: snapshotProviderDiagnostics(clearProviderRetry(child.providerDiagnostics)),
-		} : {}),
-		...(usage ? {
-			usage: {
-				input: usage.input,
-				output: usage.output,
-				cacheRead: usage.cacheRead,
-				cacheWrite: usage.cacheWrite,
-				cost: usage.cost,
-				turns: usage.turns,
-				toolCalls: progress?.toolCount ?? 0,
-				durationMs: progress?.durationMs ?? 0,
-			},
-		} : {}),
+		...(child?.providerDiagnostics
+			? {
+					providerDiagnostics: snapshotProviderDiagnostics(clearProviderRetry(child.providerDiagnostics)),
+				}
+			: {}),
+		...(usage
+			? {
+					usage: {
+						input: usage.input,
+						output: usage.output,
+						cacheRead: usage.cacheRead,
+						cacheWrite: usage.cacheWrite,
+						cost: usage.cost,
+						turns: usage.turns,
+						toolCalls: progress?.toolCount ?? 0,
+						durationMs: progress?.durationMs ?? 0,
+					},
+				}
+			: {}),
 	};
 }
 

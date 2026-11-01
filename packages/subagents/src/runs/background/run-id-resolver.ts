@@ -2,11 +2,17 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { DIRS, type SubagentState } from "../../shared/types.ts";
 import { readStatus } from "../../shared/utils.ts";
-import { findAsyncRunPrefixMatches, type AsyncRunLocation } from "./async-resume.ts";
-import { resultCandidateFilesForToolCall, resultFilePath, resultPayloadPathForIndexedRun } from "./result-files.ts";
+import {
+	assertSafeNestedId,
+	findNestedRunMatchesById,
+	type NestedRoute,
+	type NestedRunMatch,
+	type NestedRunResolutionScope,
+} from "../shared/nested-events.ts";
 import { readActiveRunToolCallIndex } from "./active-run-index.ts";
+import { type AsyncRunLocation, findAsyncRunPrefixMatches } from "./async-resume.ts";
+import { resultCandidateFilesForToolCall, resultFilePath, resultPayloadPathForIndexedRun } from "./result-files.ts";
 import { readTerminalRunToolCallIndex } from "./terminal-run-index.ts";
-import { assertSafeNestedId, findNestedRunMatchesById, type NestedRoute, type NestedRunMatch, type NestedRunResolutionScope } from "../shared/nested-events.ts";
 
 export type ResolvedSubagentRunId =
 	| { kind: "foreground"; id: string }
@@ -65,9 +71,16 @@ function toolCallIdMatches(value: string | undefined, query: string): boolean {
 	return value === query;
 }
 
-function indexedToolCallIdAsyncLocations(toolCallId: string, asyncDirRoot: string, resultsDir: string): AsyncRunMatch[] {
+function indexedToolCallIdAsyncLocations(
+	toolCallId: string,
+	asyncDirRoot: string,
+	resultsDir: string,
+): AsyncRunMatch[] {
 	const byId = new Map<string, AsyncRunLocation>();
-	for (const entry of [...readActiveRunToolCallIndex(asyncDirRoot, toolCallId), ...readTerminalRunToolCallIndex(asyncDirRoot, toolCallId)]) {
+	for (const entry of [
+		...readActiveRunToolCallIndex(asyncDirRoot, toolCallId),
+		...readTerminalRunToolCallIndex(asyncDirRoot, toolCallId),
+	]) {
 		const asyncDir = path.join(asyncDirRoot, entry);
 		const status = readStatus(asyncDir);
 		if (!status || !toolCallIdMatches(status.toolCallId, toolCallId)) continue;
@@ -90,8 +103,8 @@ function foregroundIds(state: SubagentState | undefined): string[] {
 	if (!state) return [];
 	const remembered = state.currentSessionId
 		? [...(state.foregroundRuns?.values() ?? [])]
-			.filter((run) => run.sessionId === state.currentSessionId)
-			.map((run) => run.runId)
+				.filter((run) => run.sessionId === state.currentSessionId)
+				.map((run) => run.runId)
 		: [];
 	return [...new Set([...state.foregroundControls.keys(), ...remembered])];
 }
@@ -103,10 +116,18 @@ function hasExactForegroundId(state: SubagentState | undefined, id: string): boo
 	return Boolean(remembered && state.currentSessionId && remembered.sessionId === state.currentSessionId);
 }
 
-function exactLiveAsyncToolCallMatch(state: SubagentState | undefined, toolCallId: string, asyncDirRoot: string, resultsDir: string): AsyncRunMatch | undefined {
+function exactLiveAsyncToolCallMatch(
+	state: SubagentState | undefined,
+	toolCallId: string,
+	asyncDirRoot: string,
+	resultsDir: string,
+): AsyncRunMatch | undefined {
 	if (!state?.asyncJobs) return undefined;
 	const matches = [...state.asyncJobs.values()].filter((job) => job.toolCallId === toolCallId);
-	if (matches.length > 1) throw new Error(`Subagent tool-call id '${toolCallId}' is ambiguous across async runs. Use the returned asyncId instead.`);
+	if (matches.length > 1)
+		throw new Error(
+			`Subagent tool-call id '${toolCallId}' is ambiguous across async runs. Use the returned asyncId instead.`,
+		);
 	const match = matches[0];
 	if (!match) return undefined;
 	return {
@@ -138,13 +159,22 @@ function nestedScopeFromState(state: SubagentState | undefined): NestedRunResolu
 	return { routes };
 }
 
-function asyncPrefixMatches(prefix: string, asyncDirRoot: string, resultsDir: string): Array<{ id: string; location: AsyncRunLocation }> {
-	return findAsyncRunPrefixMatches(prefix, asyncDirRoot, resultsDir).filter((match) =>
-		match.location.resultPath || (match.location.asyncDir && fs.existsSync(path.join(match.location.asyncDir, "status.json")))
+function asyncPrefixMatches(
+	prefix: string,
+	asyncDirRoot: string,
+	resultsDir: string,
+): Array<{ id: string; location: AsyncRunLocation }> {
+	return findAsyncRunPrefixMatches(prefix, asyncDirRoot, resultsDir).filter(
+		(match) =>
+			match.location.resultPath ||
+			(match.location.asyncDir && fs.existsSync(path.join(match.location.asyncDir, "status.json"))),
 	);
 }
 
-export function resolveSubagentRunId(id: string, deps: ResolveSubagentRunIdDeps = {}): ResolvedSubagentRunId | undefined {
+export function resolveSubagentRunId(
+	id: string,
+	deps: ResolveSubagentRunIdDeps = {},
+): ResolvedSubagentRunId | undefined {
 	assertSafeNestedId("id", id);
 	const asyncDirRoot = deps.asyncDirRoot ?? DIRS.async;
 	const resultsDir = deps.resultsDir ?? DIRS.results;
@@ -153,15 +183,23 @@ export function resolveSubagentRunId(id: string, deps: ResolveSubagentRunIdDeps 
 	const exactAsync = exactAsyncLocation(id, asyncDirRoot, resultsDir);
 	if (exactAsync) return { kind: "async", id, location: exactAsync };
 	// A live run and a delivered run can share one alias; count both before deciding it is unique.
-	const toolCallMatches = new Map(indexedToolCallIdAsyncLocations(id, asyncDirRoot, resultsDir).map((match) => [match.id, match]));
+	const toolCallMatches = new Map(
+		indexedToolCallIdAsyncLocations(id, asyncDirRoot, resultsDir).map((match) => [match.id, match]),
+	);
 	const exactLiveToolCallMatch = exactLiveAsyncToolCallMatch(deps.state, id, asyncDirRoot, resultsDir);
 	if (exactLiveToolCallMatch) toolCallMatches.set(exactLiveToolCallMatch.id, exactLiveToolCallMatch);
-	if (toolCallMatches.size > 1) throw new Error(`Subagent tool-call id '${id}' is ambiguous across async runs. Use the returned asyncId instead.`);
+	if (toolCallMatches.size > 1)
+		throw new Error(
+			`Subagent tool-call id '${id}' is ambiguous across async runs. Use the returned asyncId instead.`,
+		);
 	const [toolCallMatch] = toolCallMatches.values();
 	if (toolCallMatch) return { kind: "async", id: toolCallMatch.id, location: toolCallMatch.location };
 	const nestedScope = deps.nested ?? nestedScopeFromState(deps.state);
 	const exactNested = findNestedRunMatchesById(id, nestedScope ? { scope: nestedScope } : {});
-	if (exactNested.length > 1) throw new Error(`Nested run id '${id}' is ambiguous across authorized registries. Provide the full id after stale registries are cleaned up.`);
+	if (exactNested.length > 1)
+		throw new Error(
+			`Nested run id '${id}' is ambiguous across authorized registries. Provide the full id after stale registries are cleaned up.`,
+		);
 	if (exactNested[0]) return { kind: "nested", id, match: exactNested[0] };
 
 	const matches: ResolvedSubagentRunId[] = [];
@@ -171,13 +209,18 @@ export function resolveSubagentRunId(id: string, deps: ResolveSubagentRunIdDeps 
 	for (const match of asyncPrefixMatches(id, asyncDirRoot, resultsDir)) {
 		matches.push({ kind: "async", id: match.id, location: match.location });
 	}
-	for (const match of findNestedRunMatchesById(id, nestedScope ? { prefix: true, scope: nestedScope } : { prefix: true })) {
+	for (const match of findNestedRunMatchesById(
+		id,
+		nestedScope ? { prefix: true, scope: nestedScope } : { prefix: true },
+	)) {
 		matches.push({ kind: "nested", id: match.run.id, match });
 	}
 	const unique = new Map(matches.map((match) => [`${match.kind}:${match.id}`, match]));
 	const values = [...unique.values()];
 	if (values.length > 1) {
-		throw new Error(`Ambiguous subagent run id prefix '${id}' matched: ${values.map((match) => `${match.kind}:${match.id}`).join(", ")}. Provide a longer id.`);
+		throw new Error(
+			`Ambiguous subagent run id prefix '${id}' matched: ${values.map((match) => `${match.kind}:${match.id}`).join(", ")}. Provide a longer id.`,
+		);
 	}
 	return values[0];
 }

@@ -26,9 +26,24 @@ function createState(): SubagentState {
 
 function createExecutor(authorityPolicy?: AuthorityPolicyConfig, childSafe = false) {
 	return createSubagentExecutor({
-		pi: { events: { emit() {}, on() { return () => {}; } }, getSessionName() { return "parent"; } } as any,
+		pi: {
+			events: {
+				emit() {},
+				on() {
+					return () => {};
+				},
+			},
+			getSessionName() {
+				return "parent";
+			},
+		} as any,
 		state: createState(),
-		config: { maxSubagentDepth: 2, control: {}, intercomBridge: {}, ...(authorityPolicy ? { authorityPolicy } : {}) } as any,
+		config: {
+			maxSubagentDepth: 2,
+			control: {},
+			intercomBridge: {},
+			...(authorityPolicy ? { authorityPolicy } : {}),
+		} as any,
 		...(childSafe ? { allowMutatingManagementActions: false } : {}),
 		asyncByDefault: false,
 		tempArtifactsDir: os.tmpdir(),
@@ -43,14 +58,39 @@ function ctx(ui?: { confirm: () => Promise<boolean> }) {
 		cwd: os.tmpdir(),
 		hasUI: Boolean(ui),
 		...(ui ? { ui } : {}),
-		sessionManager: { getSessionId() { return "session"; }, getSessionFile() { return null; } },
-		modelRegistry: { getAvailable() { return []; } },
+		sessionManager: {
+			getSessionId() {
+				return "session";
+			},
+			getSessionFile() {
+				return null;
+			},
+		},
+		modelRegistry: {
+			getAvailable() {
+				return [];
+			},
+		},
 	} as any;
 }
 
-async function run(action: string, policy?: AuthorityPolicyConfig, ui?: { confirm: () => Promise<boolean> }, childSafe = false): Promise<{ text: string; isError?: boolean }> {
-	const result = await createExecutor(policy, childSafe).execute(action, { action }, new AbortController().signal, undefined, ctx(ui));
-	return { text: result.content.find((entry) => entry.type === "text")?.text ?? "", ...(result.isError === undefined ? {} : { isError: result.isError }) };
+async function run(
+	action: string,
+	policy?: AuthorityPolicyConfig,
+	ui?: { confirm: () => Promise<boolean> },
+	childSafe = false,
+): Promise<{ text: string; isError?: boolean }> {
+	const result = await createExecutor(policy, childSafe).execute(
+		action,
+		{ action },
+		new AbortController().signal,
+		undefined,
+		ctx(ui),
+	);
+	return {
+		text: result.content.find((entry) => entry.type === "text")?.text ?? "",
+		...(result.isError === undefined ? {} : { isError: result.isError }),
+	};
 }
 
 // `project.open` spawns the Herdr CLI, so point the client at a path that cannot
@@ -76,7 +116,12 @@ describe("inspector and project pane authority policy", () => {
 
 	it("cancels project.open when the operator declines the confirmation", async () => {
 		let asked = 0;
-		const { text } = await run("project.open", undefined, { confirm: async () => { asked += 1; return false; } });
+		const { text } = await run("project.open", undefined, {
+			confirm: async () => {
+				asked += 1;
+				return false;
+			},
+		});
 
 		assert.equal(asked, 1);
 		assert.match(text, /Action 'project\.open' canceled; authority was not granted\./);
@@ -119,7 +164,17 @@ describe("inspector and project pane authority policy", () => {
 
 	it("refuses project.open in child-safe fanout mode without prompting for authority", async () => {
 		let asked = 0;
-		const { text, isError } = await run("project.open", undefined, { confirm: async () => { asked += 1; return true; } }, true);
+		const { text, isError } = await run(
+			"project.open",
+			undefined,
+			{
+				confirm: async () => {
+					asked += 1;
+					return true;
+				},
+			},
+			true,
+		);
 
 		assert.equal(asked, 0);
 		assert.equal(isError, true);
@@ -135,7 +190,17 @@ describe("inspector and project pane authority policy", () => {
 
 	it("refuses schedule.create in child-safe fanout mode without prompting for authority", async () => {
 		let asked = 0;
-		const { text, isError } = await run("schedule.create", { scheduleCreate: "confirm" }, { confirm: async () => { asked += 1; return true; } }, true);
+		const { text, isError } = await run(
+			"schedule.create",
+			{ scheduleCreate: "confirm" },
+			{
+				confirm: async () => {
+					asked += 1;
+					return true;
+				},
+			},
+			true,
+		);
 
 		assert.equal(asked, 0);
 		assert.equal(isError, true);

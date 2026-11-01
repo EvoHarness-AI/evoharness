@@ -12,10 +12,7 @@ export interface ChildModelResolutionDiagnostic {
  * registered it, so these two shapes are the ones that mean "the child's
  * model registry was missing a provider", not "the provider is unhealthy".
  */
-const MODEL_RESOLUTION_FAILURE_PATTERNS = [
-	/^Model .+ not found\b/i,
-	/^Unknown provider "/i,
-];
+const MODEL_RESOLUTION_FAILURE_PATTERNS = [/^Model .+ not found\b/i, /^Unknown provider "/i];
 
 /** True for a core model-resolution failure, which a missing extension can explain. */
 export function isChildModelResolutionFailure(error: string | undefined): boolean {
@@ -53,17 +50,19 @@ export function formatChildModelResolutionDiagnostic(diagnostic: ChildModelResol
 	const subject = diagnostic.agent ? `Agent '${diagnostic.agent}'` : "Subagent";
 	const model = diagnostic.model ? `'${diagnostic.model}'` : "this model";
 	if (capabilityCeilingDeniesExtensions(diagnostic)) {
-		return (diagnostic.host === "parent"
-			? [
-				`${subject} ran as a foreground child, which never loads the parent's ambient extensions.`,
-				`${denyExtensionsClause(diagnostic)}, so if ${model} is served by a provider extension or is an extension-registered virtual model, that extension cannot load for this child: \`async: true\` does not help either, and listed \`subagentOnlyExtensions\` or \`extensions\` entries are suppressed.`,
-				"Relax the capability ceiling to allow extensions, or use a model that the parent's model registry already resolves.",
-			]
-			: [
-				`${subject} ran as a background child without the ambient extensions.`,
-				`${denyExtensionsClause(diagnostic)}, so if ${model} is served by a provider extension or is an extension-registered virtual model, that extension cannot load for this child: listed \`subagentOnlyExtensions\` or \`extensions\` entries are suppressed, and leaving \`extensions\` unset does not enable ambient loading.`,
-				"Relax the capability ceiling to allow extensions, or use a model that the child's model registry already resolves.",
-			]).join("\n");
+		return (
+			diagnostic.host === "parent"
+				? [
+						`${subject} ran as a foreground child, which never loads the parent's ambient extensions.`,
+						`${denyExtensionsClause(diagnostic)}, so if ${model} is served by a provider extension or is an extension-registered virtual model, that extension cannot load for this child: \`async: true\` does not help either, and listed \`subagentOnlyExtensions\` or \`extensions\` entries are suppressed.`,
+						"Relax the capability ceiling to allow extensions, or use a model that the parent's model registry already resolves.",
+					]
+				: [
+						`${subject} ran as a background child without the ambient extensions.`,
+						`${denyExtensionsClause(diagnostic)}, so if ${model} is served by a provider extension or is an extension-registered virtual model, that extension cannot load for this child: listed \`subagentOnlyExtensions\` or \`extensions\` entries are suppressed, and leaving \`extensions\` unset does not enable ambient loading.`,
+						"Relax the capability ceiling to allow extensions, or use a model that the child's model registry already resolves.",
+					]
+		).join("\n");
 	}
 	if (diagnostic.host === "parent") {
 		return [
@@ -85,7 +84,9 @@ export function formatChildModelResolutionDiagnostic(diagnostic: ChildModelResol
  * depends on that extension's session hooks can reject the child's requests.
  * Whether this provider does is unknown here, hence the conditional wording.
  */
-export function formatInheritedProviderDiagnostic(diagnostic: ChildModelResolutionDiagnostic & { provider: string }): string {
+export function formatInheritedProviderDiagnostic(
+	diagnostic: ChildModelResolutionDiagnostic & { provider: string },
+): string {
 	const subject = diagnostic.agent ? `Agent '${diagnostic.agent}'` : "Subagent";
 	const model = diagnostic.model ? `'${diagnostic.model}'` : "this model";
 	const provider = `'${diagnostic.provider}'`;
@@ -111,7 +112,9 @@ export function formatInheritedProviderDiagnostic(diagnostic: ChildModelResoluti
  * rather than the parent's. Whether that caused this failure is unknown here,
  * hence the conditional wording.
  */
-export function formatMissingParentProviderDiagnostic(diagnostic: ChildModelResolutionDiagnostic & { provider: string }): string {
+export function formatMissingParentProviderDiagnostic(
+	diagnostic: ChildModelResolutionDiagnostic & { provider: string },
+): string {
 	const subject = diagnostic.agent ? `Agent '${diagnostic.agent}'` : "Subagent";
 	const model = diagnostic.model ? `'${diagnostic.model}'` : "this model";
 	const provider = `'${diagnostic.provider}'`;

@@ -30,7 +30,8 @@ export interface HerdrPiFrame {
 
 export function encodeHerdrPiFrame(frame: HerdrPiFrame): Buffer {
 	const data = Buffer.from(`${JSON.stringify(frame)}\n`, "utf8");
-	if (data.byteLength > HERDR_PI_MAX_FRAME_BYTES) throw new Error(`Herdr Pi frame exceeds ${HERDR_PI_MAX_FRAME_BYTES} bytes.`);
+	if (data.byteLength > HERDR_PI_MAX_FRAME_BYTES)
+		throw new Error(`Herdr Pi frame exceeds ${HERDR_PI_MAX_FRAME_BYTES} bytes.`);
 	return data;
 }
 
@@ -38,7 +39,8 @@ export class HerdrPiFrameDecoder {
 	#buffer = Buffer.alloc(0);
 	push(chunk: Buffer): HerdrPiFrame[] {
 		this.#buffer = Buffer.concat([this.#buffer, chunk]);
-		if (this.#buffer.byteLength > HERDR_PI_MAX_FRAME_BYTES) throw new Error(`Herdr Pi frame exceeds ${HERDR_PI_MAX_FRAME_BYTES} bytes.`);
+		if (this.#buffer.byteLength > HERDR_PI_MAX_FRAME_BYTES)
+			throw new Error(`Herdr Pi frame exceeds ${HERDR_PI_MAX_FRAME_BYTES} bytes.`);
 		const frames: HerdrPiFrame[] = [];
 		for (;;) {
 			const newline = this.#buffer.indexOf(10);
@@ -46,14 +48,22 @@ export class HerdrPiFrameDecoder {
 			const line = this.#buffer.subarray(0, newline);
 			this.#buffer = this.#buffer.subarray(newline + 1);
 			let value: unknown;
-			try { value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(line)) as unknown; } catch { throw new Error("Herdr Pi bridge emitted malformed JSON or UTF-8."); }
-			if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Herdr Pi bridge frame must be an object.");
+			try {
+				value = JSON.parse(new TextDecoder("utf-8", { fatal: true }).decode(line)) as unknown;
+			} catch {
+				throw new Error("Herdr Pi bridge emitted malformed JSON or UTF-8.");
+			}
+			if (!value || typeof value !== "object" || Array.isArray(value))
+				throw new Error("Herdr Pi bridge frame must be an object.");
 			const frame = value as HerdrPiFrame;
-			if (frame.protocol !== HERDR_PI_PROTOCOL || typeof frame.type !== "string") throw new Error("Herdr Pi bridge protocol mismatch.");
+			if (frame.protocol !== HERDR_PI_PROTOCOL || typeof frame.type !== "string")
+				throw new Error("Herdr Pi bridge protocol mismatch.");
 			validateHerdrPiRunId(frame.runId);
 			frames.push(frame);
 		}
 		return frames;
 	}
-	end(): void { if (this.#buffer.byteLength) throw new Error("Herdr Pi bridge ended with a partial frame."); }
+	end(): void {
+		if (this.#buffer.byteLength) throw new Error("Herdr Pi bridge ended with a partial frame.");
+	}
 }

@@ -52,7 +52,10 @@ export function parseFrontmatterList(raw: string | undefined): string[] | undefi
 		.flatMap((line) => {
 			const value = line.trim();
 			const listItem = value.match(/^-\s+(.+)$/)?.[1];
-			const item = listItem === undefined || /^["']/.test(listItem) ? listItem ?? value : listItem.replace(/(?:^|\s)#.*$/, "");
+			const item =
+				listItem === undefined || /^["']/.test(listItem)
+					? (listItem ?? value)
+					: listItem.replace(/(?:^|\s)#.*$/, "");
 			return item.split(",");
 		})
 		.map((value) => value.trim())
@@ -60,7 +63,10 @@ export function parseFrontmatterList(raw: string | undefined): string[] | undefi
 }
 
 function unquoteName(value: string): string {
-	if (value.length >= 2 && ((value.startsWith("'") && value.endsWith("'")) || (value.startsWith('"') && value.endsWith('"')))) {
+	if (
+		value.length >= 2 &&
+		((value.startsWith("'") && value.endsWith("'")) || (value.startsWith('"') && value.endsWith('"')))
+	) {
 		return value.slice(1, -1);
 	}
 	return value;
@@ -131,9 +137,17 @@ export function parseFrontmatter(content: string): { frontmatter: Record<string,
 			if (key === undefined || rawValueValue === undefined) continue;
 			const rawValue = rawValueValue.trim();
 			const quote = rawValue[0];
-			const nameList = key === "tools" || key === "excludeTools" || key === "mutationTools" || key === "extensions" || key === "subagentOnlyExtensions";
+			const nameList =
+				key === "tools" ||
+				key === "excludeTools" ||
+				key === "mutationTools" ||
+				key === "extensions" ||
+				key === "subagentOnlyExtensions";
 			// `"read", "bash"` starts and ends with a quote, but it is a list. Keep those item quotes for the splitter.
-			const quotedList = nameList && (quote === '"' || quote === "'") && (rawValue.includes(`${quote},`) || rawValue.includes(`, ${quote}`));
+			const quotedList =
+				nameList &&
+				(quote === '"' || quote === "'") &&
+				(rawValue.includes(`${quote},`) || rawValue.includes(`, ${quote}`));
 			const isQuoted = !quotedList && (quote === '"' || quote === "'") && rawValue.endsWith(quote);
 			const value = isQuoted ? rawValue.slice(1, -1) : rawValue;
 			const isFolded = !isQuoted && (rawValue === ">" || rawValue === ">-");
@@ -167,7 +181,10 @@ function flushBlockLines(blockLines: string[], folded: boolean, literal: boolean
 		// Drop exactly-empty edge lines, and every line from the first exactly-empty one after
 		// the last content line, so nested values without inner blank lines parse as before.
 		const end = lines.indexOf("", lines.findLastIndex((line) => line.trim() !== "") + 1);
-		lines = lines.slice(lines.findIndex((line) => line !== ""), end < 0 ? lines.length : end);
+		lines = lines.slice(
+			lines.findIndex((line) => line !== ""),
+			end < 0 ? lines.length : end,
+		);
 	}
 	// Strip the common leading whitespace from the block so the
 	// serializer can add its own indentation level.

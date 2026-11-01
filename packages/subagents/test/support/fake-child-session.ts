@@ -8,11 +8,17 @@
  * fixtures still replay; there is no stdout transport. `stderr` only names the
  * failure a non-zero `exitCode` raises.
  */
+
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { randomUUID } from "node:crypto";
 import type { AgentMessage } from "@evoharness/agent-core";
-import type { ChildSession, ChildSessionEvent, ChildSessionFactory, ChildSessionLaunch } from "../../src/runs/shared/child-session.ts";
+import type {
+	ChildSession,
+	ChildSessionEvent,
+	ChildSessionFactory,
+	ChildSessionLaunch,
+} from "../../src/runs/shared/child-session.ts";
 import { isChildWatchdogStatusEvent } from "../../src/watchdog/child-status.ts";
 
 export interface FakeChildResponse {
@@ -76,7 +82,10 @@ export interface FakeChildSessions {
 
 function listPendingFiles(dir: string): string[] {
 	try {
-		return fs.readdirSync(dir).filter((name) => name.startsWith("pending-") && name.endsWith(".json")).sort();
+		return fs
+			.readdirSync(dir)
+			.filter((name) => name.startsWith("pending-") && name.endsWith(".json"))
+			.sort();
 	} catch {
 		return [];
 	}
@@ -112,7 +121,7 @@ function claimNextResponse(dir: string, haystack: string): FakeChildResponse {
 	for (const withMatcher of [true, false]) {
 		for (const fileName of listPendingFiles(dir)) {
 			const response = readJson(path.join(dir, fileName));
-			if (!response || Object.prototype.hasOwnProperty.call(response, "matchArgIncludes") !== withMatcher) continue;
+			if (!response || Object.hasOwn(response, "matchArgIncludes") !== withMatcher) continue;
 			if (!responseMatches(response, haystack)) continue;
 			const claimed = claimResponse(dir, fileName);
 			if (claimed) return claimed;
@@ -218,7 +227,15 @@ export function createFakeChildSessions(queueDir: () => string): FakeChildSessio
 	let disposeCalls = 0;
 	const factory: ChildSessionFactory = {
 		async create(launch) {
-			const record: FakeChildSessionRecord = { launch, task: undefined, steers: [], aborted: false, disposed: false, settled: false, scriptedFinalEmitted: false };
+			const record: FakeChildSessionRecord = {
+				launch,
+				task: undefined,
+				steers: [],
+				aborted: false,
+				disposed: false,
+				settled: false,
+				scriptedFinalEmitted: false,
+			};
 			sessions.push(record);
 			const listeners = new Set<(event: ChildSessionEvent) => void>();
 			const messages: AgentMessage[] = [];
@@ -227,7 +244,9 @@ export function createFakeChildSessions(queueDir: () => string): FakeChildSessio
 			let boundaryOpen = false;
 			const model = reportedModel(launch.model);
 			let abortResolve: (() => void) | undefined;
-			const abortedPromise = new Promise<void>((resolve) => { abortResolve = resolve; });
+			const abortedPromise = new Promise<void>((resolve) => {
+				abortResolve = resolve;
+			});
 			const sessionId = randomUUID();
 			let sessionFile: string | undefined;
 			if (launch.storage.kind === "file") {
@@ -241,7 +260,11 @@ export function createFakeChildSessions(queueDir: () => string): FakeChildSessio
 			/** Steers are also appended to `steers.jsonl` in the queue dir so a test can observe a child hosted in another process. */
 			const recordSteer = (text: string, mode: "steer" | "followUp"): void => {
 				try {
-					fs.appendFileSync(path.join(queueDir(), "steers.jsonl"), `${JSON.stringify({ sessionId, text, mode })}\n`, "utf-8");
+					fs.appendFileSync(
+						path.join(queueDir(), "steers.jsonl"),
+						`${JSON.stringify({ sessionId, text, mode })}\n`,
+						"utf-8",
+					);
 				} catch {
 					// Observability for tests only.
 				}
@@ -251,10 +274,14 @@ export function createFakeChildSessions(queueDir: () => string): FakeChildSessio
 			};
 			const recordQueuedState = (): void => {
 				try {
-					fs.writeFileSync(path.join(queueDir(), "queued-messages.json"), `${JSON.stringify({
-						count: queued.length,
-						modes: queued.map((item) => item.mode),
-					})}\n`, "utf-8");
+					fs.writeFileSync(
+						path.join(queueDir(), "queued-messages.json"),
+						`${JSON.stringify({
+							count: queued.length,
+							modes: queued.map((item) => item.mode),
+						})}\n`,
+						"utf-8",
+					);
 				} catch {
 					// Observability for tests only.
 				}
@@ -269,12 +296,18 @@ export function createFakeChildSessions(queueDir: () => string): FakeChildSessio
 			};
 			const waitForQueuedMessage = (): Promise<void> => {
 				if (queued.length > 0 || record.aborted) return Promise.resolve();
-				return new Promise((resolve) => { queuedWaiters.push(resolve); });
+				return new Promise((resolve) => {
+					queuedWaiters.push(resolve);
+				});
 			};
 			const markScriptedFinal = (): void => {
 				record.scriptedFinalEmitted = true;
 				try {
-					fs.appendFileSync(path.join(queueDir(), "scripted-final.jsonl"), `${JSON.stringify({ sessionId })}\n`, "utf-8");
+					fs.appendFileSync(
+						path.join(queueDir(), "scripted-final.jsonl"),
+						`${JSON.stringify({ sessionId })}\n`,
+						"utf-8",
+					);
 				} catch {
 					// Observability for tests only.
 				}
@@ -309,14 +342,31 @@ export function createFakeChildSessions(queueDir: () => string): FakeChildSessio
 			const emitEntries = async (entries: unknown[], task: string, injectAcceptance = true): Promise<void> => {
 				for (const entry of entries) {
 					if (record.aborted) return;
-					const typed = entry as { type?: string; message?: { role?: string; content?: Array<{ type?: string; text?: string }>; errorMessage?: string; stopReason?: string } };
+					const typed = entry as {
+						type?: string;
+						message?: {
+							role?: string;
+							content?: Array<{ type?: string; text?: string }>;
+							errorMessage?: string;
+							stopReason?: string;
+						};
+					};
 					// Only the child's own replies carry its acceptance report; tool results are returned verbatim.
 					if (typed?.type === "message_end" && typed.message?.role !== "toolResult" && injectAcceptance) {
 						const textPart = typed.message?.content?.find?.((part) => part?.type === "text");
 						const providerError = Boolean(typed.message?.errorMessage || typed.message?.stopReason === "error");
 						if (providerError) sawProviderError = true;
 						// Native acceptance lives in system resources, not the compactable task.
-						if (!providerError && textPart && typeof textPart.text === "string" && (!sawProviderError || textPart.text.trim())) textPart.text = withAcceptanceReport(textPart.text, [launch.systemPrompt, launch.appendSystemPrompt, task].join("\n"));
+						if (
+							!providerError &&
+							textPart &&
+							typeof textPart.text === "string" &&
+							(!sawProviderError || textPart.text.trim())
+						)
+							textPart.text = withAcceptanceReport(
+								textPart.text,
+								[launch.systemPrompt, launch.appendSystemPrompt, task].join("\n"),
+							);
 					}
 					// A real child's watchdog hook reports through the host's sink, not the session stream.
 					if (isChildWatchdogStatusEvent(entry)) launch.runtime.watchdogStatus?.(entry);
@@ -345,13 +395,15 @@ export function createFakeChildSessions(queueDir: () => string): FakeChildSessio
 					fs.mkdirSync(path.dirname(target), { recursive: true });
 					fs.writeFileSync(target, file.content, "utf-8");
 				}
-				if (Object.prototype.hasOwnProperty.call(response, "structuredOutputCapture")) {
+				if (Object.hasOwn(response, "structuredOutputCapture")) {
 					launch.runtime.structuredOutput?.capture(
 						response.structuredOutputCapture,
-						Object.prototype.hasOwnProperty.call(response, "structuredOutputAcceptanceReport") ? response.structuredOutputAcceptanceReport : undefined,
+						Object.hasOwn(response, "structuredOutputAcceptanceReport")
+							? response.structuredOutputAcceptanceReport
+							: undefined,
 					);
 				}
-				if (Object.prototype.hasOwnProperty.call(response, "runtimeAcknowledgedExtensions")) {
+				if (Object.hasOwn(response, "runtimeAcknowledgedExtensions")) {
 					const raw = response.runtimeAcknowledgedExtensions as { ids?: unknown } | unknown[];
 					const ids = Array.isArray(raw) ? raw : Array.isArray(raw?.ids) ? raw.ids : [];
 					launch.runtime.runtimeAcknowledgements?.(ids.filter((id): id is string => typeof id === "string"));
@@ -394,15 +446,37 @@ export function createFakeChildSessions(queueDir: () => string): FakeChildSessio
 				} else if (response.stdoutRaw !== undefined) {
 					await emitEntries(parseRawStdout(response), task, false);
 				} else if (Array.isArray(response.echoEnv) && response.echoEnv.length > 0) {
-					await emitEntries([defaultAssistantMessage(JSON.stringify(Object.fromEntries(response.echoEnv.map((key) => [key, null]))), reportedModel(response.reportedModel) ?? model)], task);
+					await emitEntries(
+						[
+							defaultAssistantMessage(
+								JSON.stringify(Object.fromEntries(response.echoEnv.map((key) => [key, null]))),
+								reportedModel(response.reportedModel) ?? model,
+							),
+						],
+						task,
+					);
 				} else if (typeof response.output === "string") {
-					await emitEntries([defaultAssistantMessage(response.output, reportedModel(response.reportedModel) ?? model)], task);
+					await emitEntries(
+						[defaultAssistantMessage(response.output, reportedModel(response.reportedModel) ?? model)],
+						task,
+					);
 				}
-				if (Object.prototype.hasOwnProperty.call(response, "structuredOutput")) {
+				if (Object.hasOwn(response, "structuredOutput")) {
 					launch.runtime.structuredOutput?.capture(response.structuredOutput, undefined);
-					emit({ type: "tool_execution_start", toolName: "structured_output", args: { value: response.structuredOutput } });
+					emit({
+						type: "tool_execution_start",
+						toolName: "structured_output",
+						args: { value: response.structuredOutput },
+					});
 					emit({ type: "tool_execution_end", toolName: "structured_output" });
-					emit({ type: "message_end", message: { role: "toolResult", toolName: "structured_output", content: [{ type: "text", text: "Structured output captured." }] } });
+					emit({
+						type: "message_end",
+						message: {
+							role: "toolResult",
+							toolName: "structured_output",
+							content: [{ type: "text", text: "Structured output captured." }],
+						},
+					});
 				}
 				if (record.aborted) return;
 				if (!response.omitImplicitFinalEvents) {
@@ -421,9 +495,10 @@ export function createFakeChildSessions(queueDir: () => string): FakeChildSessio
 					}
 					return;
 				}
-				const keepAliveMs = typeof response.keepAliveAfterFinalMessageMs === "number" && response.keepAliveAfterFinalMessageMs > 0
-					? response.keepAliveAfterFinalMessageMs
-					: 0;
+				const keepAliveMs =
+					typeof response.keepAliveAfterFinalMessageMs === "number" && response.keepAliveAfterFinalMessageMs > 0
+						? response.keepAliveAfterFinalMessageMs
+						: 0;
 				if (!record.aborted && queued.length === 0 && (keepAliveMs > 0 || response.hangUntilAbort)) {
 					await Promise.race([
 						...(keepAliveMs > 0 ? [sleep(keepAliveMs, abortedPromise)] : []),
@@ -433,7 +508,12 @@ export function createFakeChildSessions(queueDir: () => string): FakeChildSessio
 				}
 				const coalesceDeadline = Date.now() + 200;
 				let lastQueued = -1;
-				while (!record.aborted && queued.length > 0 && queued.length !== lastQueued && Date.now() < coalesceDeadline) {
+				while (
+					!record.aborted &&
+					queued.length > 0 &&
+					queued.length !== lastQueued &&
+					Date.now() < coalesceDeadline
+				) {
 					lastQueued = queued.length;
 					await sleep(20, abortedPromise);
 				}
@@ -456,34 +536,50 @@ export function createFakeChildSessions(queueDir: () => string): FakeChildSessio
 					const response = claimNextResponse(queueDir(), `${args.join("\n")}\n${systemPrompt}`);
 					const dir = queueDir();
 					fs.mkdirSync(dir, { recursive: true });
-					const callPath = path.join(dir, `call-${Date.now()}-${process.pid}-${Math.random().toString(16).slice(2)}.json`);
-					fs.writeFileSync(callPath, JSON.stringify({
-						args,
-						effectiveArgs: args,
-						cwd: launch.cwd,
-						systemPrompts: launch.systemPrompt !== undefined
-							? [{ mode: "--system-prompt", text: launch.systemPrompt }]
-							: launch.appendSystemPrompt !== undefined
-								? [{ mode: "--append-system-prompt", text: launch.appendSystemPrompt }]
-								: [],
-						requiredChildTools: launch.runtime.requiredTools ?? [],
-						launch: {
+					const callPath = path.join(
+						dir,
+						`call-${Date.now()}-${process.pid}-${Math.random().toString(16).slice(2)}.json`,
+					);
+					fs.writeFileSync(
+						callPath,
+						JSON.stringify({
+							args,
+							effectiveArgs: args,
 							cwd: launch.cwd,
-							storage: launch.storage,
-							model: launch.model,
-							tools: launch.tools,
-							builtinMcpTools: launch.builtinMcpTools,
-							excludeTools: launch.excludeTools,
-							extensionPaths: launch.extensionPaths,
-							ambientExtensions: launch.ambientExtensions,
-							hooks: launch.hooks.map((hook) => hook.name),
-							noSkills: launch.noSkills,
-							noContextFiles: launch.noContextFiles,
-							processEnv: launch.processEnv,
-							projectTrusted: launch.projectTrusted,
-						},
-						runtime: { ...launch.runtime, structuredOutput: launch.runtime.structuredOutput ? { schema: launch.runtime.structuredOutput.schema, acceptanceReport: launch.runtime.structuredOutput.acceptanceReport } : undefined },
-					}), "utf-8");
+							systemPrompts:
+								launch.systemPrompt !== undefined
+									? [{ mode: "--system-prompt", text: launch.systemPrompt }]
+									: launch.appendSystemPrompt !== undefined
+										? [{ mode: "--append-system-prompt", text: launch.appendSystemPrompt }]
+										: [],
+							requiredChildTools: launch.runtime.requiredTools ?? [],
+							launch: {
+								cwd: launch.cwd,
+								storage: launch.storage,
+								model: launch.model,
+								tools: launch.tools,
+								builtinMcpTools: launch.builtinMcpTools,
+								excludeTools: launch.excludeTools,
+								extensionPaths: launch.extensionPaths,
+								ambientExtensions: launch.ambientExtensions,
+								hooks: launch.hooks.map((hook) => hook.name),
+								noSkills: launch.noSkills,
+								noContextFiles: launch.noContextFiles,
+								processEnv: launch.processEnv,
+								projectTrusted: launch.projectTrusted,
+							},
+							runtime: {
+								...launch.runtime,
+								structuredOutput: launch.runtime.structuredOutput
+									? {
+											schema: launch.runtime.structuredOutput.schema,
+											acceptanceReport: launch.runtime.structuredOutput.acceptanceReport,
+										}
+									: undefined,
+							},
+						}),
+						"utf-8",
+					);
 					if (response.createError) throw new Error(response.createError);
 					try {
 						await runScript(response, text);
@@ -508,10 +604,18 @@ export function createFakeChildSessions(queueDir: () => string): FakeChildSessio
 				async dispose() {
 					record.disposed = true;
 				},
-				get messages() { return messages; },
-				get sessionFile() { return sessionFile; },
-				get sessionId() { return sessionId; },
-				get modelId() { return model; },
+				get messages() {
+					return messages;
+				},
+				get sessionFile() {
+					return sessionFile;
+				},
+				get sessionId() {
+					return sessionId;
+				},
+				get modelId() {
+					return model;
+				},
 			};
 			record.session = session;
 			return session;
@@ -530,7 +634,11 @@ export function createFakeChildSessions(queueDir: () => string): FakeChildSessio
 	return {
 		sessions,
 		factory,
-		get disposeCalls() { return disposeCalls; },
-		reset() { sessions.length = 0; },
+		get disposeCalls() {
+			return disposeCalls;
+		},
+		reset() {
+			sessions.length = 0;
+		},
 	};
 }

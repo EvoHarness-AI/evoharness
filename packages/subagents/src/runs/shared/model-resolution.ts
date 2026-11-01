@@ -1,6 +1,15 @@
-import { splitKnownThinkingSuffix as splitThinkingSuffix, type ModelInfo as AvailableModelInfo } from "../../shared/model-info.ts";
-import { checkModelScope, SCOPED_PATTERN, type ModelScopeCheckRule, type ModelScopeViolation, type ModelSource } from "./model-scope.ts";
 import { editDistance } from "../../shared/edit-distance.ts";
+import {
+	type ModelInfo as AvailableModelInfo,
+	splitKnownThinkingSuffix as splitThinkingSuffix,
+} from "../../shared/model-info.ts";
+import {
+	checkModelScope,
+	type ModelScopeCheckRule,
+	type ModelScopeViolation,
+	type ModelSource,
+	SCOPED_PATTERN,
+} from "./model-scope.ts";
 
 export type { AvailableModelInfo };
 
@@ -26,10 +35,16 @@ export function formatSubagentModelVerificationError(
 	if (!availableModels || availableModels.length === 0) return undefined;
 	const expectedBase = splitThinkingSuffix(expectedModel).baseModel;
 	if (observedVirtualModel !== undefined) {
-		return observedVirtualModel === expectedBase ? undefined : `model_verification_failed: native Pi child selected virtual model '${observedVirtualModel}', but the launch candidate was '${expectedModel}'. modelResponseAliases does not apply to a virtual-model selection.`;
+		return observedVirtualModel === expectedBase
+			? undefined
+			: `model_verification_failed: native Pi child selected virtual model '${observedVirtualModel}', but the launch candidate was '${expectedModel}'. modelResponseAliases does not apply to a virtual-model selection.`;
 	}
-	if (modelResponseAliases && Object.hasOwn(modelResponseAliases, expectedBase)
-		&& modelResponseAliases[expectedBase]?.includes(observedModel)) return undefined;
+	if (
+		modelResponseAliases &&
+		Object.hasOwn(modelResponseAliases, expectedBase) &&
+		modelResponseAliases[expectedBase]?.includes(observedModel)
+	)
+		return undefined;
 	const observedBase = splitThinkingSuffix(observedModel).baseModel;
 	if (expectedBase === observedBase) return undefined;
 	const expectedEntry = availableModels.find((entry) => entry.fullId === expectedBase);
@@ -82,11 +97,7 @@ export function scopedModelIdsFromContext(ctx: { scopedModels?: ReadonlyArray<{ 
  * repeated separators.
  */
 export function normalizeModelSegment(segment: string): string {
-	return segment
-		.toLowerCase()
-		.replace(/[._]+/g, "-")
-		.replace(/-+/g, "-")
-		.replace(/^-|-$/g, "");
+	return segment.toLowerCase().replace(/[._]+/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
 }
 
 function isPlausibleDateStamp(year: string, month: string, day: string): boolean {
@@ -170,7 +181,9 @@ function resolveBaseModelCandidate(
 	if (fuzzy || queryProvider === undefined) return fuzzy;
 	// Some catalogs (OpenRouter's `openrouter/auto-beta`) repeat the provider inside the id.
 	const queryId = normalizeModelSegment(baseModel);
-	const prefixedIdMatches = availableModels.filter((entry) => normalizeModelSegment(entry.id) === queryId && normalizeModelSegment(entry.provider) === queryProvider);
+	const prefixedIdMatches = availableModels.filter(
+		(entry) => normalizeModelSegment(entry.id) === queryId && normalizeModelSegment(entry.provider) === queryProvider,
+	);
 	return prefixedIdMatches.length === 1 ? prefixedIdMatches[0]!.fullId : undefined;
 }
 
@@ -244,7 +257,9 @@ function resolveSubagentModelCandidate(
 	const resolvedWhole = resolveBaseModelCandidate(model, availableModels, preferredProvider);
 	if (resolvedWhole) return resolvedWhole;
 	const { baseModel, thinkingSuffix } = splitThinkingSuffix(model);
-	const resolvedBase = thinkingSuffix ? resolveBaseModelCandidate(baseModel, availableModels, preferredProvider) : undefined;
+	const resolvedBase = thinkingSuffix
+		? resolveBaseModelCandidate(baseModel, availableModels, preferredProvider)
+		: undefined;
 	return resolvedBase ? `${resolvedBase}${thinkingSuffix}` : undefined;
 }
 
@@ -285,7 +300,13 @@ function closestModelCandidates(model: string, availableModels: AvailableModelIn
 			};
 		})
 		.filter((entry) => entry.sameId || entry.close)
-		.sort((left, right) => Number(right.sameId) - Number(left.sameId) || left.distance - right.distance || Number(right.sameProvider) - Number(left.sameProvider) || left.fullId.localeCompare(right.fullId))
+		.sort(
+			(left, right) =>
+				Number(right.sameId) - Number(left.sameId) ||
+				left.distance - right.distance ||
+				Number(right.sameProvider) - Number(left.sameProvider) ||
+				left.fullId.localeCompare(right.fullId),
+		)
 		.slice(0, MAX_MODEL_CANDIDATES)
 		.map((entry) => `${entry.fullId}${thinkingSuffix}`);
 }
@@ -321,15 +342,23 @@ function configuredScopes(scope: ModelScopeCheckRule | ModelScopeCheckRule[] | u
 	return scope ? (Array.isArray(scope) ? scope : [scope]) : [];
 }
 
-function throwForUnresolvedEnforcedReservedScope(scope: ModelScopeCheckRule | ModelScopeCheckRule[] | undefined, includeMixed = false): void {
-	const unresolvedReservedScope = configuredScopes(scope)
-		.find((entry) => entry.enforce === true && (includeMixed
-			? entry.allow?.some((pattern) => pattern === INHERIT_MODEL || pattern === SCOPED_PATTERN)
-			: entry.allow?.length === 1 && (entry.allow[0] === INHERIT_MODEL || entry.allow[0] === SCOPED_PATTERN)));
+function throwForUnresolvedEnforcedReservedScope(
+	scope: ModelScopeCheckRule | ModelScopeCheckRule[] | undefined,
+	includeMixed = false,
+): void {
+	const unresolvedReservedScope = configuredScopes(scope).find(
+		(entry) =>
+			entry.enforce === true &&
+			(includeMixed
+				? entry.allow?.some((pattern) => pattern === INHERIT_MODEL || pattern === SCOPED_PATTERN)
+				: entry.allow?.length === 1 && (entry.allow[0] === INHERIT_MODEL || entry.allow[0] === SCOPED_PATTERN)),
+	);
 	if (!unresolvedReservedScope) return;
 	const origin = unresolvedReservedScope.origin ?? "modelScope";
 	const token = unresolvedReservedScope.allow?.includes(INHERIT_MODEL) ? INHERIT_MODEL : SCOPED_PATTERN;
-	throw new Error(`Cannot enforce subagent model scope (${origin}): '${token}' requires a current parent session model.`);
+	throw new Error(
+		`Cannot enforce subagent model scope (${origin}): '${token}' requires a current parent session model.`,
+	);
 }
 
 function enforceModelScopes(
@@ -373,7 +402,11 @@ export function resolveSubagentModelOverride(
 ): string | undefined {
 	const trimmed = typeof requestedModel === "string" ? requestedModel.trim() : "";
 	const explicit = trimmed && trimmed !== INHERIT_MODEL ? trimmed : undefined;
-	if (!parentModel) throwForUnresolvedEnforcedReservedScope(options?.scope, explicit === undefined || options?.source === "inherited");
+	if (!parentModel)
+		throwForUnresolvedEnforcedReservedScope(
+			options?.scope,
+			explicit === undefined || options?.source === "inherited",
+		);
 	let resolved: string | undefined;
 	let resolvedFromRegistry = explicit === undefined;
 	if (explicit === undefined) {
@@ -414,13 +447,10 @@ export function resolveEffectiveSubagentModel(
 		{ ...options, source },
 	);
 	if (resolved || explicitModel === undefined) return resolved;
-	return resolveSubagentModelOverride(
-		agentModel,
-		parentModel,
-		availableModels,
-		preferredProvider,
-		{ ...options, source: options?.source ?? "inherited" },
-	);
+	return resolveSubagentModelOverride(agentModel, parentModel, availableModels, preferredProvider, {
+		...options,
+		source: options?.source ?? "inherited",
+	});
 }
 
 export type ModelOrigin = ModelSource | "configured";
@@ -473,9 +503,12 @@ export function resolveModelSelection(
 		enforceModelScopes(normalized, scopes, "explicit", options?.onWarn);
 		model = normalized;
 	}
-	const resolved = model && (origin === "inherited" || origin === "explicit" || options?.primaryModelFromParent)
-		? model.trim()
-		: model ? resolveRequiredSubagentModelCandidate(model.trim(), availableModels, preferredProvider) : undefined;
+	const resolved =
+		model && (origin === "inherited" || origin === "explicit" || options?.primaryModelFromParent)
+			? model.trim()
+			: model
+				? resolveRequiredSubagentModelCandidate(model.trim(), availableModels, preferredProvider)
+				: undefined;
 	if (resolved && scopes.some((scope) => scope.enforce === true && scope.strict === true)) {
 		enforceModelScopes(resolved, scopes, "inherited", options?.onWarn);
 	}

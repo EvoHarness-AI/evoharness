@@ -11,11 +11,17 @@ function createHarness(items: Array<{ value: string; label: string; current?: bo
 	const component = new SelectorComponent(
 		{ requestRender() {} } as never,
 		{
-			fg(_color: string, text: string) { return text; },
-			bold(text: string) { return text; },
+			fg(_color: string, text: string) {
+				return text;
+			},
+			bold(text: string) {
+				return text;
+			},
 		} as never,
 		{
-			matches(key: string, binding: string) { return key === binding; },
+			matches(key: string, binding: string) {
+				return key === binding;
+			},
 		} as never,
 		{ title: "Select item", items, done: (result) => results.push(result) },
 	);
@@ -49,9 +55,6 @@ describe("SelectorComponent", () => {
 		component.handleInput("tui.select.confirm");
 		component.handleInput("tui.select.cancel");
 
-		assert.deepEqual(results, [
-			{ confirmed: true, value: "openai/gpt" },
-			{ confirmed: false },
-		]);
+		assert.deepEqual(results, [{ confirmed: true, value: "openai/gpt" }, { confirmed: false }]);
 	});
 });

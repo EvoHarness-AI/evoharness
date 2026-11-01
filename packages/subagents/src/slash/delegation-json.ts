@@ -48,7 +48,12 @@ export function cloneJsonWithinByteLimit(input: unknown, maxBytes: number): Boun
 			if (Array.isArray(object)) {
 				if (prototype !== Array.prototype) throw new TypeError("invalid");
 				const lengthDescriptor = Object.getOwnPropertyDescriptor(object, "length");
-				if (!lengthDescriptor || !("value" in lengthDescriptor) || !Number.isSafeInteger(lengthDescriptor.value) || lengthDescriptor.value < 0) {
+				if (
+					!lengthDescriptor ||
+					!("value" in lengthDescriptor) ||
+					!Number.isSafeInteger(lengthDescriptor.value) ||
+					lengthDescriptor.value < 0
+				) {
 					throw new TypeError("invalid");
 				}
 				const length = lengthDescriptor.value as number;

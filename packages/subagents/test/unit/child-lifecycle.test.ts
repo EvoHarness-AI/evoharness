@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { projectChildLifecycle, type ChildLifecycleState } from "../../src/runs/shared/child-lifecycle.ts";
+import { type ChildLifecycleState, projectChildLifecycle } from "../../src/runs/shared/child-lifecycle.ts";
 
 describe("child lifecycle final drain", () => {
 	for (const type of ["turn_start", "agent_start", "auto_retry_start"]) {

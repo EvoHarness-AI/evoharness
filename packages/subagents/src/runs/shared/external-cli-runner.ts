@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
+import { type ChildProcessWithoutNullStreams, spawn } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { finished } from "node:stream/promises";
@@ -7,15 +7,15 @@ import type { ExternalProcessStatus, ProcessTreeTerminal } from "../../shared/ty
 import { SUBAGENT_STOPPED_MESSAGE, SUBAGENT_TIMED_OUT_MESSAGE } from "../../shared/utils.ts";
 import { createOwnedProcessTreeController, type OwnedProcessTreeController } from "../background/owned-process-tree.ts";
 import { omitExtensionBindingsEnv } from "./extension-bindings.ts";
-import { omitGitRoutingEnv } from "./git-environment.ts";
 import {
-	invalidateExternalCliPreflight,
-	preflightExternalCli,
-	resolveExternalCliSpawn,
 	type ExternalCliPreflightResult,
 	type ExternalCliPreflightSpec,
 	type ExternalCliSpawn,
+	invalidateExternalCliPreflight,
+	preflightExternalCli,
+	resolveExternalCliSpawn,
 } from "./external-cli-preflight.ts";
+import { omitGitRoutingEnv } from "./git-environment.ts";
 
 const MAX_OUTPUT_TAIL_BYTES = 64 * 1024;
 const MAX_ERROR_TAIL_BYTES = 64 * 1024;
@@ -50,16 +50,22 @@ export interface ExternalCliParser {
 	finish(): ExternalCliParserTerminal | undefined;
 }
 
-export function parseExternalCliJsonlEvent(line: string, label: string, maxTypeLength: number): Record<string, unknown> {
+export function parseExternalCliJsonlEvent(
+	line: string,
+	label: string,
+	maxTypeLength: number,
+): Record<string, unknown> {
 	let value: unknown;
 	try {
 		value = JSON.parse(line) as unknown;
 	} catch (error) {
 		throw new Error(`${label} emitted malformed JSONL: ${error instanceof Error ? error.message : String(error)}`);
 	}
-	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`${label} emitted a JSONL event that is not an object.`);
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw new Error(`${label} emitted a JSONL event that is not an object.`);
 	const event = value as Record<string, unknown>;
-	if (typeof event.type !== "string" || !event.type || event.type.length > maxTypeLength) throw new Error(`${label} emitted a JSONL event with an invalid type.`);
+	if (typeof event.type !== "string" || !event.type || event.type.length > maxTypeLength)
+		throw new Error(`${label} emitted a JSONL event with an invalid type.`);
 	return event;
 }
 
@@ -85,21 +91,29 @@ interface StreamLimits {
 
 function narrowLimit(value: number | undefined, ceiling: number, label: string): number {
 	if (value === undefined) return ceiling;
-	assert(Number.isInteger(value) && value > 0 && value <= ceiling, `${label} may only narrow the code-owned ${ceiling}-byte limit.`);
+	assert(
+		Number.isInteger(value) && value > 0 && value <= ceiling,
+		`${label} may only narrow the code-owned ${ceiling}-byte limit.`,
+	);
 	return value;
 }
 
-function externalEnvironment(allowlist: readonly string[] | undefined, values: Readonly<Record<string, string>> | undefined): NodeJS.ProcessEnv {
+function externalEnvironment(
+	allowlist: readonly string[] | undefined,
+	values: Readonly<Record<string, string>> | undefined,
+): NodeJS.ProcessEnv {
 	// An adapter allowlist is a deliberate choice, so only the inherited default is filtered.
 	if (!allowlist) return omitGitRoutingEnv(omitExtensionBindingsEnv(process.env));
 	const allowed = new Set(allowlist);
 	const env: NodeJS.ProcessEnv = {};
 	for (const key of allowed) {
-		if (!key || key.includes("=") || key.includes("\0")) throw new Error(`Invalid external CLI environment key: ${JSON.stringify(key)}.`);
+		if (!key || key.includes("=") || key.includes("\0"))
+			throw new Error(`Invalid external CLI environment key: ${JSON.stringify(key)}.`);
 		if (process.env[key] !== undefined) env[key] = process.env[key];
 	}
 	for (const [key, value] of Object.entries(values ?? {})) {
-		if (!allowed.has(key)) throw new Error(`External CLI environment value '${key}' is not in the adapter allowlist.`);
+		if (!allowed.has(key))
+			throw new Error(`External CLI environment value '${key}' is not in the adapter allowlist.`);
 		env[key] = value;
 	}
 	return omitExtensionBindingsEnv(env);
@@ -128,7 +142,13 @@ function createByteTail(maxBytes: number): { push(chunk: Buffer): void; text(): 
 	};
 }
 
-function writeBoundedLog(source: NodeJS.ReadableStream, stream: fs.WriteStream, chunk: Buffer, state: { bytes: number; total: number }, limit: number): void {
+function writeBoundedLog(
+	source: NodeJS.ReadableStream,
+	stream: fs.WriteStream,
+	chunk: Buffer,
+	state: { bytes: number; total: number },
+	limit: number,
+): void {
 	state.total += chunk.length;
 	const remaining = limit - state.bytes;
 	if (remaining <= 0) return;
@@ -146,12 +166,19 @@ function classifyInvalidation(error: string): "auth" | "permission" | "launch" {
 	return "launch";
 }
 
-function terminateExternalProcessTree(pid: number, controller: OwnedProcessTreeController): Promise<ProcessTreeTerminal> {
+function terminateExternalProcessTree(
+	pid: number,
+	controller: OwnedProcessTreeController,
+): Promise<ProcessTreeTerminal> {
 	if (process.platform !== "win32") return controller.terminate();
 	return new Promise((resolve) => {
 		const cleanup = spawn("taskkill", ["/PID", String(pid), "/T", "/F"], { stdio: "ignore", windowsHide: true });
-		cleanup.once("error", () => { void controller.terminate().then(resolve); });
-		cleanup.once("close", () => { void controller.terminate().then(resolve); });
+		cleanup.once("error", () => {
+			void controller.terminate().then(resolve);
+		});
+		cleanup.once("close", () => {
+			void controller.terminate().then(resolve);
+		});
 	});
 }
 
@@ -210,22 +237,45 @@ export function runExternalCli(input: {
 			if (input.promptFilePath) {
 				const promptDescriptor = fs.openSync(input.promptFilePath, "wx", 0o600);
 				promptFileCreated = true;
-				try { fs.writeFileSync(promptDescriptor, input.prompt, { encoding: "utf-8" }); }
-				finally { fs.closeSync(promptDescriptor); }
+				try {
+					fs.writeFileSync(promptDescriptor, input.prompt, { encoding: "utf-8" });
+				} finally {
+					fs.closeSync(promptDescriptor);
+				}
 			}
 			if (input.preflight) preflight = preflightExternalCli(input.command, input.preflight, env, input.cwd);
 			launch = resolveExternalCliSpawn(preflight?.binaryPath ?? input.command, input.args ?? [], env);
 		} catch (error) {
 			const endedAt = Date.now();
-			const externalProcess = { startedAt, endedAt, durationMs: endedAt - startedAt, exitCode: 1, processSignal: null, stdoutPath, stderrPath, ...(input.finalOutputPath ? { finalOutputPath: input.finalOutputPath } : {}) } satisfies ExternalProcessStatus;
+			const externalProcess = {
+				startedAt,
+				endedAt,
+				durationMs: endedAt - startedAt,
+				exitCode: 1,
+				processSignal: null,
+				stdoutPath,
+				stderrPath,
+				...(input.finalOutputPath ? { finalOutputPath: input.finalOutputPath } : {}),
+			} satisfies ExternalProcessStatus;
 			stdoutStream.end();
 			stderrStream.end();
 			void streamsFinished.then((streamResults) => {
-				try { cleanupTemporaryPaths(); }
-				catch (cleanupError) { reject(cleanupError); return; }
+				try {
+					cleanupTemporaryPaths();
+				} catch (cleanupError) {
+					reject(cleanupError);
+					return;
+				}
 				const streamFailure = streamResults.find((streamResult) => streamResult.status === "rejected");
 				if (streamFailure?.status === "rejected") reject(streamFailure.reason);
-				else resolve({ output: "", exitCode: 1, error: error instanceof Error ? error.message : String(error), processSignal: null, externalProcess });
+				else
+					resolve({
+						output: "",
+						exitCode: 1,
+						error: error instanceof Error ? error.message : String(error),
+						processSignal: null,
+						externalProcess,
+					});
 			});
 			return;
 		}
@@ -253,7 +303,12 @@ export function runExternalCli(input: {
 			latestProgress = undefined;
 		};
 		const reportProgress = (progress: ExternalCliParserProgress) => {
-			if (!progress.phase || progress.phase.length > 64 || !Number.isSafeInteger(progress.eventCount) || progress.eventCount < 0) {
+			if (
+				!progress.phase ||
+				progress.phase.length > 64 ||
+				!Number.isSafeInteger(progress.eventCount) ||
+				progress.eventCount < 0
+			) {
 				failParser(new Error("External CLI parser returned invalid progress metadata."));
 				return;
 			}
@@ -269,34 +324,46 @@ export function runExternalCli(input: {
 			if (settled || timedOut || stopped || parserError) return;
 			timedOut = reason === "timeout";
 			stopped = reason === "stop";
-			if (processTree && processPid !== undefined) termination = terminateExternalProcessTree(processPid, processTree);
+			if (processTree && processPid !== undefined)
+				termination = terminateExternalProcessTree(processPid, processTree);
 		};
 		const failParser = (error: unknown) => {
 			if (parserError) return;
 			parserError = error instanceof Error ? error : new Error(String(error));
 			if (input.preflight) invalidateExternalCliPreflight(input.command, input.preflight, "parser");
-			if (processTree && processPid !== undefined) termination = terminateExternalProcessTree(processPid, processTree);
+			if (processTree && processPid !== undefined)
+				termination = terminateExternalProcessTree(processPid, processTree);
 		};
 		const parseLine = (line: Buffer, byteLength = line.length): boolean => {
 			if (!input.parser || parserError) return false;
 			if (byteLength > limits.parserLineBytes) {
-				const progress = input.limits?.parserLineBytes === undefined
-					? input.parser.skipOversizedLine?.(line.subarray(0, MAX_OVERSIZED_LINE_PREFIX_BYTES).toString("utf-8"), byteLength)
-					: undefined;
-				if (progress) { reportProgress(progress); return true; }
+				const progress =
+					input.limits?.parserLineBytes === undefined
+						? input.parser.skipOversizedLine?.(
+								line.subarray(0, MAX_OVERSIZED_LINE_PREFIX_BYTES).toString("utf-8"),
+								byteLength,
+							)
+						: undefined;
+				if (progress) {
+					reportProgress(progress);
+					return true;
+				}
 				failParser(new Error("External CLI parser line exceeded its byte limit."));
 				return false;
 			}
 			try {
 				const progress = input.parser.parseLine(line.toString("utf-8"));
 				if (progress) reportProgress(progress);
-			} catch (error) { failParser(error); }
+			} catch (error) {
+				failParser(error);
+			}
 			return false;
 		};
 		const appendPendingLine = (chunk: Buffer) => {
 			pendingLineBytes += chunk.length;
 			if (pendingLineOversizedAccepted) {
-				if (pendingLineBytes > MAX_SKIPPABLE_LINE_BYTES) failParser(new Error("External CLI parser line exceeded its byte limit."));
+				if (pendingLineBytes > MAX_SKIPPABLE_LINE_BYTES)
+					failParser(new Error("External CLI parser line exceeded its byte limit."));
 				return;
 			}
 			if (pendingLineBytes <= limits.parserLineBytes) {
@@ -307,9 +374,11 @@ export function runExternalCli(input: {
 				failParser(new Error("External CLI parser line exceeded its byte limit."));
 				return;
 			}
-			if (pendingLine.length > MAX_OVERSIZED_LINE_PREFIX_BYTES) pendingLine = pendingLine.subarray(0, MAX_OVERSIZED_LINE_PREFIX_BYTES);
+			if (pendingLine.length > MAX_OVERSIZED_LINE_PREFIX_BYTES)
+				pendingLine = pendingLine.subarray(0, MAX_OVERSIZED_LINE_PREFIX_BYTES);
 			const remainingPrefixBytes = MAX_OVERSIZED_LINE_PREFIX_BYTES - pendingLine.length;
-			if (remainingPrefixBytes > 0) pendingLine = Buffer.concat([pendingLine, chunk.subarray(0, remainingPrefixBytes)]);
+			if (remainingPrefixBytes > 0)
+				pendingLine = Buffer.concat([pendingLine, chunk.subarray(0, remainingPrefixBytes)]);
 			pendingLineOversizedAccepted = parseLine(pendingLine, pendingLineBytes);
 		};
 		const finishPendingLine = () => {
@@ -370,16 +439,22 @@ export function runExternalCli(input: {
 		child.stdin.on("error", () => {});
 		child.stdin.end(input.promptFilePath ? undefined : input.prompt);
 		let spawnError: Error | undefined;
-		child.once("error", (error) => { spawnError = error; });
+		child.once("error", (error) => {
+			spawnError = error;
+		});
 		child.stdout.once("end", () => {
 			if (!input.parser || parserError) return;
 			if (pendingLineBytes > 0) finishPendingLine();
 			try {
 				parserTerminal = input.parser.finish();
 				if (!parserTerminal) failParser(new Error("External CLI parser did not produce a terminal state."));
-				else if (Buffer.byteLength(parserTerminal.output ?? "", "utf-8") > limits.parserOutputBytes) failParser(new Error("External CLI parser terminal output exceeded its byte limit."));
-				else if (Buffer.byteLength(parserTerminal.error ?? "", "utf-8") > 4 * 1024) failParser(new Error("External CLI parser terminal error exceeded its byte limit."));
-			} catch (error) { failParser(error); }
+				else if (Buffer.byteLength(parserTerminal.output ?? "", "utf-8") > limits.parserOutputBytes)
+					failParser(new Error("External CLI parser terminal output exceeded its byte limit."));
+				else if (Buffer.byteLength(parserTerminal.error ?? "", "utf-8") > 4 * 1024)
+					failParser(new Error("External CLI parser terminal error exceeded its byte limit."));
+			} catch (error) {
+				failParser(error);
+			}
 		});
 		child.once("close", (exitCode, signal) => {
 			settled = true;
@@ -388,7 +463,11 @@ export function runExternalCli(input: {
 			input.registerTimeout?.(undefined);
 			input.registerStop?.(undefined);
 			void (async () => {
-				const treeProof = termination ? await termination : processTree ? await processTree.finishAfterWriterClose() : undefined;
+				const treeProof = termination
+					? await termination
+					: processTree
+						? await processTree.finishAfterWriterClose()
+						: undefined;
 				const endedAt = Date.now();
 				const externalProcess: ExternalProcessStatus = {
 					...initialProcess,
@@ -403,18 +482,30 @@ export function runExternalCli(input: {
 				};
 				input.onProcess?.(externalProcess);
 				const stderr = stderrTail.text().trim();
-				const parserFailure = parserError?.message ?? (parserTerminal?.state === "failed" ? parserTerminal.error ?? "External CLI parser reported terminal failure." : undefined);
-				const treeFailure = process.platform !== "win32" && treeProof?.state === "unknown"
-					? `Process-tree cleanup failed: ${treeProof.reason}.`
-					: undefined;
+				const parserFailure =
+					parserError?.message ??
+					(parserTerminal?.state === "failed"
+						? (parserTerminal.error ?? "External CLI parser reported terminal failure.")
+						: undefined);
+				const treeFailure =
+					process.platform !== "win32" && treeProof?.state === "unknown"
+						? `Process-tree cleanup failed: ${treeProof.reason}.`
+						: undefined;
 				const error = stopped
-					? input.stopMessage ?? SUBAGENT_STOPPED_MESSAGE
+					? (input.stopMessage ?? SUBAGENT_STOPPED_MESSAGE)
 					: timedOut
-						? input.timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE
-						: spawnError?.message ?? parserFailure ?? treeFailure ?? (exitCode === 0 ? undefined : stderr || `External CLI exited with code ${exitCode}.`);
-				if (error && input.preflight && !parserError) invalidateExternalCliPreflight(input.command, input.preflight, classifyInvalidation(error));
+						? (input.timeoutMessage ?? SUBAGENT_TIMED_OUT_MESSAGE)
+						: (spawnError?.message ??
+							parserFailure ??
+							treeFailure ??
+							(exitCode === 0 ? undefined : stderr || `External CLI exited with code ${exitCode}.`));
+				if (error && input.preflight && !parserError)
+					invalidateExternalCliPreflight(input.command, input.preflight, classifyInvalidation(error));
 				const result: ExternalCliRunResult = {
-					output: (!parserError && parserTerminal?.state === "completed" ? parserTerminal.output ?? "" : stdoutTail.text()).trim(),
+					output: (!parserError && parserTerminal?.state === "completed"
+						? (parserTerminal.output ?? "")
+						: stdoutTail.text()
+					).trim(),
 					exitCode: timedOut || stopped || spawnError || parserFailure || treeFailure ? 1 : exitCode,
 					...(error ? { error } : {}),
 					...(timedOut ? { timedOut: true } : {}),
@@ -428,8 +519,12 @@ export function runExternalCli(input: {
 				stderrStream.end();
 				const streamResults = await streamsFinished;
 				const streamFailure = streamResults.find((streamResult) => streamResult.status === "rejected");
-				try { cleanupTemporaryPaths(); }
-				catch (cleanupError) { reject(cleanupError); return; }
+				try {
+					cleanupTemporaryPaths();
+				} catch (cleanupError) {
+					reject(cleanupError);
+					return;
+				}
 				if (streamFailure?.status === "rejected") reject(streamFailure.reason);
 				else resolve(result);
 			})();

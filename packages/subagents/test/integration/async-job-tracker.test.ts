@@ -3,15 +3,24 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
 import { registerExternalJobProvider } from "../../src/api/external-job-provider.ts";
-import { getArtifactsDir } from "../../src/shared/artifacts.ts";
-import { SUBAGENT_CHILD_STATUS_EVENT, SUBAGENT_CONTROL_EVENT, SUBAGENT_CONTROL_INTERCOM_EVENT, type ControlEvent } from "../../src/shared/types.ts";
-import { ACTIVE_RUN_INDEX_DIR, updateActiveRunIndex } from "../../src/runs/background/active-run-index.ts";
-import { EXTERNAL_JOB_BRIDGE_REQUEST_DIR } from "../../src/runs/shared/external-job-bridge.ts";
-import { createNativeSupervisorChannel, ensureSupervisorChannelDir, resolveSupervisorChannelDir } from "../../src/intercom/native-supervisor-channel.ts";
-import { SubagentFleetComponent } from "../../src/tui/fleet.ts";
-import { createNestedRoute, writeNestedEvent } from "../../src/runs/shared/nested-events.ts";
-import { resolveSubagentRunId } from "../../src/runs/background/run-id-resolver.ts";
 import { registerProgramStatusReporter } from "../../src/integrations/program-status.ts";
+import {
+	createNativeSupervisorChannel,
+	ensureSupervisorChannelDir,
+	resolveSupervisorChannelDir,
+} from "../../src/intercom/native-supervisor-channel.ts";
+import { ACTIVE_RUN_INDEX_DIR, updateActiveRunIndex } from "../../src/runs/background/active-run-index.ts";
+import { resolveSubagentRunId } from "../../src/runs/background/run-id-resolver.ts";
+import { EXTERNAL_JOB_BRIDGE_REQUEST_DIR } from "../../src/runs/shared/external-job-bridge.ts";
+import { createNestedRoute, writeNestedEvent } from "../../src/runs/shared/nested-events.ts";
+import { getArtifactsDir } from "../../src/shared/artifacts.ts";
+import {
+	type ControlEvent,
+	SUBAGENT_CHILD_STATUS_EVENT,
+	SUBAGENT_CONTROL_EVENT,
+	SUBAGENT_CONTROL_INTERCOM_EVENT,
+} from "../../src/shared/types.ts";
+import { SubagentFleetComponent } from "../../src/tui/fleet.ts";
 import { createTempDir, removeTempDir, tryImport } from "../support/helpers.ts";
 
 interface AsyncJobTrackerModule {
@@ -94,28 +103,39 @@ function createEventRecorder() {
 	};
 }
 
-function writeSupervisorRequest(input: { sessionId: string; runId: string; toolCallId: string }): { channelDir: string; requestId: string } {
+function writeSupervisorRequest(input: { sessionId: string; runId: string; toolCallId: string }): {
+	channelDir: string;
+	requestId: string;
+} {
 	const channelDir = resolveSupervisorChannelDir(input.runId, "worker", 0);
 	ensureSupervisorChannelDir(channelDir);
 	const requestId = `request-${input.toolCallId}`;
-	fs.writeFileSync(path.join(channelDir, "requests", `${requestId}.json`), JSON.stringify({
-		type: "subagent.supervisor.request",
-		id: requestId,
-		createdAt: Date.now(),
-		reason: "need_decision",
-		message: "Need a decision",
-		expectsReply: true,
-		orchestratorSessionId: input.sessionId,
-		runId: input.runId,
-		agent: "worker",
-		childIndex: 0,
-		toolCallId: input.toolCallId,
-	}), "utf-8");
+	fs.writeFileSync(
+		path.join(channelDir, "requests", `${requestId}.json`),
+		JSON.stringify({
+			type: "subagent.supervisor.request",
+			id: requestId,
+			createdAt: Date.now(),
+			reason: "need_decision",
+			message: "Need a decision",
+			expectsReply: true,
+			orchestratorSessionId: input.sessionId,
+			runId: input.runId,
+			agent: "worker",
+			childIndex: 0,
+			toolCallId: input.toolCallId,
+		}),
+		"utf-8",
+	);
 	return { channelDir, requestId };
 }
 
 function writeControlRecord(runDir: string, event: ControlEvent): void {
-	fs.appendFileSync(path.join(runDir, "events.jsonl"), `${JSON.stringify({ type: "subagent.control", channels: ["event"], event })}\n`, "utf-8");
+	fs.appendFileSync(
+		path.join(runDir, "events.jsonl"),
+		`${JSON.stringify({ type: "subagent.control", channels: ["event"], event })}\n`,
+		"utf-8",
+	);
 }
 
 function supervisorControlEvent(runId: string, toolCallId: string, currentTool = "contact_supervisor"): ControlEvent {
@@ -135,15 +155,19 @@ function supervisorControlEvent(runId: string, toolCallId: string, currentTool =
 
 function writeRunningAsyncStatus(runDir: string, runId: string, sessionId: string): void {
 	fs.mkdirSync(runDir, { recursive: true });
-	fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-		runId,
-		mode: "single",
-		state: "running",
-		sessionId,
-		startedAt: Date.now(),
-		lastUpdate: Date.now(),
-		steps: [{ agent: "worker", status: "running" }],
-	}), "utf-8");
+	fs.writeFileSync(
+		path.join(runDir, "status.json"),
+		JSON.stringify({
+			runId,
+			mode: "single",
+			state: "running",
+			sessionId,
+			startedAt: Date.now(),
+			lastUpdate: Date.now(),
+			steps: [{ agent: "worker", status: "running" }],
+		}),
+		"utf-8",
+	);
 }
 
 function createNativeSupervisorHarness(sessionId: string) {
@@ -177,19 +201,35 @@ function createNativeSupervisorHarness(sessionId: string) {
 function startSupervisorAttentionRun(asyncRoot: string, runId: string, timers: { tick(ms: number): void }) {
 	const runDir = path.join(asyncRoot, runId);
 	writeRunningAsyncStatus(runDir, runId, "session-grace");
-	fs.writeFileSync(path.join(runDir, "events.jsonl"), `${JSON.stringify({
-		type: "subagent.control",
-		channels: ["event", "intercom"],
-		event: supervisorControlEvent(runId, "call-grace"),
-		intercom: { to: "main", message: "SUBAGENT NEEDS ATTENTION: worker" },
-	})}\n`, "utf-8");
+	fs.writeFileSync(
+		path.join(runDir, "events.jsonl"),
+		`${JSON.stringify({
+			type: "subagent.control",
+			channels: ["event", "intercom"],
+			event: supervisorControlEvent(runId, "call-grace"),
+			intercom: { to: "main", message: "SUBAGENT NEEDS ATTENTION: worker" },
+		})}\n`,
+		"utf-8",
+	);
 	let answered = false;
 	const recorder = createEventRecorder();
-	const tracker = createTracker(recorder.pi, createState() as never, asyncRoot, { supervisorRequestState: () => answered ? "resolved" : "pending" });
+	const tracker = createTracker(recorder.pi, createState() as never, asyncRoot, {
+		supervisorRequestState: () => (answered ? "resolved" : "pending"),
+	});
 	tracker.handleStarted({ id: runId, asyncDir: runDir, agent: "worker", sessionId: "session-grace" });
 	timers.tick(25); // the tracker's event-refresh debounce
-	assert.deepEqual(recorder.events.map((entry) => [entry.channel, (entry.data as { noticeDeferred?: boolean }).noticeDeferred]), [[SUBAGENT_CONTROL_EVENT, true]], "status consumers see the request immediately, marked deferred");
-	return { tracker, answer: () => { answered = true; }, events: recorder.events };
+	assert.deepEqual(
+		recorder.events.map((entry) => [entry.channel, (entry.data as { noticeDeferred?: boolean }).noticeDeferred]),
+		[[SUBAGENT_CONTROL_EVENT, true]],
+		"status consumers see the request immediately, marked deferred",
+	);
+	return {
+		tracker,
+		answer: () => {
+			answered = true;
+		},
+		events: recorder.events,
+	};
 }
 
 function pidGone(): never {
@@ -198,11 +238,7 @@ function pidGone(): never {
 	throw error;
 }
 
-async function waitForCondition(
-	condition: () => boolean,
-	description: string,
-	timeoutMs = 1000,
-): Promise<void> {
+async function waitForCondition(condition: () => boolean, description: string, timeoutMs = 1000): Promise<void> {
 	const deadline = Date.now() + timeoutMs;
 	while (!condition()) {
 		if (Date.now() > deadline) assert.fail(`Timed out waiting for ${description}`);
@@ -253,7 +289,11 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				},
 			};
 
-			tracker.handleStarted({ id: "run-stale-context", asyncDir: path.join(asyncRoot, "run-stale-context"), agent: "worker" });
+			tracker.handleStarted({
+				id: "run-stale-context",
+				asyncDir: path.join(asyncRoot, "run-stale-context"),
+				agent: "worker",
+			});
 
 			assert.equal(state.lastUiContext, null);
 			if (state.poller) clearInterval(state.poller);
@@ -267,20 +307,26 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-stale-refresh");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-stale-refresh",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now(),
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-stale-refresh",
+					mode: "single",
+					state: "running",
+					startedAt: Date.now(),
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 
 			const state = createState();
 			const recorder = createEventRecorder();
 			const tracker = createTracker(recorder.pi, state as never, asyncRoot, {
 				pollIntervalMs: 10,
-				watch: (() => { throw new Error("watch disabled"); }) as never,
+				watch: (() => {
+					throw new Error("watch disabled");
+				}) as never,
 			});
 			tracker.handleStarted({ id: "run-stale-refresh", asyncDir: runDir, agent: "worker" });
 			(state as { lastUiContext: unknown }).lastUiContext = {
@@ -289,7 +335,10 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				},
 			};
 
-			await waitForCondition(() => state.lastUiContext === null, "stale cached context to clear during status refresh");
+			await waitForCondition(
+				() => state.lastUiContext === null,
+				"stale cached context to clear during status refresh",
+			);
 			assert.equal(state.asyncJobs.get("run-stale-refresh")?.status, "running");
 		} finally {
 			removeTempDir(asyncRoot);
@@ -305,7 +354,12 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const sessionRoot = path.join(asyncRoot, "custom-sessions");
 			state.liveAsyncSessionRoots = new Map([["run-custom-session", sessionRoot]]);
 
-			tracker.handleStarted({ id: "run-custom-session", asyncDir: path.join(asyncRoot, "run-custom-session"), agent: "worker", sessionRoot: path.join(asyncRoot, "forged") });
+			tracker.handleStarted({
+				id: "run-custom-session",
+				asyncDir: path.join(asyncRoot, "run-custom-session"),
+				agent: "worker",
+				sessionRoot: path.join(asyncRoot, "forged"),
+			});
 
 			assert.equal(state.asyncJobs.get("run-custom-session")?.sessionRoot, sessionRoot);
 			assert.equal(state.liveAsyncSessionRoots.has("run-custom-session"), false);
@@ -348,7 +402,12 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const recorder = createEventRecorder();
 			const tracker = createTracker(recorder.pi, state as never, asyncRoot);
 
-			tracker.handleStarted({ id: "run-forged-session", asyncDir: path.join(asyncRoot, "run-forged-session"), agent: "worker", sessionRoot: path.join(asyncRoot, "forged") });
+			tracker.handleStarted({
+				id: "run-forged-session",
+				asyncDir: path.join(asyncRoot, "run-forged-session"),
+				agent: "worker",
+				sessionRoot: path.join(asyncRoot, "forged"),
+			});
 
 			assert.equal(state.asyncJobs.get("run-forged-session")?.sessionRoot, undefined);
 		} finally {
@@ -413,7 +472,10 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				env: { TERM: "xterm-256color" },
 			});
 			programStatus.sessionStarted({ hasUI: true, mode: "tui" });
-			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, { completionRetentionMs: 5, onJobsChanged: programStatus.sync });
+			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
+				completionRetentionMs: 5,
+				onJobsChanged: programStatus.sync,
+			});
 			tracker.resetJobs(ui.ctx as never);
 			tracker.handleStarted({ id: "run-osc", asyncDir: path.join(asyncRoot, "run-osc"), agent: "worker" });
 			tracker.handleComplete({ id: "run-osc", success: true });
@@ -431,10 +493,25 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-chain");
 			fs.mkdirSync(runDir, { recursive: true });
-			const writeStatus = (currentStep: number) => fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-chain", mode: "chain", state: "running", sessionId: "session-chain", startedAt: 1000, lastUpdate: 2000 + currentStep, currentStep, chainStepCount: 2,
-				steps: [{ agent: "scout", status: currentStep === 0 ? "running" : "complete" }, { agent: "worker", status: currentStep === 0 ? "pending" : "running" }],
-			}), "utf-8");
+			const writeStatus = (currentStep: number) =>
+				fs.writeFileSync(
+					path.join(runDir, "status.json"),
+					JSON.stringify({
+						runId: "run-chain",
+						mode: "chain",
+						state: "running",
+						sessionId: "session-chain",
+						startedAt: 1000,
+						lastUpdate: 2000 + currentStep,
+						currentStep,
+						chainStepCount: 2,
+						steps: [
+							{ agent: "scout", status: currentStep === 0 ? "running" : "complete" },
+							{ agent: "worker", status: currentStep === 0 ? "pending" : "running" },
+						],
+					}),
+					"utf-8",
+				);
 			writeStatus(0);
 			updateActiveRunIndex(runDir, "running");
 			const state = createState();
@@ -462,11 +539,27 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const state = createState();
 			state.currentSessionId = "owner";
-			writeNestedEvent(route, { type: "subagent.nested.completed", ts: 100, parentRunId: route.rootRunId,
-				child: { id: "async-descendant", parentRunId: route.rootRunId, depth: 1, path: [{ runId: route.rootRunId }], state: "complete", agent: "worker" },
+			writeNestedEvent(route, {
+				type: "subagent.nested.completed",
+				ts: 100,
+				parentRunId: route.rootRunId,
+				child: {
+					id: "async-descendant",
+					parentRunId: route.rootRunId,
+					depth: 1,
+					path: [{ runId: route.rootRunId }],
+					state: "complete",
+					agent: "worker",
+				},
 			});
 			const tracker = createTracker(createEventRecorder().pi, state, asyncRoot, { completionRetentionMs: 5 });
-			tracker.handleStarted({ id: route.rootRunId, asyncDir: path.join(asyncRoot, route.rootRunId), agent: "worker", sessionId: "owner", nestedRoute: route });
+			tracker.handleStarted({
+				id: route.rootRunId,
+				asyncDir: path.join(asyncRoot, route.rootRunId),
+				agent: "worker",
+				sessionId: "owner",
+				nestedRoute: route,
+			});
 			tracker.handleComplete({ id: route.rootRunId, success: true, sessionId: "owner" });
 			await waitForCondition(() => !state.asyncJobs.has(route.rootRunId), "coordinator cleanup", 1000);
 			assert.equal(resolveSubagentRunId("async-descendant", { state })?.kind, "nested");
@@ -492,7 +585,10 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			assert.equal(state.asyncJobs.size, 1, "disabled rendering must not disable lifecycle tracking");
 			assert.ok(ui.widgets.length > 0, "expected widget clear calls");
-			assert.ok(ui.widgets.every((widget) => widget === undefined), "disabled widget must stay cleared");
+			assert.ok(
+				ui.widgets.every((widget) => widget === undefined),
+				"disabled widget must stay cleared",
+			);
 			tracker.resetJobs(ui.ctx as never);
 			assert.equal(state.fleetJobs.size, 0, "session reset should clear fleet history");
 		} finally {
@@ -516,8 +612,15 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			};
 
 			tracker.resetJobs(ctx as never);
-			tracker.handleStarted({ id: "run-animating", asyncDir: path.join(asyncRoot, "run-animating"), agent: "worker" });
-			await waitForCondition(() => state.asyncJobs.get("run-animating")?.status === "running", "initial running status refresh");
+			tracker.handleStarted({
+				id: "run-animating",
+				asyncDir: path.join(asyncRoot, "run-animating"),
+				agent: "worker",
+			});
+			await waitForCondition(
+				() => state.asyncJobs.get("run-animating")?.status === "running",
+				"initial running status refresh",
+			);
 			const widgetCount = ui.widgets.length;
 
 			await waitForCondition(() => ui.widgets.length > widgetCount, "animation tick widget rebuild", 1300);
@@ -539,38 +642,57 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			fs.mkdirSync(runDir, { recursive: true });
 			fs.mkdirSync(artifactsRoot, { recursive: true });
 			fs.mkdirSync(path.dirname(sessionFile), { recursive: true });
-			fs.writeFileSync(transcriptPath, `${JSON.stringify({ recordType: "message", role: "assistant", text: "Restored custom cwd transcript" })}\n`, "utf-8");
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-restored",
-				mode: "chain",
-				state: "running",
-				sessionId: "session-restored",
-				cwd: customCwd,
-				sessionFile,
-				startedAt: 1000,
-				lastUpdate: 2000,
-				currentStep: 1,
-				chainStepCount: 3,
-				parallelGroups: [{ start: 1, count: 2, stepIndex: 1 }],
-				steps: [
-					{ agent: "scout", status: "complete" },
-					{ agent: "reviewer", status: "running", currentTool: "read", transcriptPath, model: "mock/test-model", thinking: "high" },
-					{ agent: "worker", status: "running" },
-					{ agent: "writer", status: "pending" },
-				],
-			}), "utf-8");
-			fs.writeFileSync(path.join(runDir, "events.jsonl"), `${JSON.stringify({
-				type: "subagent.control",
-				channels: ["event"],
-				event: {
-					type: "needs_attention",
-					to: "needs_attention",
-					ts: 123,
+			fs.writeFileSync(
+				transcriptPath,
+				`${JSON.stringify({ recordType: "message", role: "assistant", text: "Restored custom cwd transcript" })}\n`,
+				"utf-8",
+			);
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
 					runId: "run-restored",
-					agent: "reviewer",
-					message: "old notice",
-				},
-			})}\n`, "utf-8");
+					mode: "chain",
+					state: "running",
+					sessionId: "session-restored",
+					cwd: customCwd,
+					sessionFile,
+					startedAt: 1000,
+					lastUpdate: 2000,
+					currentStep: 1,
+					chainStepCount: 3,
+					parallelGroups: [{ start: 1, count: 2, stepIndex: 1 }],
+					steps: [
+						{ agent: "scout", status: "complete" },
+						{
+							agent: "reviewer",
+							status: "running",
+							currentTool: "read",
+							transcriptPath,
+							model: "mock/test-model",
+							thinking: "high",
+						},
+						{ agent: "worker", status: "running" },
+						{ agent: "writer", status: "pending" },
+					],
+				}),
+				"utf-8",
+			);
+			fs.writeFileSync(
+				path.join(runDir, "events.jsonl"),
+				`${JSON.stringify({
+					type: "subagent.control",
+					channels: ["event"],
+					event: {
+						type: "needs_attention",
+						to: "needs_attention",
+						ts: 123,
+						runId: "run-restored",
+						agent: "reviewer",
+						message: "old notice",
+					},
+				})}\n`,
+				"utf-8",
+			);
 			updateActiveRunIndex(runDir, "running");
 
 			const state = createState();
@@ -589,7 +711,10 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			assert.equal(job.sessionId, "session-restored");
 			assert.equal(job.cwd, customCwd);
 			assert.deepEqual(job.agents, ["reviewer", "worker"]);
-			assert.deepEqual(job.steps?.map((step: { index?: number }) => step.index), [1, 2]);
+			assert.deepEqual(
+				job.steps?.map((step: { index?: number }) => step.index),
+				[1, 2],
+			);
 			assert.equal(job.steps?.[0]?.thinking, "high");
 			assert.equal(job.stepsTotal, 2);
 			assert.equal(job.runningSteps, 2);
@@ -614,7 +739,11 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			}
 
 			await new Promise((resolve) => setTimeout(resolve, 30));
-			assert.deepEqual(recorder.events.filter((event) => event.channel !== "subagent:jobs-changed"), [], "historical control events should not be replayed during restore");
+			assert.deepEqual(
+				recorder.events.filter((event) => event.channel !== "subagent:jobs-changed"),
+				[],
+				"historical control events should not be replayed during restore",
+			);
 		} finally {
 			removeTempDir(asyncRoot);
 		}
@@ -646,26 +775,34 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			assert.equal(state.asyncJobs.get("run-restored-nested")?.nestedRoute?.eventSink, nestedRoute.eventSink);
 
 			await new Promise((resolve) => setTimeout(resolve, 150));
-			fs.writeFileSync(path.join(nestedRoute.eventSink, "0000000003000-child.json"), JSON.stringify({
-				type: "subagent.nested.started",
-				ts: 3000,
-				rootRunId: nestedRoute.rootRunId,
-				parentRunId: "run-restored-nested",
-				parentStepIndex: 0,
-				capabilityToken: nestedRoute.capabilityToken,
-				child: {
-					id: "nested-child",
+			fs.writeFileSync(
+				path.join(nestedRoute.eventSink, "0000000003000-child.json"),
+				JSON.stringify({
+					type: "subagent.nested.started",
+					ts: 3000,
+					rootRunId: nestedRoute.rootRunId,
 					parentRunId: "run-restored-nested",
 					parentStepIndex: 0,
-					depth: 1,
-					path: [{ runId: "run-restored-nested", stepIndex: 0 }],
-					state: "running",
-					agent: "nested-worker",
-				},
-			}), "utf-8");
+					capabilityToken: nestedRoute.capabilityToken,
+					child: {
+						id: "nested-child",
+						parentRunId: "run-restored-nested",
+						parentStepIndex: 0,
+						depth: 1,
+						path: [{ runId: "run-restored-nested", stepIndex: 0 }],
+						state: "running",
+						agent: "nested-worker",
+					},
+				}),
+				"utf-8",
+			);
 			fs.writeFileSync(statusPath, JSON.stringify({ ...statusPayload, lastUpdate: 3001 }), "utf-8");
 
-			await waitForCondition(() => state.asyncJobs.get("run-restored-nested")?.nestedChildren?.[0]?.id === "nested-child", "restored evented nested child refresh", 3000);
+			await waitForCondition(
+				() => state.asyncJobs.get("run-restored-nested")?.nestedChildren?.[0]?.id === "nested-child",
+				"restored evented nested child refresh",
+				3000,
+			);
 			assert.equal(state.asyncJobs.get("run-restored-nested")?.steps?.[0]?.children?.[0]?.id, "nested-child");
 			tracker.resetJobs();
 		} finally {
@@ -680,17 +817,25 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const runDir = path.join(asyncRoot, "workflow-run");
 			fs.mkdirSync(runDir, { recursive: true });
 			const statusPath = path.join(runDir, "status.json");
-			fs.writeFileSync(statusPath, JSON.stringify({
-				runId: "workflow-run",
-				mode: "workflow",
-				state: "running",
-				sessionId: "session-workflow",
-				sessionRoot: "/trusted/workflow-sessions",
-				startedAt: 1000,
-				lastUpdate: 2000,
-				steps: [{ agent: "scan", label: "scan", status: "running" }],
-				workflow: { trace: [{ operation: "run", key: "scan", state: "started" }], emits: [{ stage: "scan" }], console: [] },
-			}), "utf-8");
+			fs.writeFileSync(
+				statusPath,
+				JSON.stringify({
+					runId: "workflow-run",
+					mode: "workflow",
+					state: "running",
+					sessionId: "session-workflow",
+					sessionRoot: "/trusted/workflow-sessions",
+					startedAt: 1000,
+					lastUpdate: 2000,
+					steps: [{ agent: "scan", label: "scan", status: "running" }],
+					workflow: {
+						trace: [{ operation: "run", key: "scan", state: "started" }],
+						emits: [{ stage: "scan" }],
+						console: [],
+					},
+				}),
+				"utf-8",
+			);
 			updateActiveRunIndex(runDir, "running");
 			const state = createState();
 			state.currentSessionId = "session-workflow";
@@ -699,17 +844,34 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			assert.deepEqual(state.asyncJobs.get("workflow-run")?.workflow?.emits, [{ stage: "scan" }]);
 			assert.equal(state.asyncJobs.get("workflow-run")?.sessionRoot, "/trusted/workflow-sessions");
 
-			fs.writeFileSync(statusPath, JSON.stringify({
-				runId: "workflow-run",
-				mode: "workflow",
-				state: "running",
-				sessionId: "session-workflow",
-				startedAt: 1000,
-				lastUpdate: 3000,
-				steps: [{ agent: "scan", label: "scan", status: "complete" }, { agent: "review", label: "review", status: "running" }],
-				workflow: { trace: [{ operation: "run", key: "review", state: "started" }], emits: [{ stage: "review" }], console: [] },
-			}), "utf-8");
-			await waitForCondition(() => JSON.stringify(state.asyncJobs.get("workflow-run")?.workflow?.emits) === JSON.stringify([{ stage: "review" }]), "evented workflow refresh", 1000);
+			fs.writeFileSync(
+				statusPath,
+				JSON.stringify({
+					runId: "workflow-run",
+					mode: "workflow",
+					state: "running",
+					sessionId: "session-workflow",
+					startedAt: 1000,
+					lastUpdate: 3000,
+					steps: [
+						{ agent: "scan", label: "scan", status: "complete" },
+						{ agent: "review", label: "review", status: "running" },
+					],
+					workflow: {
+						trace: [{ operation: "run", key: "review", state: "started" }],
+						emits: [{ stage: "review" }],
+						console: [],
+					},
+				}),
+				"utf-8",
+			);
+			await waitForCondition(
+				() =>
+					JSON.stringify(state.asyncJobs.get("workflow-run")?.workflow?.emits) ===
+					JSON.stringify([{ stage: "review" }]),
+				"evented workflow refresh",
+				1000,
+			);
 			assert.equal(state.asyncJobs.get("workflow-run")?.workflow?.trace[0]?.key, "review");
 			tracker.resetJobs();
 		} finally {
@@ -722,23 +884,51 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "workflow-run");
 			fs.mkdirSync(runDir, { recursive: true });
-			const writeWorkflow = (lastUpdate: number, step: Record<string, unknown>) => fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "workflow-run", mode: "workflow", state: "running", sessionId: "session-workflow", startedAt: 1000, lastUpdate, steps: [step],
-			}), "utf-8");
+			const writeWorkflow = (lastUpdate: number, step: Record<string, unknown>) =>
+				fs.writeFileSync(
+					path.join(runDir, "status.json"),
+					JSON.stringify({
+						runId: "workflow-run",
+						mode: "workflow",
+						state: "running",
+						sessionId: "session-workflow",
+						startedAt: 1000,
+						lastUpdate,
+						steps: [step],
+					}),
+					"utf-8",
+				);
 			writeWorkflow(2000, { agent: "scout", status: "pending" });
 			fs.mkdirSync(path.join(asyncRoot, "child-run"));
-			fs.writeFileSync(path.join(asyncRoot, "child-run", "status.json"), JSON.stringify({
-				runId: "child-run", mode: "single", state: "running", startedAt: 1000,
-				steps: [{ agent: "scout", status: "running", model: "observed/model", thinking: "low" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(asyncRoot, "child-run", "status.json"),
+				JSON.stringify({
+					runId: "child-run",
+					mode: "single",
+					state: "running",
+					startedAt: 1000,
+					steps: [{ agent: "scout", status: "running", model: "observed/model", thinking: "low" }],
+				}),
+				"utf-8",
+			);
 			updateActiveRunIndex(runDir, "running");
 			const state = createState();
 			state.currentSessionId = "session-workflow";
 			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, { pollIntervalMs: 60_000 });
 			tracker.restoreActiveJobs();
 			// The tracker's own status refresh, not the restore projection, feeds the widget lane.
-			writeWorkflow(3000, { agent: "scout", status: "running", async: true, runId: "child-run", model: "launch/model" });
-			await waitForCondition(() => state.asyncJobs.get("workflow-run")?.steps?.[0]?.model === "launch/model", "workflow lane refresh", 1000);
+			writeWorkflow(3000, {
+				agent: "scout",
+				status: "running",
+				async: true,
+				runId: "child-run",
+				model: "launch/model",
+			});
+			await waitForCondition(
+				() => state.asyncJobs.get("workflow-run")?.steps?.[0]?.model === "launch/model",
+				"workflow lane refresh",
+				1000,
+			);
 			assert.equal(state.asyncJobs.get("workflow-run")?.steps?.[0]?.thinking, "low");
 			tracker.resetJobs();
 		} finally {
@@ -754,20 +944,33 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const state = createState();
 			state.currentSessionId = "session-late-status";
 			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, { pollIntervalMs: 60_000 });
-			tracker.handleStarted({ id: "late-status-run", asyncDir: runDir, sessionId: "session-late-status", agent: "worker" });
+			tracker.handleStarted({
+				id: "late-status-run",
+				asyncDir: runDir,
+				sessionId: "session-late-status",
+				agent: "worker",
+			});
 
 			await new Promise((resolve) => setTimeout(resolve, 150));
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "late-status-run",
-				mode: "single",
-				state: "running",
-				sessionId: "session-late-status",
-				startedAt: 1000,
-				lastUpdate: 3000,
-				steps: [{ agent: "worker", status: "running", currentTool: "read" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "late-status-run",
+					mode: "single",
+					state: "running",
+					sessionId: "session-late-status",
+					startedAt: 1000,
+					lastUpdate: 3000,
+					steps: [{ agent: "worker", status: "running", currentTool: "read" }],
+				}),
+				"utf-8",
+			);
 
-			await waitForCondition(() => state.asyncJobs.get("late-status-run")?.steps?.[0]?.currentTool === "read", "late status refresh before liveness", 1000);
+			await waitForCondition(
+				() => state.asyncJobs.get("late-status-run")?.steps?.[0]?.currentTool === "read",
+				"late status refresh before liveness",
+				1000,
+			);
 			tracker.resetJobs();
 		} finally {
 			removeTempDir(asyncRoot);
@@ -779,21 +982,30 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "native-run");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "native-run",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 100,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "native-run",
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 100,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 			const state = createState();
 			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
 				pollIntervalMs: 10,
-				watch: (() => { throw new Error("native watcher disabled for test"); }) as never,
+				watch: (() => {
+					throw new Error("native watcher disabled for test");
+				}) as never,
 			});
 			tracker.handleStarted({ id: "native-run", asyncDir: runDir, agent: "worker" });
-			await waitForCondition(() => state.asyncJobs.get("native-run")?.status === "running", "native bridge eligibility refresh");
+			await waitForCondition(
+				() => state.asyncJobs.get("native-run")?.status === "running",
+				"native bridge eligibility refresh",
+			);
 
 			const requestDir = path.join(runDir, EXTERNAL_JOB_BRIDGE_REQUEST_DIR);
 			assert.equal(fs.existsSync(requestDir), false, "native jobs should tolerate a missing bridge directory");
@@ -815,35 +1027,52 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "external-run");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "external-run",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 100,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running", runner: { type: "external-job", provider: "tracker-provider", options: {} } }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "external-run",
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 100,
+					lastUpdate: Date.now(),
+					steps: [
+						{
+							agent: "worker",
+							status: "running",
+							runner: { type: "external-job", provider: "tracker-provider", options: {} },
+						},
+					],
+				}),
+				"utf-8",
+			);
 			const requestDir = path.join(runDir, EXTERNAL_JOB_BRIDGE_REQUEST_DIR);
 			fs.mkdirSync(requestDir, { recursive: true });
-			fs.writeFileSync(path.join(requestDir, "existing.json"), JSON.stringify({
-				id: "existing",
-				operation: "start",
-				provider: "tracker-provider",
-				createdAt: Date.now(),
-				start: {
-					prompt: "prompt",
-					promptDigest: "digest",
-					cwd: runDir,
-					runId: "external-run",
-					stepIndex: 0,
-					agent: "worker",
-					options: {},
-				},
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(requestDir, "existing.json"),
+				JSON.stringify({
+					id: "existing",
+					operation: "start",
+					provider: "tracker-provider",
+					createdAt: Date.now(),
+					start: {
+						prompt: "prompt",
+						promptDigest: "digest",
+						cwd: runDir,
+						runId: "external-run",
+						stepIndex: 0,
+						agent: "worker",
+						options: {},
+					},
+				}),
+				"utf-8",
+			);
 			let starts = 0;
 			unregister = registerExternalJobProvider({
 				name: "tracker-provider",
-				start: () => { starts++; return { providerJobId: "provider-job", state: "completed" }; },
+				start: () => {
+					starts++;
+					return { providerJobId: "provider-job", state: "completed" };
+				},
 				status: () => ({ providerJobId: "provider-job", state: "completed" }),
 				result: () => ({ providerJobId: "provider-job", state: "completed" }),
 				reattach: () => ({ providerJobId: "provider-job", state: "completed" }),
@@ -851,13 +1080,18 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const state = createState();
 			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
 				pollIntervalMs: 10,
-				watch: (() => { throw new Error("native watcher disabled for test"); }) as never,
+				watch: (() => {
+					throw new Error("native watcher disabled for test");
+				}) as never,
 			});
 			tracker.handleStarted({ id: "external-run", asyncDir: runDir, agent: "worker" });
 
 			const responsePath = path.join(runDir, "external-job-responses", "existing.json");
 			await waitForCondition(() => fs.existsSync(responsePath), "existing external bridge request");
-			const response = JSON.parse(fs.readFileSync(responsePath, "utf-8")) as { ok?: boolean; result?: { providerJobId?: string } };
+			const response = JSON.parse(fs.readFileSync(responsePath, "utf-8")) as {
+				ok?: boolean;
+				result?: { providerJobId?: string };
+			};
 			assert.equal(response.ok, true);
 			assert.equal(response.result?.providerJobId, "provider-job");
 			assert.equal(starts, 1);
@@ -873,21 +1107,36 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "late-external-run");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "late-external-run",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 100,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running", runner: { type: "external-job", provider: "tracker-provider-late", options: {} } }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "late-external-run",
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 100,
+					lastUpdate: Date.now(),
+					steps: [
+						{
+							agent: "worker",
+							status: "running",
+							runner: { type: "external-job", provider: "tracker-provider-late", options: {} },
+						},
+					],
+				}),
+				"utf-8",
+			);
 			const state = createState();
 			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
 				pollIntervalMs: 10,
-				watch: (() => { throw new Error("native watcher disabled for test"); }) as never,
+				watch: (() => {
+					throw new Error("native watcher disabled for test");
+				}) as never,
 			});
 			tracker.handleStarted({ id: "late-external-run", asyncDir: runDir, agent: "worker" });
-			await waitForCondition(() => state.asyncJobs.get("late-external-run")?.steps?.[0]?.runner?.type === "external-job", "external bridge eligibility refresh");
+			await waitForCondition(
+				() => state.asyncJobs.get("late-external-run")?.steps?.[0]?.runner?.type === "external-job",
+				"external bridge eligibility refresh",
+			);
 			assert.equal(fs.existsSync(path.join(runDir, EXTERNAL_JOB_BRIDGE_REQUEST_DIR)), false);
 
 			unregister = registerExternalJobProvider({
@@ -899,24 +1148,33 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			});
 			const requestDir = path.join(runDir, EXTERNAL_JOB_BRIDGE_REQUEST_DIR);
 			fs.mkdirSync(requestDir, { recursive: true });
-			fs.writeFileSync(path.join(requestDir, "late.json"), JSON.stringify({
-				id: "late",
-				operation: "start",
-				provider: "tracker-provider-late",
-				createdAt: Date.now(),
-				start: {
-					prompt: "prompt",
-					promptDigest: "digest",
-					cwd: runDir,
-					runId: "late-external-run",
-					stepIndex: 0,
-					agent: "worker",
-					options: {},
-				},
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(requestDir, "late.json"),
+				JSON.stringify({
+					id: "late",
+					operation: "start",
+					provider: "tracker-provider-late",
+					createdAt: Date.now(),
+					start: {
+						prompt: "prompt",
+						promptDigest: "digest",
+						cwd: runDir,
+						runId: "late-external-run",
+						stepIndex: 0,
+						agent: "worker",
+						options: {},
+					},
+				}),
+				"utf-8",
+			);
 
-			await waitForCondition(() => fs.existsSync(path.join(runDir, "external-job-responses", "late.json")), "late external bridge request");
-			const response = JSON.parse(fs.readFileSync(path.join(runDir, "external-job-responses", "late.json"), "utf-8")) as { ok?: boolean; result?: { providerJobId?: string } };
+			await waitForCondition(
+				() => fs.existsSync(path.join(runDir, "external-job-responses", "late.json")),
+				"late external bridge request",
+			);
+			const response = JSON.parse(
+				fs.readFileSync(path.join(runDir, "external-job-responses", "late.json"), "utf-8"),
+			) as { ok?: boolean; result?: { providerJobId?: string } };
 			assert.equal(response.ok, true);
 			assert.equal(response.result?.providerJobId, "late-provider-job");
 		} finally {
@@ -934,7 +1192,9 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const state = createState();
 			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
 				pollIntervalMs: 10,
-				watch: (() => { throw new Error("native watcher disabled for test"); }) as never,
+				watch: (() => {
+					throw new Error("native watcher disabled for test");
+				}) as never,
 			});
 			tracker.handleStarted({ id: "malformed-external-run", asyncDir: runDir, agent: "worker" });
 
@@ -954,25 +1214,34 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "quiet-run");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "quiet-run",
-				mode: "single",
-				state: "running",
-				startedAt: 1000,
-				lastUpdate: 1000,
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "quiet-run",
+					mode: "single",
+					state: "running",
+					startedAt: 1000,
+					lastUpdate: 1000,
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 			const state = createState();
 			const ui = createUiContext();
 			const tracker = createTracker(createEventRecorder().pi, state as never, asyncRoot, {
 				pollIntervalMs: 10,
-				watch: (() => { throw new Error("native watcher disabled for test"); }) as never,
+				watch: (() => {
+					throw new Error("native watcher disabled for test");
+				}) as never,
 			});
 			tracker.resetJobs(ui.ctx as never);
 			tracker.handleStarted({ id: "quiet-run", asyncDir: runDir, agent: "worker" });
 
 			const rendersAfterStart = ui.renderRequests;
-			await waitForCondition(() => state.asyncJobs.get("quiet-run")?.status === "running", "quiet running job refresh");
+			await waitForCondition(
+				() => state.asyncJobs.get("quiet-run")?.status === "running",
+				"quiet running job refresh",
+			);
 			await waitForCondition(() => ui.renderRequests > rendersAfterStart, "quiet running widget redraw");
 			const renderRequests = ui.renderRequests;
 			await new Promise((resolve) => setTimeout(resolve, 120));
@@ -989,14 +1258,18 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "darwin-run");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "darwin-run",
-				mode: "single",
-				state: "running",
-				startedAt: 1000,
-				lastUpdate: 1000,
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "darwin-run",
+					mode: "single",
+					state: "running",
+					startedAt: 1000,
+					lastUpdate: 1000,
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 			const state = createState();
 			let nativeWatchCalls = 0;
 			let terminalHooks = 0;
@@ -1011,17 +1284,27 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			});
 			tracker.handleStarted({ id: "darwin-run", asyncDir: runDir, agent: "worker" });
 
-			await waitForCondition(() => state.asyncJobs.get("darwin-run")?.status === "running", "darwin polling started");
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "darwin-run",
-				mode: "single",
-				state: "complete",
-				startedAt: 1000,
-				lastUpdate: 2000,
-				steps: [{ agent: "worker", status: "complete" }],
-			}), "utf-8");
+			await waitForCondition(
+				() => state.asyncJobs.get("darwin-run")?.status === "running",
+				"darwin polling started",
+			);
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "darwin-run",
+					mode: "single",
+					state: "complete",
+					startedAt: 1000,
+					lastUpdate: 2000,
+					steps: [{ agent: "worker", status: "complete" }],
+				}),
+				"utf-8",
+			);
 
-			await waitForCondition(() => state.asyncJobs.get("darwin-run")?.status === "complete", "darwin terminal refresh");
+			await waitForCondition(
+				() => state.asyncJobs.get("darwin-run")?.status === "complete",
+				"darwin terminal refresh",
+			);
 			await new Promise((resolve) => setTimeout(resolve, 30));
 			assert.equal(nativeWatchCalls, 0);
 			assert.equal(terminalHooks, 1);
@@ -1053,26 +1336,34 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			tracker.handleStarted({ id: "run-nested-events", asyncDir: runDir, agent: "worker", nestedRoute });
 
 			await new Promise((resolve) => setTimeout(resolve, 150));
-			fs.writeFileSync(path.join(nestedRoute.eventSink, "0000000003000-child.json"), JSON.stringify({
-				type: "subagent.nested.started",
-				ts: 3000,
-				rootRunId: nestedRoute.rootRunId,
-				parentRunId: "run-nested-events",
-				parentStepIndex: 0,
-				capabilityToken: nestedRoute.capabilityToken,
-				child: {
-					id: "nested-child",
+			fs.writeFileSync(
+				path.join(nestedRoute.eventSink, "0000000003000-child.json"),
+				JSON.stringify({
+					type: "subagent.nested.started",
+					ts: 3000,
+					rootRunId: nestedRoute.rootRunId,
 					parentRunId: "run-nested-events",
 					parentStepIndex: 0,
-					depth: 1,
-					path: [{ runId: "run-nested-events", stepIndex: 0 }],
-					state: "running",
-					agent: "nested-worker",
-				},
-			}), "utf-8");
+					capabilityToken: nestedRoute.capabilityToken,
+					child: {
+						id: "nested-child",
+						parentRunId: "run-nested-events",
+						parentStepIndex: 0,
+						depth: 1,
+						path: [{ runId: "run-nested-events", stepIndex: 0 }],
+						state: "running",
+						agent: "nested-worker",
+					},
+				}),
+				"utf-8",
+			);
 			fs.writeFileSync(statusPath, JSON.stringify({ ...statusPayload, lastUpdate: 3000 }), "utf-8");
 
-			await waitForCondition(() => state.asyncJobs.get("run-nested-events")?.nestedChildren?.[0]?.id === "nested-child", "evented nested child refresh", 3000);
+			await waitForCondition(
+				() => state.asyncJobs.get("run-nested-events")?.nestedChildren?.[0]?.id === "nested-child",
+				"evented nested child refresh",
+				3000,
+			);
 			assert.equal(state.asyncJobs.get("run-nested-events")?.steps?.[0]?.children?.[0]?.id, "nested-child");
 			tracker.resetJobs();
 		} finally {
@@ -1086,16 +1377,20 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "workflow-child");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "workflow-child",
-				mode: "single",
-				state: "running",
-				sessionId: "session-workflow",
-				startedAt: 1000,
-				parentWorkflowRunId: "workflow-parent",
-				workflowKey: "review",
-				steps: [{ agent: "reviewer", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "workflow-child",
+					mode: "single",
+					state: "running",
+					sessionId: "session-workflow",
+					startedAt: 1000,
+					parentWorkflowRunId: "workflow-parent",
+					workflowKey: "review",
+					steps: [{ agent: "reviewer", status: "running" }],
+				}),
+				"utf-8",
+			);
 			updateActiveRunIndex(runDir, "running");
 			const state = createState();
 			state.currentSessionId = "session-workflow";
@@ -1116,22 +1411,30 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const otherDir = path.join(asyncRoot, "run-other");
 			fs.mkdirSync(ownerDir, { recursive: true });
 			fs.mkdirSync(otherDir, { recursive: true });
-			fs.writeFileSync(path.join(ownerDir, "status.json"), JSON.stringify({
-				runId: "run-owner",
-				mode: "single",
-				state: "running",
-				sessionId: "session-owner",
-				startedAt: 1000,
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
-			fs.writeFileSync(path.join(otherDir, "status.json"), JSON.stringify({
-				runId: "run-other",
-				mode: "single",
-				state: "running",
-				sessionId: "session-other",
-				startedAt: 1000,
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(ownerDir, "status.json"),
+				JSON.stringify({
+					runId: "run-owner",
+					mode: "single",
+					state: "running",
+					sessionId: "session-owner",
+					startedAt: 1000,
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
+			fs.writeFileSync(
+				path.join(otherDir, "status.json"),
+				JSON.stringify({
+					runId: "run-other",
+					mode: "single",
+					state: "running",
+					sessionId: "session-other",
+					startedAt: 1000,
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 			updateActiveRunIndex(ownerDir, "running");
 			updateActiveRunIndex(otherDir, "running");
 
@@ -1159,9 +1462,23 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				pollIntervalMs: 10,
 			});
 
-			tracker.handleStarted({ id: "run-sessionless", asyncDir: path.join(asyncRoot, "run-sessionless"), agent: "worker" });
-			tracker.handleStarted({ id: "run-other", asyncDir: path.join(asyncRoot, "run-other"), agent: "worker", sessionId: "session-other" });
-			tracker.handleStarted({ id: "run-owner", asyncDir: path.join(asyncRoot, "run-owner"), agent: "worker", sessionId: "session-owner" });
+			tracker.handleStarted({
+				id: "run-sessionless",
+				asyncDir: path.join(asyncRoot, "run-sessionless"),
+				agent: "worker",
+			});
+			tracker.handleStarted({
+				id: "run-other",
+				asyncDir: path.join(asyncRoot, "run-other"),
+				agent: "worker",
+				sessionId: "session-other",
+			});
+			tracker.handleStarted({
+				id: "run-owner",
+				asyncDir: path.join(asyncRoot, "run-owner"),
+				agent: "worker",
+				sessionId: "session-owner",
+			});
 
 			assert.deepEqual([...state.asyncJobs.keys()], ["run-owner"]);
 
@@ -1170,7 +1487,11 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			assert.equal(state.asyncJobs.get("run-owner")?.status, "queued");
 
 			tracker.handleComplete({ id: "run-owner", success: true, sessionId: "session-owner" });
-			await waitForCondition(() => !state.asyncJobs.has("run-owner"), "owned job cleanup after matching completion", 1000);
+			await waitForCondition(
+				() => !state.asyncJobs.has("run-owner"),
+				"owned job cleanup after matching completion",
+				1000,
+			);
 		} finally {
 			removeTempDir(asyncRoot);
 		}
@@ -1247,29 +1568,33 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-chain");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-chain",
-				mode: "chain",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				currentStep: 1,
-				chainStepCount: 3,
-				parallelGroups: [{ start: 1, count: 2, stepIndex: 1 }],
-				steps: [
-					{ agent: "scout", status: "complete" },
-					{
-						agent: "reviewer",
-						status: "running",
-						currentTool: "read",
-						currentToolArgs: "src/tui/render.ts",
-						recentTools: [{ tool: "grep", args: "async widget", endMs: Date.now() - 100 }],
-						recentOutput: ["reviewer line"],
-					},
-					{ agent: "auditor", status: "running" },
-					{ agent: "writer", status: "pending" },
-				],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-chain",
+					mode: "chain",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					currentStep: 1,
+					chainStepCount: 3,
+					parallelGroups: [{ start: 1, count: 2, stepIndex: 1 }],
+					steps: [
+						{ agent: "scout", status: "complete" },
+						{
+							agent: "reviewer",
+							status: "running",
+							currentTool: "read",
+							currentToolArgs: "src/tui/render.ts",
+							recentTools: [{ tool: "grep", args: "async widget", endMs: Date.now() - 100 }],
+							recentOutput: ["reviewer line"],
+						},
+						{ agent: "auditor", status: "running" },
+						{ agent: "writer", status: "pending" },
+					],
+				}),
+				"utf-8",
+			);
 
 			const state = createState();
 			const ui = createUiContext();
@@ -1278,16 +1603,30 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				pollIntervalMs: 10,
 			});
 			tracker.resetJobs(ui.ctx as never);
-			tracker.handleStarted({ id: "run-chain", asyncDir: runDir, mode: "chain", agents: ["scout", "reviewer", "auditor", "writer"] });
+			tracker.handleStarted({
+				id: "run-chain",
+				asyncDir: runDir,
+				mode: "chain",
+				agents: ["scout", "reviewer", "auditor", "writer"],
+			});
 
 			await new Promise((resolve) => setTimeout(resolve, 50));
 
 			const job = state.asyncJobs.get("run-chain");
-			assert.deepEqual(job?.steps?.map((step: { index?: number }) => step.index), [1, 2]);
+			assert.deepEqual(
+				job?.steps?.map((step: { index?: number }) => step.index),
+				[1, 2],
+			);
 			assert.deepEqual(job?.agents, ["reviewer", "auditor"]);
 			assert.equal(job?.steps?.[0]?.currentTool, "read");
 			assert.equal(job?.steps?.[0]?.currentToolArgs, "src/tui/render.ts");
-			assert.deepEqual(job?.steps?.[0]?.recentTools?.map((tool: { tool: string; args: string }) => ({ tool: tool.tool, args: tool.args })), [{ tool: "grep", args: "async widget" }]);
+			assert.deepEqual(
+				job?.steps?.[0]?.recentTools?.map((tool: { tool: string; args: string }) => ({
+					tool: tool.tool,
+					args: tool.args,
+				})),
+				[{ tool: "grep", args: "async widget" }],
+			);
 			assert.deepEqual(job?.steps?.[0]?.recentOutput, ["reviewer line"]);
 		} finally {
 			removeTempDir(asyncRoot);
@@ -1300,15 +1639,20 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-unchanged");
 			fs.mkdirSync(runDir, { recursive: true });
-			const writeStatus = (lastUpdate: number, toolCount?: number, state = "running") => fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-unchanged",
-				mode: "single",
-				state,
-				startedAt: 1000,
-				lastUpdate,
-				...(toolCount !== undefined ? { toolCount } : {}),
-				steps: [{ agent: "worker", status: state === "running" ? "running" : "complete", startedAt: 1000 }],
-			}), "utf-8");
+			const writeStatus = (lastUpdate: number, toolCount?: number, state = "running") =>
+				fs.writeFileSync(
+					path.join(runDir, "status.json"),
+					JSON.stringify({
+						runId: "run-unchanged",
+						mode: "single",
+						state,
+						startedAt: 1000,
+						lastUpdate,
+						...(toolCount !== undefined ? { toolCount } : {}),
+						steps: [{ agent: "worker", status: state === "running" ? "running" : "complete", startedAt: 1000 }],
+					}),
+					"utf-8",
+				);
 			writeStatus(2000);
 
 			const state = createState();
@@ -1326,29 +1670,46 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			const requestsAfterStatusLoaded = ui.renderRequests;
 			const widgetsAfterStatusLoaded = ui.widgets.length;
-			fs.writeFileSync(path.join(runDir, "events.jsonl"), `${JSON.stringify({
-				type: "subagent.control",
-				channels: ["event"],
-				event: {
-					type: "needs_attention",
-					to: "needs_attention",
-					ts: 123,
-					runId: "run-unchanged",
-					agent: "worker",
-					message: "worker needs attention",
-				},
-			})}\n`, "utf-8");
-			await waitForCondition(() => recorder.events.some((event) => event.channel === "subagent:control-event"), "control event delivery");
+			fs.writeFileSync(
+				path.join(runDir, "events.jsonl"),
+				`${JSON.stringify({
+					type: "subagent.control",
+					channels: ["event"],
+					event: {
+						type: "needs_attention",
+						to: "needs_attention",
+						ts: 123,
+						runId: "run-unchanged",
+						agent: "worker",
+						message: "worker needs attention",
+					},
+				})}\n`,
+				"utf-8",
+			);
+			await waitForCondition(
+				() => recorder.events.some((event) => event.channel === "subagent:control-event"),
+				"control event delivery",
+			);
 			await waitForCondition(() => ui.renderRequests > requestsAfterStatusLoaded, "running widget cadence repaint");
-			assert.equal(ui.widgets.length, widgetsAfterStatusLoaded, "animation-only ticks should not replace the widget component when the bridge supports repaint requests");
+			assert.equal(
+				ui.widgets.length,
+				widgetsAfterStatusLoaded,
+				"animation-only ticks should not replace the widget component when the bridge supports repaint requests",
+			);
 
 			writeStatus(3000, 1);
 			await waitForCondition(() => state.asyncJobs.get("run-unchanged")?.toolCount === 1, "changed status load");
-			await waitForCondition(() => ui.widgets.length > widgetsAfterStatusLoaded, "changed status widget replacement");
+			await waitForCondition(
+				() => ui.widgets.length > widgetsAfterStatusLoaded,
+				"changed status widget replacement",
+			);
 
 			const requestsBeforeTerminal = ui.renderRequests;
 			writeStatus(4000, 1, "complete");
-			await waitForCondition(() => state.asyncJobs.get("run-unchanged")?.status === "complete", "terminal status load");
+			await waitForCondition(
+				() => state.asyncJobs.get("run-unchanged")?.status === "complete",
+				"terminal status load",
+			);
 			await waitForCondition(() => ui.renderRequests > requestsBeforeTerminal, "terminal status widget redraw");
 			const widgetsAfterTerminal = ui.widgets.length;
 			const requestsAfterTerminal = ui.renderRequests;
@@ -1369,21 +1730,33 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const runB = path.join(asyncRoot, "run-b");
 			fs.mkdirSync(runA, { recursive: true });
 			fs.mkdirSync(runB, { recursive: true });
-			const writeStatus = (runDir: string, id: string, lastUpdate: number) => fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: id,
-				mode: "single",
-				state: "running",
-				startedAt: 1000,
-				lastUpdate,
-				steps: [{ agent: id, status: "running", startedAt: 1000 }],
-			}), "utf-8");
+			const writeStatus = (runDir: string, id: string, lastUpdate: number) =>
+				fs.writeFileSync(
+					path.join(runDir, "status.json"),
+					JSON.stringify({
+						runId: id,
+						mode: "single",
+						state: "running",
+						startedAt: 1000,
+						lastUpdate,
+						steps: [{ agent: id, status: "running", startedAt: 1000 }],
+					}),
+					"utf-8",
+				);
 			writeStatus(runA, "run-a", 2000);
 			writeStatus(runB, "run-b", 2000);
 
 			const watchCallbacks: Array<(event: string, file?: string) => void> = [];
 			const watch: typeof fs.watch = ((watchPath: fs.PathLike, listener: fs.WatchListener<string>) => {
-				if (String(watchPath).includes("run-")) watchCallbacks.push((event, file) => listener(event as fs.WatchEventType, file));
-				return { close() {}, on() { return this; }, unref() {} } as unknown as fs.FSWatcher;
+				if (String(watchPath).includes("run-"))
+					watchCallbacks.push((event, file) => listener(event as fs.WatchEventType, file));
+				return {
+					close() {},
+					on() {
+						return this;
+					},
+					unref() {},
+				} as unknown as fs.FSWatcher;
 			}) as typeof fs.watch;
 			const state = createState();
 			const ui = createUiContext();
@@ -1392,7 +1765,10 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			tracker.resetJobs(ui.ctx as never);
 			tracker.handleStarted({ id: "run-a", asyncDir: runA, agent: "worker" });
 			tracker.handleStarted({ id: "run-b", asyncDir: runB, agent: "reviewer" });
-			await waitForCondition(() => state.asyncJobs.get("run-a")?.updatedAt === 2000 && state.asyncJobs.get("run-b")?.updatedAt === 2000, "initial status loads");
+			await waitForCondition(
+				() => state.asyncJobs.get("run-a")?.updatedAt === 2000 && state.asyncJobs.get("run-b")?.updatedAt === 2000,
+				"initial status loads",
+			);
 			await waitForCondition(() => watchCallbacks.length > 0, "watch callbacks");
 			await new Promise((resolve) => setTimeout(resolve, 60));
 			const widgetsAfterInitial = ui.widgets.length;
@@ -1401,10 +1777,17 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			writeStatus(runB, "run-b", 3000);
 			for (const callback of [...watchCallbacks]) callback("change", "status.json");
 
-			await waitForCondition(() => state.asyncJobs.get("run-a")?.updatedAt === 3000 && state.asyncJobs.get("run-b")?.updatedAt === 3000, "coalesced status loads");
+			await waitForCondition(
+				() => state.asyncJobs.get("run-a")?.updatedAt === 3000 && state.asyncJobs.get("run-b")?.updatedAt === 3000,
+				"coalesced status loads",
+			);
 			await waitForCondition(() => ui.widgets.length === widgetsAfterInitial + 1, "coalesced widget replacement");
 			await new Promise((resolve) => setTimeout(resolve, 60));
-			assert.equal(ui.widgets.length, widgetsAfterInitial + 1, "close status refreshes should share one widget replacement");
+			assert.equal(
+				ui.widgets.length,
+				widgetsAfterInitial + 1,
+				"close status refreshes should share one widget replacement",
+			);
 		} finally {
 			tracker?.resetJobs();
 			removeTempDir(asyncRoot);
@@ -1425,14 +1808,18 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				const runId = `run-${terminalState}`;
 				const runDir = path.join(asyncRoot, runId);
 				fs.mkdirSync(runDir, { recursive: true });
-				fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-					runId,
-					mode: "single",
-					state: terminalState,
-					startedAt: Date.now() - 1000,
-					lastUpdate: Date.now(),
-					steps: [{ agent: "worker", status: terminalState }],
-				}), "utf-8");
+				fs.writeFileSync(
+					path.join(runDir, "status.json"),
+					JSON.stringify({
+						runId,
+						mode: "single",
+						state: terminalState,
+						startedAt: Date.now() - 1000,
+						lastUpdate: Date.now(),
+						steps: [{ agent: "worker", status: terminalState }],
+					}),
+					"utf-8",
+				);
 				tracker.handleStarted({ id: runId, asyncDir: runDir, agent: "worker" });
 			}
 
@@ -1460,17 +1847,24 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				pollIntervalMs: 60_000,
 			});
 			tracker.handleStarted({ id: "run-late-dir", asyncDir: runDir, agent: "worker" });
-			await waitForCondition(() => state.asyncJobs.get("run-late-dir")?.status === "running", "initial event refresh");
+			await waitForCondition(
+				() => state.asyncJobs.get("run-late-dir")?.status === "running",
+				"initial event refresh",
+			);
 
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-late-dir",
-				mode: "single",
-				state: "complete",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "complete" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-late-dir",
+					mode: "single",
+					state: "complete",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "complete" }],
+				}),
+				"utf-8",
+			);
 
 			await waitForCondition(() => !state.asyncJobs.has("run-late-dir"), "evented terminal cleanup");
 			tracker.resetJobs();
@@ -1485,16 +1879,20 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const resultsDir = path.join(asyncRoot, "results");
 			const runDir = path.join(asyncRoot, "run-stale");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-stale",
-				mode: "single",
-				state: "running",
-				sessionId: "session-stale",
-				pid: 12345,
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now() - 1000,
-				steps: [{ agent: "worker", status: "running", startedAt: Date.now() - 1000 }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-stale",
+					mode: "single",
+					state: "running",
+					sessionId: "session-stale",
+					pid: 12345,
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now() - 1000,
+					steps: [{ agent: "worker", status: "running", startedAt: Date.now() - 1000 }],
+				}),
+				"utf-8",
+			);
 
 			const state = createState();
 			const ui = createUiContext();
@@ -1560,11 +1958,14 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			assert.equal(status.currentStep, 0);
 			assert.equal(status.chainStepCount, 1);
 			assert.deepEqual(status.parallelGroups, [{ start: 0, count: 3, stepIndex: 0 }]);
-			assert.deepEqual(status.steps.map((step: { agent: string; status: string }) => [step.agent, step.status]), [
-				["scout", "failed"],
-				["reviewer", "failed"],
-				["worker", "failed"],
-			]);
+			assert.deepEqual(
+				status.steps.map((step: { agent: string; status: string }) => [step.agent, step.status]),
+				[
+					["scout", "failed"],
+					["reviewer", "failed"],
+					["worker", "failed"],
+				],
+			);
 			assert.equal(result.success, false);
 			assert.equal(result.sessionId, "session-current");
 			assert.equal(result.completionOwnerId, "owner-current");
@@ -1617,14 +2018,16 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			tracker.handleStarted({ id: "run-bad-status-nested", asyncDir: runDir, agent: "worker" });
 			const job = state.asyncJobs.get("run-bad-status-nested");
 			assert.ok(job);
-			job.nestedChildren = [{
-				id: "nested-live",
-				parentRunId: "run-bad-status-nested",
-				depth: 1,
-				path: [{ runId: "run-bad-status-nested" }],
-				state: "running",
-				agent: "nested-worker",
-			}];
+			job.nestedChildren = [
+				{
+					id: "nested-live",
+					parentRunId: "run-bad-status-nested",
+					depth: 1,
+					path: [{ runId: "run-bad-status-nested" }],
+					state: "running",
+					agent: "nested-worker",
+				},
+			];
 
 			await new Promise((resolve) => setTimeout(resolve, 80));
 
@@ -1646,14 +2049,18 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-nested-refresh");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-nested-refresh",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-nested-refresh",
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 
 			const state = createState();
 			const recorder = createEventRecorder();
@@ -1700,14 +2107,18 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			tracker.handleComplete({ id: "run-recovered", success: true });
 			assert.equal(state.cleanupTimers.has("run-recovered"), true);
 
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-recovered",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-recovered",
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 
 			const deadline = Date.now() + 200;
 			while (Date.now() < deadline && state.cleanupTimers.has("run-recovered")) {
@@ -1744,11 +2155,19 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				supervisorRequestState: channel.getSupervisorRequestState,
 			});
 			tracker.handleStarted({ id: runId, asyncDir: runDir, agent: "worker", sessionId });
-			await tools.get("subagent_supervisor")!.execute("reply", { action: "reply", replyTo: requestId, message: "Approved" });
+			await tools
+				.get("subagent_supervisor")!
+				.execute("reply", { action: "reply", replyTo: requestId, message: "Approved" });
 			assert.equal(channel.getSupervisorRequestState(event), "resolved");
-			await waitForCondition(() => (state.asyncJobs.get(runId)?.controlEventCursor ?? 0) > 0, "resolved control event cursor");
+			await waitForCondition(
+				() => (state.asyncJobs.get(runId)?.controlEventCursor ?? 0) > 0,
+				"resolved control event cursor",
+			);
 
-			assert.equal(recorder.events.some((entry) => entry.channel === SUBAGENT_CONTROL_EVENT), false);
+			assert.equal(
+				recorder.events.some((entry) => entry.channel === SUBAGENT_CONTROL_EVENT),
+				false,
+			);
 			assert.deepEqual(sent, [{ customType: "subagent_supervisor_request", options: { triggerTurn: true } }]);
 		} finally {
 			channel.dispose();
@@ -1779,11 +2198,19 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				supervisorRequestState: channel.getSupervisorRequestState,
 			});
 			tracker.handleStarted({ id: runId, asyncDir: runDir, agent: "worker", sessionId });
-			await waitForCondition(() => recorder.events.some((entry) => entry.channel === SUBAGENT_CONTROL_EVENT), "pending control event replay");
+			await waitForCondition(
+				() => recorder.events.some((entry) => entry.channel === SUBAGENT_CONTROL_EVENT),
+				"pending control event replay",
+			);
 
-			const payload = recorder.events.find((entry) => entry.channel === SUBAGENT_CONTROL_EVENT)?.data as { event?: ControlEvent } | undefined;
+			const payload = recorder.events.find((entry) => entry.channel === SUBAGENT_CONTROL_EVENT)?.data as
+				| { event?: ControlEvent }
+				| undefined;
 			assert.equal(payload?.event?.toolCallId, toolCallId);
-			assert.deepEqual(sent.map((entry) => entry.customType), ["subagent_supervisor_request"]);
+			assert.deepEqual(
+				sent.map((entry) => entry.customType),
+				["subagent_supervisor_request"],
+			);
 		} finally {
 			channel.dispose();
 			fs.rmSync(channelDir, { recursive: true, force: true });
@@ -1812,12 +2239,20 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				supervisorRequestState: channel.getSupervisorRequestState,
 			});
 			tracker.handleStarted({ id: runId, asyncDir: runDir, agent: "worker", sessionId });
-			await waitForCondition(() => recorder.events.filter((entry) => entry.channel === SUBAGENT_CONTROL_EVENT).length === 1, "first control event replay");
+			await waitForCondition(
+				() => recorder.events.filter((entry) => entry.channel === SUBAGENT_CONTROL_EVENT).length === 1,
+				"first control event replay",
+			);
 
-			await tools.get("subagent_supervisor")!.execute("reply", { action: "reply", replyTo: requestId, message: "Approved" });
+			await tools
+				.get("subagent_supervisor")!
+				.execute("reply", { action: "reply", replyTo: requestId, message: "Approved" });
 			writeControlRecord(runDir, event);
 			const eventSize = fs.statSync(path.join(runDir, "events.jsonl")).size;
-			await waitForCondition(() => (state.asyncJobs.get(runId)?.controlEventCursor ?? 0) >= eventSize, "resolved replay cursor");
+			await waitForCondition(
+				() => (state.asyncJobs.get(runId)?.controlEventCursor ?? 0) >= eventSize,
+				"resolved replay cursor",
+			);
 			assert.equal(recorder.events.filter((entry) => entry.channel === SUBAGENT_CONTROL_EVENT).length, 1);
 		} finally {
 			channel.dispose();
@@ -1848,7 +2283,15 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			assert.equal(run.events.length, 1);
 			t.mock.timers.tick(1_000);
 			t.mock.timers.tick(120_000);
-			assert.deepEqual(run.events.slice(1).map((entry) => [entry.channel, (entry.data as { noticeDeferred?: boolean }).noticeDeferred]), [[SUBAGENT_CONTROL_EVENT, undefined], [SUBAGENT_CONTROL_INTERCOM_EVENT, undefined]]);
+			assert.deepEqual(
+				run.events
+					.slice(1)
+					.map((entry) => [entry.channel, (entry.data as { noticeDeferred?: boolean }).noticeDeferred]),
+				[
+					[SUBAGENT_CONTROL_EVENT, undefined],
+					[SUBAGENT_CONTROL_INTERCOM_EVENT, undefined],
+				],
+			);
 		} finally {
 			removeTempDir(asyncRoot);
 		}
@@ -1861,7 +2304,12 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const run = startSupervisorAttentionRun(asyncRoot, "run-grace-finished", t.mock.timers);
 			run.tracker.handleComplete({ id: "run-grace-finished", success: true });
 			t.mock.timers.tick(60_000);
-			assert.equal(run.events.filter((entry) => entry.channel === SUBAGENT_CONTROL_EVENT || entry.channel === SUBAGENT_CONTROL_INTERCOM_EVENT).length, 1);
+			assert.equal(
+				run.events.filter(
+					(entry) => entry.channel === SUBAGENT_CONTROL_EVENT || entry.channel === SUBAGENT_CONTROL_INTERCOM_EVENT,
+				).length,
+				1,
+			);
 		} finally {
 			removeTempDir(asyncRoot);
 		}
@@ -1885,7 +2333,10 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				supervisorRequestState: channel.getSupervisorRequestState,
 			});
 			tracker.handleStarted({ id: runId, asyncDir: runDir, agent: "worker", sessionId });
-			await waitForCondition(() => recorder.events.some((entry) => entry.channel === SUBAGENT_CONTROL_EVENT), "external control event replay");
+			await waitForCondition(
+				() => recorder.events.some((entry) => entry.channel === SUBAGENT_CONTROL_EVENT),
+				"external control event replay",
+			);
 		} finally {
 			channel.dispose();
 			removeTempDir(asyncRoot);
@@ -1897,14 +2348,18 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-partial");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-partial",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-partial",
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 			const eventPath = path.join(runDir, "events.jsonl");
 			const partialRecord = JSON.stringify({
 				type: "subagent.control",
@@ -1932,7 +2387,10 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 
 			fs.appendFileSync(eventPath, "\n", "utf-8");
 			await new Promise((resolve) => setTimeout(resolve, 30));
-			assert.equal(recorder.events.some((event) => event.channel === "subagent:control-event"), true);
+			assert.equal(
+				recorder.events.some((event) => event.channel === "subagent:control-event"),
+				true,
+			);
 		} finally {
 			removeTempDir(asyncRoot);
 		}
@@ -1945,14 +2403,18 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-chunked-control");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-chunked-control",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-chunked-control",
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 			const largeDiagnostic = JSON.stringify({
 				type: "message_update",
 				message: { role: "assistant", content: [{ type: "text", text: "x".repeat(200_000) }] },
@@ -2005,14 +2467,18 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-midline-oversized-control");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-midline-oversized-control",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-midline-oversized-control",
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 			const largeDiagnostic = JSON.stringify({
 				type: "message_update",
 				message: { role: "assistant", content: [{ type: "text", text: "x".repeat(2_500_000) }] },
@@ -2051,7 +2517,10 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 				() => recorder.events.some((event) => event.channel === "subagent:control-event"),
 				"control event after oversized diagnostic",
 			);
-			assert.equal(errors.some((args) => String(args[0]).includes("Ignoring malformed async control event")), false);
+			assert.equal(
+				errors.some((args) => String(args[0]).includes("Ignoring malformed async control event")),
+				false,
+			);
 		} finally {
 			console.error = originalError;
 			removeTempDir(asyncRoot);
@@ -2063,14 +2532,18 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-new-large-control");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-new-large-control",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-new-large-control",
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 			const controlEvent = JSON.stringify({
 				type: "subagent.control",
 				channels: ["event"],
@@ -2083,10 +2556,11 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 					message: "worker needs attention",
 				},
 			});
-			const diagnosticLine = JSON.stringify({
-				type: "message_update",
-				message: { role: "assistant", content: [{ type: "text", text: "x".repeat(4000) }] },
-			}) + "\n";
+			const diagnosticLine =
+				JSON.stringify({
+					type: "message_update",
+					message: { role: "assistant", content: [{ type: "text", text: "x".repeat(4000) }] },
+				}) + "\n";
 			const eventsPath = path.join(runDir, "events.jsonl");
 			fs.writeFileSync(eventsPath, controlEvent + "\n" + diagnosticLine.repeat(900), "utf-8");
 			assert.ok(fs.statSync(eventsPath).size > 2 * 1024 * 1024, "test fixture should exceed the legacy scan window");
@@ -2116,18 +2590,23 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-large-legacy-control");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-large-legacy-control",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
-			const diagnosticLine = JSON.stringify({
-				type: "message_update",
-				message: { role: "assistant", content: [{ type: "text", text: "x".repeat(4000) }] },
-			}) + "\n";
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-large-legacy-control",
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
+			const diagnosticLine =
+				JSON.stringify({
+					type: "message_update",
+					message: { role: "assistant", content: [{ type: "text", text: "x".repeat(4000) }] },
+				}) + "\n";
 			const controlEvent = JSON.stringify({
 				type: "subagent.control",
 				channels: ["event"],
@@ -2186,17 +2665,21 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-clear-tool");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-clear-tool",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				currentTool: "edit",
-				currentToolStartedAt: Date.now() - 100,
-				currentPath: "src/runs/background/subagent-runner.ts",
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-clear-tool",
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					currentTool: "edit",
+					currentToolStartedAt: Date.now() - 100,
+					currentPath: "src/runs/background/subagent-runner.ts",
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 
 			const state = createState();
 			const recorder = createEventRecorder();
@@ -2210,14 +2693,18 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			assert.equal(job?.currentTool, "edit");
 			assert.equal(job?.currentPath, "src/runs/background/subagent-runner.ts");
 
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-clear-tool",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-clear-tool",
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
 
 			await new Promise((resolve) => setTimeout(resolve, 30));
 			job = state.asyncJobs.get("run-clear-tool");
@@ -2234,27 +2721,35 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-channels");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-channels",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
-			fs.writeFileSync(path.join(runDir, "events.jsonl"), `${JSON.stringify({
-				type: "subagent.control",
-				channels: ["intercom"],
-				event: {
-					type: "needs_attention",
-					to: "needs_attention",
-					ts: 123,
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
 					runId: "run-channels",
-					agent: "worker",
-					message: "worker needs attention",
-				},
-				intercom: { to: "main", message: "SUBAGENT NEEDS ATTENTION: worker in run run-channels." },
-			})}\n`, "utf-8");
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
+			fs.writeFileSync(
+				path.join(runDir, "events.jsonl"),
+				`${JSON.stringify({
+					type: "subagent.control",
+					channels: ["intercom"],
+					event: {
+						type: "needs_attention",
+						to: "needs_attention",
+						ts: 123,
+						runId: "run-channels",
+						agent: "worker",
+						message: "worker needs attention",
+					},
+					intercom: { to: "main", message: "SUBAGENT NEEDS ATTENTION: worker in run run-channels." },
+				})}\n`,
+				"utf-8",
+			);
 
 			const state = createState();
 			const recorder = createEventRecorder();
@@ -2264,8 +2759,14 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			tracker.handleStarted({ id: "run-channels", asyncDir: runDir, agent: "worker" });
 
 			await new Promise((resolve) => setTimeout(resolve, 30));
-			assert.equal(recorder.events.some((event) => event.channel === "subagent:control-event"), false);
-			assert.equal(recorder.events.some((event) => event.channel === "subagent:control-intercom"), true);
+			assert.equal(
+				recorder.events.some((event) => event.channel === "subagent:control-event"),
+				false,
+			);
+			assert.equal(
+				recorder.events.some((event) => event.channel === "subagent:control-intercom"),
+				true,
+			);
 		} finally {
 			removeTempDir(asyncRoot);
 		}
@@ -2276,27 +2777,35 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-active-intercom");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-active-intercom",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
-			fs.writeFileSync(path.join(runDir, "events.jsonl"), `${JSON.stringify({
-				type: "subagent.control",
-				channels: ["event", "intercom"],
-				event: {
-					type: "active_long_running",
-					to: "active_long_running",
-					ts: 123,
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
 					runId: "run-active-intercom",
-					agent: "worker",
-					message: "worker is still active but long-running",
-				},
-				intercom: { to: "main", message: "stale active notice" },
-			})}\n`, "utf-8");
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
+			fs.writeFileSync(
+				path.join(runDir, "events.jsonl"),
+				`${JSON.stringify({
+					type: "subagent.control",
+					channels: ["event", "intercom"],
+					event: {
+						type: "active_long_running",
+						to: "active_long_running",
+						ts: 123,
+						runId: "run-active-intercom",
+						agent: "worker",
+						message: "worker is still active but long-running",
+					},
+					intercom: { to: "main", message: "stale active notice" },
+				})}\n`,
+				"utf-8",
+			);
 
 			const state = createState();
 			const recorder = createEventRecorder();
@@ -2306,8 +2815,14 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			tracker.handleStarted({ id: "run-active-intercom", asyncDir: runDir, agent: "worker" });
 
 			await new Promise((resolve) => setTimeout(resolve, 30));
-			assert.equal(recorder.events.some((event) => event.channel === "subagent:control-event"), true);
-			assert.equal(recorder.events.some((event) => event.channel === "subagent:control-intercom"), false);
+			assert.equal(
+				recorder.events.some((event) => event.channel === "subagent:control-event"),
+				true,
+			);
+			assert.equal(
+				recorder.events.some((event) => event.channel === "subagent:control-intercom"),
+				false,
+			);
 		} finally {
 			removeTempDir(asyncRoot);
 		}
@@ -2318,29 +2833,38 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-3");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-3",
-				mode: "single",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running" }],
-			}), "utf-8");
-			fs.writeFileSync(path.join(runDir, "events.jsonl"), `${JSON.stringify({
-				type: "subagent.control",
-				channels: ["event", "intercom"],
-				childIntercomTarget: "subagent-worker-run-3-1",
-				noticeText: "Subagent needs attention: worker\nNudge: intercom({ action: \"send\", to: \"subagent-worker-run-3-1\", message: \"<message>\" })",
-				event: {
-					type: "needs_attention",
-					to: "needs_attention",
-					ts: 123,
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
 					runId: "run-3",
-					agent: "worker",
-					message: "worker needs attention",
-				},
-				intercom: { to: "main", message: "SUBAGENT NEEDS ATTENTION: worker in run run-3." },
-			})}\n`, "utf-8");
+					mode: "single",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running" }],
+				}),
+				"utf-8",
+			);
+			fs.writeFileSync(
+				path.join(runDir, "events.jsonl"),
+				`${JSON.stringify({
+					type: "subagent.control",
+					channels: ["event", "intercom"],
+					childIntercomTarget: "subagent-worker-run-3-1",
+					noticeText:
+						'Subagent needs attention: worker\nNudge: intercom({ action: "send", to: "subagent-worker-run-3-1", message: "<message>" })',
+					event: {
+						type: "needs_attention",
+						to: "needs_attention",
+						ts: 123,
+						runId: "run-3",
+						agent: "worker",
+						message: "worker needs attention",
+					},
+					intercom: { to: "main", message: "SUBAGENT NEEDS ATTENTION: worker in run run-3." },
+				})}\n`,
+				"utf-8",
+			);
 
 			const state = createState();
 			const recorder = createEventRecorder();
@@ -2354,7 +2878,10 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 			const controlEvent = recorder.events.find((event) => event.channel === "subagent:control-event");
 			assert.ok(controlEvent);
 			assert.match((controlEvent.data as { noticeText?: string }).noticeText ?? "", /subagent-worker-run-3-1/);
-			assert.equal(recorder.events.some((event) => event.channel === "subagent:control-intercom"), true);
+			assert.equal(
+				recorder.events.some((event) => event.channel === "subagent:control-intercom"),
+				true,
+			);
 		} finally {
 			removeTempDir(asyncRoot);
 		}
@@ -2365,25 +2892,33 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-child-status");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-child-status",
-				mode: "parallel",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running", workflowKey: "slow" }],
-			}), "utf-8");
-			fs.writeFileSync(path.join(runDir, "events.jsonl"), `${JSON.stringify({
-				type: "subagent.child-status",
-				version: 1,
-				runId: "run-child-status",
-				childId: "slow",
-				status: "started",
-				ts: 123,
-				stepIndex: 0,
-				agent: "worker",
-				workflowKey: "slow",
-			})}\n`, "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-child-status",
+					mode: "parallel",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running", workflowKey: "slow" }],
+				}),
+				"utf-8",
+			);
+			fs.writeFileSync(
+				path.join(runDir, "events.jsonl"),
+				`${JSON.stringify({
+					type: "subagent.child-status",
+					version: 1,
+					runId: "run-child-status",
+					childId: "slow",
+					status: "started",
+					ts: 123,
+					stepIndex: 0,
+					agent: "worker",
+					workflowKey: "slow",
+				})}\n`,
+				"utf-8",
+			);
 
 			const state = createState();
 			const recorder = createEventRecorder();
@@ -2421,37 +2956,54 @@ describe("async job tracker", { skip: !available ? "pi packages not available" :
 		try {
 			const runDir = path.join(asyncRoot, "run-throwing-child-status");
 			fs.mkdirSync(runDir, { recursive: true });
-			fs.writeFileSync(path.join(runDir, "status.json"), JSON.stringify({
-				runId: "run-throwing-child-status",
-				mode: "workflow",
-				state: "running",
-				startedAt: Date.now() - 1000,
-				lastUpdate: Date.now(),
-				steps: [{ agent: "worker", status: "running", workflowKey: "child" }],
-			}), "utf-8");
-			const childEvent = (status: "started" | "stopped", ts: number) => JSON.stringify({
-				type: "subagent.child-status",
-				version: 1,
-				runId: "run-throwing-child-status",
-				childId: "child",
-				status,
-				ts,
-				workflowKey: "child",
-			});
-			fs.writeFileSync(path.join(runDir, "events.jsonl"), `${childEvent("started", 123)}\n${childEvent("stopped", 124)}\n`, "utf-8");
+			fs.writeFileSync(
+				path.join(runDir, "status.json"),
+				JSON.stringify({
+					runId: "run-throwing-child-status",
+					mode: "workflow",
+					state: "running",
+					startedAt: Date.now() - 1000,
+					lastUpdate: Date.now(),
+					steps: [{ agent: "worker", status: "running", workflowKey: "child" }],
+				}),
+				"utf-8",
+			);
+			const childEvent = (status: "started" | "stopped", ts: number) =>
+				JSON.stringify({
+					type: "subagent.child-status",
+					version: 1,
+					runId: "run-throwing-child-status",
+					childId: "child",
+					status,
+					ts,
+					workflowKey: "child",
+				});
+			fs.writeFileSync(
+				path.join(runDir, "events.jsonl"),
+				`${childEvent("started", 123)}\n${childEvent("stopped", 124)}\n`,
+				"utf-8",
+			);
 
 			let emitAttempts = 0;
 			const delivered: unknown[] = [];
-			const pi = { events: { emit(channel: string, data: unknown) {
-				if (channel !== SUBAGENT_CHILD_STATUS_EVENT) return;
-				emitAttempts += 1;
-				if (emitAttempts === 1) throw new Error("simulated replay subscriber failure");
-				delivered.push(data);
-			} } };
+			const pi = {
+				events: {
+					emit(channel: string, data: unknown) {
+						if (channel !== SUBAGENT_CHILD_STATUS_EVENT) return;
+						emitAttempts += 1;
+						if (emitAttempts === 1) throw new Error("simulated replay subscriber failure");
+						delivered.push(data);
+					},
+				},
+			};
 			const diagnostics: unknown[][] = [];
 			const originalError = console.error;
-			console.error = (...args: unknown[]) => { diagnostics.push(args); };
-			t.after(() => { console.error = originalError; });
+			console.error = (...args: unknown[]) => {
+				diagnostics.push(args);
+			};
+			t.after(() => {
+				console.error = originalError;
+			});
 			const tracker = createTracker(pi, createState() as never, asyncRoot, { pollIntervalMs: 10 });
 			tracker.handleStarted({ id: "run-throwing-child-status", asyncDir: runDir, agent: "workflow" });
 

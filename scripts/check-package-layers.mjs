@@ -16,6 +16,7 @@
  *   feature     capability + kit + kernel + platform
  *   product     everything below it          (coding-agent)
  *   eval        everything below it          (evals)
+ *   extension   everything below it          (subagents: an extension legitimately sits on top of its host)
  *   anything    never eval
  *
  * Two extra rules keep today's shape from drifting:
@@ -52,6 +53,7 @@ const ALLOWED = {
 	feature: new Set(["capability", "kit", "kernel", "platform"]),
 	product: new Set(["kernel", "capability", "feature", "surface", "kit", "platform"]),
 	eval: new Set(["product", "kernel", "capability", "feature", "surface", "kit", "platform"]),
+	extension: new Set(["product", "kernel", "capability", "feature", "surface", "kit", "platform"]),
 };
 
 const HARNESS_IMPORT = /from\s+"(?:@evoharness\/durable\/harness|.*durable\/src\/harness[^"]*)"/u;
@@ -61,6 +63,7 @@ function layerOf(name) {
 	if (name === "@evoharness/agent-core" || name === "@evoharness/kernel") return "kernel";
 	if (name === "@evoharness/coding-agent") return "product";
 	if (name === "@evoharness/evals") return "eval";
+	if (name === "@evoharness/subagents") return "extension";
 	if (name === "@evoharness/runtime-kit") return "kit";
 	if (name === "@evoharness/capability") return "platform";
 	if (name.startsWith("@evoharness/cap-")) return "capability";

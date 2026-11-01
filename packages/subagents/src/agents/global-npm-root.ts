@@ -3,11 +3,9 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 /** Optional global package discovery; a failure never prevents local discovery. */
-export async function resolveGlobalNpmRoot(options: {
-	env?: NodeJS.ProcessEnv;
-	platform?: NodeJS.Platform;
-	timeoutMs?: number;
-} = {}): Promise<string | null> {
+export async function resolveGlobalNpmRoot(
+	options: { env?: NodeJS.ProcessEnv; platform?: NodeJS.Platform; timeoutMs?: number } = {},
+): Promise<string | null> {
 	const env = options.env ?? process.env;
 	const offline = env.EVOHARNESS_OFFLINE?.toLowerCase();
 	if (offline === "1" || offline === "true" || offline === "yes") return null;
@@ -40,9 +38,10 @@ export async function resolveGlobalNpmRoot(options: {
 		// POSIX npm is executable directly: killing a shell would leave npm running.
 		// Windows npm.cmd requires a shell, matching the existing command behavior.
 		const callback = (error: Error | null, stdout: string) => finish(error ? null : stdout.trim());
-		const child = (options.platform ?? process.platform) === "win32"
-			? exec("npm root -g", commandOptions, callback)
-			: execFile("npm", ["root", "-g"], commandOptions, callback);
+		const child =
+			(options.platform ?? process.platform) === "win32"
+				? exec("npm root -g", commandOptions, callback)
+				: execFile("npm", ["root", "-g"], commandOptions, callback);
 		// Resolve at the deadline even if inherited pipes hold the callback open.
 		const timer = setTimeout(() => {
 			child.kill();

@@ -8,7 +8,8 @@ let failSend = false;
 const state = { currentSessionId: "session-a", completionOwnerId: "owner-a" };
 const sent: Array<{ message: Record<string, unknown>; options: unknown }> = [];
 const pi = {
-	events: { on: () => () => {} }, isHeld: () => false,
+	events: { on: () => () => {} },
+	isHeld: () => false,
 	sendMessage(message: Record<string, unknown>, options: unknown) {
 		if (failSend) throw new Error("PRIVATE_ERROR_CREDENTIAL");
 		sent.push({ message, options });
@@ -17,16 +18,30 @@ const pi = {
 const notifier = registerSubagentNotify(pi as never, state, {
 	now: () => now,
 	timers: {
-		setTimeout(callback) { callbacks.set(++timerId, callback); return timerId; },
-		clearTimeout(handle) { callbacks.delete(handle as number); },
+		setTimeout(callback) {
+			callbacks.set(++timerId, callback);
+			return timerId;
+		},
+		clearTimeout(handle) {
+			callbacks.delete(handle as number);
+		},
 	},
 });
 const result = (id: string, extra: Partial<CompletionNotification> = {}): CompletionNotification => ({
-	id, runId: id, sessionId: "session-a", completionOwnerId: "owner-a", success: true,
-	summary: "PRIVATE_OUTPUT", task: "PRIVATE_TASK", credential: "PRIVATE_CREDENTIAL",
-	sessionFile: "/PRIVATE_SESSION_PATH", ...extra,
+	id,
+	runId: id,
+	sessionId: "session-a",
+	completionOwnerId: "owner-a",
+	success: true,
+	summary: "PRIVATE_OUTPUT",
+	task: "PRIVATE_TASK",
+	credential: "PRIVATE_CREDENTIAL",
+	sessionFile: "/PRIVATE_SESSION_PATH",
+	...extra,
 });
-const flush = () => { for (const callback of [...callbacks.values()]) callback(); };
+const flush = () => {
+	for (const callback of [...callbacks.values()]) callback();
+};
 assert.equal(await notifier.deliver(result("missing", { sessionId: undefined })), false);
 assert.equal(await notifier.deliver(result("foreground-other", { source: "foreground", sessionId: "other" })), false);
 assert.equal(await notifier.deliver(result("foreign", { completionOwnerId: "other" })), false);
@@ -77,7 +92,11 @@ await notifier.deliver(result("unsafe\n\u001b[31m" + "x".repeat(10_000)));
 // Disabled diagnostics must not even read diagnostic identity fields at a guard.
 if (!process.env.NODE_DEBUG) {
 	const unread = result("unread");
-	Object.defineProperty(unread, "runId", { get() { throw new Error("diagnostic metadata read while disabled"); } });
+	Object.defineProperty(unread, "runId", {
+		get() {
+			throw new Error("diagnostic metadata read while disabled");
+		},
+	});
 	assert.equal(await notifier.deliver(unread), false);
 }
 const immediate = registerSubagentNotify(pi as never, state, { batchConfig: { enabled: false } });

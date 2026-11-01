@@ -7,30 +7,58 @@
  */
 import type { Message } from "@evoharness/ai";
 import type { ChildTranscriptWriter } from "../../shared/child-transcript.ts";
-import { SUBAGENT_STOPPED_MESSAGE, SUBAGENT_TIMED_OUT_MESSAGE, assistantMessageError, extractTextFromContent, extractToolArgsPreview, getFinalOutput, hasEmptyTerminalAssistantResponse } from "../../shared/utils.ts";
 import { qualifyModelWithProvider } from "../../shared/model-info.ts";
-import type { EffectsProjection, RuntimeAcknowledgedChildExtensions, SubagentOutputState, ToolBudgetState, Usage } from "../../shared/types.ts";
+import type {
+	EffectsProjection,
+	RuntimeAcknowledgedChildExtensions,
+	SubagentOutputState,
+	ToolBudgetState,
+	Usage,
+} from "../../shared/types.ts";
+import {
+	assistantMessageError,
+	extractTextFromContent,
+	extractToolArgsPreview,
+	getFinalOutput,
+	hasEmptyTerminalAssistantResponse,
+	SUBAGENT_STOPPED_MESSAGE,
+	SUBAGENT_TIMED_OUT_MESSAGE,
+} from "../../shared/utils.ts";
 import {
 	acceptChildWatchdogEvent,
 	applyChildWatchdogMessage,
-	childWatchdogIsActive,
-	isChildWatchdogStatusEvent,
 	type ChildWatchdogConfig,
 	type ChildWatchdogStateSnapshot,
 	type ChildWatchdogStatusEvent,
+	childWatchdogIsActive,
+	isChildWatchdogStatusEvent,
 } from "../../watchdog/child-status.ts";
-import { projectChildLifecycle, type ChildLifecycleAction, type ChildLifecycleState } from "../shared/child-lifecycle.ts";
-import { formatSubagentModelVerificationError } from "../shared/model-resolution.ts";
-import { formatChildModelResolutionDiagnostic, formatMissingParentProviderDiagnostic, isChildModelResolutionFailure } from "../shared/model-resolution-diagnostic.ts";
-import { isMutatingTool, resolveCurrentPath } from "../shared/long-running-guard.ts";
-import { effectiveToolTimeoutMs, formatToolTimeoutMessage, toolTimeoutCallKey } from "../shared/tool-timeout.ts";
 import { createReportedChildSessionInput, type InProcessChildLaunch } from "../shared/child-launch.ts";
+import {
+	type ChildLifecycleAction,
+	type ChildLifecycleState,
+	projectChildLifecycle,
+} from "../shared/child-lifecycle.ts";
+import {
+	type ChildSession,
+	type ChildSessionEvent,
+	type ChildSessionFactory,
+	childSessionHasQueuedMessages,
+	projectChildSessionEventForJson,
+} from "../shared/child-session.ts";
+import { isMutatingTool, resolveCurrentPath } from "../shared/long-running-guard.ts";
+import { formatSubagentModelVerificationError } from "../shared/model-resolution.ts";
+import {
+	formatChildModelResolutionDiagnostic,
+	formatMissingParentProviderDiagnostic,
+	isChildModelResolutionFailure,
+} from "../shared/model-resolution-diagnostic.ts";
 import { createPartialOutputTracker, formatPartialOutput, type PartialOutputCause } from "../shared/partial-output.ts";
-import { childSessionHasQueuedMessages, projectChildSessionEventForJson, type ChildSession, type ChildSessionEvent, type ChildSessionFactory } from "../shared/child-session.ts";
-import { reconcileAttemptUsage } from "../shared/usage-reconciliation.ts";
 import { isOrdinaryToolForMidToolExit } from "../shared/process-signal.ts";
 import { STRUCTURED_OUTPUT_FOLLOW_UP } from "../shared/structured-output.ts";
 import { formatSteerMessage } from "../shared/subagent-prompt-runtime.ts";
+import { effectiveToolTimeoutMs, formatToolTimeoutMessage, toolTimeoutCallKey } from "../shared/tool-timeout.ts";
+import { reconcileAttemptUsage } from "../shared/usage-reconciliation.ts";
 import type { SteerDeliveryStatus, SteerRequest } from "./control-channel.ts";
 import { takeMatchingAcceptedSteer, unconsumedSteerReason } from "./steering.ts";
 
@@ -150,8 +178,9 @@ function shouldPersistChildEvent(event: Record<string, unknown>): boolean {
 }
 
 function assistantStartsToolCall(message: Message): boolean {
-	return Array.isArray(message.content)
-		&& message.content.some((part) => (part as { type?: string }).type === "toolCall");
+	return (
+		Array.isArray(message.content) && message.content.some((part) => (part as { type?: string }).type === "toolCall")
+	);
 }
 
 function isTerminalAssistantStop(message: Message): boolean {
@@ -225,7 +254,11 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 			currentToolArgs = active?.args;
 			currentPath = active?.path;
 		};
-		const recordActiveToolCall = (event: { toolCallId?: unknown; toolName: string; args?: Record<string, unknown> }): void => {
+		const recordActiveToolCall = (event: {
+			toolCallId?: unknown;
+			toolName: string;
+			args?: Record<string, unknown>;
+		}): void => {
 			const key = toolTimeoutCallKey(event, ++activeToolSequence);
 			const active = omitUndefined({
 				key,
@@ -240,13 +273,14 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 			refreshCurrentTool();
 		};
 		const removeActiveToolCall = (event: { toolCallId?: unknown; toolName?: unknown }): void => {
-			const key = typeof event.toolCallId === "string" && event.toolCallId.length > 0
-				? `id:${event.toolCallId}`
-				: typeof event.toolName === "string"
-					? activeToolKeysByName.get(event.toolName)?.[0]
-					: activeToolCalls.size === 1
-						? [...activeToolCalls.keys()][0]
-						: undefined;
+			const key =
+				typeof event.toolCallId === "string" && event.toolCallId.length > 0
+					? `id:${event.toolCallId}`
+					: typeof event.toolName === "string"
+						? activeToolKeysByName.get(event.toolName)?.[0]
+						: activeToolCalls.size === 1
+							? [...activeToolCalls.keys()][0]
+							: undefined;
 			if (!key) return;
 			const active = activeToolCalls.get(key);
 			if (!active) return;
@@ -310,7 +344,13 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 			}
 		};
 		function armWatchdogTail(): void {
-			if ((!cleanTerminalAssistantStopReceived && !agentSettledReceived) || watchdogTailTimer || settled || promptSettled) return;
+			if (
+				(!cleanTerminalAssistantStopReceived && !agentSettledReceived) ||
+				watchdogTailTimer ||
+				settled ||
+				promptSettled
+			)
+				return;
 			watchdogTailTimer = setTimeout(() => {
 				watchdogTailTimer = undefined;
 				childWatchdogState = {
@@ -360,11 +400,15 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 				}, HARD_FINISH_MS);
 			}, FINAL_STOP_GRACE_MS);
 		}
-		const applyChildLifecycle = (action: ChildLifecycleAction, event?: { type?: string; willRetry?: unknown }): void => {
+		const applyChildLifecycle = (
+			action: ChildLifecycleAction,
+			event?: { type?: string; willRetry?: unknown },
+		): void => {
 			if (action === "cancel-drain") {
 				// After a clean final stop, a non-retrying agent_end may be the child's last event
 				// (Pi may not emit agent_settled), so it re-arms the drain instead of cancelling it.
-				terminalAgentEndReceived = event?.type === "agent_end" && event.willRetry !== true && cleanTerminalAssistantStopReceived;
+				terminalAgentEndReceived =
+					event?.type === "agent_end" && event.willRetry !== true && cleanTerminalAssistantStopReceived;
 				agentSettledReceived = false;
 				clearFinalDrainTimers();
 				clearWatchdogTailTimer();
@@ -392,13 +436,14 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 			else activeToolTimeoutKeysByName.delete(active.toolName);
 		};
 		const clearActiveToolTimeout = (event: { toolCallId?: unknown; toolName?: unknown }): void => {
-			const key = typeof event.toolCallId === "string" && event.toolCallId.length > 0
-				? `id:${event.toolCallId}`
-				: typeof event.toolName === "string"
-					? activeToolTimeoutKeysByName.get(event.toolName)?.[0]
-					: activeToolTimeouts.size === 1
-						? [...activeToolTimeouts.keys()][0]
-						: undefined;
+			const key =
+				typeof event.toolCallId === "string" && event.toolCallId.length > 0
+					? `id:${event.toolCallId}`
+					: typeof event.toolName === "string"
+						? activeToolTimeoutKeysByName.get(event.toolName)?.[0]
+						: activeToolTimeouts.size === 1
+							? [...activeToolTimeouts.keys()][0]
+							: undefined;
 			if (key) removeToolTimeoutKey(key);
 		};
 		const clearAllToolTimeouts = (): void => {
@@ -414,7 +459,8 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 		const armToolTimeout = (event: { toolCallId?: unknown; toolName: string }): void => {
 			const timeoutForTool = effectiveToolTimeoutMs(event.toolName, input.toolTimeoutMs);
 			if (timeoutForTool === undefined) return;
-			const runRemaining = input.runDeadlineAt === undefined ? undefined : Math.max(0, input.runDeadlineAt - Date.now());
+			const runRemaining =
+				input.runDeadlineAt === undefined ? undefined : Math.max(0, input.runDeadlineAt - Date.now());
 			if (runRemaining !== undefined && timeoutForTool >= runRemaining) return;
 			const key = toolTimeoutCallKey(event, ++toolTimeoutSequence);
 			const toolName = event.toolName;
@@ -468,11 +514,13 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 				const next = acceptChildWatchdogEvent({
 					current: childWatchdogState,
 					event,
-					...(input.childEventContext ? {
-						runId: input.childEventContext.runId,
-						agent: input.childEventContext.agent,
-						childIndex: input.childEventContext.stepIndex,
-					} : {}),
+					...(input.childEventContext
+						? {
+								runId: input.childEventContext.runId,
+								agent: input.childEventContext.agent,
+								childIndex: input.childEventContext.stepIndex,
+							}
+						: {}),
 				});
 				if (!next) return;
 				childWatchdogState = next;
@@ -497,14 +545,16 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 
 			if (event.type === "tool_execution_start" && event.toolName) {
 				toolCount += 1;
-				const toolArgs = event.args && typeof event.args === "object" && !Array.isArray(event.args) ? event.args : {};
+				const toolArgs =
+					event.args && typeof event.args === "object" && !Array.isArray(event.args) ? event.args : {};
 				armToolTimeout({ toolCallId: event.toolCallId, toolName: event.toolName });
 				recordActiveToolCall({ toolCallId: event.toolCallId, toolName: event.toolName, args: toolArgs });
 				if (event.toolName === "structured_output") {
 					structuredOutputToolInvoked = true;
 					structuredOutputMessageStartIndex = messages.length;
 				}
-				observedMutationAttempt = observedMutationAttempt || isMutatingTool(event.toolName, toolArgs, input.mutationTools);
+				observedMutationAttempt =
+					observedMutationAttempt || isMutatingTool(event.toolName, toolArgs, input.mutationTools);
 				const preview = extractToolArgsPreview(toolArgs);
 				input.writeOutputLine(preview ? `${event.toolName}: ${preview}` : event.toolName);
 				return;
@@ -532,9 +582,20 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 				if (event.message.role !== "assistant") return;
 				const hasToolCall = assistantStartsToolCall(event.message);
 				if (event.message.model) {
-					model = qualifyModelWithProvider(event.message.model, event.message.provider, input.modelVerificationRegistry) ?? event.message.model;
+					model =
+						qualifyModelWithProvider(
+							event.message.model,
+							event.message.provider,
+							input.modelVerificationRegistry,
+						) ?? event.message.model;
 					if (input.expectedModelForVerification && !hasToolCall) {
-						const modelVerificationError = formatSubagentModelVerificationError(input.expectedModelForVerification, event.message.model, input.modelVerificationRegistry, input.modelResponseAliases, session?.virtualModelId);
+						const modelVerificationError = formatSubagentModelVerificationError(
+							input.expectedModelForVerification,
+							event.message.model,
+							input.modelVerificationRegistry,
+							input.modelResponseAliases,
+							session?.virtualModelId,
+						);
 						if (modelVerificationError && !error) error = modelVerificationError;
 					}
 				}
@@ -553,7 +614,8 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 					usage.cost += eventUsage.cost?.total ?? 0;
 				}
 				if (isTerminalAssistantStop(event.message)) {
-					if (!event.message.errorMessage && extractTextFromContent(event.message.content).trim()) assistantError = undefined;
+					if (!event.message.errorMessage && extractTextFromContent(event.message.content).trim())
+						assistantError = undefined;
 					cleanTerminalAssistantStopReceived ||= !event.message.errorMessage;
 					clearAllToolTimeouts();
 					activeToolCalls.clear();
@@ -581,37 +643,54 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 			unsubscribe?.();
 			let commandError: string | undefined;
 			if (!interrupted && !timedOut && !stopped) {
-				try { await session?.finishCommands?.(); }
-				catch (error) { commandError = error instanceof Error ? error.message : String(error); }
+				try {
+					await session?.finishCommands?.();
+				} catch (error) {
+					commandError = error instanceof Error ? error.message : String(error);
+				}
 			}
-			await Promise.resolve().then(() => session?.dispose()).catch(() => undefined);
+			await Promise.resolve()
+				.then(() => session?.dispose())
+				.catch(() => undefined);
 			return commandError;
 		};
 
 		/** The child run ended (or was forced to end); fold in the outcome once the child's shutdown work is done. */
 		const failUnconsumedSteers = (): void => {
 			for (const entry of acceptedSteers.splice(0)) {
-				input.onSteerOutcome?.(entry.request, { state: "failed", message: unconsumedSteerReason(entry.request.mode) });
+				input.onSteerOutcome?.(entry.request, {
+					state: "failed",
+					message: unconsumedSteerReason(entry.request.mode),
+				});
 			}
 		};
 		const settle = (promptError: unknown, forced = false): void => {
 			if (settled) return;
 			settled = true;
 			failUnconsumedSteers();
-			const terminalUsage = session && messageBaseline !== undefined
-				? reconcileAttemptUsage(usage, session.messages, messageBaseline)
-				: usage;
+			const terminalUsage =
+				session && messageBaseline !== undefined
+					? reconcileAttemptUsage(usage, session.messages, messageBaseline)
+					: usage;
 			const closed = finish();
 			const completedOutput = getFinalOutput(messages);
 			// Text still streaming at a timeout or thrown session error never reached a
 			// completed message; keep it, labeled. The run still fails.
 			const partialCause: PartialOutputCause | undefined = timedOut
 				? "timeout"
-				: promptError !== undefined && !stopped && !interrupted ? "child error" : undefined;
+				: promptError !== undefined && !stopped && !interrupted
+					? "child error"
+					: undefined;
 			const streamedPartial = partialCause ? partialOutput.text() : undefined;
-			const finalOutput = partialCause && streamedPartial ? formatPartialOutput(streamedPartial, partialCause) : completedOutput;
+			const finalOutput =
+				partialCause && streamedPartial ? formatPartialOutput(streamedPartial, partialCause) : completedOutput;
 			let finalError = error ?? assistantError;
-			const promptErrorMessage = promptError === undefined ? undefined : promptError instanceof Error ? promptError.message : String(promptError);
+			const promptErrorMessage =
+				promptError === undefined
+					? undefined
+					: promptError instanceof Error
+						? promptError.message
+						: String(promptError);
 			if (!finalError && promptErrorMessage !== undefined) {
 				finalError = promptErrorMessage;
 			}
@@ -619,33 +698,49 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 			// extension's model as "not found". Annotate only a creation/prompt failure
 			// that produced no turn; keep the core error and add the rule and the
 			// remedies that load the extension for this child.
-			if (promptErrorMessage !== undefined
-				&& finalError === promptErrorMessage
-				&& isChildModelResolutionFailure(promptErrorMessage)
-				&& messages.length === 0
-				&& terminalUsage.turns === 0
-				&& !input.launch.session.ambientExtensions) {
+			if (
+				promptErrorMessage !== undefined &&
+				finalError === promptErrorMessage &&
+				isChildModelResolutionFailure(promptErrorMessage) &&
+				messages.length === 0 &&
+				terminalUsage.turns === 0 &&
+				!input.launch.session.ambientExtensions
+			) {
 				finalError = `${promptErrorMessage}\n\n${formatChildModelResolutionDiagnostic({ agent: input.launch.config.agent, model: input.launch.session.model, host: "runner", capabilityCeiling: input.launch.toolPlan.capabilityCeiling })}`;
-			} else if (input.parentExtensionProvider
-				&& session?.claimedProvider !== input.parentExtensionProvider
-				&& finalError !== undefined
-				&& (finalError === promptErrorMessage || finalError === assistantError)
-				&& toolCount === 0
-				&& messages.every((message) => message.role !== "assistant" || (message as { stopReason?: string }).stopReason === "error")) {
+			} else if (
+				input.parentExtensionProvider &&
+				session?.claimedProvider !== input.parentExtensionProvider &&
+				finalError !== undefined &&
+				(finalError === promptErrorMessage || finalError === assistantError) &&
+				toolCount === 0 &&
+				messages.every(
+					(message) => message.role !== "assistant" || (message as { stopReason?: string }).stopReason === "error",
+				)
+			) {
 				finalError = `${finalError}\n\n${formatMissingParentProviderDiagnostic({ agent: input.launch.config.agent, model: input.launch.session.model, provider: input.parentExtensionProvider, capabilityCeiling: input.launch.toolPlan.capabilityCeiling })}`;
 			}
-			const forcedDrainAfterFinalSuccess = (forced || forcedTermination) && (cleanTerminalAssistantStopReceived || agentSettledReceived) && !finalError;
-			const forcedDrainAfterEmptyTerminal = forcedDrainAfterFinalSuccess && hasEmptyTerminalAssistantResponse(messages);
+			const forcedDrainAfterFinalSuccess =
+				(forced || forcedTermination) &&
+				(cleanTerminalAssistantStopReceived || agentSettledReceived) &&
+				!finalError;
+			const forcedDrainAfterEmptyTerminal =
+				forcedDrainAfterFinalSuccess && hasEmptyTerminalAssistantResponse(messages);
 			if (!finalError && forced && !forcedDrainAfterFinalSuccess && !interrupted && !timedOut && !stopped) {
 				finalError = "Subagent session did not settle after it was aborted.";
 			}
-			let exitCode = timedOut || stopped
-				? 1
-				: interrupted || (forcedDrainAfterFinalSuccess && !forcedDrainAfterEmptyTerminal)
-					? 0
-					: finalError || promptError !== undefined ? 1 : 0;
+			let exitCode =
+				timedOut || stopped
+					? 1
+					: interrupted || (forcedDrainAfterFinalSuccess && !forcedDrainAfterEmptyTerminal)
+						? 0
+						: finalError || promptError !== undefined
+							? 1
+							: 0;
 			void closed.then((commandError) => {
-				if (commandError) { finalError ??= commandError; exitCode = 1; }
+				if (commandError) {
+					finalError ??= commandError;
+					exitCode = 1;
+				}
 				const result: RunChildSessionResult = omitUndefined({
 					exitCode,
 					messages,
@@ -653,9 +748,27 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 					toolCount,
 					durationMs: Date.now() - startedAt,
 					model,
-					nativeMachine: session?.machineEvidence ? { provider: session.machineEvidence.provider, machineId: session.machineEvidence.machineId, ...(session.machineEvidence.initial ? { initialGit: session.machineEvidence.initial } : {}), ...(session.machineEvidence.final ? { finalGit: session.machineEvidence.final } : {}) } : undefined,
-					error: stopped ? stopMessage() : timedOut ? (error ?? timeoutMessage()) : interrupted || (forcedDrainAfterFinalSuccess && !forcedDrainAfterEmptyTerminal && !commandError) ? undefined : finalError,
-					finalOutput: (timedOut || stopped) && !finalOutput.trim() ? (stopped ? stopMessage() : error ?? timeoutMessage()) : finalOutput,
+					nativeMachine: session?.machineEvidence
+						? {
+								provider: session.machineEvidence.provider,
+								machineId: session.machineEvidence.machineId,
+								...(session.machineEvidence.initial ? { initialGit: session.machineEvidence.initial } : {}),
+								...(session.machineEvidence.final ? { finalGit: session.machineEvidence.final } : {}),
+							}
+						: undefined,
+					error: stopped
+						? stopMessage()
+						: timedOut
+							? (error ?? timeoutMessage())
+							: interrupted || (forcedDrainAfterFinalSuccess && !forcedDrainAfterEmptyTerminal && !commandError)
+								? undefined
+								: finalError,
+					finalOutput:
+						(timedOut || stopped) && !finalOutput.trim()
+							? stopped
+								? stopMessage()
+								: (error ?? timeoutMessage())
+							: finalOutput,
 					outputState: finalOutput.trim() ? "present" : "absent",
 					outputPartial: partialCause && streamedPartial ? true : undefined,
 					interrupted: interrupted || undefined,
@@ -729,7 +842,10 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 					} catch (steerError) {
 						const index = acceptedSteers.indexOf(accepted);
 						if (index >= 0) acceptedSteers.splice(index, 1);
-						return { state: "failed", message: steerError instanceof Error ? steerError.message : String(steerError) };
+						return {
+							state: "failed",
+							message: steerError instanceof Error ? steerError.message : String(steerError),
+						};
 					}
 					return queued;
 				});
@@ -737,18 +853,20 @@ export function runChildSession(input: RunChildSessionInput): Promise<RunChildSe
 				messageBaseline = created.messages.length;
 				await created.prompt(input.prompt);
 				// A structured child that finished normally without calling structured_output gets one more turn (#2997).
-				if (input.launch.session.runtime.structuredOutput
-					&& !structuredOutputToolInvoked
-					&& !settled
-					&& !created.shutDown
-					&& !interrupted
-					&& !timedOut
-					&& !stopped
-					&& !forcedTermination
-					&& !error
-					&& !assistantError
-					&& !input.launch.capture.toolDiagnostic()
-					&& !(currentTool && isOrdinaryToolForMidToolExit(currentTool))) {
+				if (
+					input.launch.session.runtime.structuredOutput &&
+					!structuredOutputToolInvoked &&
+					!settled &&
+					!created.shutDown &&
+					!interrupted &&
+					!timedOut &&
+					!stopped &&
+					!forcedTermination &&
+					!error &&
+					!assistantError &&
+					!input.launch.capture.toolDiagnostic() &&
+					!(currentTool && isOrdinaryToolForMidToolExit(currentTool))
+				) {
 					applyChildLifecycle("cancel-drain");
 					await created.prompt(STRUCTURED_OUTPUT_FOLLOW_UP);
 				}

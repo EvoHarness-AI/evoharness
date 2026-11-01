@@ -4,8 +4,18 @@ import type { Message } from "@evoharness/ai";
 import type { OutputMode, SavedOutputReference } from "../../shared/types.ts";
 
 const READ_ONLY_OUTPUT_TOOLS = new Set([
-	"read", "grep", "find", "ls", "web_search", "fetch_content", "get_search_content",
-	"source_check", "intercom", "contact_supervisor", "structured_output", "watchdog_diff",
+	"read",
+	"grep",
+	"find",
+	"ls",
+	"web_search",
+	"fetch_content",
+	"get_search_content",
+	"source_check",
+	"intercom",
+	"contact_supervisor",
+	"structured_output",
+	"watchdog_diff",
 ]);
 
 function hasOutputWriteCapability(tools: string[] | undefined, mcpDirectTools: string[] | undefined): boolean {
@@ -58,9 +68,10 @@ export function extractChildWrittenOutput(
 		if (message.role !== "assistant") continue;
 		for (const part of message.content) {
 			if (part.type !== "toolCall" || part.name !== "write" || !successfulCallIds.has(part.id)) continue;
-			const args = typeof part.arguments === "object" && part.arguments !== null && !Array.isArray(part.arguments)
-				? part.arguments as Record<string, unknown>
-				: {};
+			const args =
+				typeof part.arguments === "object" && part.arguments !== null && !Array.isArray(part.arguments)
+					? (part.arguments as Record<string, unknown>)
+					: {};
 			if (typeof args.path !== "string" || typeof args.content !== "string") continue;
 			const resolvedWritePath = path.resolve(cwd ?? ".", args.path);
 			const comparableWritePath = process.platform === "win32" ? resolvedWritePath.toLowerCase() : resolvedWritePath;
@@ -91,7 +102,9 @@ export function resolveSingleOutputPath(
 	if (path.isAbsolute(output)) return output;
 	if (relativeBaseDir) return path.resolve(relativeBaseDir, output);
 	const baseCwd = requestedCwd
-		? (path.isAbsolute(requestedCwd) ? requestedCwd : path.resolve(runtimeCwd, requestedCwd))
+		? path.isAbsolute(requestedCwd)
+			? requestedCwd
+			: path.resolve(runtimeCwd, requestedCwd)
 		: runtimeCwd;
 	return path.resolve(baseCwd, output);
 }
@@ -103,7 +116,9 @@ interface OutputInstructionCapabilities {
 
 export function requestedOutputPathFromTask(task: string): string | undefined {
 	for (const line of task.split(/\r?\n/).reverse()) {
-		const match = line.match(/^\s*(?:Write your findings to(?: exactly this path)?:|The runtime will persist it to exactly this path:)\s*(.+?)\s*$/i);
+		const match = line.match(
+			/^\s*(?:Write your findings to(?: exactly this path)?:|The runtime will persist it to exactly this path:)\s*(.+?)\s*$/i,
+		);
 		if (!match?.[1]) continue;
 		const requested = match[1].trim();
 		return requested.startsWith("`") && requested.endsWith("`") ? requested.slice(1, -1) : requested;
@@ -111,22 +126,30 @@ export function requestedOutputPathFromTask(task: string): string | undefined {
 	return undefined;
 }
 
-export function outputPathMappingFromTask(task: string, savedPath: string | undefined): { requestedPath: string; savedPath: string } | undefined {
+export function outputPathMappingFromTask(
+	task: string,
+	savedPath: string | undefined,
+): { requestedPath: string; savedPath: string } | undefined {
 	const requestedPath = requestedOutputPathFromTask(task);
 	if (!requestedPath || !savedPath) return undefined;
 	if (path.isAbsolute(requestedPath) && path.normalize(requestedPath) === path.normalize(savedPath)) return undefined;
 	return { requestedPath, savedPath };
 }
 
-export function injectSingleOutputInstruction(task: string, outputPath: string | undefined, capabilities?: OutputInstructionCapabilities): string {
+export function injectSingleOutputInstruction(
+	task: string,
+	outputPath: string | undefined,
+	capabilities?: OutputInstructionCapabilities,
+): string {
 	if (!outputPath) return task;
-	const delivery = !capabilities || hasOutputWriteCapability(capabilities.tools, capabilities.mcpDirectTools)
-		? `Write your findings to exactly this path: ${outputPath}`
-		: [
-			"Return the complete artifact in your final response.",
-			`The runtime will persist it to exactly this path: ${outputPath}`,
-			"Do not call contact_supervisor merely because no write-capable tool is available.",
-		].join("\n");
+	const delivery =
+		!capabilities || hasOutputWriteCapability(capabilities.tools, capabilities.mcpDirectTools)
+			? `Write your findings to exactly this path: ${outputPath}`
+			: [
+					"Return the complete artifact in your final response.",
+					`The runtime will persist it to exactly this path: ${outputPath}`,
+					"Do not call contact_supervisor merely because no write-capable tool is available.",
+				].join("\n");
 	return [
 		`${task}\n\n---\n**Output:**`,
 		delivery,
@@ -222,12 +245,32 @@ export function capInlineOutput(output: string, files: { artifactPath?: string; 
 }
 
 /** Applies capInlineOutput to each `agent:\noutput` section of a run summary whose child output is long. */
-export function capSummaryOutputs(summary: string, results: ReadonlyArray<{ agent?: unknown; output?: unknown; artifactPaths?: { outputPath?: unknown }; artifactOutputSaveFailed?: unknown; savedOutputPath?: unknown }> | undefined): string {
+export function capSummaryOutputs(
+	summary: string,
+	results:
+		| ReadonlyArray<{
+				agent?: unknown;
+				output?: unknown;
+				artifactPaths?: { outputPath?: unknown };
+				artifactOutputSaveFailed?: unknown;
+				savedOutputPath?: unknown;
+		  }>
+		| undefined,
+): string {
 	let capped = summary;
 	for (const result of results ?? []) {
-		if (typeof result.agent !== "string" || typeof result.output !== "string" || result.output.length <= INLINE_OUTPUT_HEAD_CHARS) continue;
-		const artifactPath = result.artifactOutputSaveFailed === true || typeof result.artifactPaths?.outputPath !== "string" ? undefined : result.artifactPaths.outputPath;
-		const savedPath = typeof result.savedOutputPath === "string" && result.savedOutputPath ? result.savedOutputPath : undefined;
+		if (
+			typeof result.agent !== "string" ||
+			typeof result.output !== "string" ||
+			result.output.length <= INLINE_OUTPUT_HEAD_CHARS
+		)
+			continue;
+		const artifactPath =
+			result.artifactOutputSaveFailed === true || typeof result.artifactPaths?.outputPath !== "string"
+				? undefined
+				: result.artifactPaths.outputPath;
+		const savedPath =
+			typeof result.savedOutputPath === "string" && result.savedOutputPath ? result.savedOutputPath : undefined;
 		const section = `${result.agent}:\n${result.output}`;
 		const index = capped.indexOf(section);
 		if (index < 0) continue;
@@ -236,7 +279,11 @@ export function capSummaryOutputs(summary: string, results: ReadonlyArray<{ agen
 	return capped;
 }
 
-export function validateFileOnlyOutputMode(outputMode: OutputMode | undefined, outputPath: string | undefined, context: string): string | undefined {
+export function validateFileOnlyOutputMode(
+	outputMode: OutputMode | undefined,
+	outputPath: string | undefined,
+	context: string,
+): string | undefined {
 	if (outputMode === "file-only" && !outputPath) {
 		return `${context} sets outputMode: "file-only" but does not configure an output file. Set output to a path or use outputMode: "inline".`;
 	}
@@ -256,7 +303,8 @@ export function resolveSingleOutputClaimPath(outputPath: string): string {
 }
 
 function outputClaimError(outputPath: string, expectedClaimPath: string | undefined): string | undefined {
-	if (expectedClaimPath && resolveSingleOutputClaimPath(outputPath) !== expectedClaimPath) return "Output path changed after it was claimed.";
+	if (expectedClaimPath && resolveSingleOutputClaimPath(outputPath) !== expectedClaimPath)
+		return "Output path changed after it was claimed.";
 	return undefined;
 }
 
@@ -383,6 +431,8 @@ export function isSettlementFatalOutputError(
 	resolvedOutput: { savedPath?: string; saveError?: string; fatalError?: boolean },
 	outputMode?: OutputMode,
 ): boolean {
-	return resolvedOutput.fatalError === true
-		|| (outputMode === "file-only" && !resolvedOutput.savedPath && Boolean(resolvedOutput.saveError));
+	return (
+		resolvedOutput.fatalError === true ||
+		(outputMode === "file-only" && !resolvedOutput.savedPath && Boolean(resolvedOutput.saveError))
+	);
 }

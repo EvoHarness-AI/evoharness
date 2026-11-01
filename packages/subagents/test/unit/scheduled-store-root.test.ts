@@ -3,7 +3,13 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { getConfigPath, loadConfig, resolveScheduledStoreRoot, saveConfig, updateConfig } from "../../src/extension/config.ts";
+import {
+	getConfigPath,
+	loadConfig,
+	resolveScheduledStoreRoot,
+	saveConfig,
+	updateConfig,
+} from "../../src/extension/config.ts";
 
 const AGENT_DIR_ENV = "EVOHARNESS_CODING_AGENT_DIR";
 const HOME_ENV = "HOME";
@@ -40,7 +46,10 @@ describe("config.scheduledRuns.storeRoot", () => {
 	it("accepts an absolute path and expands a ~/ path", () => {
 		const absolute = path.join(os.tmpdir(), "pi-subagents-schedules");
 		assert.equal(resolveScheduledStoreRoot(absolute), path.normalize(absolute));
-		assert.equal(resolveScheduledStoreRoot("~/pi-subagents/schedules"), path.join(homeDir, "pi-subagents", "schedules"));
+		assert.equal(
+			resolveScheduledStoreRoot("~/pi-subagents/schedules"),
+			path.join(homeDir, "pi-subagents", "schedules"),
+		);
 	});
 
 	it("rejects project-relative paths during config load", () => {

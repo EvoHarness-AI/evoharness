@@ -1,16 +1,16 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import {
-	isParallelGroup,
-	flattenSteps,
-	mapConcurrent,
 	aggregateParallelOutputs,
-	MAX_PARALLEL_CONCURRENCY,
 	DEFAULT_GLOBAL_CONCURRENCY_LIMIT,
-	Semaphore,
-	type RunnerSubagentStep,
+	flattenSteps,
+	isParallelGroup,
+	MAX_PARALLEL_CONCURRENCY,
+	mapConcurrent,
 	type ParallelStepGroup,
 	type RunnerStep,
+	type RunnerSubagentStep,
+	Semaphore,
 } from "../../src/runs/shared/parallel-utils.ts";
 
 describe("isParallelGroup", () => {
@@ -71,14 +71,13 @@ describe("flattenSteps", () => {
 	});
 
 	it("handles empty parallel group", () => {
-		const steps: RunnerStep[] = [
-			{ agent: "before", task: "x" },
-			{ parallel: [] },
-			{ agent: "after", task: "y" },
-		];
+		const steps: RunnerStep[] = [{ agent: "before", task: "x" }, { parallel: [] }, { agent: "after", task: "y" }];
 		const flat = flattenSteps(steps);
 		assert.equal(flat.length, 2);
-		assert.deepEqual(flat.map((s) => s.agent), ["before", "after"]);
+		assert.deepEqual(
+			flat.map((s) => s.agent),
+			["before", "after"],
+		);
 	});
 });
 
@@ -155,15 +154,25 @@ describe("mapConcurrent", () => {
 
 	it("notifies scheduling settlement only after workers outliving an early rejection stop", async () => {
 		let release!: () => void;
-		const gate = new Promise<void>((resolve) => { release = resolve; });
+		const gate = new Promise<void>((resolve) => {
+			release = resolve;
+		});
 		const started: number[] = [];
 		let schedulingSettled = false;
-		const run = mapConcurrent([0, 1, 2], 2, async (item) => {
-			started.push(item);
-			if (item === 0) throw new Error("early rejection");
-			await gate;
-			return item;
-		}, undefined, () => { schedulingSettled = true; });
+		const run = mapConcurrent(
+			[0, 1, 2],
+			2,
+			async (item) => {
+				started.push(item);
+				if (item === 0) throw new Error("early rejection");
+				await gate;
+				return item;
+			},
+			undefined,
+			() => {
+				schedulingSettled = true;
+			},
+		);
 
 		await assert.rejects(run, /early rejection/);
 		assert.equal(schedulingSettled, false);
@@ -179,20 +188,26 @@ describe("mapConcurrent", () => {
 		const globalSemaphore = new Semaphore(2);
 		let running = 0;
 		let maxRunning = 0;
-		const run = (items: number[]) => mapConcurrent(items, items.length, async (item) => {
-			running++;
-			maxRunning = Math.max(maxRunning, running);
-			await new Promise((r) => setTimeout(r, 10));
-			running--;
-			return item;
-		}, globalSemaphore);
+		const run = (items: number[]) =>
+			mapConcurrent(
+				items,
+				items.length,
+				async (item) => {
+					running++;
+					maxRunning = Math.max(maxRunning, running);
+					await new Promise((r) => setTimeout(r, 10));
+					running--;
+					return item;
+				},
+				globalSemaphore,
+			);
 
-		const results = await Promise.all([
-			run([1, 2, 3]),
-			run([4, 5, 6]),
+		const results = await Promise.all([run([1, 2, 3]), run([4, 5, 6])]);
+
+		assert.deepEqual(results, [
+			[1, 2, 3],
+			[4, 5, 6],
 		]);
-
-		assert.deepEqual(results, [[1, 2, 3], [4, 5, 6]]);
 		assert.ok(maxRunning <= 2, `max concurrent was ${maxRunning}, expected <= 2`);
 	});
 
@@ -201,13 +216,18 @@ describe("mapConcurrent", () => {
 		let running = 0;
 		let maxRunning = 0;
 
-		await mapConcurrent([1, 2, 3], 3, async (item) => {
-			running++;
-			maxRunning = Math.max(maxRunning, running);
-			await new Promise((r) => setTimeout(r, 10));
-			running--;
-			return item;
-		}, globalSemaphore);
+		await mapConcurrent(
+			[1, 2, 3],
+			3,
+			async (item) => {
+				running++;
+				maxRunning = Math.max(maxRunning, running);
+				await new Promise((r) => setTimeout(r, 10));
+				running--;
+				return item;
+			},
+			globalSemaphore,
+		);
 
 		assert.equal(maxRunning, 1);
 	});
@@ -232,23 +252,17 @@ describe("aggregateParallelOutputs", () => {
 	});
 
 	it("marks failed tasks", () => {
-		const result = aggregateParallelOutputs([
-			{ agent: "agent-a", output: "partial output", exitCode: 1 },
-		]);
+		const result = aggregateParallelOutputs([{ agent: "agent-a", output: "partial output", exitCode: 1 }]);
 		assert.ok(result.includes("FAILED (exit code 1)"));
 	});
 
 	it("marks empty output", () => {
-		const result = aggregateParallelOutputs([
-			{ agent: "agent-a", output: "", exitCode: 0 },
-		]);
+		const result = aggregateParallelOutputs([{ agent: "agent-a", output: "", exitCode: 0 }]);
 		assert.ok(result.includes("EMPTY OUTPUT"));
 	});
 
 	it("treats whitespace-only output as empty", () => {
-		const result = aggregateParallelOutputs([
-			{ agent: "agent-a", output: "   \n  ", exitCode: 0 },
-		]);
+		const result = aggregateParallelOutputs([{ agent: "agent-a", output: "   \n  ", exitCode: 0 }]);
 		assert.ok(result.includes("EMPTY OUTPUT"));
 	});
 

@@ -5,12 +5,24 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { PassThrough } from "node:stream";
 import { describe, it } from "node:test";
-import { readHerdrInspectorBinding } from "../../src/inspectors/herdr/actions.ts";
 import { handleInspectorAction } from "../../src/inspectors/actions.ts";
+import { readHerdrInspectorBinding } from "../../src/inspectors/herdr/actions.ts";
+import {
+	createHerdrClient,
+	detectHerdr,
+	type HerdrClient,
+	parseHerdrVersion,
+	supportsRawPanes,
+} from "../../src/inspectors/herdr/client.ts";
 import { createHerdrInspectorPlugin } from "../../src/inspectors/herdr/plugin.ts";
-import { createHerdrClient, detectHerdr, parseHerdrVersion, supportsRawPanes, type HerdrClient } from "../../src/inspectors/herdr/client.ts";
+import {
+	createProjectPaneManager,
+	handleHerdrProjectPaneAction,
+	listHerdrProjectPaneRoots,
+	readHerdrProjectPaneBinding,
+	restoreHerdrProjectPaneSnapshots,
+} from "../../src/inspectors/herdr/project-panes.ts";
 import { formatInspectorDashboard, submitInspectorControl } from "../../src/inspectors/inspector-runner.ts";
-import { createProjectPaneManager, handleHerdrProjectPaneAction, listHerdrProjectPaneRoots, readHerdrProjectPaneBinding, restoreHerdrProjectPaneSnapshots } from "../../src/inspectors/herdr/project-panes.ts";
 import { decodeSessionRoots } from "../../src/inspectors/session-roots-codec.ts";
 import { consumeSteerRequests, consumeStopRequest } from "../../src/runs/background/control-channel.ts";
 import { PI_SUBAGENT_PI_BINARY_ENV } from "../../src/runs/shared/pi-spawn.ts";
@@ -62,12 +74,16 @@ describe("Herdr inspector", () => {
 			const client: HerdrClient = {
 				run: async () => ({ ok: false, error: { code: "HERDR_UNAVAILABLE", message: "herdr missing" } }),
 			};
-			const opened = await handleInspectorAction("inspector.open", { id: "run-123" }, {
-				cwd: root,
-				asyncDirRoot: root,
-				env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
-				plugins: [createHerdrInspectorPlugin({ client })],
-			});
+			const opened = await handleInspectorAction(
+				"inspector.open",
+				{ id: "run-123" },
+				{
+					cwd: root,
+					asyncDirRoot: root,
+					env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
+					plugins: [createHerdrInspectorPlugin({ client })],
+				},
+			);
 			assert.equal(opened.isError, true);
 			assert.match(text(opened), /Herdr inspector error \(HERDR_UNAVAILABLE\)/);
 			assert.doesNotMatch(text(opened), /No inspector plugin is available/);
@@ -77,7 +93,11 @@ describe("Herdr inspector", () => {
 	});
 
 	it("normalizes missing binaries, timeouts, and supported versions", async () => {
-		const missing = createHerdrClient({ spawn: (() => { throw Object.assign(new Error("missing"), { code: "ENOENT" }); }) as never });
+		const missing = createHerdrClient({
+			spawn: (() => {
+				throw Object.assign(new Error("missing"), { code: "ENOENT" });
+			}) as never,
+		});
 		const missingResult = await missing.run(["--version"]);
 		assert.equal(missingResult.ok, false);
 		if (!missingResult.ok) assert.equal(missingResult.error.code, "HERDR_UNAVAILABLE");
@@ -87,14 +107,16 @@ describe("Herdr inspector", () => {
 		assert.equal(timeoutResult.ok, false);
 		if (!timeoutResult.ok) assert.equal(timeoutResult.error.code, "TIMEOUT");
 
-		const gone = createHerdrClient({ spawn: (() => {
-			const child = fakeChild();
-			queueMicrotask(() => {
-				child.stderr.end(JSON.stringify({ error: { code: "no_such_pane", message: "gone" } }));
-				child.emit("close", 1);
-			});
-			return child;
-		}) as never });
+		const gone = createHerdrClient({
+			spawn: (() => {
+				const child = fakeChild();
+				queueMicrotask(() => {
+					child.stderr.end(JSON.stringify({ error: { code: "no_such_pane", message: "gone" } }));
+					child.emit("close", 1);
+				});
+				return child;
+			}) as never,
+		});
 		const goneResult = await gone.run(["pane", "get", "w1:p2"]);
 		assert.equal(goneResult.ok, false);
 		if (!goneResult.ok) assert.equal(goneResult.error.code, "NOT_FOUND");
@@ -113,47 +135,60 @@ describe("Herdr inspector", () => {
 			const { asyncDir } = writeRun(root);
 			const sessionRoot = path.join(root, "sessions");
 			const missionDir = path.join(root, "other-project", ".pi/subagents", "missions");
-			fs.writeFileSync(path.join(asyncDir, "mission.json"), JSON.stringify({
-				schemaVersion: 1,
-				missionId: "mission-cross-project",
-				projectRoot: path.join(root, "other-project"),
-				missionDir,
-				globalIndexDir: path.join(root, "mission-index"),
-				writeGlobalIndex: false,
-			}), "utf-8");
+			fs.writeFileSync(
+				path.join(asyncDir, "mission.json"),
+				JSON.stringify({
+					schemaVersion: 1,
+					missionId: "mission-cross-project",
+					projectRoot: path.join(root, "other-project"),
+					missionDir,
+					globalIndexDir: path.join(root, "mission-index"),
+					writeGlobalIndex: false,
+				}),
+				"utf-8",
+			);
 			const calls: string[][] = [];
 			const client: HerdrClient = {
 				run: async <T>(args: string[]) => {
 					calls.push(args);
 					if (args[0] === "--version") return { ok: true, data: "herdr 0.7.5" as T };
-					if (args[0] === "pane" && args[1] === "split") return { ok: true, data: { pane: { pane_id: "w1:p9" } } as T };
+					if (args[0] === "pane" && args[1] === "split")
+						return { ok: true, data: { pane: { pane_id: "w1:p9" } } as T };
 					return { ok: true, data: {} as T };
 				},
 			};
-			const commandResult = await handleInspectorAction("inspector.command", { id: "run-123" }, {
-				cwd: root,
-				asyncDirRoot: root,
-				resultsDir: path.join(root, "results"),
-				plugins: [createHerdrInspectorPlugin({ client })],
-				env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
-				sessionRoots: [sessionRoot],
-				runnerPath: path.join(root, "runner.ts"),
-			});
+			const commandResult = await handleInspectorAction(
+				"inspector.command",
+				{ id: "run-123" },
+				{
+					cwd: root,
+					asyncDirRoot: root,
+					resultsDir: path.join(root, "results"),
+					plugins: [createHerdrInspectorPlugin({ client })],
+					env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
+					sessionRoots: [sessionRoot],
+					runnerPath: path.join(root, "runner.ts"),
+				},
+			);
 			assert.equal(commandResult.isError, undefined, text(commandResult));
 			assert.match(text(commandResult), INSPECT_ALLOW_FLAGS);
 			assert.deepEqual(sessionRootsFromRunCommand(text(commandResult)), [sessionRoot]);
 			assert.deepEqual(calls, []);
 
-			const opened = await handleInspectorAction("inspector.open", { id: "run-123" }, {
-				cwd: root,
-				asyncDirRoot: root,
-				resultsDir: path.join(root, "results"),
-				plugins: [createHerdrInspectorPlugin({ client })],
-				env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
-				sessionRoots: [sessionRoot],
-				runnerPath: path.join(root, "runner.ts"),
-				now: () => new Date("2026-01-01T00:00:00.000Z"),
-			});
+			const opened = await handleInspectorAction(
+				"inspector.open",
+				{ id: "run-123" },
+				{
+					cwd: root,
+					asyncDirRoot: root,
+					resultsDir: path.join(root, "results"),
+					plugins: [createHerdrInspectorPlugin({ client })],
+					env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
+					sessionRoots: [sessionRoot],
+					runnerPath: path.join(root, "runner.ts"),
+					now: () => new Date("2026-01-01T00:00:00.000Z"),
+				},
+			);
 			assert.equal(opened.isError, undefined, text(opened));
 			assert.match(text(opened), /read-only Herdr inspector pane w1:p9/);
 			const binding = readHerdrInspectorBinding(asyncDir);
@@ -167,40 +202,64 @@ describe("Herdr inspector", () => {
 			const runCall = calls.find((args) => args[0] === "pane" && args[1] === "run" && args[2] === "w1:p9");
 			assert.ok(runCall);
 			if (process.platform !== "win32") {
-				assert.ok(!/^[']/.test(runCall[3] ?? ""), `pane run command must not open with a quoted executable; Nushell parses it as a string expression: ${runCall[3]}`);
+				assert.ok(
+					!/^[']/.test(runCall[3] ?? ""),
+					`pane run command must not open with a quoted executable; Nushell parses it as a string expression: ${runCall[3]}`,
+				);
 			}
 			assert.match(runCall[3] ?? "", INSPECT_ALLOW_FLAGS);
 			assert.deepEqual(sessionRootsFromRunCommand(runCall[3] ?? ""), [sessionRoot]);
 
-			const reopened = await handleInspectorAction("inspector.open", { id: "run-123" }, {
-				cwd: root,
-				asyncDirRoot: root,
-				resultsDir: path.join(root, "results"),
-				plugins: [createHerdrInspectorPlugin({ client })],
-				env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
-				sessionRoots: [sessionRoot],
-				runnerPath: path.join(root, "runner.ts"),
-			});
+			const reopened = await handleInspectorAction(
+				"inspector.open",
+				{ id: "run-123" },
+				{
+					cwd: root,
+					asyncDirRoot: root,
+					resultsDir: path.join(root, "results"),
+					plugins: [createHerdrInspectorPlugin({ client })],
+					env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
+					sessionRoots: [sessionRoot],
+					runnerPath: path.join(root, "runner.ts"),
+				},
+			);
 			assert.equal(reopened.isError, undefined, text(reopened));
-			assert.equal(calls.filter((args) => args[0] === "pane" && args[1] === "split").length, 2, "empty pane get response must not reuse the binding");
+			assert.equal(
+				calls.filter((args) => args[0] === "pane" && args[1] === "split").length,
+				2,
+				"empty pane get response must not reuse the binding",
+			);
 
-			const closed = await handleInspectorAction("inspector.close", { dir: asyncDir }, { cwd: root, asyncDirRoot: root, plugins: [createHerdrInspectorPlugin({ client })], env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" } });
+			const closed = await handleInspectorAction(
+				"inspector.close",
+				{ dir: asyncDir },
+				{
+					cwd: root,
+					asyncDirRoot: root,
+					plugins: [createHerdrInspectorPlugin({ client })],
+					env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
+				},
+			);
 			assert.equal(closed.isError, undefined, text(closed));
 			assert.match(text(closed), /subagent run was not stopped/);
 			assert.equal(readHerdrInspectorBinding(asyncDir), undefined);
 			assert.ok(calls.some((args) => args.join(" ") === "pane close w1:p9"));
 
 			calls.length = 0;
-			const focusedOpened = await handleInspectorAction("inspector.open", { id: "run-123", focus: true }, {
-				cwd: root,
-				asyncDirRoot: root,
-				resultsDir: path.join(root, "results"),
-				plugins: [createHerdrInspectorPlugin({ client })],
-				env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
-				sessionRoots: [sessionRoot],
-				runnerPath: path.join(root, "runner.ts"),
-				now: () => new Date("2026-01-01T00:00:00.000Z"),
-			});
+			const focusedOpened = await handleInspectorAction(
+				"inspector.open",
+				{ id: "run-123", focus: true },
+				{
+					cwd: root,
+					asyncDirRoot: root,
+					resultsDir: path.join(root, "results"),
+					plugins: [createHerdrInspectorPlugin({ client })],
+					env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
+					sessionRoots: [sessionRoot],
+					runnerPath: path.join(root, "runner.ts"),
+					now: () => new Date("2026-01-01T00:00:00.000Z"),
+				},
+			);
 			assert.equal(focusedOpened.isError, undefined, text(focusedOpened));
 			const focusedSplitCall = calls.find((args) => args[0] === "pane" && args[1] === "split");
 			assert.deepEqual(focusedSplitCall?.slice(-1), ["--focus"]);
@@ -228,9 +287,18 @@ describe("Herdr inspector", () => {
 					command: "stale",
 				};
 				fs.mkdirSync(path.join(asyncDir, "inspectors"), { recursive: true });
-				fs.writeFileSync(path.join(asyncDir, "inspectors", `herdr${mismatch === "childIndex" ? "-0" : ""}.json`), JSON.stringify(binding), "utf-8");
+				fs.writeFileSync(
+					path.join(asyncDir, "inspectors", `herdr${mismatch === "childIndex" ? "-0" : ""}.json`),
+					JSON.stringify(binding),
+					"utf-8",
+				);
 				const calls: string[][] = [];
-				const client: HerdrClient = { run: async (args) => { calls.push(args); return { ok: true, data: {} }; } };
+				const client: HerdrClient = {
+					run: async (args) => {
+						calls.push(args);
+						return { ok: true, data: {} };
+					},
+				};
 				const options = {
 					cwd: root,
 					asyncDirRoot: root,
@@ -261,7 +329,8 @@ describe("Herdr inspector", () => {
 				run: async <T>(args: string[]) => {
 					calls.push(args);
 					if (args[0] === "--version") return { ok: true, data: "herdr 0.7.5" as T };
-					if (args[0] === "pane" && args[1] === "split") return { ok: true, data: { pane: { pane_id: "w1:p11" } } as T };
+					if (args[0] === "pane" && args[1] === "split")
+						return { ok: true, data: { pane: { pane_id: "w1:p11" } } as T };
 					return { ok: true, data: {} as T };
 				},
 			};
@@ -273,14 +342,18 @@ describe("Herdr inspector", () => {
 				currentSessionId: "session-1",
 			} as unknown as SubagentState;
 
-			const opened = await handleInspectorAction("inspector.open", { id: "run-123" }, {
-				cwd: root,
-				asyncDirRoot: root,
-				plugins: [createHerdrInspectorPlugin({ client })],
-				env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
-				state,
-				runnerPath: path.join(root, "runner.ts"),
-			});
+			const opened = await handleInspectorAction(
+				"inspector.open",
+				{ id: "run-123" },
+				{
+					cwd: root,
+					asyncDirRoot: root,
+					plugins: [createHerdrInspectorPlugin({ client })],
+					env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
+					state,
+					runnerPath: path.join(root, "runner.ts"),
+				},
+			);
 			assert.equal(opened.isError, undefined, text(opened));
 			const runCall = calls.find((args) => args[0] === "pane" && args[1] === "run" && args[2] === "w1:p11");
 			assert.deepEqual(sessionRootsFromRunCommand(runCall?.[3] ?? ""), [sessionRoot]);
@@ -288,14 +361,18 @@ describe("Herdr inspector", () => {
 			state.asyncJobs.clear();
 			fs.rmSync(path.join(asyncDir, "inspectors"), { recursive: true, force: true });
 			calls.length = 0;
-			const reopened = await handleInspectorAction("inspector.open", { id: "run-123" }, {
-				cwd: root,
-				asyncDirRoot: root,
-				plugins: [createHerdrInspectorPlugin({ client })],
-				env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
-				state,
-				runnerPath: path.join(root, "runner.ts"),
-			});
+			const reopened = await handleInspectorAction(
+				"inspector.open",
+				{ id: "run-123" },
+				{
+					cwd: root,
+					asyncDirRoot: root,
+					plugins: [createHerdrInspectorPlugin({ client })],
+					env: { HERDR_ENV: "1", HERDR_PANE_ID: "test-pane" },
+					state,
+					runnerPath: path.join(root, "runner.ts"),
+				},
+			);
 			assert.equal(reopened.isError, undefined, text(reopened));
 			const untrustedRunCall = calls.find((args) => args[0] === "pane" && args[1] === "run" && args[2] === "w1:p11");
 			assert.deepEqual(sessionRootsFromRunCommand(untrustedRunCall?.[3] ?? ""), []);
@@ -309,11 +386,15 @@ describe("Herdr inspector", () => {
 		const outsideRoot = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-outside-"));
 		try {
 			const { asyncDir } = writeRun(outsideRoot);
-			const inspected = await handleInspectorAction("inspector.status", { dir: asyncDir }, {
-				cwd: trustedRoot,
-				asyncDirRoot: trustedRoot,
-				client: { run: async () => ({ ok: true, data: {} }) },
-			});
+			const inspected = await handleInspectorAction(
+				"inspector.status",
+				{ dir: asyncDir },
+				{
+					cwd: trustedRoot,
+					asyncDirRoot: trustedRoot,
+					client: { run: async () => ({ ok: true, data: {} }) },
+				},
+			);
 			assert.equal(inspected.isError, true);
 			assert.match(text(inspected), /outside trusted run roots/);
 		} finally {
@@ -338,7 +419,9 @@ describe("Herdr inspector", () => {
 					createdAt: "2026-01-01T00:00:00.000Z",
 					updatedAt: "2026-01-01T00:00:00.000Z",
 					runs: [],
-					decisions: [{ id: "decision-1", status: "open", title: "Choose UX", createdAt: "2026-01-01T00:00:00.000Z" }],
+					decisions: [
+						{ id: "decision-1", status: "open", title: "Choose UX", createdAt: "2026-01-01T00:00:00.000Z" },
+					],
 					artifacts: [],
 				},
 			});
@@ -346,28 +429,89 @@ describe("Herdr inspector", () => {
 			assert.match(dashboard, /decision-1: Choose UX/);
 			assert.match(dashboard, /closing it does not stop the run/i);
 
-			assert.match(submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500 }, "steer keep going"), /Steering queued for run run-123\.\n\nMessage sent:\n```text\nkeep going\n```/);
-			assert.deepEqual(consumeSteerRequests(asyncDir).map((request) => ({ message: request.message, targetIndex: request.targetIndex, source: request.source })), [
-				{ message: "keep going", targetIndex: 0, source: "inspector-runner" },
-			]);
-			assert.match(submitInspectorControl({ asyncDir, runId: "run-123", index: 0, refreshMs: 1_500 }, "keep going without a prefix"), /Steering queued for run run-123/);
-			assert.deepEqual(consumeSteerRequests(asyncDir).map((request) => ({ message: request.message, targetIndex: request.targetIndex, source: request.source })), [
-				{ message: "keep going without a prefix", targetIndex: 0, source: "inspector-runner" },
-			]);
-			fs.writeFileSync(path.join(asyncDir, "status.json"), JSON.stringify({ ...status, mode: "parallel", steps: [...status.steps!, { agent: "reviewer", status: "running" }] }), "utf-8");
-			const aggregateDashboard = formatInspectorDashboard({ status: { ...status, mode: "parallel", steps: [...status.steps!, { agent: "reviewer", status: "running" }] }, asyncDir });
+			assert.match(
+				submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500 }, "steer keep going"),
+				/Steering queued for run run-123\.\n\nMessage sent:\n```text\nkeep going\n```/,
+			);
+			assert.deepEqual(
+				consumeSteerRequests(asyncDir).map((request) => ({
+					message: request.message,
+					targetIndex: request.targetIndex,
+					source: request.source,
+				})),
+				[{ message: "keep going", targetIndex: 0, source: "inspector-runner" }],
+			);
+			assert.match(
+				submitInspectorControl(
+					{ asyncDir, runId: "run-123", index: 0, refreshMs: 1_500 },
+					"keep going without a prefix",
+				),
+				/Steering queued for run run-123/,
+			);
+			assert.deepEqual(
+				consumeSteerRequests(asyncDir).map((request) => ({
+					message: request.message,
+					targetIndex: request.targetIndex,
+					source: request.source,
+				})),
+				[{ message: "keep going without a prefix", targetIndex: 0, source: "inspector-runner" }],
+			);
+			fs.writeFileSync(
+				path.join(asyncDir, "status.json"),
+				JSON.stringify({
+					...status,
+					mode: "parallel",
+					steps: [...status.steps!, { agent: "reviewer", status: "running" }],
+				}),
+				"utf-8",
+			);
+			const aggregateDashboard = formatInspectorDashboard({
+				status: {
+					...status,
+					mode: "parallel",
+					steps: [...status.steps!, { agent: "reviewer", status: "running" }],
+				},
+				asyncDir,
+			});
 			assert.match(aggregateDashboard, /Controls: steer <message> \| stop \| status/);
 			assert.doesNotMatch(aggregateDashboard, /type guidance/);
-			assert.throws(() => submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500 }, "ambiguous plain guidance"), /Plain guidance requires a child-specific inspector/);
-			assert.match(submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500 }, "steer broadcast guidance"), /Steering queued for run run-123/);
-			assert.deepEqual(consumeSteerRequests(asyncDir).map((request) => ({ message: request.message, targetIndexes: request.targetIndexes, source: request.source })), [
-				{ message: "broadcast guidance", targetIndexes: [0, 1], source: "inspector-runner" },
-			]);
-			assert.match(submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500 }, "stop"), /Stop requested/);
+			assert.throws(
+				() => submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500 }, "ambiguous plain guidance"),
+				/Plain guidance requires a child-specific inspector/,
+			);
+			assert.match(
+				submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500 }, "steer broadcast guidance"),
+				/Steering queued for run run-123/,
+			);
+			assert.deepEqual(
+				consumeSteerRequests(asyncDir).map((request) => ({
+					message: request.message,
+					targetIndexes: request.targetIndexes,
+					source: request.source,
+				})),
+				[{ message: "broadcast guidance", targetIndexes: [0, 1], source: "inspector-runner" }],
+			);
+			assert.match(
+				submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500 }, "stop"),
+				/Stop requested/,
+			);
 			assert.equal(consumeStopRequest(asyncDir), true);
-			assert.throws(() => submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500 }, "reply decision-1 yes"), /parent Pi session/);
-			assert.throws(() => submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500, allowSteer: false }, "steer bypass"), /Authority policy/);
-			assert.throws(() => submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500, allowStop: false }, "stop"), /Authority policy/);
+			assert.throws(
+				() => submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500 }, "reply decision-1 yes"),
+				/parent Pi session/,
+			);
+			assert.throws(
+				() =>
+					submitInspectorControl(
+						{ asyncDir, runId: "run-123", refreshMs: 1_500, allowSteer: false },
+						"steer bypass",
+					),
+				/Authority policy/,
+			);
+			assert.throws(
+				() => submitInspectorControl({ asyncDir, runId: "run-123", refreshMs: 1_500, allowStop: false }, "stop"),
+				/Authority policy/,
+			);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
@@ -380,7 +524,11 @@ describe("Herdr inspector", () => {
 			const sessionRoot = path.join(root, "sessions");
 			const sessionFile = path.join(sessionRoot, "child.jsonl");
 			fs.mkdirSync(sessionRoot, { recursive: true });
-			fs.writeFileSync(sessionFile, `${JSON.stringify({ role: "assistant", content: "session fallback text" })}\n`, "utf-8");
+			fs.writeFileSync(
+				sessionFile,
+				`${JSON.stringify({ role: "assistant", content: "session fallback text" })}\n`,
+				"utf-8",
+			);
 			status.steps![0] = { ...status.steps![0], recentOutput: [], sessionFile };
 
 			const trusted = formatInspectorDashboard({ status, asyncDir, sessionRoots: [sessionRoot] });
@@ -407,20 +555,36 @@ describe("Herdr inspector", () => {
 				run: async <T>(args: string[]) => {
 					calls.push(args);
 					if (args[0] === "--version") return { ok: true, data: "herdr 0.7.5" as T };
-					if (args[0] === "pane" && args[1] === "split") return { ok: true, data: { pane: { pane_id: "w1:p10" } } as T };
-					if (args[0] === "pane" && args[1] === "get") return { ok: true, data: { pane: {
-						pane_id: "w1:p10", agent: "pi", agent_status: "idle", cwd: projectRoot,
-						foreground_cwd: projectRoot, focused: false, terminal_title_stripped: "Pi · project",
-					} } as T };
+					if (args[0] === "pane" && args[1] === "split")
+						return { ok: true, data: { pane: { pane_id: "w1:p10" } } as T };
+					if (args[0] === "pane" && args[1] === "get")
+						return {
+							ok: true,
+							data: {
+								pane: {
+									pane_id: "w1:p10",
+									agent: "pi",
+									agent_status: "idle",
+									cwd: projectRoot,
+									foreground_cwd: projectRoot,
+									focused: false,
+									terminal_title_stripped: "Pi · project",
+								},
+							} as T,
+						};
 					return { ok: true, data: {} as T };
 				},
 			};
 
-			const opened = await handleHerdrProjectPaneAction("project.open", { cwd: root, message: "Own this project mission." }, {
-				cwd: ownerRoot,
-				client,
-				now: () => new Date("2026-01-01T00:00:00.000Z"),
-			});
+			const opened = await handleHerdrProjectPaneAction(
+				"project.open",
+				{ cwd: root, message: "Own this project mission." },
+				{
+					cwd: ownerRoot,
+					client,
+					now: () => new Date("2026-01-01T00:00:00.000Z"),
+				},
+			);
 			assert.equal(opened.isError, undefined, text(opened));
 			assert.match(text(opened), /Opened Herdr project pane w1:p10/);
 			const binding = readHerdrProjectPaneBinding(root);
@@ -429,18 +593,31 @@ describe("Herdr inspector", () => {
 			assert.equal(binding?.startupMessage, "Own this project mission.");
 			assert.deepEqual(listHerdrProjectPaneRoots(ownerRoot), [projectRoot]);
 			const restoredState = { herdrProjectPanes: new Map() } as SubagentState;
-			restoreHerdrProjectPaneSnapshots(restoredState, [...listHerdrProjectPaneRoots(ownerRoot), ownerRoot], Date.parse("2026-01-01T00:00:01.000Z"));
+			restoreHerdrProjectPaneSnapshots(
+				restoredState,
+				[...listHerdrProjectPaneRoots(ownerRoot), ownerRoot],
+				Date.parse("2026-01-01T00:00:01.000Z"),
+			);
 			const restored = restoredState.herdrProjectPanes?.get(projectRoot);
 			assert.equal(restored?.paneId, "w1:p10");
 			assert.equal(restored?.state, "open");
 			assert.equal(restored?.ownership, "unknown");
 			assert.equal(restored?.agentStatus, "unknown");
 			const splitCall = calls.find((args) => args[0] === "pane" && args[1] === "split");
-			assert.deepEqual(splitCall, ["pane", "split", "--current", "--direction", "right", "--cwd", projectRoot, "--no-focus"]);
+			assert.deepEqual(splitCall, [
+				"pane",
+				"split",
+				"--current",
+				"--direction",
+				"right",
+				"--cwd",
+				projectRoot,
+				"--no-focus",
+			]);
 			assert.equal(binding?.lastFocusedAt, undefined);
 			const runCall = calls.find((args) => args[0] === "pane" && args[1] === "run" && args[2] === "w1:p10");
 			assert.equal(runCall?.[3]?.startsWith("& "), process.platform === "win32");
-			if (process.platform !== "win32") assert.match(runCall?.[3] ?? "", /^sh -c 'exec \"\$0\" \"\$@\"' '/);
+			if (process.platform !== "win32") assert.match(runCall?.[3] ?? "", /^sh -c 'exec "\$0" "\$@"' '/);
 			assert.match(runCall?.[3] ?? "", /pi-bin/);
 			assert.match(runCall?.[3] ?? "", /Own this project mission\./);
 
@@ -456,16 +633,32 @@ describe("Herdr inspector", () => {
 			assert.ok(calls.some((args) => args.join(" ") === "pane close w1:p10"));
 
 			calls.length = 0;
-			const focused = await handleHerdrProjectPaneAction("project.open", { cwd: root, focus: true }, {
-				cwd: ownerRoot,
-				client,
-				now: () => new Date("2026-01-01T00:00:00.000Z"),
-			});
+			const focused = await handleHerdrProjectPaneAction(
+				"project.open",
+				{ cwd: root, focus: true },
+				{
+					cwd: ownerRoot,
+					client,
+					now: () => new Date("2026-01-01T00:00:00.000Z"),
+				},
+			);
 			assert.equal(focused.isError, undefined, text(focused));
 			const focusedSplitCall = calls.find((args) => args[0] === "pane" && args[1] === "split");
-			assert.deepEqual(focusedSplitCall, ["pane", "split", "--current", "--direction", "right", "--cwd", projectRoot, "--focus"]);
+			assert.deepEqual(focusedSplitCall, [
+				"pane",
+				"split",
+				"--current",
+				"--direction",
+				"right",
+				"--cwd",
+				projectRoot,
+				"--focus",
+			]);
 			assert.equal(readHerdrProjectPaneBinding(root)?.lastFocusedAt, "2026-01-01T00:00:00.000Z");
-			fs.writeFileSync(path.join(ownerRoot, ".pi/subagents/project-panes/herdr-roots.json"), JSON.stringify({ schemaVersion: 1, kind: "herdr-project-pane-roots", projectRoots: [123] }));
+			fs.writeFileSync(
+				path.join(ownerRoot, ".pi/subagents/project-panes/herdr-roots.json"),
+				JSON.stringify({ schemaVersion: 1, kind: "herdr-project-pane-roots", projectRoots: [123] }),
+			);
 			assert.throws(() => listHerdrProjectPaneRoots(ownerRoot), /Invalid Herdr project pane root index/);
 		} finally {
 			if (previousPiBinary === undefined) delete process.env[PI_SUBAGENT_PI_BINARY_ENV];
@@ -486,11 +679,24 @@ describe("Herdr inspector", () => {
 				run: async <T>(args: string[]) => {
 					calls.push(args);
 					if (args[0] === "--version") return { ok: true, data: "herdr 0.8.0" as T };
-					if (args[0] === "pane" && args[1] === "split") return { ok: true, data: { pane: { pane_id: "w1:p11" } } as T };
-					if (args[0] === "pane" && args[1] === "run") { opened = true; return { ok: true, data: {} as T }; }
-					if (args[0] === "pane" && args[1] === "get" && opened) return { ok: true, data: { pane: {
-						pane_id: "w1:p11", agent: "pi", agent_status: "working", cwd: projectRoot,
-					} } as T };
+					if (args[0] === "pane" && args[1] === "split")
+						return { ok: true, data: { pane: { pane_id: "w1:p11" } } as T };
+					if (args[0] === "pane" && args[1] === "run") {
+						opened = true;
+						return { ok: true, data: {} as T };
+					}
+					if (args[0] === "pane" && args[1] === "get" && opened)
+						return {
+							ok: true,
+							data: {
+								pane: {
+									pane_id: "w1:p11",
+									agent: "pi",
+									agent_status: "working",
+									cwd: projectRoot,
+								},
+							} as T,
+						};
 					return { ok: true, data: {} as T };
 				},
 			};
@@ -500,7 +706,10 @@ describe("Herdr inspector", () => {
 			const closed = await manager.close({ cwd: root, requireIdle: true });
 			assert.equal(closed.ok, false);
 			if (!closed.ok) assert.equal(closed.error.code, "PANE_NOT_IDLE");
-			assert.equal(calls.some((args) => args.join(" ") === "pane close w1:p11"), false);
+			assert.equal(
+				calls.some((args) => args.join(" ") === "pane close w1:p11"),
+				false,
+			);
 			assert.equal(readHerdrProjectPaneBinding(root)?.paneId, "w1:p11");
 		} finally {
 			if (previousPiBinary === undefined) delete process.env[PI_SUBAGENT_PI_BINARY_ENV];
@@ -526,7 +735,10 @@ describe("Herdr inspector", () => {
 					if (args[0] === "pane" && args[1] === "get") {
 						if (getMode === "timeout") return { ok: false, error: { code: "TIMEOUT", message: "temporary" } };
 						if (getMode === "opaque") return { ok: true, data: {} as T };
-						return { ok: true, data: { pane: { pane_id: `w1:p3${splitCount}`, agent_status: "idle", cwd: root } } as T };
+						return {
+							ok: true,
+							data: { pane: { pane_id: `w1:p3${splitCount}`, agent_status: "idle", cwd: root } } as T,
+						};
 					}
 					return { ok: true, data: {} as T };
 				},
@@ -543,7 +755,10 @@ describe("Herdr inspector", () => {
 			assert.equal(status.isError, undefined, text(status));
 			assert.match(text(status), /w1:p32 is open/);
 			const legacyBinding = readHerdrProjectPaneBinding(root)!;
-			fs.writeFileSync(path.join(root, ".pi/subagents", "project-panes", "herdr.json"), JSON.stringify({ ...legacyBinding, startupMessage: 42 }));
+			fs.writeFileSync(
+				path.join(root, ".pi/subagents", "project-panes", "herdr.json"),
+				JSON.stringify({ ...legacyBinding, startupMessage: 42 }),
+			);
 			const closed = await handleHerdrProjectPaneAction("project.close", { cwd: root }, { cwd: root, client });
 			assert.equal(closed.isError, true);
 			assert.match(text(closed), /INVALID_PANE_RESPONSE/);
@@ -559,15 +774,18 @@ describe("Herdr inspector", () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-project-pane-missing-"));
 		try {
 			const missing = path.join(root, "missing");
-			const opened = await handleHerdrProjectPaneAction("project.open", { cwd: missing }, {
-				cwd: root,
-				client: { run: async () => ({ ok: true, data: {} }) },
-			});
+			const opened = await handleHerdrProjectPaneAction(
+				"project.open",
+				{ cwd: missing },
+				{
+					cwd: root,
+					client: { run: async () => ({ ok: true, data: {} }) },
+				},
+			);
 			assert.equal(opened.isError, true);
 			assert.match(text(opened), /unavailable/);
 		} finally {
 			fs.rmSync(root, { recursive: true, force: true });
 		}
 	});
-
 });

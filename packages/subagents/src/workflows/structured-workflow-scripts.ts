@@ -22,7 +22,8 @@ interface TemplateScope {
 
 /** Optional per-child launch fields copied verbatim onto the generated runs.all item. */
 const CHILD_FIELDS = ["cwd", "model"] as const;
-export const TOP_LEVEL_CONTROLS_HINT = " Put worktree and other child controls on the subagent call itself; they apply to every child.";
+export const TOP_LEVEL_CONTROLS_HINT =
+	" Put worktree and other child controls on the subagent call itself; they apply to every child.";
 
 interface StepChild {
 	key: string;
@@ -45,7 +46,8 @@ function nonEmptyString(value: unknown, path: string): string {
 function exactFields(value: unknown, path: string, allowed: readonly string[], hint: string): Record<string, unknown> {
 	if (!isPlainRecord(value)) throw new Error(`${path} must be an object.`);
 	const unsupported = Object.keys(value).filter((key) => !allowed.includes(key));
-	if (unsupported.length > 0) throw new Error(`${path} contains unsupported fields: ${unsupported.join(", ")}. ${hint}`);
+	if (unsupported.length > 0)
+		throw new Error(`${path} contains unsupported fields: ${unsupported.join(", ")}. ${hint}`);
 	return value;
 }
 
@@ -58,16 +60,21 @@ function compileTemplate(template: string, scope: TemplateScope): string {
 		cursor = match.index + match[0].length;
 		let variable: string;
 		if (match[0] === "{task}") {
-			if (!scope.hasOriginalTask) throw new Error(`${scope.path} references {task}, but no top-level task was provided.`);
+			if (!scope.hasOriginalTask)
+				throw new Error(`${scope.path} references {task}, but no top-level task was provided.`);
 			variable = "originalTask";
 		} else if (match[0] === "{previous}") {
-			if ("unavailable" in scope.previous) throw new Error(`${scope.path} cannot use {previous}; ${scope.previous.unavailable}`);
+			if ("unavailable" in scope.previous)
+				throw new Error(`${scope.path} cannot use {previous}; ${scope.previous.unavailable}`);
 			variable = scope.previous.variable;
 		} else {
 			const name = match[1]!;
 			if (!scope.outputs) throw new Error(`${scope.path} cannot use {outputs.${name}}; ${scope.outputsUnavailable}`);
 			const named = scope.outputs.get(name);
-			if (!named) throw new Error(`${scope.path} references {outputs.${name}}, but no earlier sequential step sets as: "${name}".`);
+			if (!named)
+				throw new Error(
+					`${scope.path} references {outputs.${name}}, but no earlier sequential step sets as: "${name}".`,
+				);
 			variable = named;
 		}
 		if (literal) parts.push(JSON.stringify(literal));
@@ -79,7 +86,9 @@ function compileTemplate(template: string, scope: TemplateScope): string {
 }
 
 function prelude(originalTask: string | undefined): string[] {
-	return originalTask === undefined ? [SETTLE_HELPER] : [SETTLE_HELPER, `const originalTask = ${JSON.stringify(originalTask)};`];
+	return originalTask === undefined
+		? [SETTLE_HELPER]
+		: [SETTLE_HELPER, `const originalTask = ${JSON.stringify(originalTask)};`];
 }
 
 function childFields(record: Record<string, unknown>, path: string): StepChild["fields"] {
@@ -91,31 +100,41 @@ function childFields(record: Record<string, unknown>, path: string): StepChild["
 }
 
 function runsAllCall(children: readonly StepChild[]): string {
-	return `await runs.all([${children.map((child) => {
-		const fields = Object.entries(child.fields).map(([field, value]) => `, ${field}: ${JSON.stringify(value)}`).join("");
-		return `{ key: ${JSON.stringify(child.key)}, agent: ${JSON.stringify(child.agent)}, task: ${child.taskExpression}${fields} }`;
-	}).join(", ")}])`;
+	return `await runs.all([${children
+		.map((child) => {
+			const fields = Object.entries(child.fields)
+				.map(([field, value]) => `, ${field}: ${JSON.stringify(value)}`)
+				.join("");
+			return `{ key: ${JSON.stringify(child.key)}, agent: ${JSON.stringify(child.agent)}, task: ${child.taskExpression}${fields} }`;
+		})
+		.join(", ")}])`;
 }
 
 const SETTLE_HELPER = [
 	"function settle(results, agents) {",
 	"  return results.map(function (result, index) {",
-	"    const child = { key: result.key, agent: agents[index], ok: result.ok === true, output: typeof result.output === \"string\" ? result.output : \"\" };",
-	"    if (!child.ok && typeof result.error === \"string\") child.error = result.error;",
+	'    const child = { key: result.key, agent: agents[index], ok: result.ok === true, output: typeof result.output === "string" ? result.output : "" };',
+	'    if (!child.ok && typeof result.error === "string") child.error = result.error;',
 	"    return child;",
 	"  });",
 	"}",
 	// A failed child fails the workflow; the runtime keeps every settled child in the partial results.
 	"function failure(label, children) {",
-	"  return new Error(label + \": \" + children.filter(function (child) { return !child.ok; }).map(function (child) { return child.key + \" (\" + child.agent + \") failed\" + (child.error ? \": \" + child.error : \"\"); }).join(\"; \"));",
+	'  return new Error(label + ": " + children.filter(function (child) { return !child.ok; }).map(function (child) { return child.key + " (" + child.agent + ") failed" + (child.error ? ": " + child.error : ""); }).join("; "));',
 	"}",
 ].join("\n");
 
 function buildTasksScript(steps: unknown, originalTask: string | undefined): string {
-	if (!Array.isArray(steps) || steps.length === 0) throw new Error("tasks must be a non-empty array of { agent, task } items.");
+	if (!Array.isArray(steps) || steps.length === 0)
+		throw new Error("tasks must be a non-empty array of { agent, task } items.");
 	const children = steps.map((item, index): StepChild => {
 		const path = `tasks[${index}]`;
-		const record = exactFields(item, path, ["agent", "task", ...CHILD_FIELDS], `Each tasks item accepts agent and task, plus optional cwd and model.${TOP_LEVEL_CONTROLS_HINT}`);
+		const record = exactFields(
+			item,
+			path,
+			["agent", "task", ...CHILD_FIELDS],
+			`Each tasks item accepts agent and task, plus optional cwd and model.${TOP_LEVEL_CONTROLS_HINT}`,
+		);
 		const agent = nonEmptyString(record.agent, `${path}.agent`);
 		const task = nonEmptyString(record.task, `${path}.task`);
 		const taskExpression = compileTemplate(task, {
@@ -130,7 +149,7 @@ function buildTasksScript(steps: unknown, originalTask: string | undefined): str
 		...prelude(originalTask),
 		`const run1 = ${runsAllCall(children)};`,
 		`const children = settle(run1, ${JSON.stringify(children.map((child) => child.agent))});`,
-		"if (!children.every(function (child) { return child.ok; })) throw failure(\"tasks failed\", children);",
+		'if (!children.every(function (child) { return child.ok; })) throw failure("tasks failed", children);',
 		"return { ok: true, children };",
 	].join("\n");
 }
@@ -143,24 +162,44 @@ function buildChainScript(steps: unknown, originalTask: string | undefined): str
 	for (const [index, step] of steps.entries()) {
 		const number = index + 1;
 		const path = `chain[${index}]`;
-		const previous: TemplateScope["previous"] = index === 0
-			? { unavailable: "the first chain step has no previous output." }
-			: { variable: `output${index}` };
+		const previous: TemplateScope["previous"] =
+			index === 0 ? { unavailable: "the first chain step has no previous output." } : { variable: `output${index}` };
 		let stepChildren: StepChild[];
 		let outputName: string | undefined;
 		if (isPlainRecord(step) && Object.hasOwn(step, "parallel")) {
-			const record = exactFields(step, path, ["parallel"], `A parallel step accepts only parallel; as is supported on sequential steps only.${TOP_LEVEL_CONTROLS_HINT}`);
+			const record = exactFields(
+				step,
+				path,
+				["parallel"],
+				`A parallel step accepts only parallel; as is supported on sequential steps only.${TOP_LEVEL_CONTROLS_HINT}`,
+			);
 			const items = record.parallel;
-			if (!Array.isArray(items) || items.length === 0) throw new Error(`${path}.parallel must be a non-empty array of { agent, task } items.`);
+			if (!Array.isArray(items) || items.length === 0)
+				throw new Error(`${path}.parallel must be a non-empty array of { agent, task } items.`);
 			stepChildren = items.map((item, itemIndex): StepChild => {
 				const itemPath = `${path}.parallel[${itemIndex}]`;
-				const itemRecord = exactFields(item, itemPath, ["agent", "task", ...CHILD_FIELDS], `Each parallel item accepts agent and task, plus optional cwd and model.${TOP_LEVEL_CONTROLS_HINT}`);
+				const itemRecord = exactFields(
+					item,
+					itemPath,
+					["agent", "task", ...CHILD_FIELDS],
+					`Each parallel item accepts agent and task, plus optional cwd and model.${TOP_LEVEL_CONTROLS_HINT}`,
+				);
 				const agent = nonEmptyString(itemRecord.agent, `${itemPath}.agent`);
 				const task = nonEmptyString(itemRecord.task, `${itemPath}.task`);
-				return { key: `step-${number}-${itemIndex + 1}`, agent, fields: childFields(itemRecord, itemPath), taskExpression: compileTemplate(task, { path: `${itemPath}.task`, hasOriginalTask, previous, outputs }) };
+				return {
+					key: `step-${number}-${itemIndex + 1}`,
+					agent,
+					fields: childFields(itemRecord, itemPath),
+					taskExpression: compileTemplate(task, { path: `${itemPath}.task`, hasOriginalTask, previous, outputs }),
+				};
 			});
 		} else {
-			const record = exactFields(step, path, ["agent", "task", "as", ...CHILD_FIELDS], `A sequential step accepts agent, task, as, cwd and model; a parallel step accepts only parallel.${TOP_LEVEL_CONTROLS_HINT}`);
+			const record = exactFields(
+				step,
+				path,
+				["agent", "task", "as", ...CHILD_FIELDS],
+				`A sequential step accepts agent, task, as, cwd and model; a parallel step accepts only parallel.${TOP_LEVEL_CONTROLS_HINT}`,
+			);
 			const agent = nonEmptyString(record.agent, `${path}.agent`);
 			let task: string;
 			if (record.task === undefined) {
@@ -168,11 +207,20 @@ function buildChainScript(steps: unknown, originalTask: string | undefined): str
 				task = "{previous}";
 			} else task = nonEmptyString(record.task, `${path}.task`);
 			if (record.as !== undefined) {
-				if (typeof record.as !== "string" || !OUTPUT_NAME_PATTERN.test(record.as)) throw new Error(`${path}.as must be an identifier matching ${OUTPUT_NAME_PATTERN}.`);
-				if (outputs.has(record.as)) throw new Error(`${path}.as '${record.as}' is already used by an earlier step.`);
+				if (typeof record.as !== "string" || !OUTPUT_NAME_PATTERN.test(record.as))
+					throw new Error(`${path}.as must be an identifier matching ${OUTPUT_NAME_PATTERN}.`);
+				if (outputs.has(record.as))
+					throw new Error(`${path}.as '${record.as}' is already used by an earlier step.`);
 				outputName = record.as;
 			}
-			stepChildren = [{ key: `step-${number}`, agent, fields: childFields(record, path), taskExpression: compileTemplate(task, { path: `${path}.task`, hasOriginalTask, previous, outputs }) }];
+			stepChildren = [
+				{
+					key: `step-${number}`,
+					agent,
+					fields: childFields(record, path),
+					taskExpression: compileTemplate(task, { path: `${path}.task`, hasOriginalTask, previous, outputs }),
+				},
+			];
 		}
 		lines.push(
 			`const run${number} = ${runsAllCall(stepChildren)};`,
@@ -180,7 +228,10 @@ function buildChainScript(steps: unknown, originalTask: string | undefined): str
 			`children.push(...step${number});`,
 			`if (!step${number}.every(function (child) { return child.ok; })) throw failure(${JSON.stringify(`chain stopped at step ${number}`)}, step${number});`,
 		);
-		if (index < steps.length - 1) lines.push(`const output${number} = step${number}.map(function (child) { return child.output; }).join("\\n\\n");`);
+		if (index < steps.length - 1)
+			lines.push(
+				`const output${number} = step${number}.map(function (child) { return child.output; }).join("\\n\\n");`,
+			);
 		if (outputName !== undefined) outputs.set(outputName, `output${number}`);
 	}
 	lines.push("return { ok: true, children };");
@@ -188,6 +239,10 @@ function buildChainScript(steps: unknown, originalTask: string | undefined): str
 }
 
 /** Validate exact data shapes and expand them into a package-owned workflow script. */
-export function buildStructuredWorkflowScript(kind: StructuredWorkflowKind, steps: unknown, originalTask: string | undefined): string {
+export function buildStructuredWorkflowScript(
+	kind: StructuredWorkflowKind,
+	steps: unknown,
+	originalTask: string | undefined,
+): string {
 	return kind === "tasks" ? buildTasksScript(steps, originalTask) : buildChainScript(steps, originalTask);
 }

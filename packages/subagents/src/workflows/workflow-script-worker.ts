@@ -1,4 +1,4 @@
-import { fork, type ChildProcess } from "node:child_process";
+import { type ChildProcess, fork } from "node:child_process";
 import { EventEmitter } from "node:events";
 import { realpathSync } from "node:fs";
 import { dirname } from "node:path";
@@ -22,7 +22,8 @@ export class WorkflowScriptProcess extends EventEmitter {
 			cwd: dirname(realpathSync(acornPath)),
 			// No inherited execArgv or NODE_OPTIONS. Only the supervisor may create a worker.
 			execArgv: [
-				"--permission", "--allow-worker",
+				"--permission",
+				"--allow-worker",
 				`--allow-fs-read=${realpathSync(fileURLToPath(WORKFLOW_PROCESS_URL))}`,
 				`--allow-fs-read=${realpathSync(fileURLToPath(WORKFLOW_WORKER_URL))}`,
 				`--allow-fs-read=${realpathSync(acornPath)}`,
@@ -31,16 +32,21 @@ export class WorkflowScriptProcess extends EventEmitter {
 			stdio: ["ignore", "ignore", "pipe", "ipc"],
 			serialization: "json",
 		});
-		this.child.stderr!.on("data", (chunk: Buffer) => { this.stderr = (this.stderr + chunk.toString("utf8")).slice(-4096); });
+		this.child.stderr!.on("data", (chunk: Buffer) => {
+			this.stderr = (this.stderr + chunk.toString("utf8")).slice(-4096);
+		});
 		this.child.on("error", (error) => this.emit("error", error));
 		this.child.on("message", (json) => {
 			if (this.stopping) return;
 			try {
 				if (typeof json !== "string") throw new Error("Workflow process sent a non-string IPC message.");
 				const message: unknown = JSON.parse(json);
-				if (!message || typeof message !== "object" || Array.isArray(message)) throw new Error("Workflow process sent an invalid IPC message.");
+				if (!message || typeof message !== "object" || Array.isArray(message))
+					throw new Error("Workflow process sent an invalid IPC message.");
 				this.emit("message", message);
-			} catch (error) { this.emit("error", error); }
+			} catch (error) {
+				this.emit("error", error);
+			}
 		});
 		this.child.on("exit", (code) => {
 			this.exitCode = code ?? 1;

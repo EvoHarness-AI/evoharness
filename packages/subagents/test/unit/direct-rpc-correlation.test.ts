@@ -6,28 +6,59 @@ import * as path from "node:path";
 import { describe, it } from "node:test";
 import type { ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
 import type { AgentConfig } from "../../src/agents/agents.ts";
+import {
+	registerSubagentRpcBridge,
+	SUBAGENT_RPC_REQUEST_EVENT,
+	type SubagentRpcReplyEnvelope,
+	subagentRpcReplyEvent,
+} from "../../src/extension/rpc.ts";
 import { createSubagentExecutor } from "../../src/runs/foreground/subagent-executor.ts";
-import { DIRS, SUBAGENT_ASYNC_STARTED_EVENT, type AsyncStatus, type Details, type SubagentState } from "../../src/shared/types.ts";
-import { registerSubagentRpcBridge, SUBAGENT_RPC_REQUEST_EVENT, subagentRpcReplyEvent, type SubagentRpcReplyEnvelope } from "../../src/extension/rpc.ts";
+import {
+	type AsyncStatus,
+	type Details,
+	DIRS,
+	SUBAGENT_ASYNC_STARTED_EVENT,
+	type SubagentState,
+} from "../../src/shared/types.ts";
+import {
+	installAsyncExecutionHooks,
+	mockPi,
+	tempDir,
+	waitForAsyncResultFile,
+} from "../support/async-execution-fixture.ts";
 import { createEventBus, makeAgent, makeMinimalCtx } from "../support/helpers.ts";
-import { installAsyncExecutionHooks, mockPi, tempDir, waitForAsyncResultFile } from "../support/async-execution-fixture.ts";
 
 function host() {
 	const events = createEventBus();
 	const ctx = makeMinimalCtx(tempDir) as ExtensionContext;
-	const state: SubagentState = { baseCwd: tempDir, currentSessionId: null, asyncJobs: new Map(), foregroundControls: new Map(), lastForegroundControlId: null };
+	const state: SubagentState = {
+		baseCwd: tempDir,
+		currentSessionId: null,
+		asyncJobs: new Map(),
+		foregroundControls: new Map(),
+		lastForegroundControlId: null,
+	};
 	const executor = createSubagentExecutor({
 		pi: { events, getSessionName: () => undefined, sendMessage() {} } as ExtensionAPI,
-		state, config: {}, asyncByDefault: false, tempArtifactsDir: tempDir,
-		getSubagentSessionRoot: () => tempDir, expandTilde: (value) => value,
+		state,
+		config: {},
+		asyncByDefault: false,
+		tempArtifactsDir: tempDir,
+		getSubagentSessionRoot: () => tempDir,
+		expandTilde: (value) => value,
 		discoverAgents: () => ({ agents: [makeAgent("worker") as AgentConfig] }),
 	});
 	const bridge = registerSubagentRpcBridge({ events, state, getContext: () => ctx, execute: executor.executePublic });
 	async function rpc(method: string, params: unknown, requestId = randomUUID()): Promise<SubagentRpcReplyEnvelope> {
 		return await new Promise((resolve, reject) => {
-			const timeout = setTimeout(() => { dispose(); reject(new Error(`RPC ${method} timed out`)); }, 15_000);
+			const timeout = setTimeout(() => {
+				dispose();
+				reject(new Error(`RPC ${method} timed out`));
+			}, 15_000);
 			const dispose = events.on(subagentRpcReplyEvent(requestId), (reply) => {
-				clearTimeout(timeout); dispose(); resolve(reply as SubagentRpcReplyEnvelope);
+				clearTimeout(timeout);
+				dispose();
+				resolve(reply as SubagentRpcReplyEnvelope);
 			});
 			events.emit(SUBAGENT_RPC_REQUEST_EVENT, { version: 1, requestId, method, params });
 		});
@@ -60,9 +91,29 @@ function freshLookup(id: string, sessionId = "session-123", view?: "transcript")
 		const result = inspectSubagentStatus(params, { state });
 		console.log(JSON.stringify({ pid: process.pid, resolved, error, result }));
 	`;
-	return JSON.parse(execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "-e", script], {
-		encoding: "utf8", timeout: 15_000, maxBuffer: 128 * 1024,
-	})) as { pid: number; resolved?: { kind: string; id: string }; error?: string; result: { isError?: boolean; details: Details; content: Array<{ text: string }> } };
+	return JSON.parse(
+		execFileSync(
+			process.execPath,
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"-e",
+				script,
+			],
+			{
+				encoding: "utf8",
+				timeout: 15_000,
+				maxBuffer: 128 * 1024,
+			},
+		),
+	) as {
+		pid: number;
+		resolved?: { kind: string; id: string };
+		error?: string;
+		result: { isError?: boolean; details: Details; content: Array<{ text: string }> };
+	};
 }
 
 function assertIdentity(id: string, toolCallId: string) {
@@ -86,7 +137,11 @@ describe("direct RPC correlation", () => {
 		const toolCallId = `rpc-spawn-${requestId}`;
 		const release = path.join(tempDir, "release-worker");
 		const sideEffect = path.join(tempDir, "worker-proof");
-		mockPi.onCall({ waitForPath: release, output: "worker completed once", writeFiles: [{ path: sideEffect, content: "done" }] });
+		mockPi.onCall({
+			waitForPath: release,
+			output: "worker completed once",
+			writeFiles: [{ path: sideEffect, content: "done" }],
+		});
 		let runId: string | undefined;
 		let initialToolCallId: string | undefined;
 		let eventToolCallId: string | undefined;
@@ -97,7 +152,12 @@ describe("direct RPC correlation", () => {
 			initialToolCallId = status(event.id).toolCallId;
 		});
 		// Do not subscribe to the response channel: the caller loses its receipt.
-		runtime.events.emit(SUBAGENT_RPC_REQUEST_EVENT, { version: 1, requestId, method: "spawn", params: { agent: "worker", task: "Do the bounded work", context: "fresh", acceptance: false } });
+		runtime.events.emit(SUBAGENT_RPC_REQUEST_EVENT, {
+			version: 1,
+			requestId,
+			method: "spawn",
+			params: { agent: "worker", task: "Do the bounded work", context: "fresh", acceptance: false },
+		});
 		await waitFor(() => runId !== undefined);
 		const id = runId!; // independent lifecycle observation, not recovery input
 		try {
@@ -120,7 +180,9 @@ describe("direct RPC correlation", () => {
 				const stopped = await runtime.rpc("stop", { id: toolCallId });
 				assert.equal(stopped.success, false);
 				if (!stopped.success) assert.equal(stopped.error.code, "not_found");
-			} finally { runtime.ctx.sessionManager.getSessionId = original; }
+			} finally {
+				runtime.ctx.sessionManager.getSessionId = original;
+			}
 		} finally {
 			fs.writeFileSync(release, "release");
 			await waitForAsyncResultFile(id);
@@ -145,10 +207,18 @@ describe("direct RPC correlation", () => {
 		t.after(runtime.dispose);
 		mockPi.onCall({ output: "workflow child complete" });
 		const parentToolCallId = `workflow-${randomUUID()}`;
-		const launched = await runtime.executor.execute(parentToolCallId, {
-			workflowScript: 'return await runs.run("child", { agent: "worker", task: "Do work", async: true, context: "fresh", acceptance: false });',
-			async: true, mission: false,
-		}, new AbortController().signal, undefined, runtime.ctx);
+		const launched = await runtime.executor.execute(
+			parentToolCallId,
+			{
+				workflowScript:
+					'return await runs.run("child", { agent: "worker", task: "Do work", async: true, context: "fresh", acceptance: false });',
+				async: true,
+				mission: false,
+			},
+			new AbortController().signal,
+			undefined,
+			runtime.ctx,
+		);
 		assert.equal(launched.isError, undefined);
 		const parentId = launched.details.asyncId;
 		assert.ok(parentId);

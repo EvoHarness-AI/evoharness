@@ -1,7 +1,12 @@
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { ExternalJobProviderError, type ExternalJobHandle, type ExternalJobResult, type ExternalJobState } from "../../api/external-job-provider.ts";
+import {
+	type ExternalJobHandle,
+	ExternalJobProviderError,
+	type ExternalJobResult,
+	type ExternalJobState,
+} from "../../api/external-job-provider.ts";
 import type { ExternalJobStatus } from "../../shared/types.ts";
 import { requestExternalJobOperation } from "./external-job-bridge.ts";
 
@@ -24,12 +29,27 @@ export function externalJobStableJson(value: unknown): string {
 	if (value === null || typeof value !== "object") return JSON.stringify(value);
 	if (Array.isArray(value)) return `[${value.map(externalJobStableJson).join(",")}]`;
 	const record = value as Record<string, unknown>;
-	return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${externalJobStableJson(record[key])}`).join(",")}}`;
+	return `{${Object.keys(record)
+		.sort()
+		.map((key) => `${JSON.stringify(key)}:${externalJobStableJson(record[key])}`)
+		.join(",")}}`;
 }
 
-export function externalJobFollowUpRequestDigest(input: { provider: string; parentProviderJobId: string; promptDigest: string; options: Record<string, unknown> }): string {
+export function externalJobFollowUpRequestDigest(input: {
+	provider: string;
+	parentProviderJobId: string;
+	promptDigest: string;
+	options: Record<string, unknown>;
+}): string {
 	return createHash("sha256")
-		.update(externalJobStableJson({ provider: input.provider, parentProviderJobId: input.parentProviderJobId, promptDigest: input.promptDigest, options: input.options }))
+		.update(
+			externalJobStableJson({
+				provider: input.provider,
+				parentProviderJobId: input.parentProviderJobId,
+				promptDigest: input.promptDigest,
+				options: input.options,
+			}),
+		)
 		.digest("hex");
 }
 
@@ -59,7 +79,12 @@ function formatError(error: ExternalJobProviderError, provider: string): string 
 }
 
 function isNotFound(error: unknown): boolean {
-	return typeof error === "object" && error !== null && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT";
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"code" in error &&
+		(error as NodeJS.ErrnoException).code === "ENOENT"
+	);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -67,7 +92,10 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 function malformedStatus(statusPath: string): ExternalJobProviderError {
-	return new ExternalJobProviderError(`Malformed external-job status '${statusPath}'. Refusing to redispatch the prompt.`, { code: "status-unreadable" });
+	return new ExternalJobProviderError(
+		`Malformed external-job status '${statusPath}'. Refusing to redispatch the prompt.`,
+		{ code: "status-unreadable" },
+	);
 }
 
 function parseExternalJobStatus(value: unknown, statusPath: string): ExternalJobStatus {
@@ -77,7 +105,15 @@ function parseExternalJobStatus(value: unknown, statusPath: string): ExternalJob
 	const state = value.state;
 	if (typeof provider !== "string" || provider.length === 0) throw malformedStatus(statusPath);
 	if (typeof promptDigest !== "string" || promptDigest.length === 0) throw malformedStatus(statusPath);
-	if (state !== "queued" && state !== "running" && state !== "completed" && state !== "failed" && state !== "stopped" && state !== "blocked") throw malformedStatus(statusPath);
+	if (
+		state !== "queued" &&
+		state !== "running" &&
+		state !== "completed" &&
+		state !== "failed" &&
+		state !== "stopped" &&
+		state !== "blocked"
+	)
+		throw malformedStatus(statusPath);
 	if (value.options !== undefined && !isRecord(value.options)) throw malformedStatus(statusPath);
 	const providerJobId = value.providerJobId;
 	const handleUrl = value.handleUrl;
@@ -88,7 +124,8 @@ function parseExternalJobStatus(value: unknown, statusPath: string): ExternalJob
 	const blockingJobId = value.blockingJobId;
 	const startedAt = value.startedAt;
 	const updatedAt = value.updatedAt;
-	if (providerJobId !== undefined && (typeof providerJobId !== "string" || providerJobId.length === 0)) throw malformedStatus(statusPath);
+	if (providerJobId !== undefined && (typeof providerJobId !== "string" || providerJobId.length === 0))
+		throw malformedStatus(statusPath);
 	if (handleUrl !== undefined && typeof handleUrl !== "string") throw malformedStatus(statusPath);
 	if (conversationUrl !== undefined && typeof conversationUrl !== "string") throw malformedStatus(statusPath);
 	if (resultArtifactPath !== undefined && typeof resultArtifactPath !== "string") throw malformedStatus(statusPath);
@@ -102,11 +139,22 @@ function parseExternalJobStatus(value: unknown, statusPath: string): ExternalJob
 	const requestId = value.requestId;
 	const requestDigest = value.requestDigest;
 	if (operation !== undefined && operation !== "start" && operation !== "follow-up") throw malformedStatus(statusPath);
-	if (sourceRunId !== undefined && (typeof sourceRunId !== "string" || sourceRunId.length === 0)) throw malformedStatus(statusPath);
-	if (sourceStepIndex !== undefined && (typeof sourceStepIndex !== "number" || !Number.isInteger(sourceStepIndex) || sourceStepIndex < 0)) throw malformedStatus(statusPath);
-	if (parentProviderJobId !== undefined && (typeof parentProviderJobId !== "string" || parentProviderJobId.length === 0)) throw malformedStatus(statusPath);
-	if (requestId !== undefined && (typeof requestId !== "string" || requestId.length === 0)) throw malformedStatus(statusPath);
-	if (requestDigest !== undefined && (typeof requestDigest !== "string" || requestDigest.length === 0)) throw malformedStatus(statusPath);
+	if (sourceRunId !== undefined && (typeof sourceRunId !== "string" || sourceRunId.length === 0))
+		throw malformedStatus(statusPath);
+	if (
+		sourceStepIndex !== undefined &&
+		(typeof sourceStepIndex !== "number" || !Number.isInteger(sourceStepIndex) || sourceStepIndex < 0)
+	)
+		throw malformedStatus(statusPath);
+	if (
+		parentProviderJobId !== undefined &&
+		(typeof parentProviderJobId !== "string" || parentProviderJobId.length === 0)
+	)
+		throw malformedStatus(statusPath);
+	if (requestId !== undefined && (typeof requestId !== "string" || requestId.length === 0))
+		throw malformedStatus(statusPath);
+	if (requestDigest !== undefined && (typeof requestDigest !== "string" || requestDigest.length === 0))
+		throw malformedStatus(statusPath);
 	if (startedAt !== undefined && typeof startedAt !== "number") throw malformedStatus(statusPath);
 	if (updatedAt !== undefined && typeof updatedAt !== "number") throw malformedStatus(statusPath);
 	return {
@@ -139,13 +187,19 @@ function readExistingExternalJob(asyncDir: string, stepIndex: number): ExternalJ
 		raw = fs.readFileSync(statusPath, "utf-8");
 	} catch (error) {
 		if (isNotFound(error)) return undefined;
-		throw new ExternalJobProviderError(`Unreadable external-job status '${statusPath}'. Refusing to redispatch the prompt.`, { code: "status-unreadable", cause: error });
+		throw new ExternalJobProviderError(
+			`Unreadable external-job status '${statusPath}'. Refusing to redispatch the prompt.`,
+			{ code: "status-unreadable", cause: error },
+		);
 	}
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(raw);
 	} catch (error) {
-		throw new ExternalJobProviderError(`Malformed external-job status '${statusPath}'. Refusing to redispatch the prompt.`, { code: "status-unreadable", cause: error });
+		throw new ExternalJobProviderError(
+			`Malformed external-job status '${statusPath}'. Refusing to redispatch the prompt.`,
+			{ code: "status-unreadable", cause: error },
+		);
 	}
 	if (!isRecord(parsed) || !Array.isArray(parsed.steps)) throw malformedStatus(statusPath);
 	const step = parsed.steps[stepIndex];
@@ -154,22 +208,27 @@ function readExistingExternalJob(asyncDir: string, stepIndex: number): ExternalJ
 	return parseExternalJobStatus(step.externalJob, statusPath);
 }
 
-function externalJobLineage(followUp: ExternalJobFollowUpDescriptor | undefined, previous: ExternalJobStatus | undefined) {
+function externalJobLineage(
+	followUp: ExternalJobFollowUpDescriptor | undefined,
+	previous: ExternalJobStatus | undefined,
+) {
 	return {
-		operation: followUp ? "follow-up" as const : previous?.operation,
-		...(followUp ? {
-			sourceRunId: followUp.sourceRunId,
-			sourceStepIndex: followUp.sourceStepIndex,
-			parentProviderJobId: followUp.parentProviderJobId,
-			requestId: followUp.requestId,
-			requestDigest: followUp.requestDigest,
-		} : {
-			...(previous?.sourceRunId ? { sourceRunId: previous.sourceRunId } : {}),
-			...(previous?.sourceStepIndex !== undefined ? { sourceStepIndex: previous.sourceStepIndex } : {}),
-			...(previous?.parentProviderJobId ? { parentProviderJobId: previous.parentProviderJobId } : {}),
-			...(previous?.requestId ? { requestId: previous.requestId } : {}),
-			...(previous?.requestDigest ? { requestDigest: previous.requestDigest } : {}),
-		}),
+		operation: followUp ? ("follow-up" as const) : previous?.operation,
+		...(followUp
+			? {
+					sourceRunId: followUp.sourceRunId,
+					sourceStepIndex: followUp.sourceStepIndex,
+					parentProviderJobId: followUp.parentProviderJobId,
+					requestId: followUp.requestId,
+					requestDigest: followUp.requestDigest,
+				}
+			: {
+					...(previous?.sourceRunId ? { sourceRunId: previous.sourceRunId } : {}),
+					...(previous?.sourceStepIndex !== undefined ? { sourceStepIndex: previous.sourceStepIndex } : {}),
+					...(previous?.parentProviderJobId ? { parentProviderJobId: previous.parentProviderJobId } : {}),
+					...(previous?.requestId ? { requestId: previous.requestId } : {}),
+					...(previous?.requestDigest ? { requestDigest: previous.requestDigest } : {}),
+				}),
 	};
 }
 
@@ -236,10 +295,12 @@ function resultOutput(result: ExternalJobResult, artifactPath: string | undefine
 }
 
 function blocksStartRedispatch(status: ExternalJobStatus, provider: string, promptDigest: string): boolean {
-	return status.provider === provider
-		&& status.promptDigest === promptDigest
-		&& !status.providerJobId
-		&& status.failureCode !== "provider-unavailable";
+	return (
+		status.provider === provider &&
+		status.promptDigest === promptDigest &&
+		!status.providerJobId &&
+		status.failureCode !== "provider-unavailable"
+	);
 }
 
 interface ExternalJobFollowUpDescriptor {
@@ -252,12 +313,14 @@ interface ExternalJobFollowUpDescriptor {
 
 function sameFollowUpLineage(status: ExternalJobStatus, followUp: ExternalJobFollowUpDescriptor | undefined): boolean {
 	if (!followUp) return status.operation !== "follow-up";
-	return status.operation === "follow-up"
-		&& status.sourceRunId === followUp.sourceRunId
-		&& status.sourceStepIndex === followUp.sourceStepIndex
-		&& status.parentProviderJobId === followUp.parentProviderJobId
-		&& status.requestId === followUp.requestId
-		&& status.requestDigest === followUp.requestDigest;
+	return (
+		status.operation === "follow-up" &&
+		status.sourceRunId === followUp.sourceRunId &&
+		status.sourceStepIndex === followUp.sourceStepIndex &&
+		status.parentProviderJobId === followUp.parentProviderJobId &&
+		status.requestId === followUp.requestId &&
+		status.requestDigest === followUp.requestDigest
+	);
 }
 
 export async function runExternalJob(input: {
@@ -284,8 +347,12 @@ export async function runExternalJob(input: {
 	let timedOut = false;
 	let stopped = false;
 	let current: ExternalJobStatus | undefined;
-	const timeout = () => { timedOut = true; };
-	const stop = () => { stopped = true; };
+	const timeout = () => {
+		timedOut = true;
+	};
+	const stop = () => {
+		stopped = true;
+	};
 	input.registerTimeout?.(timeout);
 	input.registerStop?.(stop);
 	const publish = (status: ExternalJobStatus) => {
@@ -295,93 +362,200 @@ export async function runExternalJob(input: {
 	const localCancellation = () => {
 		if (!timedOut && !stopped) return undefined;
 		const message = stopped
-			? input.stopMessage ?? `Subagent stopped locally before external provider '${provider}' returned a job id. The provider start may still be running.`
-			: input.timeoutMessage ?? `Subagent timed out locally before external provider '${provider}' returned a job id. The provider start may still be running.`;
+			? (input.stopMessage ??
+				`Subagent stopped locally before external provider '${provider}' returned a job id. The provider start may still be running.`)
+			: (input.timeoutMessage ??
+				`Subagent timed out locally before external provider '${provider}' returned a job id. The provider start may still be running.`);
 		return new ExternalJobProviderError(message, { code: stopped ? "local-stop" : "local-timeout" });
 	};
 	try {
 		current = readExistingExternalJob(input.asyncDir, input.stepIndex);
 		let handle: ExternalJobHandle;
 		if (current?.providerJobId) {
-			if (current.provider !== provider || current.promptDigest !== promptDigest || !sameFollowUpLineage(current, input.followUp)) {
+			if (
+				current.provider !== provider ||
+				current.promptDigest !== promptDigest ||
+				!sameFollowUpLineage(current, input.followUp)
+			) {
 				const message = `Existing external job '${current.providerJobId}' does not match provider, prompt digest, or follow-up lineage. Refusing to redispatch prompt.`;
-				const status = failureStatus({ provider, promptDigest, options, followUp: input.followUp, previous: current, code: "recovery-mismatch", message });
+				const status = failureStatus({
+					provider,
+					promptDigest,
+					options,
+					followUp: input.followUp,
+					previous: current,
+					code: "recovery-mismatch",
+					message,
+				});
 				publish(status);
 				return { output: message, exitCode: 1, error: message, externalJob: status };
 			}
-			handle = await requestExternalJobOperation<ExternalJobHandle>(input.asyncDir, { operation: "reattach", provider, providerJobId: current.providerJobId });
+			handle = await requestExternalJobOperation<ExternalJobHandle>(input.asyncDir, {
+				operation: "reattach",
+				provider,
+				providerJobId: current.providerJobId,
+			});
 		} else {
 			if (current && blocksStartRedispatch(current, provider, promptDigest)) {
 				const message = `External-job ${input.followUp ? "follow-up" : "start"} for provider '${provider}' previously ended without a durable provider job id. Refusing to redispatch the prompt automatically.`;
-				const status = failureStatus({ provider, promptDigest, options, followUp: input.followUp, previous: current, code: input.followUp ? "dispatch-redispatch-blocked" : "start-redispatch-blocked", message });
+				const status = failureStatus({
+					provider,
+					promptDigest,
+					options,
+					followUp: input.followUp,
+					previous: current,
+					code: input.followUp ? "dispatch-redispatch-blocked" : "start-redispatch-blocked",
+					message,
+				});
 				publish(status);
 				return { output: message, exitCode: 1, error: message, externalJob: status };
 			}
-			publish({ provider, promptDigest, ...(input.followUp ? { operation: "follow-up" as const, ...input.followUp } : {}), options, state: "queued", startedAt, updatedAt: Date.now() });
+			publish({
+				provider,
+				promptDigest,
+				...(input.followUp ? { operation: "follow-up" as const, ...input.followUp } : {}),
+				options,
+				state: "queued",
+				startedAt,
+				updatedAt: Date.now(),
+			});
 			if (input.followUp) {
-				handle = await requestExternalJobOperation<ExternalJobHandle>(input.asyncDir, {
-					operation: "follow-up",
-					provider,
-					followUp: {
-						prompt: input.prompt,
-						promptDigest,
-						cwd: input.cwd,
-						runId: input.runId,
-						stepIndex: input.stepIndex,
-						agent: input.agent,
-						options,
-						...(input.sessionId ? { sessionId: input.sessionId } : {}),
-						...input.followUp,
+				handle = await requestExternalJobOperation<ExternalJobHandle>(
+					input.asyncDir,
+					{
+						operation: "follow-up",
+						provider,
+						followUp: {
+							prompt: input.prompt,
+							promptDigest,
+							cwd: input.cwd,
+							runId: input.runId,
+							stepIndex: input.stepIndex,
+							agent: input.agent,
+							options,
+							...(input.sessionId ? { sessionId: input.sessionId } : {}),
+							...input.followUp,
+						},
 					},
-				}, undefined, localCancellation);
+					undefined,
+					localCancellation,
+				);
 			} else {
-				handle = await requestExternalJobOperation<ExternalJobHandle>(input.asyncDir, {
-					operation: "start",
-					provider,
-					start: {
-						prompt: input.prompt,
-						promptDigest,
-						cwd: input.cwd,
-						runId: input.runId,
-						stepIndex: input.stepIndex,
-						agent: input.agent,
-						options,
-						...(input.sessionId ? { sessionId: input.sessionId } : {}),
+				handle = await requestExternalJobOperation<ExternalJobHandle>(
+					input.asyncDir,
+					{
+						operation: "start",
+						provider,
+						start: {
+							prompt: input.prompt,
+							promptDigest,
+							cwd: input.cwd,
+							runId: input.runId,
+							stepIndex: input.stepIndex,
+							agent: input.agent,
+							options,
+							...(input.sessionId ? { sessionId: input.sessionId } : {}),
+						},
 					},
-				}, undefined, localCancellation);
+					undefined,
+					localCancellation,
+				);
 			}
 		}
-		publish(statusFromHandle({ provider, promptDigest, options, followUp: input.followUp, startedAt, previous: current, handle }));
+		publish(
+			statusFromHandle({
+				provider,
+				promptDigest,
+				options,
+				followUp: input.followUp,
+				startedAt,
+				previous: current,
+				handle,
+			}),
+		);
 		while (!terminal(handle.state)) {
 			if (timedOut || stopped) {
 				const message = stopped
-					? input.stopMessage ?? `Subagent stopped locally; external provider job '${handle.providerJobId}' may still be running.`
-					: input.timeoutMessage ?? `Subagent timed out locally; external provider job '${handle.providerJobId}' may still be running.`;
-				return { output: message, exitCode: 1, error: message, ...(timedOut ? { timedOut: true } : {}), ...(stopped ? { stopped: true } : {}), externalJob: current! };
+					? (input.stopMessage ??
+						`Subagent stopped locally; external provider job '${handle.providerJobId}' may still be running.`)
+					: (input.timeoutMessage ??
+						`Subagent timed out locally; external provider job '${handle.providerJobId}' may still be running.`);
+				return {
+					output: message,
+					exitCode: 1,
+					error: message,
+					...(timedOut ? { timedOut: true } : {}),
+					...(stopped ? { stopped: true } : {}),
+					externalJob: current!,
+				};
 			}
 			await sleep(STATUS_POLL_INTERVAL_MS);
-			handle = await requestExternalJobOperation<ExternalJobHandle>(input.asyncDir, { operation: "status", provider, providerJobId: handle.providerJobId });
-			publish(statusFromHandle({ provider, promptDigest, options, followUp: input.followUp, previous: current, handle }));
+			handle = await requestExternalJobOperation<ExternalJobHandle>(input.asyncDir, {
+				operation: "status",
+				provider,
+				providerJobId: handle.providerJobId,
+			});
+			publish(
+				statusFromHandle({ provider, promptDigest, options, followUp: input.followUp, previous: current, handle }),
+			);
 		}
-		const result = await requestExternalJobOperation<ExternalJobResult>(input.asyncDir, { operation: "result", provider, providerJobId: handle.providerJobId });
+		const result = await requestExternalJobOperation<ExternalJobResult>(input.asyncDir, {
+			operation: "result",
+			provider,
+			providerJobId: handle.providerJobId,
+		});
 		let artifactPath = result.artifactPath;
 		if (!artifactPath && result.output !== undefined) {
 			artifactPath = path.join(input.asyncDir, `external-job-${input.stepIndex}.result.md`);
 			fs.writeFileSync(artifactPath, result.output, "utf-8");
 		}
-		const finalStatus = statusFromHandle({ provider, promptDigest, options, followUp: input.followUp, previous: current, handle: result, resultArtifactPath: artifactPath });
+		const finalStatus = statusFromHandle({
+			provider,
+			promptDigest,
+			options,
+			followUp: input.followUp,
+			previous: current,
+			handle: result,
+			resultArtifactPath: artifactPath,
+		});
 		publish(finalStatus);
 		const output = resultOutput(result, artifactPath);
-		const error = result.state === "completed" ? undefined : result.failureMessage ?? `External job ${result.state}.`;
-		return { output, exitCode: result.state === "completed" ? 0 : 1, ...(error ? { error } : {}), externalJob: finalStatus };
+		const error =
+			result.state === "completed" ? undefined : (result.failureMessage ?? `External job ${result.state}.`);
+		return {
+			output,
+			exitCode: result.state === "completed" ? 0 : 1,
+			...(error ? { error } : {}),
+			externalJob: finalStatus,
+		};
 	} catch (error) {
-		const providerError = error instanceof ExternalJobProviderError
-			? error
-			: new ExternalJobProviderError(error instanceof Error ? error.message : String(error), { code: "provider-error", cause: error });
+		const providerError =
+			error instanceof ExternalJobProviderError
+				? error
+				: new ExternalJobProviderError(error instanceof Error ? error.message : String(error), {
+						code: "provider-error",
+						cause: error,
+					});
 		const message = formatError(providerError, provider);
-		const status = failureStatus({ provider, promptDigest, options, followUp: input.followUp, previous: current, code: providerError.code, message, ...(providerError.blockingJobId ? { blockingJobId: providerError.blockingJobId } : {}) });
+		const status = failureStatus({
+			provider,
+			promptDigest,
+			options,
+			followUp: input.followUp,
+			previous: current,
+			code: providerError.code,
+			message,
+			...(providerError.blockingJobId ? { blockingJobId: providerError.blockingJobId } : {}),
+		});
 		publish(status);
-		return { output: message, exitCode: 1, error: message, ...(timedOut ? { timedOut: true } : {}), ...(stopped ? { stopped: true } : {}), externalJob: status };
+		return {
+			output: message,
+			exitCode: 1,
+			error: message,
+			...(timedOut ? { timedOut: true } : {}),
+			...(stopped ? { stopped: true } : {}),
+			externalJob: status,
+		};
 	} finally {
 		input.registerTimeout?.(undefined);
 		input.registerStop?.(undefined);

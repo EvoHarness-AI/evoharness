@@ -1,7 +1,10 @@
 import type { WatchdogWarning, WatchdogWarningDetails } from "./types.ts";
 
 function titleCase(value: string): string {
-	return value.split("-").map((part) => part ? `${part[0]?.toUpperCase()}${part.slice(1)}` : part).join(" ");
+	return value
+		.split("-")
+		.map((part) => (part ? `${part[0]?.toUpperCase()}${part.slice(1)}` : part))
+		.join(" ");
 }
 
 export function stateLabels(warning: WatchdogWarning): string[] {
@@ -24,8 +27,11 @@ export function formatWatchdogWarningRenderText(warning: WatchdogWarningDetails)
 	];
 	if (warning.state === "failed" && warning.error) lines.push(`Failure: ${warning.error}`);
 	if (warning.state === "stalemate" && warning.stalemateRepeats !== undefined) {
-		lines.push(`Same warning ${warning.stalemateRepeats} time${warning.stalemateRepeats === 1 ? "" : "s"} in a row; the watchdog stopped continuing the run.`);
+		lines.push(
+			`Same warning ${warning.stalemateRepeats} time${warning.stalemateRepeats === 1 ? "" : "s"} in a row; the watchdog stopped continuing the run.`,
+		);
 	}
-	if (warning.stale || warning.state === "stale") lines.push("This warning arrived after the watchdog catch-up timeout.");
+	if (warning.stale || warning.state === "stale")
+		lines.push("This warning arrived after the watchdog catch-up timeout.");
 	return lines.join("\n");
 }

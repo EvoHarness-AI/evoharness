@@ -1,11 +1,28 @@
 import type { ExtensionAPI } from "@evoharness/coding-agent";
-import type { AcceptanceInput, AcceptanceRole, AgentRunnerConfig, OutputMode, ToolBudgetConfig } from "../shared/types.ts";
-import { CODE_OWNED_EXTERNAL_CLI_ADAPTER_LABEL, isCodeOwnedExternalCliAdapterId, parseExternalCliCapabilityNarrowing, validateCodeOwnedProfileRunner } from "../runs/shared/external-cli-contract.ts";
 import { validateAcceptanceInput } from "../runs/shared/acceptance.ts";
-import { validatePermissionRules, type PermissionRules } from "../runs/shared/permissions.ts";
+import {
+	CODE_OWNED_EXTERNAL_CLI_ADAPTER_LABEL,
+	isCodeOwnedExternalCliAdapterId,
+	parseExternalCliCapabilityNarrowing,
+	validateCodeOwnedProfileRunner,
+} from "../runs/shared/external-cli-contract.ts";
+import { type PermissionRules, validatePermissionRules } from "../runs/shared/permissions.ts";
 import { validateToolBudgetConfig } from "../runs/shared/tool-budget.ts";
+import type {
+	AcceptanceInput,
+	AcceptanceRole,
+	AgentRunnerConfig,
+	OutputMode,
+	ToolBudgetConfig,
+} from "../shared/types.ts";
+import {
+	type AgentConfig,
+	type AgentDefaultContext,
+	type AgentDiscoveryDiagnostic,
+	applyRuntimeAgentSettings,
+	type RuntimeAgentSettingsContext,
+} from "./agents.ts";
 import { BUILTIN_AGENT_NAMES } from "./builtin-names.ts";
-import { applyRuntimeAgentSettings, type AgentConfig, type AgentDefaultContext, type AgentDiscoveryDiagnostic, type RuntimeAgentSettingsContext } from "./agents.ts";
 
 export const RUNTIME_AGENT_REGISTRY_KEY = "pi-subagents.runtime-agents.v1";
 
@@ -106,9 +123,11 @@ function registry(): RuntimeAgentRegistry {
 }
 
 function validatePi(value: unknown): ExtensionAPI {
-	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Runtime agent pi must be an ExtensionAPI object.");
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw new Error("Runtime agent pi must be an ExtensionAPI object.");
 	const pi = value as Partial<ExtensionAPI>;
-	if (typeof pi.on !== "function" || typeof pi.registerTool !== "function") throw new Error("Runtime agent pi must be an ExtensionAPI object.");
+	if (typeof pi.on !== "function" || typeof pi.registerTool !== "function")
+		throw new Error("Runtime agent pi must be an ExtensionAPI object.");
 	return value as ExtensionAPI;
 }
 
@@ -121,7 +140,11 @@ function validateString(value: unknown, field: string, maxLength: number): strin
 	return value;
 }
 
-function validateOptionalString(value: unknown, field: string, maxLength = MAX_FIELD_STRING_LENGTH): string | undefined {
+function validateOptionalString(
+	value: unknown,
+	field: string,
+	maxLength = MAX_FIELD_STRING_LENGTH,
+): string | undefined {
 	if (value === undefined) return undefined;
 	return validateString(value, field, maxLength);
 }
@@ -129,12 +152,15 @@ function validateOptionalString(value: unknown, field: string, maxLength = MAX_F
 function validateStringList(value: unknown, field: string): string[] | undefined {
 	if (value === undefined) return undefined;
 	if (!Array.isArray(value)) throw new Error(`${field} must be an array of strings when provided.`);
-	return [...new Set(value.map((entry, index) => validateString(entry, `${field}[${index}]`, MAX_FIELD_STRING_LENGTH)))];
+	return [
+		...new Set(value.map((entry, index) => validateString(entry, `${field}[${index}]`, MAX_FIELD_STRING_LENGTH))),
+	];
 }
 
 function validatePositiveInteger(value: unknown, field: string): number | undefined {
 	if (value === undefined) return undefined;
-	if (typeof value !== "number" || !Number.isInteger(value) || value <= 0) throw new Error(`${field} must be a positive integer when provided.`);
+	if (typeof value !== "number" || !Number.isInteger(value) || value <= 0)
+		throw new Error(`${field} must be a positive integer when provided.`);
 	return value;
 }
 
@@ -154,32 +180,68 @@ function isJsonSerializable(value: unknown): boolean {
 
 function validateRunner(value: unknown): AgentRunnerConfig | undefined {
 	if (value === undefined) return undefined;
-	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Runtime agent definition runner must be an object when provided.");
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw new Error("Runtime agent definition runner must be an object when provided.");
 	const runner = value as Record<string, unknown>;
 	if (runner.type === "pi") {
-		if (Object.keys(runner).some((key) => key !== "type")) throw new Error("Runtime agent definition Pi runner supports only 'type'.");
+		if (Object.keys(runner).some((key) => key !== "type"))
+			throw new Error("Runtime agent definition Pi runner supports only 'type'.");
 		return { type: "pi" };
 	}
 	if (runner.type === "external-job") {
-		if (typeof runner.provider !== "string" || !runner.provider.trim() || runner.provider.trim() !== runner.provider) throw new Error("Runtime agent definition external-job runner requires a non-empty trimmed provider string.");
-		if (runner.options !== undefined && (!runner.options || typeof runner.options !== "object" || Array.isArray(runner.options) || !isJsonSerializable(runner.options))) throw new Error("Runtime agent definition external-job runner options must be a JSON-serializable object.");
+		if (typeof runner.provider !== "string" || !runner.provider.trim() || runner.provider.trim() !== runner.provider)
+			throw new Error("Runtime agent definition external-job runner requires a non-empty trimmed provider string.");
+		if (
+			runner.options !== undefined &&
+			(!runner.options ||
+				typeof runner.options !== "object" ||
+				Array.isArray(runner.options) ||
+				!isJsonSerializable(runner.options))
+		)
+			throw new Error("Runtime agent definition external-job runner options must be a JSON-serializable object.");
 		const supported = new Set(["type", "provider", "options"]);
 		const unknown = Object.keys(runner).filter((key) => !supported.has(key));
-		if (unknown.length > 0) throw new Error(`Runtime agent definition external-job runner has unsupported fields: ${unknown.join(", ")}.`);
-		return { type: "external-job", provider: runner.provider, ...(runner.options ? { options: runner.options as Record<string, unknown> } : {}) };
+		if (unknown.length > 0)
+			throw new Error(`Runtime agent definition external-job runner has unsupported fields: ${unknown.join(", ")}.`);
+		return {
+			type: "external-job",
+			provider: runner.provider,
+			...(runner.options ? { options: runner.options as Record<string, unknown> } : {}),
+		};
 	}
-	if (runner.type !== "external-cli") throw new Error("Runtime agent definition runner.type must be 'pi', 'external-cli', or 'external-job'.");
-	if (typeof runner.command !== "string" || !runner.command.trim()) throw new Error("Runtime agent definition external-cli runner requires a non-empty command string.");
-	if (runner.args !== undefined && (!Array.isArray(runner.args) || runner.args.some((arg) => typeof arg !== "string"))) throw new Error("Runtime agent definition external-cli runner args must be an array of strings.");
-	if (runner.adapter !== undefined && !isCodeOwnedExternalCliAdapterId(runner.adapter)) throw new Error(`Runtime agent definition external-cli runner adapter must be ${CODE_OWNED_EXTERNAL_CLI_ADAPTER_LABEL}.`);
-	if (runner.adapter !== undefined && Array.isArray(runner.args) && runner.args.length > 0) throw new Error(`Runtime agent definition ${runner.adapter} adapter owns its argv; runner args are not supported.`);
-	if (runner.promptDelivery !== undefined && runner.promptDelivery !== "stdin") throw new Error("Runtime agent definition external-cli runner promptDelivery must be 'stdin'.");
-	const capabilities = parseExternalCliCapabilityNarrowing(runner.capabilities, "Runtime agent definition external-cli runner capabilities");
+	if (runner.type !== "external-cli")
+		throw new Error("Runtime agent definition runner.type must be 'pi', 'external-cli', or 'external-job'.");
+	if (typeof runner.command !== "string" || !runner.command.trim())
+		throw new Error("Runtime agent definition external-cli runner requires a non-empty command string.");
+	if (runner.args !== undefined && (!Array.isArray(runner.args) || runner.args.some((arg) => typeof arg !== "string")))
+		throw new Error("Runtime agent definition external-cli runner args must be an array of strings.");
+	if (runner.adapter !== undefined && !isCodeOwnedExternalCliAdapterId(runner.adapter))
+		throw new Error(
+			`Runtime agent definition external-cli runner adapter must be ${CODE_OWNED_EXTERNAL_CLI_ADAPTER_LABEL}.`,
+		);
+	if (runner.adapter !== undefined && Array.isArray(runner.args) && runner.args.length > 0)
+		throw new Error(
+			`Runtime agent definition ${runner.adapter} adapter owns its argv; runner args are not supported.`,
+		);
+	if (runner.promptDelivery !== undefined && runner.promptDelivery !== "stdin")
+		throw new Error("Runtime agent definition external-cli runner promptDelivery must be 'stdin'.");
+	const capabilities = parseExternalCliCapabilityNarrowing(
+		runner.capabilities,
+		"Runtime agent definition external-cli runner capabilities",
+	);
 	const supported = new Set(["type", "adapter", "command", "args", "promptDelivery", "capabilities"]);
 	const unknown = Object.keys(runner).filter((key) => !supported.has(key));
-	if (unknown.length > 0) throw new Error(`Runtime agent definition external-cli runner has unsupported fields: ${unknown.join(", ")}.`);
+	if (unknown.length > 0)
+		throw new Error(`Runtime agent definition external-cli runner has unsupported fields: ${unknown.join(", ")}.`);
 	const args = runner.args as string[] | undefined;
-	return { type: "external-cli", ...(isCodeOwnedExternalCliAdapterId(runner.adapter) ? { adapter: runner.adapter } : {}), command: runner.command.trim(), ...(args?.length ? { args } : {}), ...(runner.promptDelivery ? { promptDelivery: "stdin" as const } : {}), ...(capabilities ? { capabilities } : {}) };
+	return {
+		type: "external-cli",
+		...(isCodeOwnedExternalCliAdapterId(runner.adapter) ? { adapter: runner.adapter } : {}),
+		command: runner.command.trim(),
+		...(args?.length ? { args } : {}),
+		...(runner.promptDelivery ? { promptDelivery: "stdin" as const } : {}),
+		...(capabilities ? { capabilities } : {}),
+	};
 }
 
 function validateAcceptance(value: unknown): AcceptanceInput | undefined {
@@ -195,58 +257,123 @@ function validateToolBudget(value: unknown): ToolBudgetConfig | undefined {
 }
 
 function validateDefinition(value: unknown): RuntimeAgentDefinition {
-	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Runtime agent definition must be an object.");
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw new Error("Runtime agent definition must be an object.");
 	const definition = value as Record<string, unknown>;
 	const supported = new Set([
-		"description", "systemPrompt", "aliases", "tools", "excludeTools", "allowNestedSubagents", "mcpDirectTools", "model", "thinking",
-		"systemPromptMode", "inheritProjectContext", "inheritGlobalContext", "inheritSkills", "defaultContext", "defaultAsync", "defaultTimeoutMs",
-		"defaultToolTimeoutMs", "defaultAcceptance", "acceptanceRole", "runner", "machine", "skills", "skillPath",
-		"extensions", "subagentOnlyExtensions", "mutationTools", "output", "outputMode", "defaultReads", "defaultProgress", "interactive",
-		"maxSubagentDepth", "toolBudget", "permissions",
+		"description",
+		"systemPrompt",
+		"aliases",
+		"tools",
+		"excludeTools",
+		"allowNestedSubagents",
+		"mcpDirectTools",
+		"model",
+		"thinking",
+		"systemPromptMode",
+		"inheritProjectContext",
+		"inheritGlobalContext",
+		"inheritSkills",
+		"defaultContext",
+		"defaultAsync",
+		"defaultTimeoutMs",
+		"defaultToolTimeoutMs",
+		"defaultAcceptance",
+		"acceptanceRole",
+		"runner",
+		"machine",
+		"skills",
+		"skillPath",
+		"extensions",
+		"subagentOnlyExtensions",
+		"mutationTools",
+		"output",
+		"outputMode",
+		"defaultReads",
+		"defaultProgress",
+		"interactive",
+		"maxSubagentDepth",
+		"toolBudget",
+		"permissions",
 	]);
 	const unknown = Object.keys(definition).filter((key) => !supported.has(key));
 	if (unknown.length > 0) throw new Error(`Runtime agent definition has unknown fields: ${unknown.join(", ")}.`);
 	const systemPromptMode = definition.systemPromptMode;
-	if (systemPromptMode !== undefined && systemPromptMode !== "append" && systemPromptMode !== "replace") throw new Error("Runtime agent definition systemPromptMode must be 'append' or 'replace'.");
+	if (systemPromptMode !== undefined && systemPromptMode !== "append" && systemPromptMode !== "replace")
+		throw new Error("Runtime agent definition systemPromptMode must be 'append' or 'replace'.");
 	const defaultContext = definition.defaultContext;
-	if (defaultContext !== undefined && defaultContext !== "fresh" && defaultContext !== "fork") throw new Error("Runtime agent definition defaultContext must be 'fresh' or 'fork'.");
+	if (defaultContext !== undefined && defaultContext !== "fresh" && defaultContext !== "fork")
+		throw new Error("Runtime agent definition defaultContext must be 'fresh' or 'fork'.");
 	const thinking = definition.thinking;
-	if (thinking !== undefined && thinking !== false && typeof thinking !== "string") throw new Error("Runtime agent definition thinking must be a string or false when provided.");
+	if (thinking !== undefined && thinking !== false && typeof thinking !== "string")
+		throw new Error("Runtime agent definition thinking must be a string or false when provided.");
 	const acceptanceRole = definition.acceptanceRole;
-	if (acceptanceRole !== undefined && acceptanceRole !== "read-only" && acceptanceRole !== "writer") throw new Error("Runtime agent definition acceptanceRole must be 'read-only' or 'writer'.");
+	if (acceptanceRole !== undefined && acceptanceRole !== "read-only" && acceptanceRole !== "writer")
+		throw new Error("Runtime agent definition acceptanceRole must be 'read-only' or 'writer'.");
 	const outputMode = definition.outputMode;
-	if (outputMode !== undefined && outputMode !== "inline" && outputMode !== "file-only") throw new Error("Runtime agent definition outputMode must be 'inline' or 'file-only'.");
+	if (outputMode !== undefined && outputMode !== "inline" && outputMode !== "file-only")
+		throw new Error("Runtime agent definition outputMode must be 'inline' or 'file-only'.");
 	const aliases = validateStringList(definition.aliases, "Runtime agent definition aliases");
 	const tools = validateStringList(definition.tools, "Runtime agent definition tools");
 	const excludeTools = validateStringList(definition.excludeTools, "Runtime agent definition excludeTools");
-	const allowNestedSubagents = validateBoolean(definition.allowNestedSubagents, "Runtime agent definition allowNestedSubagents");
+	const allowNestedSubagents = validateBoolean(
+		definition.allowNestedSubagents,
+		"Runtime agent definition allowNestedSubagents",
+	);
 	const mcpDirectTools = validateStringList(definition.mcpDirectTools, "Runtime agent definition mcpDirectTools");
 	const model = validateOptionalString(definition.model, "Runtime agent definition model");
-	if ((definition as Record<string, unknown>).fallbackModels !== undefined) throw new Error("Runtime agent definition fallbackModels was removed; configure one model instead.");
-	const inheritProjectContext = validateBoolean(definition.inheritProjectContext, "Runtime agent definition inheritProjectContext");
-	const inheritGlobalContext = validateBoolean(definition.inheritGlobalContext, "Runtime agent definition inheritGlobalContext");
+	if ((definition as Record<string, unknown>).fallbackModels !== undefined)
+		throw new Error("Runtime agent definition fallbackModels was removed; configure one model instead.");
+	const inheritProjectContext = validateBoolean(
+		definition.inheritProjectContext,
+		"Runtime agent definition inheritProjectContext",
+	);
+	const inheritGlobalContext = validateBoolean(
+		definition.inheritGlobalContext,
+		"Runtime agent definition inheritGlobalContext",
+	);
 	const inheritSkills = validateBoolean(definition.inheritSkills, "Runtime agent definition inheritSkills");
 	const defaultAsync = validateBoolean(definition.defaultAsync, "Runtime agent definition defaultAsync");
-	const defaultTimeoutMs = validatePositiveInteger(definition.defaultTimeoutMs, "Runtime agent definition defaultTimeoutMs");
-	const defaultToolTimeoutMs = validatePositiveInteger(definition.defaultToolTimeoutMs, "Runtime agent definition defaultToolTimeoutMs");
+	const defaultTimeoutMs = validatePositiveInteger(
+		definition.defaultTimeoutMs,
+		"Runtime agent definition defaultTimeoutMs",
+	);
+	const defaultToolTimeoutMs = validatePositiveInteger(
+		definition.defaultToolTimeoutMs,
+		"Runtime agent definition defaultToolTimeoutMs",
+	);
 	const defaultAcceptance = validateAcceptance(definition.defaultAcceptance);
 	const runner = validateRunner(definition.runner);
 	const skills = validateStringList(definition.skills, "Runtime agent definition skills");
 	const skillPath = validateStringList(definition.skillPath, "Runtime agent definition skillPath");
 	const extensions = validateStringList(definition.extensions, "Runtime agent definition extensions");
-	const subagentOnlyExtensions = validateStringList(definition.subagentOnlyExtensions, "Runtime agent definition subagentOnlyExtensions");
+	const subagentOnlyExtensions = validateStringList(
+		definition.subagentOnlyExtensions,
+		"Runtime agent definition subagentOnlyExtensions",
+	);
 	const mutationTools = validateStringList(definition.mutationTools, "Runtime agent definition mutationTools");
 	const machine = validateOptionalString(definition.machine, "Runtime agent definition machine");
 	const output = validateOptionalString(definition.output, "Runtime agent definition output");
 	const defaultReads = validateStringList(definition.defaultReads, "Runtime agent definition defaultReads");
 	const defaultProgress = validateBoolean(definition.defaultProgress, "Runtime agent definition defaultProgress");
 	const interactive = validateBoolean(definition.interactive, "Runtime agent definition interactive");
-	const maxSubagentDepth = validatePositiveInteger(definition.maxSubagentDepth, "Runtime agent definition maxSubagentDepth");
+	const maxSubagentDepth = validatePositiveInteger(
+		definition.maxSubagentDepth,
+		"Runtime agent definition maxSubagentDepth",
+	);
 	const toolBudget = validateToolBudget(definition.toolBudget);
 	const permissions = validatePermissionRules(definition.permissions, "Runtime agent definition permissions");
 	return {
-		description: validateString(definition.description, "Runtime agent definition description", MAX_DESCRIPTION_LENGTH),
-		systemPrompt: validateString(definition.systemPrompt, "Runtime agent definition systemPrompt", MAX_SYSTEM_PROMPT_LENGTH),
+		description: validateString(
+			definition.description,
+			"Runtime agent definition description",
+			MAX_DESCRIPTION_LENGTH,
+		),
+		systemPrompt: validateString(
+			definition.systemPrompt,
+			"Runtime agent definition systemPrompt",
+			MAX_SYSTEM_PROMPT_LENGTH,
+		),
 		...(aliases ? { aliases } : {}),
 		...(tools ? { tools } : {}),
 		...(excludeTools ? { excludeTools } : {}),
@@ -283,8 +410,9 @@ function validateDefinition(value: unknown): RuntimeAgentDefinition {
 }
 
 function normalizeAliases(rawAliases: readonly string[] | undefined, agentName: string): string[] | undefined {
-	const aliases = [...new Set((rawAliases ?? []).map((alias) => alias.trim()).filter(Boolean))]
-		.filter((alias) => alias !== agentName);
+	const aliases = [...new Set((rawAliases ?? []).map((alias) => alias.trim()).filter(Boolean))].filter(
+		(alias) => alias !== agentName,
+	);
 	return aliases.length > 0 ? aliases : undefined;
 }
 
@@ -297,7 +425,8 @@ function assertNoIdentityCollisions(agents: readonly AgentConfig[], context: str
 	for (const agent of agents) {
 		for (const key of identityKeys(agent)) {
 			const previous = seen.get(key);
-			if (previous !== undefined) throw new Error(`${context} collision for '${key}' between '${previous}' and '${agent.name}'.`);
+			if (previous !== undefined)
+				throw new Error(`${context} collision for '${key}' between '${previous}' and '${agent.name}'.`);
 			seen.set(key, agent.name);
 		}
 	}
@@ -310,13 +439,17 @@ function assertNoRuntimeCollision(agent: AgentConfig, existing: readonly AgentCo
 	}
 	for (const key of identityKeys(agent)) {
 		const previous = existingKeys.get(key);
-		if (previous !== undefined) throw new Error(`Runtime agent '${agent.name}' collides with runtime agent '${previous}' on name or alias '${key}'.`);
+		if (previous !== undefined)
+			throw new Error(
+				`Runtime agent '${agent.name}' collides with runtime agent '${previous}' on name or alias '${key}'.`,
+			);
 	}
 }
 
 function assertNoBuiltinCollision(agent: AgentConfig): void {
 	for (const key of identityKeys(agent)) {
-		if ((BUILTIN_AGENT_NAMES as readonly string[]).includes(key)) throw new Error(`Runtime agent '${agent.name}' collides with builtin agent '${key}'.`);
+		if ((BUILTIN_AGENT_NAMES as readonly string[]).includes(key))
+			throw new Error(`Runtime agent '${agent.name}' collides with builtin agent '${key}'.`);
 	}
 }
 
@@ -329,7 +462,9 @@ function toAgentConfig(name: string, definition: RuntimeAgentDefinition): AgentC
 		...(definition.runner !== undefined ? { runner: definition.runner } : {}),
 		...(definition.tools !== undefined ? { tools: [...definition.tools] } : {}),
 		...(definition.excludeTools !== undefined ? { excludeTools: [...definition.excludeTools] } : {}),
-		...(definition.allowNestedSubagents !== undefined ? { allowNestedSubagents: definition.allowNestedSubagents } : {}),
+		...(definition.allowNestedSubagents !== undefined
+			? { allowNestedSubagents: definition.allowNestedSubagents }
+			: {}),
 		...(definition.mcpDirectTools !== undefined ? { mcpDirectTools: [...definition.mcpDirectTools] } : {}),
 		...(definition.model !== undefined ? { model: definition.model } : {}),
 		...(definition.thinking !== undefined ? { thinking: definition.thinking } : {}),
@@ -340,7 +475,9 @@ function toAgentConfig(name: string, definition: RuntimeAgentDefinition): AgentC
 		...(definition.defaultContext !== undefined ? { defaultContext: definition.defaultContext } : {}),
 		...(definition.defaultAsync !== undefined ? { defaultAsync: definition.defaultAsync } : {}),
 		...(definition.defaultTimeoutMs !== undefined ? { defaultTimeoutMs: definition.defaultTimeoutMs } : {}),
-		...(definition.defaultToolTimeoutMs !== undefined ? { defaultToolTimeoutMs: definition.defaultToolTimeoutMs } : {}),
+		...(definition.defaultToolTimeoutMs !== undefined
+			? { defaultToolTimeoutMs: definition.defaultToolTimeoutMs }
+			: {}),
 		...(definition.defaultAcceptance !== undefined ? { defaultAcceptance: definition.defaultAcceptance } : {}),
 		...(definition.acceptanceRole !== undefined ? { acceptanceRole: definition.acceptanceRole } : {}),
 		systemPrompt: definition.systemPrompt,
@@ -349,7 +486,9 @@ function toAgentConfig(name: string, definition: RuntimeAgentDefinition): AgentC
 		...(definition.skills !== undefined ? { skills: [...definition.skills] } : {}),
 		...(definition.skillPath !== undefined ? { skillPath: [...definition.skillPath] } : {}),
 		...(definition.extensions !== undefined ? { extensions: [...definition.extensions] } : {}),
-		...(definition.subagentOnlyExtensions !== undefined ? { subagentOnlyExtensions: [...definition.subagentOnlyExtensions] } : {}),
+		...(definition.subagentOnlyExtensions !== undefined
+			? { subagentOnlyExtensions: [...definition.subagentOnlyExtensions] }
+			: {}),
 		...(definition.mutationTools !== undefined ? { mutationTools: [...definition.mutationTools] } : {}),
 		...(definition.machine !== undefined ? { machine: definition.machine } : {}),
 		...(definition.output !== undefined ? { output: definition.output } : {}),
@@ -375,8 +514,12 @@ export function registerRuntimeAgent(input: RegisterRuntimeAgentInput): RuntimeA
 	assertNoBuiltinCollision(agent);
 	const current = registry();
 	const records = current.byPi.get(pi) ?? [];
-	if (records.length >= MAX_RUNTIME_AGENTS_PER_PI) throw new Error(`Runtime agent registry supports at most ${MAX_RUNTIME_AGENTS_PER_PI} agents per Pi runtime.`);
-	assertNoRuntimeCollision(agent, records.map((record) => record.agent));
+	if (records.length >= MAX_RUNTIME_AGENTS_PER_PI)
+		throw new Error(`Runtime agent registry supports at most ${MAX_RUNTIME_AGENTS_PER_PI} agents per Pi runtime.`);
+	assertNoRuntimeCollision(
+		agent,
+		records.map((record) => record.agent),
+	);
 	const record: RuntimeAgentRecord = { pi, agent };
 	records.push(record);
 	current.byPi.set(pi, records);
@@ -399,10 +542,16 @@ export function clearRuntimeAgentsForPi(pi: RuntimeAgentOwner): void {
 }
 
 export function listRuntimeAgentConfigs(pi: RuntimeAgentOwner): AgentConfig[] {
-	return (registry().byPi.get(pi) ?? []).map((record) => ({ ...record.agent, aliases: record.agent.aliases ? [...record.agent.aliases] : undefined }));
+	return (registry().byPi.get(pi) ?? []).map((record) => ({
+		...record.agent,
+		aliases: record.agent.aliases ? [...record.agent.aliases] : undefined,
+	}));
 }
 
-function assertNoConfiguredCollision(configuredAgents: readonly AgentConfig[], runtimeAgents: readonly AgentConfig[]): void {
+function assertNoConfiguredCollision(
+	configuredAgents: readonly AgentConfig[],
+	runtimeAgents: readonly AgentConfig[],
+): void {
 	const configured = new Map<string, string>();
 	for (const agent of configuredAgents) {
 		for (const key of identityKeys(agent)) configured.set(key, agent.name);
@@ -411,7 +560,9 @@ function assertNoConfiguredCollision(configuredAgents: readonly AgentConfig[], r
 		for (const key of identityKeys(agent)) {
 			const previous = configured.get(key);
 			if (previous !== undefined) {
-				throw new Error(`Runtime agent '${agent.name}' collides with configured agent '${previous}' on name or alias '${key}'.`);
+				throw new Error(
+					`Runtime agent '${agent.name}' collides with configured agent '${previous}' on name or alias '${key}'.`,
+				);
 			}
 		}
 	}
@@ -423,7 +574,12 @@ function assertNoConfiguredCollision(configuredAgents: readonly AgentConfig[], r
  * that discovery context (see `applyRuntimeAgentSettings`); without it they
  * carry only their registered definition.
  */
-export function mergeRuntimeAgents<T extends { agents: AgentConfig[]; agentDiagnostics?: AgentDiscoveryDiagnostic[] }>(pi: RuntimeAgentOwner, discovered: T, configuredAgents: readonly AgentConfig[] = discovered.agents, settings?: RuntimeAgentSettingsContext): T {
+export function mergeRuntimeAgents<T extends { agents: AgentConfig[]; agentDiagnostics?: AgentDiscoveryDiagnostic[] }>(
+	pi: RuntimeAgentOwner,
+	discovered: T,
+	configuredAgents: readonly AgentConfig[] = discovered.agents,
+	settings?: RuntimeAgentSettingsContext,
+): T {
 	const registered = listRuntimeAgentConfigs(pi).filter((agent) => agent.disabled !== true);
 	if (registered.length === 0) return discovered;
 	assertNoIdentityCollisions(registered, "Runtime agent registration");

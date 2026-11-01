@@ -3,8 +3,8 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
-import { buildBuiltinOverrideConfig, discoverAgents, discoverAgentsAll } from "../../src/agents/agents.ts";
 import { handleList } from "../../src/agents/agent-management.ts";
+import { buildBuiltinOverrideConfig, discoverAgents, discoverAgentsAll } from "../../src/agents/agents.ts";
 
 let tempHome = "";
 let tempProject = "";
@@ -71,10 +71,11 @@ describe("builtin agent disabling", () => {
 
 		assert.throws(
 			() => discoverAgents(tempProject, "both"),
-			(error: unknown) => error instanceof Error
-				&& error.message.includes(settingsPath)
-				&& error.message.includes("reviewer")
-				&& error.message.includes("disabled"),
+			(error: unknown) =>
+				error instanceof Error &&
+				error.message.includes(settingsPath) &&
+				error.message.includes("reviewer") &&
+				error.message.includes("disabled"),
 		);
 	});
 
@@ -83,7 +84,9 @@ describe("builtin agent disabling", () => {
 			subagents: { disableBuiltins: true },
 		});
 
-		const runtimeBuiltinCount = discoverAgents(tempProject, "both").agents.filter((agent) => agent.source === "builtin").length;
+		const runtimeBuiltinCount = discoverAgents(tempProject, "both").agents.filter(
+			(agent) => agent.source === "builtin",
+		).length;
 		assert.equal(runtimeBuiltinCount, 0);
 
 		const allBuiltins = discoverAgentsAll(tempProject).builtin;
@@ -152,9 +155,8 @@ describe("builtin agent disabling", () => {
 
 		assert.throws(
 			() => discoverAgents(tempProject, "both"),
-			(error: unknown) => error instanceof Error
-				&& error.message.includes(settingsPath)
-				&& error.message.includes("disableBuiltins"),
+			(error: unknown) =>
+				error instanceof Error && error.message.includes(settingsPath) && error.message.includes("disableBuiltins"),
 		);
 	});
 
@@ -172,10 +174,7 @@ describe("builtin agent disabling", () => {
 		const disabledBuiltinNames = discoverAgentsAll(tempProject).builtin.map((agent) => agent.name);
 		assert.ok(disabledBuiltinNames.length > 0);
 
-		const text = readText(handleList(
-			{},
-			{ cwd: tempProject, modelRegistry: { getAvailable: () => [] } },
-		));
+		const text = readText(handleList({}, { cwd: tempProject, modelRegistry: { getAvailable: () => [] } }));
 
 		assert.match(text, /^- helper \(project\): Helper$/m);
 		assert.doesNotMatch(text, /Disabled builtins:/);

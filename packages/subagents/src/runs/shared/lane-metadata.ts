@@ -1,4 +1,10 @@
-import type { AsyncStatus, ManagedWorktreeProvider, WorktreeNaming, WorkflowLaneMetadata, WorkflowLaneMode } from "../../shared/types.ts";
+import type {
+	AsyncStatus,
+	ManagedWorktreeProvider,
+	WorkflowLaneMetadata,
+	WorkflowLaneMode,
+	WorktreeNaming,
+} from "../../shared/types.ts";
 
 export const WORKFLOW_LANE_KEY_MAX_BYTES = 128;
 export const WORKFLOW_LANE_SOURCE_REF_MAX_BYTES = 128;
@@ -21,12 +27,18 @@ function boundedNonEmptyString(value: unknown, label: string, maxBytes: number):
 	if (typeof value !== "string" || !value.trim()) throw new Error(`${label} must be a non-empty string.`);
 	const normalized = value.trim();
 	if (byteLength(normalized) > maxBytes) throw new Error(`${label} exceeds ${maxBytes} UTF-8 bytes.`);
-	if ([...normalized].some((character) => character === "\n" || character === "\r" || character === "\u0000")) throw new Error(`${label} must not contain newlines or NUL bytes.`);
+	if ([...normalized].some((character) => character === "\n" || character === "\r" || character === "\u0000"))
+		throw new Error(`${label} must not contain newlines or NUL bytes.`);
 	return normalized;
 }
 
 function assertPlainObject(value: unknown, label: string): asserts value is Record<string, unknown> {
-	if (!value || typeof value !== "object" || Array.isArray(value) || (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
+	if (
+		!value ||
+		typeof value !== "object" ||
+		Array.isArray(value) ||
+		(Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)
+	) {
 		throw new Error(`${label} must be a plain JSON object.`);
 	}
 }
@@ -54,10 +66,25 @@ export function normalizeWorkflowLaneMetadata(value: unknown, label = "lane"): W
 	const key = boundedNonEmptyString(value.key, `${label}.key`, WORKFLOW_LANE_KEY_MAX_BYTES);
 	if (!WORKFLOW_LANE_KEY_PATTERN.test(key)) throw new Error(`${label}.key is invalid.`);
 	const mode = value.mode;
-	if (mode !== undefined && (typeof mode !== "string" || !WORKFLOW_LANE_MODES.has(mode as WorkflowLaneMode))) throw new Error(`${label}.mode is invalid.`);
-	const sourceRef = value.sourceRef === undefined ? undefined : boundedNonEmptyString(value.sourceRef, `${label}.sourceRef`, WORKFLOW_LANE_SOURCE_REF_MAX_BYTES);
-	const claims = value.claims === undefined ? undefined : boundedStringArray(value.claims, `${label}.claims`, WORKFLOW_LANE_CLAIMS_MAX, WORKFLOW_LANE_CLAIM_MAX_BYTES);
-	const outputPaths = value.outputPaths === undefined ? undefined : boundedStringArray(value.outputPaths, `${label}.outputPaths`, WORKFLOW_LANE_OUTPUT_PATHS_MAX, WORKFLOW_LANE_OUTPUT_PATH_MAX_BYTES);
+	if (mode !== undefined && (typeof mode !== "string" || !WORKFLOW_LANE_MODES.has(mode as WorkflowLaneMode)))
+		throw new Error(`${label}.mode is invalid.`);
+	const sourceRef =
+		value.sourceRef === undefined
+			? undefined
+			: boundedNonEmptyString(value.sourceRef, `${label}.sourceRef`, WORKFLOW_LANE_SOURCE_REF_MAX_BYTES);
+	const claims =
+		value.claims === undefined
+			? undefined
+			: boundedStringArray(value.claims, `${label}.claims`, WORKFLOW_LANE_CLAIMS_MAX, WORKFLOW_LANE_CLAIM_MAX_BYTES);
+	const outputPaths =
+		value.outputPaths === undefined
+			? undefined
+			: boundedStringArray(
+					value.outputPaths,
+					`${label}.outputPaths`,
+					WORKFLOW_LANE_OUTPUT_PATHS_MAX,
+					WORKFLOW_LANE_OUTPUT_PATH_MAX_BYTES,
+				);
 	return {
 		version: 1,
 		key,
@@ -68,9 +95,14 @@ export function normalizeWorkflowLaneMetadata(value: unknown, label = "lane"): W
 	};
 }
 
-export function assertWorkflowLaneKey(lane: WorkflowLaneMetadata | undefined, workflowKey: string | undefined, label = "lane"): void {
+export function assertWorkflowLaneKey(
+	lane: WorkflowLaneMetadata | undefined,
+	workflowKey: string | undefined,
+	label = "lane",
+): void {
 	if (!lane || workflowKey === undefined) return;
-	if (lane.key !== workflowKey) throw new Error(`${label}.key '${lane.key}' does not match workflow key '${workflowKey}'.`);
+	if (lane.key !== workflowKey)
+		throw new Error(`${label}.key '${lane.key}' does not match workflow key '${workflowKey}'.`);
 }
 
 export interface WorktreeStatusReference {
@@ -82,25 +114,54 @@ export interface WorktreeStatusReference {
 
 function normalizeWorktreeNaming(value: unknown, label: string): WorktreeNaming {
 	assertPlainObject(value, label);
-	assertKnownFields(value, ["requestedBranch", "branchPrefix", "label", "sanitizedPathComponent", "collision", "collisionSuffix"], label);
+	assertKnownFields(
+		value,
+		["requestedBranch", "branchPrefix", "label", "sanitizedPathComponent", "collision", "collisionSuffix"],
+		label,
+	);
 	const collision = value.collision;
-	if (collision !== undefined && collision !== "branch" && collision !== "path" && collision !== "both") throw new Error(`${label}.collision is invalid.`);
+	if (collision !== undefined && collision !== "branch" && collision !== "path" && collision !== "both")
+		throw new Error(`${label}.collision is invalid.`);
 	return {
-		requestedBranch: boundedNonEmptyString(value.requestedBranch, `${label}.requestedBranch`, WORKTREE_STATUS_BRANCH_MAX_BYTES),
-		branchPrefix: boundedNonEmptyString(value.branchPrefix, `${label}.branchPrefix`, WORKTREE_STATUS_BRANCH_MAX_BYTES),
+		requestedBranch: boundedNonEmptyString(
+			value.requestedBranch,
+			`${label}.requestedBranch`,
+			WORKTREE_STATUS_BRANCH_MAX_BYTES,
+		),
+		branchPrefix: boundedNonEmptyString(
+			value.branchPrefix,
+			`${label}.branchPrefix`,
+			WORKTREE_STATUS_BRANCH_MAX_BYTES,
+		),
 		label: boundedNonEmptyString(value.label, `${label}.label`, WORKTREE_STATUS_NAMING_LABEL_MAX_BYTES),
-		sanitizedPathComponent: boundedNonEmptyString(value.sanitizedPathComponent, `${label}.sanitizedPathComponent`, WORKTREE_STATUS_NAMING_LABEL_MAX_BYTES),
+		sanitizedPathComponent: boundedNonEmptyString(
+			value.sanitizedPathComponent,
+			`${label}.sanitizedPathComponent`,
+			WORKTREE_STATUS_NAMING_LABEL_MAX_BYTES,
+		),
 		...(collision !== undefined ? { collision } : {}),
-		...(value.collisionSuffix !== undefined ? { collisionSuffix: boundedNonEmptyString(value.collisionSuffix, `${label}.collisionSuffix`, WORKTREE_STATUS_NAMING_LABEL_MAX_BYTES) } : {}),
+		...(value.collisionSuffix !== undefined
+			? {
+					collisionSuffix: boundedNonEmptyString(
+						value.collisionSuffix,
+						`${label}.collisionSuffix`,
+						WORKTREE_STATUS_NAMING_LABEL_MAX_BYTES,
+					),
+				}
+			: {}),
 	};
 }
 
 /** Validate the display-only worktree fields copied into status.json. */
-export function normalizeWorktreeStatusReference(value: unknown, label = "worktree status reference"): WorktreeStatusReference | undefined {
+export function normalizeWorktreeStatusReference(
+	value: unknown,
+	label = "worktree status reference",
+): WorktreeStatusReference | undefined {
 	if (value === undefined) return undefined;
 	assertPlainObject(value, label);
 	assertKnownFields(value, ["worktreePath", "branch", "provider", "naming"], label);
-	if (value.provider !== undefined && value.provider !== "native" && value.provider !== "worktrunk") throw new Error(`${label}.provider is invalid.`);
+	if (value.provider !== undefined && value.provider !== "native" && value.provider !== "worktrunk")
+		throw new Error(`${label}.provider is invalid.`);
 	return {
 		worktreePath: boundedNonEmptyString(value.worktreePath, `${label}.worktreePath`, WORKTREE_STATUS_PATH_MAX_BYTES),
 		branch: boundedNonEmptyString(value.branch, `${label}.branch`, WORKTREE_STATUS_BRANCH_MAX_BYTES),
@@ -110,7 +171,10 @@ export function normalizeWorktreeStatusReference(value: unknown, label = "worktr
 }
 
 /** Validate only the additive lane/worktree fields of a persisted async status. */
-export function validateAsyncStatusLaneMetadata(status: Pick<AsyncStatus, "runId" | "workflowKey" | "lane" | "steps">, label = "async status"): void {
+export function validateAsyncStatusLaneMetadata(
+	status: Pick<AsyncStatus, "runId" | "workflowKey" | "lane" | "steps">,
+	label = "async status",
+): void {
 	const lane = normalizeWorkflowLaneMetadata(status.lane, `${label}.lane`);
 	assertWorkflowLaneKey(lane, status.workflowKey, `${label}.lane`);
 	if (lane) status.lane = lane;
@@ -121,6 +185,15 @@ export function validateAsyncStatusLaneMetadata(status: Pick<AsyncStatus, "runId
 		const hasPath = step.worktreePath !== undefined;
 		const hasBranch = step.branch !== undefined;
 		if (hasPath !== hasBranch) throw new Error(`${label}.steps[${index}] must include both worktreePath and branch.`);
-		if (hasPath) normalizeWorktreeStatusReference({ worktreePath: step.worktreePath, branch: step.branch, ...(step.provider ? { provider: step.provider } : {}), ...(step.naming ? { naming: step.naming } : {}) }, `${label}.steps[${index}]`);
+		if (hasPath)
+			normalizeWorktreeStatusReference(
+				{
+					worktreePath: step.worktreePath,
+					branch: step.branch,
+					...(step.provider ? { provider: step.provider } : {}),
+					...(step.naming ? { naming: step.naming } : {}),
+				},
+				`${label}.steps[${index}]`,
+			);
 	}
 }

@@ -1,6 +1,6 @@
 import type { Agent, StreamFn, ThinkingLevel } from "@evoharness/agent-core";
-import type { ExtensionContext } from "@evoharness/coding-agent";
 import type { ProviderHeaders } from "@evoharness/ai";
+import type { ExtensionContext } from "@evoharness/coding-agent";
 import { agentStreamOptions } from "../../shared/agent-stream-options.ts";
 import { opencodeSessionHeaders } from "../../shared/opencode-session-headers.ts";
 import type { ForegroundRunControl } from "../../shared/types.ts";
@@ -30,7 +30,13 @@ function fullModelId(model: Pick<RegistryModel, "provider" | "id">): string {
 function textContent(value: unknown): string {
 	if (typeof value === "string") return value;
 	if (!Array.isArray(value)) return "";
-	return value.map((item) => item && typeof item === "object" && (item as { type?: unknown }).type === "text" ? String((item as { text?: unknown }).text ?? "") : "").join("");
+	return value
+		.map((item) =>
+			item && typeof item === "object" && (item as { type?: unknown }).type === "text"
+				? String((item as { text?: unknown }).text ?? "")
+				: "",
+		)
+		.join("");
 }
 
 function finalAssistantText(agent: Agent): string {
@@ -43,7 +49,10 @@ function finalAssistantText(agent: Agent): string {
 	return "";
 }
 
-async function resolveRewriteAuth(ctx: ExtensionContext, model: RegistryModel): Promise<{ apiKey?: string; headers?: ProviderHeaders; env?: Record<string, string> }> {
+async function resolveRewriteAuth(
+	ctx: ExtensionContext,
+	model: RegistryModel,
+): Promise<{ apiKey?: string; headers?: ProviderHeaders; env?: Record<string, string> }> {
 	const auth = await ctx.modelRegistry.getApiKeyAndHeaders(model);
 	if (auth.ok === false) throw new Error(`Prompt redo model auth failed for ${fullModelId(model)}: ${auth.error}`);
 	return {
@@ -69,14 +78,21 @@ export async function rewritePromptWithGuidance(input: {
 		import("@evoharness/coding-agent"),
 	]);
 	const auth = await resolveRewriteAuth(input.ctx, model);
-	const baseStreamFn: StreamFn = input.streamFn ?? ((nextModel, context, streamOptions) => input.ctx.modelRegistry.streamSimple(nextModel, context, streamOptions));
+	const baseStreamFn: StreamFn =
+		input.streamFn ??
+		((nextModel, context, streamOptions) => input.ctx.modelRegistry.streamSimple(nextModel, context, streamOptions));
 	const sessionId = input.ctx.sessionManager.getSessionId();
-	const streamFn: StreamFn = (nextModel, context, streamOptions) => baseStreamFn(nextModel, context, {
-		...streamOptions,
-		...(auth.apiKey ? { apiKey: auth.apiKey } : {}),
-		env: auth.env || streamOptions?.env ? { ...(auth.env ?? {}), ...(streamOptions?.env ?? {}) } : undefined,
-		headers: { ...opencodeSessionHeaders(nextModel, sessionId), ...(streamOptions?.headers ?? {}), ...(auth.headers ?? {}) },
-	});
+	const streamFn: StreamFn = (nextModel, context, streamOptions) =>
+		baseStreamFn(nextModel, context, {
+			...streamOptions,
+			...(auth.apiKey ? { apiKey: auth.apiKey } : {}),
+			env: auth.env || streamOptions?.env ? { ...(auth.env ?? {}), ...(streamOptions?.env ?? {}) } : undefined,
+			headers: {
+				...opencodeSessionHeaders(nextModel, sessionId),
+				...(streamOptions?.headers ?? {}),
+				...(auth.headers ?? {}),
+			},
+		});
 	const ctxThinking = (input.ctx as { getThinkingLevel?: () => ThinkingLevel }).getThinkingLevel?.();
 	const agent = new Agent({
 		initialState: {
@@ -93,26 +109,28 @@ export async function rewritePromptWithGuidance(input: {
 		},
 		convertToLlm,
 		...agentStreamOptions(streamFn),
-		getApiKey: (providerName) => providerName === model.provider ? auth.apiKey : undefined,
+		getApiKey: (providerName) => (providerName === model.provider ? auth.apiKey : undefined),
 		toolExecution: "sequential",
 	});
 	const abort = () => agent.abort();
 	input.ctx.signal?.addEventListener("abort", abort, { once: true });
 	input.signal?.addEventListener("abort", abort, { once: true });
 	try {
-		await agent.prompt([
-			"Guidance from the human:",
-			input.guidance.trim(),
-			"",
-			"Authored task:",
-			input.authoredTask,
-			"",
-			"Runtime additions for context only:",
-			input.runtimeAdditions,
-			"",
-			"Final effective prompt for context only:",
-			input.finalEffectivePrompt,
-		].join("\n"));
+		await agent.prompt(
+			[
+				"Guidance from the human:",
+				input.guidance.trim(),
+				"",
+				"Authored task:",
+				input.authoredTask,
+				"",
+				"Runtime additions for context only:",
+				input.runtimeAdditions,
+				"",
+				"Final effective prompt for context only:",
+				input.finalEffectivePrompt,
+			].join("\n"),
+		);
 	} finally {
 		input.ctx.signal?.removeEventListener("abort", abort);
 		input.signal?.removeEventListener("abort", abort);

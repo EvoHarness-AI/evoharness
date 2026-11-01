@@ -4,16 +4,21 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { findConfiguredProjectRoot } from "../../agents/agents.ts";
 import { getAgentDir, getProjectConfigDir } from "../../shared/utils.ts";
-import { isMcpServerDefinition, loadAgentPluginMcpServers, loadPackageMcpServers, type McpServerDefinition } from "./mcp-config-sources.ts";
+import {
+	isMcpServerDefinition,
+	loadAgentPluginMcpServers,
+	loadPackageMcpServers,
+	type McpServerDefinition,
+} from "./mcp-config-sources.ts";
+import type { McpToolPrefix, ResolvedMcpDirectToolSelection } from "./mcp-direct-tool-grant.ts";
 import {
 	normalizeMcpDirectToolSelectors,
 	parseMcpDirectToolSelectors,
 	planMcpDirectToolGrant,
 } from "./mcp-direct-tool-grant.ts";
-import type { McpToolPrefix, ResolvedMcpDirectToolSelection } from "./mcp-direct-tool-grant.ts";
 
-export { formatUnresolvedMcpDirectToolSelectors } from "./mcp-direct-tool-grant.ts";
 export type { ResolvedMcpDirectToolSelection } from "./mcp-direct-tool-grant.ts";
+export { formatUnresolvedMcpDirectToolSelectors } from "./mcp-direct-tool-grant.ts";
 
 const CACHE_VERSION = 1;
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
@@ -25,7 +30,9 @@ const IMPORT_PATHS = {
 		path.join(os.homedir(), ".claude.json"),
 		path.join(os.homedir(), ".claude", "claude_desktop_config.json"),
 	],
-	"claude-desktop": [path.join(os.homedir(), "Library", "Application Support", "Claude", "claude_desktop_config.json")],
+	"claude-desktop": [
+		path.join(os.homedir(), "Library", "Application Support", "Claude", "claude_desktop_config.json"),
+	],
 	codex: [path.join(os.homedir(), ".codex", "config.json")],
 	windsurf: [path.join(os.homedir(), ".windsurf", "mcp.json")],
 	vscode: [".vscode/mcp.json"],
@@ -58,9 +65,7 @@ export interface McpRuntimeServerSnapshot {
 interface McpRuntimeSnapshotRequest {
 	version: typeof MCP_RUNTIME_SNAPSHOT_VERSION;
 	name: string;
-	result?:
-		| { ok: true; snapshot: McpRuntimeServerSnapshot }
-		| { ok: false; error: Error };
+	result?: { ok: true; snapshot: McpRuntimeServerSnapshot } | { ok: false; error: Error };
 }
 
 export interface McpRuntimeSnapshotHost {
@@ -127,13 +132,13 @@ export function resolveMcpDirectToolResolution(
 	const { servers: selectedServers, tools: selectedTools } = parseMcpDirectToolSelectors(selectors);
 	const runtimeSelectionServers = new Set([...selectedServers, ...selectedTools.keys()]);
 	const runtimeServers = resolveRuntimeMcpServers(config, runtimeSelectionServers, runtimeSnapshotHost);
-	const resolvedConfig = Object.keys(runtimeServers).length > 0
-		? mergeConfigs(config, { mcpServers: runtimeServers })
-		: config;
+	const resolvedConfig =
+		Object.keys(runtimeServers).length > 0 ? mergeConfigs(config, { mcpServers: runtimeServers }) : config;
 	validateSelectedServerDefinitions(resolvedConfig, selectors);
-	const runtime = Object.keys(runtimeServers).length > 0
-		? { mcpConfig: resolvedConfig, runtimeServerNames: Object.keys(runtimeServers) }
-		: {};
+	const runtime =
+		Object.keys(runtimeServers).length > 0
+			? { mcpConfig: resolvedConfig, runtimeServerNames: Object.keys(runtimeServers) }
+			: {};
 	const cache = loadMetadataCache();
 	if (!cache) return { selections: [], unresolvedSelectors: selectors, ...runtime };
 	const validMetadata: Record<string, ServerCacheEntry> = {};
@@ -168,8 +173,10 @@ export function resolveMcpDirectToolSelections(
  */
 function usesBuiltinMcp(host: McpRuntimeSnapshotHost | undefined): host is McpRuntimeSnapshotHost {
 	const commands = host?.getCommands?.() ?? [];
-	return commands.find((command) => command.name === "mcp")?.sourceInfo.path === "builtin:mcp"
-		&& !commands.some((command) => /^mcp-adapter(?::\d+)?$/.test(command.name));
+	return (
+		commands.find((command) => command.name === "mcp")?.sourceInfo.path === "builtin:mcp" &&
+		!commands.some((command) => /^mcp-adapter(?::\d+)?$/.test(command.name))
+	);
 }
 
 /**
@@ -189,11 +196,17 @@ function resolveBuiltinMcpSelections(selectors: string[], tools: readonly McpHos
 		const slash = selector.indexOf("/");
 		const server = slash === -1 ? selector : selector.slice(0, slash);
 		const inServer = tools.filter((tool) => tool.namespace?.name === `mcp__${server.replace(/-/g, "_")}`);
-		const toolName = slash === -1 ? undefined : builtinMcpToolNames(server, selector.slice(slash + 1)).find((name) => inServer.some((tool) => tool.name === name));
+		const toolName =
+			slash === -1
+				? undefined
+				: builtinMcpToolNames(server, selector.slice(slash + 1)).find((name) =>
+						inServer.some((tool) => tool.name === name),
+					);
 		const matches = inServer.filter((tool) => tool.exposure !== "hidden" && (slash === -1 || tool.name === toolName));
 		if (matches.length === 0) unresolvedSelectors.push(selector);
 		for (const tool of matches) {
-			if (!selections.some((selection) => selection.name === tool.name)) selections.push({ name: tool.name, selector });
+			if (!selections.some((selection) => selection.name === tool.name))
+				selections.push({ name: tool.name, selector });
 		}
 	}
 	return { selections, unresolvedSelectors, builtin: true };
@@ -207,7 +220,10 @@ function builtinMcpToolNames(server: string, tool: string): string[] {
 	return name.length <= 64 ? [suffixed, name] : [suffixed];
 }
 
-export function formatUnresolvedBuiltinMcpSelectors(agentName: string | undefined, selectors: readonly string[]): string {
+export function formatUnresolvedBuiltinMcpSelectors(
+	agentName: string | undefined,
+	selectors: readonly string[],
+): string {
 	const subject = agentName ? `Agent '${agentName}'` : "Subagent";
 	return `${subject} selects MCP tools that Pi's built-in MCP does not offer: ${selectors.map((selector) => `mcp:${selector}`).join(", ")}. The server may be missing, disconnected, still connecting, or its tools hidden; check /mcp.`;
 }
@@ -217,20 +233,32 @@ export function formatUnresolvedBuiltinMcpSelectors(agentName: string | undefine
  * never has. A server of the same name in an `mcp.json` the child reads takes precedence; like Pi,
  * the project file is read only when the project is trusted.
  */
-export function extensionOnlyMcpServers(selections: readonly ResolvedMcpDirectToolSelection[], host: McpRuntimeSnapshotHost, cwd: string, projectTrusted: boolean): string[] {
+export function extensionOnlyMcpServers(
+	selections: readonly ResolvedMcpDirectToolSelection[],
+	host: McpRuntimeSnapshotHost,
+	cwd: string,
+	projectTrusted: boolean,
+): string[] {
 	const registered = new Set(host.getMcpServers?.().map(({ name }) => name));
-	const servers = [...new Set(selections.map(({ selector }) => selector.split("/")[0]!))].filter((server) => registered.has(server));
+	const servers = [...new Set(selections.map(({ selector }) => selector.split("/")[0]!))].filter((server) =>
+		registered.has(server),
+	);
 	if (servers.length === 0) return [];
-	const files = [path.join(getAgentDir(), "mcp.json"), ...(projectTrusted ? [path.join(cwd, ".evoharness", "mcp.json"), path.join(cwd, ".pi", "mcp.json")] : [])];
-	const configured = new Set(files.flatMap((file) => {
-		let parsed: unknown;
-		try {
-			parsed = JSON.parse(fs.readFileSync(file, "utf-8"));
-		} catch {
-			return [];
-		}
-		return isRecord(parsed) && isRecord(parsed.mcpServers) ? Object.keys(parsed.mcpServers) : [];
-	}));
+	const files = [
+		path.join(getAgentDir(), "mcp.json"),
+		...(projectTrusted ? [path.join(cwd, ".evoharness", "mcp.json"), path.join(cwd, ".pi", "mcp.json")] : []),
+	];
+	const configured = new Set(
+		files.flatMap((file) => {
+			let parsed: unknown;
+			try {
+				parsed = JSON.parse(fs.readFileSync(file, "utf-8"));
+			} catch {
+				return [];
+			}
+			return isRecord(parsed) && isRecord(parsed.mcpServers) ? Object.keys(parsed.mcpServers) : [];
+		}),
+	);
 	return servers.filter((server) => !configured.has(server));
 }
 
@@ -255,7 +283,8 @@ function loadMetadataCache(): MetadataCache | null {
 function parseServerCacheEntry(value: unknown): ServerCacheEntry | undefined {
 	if (!isRecord(value)) return undefined;
 	if (value.configHash !== undefined && typeof value.configHash !== "string") return undefined;
-	if (value.cachedAt !== undefined && (typeof value.cachedAt !== "number" || !Number.isFinite(value.cachedAt))) return undefined;
+	if (value.cachedAt !== undefined && (typeof value.cachedAt !== "number" || !Number.isFinite(value.cachedAt)))
+		return undefined;
 	if (value.tools !== undefined && !Array.isArray(value.tools)) return undefined;
 	if (value.resources !== undefined && !Array.isArray(value.resources)) return undefined;
 	const tools = value.tools?.map(parseCachedTool);
@@ -304,10 +333,7 @@ function resolveRuntimeMcpServers(
 	return runtimeServers;
 }
 
-function getRuntimeMcpServerSnapshot(
-	host: McpRuntimeSnapshotHost,
-	name: string,
-): McpRuntimeServerSnapshot {
+function getRuntimeMcpServerSnapshot(host: McpRuntimeSnapshotHost, name: string): McpRuntimeServerSnapshot {
 	const request: McpRuntimeSnapshotRequest = {
 		version: MCP_RUNTIME_SNAPSHOT_VERSION,
 		name,
@@ -343,10 +369,7 @@ function loadMcpConfig(cwd: string): McpConfig {
 	const packageOnlyServers = Object.fromEntries(
 		Object.entries(packageServers).filter(([name]) => !Object.hasOwn(pluginServers, name)),
 	);
-	return mergeConfigs(
-		{ mcpServers: packageOnlyServers },
-		mergeConfigs({ mcpServers: pluginServers }, config),
-	);
+	return mergeConfigs({ mcpServers: packageOnlyServers }, mergeConfigs({ mcpServers: pluginServers }, config));
 }
 
 function getConfigPaths(projectRoot: string): string[] {
@@ -379,19 +402,29 @@ function validateConfig(raw: unknown): McpConfig {
 	const servers = obj.mcpServers ?? obj["mcp-servers"] ?? {};
 	return {
 		mcpServers: parseServerEntries(servers),
-		imports: Array.isArray(obj.imports) ? obj.imports.filter((value): value is ImportKind => isImportKind(value)) : undefined,
+		imports: Array.isArray(obj.imports)
+			? obj.imports.filter((value): value is ImportKind => isImportKind(value))
+			: undefined,
 		settings: parseSettings(obj.settings),
 	};
 }
 
 function parseServerEntries(value: unknown): Record<string, ServerEntry> {
 	if (!isRecord(value)) return {};
-	return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, ServerEntry] => isMcpServerDefinition(entry[1])));
+	return Object.fromEntries(
+		Object.entries(value).filter((entry): entry is [string, ServerEntry] => isMcpServerDefinition(entry[1])),
+	);
 }
 
 function parseSettings(value: unknown): McpConfig["settings"] | undefined {
 	if (!isRecord(value)) return undefined;
-	const toolPrefix = value.toolPrefix === "server" || value.toolPrefix === "short" || value.toolPrefix === "none" || value.toolPrefix === "mcp" ? value.toolPrefix : undefined;
+	const toolPrefix =
+		value.toolPrefix === "server" ||
+		value.toolPrefix === "short" ||
+		value.toolPrefix === "none" ||
+		value.toolPrefix === "mcp"
+			? value.toolPrefix
+			: undefined;
 	const directTools = typeof value.directTools === "boolean" ? value.directTools : undefined;
 	const settings: NonNullable<McpConfig["settings"]> = {
 		...(toolPrefix ? { toolPrefix } : {}),
@@ -446,9 +479,10 @@ function resolveImportPath(importKind: ImportKind, cwd: string): string | null {
 function extractServers(config: unknown, kind: ImportKind): Record<string, ServerEntry> {
 	if (!isRecord(config)) return {};
 	const obj = config;
-	const servers = kind === "cursor" || kind === "windsurf" || kind === "vscode"
-		? obj.mcpServers ?? obj["mcp-servers"]
-		: obj.mcpServers;
+	const servers =
+		kind === "cursor" || kind === "windsurf" || kind === "vscode"
+			? (obj.mcpServers ?? obj["mcp-servers"])
+			: obj.mcpServers;
 	return parseServerEntries(servers);
 }
 
@@ -486,11 +520,11 @@ export function computeMcpServerHash(definition: ServerEntry): string {
 		headers: interpolateEnvRecord(definition.headers),
 		requestHeadersCommand: definition.requestHeadersCommand
 			? {
-				command: interpolateEnvVars(definition.requestHeadersCommand.command),
-				args: definition.requestHeadersCommand.args?.map(interpolateEnvVars),
-				env: interpolateEnvRecord(definition.requestHeadersCommand.env),
-				timeoutMs: definition.requestHeadersCommand.timeoutMs,
-			}
+					command: interpolateEnvVars(definition.requestHeadersCommand.command),
+					args: definition.requestHeadersCommand.args?.map(interpolateEnvVars),
+					env: interpolateEnvRecord(definition.requestHeadersCommand.env),
+					timeoutMs: definition.requestHeadersCommand.timeoutMs,
+				}
 			: undefined,
 		auth: definition.auth,
 		bearerToken: resolveBearerToken(definition),
@@ -543,7 +577,9 @@ function resolveServerUrl(definition: Pick<ServerEntry, "url">): string | undefi
 
 	const missing = getMissingEnvVars(definition.url);
 	if (missing.length > 0) {
-		throw new Error(`Missing environment variable${missing.length === 1 ? "" : "s"} in MCP server URL: ${missing.join(", ")}`);
+		throw new Error(
+			`Missing environment variable${missing.length === 1 ? "" : "s"} in MCP server URL: ${missing.join(", ")}`,
+		);
 	}
 
 	const resolved = interpolateEnvVars(definition.url);
@@ -575,5 +611,8 @@ function stableStringify(value: unknown): string {
 	}
 	if (Array.isArray(value)) return `[${value.map((entry) => stableStringify(entry)).join(",")}]`;
 	const obj = value as Record<string, unknown>;
-	return `{${Object.keys(obj).sort().map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`).join(",")}}`;
+	return `{${Object.keys(obj)
+		.sort()
+		.map((key) => `${JSON.stringify(key)}:${stableStringify(obj[key])}`)
+		.join(",")}}`;
 }

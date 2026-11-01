@@ -10,8 +10,12 @@ export const MODEL_ONLY_TOOL = { exposure: "model-only" } as const;
 
 /** Pi exposes replaced extension contexts as ordinary Errors without a stable code. */
 export function isStaleExtensionContextError(error: unknown): boolean {
-	return error instanceof Error
-		&& /extension ctx is stale|extension context no longer active|stale after session replacement or reload/i.test(error.message);
+	return (
+		error instanceof Error &&
+		/extension ctx is stale|extension context no longer active|stale after session replacement or reload/i.test(
+			error.message,
+		)
+	);
 }
 
 /**

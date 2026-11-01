@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+	didMutatingToolFail,
+	isMutatingTool,
+	nextLongRunningTrigger,
+	resolveCurrentPath,
+} from "../../src/runs/shared/long-running-guard.ts";
+import {
 	buildControlEvent,
 	claimControlNotification,
 	controlNotificationKey,
@@ -11,7 +17,6 @@ import {
 	shouldEmitOpenToolAttention,
 	shouldNotifyControlEvent,
 } from "../../src/runs/shared/subagent-control.ts";
-import { didMutatingToolFail, isMutatingTool, nextLongRunningTrigger, resolveCurrentPath } from "../../src/runs/shared/long-running-guard.ts";
 
 const config = resolveControlConfig(undefined, {
 	needsAttentionAfterMs: 300,
@@ -20,16 +25,28 @@ const config = resolveControlConfig(undefined, {
 describe("mutating tool supervision", () => {
 	it("exempts only exact /dev/null redirect targets while retaining real writes", () => {
 		for (const command of [
-			"grep x index.ts 2>/dev/null", "grep x index.ts >/dev/null", "grep x index.ts &>/dev/null",
-			"grep x index.ts 2>>/dev/null", "grep x index.ts >/dev/null 2>&1", "grep x index.ts > /dev/null",
-			"grep x index.ts >/dev/null && ls", "grep x index.ts >/dev/null | cat",
-			"echo 'a > b'", "grep x index.ts 2>&1", "grep x index.ts 2>&2", "grep -rn mimeType index.ts 2>/dev/null; ls *.ts",
+			"grep x index.ts 2>/dev/null",
+			"grep x index.ts >/dev/null",
+			"grep x index.ts &>/dev/null",
+			"grep x index.ts 2>>/dev/null",
+			"grep x index.ts >/dev/null 2>&1",
+			"grep x index.ts > /dev/null",
+			"grep x index.ts >/dev/null && ls",
+			"grep x index.ts >/dev/null | cat",
+			"echo 'a > b'",
+			"grep x index.ts 2>&1",
+			"grep x index.ts 2>&2",
+			"grep -rn mimeType index.ts 2>/dev/null; ls *.ts",
 		]) {
 			assert.equal(isMutatingTool("bash", { command }), false, command);
 		}
 		for (const command of [
-			"echo hi >/dev/nullish", "echo hi > /dev/null.bak", "echo hi > out.txt",
-			"rm old.txt", "sed s/a/b/ -i file.txt", "git apply fix.patch",
+			"echo hi >/dev/nullish",
+			"echo hi > /dev/null.bak",
+			"echo hi > out.txt",
+			"rm old.txt",
+			"sed s/a/b/ -i file.txt",
+			"git apply fix.patch",
 		]) {
 			assert.equal(isMutatingTool("bash", { command }), true, command);
 		}
@@ -38,14 +55,23 @@ describe("mutating tool supervision", () => {
 	});
 
 	it("uses only the tool result's isError flag to judge a failure", () => {
-		assert.equal(didMutatingToolFail({ isError: false, content: [{ type: "text", text: 'return { error: "failed" }' }] }), false);
-		assert.equal(didMutatingToolFail({ isError: true, content: [{ type: "text", text: "No exact match found" }] }), true);
+		assert.equal(
+			didMutatingToolFail({ isError: false, content: [{ type: "text", text: 'return { error: "failed" }' }] }),
+			false,
+		);
+		assert.equal(
+			didMutatingToolFail({ isError: true, content: [{ type: "text", text: "No exact match found" }] }),
+			true,
+		);
 		assert.equal(didMutatingToolFail({ isError: "true" }), false);
 		assert.equal(didMutatingToolFail({ content: [{ type: "text", text: "error" }] }), false);
 	});
 
 	it("reports the file a bash command writes, not an fd duplication or /dev/null", () => {
-		assert.equal(resolveCurrentPath("bash", { command: "npm test > /tmp/t.log 2>&1; tail /tmp/t.log" }), "/tmp/t.log");
+		assert.equal(
+			resolveCurrentPath("bash", { command: "npm test > /tmp/t.log 2>&1; tail /tmp/t.log" }),
+			"/tmp/t.log",
+		);
 		assert.equal(resolveCurrentPath("bash", { command: "grep -rn x src 2>/dev/null >out.txt" }), "out.txt");
 		assert.equal(resolveCurrentPath("bash", { command: "npm test 2>&1; echo done" }), undefined);
 		assert.equal(resolveCurrentPath("bash", { command: "grep x index.ts &>/dev/null" }), undefined);
@@ -64,7 +90,15 @@ describe("mutating tool supervision", () => {
 describe("subagent control attention state", () => {
 	it("notifies once for each distinct long-open tool call even when notice text matches", () => {
 		const seen = new Set<string>();
-		const event = buildControlEvent({ to: "needs_attention", runId: "run", agent: "worker", reason: "tool_open_threshold", currentTool: "bash", toolCallId: "first", hasCommandController: true });
+		const event = buildControlEvent({
+			to: "needs_attention",
+			runId: "run",
+			agent: "worker",
+			reason: "tool_open_threshold",
+			currentTool: "bash",
+			toolCallId: "first",
+			hasCommandController: true,
+		});
 		assert.equal(claimControlNotification(resolveControlConfig(), event, seen), true);
 		assert.equal(claimControlNotification(resolveControlConfig(), { ...event, ts: event.ts + 1000 }, seen), false);
 		assert.equal(claimControlNotification(resolveControlConfig(), { ...event, toolCallId: "second" }, seen), true);
@@ -75,8 +109,14 @@ describe("subagent control attention state", () => {
 
 	it("marks a run as needing attention only after the idle threshold", () => {
 		assert.equal(deriveActivityState({ config, startedAt: 0, lastActivityAt: 0, now: 50 }), undefined);
-		assert.equal(deriveActivityState({ config, startedAt: 0, lastActivityAt: 0, turnCount: 1, now: 400 }), "needs_attention");
-		assert.equal(deriveActivityState({ config, startedAt: 0, lastActivityAt: 0, currentTool: "bash", now: 400 }), undefined);
+		assert.equal(
+			deriveActivityState({ config, startedAt: 0, lastActivityAt: 0, turnCount: 1, now: 400 }),
+			"needs_attention",
+		);
+		assert.equal(
+			deriveActivityState({ config, startedAt: 0, lastActivityAt: 0, currentTool: "bash", now: 400 }),
+			undefined,
+		);
 		assert.equal(deriveActivityState({ config, startedAt: 0, turnCount: 1, now: 400 }), "needs_attention");
 	});
 
@@ -120,7 +160,12 @@ describe("subagent control attention state", () => {
 
 	it("defaults notifications to active-long-running and needs attention", () => {
 		const event = buildControlEvent({ to: "needs_attention", runId: "run-1", agent: "worker" });
-		const activeEvent = buildControlEvent({ type: "active_long_running", to: "active_long_running", runId: "run-1", agent: "worker" });
+		const activeEvent = buildControlEvent({
+			type: "active_long_running",
+			to: "active_long_running",
+			runId: "run-1",
+			agent: "worker",
+		});
 		assert.equal(shouldNotifyControlEvent(config, event), true);
 		assert.equal(shouldNotifyControlEvent(config, activeEvent), true);
 		assert.deepEqual(config.notifyOn, ["active_long_running", "needs_attention"]);
@@ -133,35 +178,59 @@ describe("subagent control attention state", () => {
 		assert.equal(defaults.activeNoticeAfterMs, 240_000);
 		assert.equal(defaults.activeNoticeAfterTurns, undefined);
 		assert.equal(defaults.activeNoticeAfterTokens, undefined);
-		assert.equal(nextLongRunningTrigger(defaults, {
-			startedAt: 0,
-			now: 77_000,
-			turns: 50,
-			tokens: 800_000,
-		}), undefined);
-		assert.equal(nextLongRunningTrigger(defaults, {
-			startedAt: 0,
-			now: 240_000,
-			turns: 1,
-			tokens: 1,
-		}), "time_threshold");
+		assert.equal(
+			nextLongRunningTrigger(defaults, {
+				startedAt: 0,
+				now: 77_000,
+				turns: 50,
+				tokens: 800_000,
+			}),
+			undefined,
+		);
+		assert.equal(
+			nextLongRunningTrigger(defaults, {
+				startedAt: 0,
+				now: 240_000,
+				turns: 1,
+				tokens: 1,
+			}),
+			"time_threshold",
+		);
 	});
 
 	it("scales the default idle threshold for higher thinking levels", () => {
 		const defaults = resolveControlConfig();
 
-		assert.equal(deriveActivityState({ config: defaults, startedAt: 0, turnCount: 1, now: 60_001 }), "needs_attention");
-		assert.equal(deriveActivityState({ config: defaults, startedAt: 0, turnCount: 1, thinking: "low", now: 60_001 }), "needs_attention");
-		assert.equal(deriveActivityState({ config: defaults, startedAt: 0, turnCount: 1, thinking: "minimal", now: 60_001 }), "needs_attention");
-		assert.equal(deriveActivityState({ config: defaults, startedAt: 0, turnCount: 1, thinking: "high", now: 60_001 }), undefined);
-		assert.equal(deriveActivityState({ config: defaults, startedAt: 0, turnCount: 1, thinking: "high", now: 300_001 }), "needs_attention");
+		assert.equal(
+			deriveActivityState({ config: defaults, startedAt: 0, turnCount: 1, now: 60_001 }),
+			"needs_attention",
+		);
+		assert.equal(
+			deriveActivityState({ config: defaults, startedAt: 0, turnCount: 1, thinking: "low", now: 60_001 }),
+			"needs_attention",
+		);
+		assert.equal(
+			deriveActivityState({ config: defaults, startedAt: 0, turnCount: 1, thinking: "minimal", now: 60_001 }),
+			"needs_attention",
+		);
+		assert.equal(
+			deriveActivityState({ config: defaults, startedAt: 0, turnCount: 1, thinking: "high", now: 60_001 }),
+			undefined,
+		);
+		assert.equal(
+			deriveActivityState({ config: defaults, startedAt: 0, turnCount: 1, thinking: "high", now: 300_001 }),
+			"needs_attention",
+		);
 	});
 
 	it("keeps explicit idle threshold overrides higher priority than thinking scale", () => {
 		const explicit = resolveControlConfig(undefined, { needsAttentionAfterMs: 90_000 });
 
 		assert.equal(explicit.needsAttentionAfterMsIsExplicit, true);
-		assert.equal(deriveActivityState({ config: explicit, startedAt: 0, turnCount: 1, thinking: "high", now: 90_001 }), "needs_attention");
+		assert.equal(
+			deriveActivityState({ config: explicit, startedAt: 0, turnCount: 1, thinking: "high", now: 90_001 }),
+			"needs_attention",
+		);
 	});
 
 	it("preserves inherited default idle scaling when merging a resolved control config", () => {
@@ -170,41 +239,78 @@ describe("subagent control attention state", () => {
 
 		assert.equal(merged.needsAttentionAfterMsIsExplicit, false);
 		assert.equal(merged.activeNoticeAfterMs, 123_000);
-		assert.equal(deriveActivityState({ config: merged, startedAt: 0, turnCount: 1, thinking: "high", now: 60_001 }), undefined);
+		assert.equal(
+			deriveActivityState({ config: merged, startedAt: 0, turnCount: 1, thinking: "high", now: 60_001 }),
+			undefined,
+		);
 	});
 
 	it("treats recovered resolved configs without explicitness metadata as fixed thresholds", () => {
 		const recovered = { ...resolveControlConfig(undefined, { needsAttentionAfterMs: 90_000 }) };
 		delete recovered.needsAttentionAfterMsIsExplicit;
 
-		assert.equal(deriveActivityState({ config: recovered, startedAt: 0, turnCount: 1, thinking: "high", now: 90_001 }), "needs_attention");
+		assert.equal(
+			deriveActivityState({ config: recovered, startedAt: 0, turnCount: 1, thinking: "high", now: 90_001 }),
+			"needs_attention",
+		);
 	});
 
 	it("marks non-exempt open tools for attention at the active threshold", () => {
 		const defaults = resolveControlConfig();
 
-		assert.equal(shouldEmitOpenToolAttention({ config: defaults, currentTool: "bash", currentToolStartedAt: 0, now: 239_999 }), false);
-		assert.equal(shouldEmitOpenToolAttention({ config: defaults, currentTool: "bash", currentToolStartedAt: 0, now: 240_000 }), true);
-		assert.equal(shouldEmitOpenToolAttention({ config: defaults, currentTool: "contact_supervisor", currentToolStartedAt: 0, now: 999_999 }), false);
-		assert.equal(shouldEmitOpenToolAttention({ config: { ...defaults, enabled: false }, currentTool: "bash", currentToolStartedAt: 0, now: 999_999 }), false);
+		assert.equal(
+			shouldEmitOpenToolAttention({ config: defaults, currentTool: "bash", currentToolStartedAt: 0, now: 239_999 }),
+			false,
+		);
+		assert.equal(
+			shouldEmitOpenToolAttention({ config: defaults, currentTool: "bash", currentToolStartedAt: 0, now: 240_000 }),
+			true,
+		);
+		assert.equal(
+			shouldEmitOpenToolAttention({
+				config: defaults,
+				currentTool: "contact_supervisor",
+				currentToolStartedAt: 0,
+				now: 999_999,
+			}),
+			false,
+		);
+		assert.equal(
+			shouldEmitOpenToolAttention({
+				config: { ...defaults, enabled: false },
+				currentTool: "bash",
+				currentToolStartedAt: 0,
+				now: 999_999,
+			}),
+			false,
+		);
 	});
 
 	it("supports opt-in turn and token long-running thresholds", () => {
-		const tokenBudget = resolveControlConfig(undefined, { activeNoticeAfterMs: 999_999, activeNoticeAfterTokens: 500_000 });
+		const tokenBudget = resolveControlConfig(undefined, {
+			activeNoticeAfterMs: 999_999,
+			activeNoticeAfterTokens: 500_000,
+		});
 		const turnBudget = resolveControlConfig(undefined, { activeNoticeAfterMs: 999_999, activeNoticeAfterTurns: 5 });
 
-		assert.equal(nextLongRunningTrigger(tokenBudget, {
-			startedAt: 0,
-			now: 77_000,
-			turns: 1,
-			tokens: 500_000,
-		}), "token_threshold");
-		assert.equal(nextLongRunningTrigger(turnBudget, {
-			startedAt: 0,
-			now: 77_000,
-			turns: 5,
-			tokens: 1,
-		}), "turn_threshold");
+		assert.equal(
+			nextLongRunningTrigger(tokenBudget, {
+				startedAt: 0,
+				now: 77_000,
+				turns: 1,
+				tokens: 500_000,
+			}),
+			"token_threshold",
+		);
+		assert.equal(
+			nextLongRunningTrigger(turnBudget, {
+				startedAt: 0,
+				now: 77_000,
+				turns: 5,
+				tokens: 1,
+			}),
+			"turn_threshold",
+		);
 	});
 
 	it("resolves custom notification config", () => {
@@ -254,13 +360,22 @@ describe("subagent control attention state", () => {
 		assert.match(message, /Subagent needs attention: worker/);
 		assert.match(message, /Hint: Inspect status first unless the run is clearly blocked/);
 		assert.match(message, /steer for a top-level live async child, routed resume for a live nested child/);
-		assert.match(message, /Top-level live async nudge: subagent\(\{ action: "steer", id: "78f659a3", message: "What are you blocked on\?/);
-		assert.match(message, /Routed live nested nudge: subagent\(\{ action: "resume", id: "78f659a3", message: "What are you blocked on\?/);
+		assert.match(
+			message,
+			/Top-level live async nudge: subagent\(\{ action: "steer", id: "78f659a3", message: "What are you blocked on\?/,
+		);
+		assert.match(
+			message,
+			/Routed live nested nudge: subagent\(\{ action: "resume", id: "78f659a3", message: "What are you blocked on\?/,
+		);
 		assert.match(message, /Direct intercom target: subagent-worker-78f659a3/);
 		assert.match(message, /Status: subagent\(\{ action: "status", id: "78f659a3" \}\)/);
 		assert.match(message, /Interrupt: subagent\(\{ action: "interrupt", id: "78f659a3" \}\)/);
 		assert.doesNotMatch(message, /Wait:/);
-		assert.match(formatControlNoticeMessage({ ...event, index: 2 }), /Top-level live async nudge: subagent\(\{ action: "steer", id: "78f659a3", message: "[^"]*", options: \{ index: 2 \} \}\)/);
+		assert.match(
+			formatControlNoticeMessage({ ...event, index: 2 }),
+			/Top-level live async nudge: subagent\(\{ action: "steer", id: "78f659a3", message: "[^"]*", options: \{ index: 2 \} \}\)/,
+		);
 	});
 
 	it("formats open-tool attention notices with tool facts", () => {
@@ -284,7 +399,10 @@ describe("subagent control attention state", () => {
 		assert.match(message, /dev server or watch command/);
 		assert.match(message, /Elapsed time alone does not prove/);
 		assert.match(message, /yield a needed persistent command or cancel the exact incorrect command/);
-		assert.match(message, /Transcript: subagent\(\{ action: "status", id: "78f659a3", options: \{ view: "transcript" \} \}\)/);
+		assert.match(
+			message,
+			/Transcript: subagent\(\{ action: "status", id: "78f659a3", options: \{ view: "transcript" \} \}\)/,
+		);
 		assert.doesNotMatch(message, /live async nudge|live nested nudge|Interrupt:|Direct intercom target:/);
 		assert.match(formatControlIntercomMessage(event), /A queued steer does not cancel an in-flight bash call/);
 	});
@@ -314,11 +432,18 @@ describe("subagent control attention state", () => {
 
 	it("scopes open-bash transcript inspection to the selected child without suggesting a run-wide interrupt", () => {
 		const event = buildControlEvent({
-			to: "needs_attention", runId: "parallel-run", agent: "worker", index: 2,
-			reason: "tool_open_threshold", currentTool: "bash",
+			to: "needs_attention",
+			runId: "parallel-run",
+			agent: "worker",
+			index: 2,
+			reason: "tool_open_threshold",
+			currentTool: "bash",
 		});
 		const message = formatControlNoticeMessage(event);
-		assert.match(message, /Transcript: subagent\(\{ action: "status", id: "parallel-run", options: \{ view: "transcript", index: 2 \} \}\)/);
+		assert.match(
+			message,
+			/Transcript: subagent\(\{ action: "status", id: "parallel-run", options: \{ view: "transcript", index: 2 \} \}\)/,
+		);
 		assert.match(message, /interrupt is run-scoped and may affect siblings/);
 		assert.doesNotMatch(message, /subagent\(\{ action: "interrupt"/);
 	});
@@ -336,8 +461,18 @@ describe("subagent control attention state", () => {
 	});
 
 	it("uses bounded task context in nudges and de-duplicates distinct contexts", () => {
-		const first = buildControlEvent({ to: "needs_attention", runId: "run-1", agent: "reviewer", label: `release gate ${"x".repeat(200)}` });
-		const second = buildControlEvent({ to: "needs_attention", runId: "run-1", agent: "reviewer", label: "security gate" });
+		const first = buildControlEvent({
+			to: "needs_attention",
+			runId: "run-1",
+			agent: "reviewer",
+			label: `release gate ${"x".repeat(200)}`,
+		});
+		const second = buildControlEvent({
+			to: "needs_attention",
+			runId: "run-1",
+			agent: "reviewer",
+			label: "security gate",
+		});
 		const firstMessage = formatControlNoticeMessage(first);
 		const nudge = firstMessage.match(/message: ("(?:[^"\\]|\\.)*")/)?.[1];
 		assert.ok(nudge);
@@ -380,8 +515,14 @@ describe("subagent control attention state", () => {
 		assert.match(message, /Subagent active but long-running: worker/);
 		assert.match(message, /Inspect status/);
 		assert.match(message, /steer for a top-level live async child, routed resume for a live nested child/);
-		assert.match(message, /Top-level live async nudge: subagent\(\{ action: "steer", id: "78f659a3", message: "Check tool edit at path src\/runs\/background\/async-status\.ts/);
-		assert.match(message, /Routed live nested nudge: subagent\(\{ action: "resume", id: "78f659a3", message: "Check tool edit at path src\/runs\/background\/async-status\.ts/);
+		assert.match(
+			message,
+			/Top-level live async nudge: subagent\(\{ action: "steer", id: "78f659a3", message: "Check tool edit at path src\/runs\/background\/async-status\.ts/,
+		);
+		assert.match(
+			message,
+			/Routed live nested nudge: subagent\(\{ action: "resume", id: "78f659a3", message: "Check tool edit at path src\/runs\/background\/async-status\.ts/,
+		);
 		assert.match(message, /15 turns/);
 		assert.match(message, /160000 tokens/);
 		assert.match(message, /path src\/runs\/background\/async-status\.ts/);
@@ -394,15 +535,24 @@ describe("subagent control attention state", () => {
 		const message = formatControlIntercomMessage(event, "subagent-worker-78f659a3");
 
 		assert.match(message, /worker needs attention in run 78f659a3/);
-		assert.match(message, /Top-level live async nudge: subagent\(\{ action: "steer", id: "78f659a3", message: "What are you blocked on\?/);
-		assert.match(message, /Routed live nested nudge: subagent\(\{ action: "resume", id: "78f659a3", message: "What are you blocked on\?/);
+		assert.match(
+			message,
+			/Top-level live async nudge: subagent\(\{ action: "steer", id: "78f659a3", message: "What are you blocked on\?/,
+		);
+		assert.match(
+			message,
+			/Routed live nested nudge: subagent\(\{ action: "resume", id: "78f659a3", message: "What are you blocked on\?/,
+		);
 	});
 
 	it("dedupes notifications once per child target and attention state", () => {
 		const event = buildControlEvent({ to: "needs_attention", runId: "run-1", agent: "worker", index: 0 });
 		const seen = new Set<string>();
 
-		assert.match(controlNotificationKey(event, "subagent-worker-run-1-1"), /^subagent-worker-run-1-1:needs_attention:idle:[a-f0-9]{8}$/);
+		assert.match(
+			controlNotificationKey(event, "subagent-worker-run-1-1"),
+			/^subagent-worker-run-1-1:needs_attention:idle:[a-f0-9]{8}$/,
+		);
 		assert.equal(claimControlNotification(resolveControlConfig(), event, seen, "subagent-worker-run-1-1"), true);
 		assert.equal(claimControlNotification(resolveControlConfig(), event, seen, "subagent-worker-run-1-1"), false);
 
@@ -414,6 +564,9 @@ describe("subagent control attention state", () => {
 			message: "worker needs attention",
 			reason: "tool_failures",
 		});
-		assert.equal(claimControlNotification(resolveControlConfig(), terminalEvent, seen, "subagent-worker-run-1-1"), true);
+		assert.equal(
+			claimControlNotification(resolveControlConfig(), terminalEvent, seen, "subagent-worker-run-1-1"),
+			true,
+		);
 	});
 });

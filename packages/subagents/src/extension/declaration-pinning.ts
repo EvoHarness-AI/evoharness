@@ -1,4 +1,11 @@
-import { declarationsEqual, getCurrentSystemMessage, toToolDeclaration, type Message, type SystemMessage, type Tool } from "@evoharness/ai";
+import {
+	declarationsEqual,
+	getCurrentSystemMessage,
+	type Message,
+	type SystemMessage,
+	type Tool,
+	toToolDeclaration,
+} from "@evoharness/ai";
 import type { ExtensionAPI, ExtensionContext, ToolDefinition } from "@evoharness/coding-agent";
 import type { TSchema } from "typebox";
 
@@ -47,9 +54,15 @@ function undecorated(recorded: string, current: string): string {
 function pinnedDefinition(tool: PinnableTool, pin: DeclaredPin | undefined): PinnableTool {
 	const { constrainedSampling, promptSnippet, promptGuidelines, ...rest } = tool;
 	// An unchanged declaration keeps the registered schema object rather than its JSON copy.
-	const recorded = pin ? { ...pin.declaration, description: undecorated(pin.declaration.description, rest.description) } : undefined;
+	const recorded = pin
+		? { ...pin.declaration, description: undecorated(pin.declaration.description, rest.description) }
+		: undefined;
 	const declaration = recorded && !declarationsEqual(recorded, tool) ? recorded : undefined;
-	const definition: PinnableTool = { ...rest, description: declaration?.description ?? rest.description, parameters: declaration?.parameters ?? rest.parameters };
+	const definition: PinnableTool = {
+		...rest,
+		description: declaration?.description ?? rest.description,
+		parameters: declaration?.parameters ?? rest.parameters,
+	};
 	const sampling = declaration ? declaration.constrainedSampling : constrainedSampling;
 	if (sampling !== undefined) definition.constrainedSampling = sampling;
 	const snippet = pin?.snippet ? pin.snippet.text : promptSnippet;
@@ -83,8 +96,10 @@ function ruleLines(activeTools: string[], guidelines: Map<string, string[]>): st
 	};
 	const active = (name: string) => activeTools.includes(name);
 	if ((active("bash") || active("powershell")) && !active("grep") && !active("find") && !active("ls")) {
-		if (active("bash") && active("powershell")) add("Use bash or PowerShell for file operations like listing, searching, and finding files");
-		else if (active("powershell")) add("Use PowerShell for file operations like listing, searching, and finding files");
+		if (active("bash") && active("powershell"))
+			add("Use bash or PowerShell for file operations like listing, searching, and finding files");
+		else if (active("powershell"))
+			add("Use PowerShell for file operations like listing, searching, and finding files");
 		else add("Use bash for file operations like ls, rg, find");
 	}
 	for (const name of activeTools) for (const rule of guidelines.get(name) ?? []) add(rule);
@@ -93,24 +108,33 @@ function ruleLines(activeTools: string[], guidelines: Map<string, string[]>): st
 	return lines;
 }
 
-const sameLines = (left: string[], right: string[]) => left.length === right.length && left.every((line, index) => line === right[index]);
+const sameLines = (left: string[], right: string[]) =>
+	left.length === right.length && left.every((line, index) => line === right[index]);
 
 /**
  * The rules section does not say which tool contributed a bullet, so a declared tool's guidelines
  * are recovered by rebuilding the recorded rules with candidate bullets at that tool's position.
  * Nothing is recovered unless the rebuild first reproduces Pi's current rules.
  */
-function recordedGuidelines(pi: ExtensionAPI, ctx: ExtensionContext, recorded: string[], names: string[]): Map<string, string[]> {
+function recordedGuidelines(
+	pi: ExtensionAPI,
+	ctx: ExtensionContext,
+	recorded: string[],
+	names: string[],
+): Map<string, string[]> {
 	const recovered = new Map<string, string[]>();
 	const activeTools = pi.getActiveTools();
 	const guidelines = new Map(pi.getAllTools().map((tool) => [tool.name, tool.promptGuidelines ?? []]));
 	const current = sectionLines(ctx.getSystemPrompt(), "rules");
 	if (!current || !sameLines(ruleLines(activeTools, guidelines), current)) return recovered;
-	const rebuild = (name: string, candidate: string[]) => ruleLines(activeTools, new Map(guidelines).set(name, candidate));
+	const rebuild = (name: string, candidate: string[]) =>
+		ruleLines(activeTools, new Map(guidelines).set(name, candidate));
 	for (const name of names) {
 		const start = rebuild(name, [GUIDELINES_PLACEHOLDER]).indexOf(`- ${GUIDELINES_PLACEHOLDER}`);
 		if (start < 0) continue;
-		const candidate = recorded.slice(start, start + recorded.length - rebuild(name, []).length).map((line) => line.slice(2));
+		const candidate = recorded
+			.slice(start, start + recorded.length - rebuild(name, []).length)
+			.map((line) => line.slice(2));
 		if (!sameLines(rebuild(name, candidate), recorded)) continue;
 		guidelines.set(name, candidate);
 		recovered.set(name, candidate);
@@ -120,26 +144,47 @@ function recordedGuidelines(pi: ExtensionAPI, ctx: ExtensionContext, recorded: s
 
 function recordedSystemMessage(ctx: ExtensionContext | undefined): SystemMessage | undefined {
 	// SAFETY: Pi's session manager exposes buildSessionContext, but its read-only extension type omits it.
-	const sessionManager = ctx?.sessionManager as (ExtensionContext["sessionManager"] & { buildSessionContext?(): { messages: Message[] } }) | undefined;
+	const sessionManager = ctx?.sessionManager as
+		| (ExtensionContext["sessionManager"] & { buildSessionContext?(): { messages: Message[] } })
+		| undefined;
 	// A host without a readable transcript, such as a test double, declares nothing to keep.
 	if (typeof sessionManager?.buildSessionContext !== "function") return undefined;
 	return getCurrentSystemMessage(sessionManager.buildSessionContext().messages);
 }
 
-function declaredPins(pi: ExtensionAPI, pins: Pins, ctx: ExtensionContext | undefined, system: SystemMessage | undefined): Map<string, DeclaredPin> {
+function declaredPins(
+	pi: ExtensionAPI,
+	pins: Pins,
+	ctx: ExtensionContext | undefined,
+	system: SystemMessage | undefined,
+): Map<string, DeclaredPin> {
 	if (!ctx || !system) return new Map();
 	const declarations = system.toolsAdded ?? [];
 	const snippets = sectionLines(system.sections?.tools ?? undefined, "tools");
 	const rules = sectionLines(system.sections?.rules ?? undefined, "rules");
-	const guidelines = rules ? recordedGuidelines(pi, ctx, rules, declarations.map((tool) => tool.name).filter((name) => pins.current.has(name))) : new Map<string, string[]>();
-	return new Map(declarations.map((declaration) => {
-		const pin: DeclaredPin = { declaration };
-		// Pi renders each snippet on one line as "- <tool>: <snippet>".
-		if (snippets) pin.snippet = { text: snippets.find((line) => line.startsWith(`- ${declaration.name}: `))?.slice(declaration.name.length + 4) };
-		const recovered = guidelines.get(declaration.name);
-		if (recovered) pin.guidelines = recovered;
-		return [declaration.name, pin];
-	}));
+	const guidelines = rules
+		? recordedGuidelines(
+				pi,
+				ctx,
+				rules,
+				declarations.map((tool) => tool.name).filter((name) => pins.current.has(name)),
+			)
+		: new Map<string, string[]>();
+	return new Map(
+		declarations.map((declaration) => {
+			const pin: DeclaredPin = { declaration };
+			// Pi renders each snippet on one line as "- <tool>: <snippet>".
+			if (snippets)
+				pin.snippet = {
+					text: snippets
+						.find((line) => line.startsWith(`- ${declaration.name}: `))
+						?.slice(declaration.name.length + 4),
+				};
+			const recovered = guidelines.get(declaration.name);
+			if (recovered) pin.guidelines = recovered;
+			return [declaration.name, pin];
+		}),
+	);
 }
 
 function pinsFor(pi: ExtensionAPI): Pins {
@@ -172,7 +217,10 @@ export function recordedPromptSection(pi: ExtensionAPI, name: string): string | 
  * Register a pi-subagents tool so a session keeps the definition, prompt snippet and guidelines
  * its transcript already declared. Only a session that never declared the tool gets this definition.
  */
-export function registerPinnedTool<TParams extends TSchema, TDetails>(pi: ExtensionAPI, tool: ToolDefinition<TParams, TDetails>): void {
+export function registerPinnedTool<TParams extends TSchema, TDetails>(
+	pi: ExtensionAPI,
+	tool: ToolDefinition<TParams, TDetails>,
+): void {
 	const pins = pinsFor(pi);
 	// SAFETY: Pinning reads only model-facing fields and re-registers every runtime field unchanged.
 	pins.current.set(tool.name, tool as unknown as PinnableTool);

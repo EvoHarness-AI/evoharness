@@ -10,7 +10,9 @@ export const RUNTIME_MODULE_EXTENSIONS = [".js", ".ts"] as const;
  * running process, so the running module's own extension is not reliable.
  */
 export function resolveRuntimeModuleExtension(dir: string, basename: string): string {
-	return RUNTIME_MODULE_EXTENSIONS.find((extension) => fs.existsSync(path.join(dir, `${basename}${extension}`))) ?? ".js";
+	return (
+		RUNTIME_MODULE_EXTENSIONS.find((extension) => fs.existsSync(path.join(dir, `${basename}${extension}`))) ?? ".js"
+	);
 }
 
 /** Absolute, normalized path to a sibling runtime module that exists on disk. */

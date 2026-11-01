@@ -1,11 +1,11 @@
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { Details, WorkflowPreflightLane, WorkflowPreflight } from "../shared/types.ts";
+import type { Details, WorkflowPreflight, WorkflowPreflightLane } from "../shared/types.ts";
 import { workflowPreflightLaneForRuntimeKey } from "./workflow-preflight.ts";
 
 export const WORKFLOW_CHAT_PROGRESS_MODES = ["auto", "off", "live-card"] as const;
-export type WorkflowChatProgressMode = typeof WORKFLOW_CHAT_PROGRESS_MODES[number];
+export type WorkflowChatProgressMode = (typeof WORKFLOW_CHAT_PROGRESS_MODES)[number];
 export type ResolvedWorkflowChatProgressMode = Exclude<WorkflowChatProgressMode, "auto">;
 
 export interface GitRepositoryIdentity {
@@ -48,14 +48,18 @@ export function resolveGitRepositoryIdentity(cwd: string): GitRepositoryIdentity
 	if (!root || !commonDir) return undefined;
 	const commonDirPath = path.isAbsolute(commonDir)
 		? commonDir
-		: [path.resolve(cwd, commonDir), path.resolve(root, commonDir)].find((candidate) => fs.existsSync(candidate)) ?? path.resolve(root, commonDir);
+		: ([path.resolve(cwd, commonDir), path.resolve(root, commonDir)].find((candidate) => fs.existsSync(candidate)) ??
+			path.resolve(root, commonDir));
 	return {
 		root: realPath(root),
 		commonDir: realPath(commonDirPath),
 	};
 }
 
-function isSameGitRepositoryIdentity(left: GitRepositoryIdentity | undefined, right: GitRepositoryIdentity | undefined): boolean {
+function isSameGitRepositoryIdentity(
+	left: GitRepositoryIdentity | undefined,
+	right: GitRepositoryIdentity | undefined,
+): boolean {
 	if (!left || !right) return false;
 	return left.commonDir === right.commonDir || left.root === right.root;
 }
@@ -72,15 +76,18 @@ function normalizeRequestedMode(value: unknown): { mode?: WorkflowChatProgressMo
 	return { mode: value as WorkflowChatProgressMode };
 }
 
-export function resolveWorkflowChatProgress(input: ResolveWorkflowChatProgressInput): { projection?: WorkflowChatProgressProjection; error?: string } {
+export function resolveWorkflowChatProgress(input: ResolveWorkflowChatProgressInput): {
+	projection?: WorkflowChatProgressProjection;
+	error?: string;
+} {
 	const requested = normalizeRequestedMode(input.requested);
 	if (requested.error) return { error: requested.error };
 	const parentIdentity = resolveGitRepositoryIdentity(input.parentCwd);
 	const workflowIdentity = resolveGitRepositoryIdentity(input.workflowCwd);
 	const sameRepo = !!(
-		parentIdentity
-		&& workflowIdentity
-		&& (parentIdentity.commonDir === workflowIdentity.commonDir || parentIdentity.root === workflowIdentity.root)
+		parentIdentity &&
+		workflowIdentity &&
+		(parentIdentity.commonDir === workflowIdentity.commonDir || parentIdentity.root === workflowIdentity.root)
 	);
 	const repoLabel = workflowIdentity ? path.basename(workflowIdentity.root) : undefined;
 	const repoRelation = sameRepo ? "same" : "other";
@@ -90,8 +97,14 @@ export function resolveWorkflowChatProgress(input: ResolveWorkflowChatProgressIn
 	if (requestedMode === "auto") mode = sameRepo && !input.background ? "live-card" : "off";
 	else mode = requestedMode;
 
-	if (mode === "live-card" && !sameRepo) return { error: "chatProgress: 'live-card' is only available for workflow script runs in the same Git repository." };
-	if (mode === "live-card" && input.background) return { error: "chatProgress: 'live-card' is unavailable for async workflow scripts. Async workflows have no inline live card; omit chatProgress or use auto/off. Use async:false only when the parent must block." };
+	if (mode === "live-card" && !sameRepo)
+		return {
+			error: "chatProgress: 'live-card' is only available for workflow script runs in the same Git repository.",
+		};
+	if (mode === "live-card" && input.background)
+		return {
+			error: "chatProgress: 'live-card' is unavailable for async workflow scripts. Async workflows have no inline live card; omit chatProgress or use auto/off. Use async:false only when the parent must block.",
+		};
 	return { projection: { mode, repoRelation, ...(repoLabel ? { repoLabel } : {}) } };
 }
 
@@ -110,7 +123,10 @@ function cleanLabel(value: unknown): string | undefined {
 	return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
-export function buildWorkflowChatProgressRows(trace: NonNullable<Details["workflow"]>["trace"], preflight?: WorkflowPreflight): WorkflowChatProgressRow[] {
+export function buildWorkflowChatProgressRows(
+	trace: NonNullable<Details["workflow"]>["trace"],
+	preflight?: WorkflowPreflight,
+): WorkflowChatProgressRow[] {
 	const rows = new Map<string, WorkflowChatProgressRow>();
 	for (const entry of trace) {
 		if (entry.operation !== "run") continue;
@@ -127,15 +143,16 @@ export function buildWorkflowChatProgressRows(trace: NonNullable<Details["workfl
 		const lane = workflowPreflightLaneForRuntimeKey(preflight, entry.key, [entry.generatedLaneKey]);
 		const next: WorkflowChatProgressRow = existing ?? { key: entry.key, state: "running" };
 		if (lane && !next.preflight) next.preflight = lane;
-		next.state = entry.state === "completed"
-			? "complete"
-			: entry.state === "failed"
-				? "failed"
-				: entry.state === "detached"
-					? "detached"
-					: entry.state === "stopped"
-						? "stopped"
-						: "running";
+		next.state =
+			entry.state === "completed"
+				? "complete"
+				: entry.state === "failed"
+					? "failed"
+					: entry.state === "detached"
+						? "detached"
+						: entry.state === "stopped"
+							? "stopped"
+							: "running";
 		const label = cleanLabel(entry.label);
 		const phase = cleanLabel(entry.phase);
 		if (label) next.label = label;

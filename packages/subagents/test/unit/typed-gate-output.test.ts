@@ -18,7 +18,9 @@ import {
 function tempGitRepo(): string {
 	const dir = fs.mkdtempSync(path.join(os.tmpdir(), "typed-gate-"));
 	execFileSync("git", ["init", "-q"], { cwd: dir });
-	execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "init"], { cwd: dir });
+	execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "init"], {
+		cwd: dir,
+	});
 	return dir;
 }
 
@@ -46,10 +48,16 @@ describe("gate object form", () => {
 			ok: true,
 			gate: { command: "classify.sh", output: "json", timeoutMs: 5000 },
 		});
-		assert.deepEqual(normalizeGateAcceptance({ command: "classify.sh", output: "json", schema: { type: "object" } }, undefined), {
-			ok: true,
-			acceptance: { level: "verified", verify: [{ id: "gate", command: "classify.sh", output: "json", schema: { type: "object" } }] },
-		});
+		assert.deepEqual(
+			normalizeGateAcceptance({ command: "classify.sh", output: "json", schema: { type: "object" } }, undefined),
+			{
+				ok: true,
+				acceptance: {
+					level: "verified",
+					verify: [{ id: "gate", command: "classify.sh", output: "json", schema: { type: "object" } }],
+				},
+			},
+		);
 	});
 
 	it("rejects malformed object gates with a field-level message", () => {
@@ -73,15 +81,30 @@ describe("gate object form", () => {
 		assert.equal(acceptanceHasTypedVerify(undefined), false);
 		assert.equal(acceptanceHasTypedVerify("checked"), false);
 		assert.equal(acceptanceHasTypedVerify({ level: "verified", verify: [{ id: "v", command: "x" }] }), false);
-		assert.equal(acceptanceHasTypedVerify({ level: "verified", verify: [{ id: "v", command: "x", output: "json" }] }), true);
+		assert.equal(
+			acceptanceHasTypedVerify({ level: "verified", verify: [{ id: "v", command: "x", output: "json" }] }),
+			true,
+		);
 		const gate = normalizeGateAcceptance({ command: "x", output: "json" }, undefined);
 		assert.equal(gate.ok && acceptanceHasTypedVerify(gate.acceptance), true);
 	});
 
 	it("accepts output and schema on explicit acceptance.verify entries", () => {
-		assert.deepEqual(validateAcceptanceInput({ level: "verified", verify: [{ id: "v", command: "x", output: "json", schema: { type: "object" } }] }), []);
-		assert.match(validateAcceptanceInput({ level: "verified", verify: [{ id: "v", command: "x", output: "text" }] }).join("\n"), /output must be "json"/);
-		assert.match(validateAcceptanceInput({ level: "verified", verify: [{ id: "v", command: "x", schema: {} }] }).join("\n"), /schema requires output/);
+		assert.deepEqual(
+			validateAcceptanceInput({
+				level: "verified",
+				verify: [{ id: "v", command: "x", output: "json", schema: { type: "object" } }],
+			}),
+			[],
+		);
+		assert.match(
+			validateAcceptanceInput({ level: "verified", verify: [{ id: "v", command: "x", output: "text" }] }).join("\n"),
+			/output must be "json"/,
+		);
+		assert.match(
+			validateAcceptanceInput({ level: "verified", verify: [{ id: "v", command: "x", schema: {} }] }).join("\n"),
+			/schema requires output/,
+		);
 	});
 });
 
@@ -97,7 +120,12 @@ describe("typed gate output", () => {
 
 	it("validates the parsed stdout against gate.schema", async () => {
 		const cwd = tempGitRepo();
-		const schema = { type: "object", properties: { verdict: { type: "string", enum: ["ok", "blocked"] } }, required: ["verdict"], additionalProperties: false };
+		const schema = {
+			type: "object",
+			properties: { verdict: { type: "string", enum: ["ok", "blocked"] } },
+			required: ["verdict"],
+			additionalProperties: false,
+		};
 		const good = await runGate({ command: printing('{"verdict":"ok"}'), output: "json", schema }, cwd);
 		assert.equal(good.status, "verified");
 		assert.deepEqual(typedVerifyOutput(good), { value: { verdict: "ok" } });
@@ -106,7 +134,10 @@ describe("typed gate output", () => {
 		assert.equal(bad.status, "rejected");
 		assert.equal(bad.verifyRuns[0]?.status, "failed");
 		assert.match(bad.verifyRuns[0]?.structuredOutputError ?? "", /does not match gate\.schema/);
-		assert.match(acceptanceFailureMessage(bad) ?? "", /verification 'gate' failed: output: "json" stdout does not match gate\.schema/);
+		assert.match(
+			acceptanceFailureMessage(bad) ?? "",
+			/verification 'gate' failed: output: "json" stdout does not match gate\.schema/,
+		);
 		assert.equal(typedVerifyOutput(bad), undefined);
 	});
 
@@ -132,8 +163,14 @@ describe("typed gate output", () => {
 	it("never memoizes a typed gate, because its input can change without the tracked tree changing", async () => {
 		const cwd = tempGitRepo();
 		const artifactsDir = path.join(cwd, ".artifacts");
-		const first = await runGate({ command: printing('{"n":1}'), output: "json" }, cwd, { artifactsDir, runId: "typed-memo" });
-		const second = await runGate({ command: printing('{"n":1}'), output: "json" }, cwd, { artifactsDir, runId: "typed-memo" });
+		const first = await runGate({ command: printing('{"n":1}'), output: "json" }, cwd, {
+			artifactsDir,
+			runId: "typed-memo",
+		});
+		const second = await runGate({ command: printing('{"n":1}'), output: "json" }, cwd, {
+			artifactsDir,
+			runId: "typed-memo",
+		});
 		assert.equal(first.verifyRuns[0]?.memoized, undefined);
 		assert.equal(second.verifyRuns[0]?.memoized, undefined);
 		assert.equal(second.verifyRuns[0]?.cacheKey, undefined);

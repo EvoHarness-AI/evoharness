@@ -18,19 +18,21 @@ test("executeAsyncSingle preloads all peer aliases before the selected runner lo
 		"@evoharness/chord": [".", "./context"],
 		"@evoharness/tui": ["."],
 		"@evoharness/ai": ["./compat", "./oauth", "./providers/all"],
-		"typebox": [".", "./compile", "./value"],
+		typebox: [".", "./compile", "./value"],
 	};
 	// Use real package manifests/targets, as in host-peer-runtime-imports.test.ts.
 	function writeHostPackage(pkg: string) {
 		const dir = pkg === "@evoharness/coding-agent" ? host : path.join(host, "node_modules", pkg);
 		fs.mkdirSync(dir, { recursive: true });
-		const exports = Object.fromEntries(hostExports[pkg]!.map(subpath => {
-			const target = `./${subpath === "." ? "index" : subpath.slice(2).replaceAll("/", "-")}.mjs`;
-			fs.writeFileSync(path.join(dir, target), "export {};\n");
-			expectedAliases[subpath === "." ? pkg : `${pkg}/${subpath.slice(2)}`] = path.join(dir, target);
-			if (pkg === "@evoharness/ai" && subpath === "./compat") expectedAliases[pkg] = path.join(dir, target);
-			return [subpath, target];
-		}));
+		const exports = Object.fromEntries(
+			hostExports[pkg]!.map((subpath) => {
+				const target = `./${subpath === "." ? "index" : subpath.slice(2).replaceAll("/", "-")}.mjs`;
+				fs.writeFileSync(path.join(dir, target), "export {};\n");
+				expectedAliases[subpath === "." ? pkg : `${pkg}/${subpath.slice(2)}`] = path.join(dir, target);
+				if (pkg === "@evoharness/ai" && subpath === "./compat") expectedAliases[pkg] = path.join(dir, target);
+				return [subpath, target];
+			}),
+		);
 		fs.writeFileSync(path.join(dir, "package.json"), JSON.stringify({ name: pkg, version: "0.85.1", exports }));
 	}
 	const originalArgv1 = process.argv[1];
@@ -49,17 +51,33 @@ test("executeAsyncSingle preloads all peer aliases before the selected runner lo
 		nodeModule.syncBuiltinESMExports();
 		for (const scenario of ["stable", "pre-chord", "missing-pre-chord"]) {
 			if (scenario === "pre-chord") {
-				fs.writeFileSync(path.join(host, "package.json"), JSON.stringify({ name: "@evoharness/coding-agent", version: "0.84.3", exports: { ".": "./index.mjs" } }));
+				fs.writeFileSync(
+					path.join(host, "package.json"),
+					JSON.stringify({ name: "@evoharness/coding-agent", version: "0.84.3", exports: { ".": "./index.mjs" } }),
+				);
 				fs.rmSync(path.join(host, "node_modules", "@evoharness/chord"), { recursive: true });
-				for (const specifier of ["@evoharness/chord", "@evoharness/chord/context"]) delete expectedAliases[specifier];
+				for (const specifier of ["@evoharness/chord", "@evoharness/chord/context"])
+					delete expectedAliases[specifier];
 			}
 			if (scenario === "missing-pre-chord") fs.unlinkSync(expectedAliases["@evoharness/agent-core/node"]!);
 			const configuredExtension = scenario === "pre-chord" ? fileURLToPath(import.meta.url) : undefined;
 			const result = executeAsyncSingle(`spawn-preload-${scenario}`, {
-				agent: "worker", task: "Inspect launch wiring", agentConfig: makeAgent("worker", configuredExtension ? { extensions: [configuredExtension] } : {}),
+				agent: "worker",
+				task: "Inspect launch wiring",
+				agentConfig: makeAgent("worker", configuredExtension ? { extensions: [configuredExtension] } : {}),
 				ctx: { pi: { events: { emit() {} } }, cwd: root, currentSessionId: "spawn-preload-session" },
-				artifactConfig: { enabled: false, includeInput: false, includeOutput: false, includeJsonl: false, includeMetadata: false, cleanupDays: 7 },
-				shareEnabled: false, sessionRoot: path.join(root, "sessions"), maxSubagentDepth: 1, acceptance: false,
+				artifactConfig: {
+					enabled: false,
+					includeInput: false,
+					includeOutput: false,
+					includeJsonl: false,
+					includeMetadata: false,
+					cleanupDays: 7,
+				},
+				shareEnabled: false,
+				sessionRoot: path.join(root, "sessions"),
+				maxSubagentDepth: 1,
+				acceptance: false,
 			});
 			assert.equal(result.isError, true);
 			if (scenario === "missing-pre-chord") {
@@ -73,7 +91,10 @@ test("executeAsyncSingle preloads all peer aliases before the selected runner lo
 			assert.ok(path.isAbsolute(command));
 			assert.equal(options.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV], host);
 			const actualAliases = JSON.parse(options.env.JITI_ALIAS) as Record<string, string>;
-			assert.deepEqual(Object.fromEntries(Object.entries(actualAliases).map(([key, target]) => [key, fs.realpathSync(target)])), expectedAliases);
+			assert.deepEqual(
+				Object.fromEntries(Object.entries(actualAliases).map(([key, target]) => [key, fs.realpathSync(target)])),
+				expectedAliases,
+			);
 			assert.equal(args[0], "--import");
 			assert.equal(args[1], new URL("../../runner-peer-preload.mjs", import.meta.url).href);
 			assert.ok(fs.existsSync(fileURLToPath(args[1])));

@@ -42,16 +42,88 @@ const SAFE_OUTPUT_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const ITEM_NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 const ITEM_REF_PATTERN = /\{([A-Za-z_][A-Za-z0-9_]*)(?:\.([^{}]+))?\}/g;
 const RESERVED_TEMPLATE_NAMES = new Set(["task", "previous", "chain_dir", "outputs"]);
-const DYNAMIC_STEP_KEYS = new Set(["expand", "parallel", "collect", "concurrency", "failFast", "phase", "label", "acceptance", "agentContract", "gateOn"]);
-const RUNNER_DYNAMIC_STEP_KEYS = new Set([...DYNAMIC_STEP_KEYS, "effectiveAcceptance", "acceptanceInput", "acceptanceRole", "sessionFiles", "thinkingOverrides"]);
+const DYNAMIC_STEP_KEYS = new Set([
+	"expand",
+	"parallel",
+	"collect",
+	"concurrency",
+	"failFast",
+	"phase",
+	"label",
+	"acceptance",
+	"agentContract",
+	"gateOn",
+]);
+const RUNNER_DYNAMIC_STEP_KEYS = new Set([
+	...DYNAMIC_STEP_KEYS,
+	"effectiveAcceptance",
+	"acceptanceInput",
+	"acceptanceRole",
+	"sessionFiles",
+	"thinkingOverrides",
+]);
 const DYNAMIC_EXPAND_KEYS = new Set(["from", "item", "key", "maxItems", "onEmpty"]);
 const DYNAMIC_EXPAND_FROM_KEYS = new Set(["output", "path"]);
-const DYNAMIC_PARALLEL_KEYS = new Set(["agent", "task", "phase", "label", "outputSchema", "cwd", "machine", "output", "outputMode", "reads", "progress", "skill", "model", "fast", "toolBudget", "acceptance", "agentContract", "gateOn"]);
+const DYNAMIC_PARALLEL_KEYS = new Set([
+	"agent",
+	"task",
+	"phase",
+	"label",
+	"outputSchema",
+	"cwd",
+	"machine",
+	"output",
+	"outputMode",
+	"reads",
+	"progress",
+	"skill",
+	"model",
+	"fast",
+	"toolBudget",
+	"acceptance",
+	"agentContract",
+	"gateOn",
+]);
 const RUNNER_DYNAMIC_PARALLEL_KEYS = new Set([
 	...DYNAMIC_PARALLEL_KEYS,
-	"runner", "outputName", "structured", "inheritProjectContext", "inheritGlobalContext", "inheritSkills", "skills", "outputPath", "namespaceOutputPath", "maxSubagentDepth", "timeoutMs", "waitToolEnabled", "waitToolDefaultTimeoutMs",
-	"structuredOutput", "structuredOutputSchema", "tools", "excludeTools", "allowNestedSubagents", "extensions", "subagentOnlyExtensions", "mcpDirectTools", "builtinMcpTools", "mutationTools", "capabilityCeiling", "systemPrompt",
-	"systemPromptMode", "thinking", "requestedModel", "sessionFile", "effectiveAcceptance", "acceptanceInput", "acceptanceRole", "parentSessionId", "parentSessionFile", "requiredExtensions", "launchResolvedExtensions", "requestedCwd", "machineEnv",
+	"runner",
+	"outputName",
+	"structured",
+	"inheritProjectContext",
+	"inheritGlobalContext",
+	"inheritSkills",
+	"skills",
+	"outputPath",
+	"namespaceOutputPath",
+	"maxSubagentDepth",
+	"timeoutMs",
+	"waitToolEnabled",
+	"waitToolDefaultTimeoutMs",
+	"structuredOutput",
+	"structuredOutputSchema",
+	"tools",
+	"excludeTools",
+	"allowNestedSubagents",
+	"extensions",
+	"subagentOnlyExtensions",
+	"mcpDirectTools",
+	"builtinMcpTools",
+	"mutationTools",
+	"capabilityCeiling",
+	"systemPrompt",
+	"systemPromptMode",
+	"thinking",
+	"requestedModel",
+	"sessionFile",
+	"effectiveAcceptance",
+	"acceptanceInput",
+	"acceptanceRole",
+	"parentSessionId",
+	"parentSessionFile",
+	"requiredExtensions",
+	"launchResolvedExtensions",
+	"requestedCwd",
+	"machineEnv",
 ]);
 const DYNAMIC_COLLECT_KEYS = new Set(["as", "outputSchema"]);
 
@@ -94,7 +166,7 @@ export function resolveJsonPointer(value: unknown, pointer: string, label: strin
 			throw new DynamicFanoutError(`${label} does not exist.`);
 		}
 		const record = current as Record<string, unknown>;
-		if (!Object.prototype.hasOwnProperty.call(record, segment)) {
+		if (!Object.hasOwn(record, segment)) {
 			throw new DynamicFanoutError(`${label} does not exist.`);
 		}
 		current = record[segment];
@@ -131,7 +203,10 @@ function valueToTemplateText(value: unknown, reference: string): string {
 
 function resolveItemPath(item: unknown, pathText: string | undefined, reference: string): unknown {
 	if (!pathText) return item;
-	const pointer = `/${pathText.split(".").map((segment) => segment.replace(/~/g, "~0").replace(/\//g, "~1")).join("/")}`;
+	const pointer = `/${pathText
+		.split(".")
+		.map((segment) => segment.replace(/~/g, "~0").replace(/\//g, "~1"))
+		.join("/")}`;
 	return resolveJsonPointer(item, pointer, reference);
 }
 
@@ -146,7 +221,8 @@ export function resolveItemTemplate(template: string, itemName: string, item: un
 }
 
 function assertOnlyKeys(value: unknown, allowed: Set<string>, label: string): void {
-	if (!value || typeof value !== "object" || Array.isArray(value)) throw new DynamicFanoutError(`${label} must be an object.`);
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw new DynamicFanoutError(`${label} must be an object.`);
 	for (const key of Object.keys(value)) {
 		if (!allowed.has(key)) throw new DynamicFanoutError(`${label} does not support field '${key}'.`);
 	}
@@ -176,21 +252,31 @@ export function assertNoUnresolvedItemReferences(template: string, itemName: str
 }
 
 export function hasDynamicFanoutFields(step: unknown): boolean {
-	return !!step && typeof step === "object" && !Array.isArray(step)
-		&& (Object.prototype.hasOwnProperty.call(step, "expand") || Object.prototype.hasOwnProperty.call(step, "collect"));
+	return (
+		!!step &&
+		typeof step === "object" &&
+		!Array.isArray(step) &&
+		(Object.hasOwn(step, "expand") || Object.hasOwn(step, "collect"))
+	);
 }
 
-export function validateDynamicStepShape(step: DynamicParallelStep, stepIndex: number, config: DynamicFanoutConfig = {}): void {
+export function validateDynamicStepShape(
+	step: DynamicParallelStep,
+	stepIndex: number,
+	config: DynamicFanoutConfig = {},
+): void {
 	const prefix = `Dynamic chain step ${stepIndex + 1}`;
 	assertOnlyKeys(step, config.allowRunnerFields ? RUNNER_DYNAMIC_STEP_KEYS : DYNAMIC_STEP_KEYS, prefix);
 	if (!step.expand || !step.expand.from) throw new DynamicFanoutError(`${prefix} requires expand.from.`);
 	assertOnlyKeys(step.expand, DYNAMIC_EXPAND_KEYS, `${prefix} expand`);
 	assertOnlyKeys(step.expand.from, DYNAMIC_EXPAND_FROM_KEYS, `${prefix} expand.from`);
-	if (!isSafeOutputName(step.expand.from.output)) throw new DynamicFanoutError(`${prefix} has invalid expand.from.output '${step.expand.from.output}'.`);
+	if (!isSafeOutputName(step.expand.from.output))
+		throw new DynamicFanoutError(`${prefix} has invalid expand.from.output '${step.expand.from.output}'.`);
 	assertJsonPointer(step.expand.from.path, `${prefix} expand.from.path`);
 	if (step.expand.key !== undefined) assertJsonPointer(step.expand.key, `${prefix} expand.key`);
 	const itemName = step.expand.item ?? "item";
-	if (!ITEM_NAME_PATTERN.test(itemName)) throw new DynamicFanoutError(`${prefix} has invalid expand.item '${itemName}'.`);
+	if (!ITEM_NAME_PATTERN.test(itemName))
+		throw new DynamicFanoutError(`${prefix} has invalid expand.item '${itemName}'.`);
 	if (step.expand.maxItems === undefined && config.maxItems === undefined) {
 		throw new DynamicFanoutError(`${prefix} requires expand.maxItems or config.chain.dynamicFanout.maxItems.`);
 	}
@@ -200,11 +286,20 @@ export function validateDynamicStepShape(step: DynamicParallelStep, stepIndex: n
 	if (config.maxItems !== undefined && (!Number.isInteger(config.maxItems) || config.maxItems < 0)) {
 		throw new DynamicFanoutError("config.chain.dynamicFanout.maxItems must be an integer >= 0.");
 	}
-	if (!step.parallel || Array.isArray(step.parallel)) throw new DynamicFanoutError(`${prefix} requires a single parallel template object and cannot mix dynamic expand/collect with static parallel arrays.`);
-	assertOnlyKeys(step.parallel, config.allowRunnerFields ? RUNNER_DYNAMIC_PARALLEL_KEYS : DYNAMIC_PARALLEL_KEYS, `${prefix} parallel`);
-	if ("expand" in (step.parallel as object)) throw new DynamicFanoutError(`${prefix} does not support nested dynamic fanout.`);
+	if (!step.parallel || Array.isArray(step.parallel))
+		throw new DynamicFanoutError(
+			`${prefix} requires a single parallel template object and cannot mix dynamic expand/collect with static parallel arrays.`,
+		);
+	assertOnlyKeys(
+		step.parallel,
+		config.allowRunnerFields ? RUNNER_DYNAMIC_PARALLEL_KEYS : DYNAMIC_PARALLEL_KEYS,
+		`${prefix} parallel`,
+	);
+	if ("expand" in (step.parallel as object))
+		throw new DynamicFanoutError(`${prefix} does not support nested dynamic fanout.`);
 	if (!step.parallel.agent) throw new DynamicFanoutError(`${prefix} parallel.agent is required.`);
-	if (!step.collect?.as || !isSafeOutputName(step.collect.as)) throw new DynamicFanoutError(`${prefix} requires collect.as with a safe output name.`);
+	if (!step.collect?.as || !isSafeOutputName(step.collect.as))
+		throw new DynamicFanoutError(`${prefix} requires collect.as with a safe output name.`);
 	assertOnlyKeys(step.collect, DYNAMIC_COLLECT_KEYS, `${prefix} collect`);
 	for (const [label, template] of [
 		["parallel.task", step.parallel.task],
@@ -214,33 +309,60 @@ export function validateDynamicStepShape(step: DynamicParallelStep, stepIndex: n
 	}
 }
 
-export function resolveDynamicFanoutItems(step: DynamicParallelStep, outputs: ChainOutputMap, stepIndex: number, config: DynamicFanoutConfig = {}): DynamicMaterializedItem[] {
+export function resolveDynamicFanoutItems(
+	step: DynamicParallelStep,
+	outputs: ChainOutputMap,
+	stepIndex: number,
+	config: DynamicFanoutConfig = {},
+): DynamicMaterializedItem[] {
 	validateDynamicStepShape(step, stepIndex, config);
 	const sourceName = step.expand.from.output;
 	const source = outputs[sourceName];
-	if (!source) throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} references unknown output '${sourceName}'.`);
-	if (source.structured === undefined) throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} requires structured output '${sourceName}'.`);
-	const value = resolveJsonPointer(source.structured, step.expand.from.path, `Dynamic chain step ${stepIndex + 1} expand.from.path`);
-	if (!Array.isArray(value)) throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} expand.from.path must resolve to an array.`);
+	if (!source)
+		throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} references unknown output '${sourceName}'.`);
+	if (source.structured === undefined)
+		throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} requires structured output '${sourceName}'.`);
+	const value = resolveJsonPointer(
+		source.structured,
+		step.expand.from.path,
+		`Dynamic chain step ${stepIndex + 1} expand.from.path`,
+	);
+	if (!Array.isArray(value))
+		throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} expand.from.path must resolve to an array.`);
 	const maxItems = step.expand.maxItems ?? config.maxItems;
-	if (maxItems === undefined) throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} requires an effective maxItems.`);
-	if (value.length > maxItems) throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} resolved ${value.length} items, exceeding maxItems ${maxItems}.`);
+	if (maxItems === undefined)
+		throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} requires an effective maxItems.`);
+	if (value.length > maxItems)
+		throw new DynamicFanoutError(
+			`Dynamic chain step ${stepIndex + 1} resolved ${value.length} items, exceeding maxItems ${maxItems}.`,
+		);
 	const seen = new Set<string>();
 	const seenIds = new Set<string>();
 	return value.map((item, index) => {
-		const key = step.expand.key === undefined
-			? String(index)
-			: scalarToKey(resolveJsonPointer(item, step.expand.key, `Dynamic chain step ${stepIndex + 1} expand.key`), `Dynamic chain step ${stepIndex + 1} expand.key`);
-		if (seen.has(key)) throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} produced duplicate item key '${key}'.`);
+		const key =
+			step.expand.key === undefined
+				? String(index)
+				: scalarToKey(
+						resolveJsonPointer(item, step.expand.key, `Dynamic chain step ${stepIndex + 1} expand.key`),
+						`Dynamic chain step ${stepIndex + 1} expand.key`,
+					);
+		if (seen.has(key))
+			throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} produced duplicate item key '${key}'.`);
 		seen.add(key);
 		const idKey = normalizeItemKeyForId(key);
-		if (seenIds.has(idKey)) throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} produced colliding item id '${idKey}'.`);
+		if (seenIds.has(idKey))
+			throw new DynamicFanoutError(`Dynamic chain step ${stepIndex + 1} produced colliding item id '${idKey}'.`);
 		seenIds.add(idKey);
 		return { index, key, idKey, item };
 	});
 }
 
-export function materializeDynamicParallelStep(step: DynamicParallelStep, outputs: ChainOutputMap, stepIndex: number, config: DynamicFanoutConfig = {}): DynamicMaterializedGroup {
+export function materializeDynamicParallelStep(
+	step: DynamicParallelStep,
+	outputs: ChainOutputMap,
+	stepIndex: number,
+	config: DynamicFanoutConfig = {},
+): DynamicMaterializedGroup {
 	const items = resolveDynamicFanoutItems(step, outputs, stepIndex, config);
 	if (items.length === 0) {
 		if ((step.expand.onEmpty ?? "skip") === "fail") {
@@ -264,12 +386,19 @@ export function materializeDynamicParallelStep(step: DynamicParallelStep, output
 export function collectDynamicResults(
 	step: DynamicParallelStep,
 	items: DynamicMaterializedItem[],
-	results: Array<Pick<SingleResult, "agent" | "error" | "timedOut" | "stopped" | "structuredOutput" | "artifactPaths" | "savedOutputPath"> & { exitCode: number | null; output?: string; finalOutput?: string }>,
+	results: Array<
+		Pick<
+			SingleResult,
+			"agent" | "error" | "timedOut" | "stopped" | "structuredOutput" | "artifactPaths" | "savedOutputPath"
+		> & { exitCode: number | null; output?: string; finalOutput?: string }
+	>,
 ): DynamicCollectedResult[] {
 	return items.map((entry, index) => {
 		const result = results[index];
 		const text = result
-			? ("output" in result && typeof result.output === "string" ? result.output : getSingleResultOutput(result as SingleResult))
+			? "output" in result && typeof result.output === "string"
+				? result.output
+				: getSingleResultOutput(result as SingleResult)
 			: "";
 		return {
 			key: entry.key,
@@ -288,7 +417,10 @@ export function collectDynamicResults(
 	});
 }
 
-export async function validateDynamicCollection(schema: JsonSchemaObject | undefined, value: DynamicCollectedResult[]): Promise<void> {
+export async function validateDynamicCollection(
+	schema: JsonSchemaObject | undefined,
+	value: DynamicCollectedResult[],
+): Promise<void> {
 	if (!schema) return;
 	const validation = await validateStructuredOutputValue(schema, value);
 	if (validation.status === "invalid") {

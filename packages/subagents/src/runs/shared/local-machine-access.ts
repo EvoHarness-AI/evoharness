@@ -3,12 +3,16 @@ import * as path from "node:path";
 import { remoteShellCommand, runBoundedCommand } from "./herdr-connection.ts";
 import type { PlacementCommandResult, PlacementMachineAccess, PlacementSockets } from "./placement-host.ts";
 
-const DEFAULT_TIMEOUT_MS = 15_000, DEFAULT_MAX_BUFFER = 256 * 1024;
+const DEFAULT_TIMEOUT_MS = 15_000,
+	DEFAULT_MAX_BUFFER = 256 * 1024;
 
 /** Sockets on this machine are already reachable: forwarding returns the path unchanged and closing is a no-op. */
 function localSockets(): PlacementSockets {
 	return {
-		async forwardRemoteSocket(socketPath) { if (!path.isAbsolute(socketPath)) throw new Error("Local socket path must be absolute."); return { socketPath, async close() {} }; },
+		async forwardRemoteSocket(socketPath) {
+			if (!path.isAbsolute(socketPath)) throw new Error("Local socket path must be absolute.");
+			return { socketPath, async close() {} };
+		},
 		async close() {},
 	};
 }
@@ -19,8 +23,18 @@ export function localMachineAccess(options: { env?: NodeJS.ProcessEnv } = {}): P
 	return {
 		shellCommand: remoteShellCommand,
 		run(command, limits = {}) {
-			const spawned = spawnSync("/bin/sh", ["-c", command], { encoding: "utf8", env, timeout: limits.timeout ?? DEFAULT_TIMEOUT_MS, maxBuffer: limits.maxBuffer ?? DEFAULT_MAX_BUFFER, windowsHide: true });
-			const result: PlacementCommandResult = { status: spawned.status, stdout: spawned.stdout ?? "", stderr: spawned.stderr ?? "" };
+			const spawned = spawnSync("/bin/sh", ["-c", command], {
+				encoding: "utf8",
+				env,
+				timeout: limits.timeout ?? DEFAULT_TIMEOUT_MS,
+				maxBuffer: limits.maxBuffer ?? DEFAULT_MAX_BUFFER,
+				windowsHide: true,
+			});
+			const result: PlacementCommandResult = {
+				status: spawned.status,
+				stdout: spawned.stdout ?? "",
+				stderr: spawned.stderr ?? "",
+			};
 			if (spawned.error) result.error = spawned.error;
 			return result;
 		},

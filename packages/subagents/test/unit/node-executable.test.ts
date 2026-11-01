@@ -11,7 +11,10 @@ describe("Node executable resolution", () => {
 	});
 
 	it("falls back to PATH node for a standalone Pi executable", () => {
-		assert.equal(resolveNodeExecutable(path.join(os.tmpdir(), process.platform === "win32" ? "pi.exe" : "pi")), process.platform === "win32" ? "node.exe" : "node");
+		assert.equal(
+			resolveNodeExecutable(path.join(os.tmpdir(), process.platform === "win32" ? "pi.exe" : "pi")),
+			process.platform === "win32" ? "node.exe" : "node",
+		);
 	});
 
 	it("falls back to PATH node for a stale Node path", () => {

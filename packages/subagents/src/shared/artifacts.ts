@@ -1,7 +1,8 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { CHAIN_RUNS_DIR, TEMP_ARTIFACTS_DIR, type ArtifactPaths, type ArtifactDirPreference } from "./types.ts";
+import { type ArtifactDirPreference, type ArtifactPaths, CHAIN_RUNS_DIR, TEMP_ARTIFACTS_DIR } from "./types.ts";
 import { getAgentDir } from "./utils.ts";
+
 const CLEANUP_MARKER_FILE = ".last-cleanup";
 export const PROJECT_SUBAGENTS_RELATIVE_DIR = ".pi/subagents";
 
@@ -59,10 +60,12 @@ function normalizePattern(pattern: string): string {
 
 function patternMatchesArtifactPath(pattern: string, artifactPath: string): boolean {
 	const normalized = normalizePattern(pattern);
-	return normalized === PROJECT_SUBAGENTS_RELATIVE_DIR
-		|| normalized === "*"
-		|| artifactPath.startsWith(`${normalized}/`)
-		|| globMatchesPath(normalized, artifactPath);
+	return (
+		normalized === PROJECT_SUBAGENTS_RELATIVE_DIR ||
+		normalized === "*" ||
+		artifactPath.startsWith(`${normalized}/`) ||
+		globMatchesPath(normalized, artifactPath)
+	);
 }
 
 function ignoreFileExcludesProjectArtifacts(filePath: string): boolean {
@@ -138,10 +141,7 @@ export function getProjectChainRunsDir(cwd: string): string {
 	return path.join(getProjectSubagentsDir(cwd), "chain-runs");
 }
 
-export function getChainRunsDir(
-	projectCwd: string,
-	dirPreference: ArtifactDirPreference = "session",
-): string {
+export function getChainRunsDir(projectCwd: string, dirPreference: ArtifactDirPreference = "session"): string {
 	switch (dirPreference) {
 		case "project":
 			return getProjectChainRunsDir(projectCwd);
@@ -149,7 +149,9 @@ export function getChainRunsDir(
 		case "temp":
 			return CHAIN_RUNS_DIR;
 		default:
-			throw new Error(`Unsupported artifactDir ${JSON.stringify(dirPreference)}; expected "project", "session", or "temp".`);
+			throw new Error(
+				`Unsupported artifactDir ${JSON.stringify(dirPreference)}; expected "project", "session", or "temp".`,
+			);
 	}
 }
 
@@ -175,7 +177,9 @@ export function getArtifactsDir(
 			}
 			return TEMP_ARTIFACTS_DIR;
 		default:
-			throw new Error(`Unsupported artifactDir ${JSON.stringify(dirPreference)}; expected "project", "session", or "temp".`);
+			throw new Error(
+				`Unsupported artifactDir ${JSON.stringify(dirPreference)}; expected "project", "session", or "temp".`,
+			);
 	}
 }
 

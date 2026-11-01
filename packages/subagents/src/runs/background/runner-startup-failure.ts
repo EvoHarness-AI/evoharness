@@ -2,7 +2,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { writePrivateAtomicJson } from "../../shared/atomic-json.ts";
 import type { AsyncStatus } from "../../shared/types.ts";
-import { readProcessTerminalCandidate, type ProcessTerminalCandidate } from "./process-terminal-candidate.ts";
+import { type ProcessTerminalCandidate, readProcessTerminalCandidate } from "./process-terminal-candidate.ts";
 
 interface RunnerStartupFailureInput {
 	asyncDir: string;
@@ -24,8 +24,10 @@ export function persistRunnerStartupFailure(input: RunnerStartupFailureInput): v
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
 	}
-	const existingProcessTerminal = status.processTerminal?.state === "observed" || status.processTerminal?.state === "unknown"
-		? status.processTerminal : undefined;
+	const existingProcessTerminal =
+		status.processTerminal?.state === "observed" || status.processTerminal?.state === "unknown"
+			? status.processTerminal
+			: undefined;
 	writePrivateAtomicJson(statusPath, {
 		...status,
 		runId: input.runId,

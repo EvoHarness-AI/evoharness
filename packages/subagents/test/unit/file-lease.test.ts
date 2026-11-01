@@ -10,9 +10,15 @@ it("withFileLease waits a bounded time for a live owner, then updates once it is
 	const file = path.join(fs.realpathSync(dir), "history.json");
 	const release = tryLease(`${file}.write-lock`);
 	assert.ok(release);
-	assert.throws(() => withFileLease(file, () => "never", 30), /Timed out waiting for another process to finish updating/);
+	assert.throws(
+		() => withFileLease(file, () => "never", 30),
+		/Timed out waiting for another process to finish updating/,
+	);
 	release();
-	assert.equal(withFileLease(file, () => "updated", 30), "updated");
+	assert.equal(
+		withFileLease(file, () => "updated", 30),
+		"updated",
+	);
 	assert.equal(fs.existsSync(`${file}.write-lock`), false);
 });
 
@@ -21,7 +27,13 @@ it("withFileLease with no wait makes one attempt and reports a busy lease as Fil
 	const file = path.join(fs.realpathSync(dir), "history.json");
 	const release = tryLease(`${file}.write-lock`);
 	assert.ok(release);
-	assert.throws(() => withFileLease(file, () => "never", 0), (error) => error instanceof FileLeaseBusyError && /Timed out waiting/.test(error.message));
+	assert.throws(
+		() => withFileLease(file, () => "never", 0),
+		(error) => error instanceof FileLeaseBusyError && /Timed out waiting/.test(error.message),
+	);
 	release();
-	assert.equal(withFileLease(file, () => "updated", 0), "updated");
+	assert.equal(
+		withFileLease(file, () => "updated", 0),
+		"updated",
+	);
 });

@@ -11,6 +11,7 @@ import {
 	discoverAvailableSkills,
 	resolveSkills,
 } from "../../src/agents/skills.ts";
+
 let tempDir = "";
 
 function writeSkill(
@@ -21,7 +22,8 @@ function writeSkill(
 	fs.mkdirSync(skillDir, { recursive: true });
 	const lines = ["---"];
 	lines.push(`description: ${options.description ?? "Test description"}`);
-	if (options.disableModelInvocation !== undefined) lines.push(`disable-model-invocation: ${options.disableModelInvocation}`);
+	if (options.disableModelInvocation !== undefined)
+		lines.push(`disable-model-invocation: ${options.disableModelInvocation}`);
 	lines.push("---", "", body, "");
 	fs.writeFileSync(path.join(skillDir, "SKILL.md"), lines.join("\n"), "utf-8");
 }
@@ -80,7 +82,10 @@ describe("disable-model-invocation filtering", () => {
 		const allNames = discoverAvailableSkills(tempDir).map((skill) => skill.name);
 		assert.ok(allNames.includes("hidden-skill"), "expected hidden-skill to be resolvable");
 		const { resolved } = resolveSkills(allNames, tempDir);
-		assert.equal(resolved.some((skill) => skill.name === "hidden-skill"), true);
+		assert.equal(
+			resolved.some((skill) => skill.name === "hidden-skill"),
+			true,
+		);
 
 		const injection = buildSkillInjection(resolved);
 		assert.match(injection, /<name>visible-skill<\/name>/);

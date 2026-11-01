@@ -1,20 +1,20 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { discoverAgentsAll, type AgentSource } from "../agents/agents.ts";
+import { type AgentSource, discoverAgentsAll } from "../agents/agents.ts";
+import { discoverAvailableSkills, type SkillSource } from "../agents/skills.ts";
+import { diagnoseIntercomBridge, type IntercomBridgeDiagnostic } from "../intercom/intercom-bridge.ts";
 import { isAsyncAvailable } from "../runs/background/async-execution.ts";
 import { formatSpawnBudgetSummary } from "../runs/shared/spawn-budget.ts";
-import { diagnoseIntercomBridge, type IntercomBridgeDiagnostic } from "../intercom/intercom-bridge.ts";
-import { discoverAvailableSkills, type SkillSource } from "../agents/skills.ts";
 import {
-	DIRS,
-	CHAIN_RUNS_DIR,
-	TEMP_ROOT_DIR,
 	type ActiveAsyncCapacitySnapshot,
+	CHAIN_RUNS_DIR,
+	DIRS,
 	type ExtensionConfig,
-	type SpawnBudgetSnapshot,
-	type SubagentState,
 	normalizeMaxSubagentSpawnsPerRun,
 	resolveMaxSubagentSpawnsPerRun,
+	type SpawnBudgetSnapshot,
+	type SubagentState,
+	TEMP_ROOT_DIR,
 } from "../shared/types.ts";
 
 interface DoctorPaths {
@@ -106,9 +106,7 @@ function formatSkillSourceCounts(skills: Array<{ source: SkillSource }>): string
 		"builtin",
 		"unknown",
 	];
-	const parts = ordered
-		.map((source) => `${source} ${counts.get(source) ?? 0}`)
-		.filter((part) => !part.endsWith(" 0"));
+	const parts = ordered.map((source) => `${source} ${counts.get(source) ?? 0}`).filter((part) => !part.endsWith(" 0"));
 	return parts.length > 0 ? parts.join(", ") : "none";
 }
 
@@ -148,7 +146,10 @@ function formatDiscovery(input: DoctorReportInput, deps: DoctorDeps): string[] {
 			const diagnostics = discovered.agentDiagnostics ?? [];
 			return [
 				`- agents: total ${agentCounts.builtin + agentCounts.package + agentCounts.user + agentCounts.project} (${formatSourceCounts(agentCounts)})`,
-				...diagnostics.map((diagnostic) => `- invalid agent ${diagnostic.name ?? diagnostic.filePath} (${diagnostic.source}): ${diagnostic.error}`),
+				...diagnostics.map(
+					(diagnostic) =>
+						`- invalid agent ${diagnostic.name ?? diagnostic.filePath} (${diagnostic.source}): ${diagnostic.error}`,
+				),
 			].join("\n");
 		}),
 		lineFromCheck("skills", () => {
@@ -158,7 +159,10 @@ function formatDiscovery(input: DoctorReportInput, deps: DoctorDeps): string[] {
 	];
 }
 
-function formatIntercomDiagnostic(diagnostic: IntercomBridgeDiagnostic, context: "fresh" | "fork" | undefined): string[] {
+function formatIntercomDiagnostic(
+	diagnostic: IntercomBridgeDiagnostic,
+	context: "fresh" | "fork" | undefined,
+): string[] {
 	const lines = [
 		`- bridge: ${diagnostic.active ? "active" : "inactive"}${diagnostic.reason ? ` (${diagnostic.reason})` : ""}`,
 		`- mode: ${diagnostic.mode}; context: ${context ?? "unspecified"}`,
@@ -172,19 +176,33 @@ function formatSpawnBudgetSection(input: DoctorReportInput): string[] {
 	const snapshot = input.spawnBudget;
 	return [
 		`- usage: ${formatSpawnBudgetSummary(snapshot)}`,
-		`- recent grants: ${snapshot.grantHistory.length === 0
-			? "none"
-			: snapshot.grantHistory.map((grant) => `+${grant.amount} at ${new Date(grant.grantedAt).toISOString()} (${grant.previousLimit} → ${grant.limit})`).join("; ")}`,
+		`- recent grants: ${
+			snapshot.grantHistory.length === 0
+				? "none"
+				: snapshot.grantHistory
+						.map(
+							(grant) =>
+								`+${grant.amount} at ${new Date(grant.grantedAt).toISOString()} (${grant.previousLimit} → ${grant.limit})`,
+						)
+						.join("; ")
+		}`,
 		"- reset boundary: a new parent session resets usage and grants; compaction does not",
 	];
 }
 
 function formatRunFanoutSection(input: DoctorReportInput): string[] {
 	const configured = resolveMaxSubagentSpawnsPerRun(input.config.maxSubagentSpawnsPerRun);
-	const source = normalizeMaxSubagentSpawnsPerRun(process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN) !== undefined
-		? "environment"
-		: normalizeMaxSubagentSpawnsPerRun(input.config.maxSubagentSpawnsPerRun) !== undefined ? "config" : "default";
-	return [`- configured limit: ${configured} (${source})`, "- usage: available after a run starts", "- reset boundary: cumulative claims are never released; a new top-level run creates a new budget"];
+	const source =
+		normalizeMaxSubagentSpawnsPerRun(process.env.PI_SUBAGENT_MAX_SPAWNS_PER_RUN) !== undefined
+			? "environment"
+			: normalizeMaxSubagentSpawnsPerRun(input.config.maxSubagentSpawnsPerRun) !== undefined
+				? "config"
+				: "default";
+	return [
+		`- configured limit: ${configured} (${source})`,
+		"- usage: available after a run starts",
+		"- reset boundary: cumulative claims are never released; a new top-level run creates a new budget",
+	];
 }
 
 function formatActiveAsyncCapacitySection(input: DoctorReportInput): string[] {
@@ -206,11 +224,16 @@ function formatPermissionSystemSection(): string[] {
 	} else if (isChild) {
 		lines.push("- runner parent session: not set — this child process has no forwarding target");
 	} else if (trimmed) {
-		lines.push("- root parent session: ignored legacy process-global value — root sessions do not use it for routing");
+		lines.push(
+			"- root parent session: ignored legacy process-global value — root sessions do not use it for routing",
+		);
 	} else {
 		lines.push("- root parent session: not set (healthy) — detached forwarding is attached at runner launch");
 	}
-	if (!isChild) lines.push("- foreground external ask forwarding: unavailable until the permission extension supports a session-scoped target");
+	if (!isChild)
+		lines.push(
+			"- foreground external ask forwarding: unavailable until the permission extension supports a session-scoped target",
+		);
 	lines.push(`- subagent process: ${isChild ? "yes (PI_SUBAGENT_CHILD=1)" : "no"}`);
 	// Whether pi-permission-system is installed and where it stores config is
 	// outside pi-subagents' control, so we only report the forwarding signal we
@@ -220,7 +243,7 @@ function formatPermissionSystemSection(): string[] {
 
 function formatWorkflowScriptSection(): string[] {
 	return [
-		"- launch: write a ```js workflow block in the reply, then call subagent({ workflow: true }); or pass a file as workflow: \"./path.js\"",
+		'- launch: write a ```js workflow block in the reply, then call subagent({ workflow: true }); or pass a file as workflow: "./path.js"',
 		"- helpers: runs.run, runs.all, runs.steer, runs.status, runs.ref/refs, emit, console",
 		"- recovery: if runs.all is missing, reload or update pi-subagents; await Promise.all([runs.run(...)]) is also supported",
 	];
@@ -262,12 +285,17 @@ export function buildDoctorReport(input: DoctorReportInput): string {
 		...formatPermissionSystemSection(),
 		"",
 		"Intercom bridge",
-		...lineFromCheck("intercom bridge", () => formatIntercomDiagnostic(deps.diagnoseIntercomBridge({
-			config: input.config.intercomBridge,
-			context: input.context,
-			orchestratorTarget: input.orchestratorTarget,
-			cwd: input.cwd,
-		}), input.context).join("\n")).split("\n"),
+		...lineFromCheck("intercom bridge", () =>
+			formatIntercomDiagnostic(
+				deps.diagnoseIntercomBridge({
+					config: input.config.intercomBridge,
+					context: input.context,
+					orchestratorTarget: input.orchestratorTarget,
+					cwd: input.cwd,
+				}),
+				input.context,
+			).join("\n"),
+		).split("\n"),
 	];
 	return lines.join("\n");
 }

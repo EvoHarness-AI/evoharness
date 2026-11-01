@@ -17,20 +17,26 @@ describe("native child permissions", () => {
 	});
 
 	it("merges explicit global and agent rules while removing explicit allow rules", () => {
-		assert.deepEqual(resolvePermissionRules(
-			{ rules: { write: "ask", edit: "deny" } },
-			{ write: "allow", read: "deny" },
-		), { edit: "deny", read: "deny" });
+		assert.deepEqual(
+			resolvePermissionRules({ rules: { write: "ask", edit: "deny" } }, { write: "allow", read: "deny" }),
+			{ edit: "deny", read: "deny" },
+		);
 	});
 
 	it("rejects bash and coordination-tool rules", () => {
 		assert.throws(() => validatePermissionRules({ bash: "ask" }, "permissions"), /pi-guard/);
-		assert.throws(() => validatePermissionRules({ contact_supervisor: "deny" }, "permissions"), /reserved for child coordination/);
+		assert.throws(
+			() => validatePermissionRules({ contact_supervisor: "deny" }, "permissions"),
+			/reserved for child coordination/,
+		);
 		assert.throws(() => validatePermissionConfig({ rules: { write: "sometimes" } }), /allow, ask, or deny/);
 	});
 
 	it("redacts bounded argument previews", () => {
-		const preview = permissionArgsPreview({ token: "secret-value", content: `Bearer abcdefghijklmnop ${"x".repeat(3000)}` });
+		const preview = permissionArgsPreview({
+			token: "secret-value",
+			content: `Bearer abcdefghijklmnop ${"x".repeat(3000)}`,
+		});
 		assert.doesNotMatch(preview, /secret-value|abcdefghijklmnop/);
 		assert.ok(Buffer.byteLength(preview) <= 2048);
 

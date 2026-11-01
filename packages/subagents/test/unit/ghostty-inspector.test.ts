@@ -17,7 +17,14 @@ function ctx(env: NodeJS.ProcessEnv = {}): InspectorContext {
 }
 
 function launch(): InspectorLaunch {
-	return { executable: "node", argv: ["x"], displayCommand: "node x", allowSteer: true, allowStop: true, sessionRoots: [] };
+	return {
+		executable: "node",
+		argv: ["x"],
+		displayCommand: "node x",
+		allowSteer: true,
+		allowStop: true,
+		sessionRoots: [],
+	};
 }
 
 function runnerReturning(stdout: string): GhosttyRunner {
@@ -57,16 +64,21 @@ describe("Ghostty inspector availability", () => {
 
 	it("takes over when __CFBundleIdentifier is the Ghostty bundle", async () => {
 		const plugin = createGhosttyInspectorPlugin({ platform: "darwin", runner: runnerReturning("1.3.2") });
-		assert.equal(await plugin.available(ctx({ TERM_PROGRAM: "ghostty", __CFBundleIdentifier: "com.mitchellh.ghostty" })), true);
+		assert.equal(
+			await plugin.available(ctx({ TERM_PROGRAM: "ghostty", __CFBundleIdentifier: "com.mitchellh.ghostty" })),
+			true,
+		);
 	});
 
 	it("does not take over when __CFBundleIdentifier is a different host (cmux), even with a reachable Ghostty app", async () => {
 		// cmux 内嵌 Ghostty 内核但宿主 bundle 是 com.cmuxterm.app; 即便系统也装了独立 Ghostty,
 		// 也不应接管, 否则 AppleScript 会操作独立 Ghostty 的窗口而非当前 cmux 会话。
 		const plugin = createGhosttyInspectorPlugin({ platform: "darwin", runner: runnerReturning("1.3.2") });
-		assert.equal(await plugin.available(ctx({ TERM_PROGRAM: "ghostty", __CFBundleIdentifier: "com.cmuxterm.app" })), false);
+		assert.equal(
+			await plugin.available(ctx({ TERM_PROGRAM: "ghostty", __CFBundleIdentifier: "com.cmuxterm.app" })),
+			false,
+		);
 	});
-
 });
 
 describe("Ghostty inspector open", () => {
@@ -84,7 +96,10 @@ describe("Ghostty inspector open", () => {
 	});
 
 	it("reports an error when osascript fails", async () => {
-		const plugin = createGhosttyInspectorPlugin({ platform: "darwin", runner: failingRunner(new Error("execution error: -2741")) });
+		const plugin = createGhosttyInspectorPlugin({
+			platform: "darwin",
+			runner: failingRunner(new Error("execution error: -2741")),
+		});
 		const res = await plugin.open(ctx({ TERM_PROGRAM: "ghostty" }), launch(), {} as InspectorParams);
 		assert.equal(res.isError, true);
 		assert.match(res.content[0]?.text ?? "", /-2741/);

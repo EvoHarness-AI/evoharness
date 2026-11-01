@@ -1,31 +1,39 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import fsDefault, * as fs from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
-import { randomUUID } from "node:crypto";
-import { execFileSync } from "node:child_process";
 import { afterEach, describe, it, type TestContext } from "node:test";
 import {
-	NATIVE_SUPERVISOR_TOOL_NAME,
 	createNativeSupervisorChannel,
 	ensureSupervisorChannelDir,
+	NATIVE_SUPERVISOR_TOOL_NAME,
 	registerNativeSupervisorClient,
 	resolveSupervisorChannelDir,
 } from "../../src/intercom/native-supervisor-channel.ts";
-import { steerWorkflowForegroundTarget } from "../../src/runs/foreground/workflow-foreground-steering.ts";
+import { runSync } from "../../src/runs/foreground/execution.ts";
 import { createSubagentExecutor } from "../../src/runs/foreground/subagent-executor.ts";
+import { steerWorkflowForegroundTarget } from "../../src/runs/foreground/workflow-foreground-steering.ts";
+import { buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
+import {
+	type ChildSessionEvent,
+	type ChildSessionFactory,
+	type ChildSessionLaunch,
+	setChildSessionFactory,
+} from "../../src/runs/shared/child-session.ts";
 import type { ForegroundRunControl, ForegroundSteerInput, SubagentState } from "../../src/shared/types.ts";
 import { DIRS, SUBAGENT_ASYNC_STARTED_EVENT } from "../../src/shared/types.ts";
-import { runSync } from "../../src/runs/foreground/execution.ts";
-import { setChildSessionFactory, type ChildSessionFactory, type ChildSessionLaunch, type ChildSessionEvent } from "../../src/runs/shared/child-session.ts";
 import { createEventBus, makeAgent } from "../support/helpers.ts";
-import { buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
 
 const createdChannels: string[] = [];
 
 interface SupervisorTool {
-	execute: (id: string, params: { action: string; replyTo?: string; to?: string; message?: string }) => Promise<{ content: Array<{ type: string; text?: string }>; isError?: boolean }>;
+	execute: (
+		id: string,
+		params: { action: string; replyTo?: string; to?: string; message?: string },
+	) => Promise<{ content: Array<{ type: string; text?: string }>; isError?: boolean }>;
 }
 
 function makeState(sessionId: string | null, ctx: unknown): SubagentState {
@@ -46,10 +54,21 @@ function makeState(sessionId: string | null, ctx: unknown): SubagentState {
 	};
 }
 
-function makeCtx(sessionId: string, sessionFile: string | null = null): { cwd: string; isIdle: () => boolean; hasUI: boolean; sessionManager: { getSessionId: () => string; getSessionFile: () => string | null; getEntries: () => [] } } {
+function makeCtx(
+	sessionId: string,
+	sessionFile: string | null = null,
+): {
+	cwd: string;
+	isIdle: () => boolean;
+	hasUI: boolean;
+	sessionManager: { getSessionId: () => string; getSessionFile: () => string | null; getEntries: () => [] };
+} {
 	return {
 		cwd: process.cwd(),
-		isIdle() { return false; }, hasUI: false,
+		isIdle() {
+			return false;
+		},
+		hasUI: false,
 		sessionManager: {
 			getSessionId: () => sessionId,
 			getSessionFile: () => sessionFile,
@@ -63,7 +82,15 @@ function makeCtx(sessionId: string, sessionFile: string | null = null): { cwd: s
  * going through a live poller. This is the state the wave-11 incident was in: the request file was
  * on disk and no scan had happened yet.
  */
-function writeRequest(input: { sessionId: string; runId: string; agent?: string; index?: number; message?: string; reason?: "need_decision" | "progress_update"; expiresAt?: number }): string {
+function writeRequest(input: {
+	sessionId: string;
+	runId: string;
+	agent?: string;
+	index?: number;
+	message?: string;
+	reason?: "need_decision" | "progress_update";
+	expiresAt?: number;
+}): string {
 	const agent = input.agent ?? "worker";
 	const index = input.index ?? 0;
 	const channelDir = resolveSupervisorChannelDir(input.runId, agent, index);
@@ -71,34 +98,48 @@ function writeRequest(input: { sessionId: string; runId: string; agent?: string;
 	ensureSupervisorChannelDir(channelDir);
 	const requestId = randomUUID();
 	const reason = input.reason ?? "need_decision";
-	fs.writeFileSync(path.join(channelDir, "requests", `${requestId}.json`), JSON.stringify({
-		type: "subagent.supervisor.request",
-		id: requestId,
-		createdAt: Date.now(),
-		...(input.expiresAt !== undefined ? { expiresAt: input.expiresAt } : {}),
-		reason,
-		message: input.message ?? "Need a decision",
-		expectsReply: reason !== "progress_update",
-		orchestratorSessionId: input.sessionId,
-		orchestratorTarget: "shared-name",
-		runId: input.runId,
-		agent,
-		childIndex: index,
-	}, null, "\t"));
+	fs.writeFileSync(
+		path.join(channelDir, "requests", `${requestId}.json`),
+		JSON.stringify(
+			{
+				type: "subagent.supervisor.request",
+				id: requestId,
+				createdAt: Date.now(),
+				...(input.expiresAt !== undefined ? { expiresAt: input.expiresAt } : {}),
+				reason,
+				message: input.message ?? "Need a decision",
+				expectsReply: reason !== "progress_update",
+				orchestratorSessionId: input.sessionId,
+				orchestratorTarget: "shared-name",
+				runId: input.runId,
+				agent,
+				childIndex: index,
+			},
+			null,
+			"\t",
+		),
+	);
 	return requestId;
 }
 
-function makePi(options: { tools: Map<string, SupervisorTool>; onSend?: (message: { content: string }) => void }): Record<string, unknown> {
+function makePi(options: {
+	tools: Map<string, SupervisorTool>;
+	onSend?: (message: { content: string }) => void;
+}): Record<string, unknown> {
 	return {
 		getAllTools: () => [...options.tools.keys()].map((name) => ({ name })),
-		registerTool: (tool: { name: string } & SupervisorTool) => { options.tools.set(tool.name, tool); },
-		sendMessage: (message: { content: string }) => { options.onSend?.(message); },
+		registerTool: (tool: { name: string } & SupervisorTool) => {
+			options.tools.set(tool.name, tool);
+		},
+		sendMessage: (message: { content: string }) => {
+			options.onSend?.(message);
+		},
 		getSessionName: () => "shared-name",
 	};
 }
 
 function text(result: { content: Array<{ type: string; text?: string }> }): string {
-	return result.content[0]?.type === "text" ? result.content[0].text ?? "" : "";
+	return result.content[0]?.type === "text" ? (result.content[0].text ?? "") : "";
 }
 
 afterEach(() => {
@@ -108,10 +149,24 @@ afterEach(() => {
 
 /** Deterministic session/model seam: real launch hooks and tools, with the host's tool allowlist. */
 function hookRuntime(launch: ChildSessionLaunch, platform: NodeJS.Platform, signal: AbortSignal) {
-	type Tool = { execute(id: string, params: Record<string, unknown>, signal: AbortSignal, update: undefined, ctx: unknown): Promise<{
-		content: Array<{ type: string; text?: string }>; isError?: boolean;
-		details: { asyncDir: string; pending: Array<{ id: string; agent: string }>; requestId?: string; replyTo?: string };
-	}> };
+	type Tool = {
+		execute(
+			id: string,
+			params: Record<string, unknown>,
+			signal: AbortSignal,
+			update: undefined,
+			ctx: unknown,
+		): Promise<{
+			content: Array<{ type: string; text?: string }>;
+			isError?: boolean;
+			details: {
+				asyncDir: string;
+				pending: Array<{ id: string; agent: string }>;
+				requestId?: string;
+				replyTo?: string;
+			};
+		}>;
+	};
 	const owner = randomUUID();
 	const sessionFile = path.join(launch.cwd, `${owner}.jsonl`);
 	const ctx = { ...makeCtx(owner, sessionFile), cwd: launch.cwd, ui: {}, modelRegistry: { getAvailable: () => [] } };
@@ -119,30 +174,61 @@ function hookRuntime(launch: ChildSessionLaunch, platform: NodeJS.Platform, sign
 	const handlers = new Map<string, Array<(event: unknown, ctx: unknown) => unknown>>();
 	const subscribers = new Set<(event: ChildSessionEvent) => void>();
 	const notices: Array<{ customType?: string; details?: { requestId?: string } }> = [];
-	const active = () => [...registered.keys()].filter(name => (!launch.tools || launch.tools.includes(name)) && !launch.excludeTools?.includes(name));
+	const active = () =>
+		[...registered.keys()].filter(
+			(name) => (!launch.tools || launch.tools.includes(name)) && !launch.excludeTools?.includes(name),
+		);
 	let closed = false;
 	const pi = {
 		events: createEventBus(),
-		on(name: string, handler: (event: unknown, ctx: unknown) => unknown) { handlers.set(name, [...(handlers.get(name) ?? []), handler]); },
-		registerTool(tool: Tool & { name: string }) { registered.set(tool.name, tool); },
-		getAllTools: () => active().map(name => ({ name, sourceInfo: { source: name === "read" ? "builtin" : "extension" } })),
+		on(name: string, handler: (event: unknown, ctx: unknown) => unknown) {
+			handlers.set(name, [...(handlers.get(name) ?? []), handler]);
+		},
+		registerTool(tool: Tool & { name: string }) {
+			registered.set(tool.name, tool);
+		},
+		getAllTools: () =>
+			active().map((name) => ({ name, sourceInfo: { source: name === "read" ? "builtin" : "extension" } })),
 		getSessionName: () => "shared-name",
 		setSessionName() {},
-		sendMessage(message: typeof notices[number]) { if (message.customType === "subagent_supervisor_request") notices.push(message); },
+		sendMessage(message: (typeof notices)[number]) {
+			if (message.customType === "subagent_supervisor_request") notices.push(message);
+		},
 	};
-	registered.set("read", { execute: async () => { throw new Error("fixture has no model-authored read calls"); } });
+	registered.set("read", {
+		execute: async () => {
+			throw new Error("fixture has no model-authored read calls");
+		},
+	});
 	// Capture each native channel's platform without changing unrelated executor filesystem behavior.
 	const descriptor = Object.getOwnPropertyDescriptor(process, "platform")!;
 	try {
 		Object.defineProperty(process, "platform", { ...descriptor, value: platform });
 		for (const hook of launch.hooks) hook.factory(pi as never);
-	} finally { Object.defineProperty(process, "platform", descriptor); }
+	} finally {
+		Object.defineProperty(process, "platform", descriptor);
+	}
 	return {
-		owner, sessionFile, registered, active, notices, events: pi.events,
-		get closed() { return closed; },
-		subscribe(listener: (event: ChildSessionEvent) => void) { subscribers.add(listener); return () => { subscribers.delete(listener); }; },
+		owner,
+		sessionFile,
+		registered,
+		active,
+		notices,
+		events: pi.events,
+		get closed() {
+			return closed;
+		},
+		subscribe(listener: (event: ChildSessionEvent) => void) {
+			subscribers.add(listener);
+			return () => {
+				subscribers.delete(listener);
+			};
+		},
 		async emit(type: string, fields = {}) {
-			if (type === "session_shutdown") { if (closed) return; closed = true; }
+			if (type === "session_shutdown") {
+				if (closed) return;
+				closed = true;
+			}
 			const event = { type, ...fields };
 			for (const handler of handlers.get(type) ?? []) await handler(event, ctx);
 			for (const listener of subscribers) listener(event);
@@ -184,13 +270,22 @@ function captureSupervisorPolling(t: TestContext, allowedDirs: Set<string>) {
 	}) as typeof fsDefault.watch);
 	syncBuiltinESMExports();
 	return {
-		intervals, scans, get starts() { return starts; },
-		tick() { for (const handler of [...intervals.values()]) handler(); },
+		intervals,
+		scans,
+		get starts() {
+			return starts;
+		},
+		tick() {
+			for (const handler of [...intervals.values()]) handler();
+		},
 		assertScoped() {
 			assert.deepEqual(watches, [], "coordinator must not watch supervisor channels");
 			for (const dir of scans) assert.ok(allowedDirs.has(dir), `Unexpected supervisor scan: ${dir}`);
 		},
-		restore() { t.mock.restoreAll(); syncBuiltinESMExports(); },
+		restore() {
+			t.mock.restoreAll();
+			syncBuiltinESMExports();
+		},
 	};
 }
 
@@ -201,11 +296,20 @@ describe("supervisor ask registration", () => {
 			const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 			process.env.EVOHARNESS_CODING_AGENT_DIR = root;
 			fs.mkdirSync(path.join(root, "agents"), { recursive: true });
-			fs.writeFileSync(path.join(root, "agents", "leaf.md"), "---\nname: leaf\ndescription: Read-only leaf\ntools: read, contact_supervisor\nmodel: mock/test-model\n---\nInspect only.\n");
+			fs.writeFileSync(
+				path.join(root, "agents", "leaf.md"),
+				"---\nname: leaf\ndescription: Read-only leaf\ntools: read, contact_supervisor\nmodel: mock/test-model\n---\nInspect only.\n",
+			);
 			const launch = buildInProcessChildLaunch({
-				host: "parent", cwd: root, childAgentName: "coordinator", childIndex: 0,
-				sessionEnabled: false, tools: ["subagent", "subagent_supervisor"],
-				inheritProjectContext: false, inheritGlobalContext: false, inheritSkills: false,
+				host: "parent",
+				cwd: root,
+				childAgentName: "coordinator",
+				childIndex: 0,
+				sessionEnabled: false,
+				tools: ["subagent", "subagent_supervisor"],
+				inheritProjectContext: false,
+				inheritGlobalContext: false,
+				inheritSkills: false,
 			});
 			const abort = new AbortController();
 			const runtime = hookRuntime(launch.session, platform, abort.signal);
@@ -222,13 +326,32 @@ describe("supervisor ask registration", () => {
 					assert.equal(childLaunch.runtime.orchestratorSessionId, runtime.owner);
 					await leaf.emit("session_start");
 					return {
-						sessionId: leaf.owner, sessionFile: leaf.sessionFile, modelId: "mock/test-model", messages: [],
-						subscribe: leaf.subscribe, steer: async () => {}, followUp: async () => {},
-						abort: async () => { abort.abort(); }, dispose: () => leaf.emit("session_shutdown"),
+						sessionId: leaf.owner,
+						sessionFile: leaf.sessionFile,
+						modelId: "mock/test-model",
+						messages: [],
+						subscribe: leaf.subscribe,
+						steer: async () => {},
+						followUp: async () => {},
+						abort: async () => {
+							abort.abort();
+						},
+						dispose: () => leaf.emit("session_shutdown"),
 						async prompt() {
 							await leaf.emit("agent_start");
-							await leaf.call("contact_supervisor", { reason: "progress_update", message: "Inspection complete." });
-							await leaf.emit("message_end", { message: { role: "assistant", content: [{ type: "text", text: "Inspection complete." }], model: "mock/test-model", stopReason: "stop", usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } } } });
+							await leaf.call("contact_supervisor", {
+								reason: "progress_update",
+								message: "Inspection complete.",
+							});
+							await leaf.emit("message_end", {
+								message: {
+									role: "assistant",
+									content: [{ type: "text", text: "Inspection complete." }],
+									model: "mock/test-model",
+									stopReason: "stop",
+									usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } },
+								},
+							});
 							await leaf.emit("agent_end");
 							await leaf.emit("agent_settled");
 						},
@@ -237,24 +360,36 @@ describe("supervisor ask registration", () => {
 				async dispose() {},
 			});
 			try {
-				for (let i = 0; i < 100; i++) writeRequest({ sessionId: runtime.owner, runId: randomUUID(), reason: "progress_update" });
+				for (let i = 0; i < 100; i++)
+					writeRequest({ sessionId: runtime.owner, runId: randomUUID(), reason: "progress_update" });
 				await runtime.emit("session_start");
 				assert.equal(polling.intervals.size, 0);
 				assert.equal(polling.scans.length, 0);
 				const workflowPath = path.join(root, "inspect.js");
-				fs.writeFileSync(workflowPath, "return runs.run('inspect', { agent: 'leaf', task: 'Inspect read-only and report progress.', async: false, output: false });");
+				fs.writeFileSync(
+					workflowPath,
+					"return runs.run('inspect', { agent: 'leaf', task: 'Inspect read-only and report progress.', async: false, output: false });",
+				);
 				for (const mode of ["foreground", "workflow"] as const) {
-					const params = mode === "foreground"
-						? { agent: "leaf", task: "Inspect read-only and report progress.", async: false, output: false }
-						: { workflow: workflowPath, async: false };
+					const params =
+						mode === "foreground"
+							? { agent: "leaf", task: "Inspect read-only and report progress.", async: false, output: false }
+							: { workflow: workflowPath, async: false };
 					const result = await runtime.call("subagent", params);
 					assert.notEqual(result.isError, true, text(result));
 					assert.equal(leaves.at(-1)!.closed, true, "child starts and completes without a timer tick");
 					assert.equal(polling.intervals.size, 1, "final mailbox drain remains scheduled");
 					const scansBeforeDrain = polling.scans.length;
 					polling.tick();
-					assert.equal(polling.scans.length, scansBeforeDrain + 1, "terminal child gets exactly one final mailbox scan");
-					assert.deepEqual(runtime.notices.map(notice => notice.details?.requestId), []);
+					assert.equal(
+						polling.scans.length,
+						scansBeforeDrain + 1,
+						"terminal child gets exactly one final mailbox scan",
+					);
+					assert.deepEqual(
+						runtime.notices.map((notice) => notice.details?.requestId),
+						[],
+					);
 					polling.assertScoped();
 					assert.equal(polling.intervals.size, 0, "last drain retires the poller");
 					const scans = polling.scans.length;
@@ -279,9 +414,15 @@ describe("supervisor ask registration", () => {
 		it(`drains direct-async progress completed between ticks and retires only owned mailboxes (${platform})`, async (t) => {
 			const root = fs.mkdtempSync(path.join(os.tmpdir(), "nested-async-final-progress-"));
 			const launch = buildInProcessChildLaunch({
-				host: "parent", cwd: root, childAgentName: "coordinator", childIndex: 0,
-				sessionEnabled: false, tools: ["subagent", "subagent_supervisor"],
-				inheritProjectContext: false, inheritGlobalContext: false, inheritSkills: false,
+				host: "parent",
+				cwd: root,
+				childAgentName: "coordinator",
+				childIndex: 0,
+				sessionEnabled: false,
+				tools: ["subagent", "subagent_supervisor"],
+				inheritProjectContext: false,
+				inheritGlobalContext: false,
+				inheritSkills: false,
 			});
 			const runtime = hookRuntime(launch.session, platform, new AbortController().signal);
 			const allowed = new Set<string>();
@@ -295,12 +436,32 @@ describe("supervisor ask registration", () => {
 					allowed.add(path.join(dir, "requests"));
 					const unrelatedRun = randomUUID();
 					writeRequest({ sessionId: runtime.owner, runId: unrelatedRun, reason: "progress_update" });
-					runtime.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, { id: unrelatedRun, asyncDir: root, agent: "worker", sessionId: "foreign-session" });
+					runtime.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, {
+						id: unrelatedRun,
+						asyncDir: root,
+						agent: "worker",
+						sessionId: "foreign-session",
+					});
 					fs.writeFileSync(path.join(root, "status.json"), JSON.stringify({ runId, state: "running" }));
-					runtime.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, { id: runId, asyncDir: root, agent: "leaf", sessionId: runtime.sessionFile });
+					runtime.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, {
+						id: runId,
+						asyncDir: root,
+						agent: "leaf",
+						sessionId: runtime.sessionFile,
+					});
 					assert.equal(polling.intervals.size, 1);
-					const progress = writeRequest({ sessionId: runtime.owner, runId, agent: "leaf", reason: "progress_update" });
-					const foreign = writeRequest({ sessionId: "foreign-owner", runId, agent: "leaf", reason: "progress_update" });
+					const progress = writeRequest({
+						sessionId: runtime.owner,
+						runId,
+						agent: "leaf",
+						reason: "progress_update",
+					});
+					const foreign = writeRequest({
+						sessionId: "foreign-owner",
+						runId,
+						agent: "leaf",
+						reason: "progress_update",
+					});
 					fs.writeFileSync(path.join(root, "status.json"), JSON.stringify({ runId, state: "complete" }));
 					const scans = polling.scans.length;
 					polling.tick();
@@ -309,7 +470,11 @@ describe("supervisor ask registration", () => {
 					assert.equal(runtime.notices.length, 0);
 					assert.equal(polling.scans.length, scans + 1, "terminal mailbox gets exactly one final scan");
 					assert.equal(fs.existsSync(path.join(dir, "requests", `${progress}.json`)), false);
-					assert.equal(fs.existsSync(path.join(dir, "requests", `${foreign}.json`)), true, "foreign requests are never accepted or deleted");
+					assert.equal(
+						fs.existsSync(path.join(dir, "requests", `${foreign}.json`)),
+						true,
+						"foreign requests are never accepted or deleted",
+					);
 					assert.equal(polling.intervals.size, 0);
 					await runtime.call(NATIVE_SUPERVISOR_TOOL_NAME, { action: "pending" });
 					polling.tick();
@@ -320,7 +485,12 @@ describe("supervisor ask registration", () => {
 				const live = randomUUID();
 				allowed.add(path.join(resolveSupervisorChannelDir(live, "leaf", 0), "requests"));
 				fs.writeFileSync(path.join(root, "status.json"), JSON.stringify({ runId: live, state: "running" }));
-				runtime.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, { id: live, asyncDir: root, agent: "leaf", sessionId: runtime.sessionFile });
+				runtime.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, {
+					id: live,
+					asyncDir: root,
+					agent: "leaf",
+					sessionId: runtime.sessionFile,
+				});
 				assert.equal(polling.intervals.size, 1);
 				await runtime.emit("session_shutdown");
 				assert.equal(polling.intervals.size, 0, "shutdown closes live polling too");
@@ -333,139 +503,247 @@ describe("supervisor ask registration", () => {
 	}
 
 	for (const platform of ["darwin", "win32"] as const) {
-		it(`answers nested A → B → C asks through the child hooks and executor (${platform})`, { timeout: 15_000 }, async () => {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), "nested-supervisor-"));
-			const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
-			process.env.EVOHARNESS_CODING_AGENT_DIR = root;
-			const agentsDir = path.join(root, "agents");
-			fs.mkdirSync(agentsDir, { recursive: true });
-			fs.writeFileSync(path.join(agentsDir, "leaf.md"), "---\nname: leaf\ndescription: Read-only leaf\ntools: read, contact_supervisor\nmodel: mock/test-model\n---\nInspect only.\n");
-			const a = randomUUID();
-			const parentTools = new Map<string, SupervisorTool>();
-			const parent = createNativeSupervisorChannel(makePi({ tools: parentTools }) as never, makeState(a, makeCtx(a)), { platform });
-			const runtimes: ReturnType<typeof hookRuntime>[] = [];
-			const workflows: string[] = [];
-			let cRequest: string | undefined;
-			let cReturned = false;
-			let bReturned = false;
-			let bDrainReturnedBeforeReply = false;
-			const abort = new AbortController();
-			const factory: ChildSessionFactory = {
-				async create(launch) {
-					const runtime = hookRuntime(launch, platform, abort.signal);
-					runtimes.push(runtime);
-					if (launch.runtime.supervisorChannelDir) createdChannels.push(launch.runtime.supervisorChannelDir);
-					await runtime.emit("session_start");
-					return {
-						sessionId: runtime.owner, sessionFile: runtime.sessionFile, modelId: "mock/test-model", messages: [],
-						subscribe: runtime.subscribe,
-						steer: async () => { throw new Error("steering is not a supervisor reply"); },
-						followUp: async () => { throw new Error("follow-up is not a supervisor reply"); },
-						abort: async () => { abort.abort(); },
-						dispose: () => runtime.emit("session_shutdown"),
-						async prompt() {
-							await runtime.emit("agent_start");
-							if (launch.runtime.agent === "coordinator") {
-								assert.ok(runtime.registered.has(NATIVE_SUPERVISOR_TOOL_NAME), "B needs a native downward provider");
-								assert.ok(runtime.active().includes(NATIVE_SUPERVISOR_TOOL_NAME), "B's requested supervisor tool must be callable");
-								const workflowPath = path.join(root, "inspect.js");
-								fs.writeFileSync(workflowPath, "return runs.run('inspect', { agent: 'leaf', task: 'Inspect the repository read-only and ask which option to report.', async: false });");
-								const receipt = await runtime.call("subagent", {
-									workflow: workflowPath,
-									async: true,
+		it(
+			`answers nested A → B → C asks through the child hooks and executor (${platform})`,
+			{ timeout: 15_000 },
+			async () => {
+				const root = fs.mkdtempSync(path.join(os.tmpdir(), "nested-supervisor-"));
+				const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
+				process.env.EVOHARNESS_CODING_AGENT_DIR = root;
+				const agentsDir = path.join(root, "agents");
+				fs.mkdirSync(agentsDir, { recursive: true });
+				fs.writeFileSync(
+					path.join(agentsDir, "leaf.md"),
+					"---\nname: leaf\ndescription: Read-only leaf\ntools: read, contact_supervisor\nmodel: mock/test-model\n---\nInspect only.\n",
+				);
+				const a = randomUUID();
+				const parentTools = new Map<string, SupervisorTool>();
+				const parent = createNativeSupervisorChannel(
+					makePi({ tools: parentTools }) as never,
+					makeState(a, makeCtx(a)),
+					{ platform },
+				);
+				const runtimes: ReturnType<typeof hookRuntime>[] = [];
+				const workflows: string[] = [];
+				let cRequest: string | undefined;
+				let cReturned = false;
+				let bReturned = false;
+				let bDrainReturnedBeforeReply = false;
+				const abort = new AbortController();
+				const factory: ChildSessionFactory = {
+					async create(launch) {
+						const runtime = hookRuntime(launch, platform, abort.signal);
+						runtimes.push(runtime);
+						if (launch.runtime.supervisorChannelDir) createdChannels.push(launch.runtime.supervisorChannelDir);
+						await runtime.emit("session_start");
+						return {
+							sessionId: runtime.owner,
+							sessionFile: runtime.sessionFile,
+							modelId: "mock/test-model",
+							messages: [],
+							subscribe: runtime.subscribe,
+							steer: async () => {
+								throw new Error("steering is not a supervisor reply");
+							},
+							followUp: async () => {
+								throw new Error("follow-up is not a supervisor reply");
+							},
+							abort: async () => {
+								abort.abort();
+							},
+							dispose: () => runtime.emit("session_shutdown"),
+							async prompt() {
+								await runtime.emit("agent_start");
+								if (launch.runtime.agent === "coordinator") {
+									assert.ok(
+										runtime.registered.has(NATIVE_SUPERVISOR_TOOL_NAME),
+										"B needs a native downward provider",
+									);
+									assert.ok(
+										runtime.active().includes(NATIVE_SUPERVISOR_TOOL_NAME),
+										"B's requested supervisor tool must be callable",
+									);
+									const workflowPath = path.join(root, "inspect.js");
+									fs.writeFileSync(
+										workflowPath,
+										"return runs.run('inspect', { agent: 'leaf', task: 'Inspect the repository read-only and ask which option to report.', async: false });",
+									);
+									const receipt = await runtime.call("subagent", {
+										workflow: workflowPath,
+										async: true,
+									});
+									assert.notEqual(receipt.isError, true, text(receipt));
+									workflows.push(receipt.details.asyncDir);
+									// Enter B's real prompt-runtime final drain before C writes its delayed ask.
+									await runtime.emit("agent_end");
+									bDrainReturnedBeforeReply = true;
+									assert.equal(cReturned, false, "the owner drain must yield before C is replied to");
+									// No explicit pending scan: executor activation must discover C's delayed ask.
+									await waitForCondition(
+										() => runtime.notices.length > 0,
+										"B to discover C's ask without a manual scan",
+									);
+									const pending = await runtime.call(NATIVE_SUPERVISOR_TOOL_NAME, { action: "pending" });
+									const [ask] = pending.details.pending;
+									cRequest = ask.id;
+									assert.equal(ask.agent, "leaf");
+									assert.equal(cReturned, false);
+									await assert.rejects(
+										parentTools.get(NATIVE_SUPERVISOR_TOOL_NAME)!.execute("foreign", {
+											action: "reply",
+											replyTo: cRequest,
+											message: "A cannot answer C",
+										}),
+										/No pending supervisor request found/,
+									);
+									await assert.rejects(
+										runtime.call(NATIVE_SUPERVISOR_TOOL_NAME, {
+											action: "reply",
+											replyTo: "wrong-request-id",
+											message: "Wrong",
+										}),
+										/No pending supervisor request found/,
+									);
+									const escalation = await runtime.call("contact_supervisor", {
+										reason: "need_decision",
+										message: "C needs a choice; may I approve option A?",
+									});
+									assert.match(text(escalation), /Approve option A/);
+									assert.equal(cReturned, false, "A's answer to B must not unblock C");
+									const reply = await runtime.call(NATIVE_SUPERVISOR_TOOL_NAME, {
+										action: "reply",
+										replyTo: cRequest,
+										message: "Use option A",
+									});
+									assert.equal(reply.details.replyTo, cRequest);
+									bReturned = true;
+								} else {
+									assert.equal(launch.runtime.agent, "leaf");
+									assert.equal(
+										launch.runtime.orchestratorSessionId,
+										runtimes[0]!.owner,
+										"C belongs to B's exact runtime id, not A or B's file",
+									);
+									assert.equal(
+										runtime.registered.has(NATIVE_SUPERVISOR_TOOL_NAME),
+										false,
+										"leaf must not get downward authority",
+									);
+									await new Promise((resolve) => setTimeout(resolve, 25));
+									const reply = await runtime.call("contact_supervisor", {
+										reason: "need_decision",
+										message: "Which option?",
+									});
+									assert.equal(reply.details.requestId, cRequest);
+									assert.match(text(reply), /Use option A/);
+									cReturned = true;
+								}
+								await runtime.emit("message_end", {
+									message: {
+										role: "assistant",
+										content: [{ type: "text", text: "Inspection complete." }],
+										model: "mock/test-model",
+										stopReason: "stop",
+										usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } },
+									},
 								});
-								assert.notEqual(receipt.isError, true, text(receipt));
-								workflows.push(receipt.details.asyncDir);
-								// Enter B's real prompt-runtime final drain before C writes its delayed ask.
 								await runtime.emit("agent_end");
-								bDrainReturnedBeforeReply = true;
-								assert.equal(cReturned, false, "the owner drain must yield before C is replied to");
-								// No explicit pending scan: executor activation must discover C's delayed ask.
-								await waitForCondition(() => runtime.notices.length > 0, "B to discover C's ask without a manual scan");
-								const pending = await runtime.call(NATIVE_SUPERVISOR_TOOL_NAME, { action: "pending" });
-								const [ask] = pending.details.pending;
-								cRequest = ask.id;
-								assert.equal(ask.agent, "leaf");
-								assert.equal(cReturned, false);
-								await assert.rejects(parentTools.get(NATIVE_SUPERVISOR_TOOL_NAME)!.execute("foreign", { action: "reply", replyTo: cRequest, message: "A cannot answer C" }), /No pending supervisor request found/);
-								await assert.rejects(runtime.call(NATIVE_SUPERVISOR_TOOL_NAME, { action: "reply", replyTo: "wrong-request-id", message: "Wrong" }), /No pending supervisor request found/);
-								const escalation = await runtime.call("contact_supervisor", { reason: "need_decision", message: "C needs a choice; may I approve option A?" });
-								assert.match(text(escalation), /Approve option A/);
-								assert.equal(cReturned, false, "A's answer to B must not unblock C");
-								const reply = await runtime.call(NATIVE_SUPERVISOR_TOOL_NAME, { action: "reply", replyTo: cRequest, message: "Use option A" });
-								assert.equal(reply.details.replyTo, cRequest);
-								bReturned = true;
-							} else {
-								assert.equal(launch.runtime.agent, "leaf");
-								assert.equal(launch.runtime.orchestratorSessionId, runtimes[0]!.owner, "C belongs to B's exact runtime id, not A or B's file");
-								assert.equal(runtime.registered.has(NATIVE_SUPERVISOR_TOOL_NAME), false, "leaf must not get downward authority");
-								await new Promise(resolve => setTimeout(resolve, 25));
-								const reply = await runtime.call("contact_supervisor", { reason: "need_decision", message: "Which option?" });
-								assert.equal(reply.details.requestId, cRequest);
-								assert.match(text(reply), /Use option A/);
-								cReturned = true;
-							}
-							await runtime.emit("message_end", { message: { role: "assistant", content: [{ type: "text", text: "Inspection complete." }], model: "mock/test-model", stopReason: "stop", usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, cost: { total: 0 } } } });
-							await runtime.emit("agent_end");
-							await runtime.emit("agent_settled");
+								await runtime.emit("agent_settled");
+							},
+						};
+					},
+					async dispose() {},
+				};
+				try {
+					parent.start();
+					setChildSessionFactory(factory);
+					const run = runSync(
+						root,
+						[
+							makeAgent("coordinator", {
+								model: "mock/test-model",
+								tools: ["read", "subagent", "contact_supervisor", "subagent_supervisor"],
+							}),
+						],
+						"coordinator",
+						"Inspect read-only with the assigned leaf.",
+						{
+							runId: randomUUID(),
+							parentSessionId: a,
+							orchestratorIntercomTarget: "shared-name",
+							signal: abort.signal,
 						},
-					};
-				},
-				async dispose() {},
-			};
-			try {
-				parent.start();
-				setChildSessionFactory(factory);
-				const run = runSync(root, [makeAgent("coordinator", { model: "mock/test-model", tools: ["read", "subagent", "contact_supervisor", "subagent_supervisor"] })], "coordinator", "Inspect read-only with the assigned leaf.", {
-					runId: randomUUID(), parentSessionId: a, orchestratorIntercomTarget: "shared-name", signal: abort.signal,
-				});
-				await waitForCondition(() => runtimes.length > 0, "coordinator startup");
-				// Surface diagnostic failures immediately rather than hiding them behind an ask timeout.
-				const result = await Promise.race([
-					run.then(result => { assert.equal(result.exitCode, 0, result.error); return result; }),
-					(async () => {
-						await waitForCondition(() => {
-							// A may be idle; its explicit query is authoritative.
-							void parentTools.get(NATIVE_SUPERVISOR_TOOL_NAME)!.execute("pending", { action: "pending" });
-							return parent.pending.size > 0;
-						}, "B's escalation to A");
-						const [ask] = parent.pending.values();
-						assert.equal(ask!.agent, "coordinator");
-						assert.notEqual(ask!.id, cRequest);
-						await parentTools.get(NATIVE_SUPERVISOR_TOOL_NAME)!.execute("reply", { action: "reply", replyTo: ask!.id, message: "Approve option A" });
-						return await run;
-					})(),
-				]);
-				assert.equal(result.exitCode, 0, result.error);
-				assert.equal(bReturned, true);
-				assert.equal(bDrainReturnedBeforeReply, true);
-				assert.equal(cReturned, true, "B's final drain must await C's real blocked contact call and workflow completion");
-				for (const dir of workflows) {
-					const status = JSON.parse(fs.readFileSync(path.join(dir, "status.json"), "utf8"));
-					assert.equal(status.state, "complete", JSON.stringify(status));
+					);
+					await waitForCondition(() => runtimes.length > 0, "coordinator startup");
+					// Surface diagnostic failures immediately rather than hiding them behind an ask timeout.
+					const result = await Promise.race([
+						run.then((result) => {
+							assert.equal(result.exitCode, 0, result.error);
+							return result;
+						}),
+						(async () => {
+							await waitForCondition(() => {
+								// A may be idle; its explicit query is authoritative.
+								void parentTools.get(NATIVE_SUPERVISOR_TOOL_NAME)!.execute("pending", { action: "pending" });
+								return parent.pending.size > 0;
+							}, "B's escalation to A");
+							const [ask] = parent.pending.values();
+							assert.equal(ask!.agent, "coordinator");
+							assert.notEqual(ask!.id, cRequest);
+							await parentTools
+								.get(NATIVE_SUPERVISOR_TOOL_NAME)!
+								.execute("reply", { action: "reply", replyTo: ask!.id, message: "Approve option A" });
+							return await run;
+						})(),
+					]);
+					assert.equal(result.exitCode, 0, result.error);
+					assert.equal(bReturned, true);
+					assert.equal(bDrainReturnedBeforeReply, true);
+					assert.equal(
+						cReturned,
+						true,
+						"B's final drain must await C's real blocked contact call and workflow completion",
+					);
+					for (const dir of workflows) {
+						const status = JSON.parse(fs.readFileSync(path.join(dir, "status.json"), "utf8"));
+						assert.equal(status.state, "complete", JSON.stringify(status));
+					}
+					for (const runtime of runtimes) assert.equal(runtime.closed, true);
+					const stale = writeRequest({ sessionId: runtimes[0]!.owner, runId: randomUUID() });
+					await assert.rejects(
+						runtimes[0]!.call(NATIVE_SUPERVISOR_TOOL_NAME, {
+							action: "reply",
+							replyTo: stale,
+							message: "No authority after shutdown",
+						}),
+						/No pending supervisor request found/,
+					);
+				} finally {
+					abort.abort();
+					setChildSessionFactory(undefined);
+					for (const runtime of runtimes) await runtime.emit("session_shutdown");
+					parent.dispose();
+					if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
+					else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
+					for (const dir of workflows) fs.rmSync(dir, { recursive: true, force: true });
+					fs.rmSync(root, { recursive: true, force: true });
 				}
-				for (const runtime of runtimes) assert.equal(runtime.closed, true);
-				const stale = writeRequest({ sessionId: runtimes[0]!.owner, runId: randomUUID() });
-				await assert.rejects(runtimes[0]!.call(NATIVE_SUPERVISOR_TOOL_NAME, { action: "reply", replyTo: stale, message: "No authority after shutdown" }), /No pending supervisor request found/);
-			} finally {
-				abort.abort();
-				setChildSessionFactory(undefined);
-				for (const runtime of runtimes) await runtime.emit("session_shutdown");
-				parent.dispose();
-				if (previousAgentDir === undefined) delete process.env.EVOHARNESS_CODING_AGENT_DIR;
-				else process.env.EVOHARNESS_CODING_AGENT_DIR = previousAgentDir;
-				for (const dir of workflows) fs.rmSync(dir, { recursive: true, force: true });
-				fs.rmSync(root, { recursive: true, force: true });
-			}
-		});
+			},
+		);
 	}
 
 	it("discovers a direct async child's ask without polling pending on Darwin", { timeout: 5000 }, async () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "nested-async-supervisor-"));
 		const launch = buildInProcessChildLaunch({
-			host: "parent", cwd: root, childAgentName: "coordinator", childIndex: 0,
-			sessionEnabled: false, tools: ["subagent", "subagent_supervisor"],
-			inheritProjectContext: false, inheritGlobalContext: false, inheritSkills: false,
+			host: "parent",
+			cwd: root,
+			childAgentName: "coordinator",
+			childIndex: 0,
+			sessionEnabled: false,
+			tools: ["subagent", "subagent_supervisor"],
+			inheritProjectContext: false,
+			inheritGlobalContext: false,
+			inheritSkills: false,
 		});
 		const abort = new AbortController();
 		const runtime = hookRuntime(launch.session, "darwin", abort.signal);
@@ -473,21 +751,40 @@ describe("supervisor ask registration", () => {
 		const channelDir = resolveSupervisorChannelDir(runId, "leaf", 0);
 		createdChannels.push(channelDir);
 		const childTools = new Map<string, SupervisorTool>();
-		registerNativeSupervisorClient(makePi({ tools: childTools }) as never, { channelDir, runId, agent: "leaf", childIndex: 0, orchestratorSessionId: runtime.owner });
+		registerNativeSupervisorClient(makePi({ tools: childTools }) as never, {
+			channelDir,
+			runId,
+			agent: "leaf",
+			childIndex: 0,
+			orchestratorSessionId: runtime.owner,
+		});
 		let request: Promise<{ content: Array<{ type: string; text?: string }> }> | undefined;
 		const contact = childTools.get("contact_supervisor") as unknown as {
-			execute(id: string, params: { reason: string; message: string }, signal: AbortSignal): NonNullable<typeof request>;
+			execute(
+				id: string,
+				params: { reason: string; message: string },
+				signal: AbortSignal,
+			): NonNullable<typeof request>;
 		};
 		try {
 			await runtime.emit("session_start");
 			fs.writeFileSync(path.join(root, "status.json"), JSON.stringify({ runId, state: "running" }));
-			runtime.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, { id: runId, asyncDir: root, agent: "leaf", sessionId: runtime.sessionFile });
+			runtime.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, {
+				id: runId,
+				asyncDir: root,
+				agent: "leaf",
+				sessionId: runtime.sessionFile,
+			});
 			request = contact.execute("ask", { reason: "need_decision", message: "Which option?" }, abort.signal);
 			// Attach rejection handling before any assertion can abort the child.
 			void request!.catch(() => {});
 			await waitForCondition(() => runtime.notices.length > 0, "direct async ask notification");
 			const pending = await runtime.call(NATIVE_SUPERVISOR_TOOL_NAME, { action: "pending" });
-			await runtime.call(NATIVE_SUPERVISOR_TOOL_NAME, { action: "reply", replyTo: pending.details.pending[0]!.id, message: "Use option A" });
+			await runtime.call(NATIVE_SUPERVISOR_TOOL_NAME, {
+				action: "reply",
+				replyTo: pending.details.pending[0]!.id,
+				message: "Use option A",
+			});
 			assert.match(text(await request), /Use option A/);
 		} finally {
 			abort.abort();
@@ -500,20 +797,34 @@ describe("supervisor ask registration", () => {
 	it("does not activate supervision when the coordinator excludes the reply tool", async () => {
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "nested-no-supervisor-"));
 		const launch = buildInProcessChildLaunch({
-			host: "parent", cwd: root, childAgentName: "coordinator", childIndex: 0,
-			sessionEnabled: false, tools: ["subagent"],
-			inheritProjectContext: false, inheritGlobalContext: false, inheritSkills: false,
+			host: "parent",
+			cwd: root,
+			childAgentName: "coordinator",
+			childIndex: 0,
+			sessionEnabled: false,
+			tools: ["subagent"],
+			inheritProjectContext: false,
+			inheritGlobalContext: false,
+			inheritSkills: false,
 		});
 		const runtime = hookRuntime(launch.session, "win32", new AbortController().signal);
 		const runId = randomUUID();
 		try {
 			writeRequest({ sessionId: runtime.owner, runId });
 			await runtime.emit("session_start");
-			runtime.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, { id: runId, asyncDir: root, agent: "worker", sessionId: runtime.sessionFile });
-			await new Promise(resolve => setTimeout(resolve, 600));
+			runtime.events.emit(SUBAGENT_ASYNC_STARTED_EVENT, {
+				id: runId,
+				asyncDir: root,
+				agent: "worker",
+				sessionId: runtime.sessionFile,
+			});
+			await new Promise((resolve) => setTimeout(resolve, 600));
 			assert.equal(runtime.notices.length, 0, "no instructions to call an excluded reply tool");
 			await assert.rejects(runtime.call(NATIVE_SUPERVISOR_TOOL_NAME, { action: "pending" }), /not active/);
-			await assert.rejects(runtime.call("subagent", { action: "schedule.run", id: "not-authorized" }), /not available/);
+			await assert.rejects(
+				runtime.call("subagent", { action: "schedule.run", id: "not-authorized" }),
+				/not available/,
+			);
 		} finally {
 			await runtime.emit("session_shutdown");
 			fs.rmSync(root, { recursive: true, force: true });
@@ -524,22 +835,43 @@ describe("supervisor ask registration", () => {
 		fs.mkdirSync(DIRS.async, { recursive: true });
 		const root = fs.mkdtempSync(path.join(DIRS.async, "child-blocked-steer-"));
 		const launch = buildInProcessChildLaunch({
-			host: "parent", cwd: root, childAgentName: "coordinator", childIndex: 0,
-			sessionEnabled: false, tools: ["subagent", "subagent_supervisor"],
-			inheritProjectContext: false, inheritGlobalContext: false, inheritSkills: false,
+			host: "parent",
+			cwd: root,
+			childAgentName: "coordinator",
+			childIndex: 0,
+			sessionEnabled: false,
+			tools: ["subagent", "subagent_supervisor"],
+			inheritProjectContext: false,
+			inheritGlobalContext: false,
+			inheritSkills: false,
 		});
 		const runtime = hookRuntime(launch.session, "darwin", new AbortController().signal);
 		try {
 			await runtime.emit("session_start");
 			const runId = randomUUID();
 			const requestId = writeRequest({ sessionId: runtime.owner, runId });
-			const status = JSON.stringify({ runId, sessionId: runtime.sessionFile, state: "running", mode: "single", pid: process.pid, startedAt: Date.now(), steps: [{ agent: "worker", status: "running" }] });
-			fs.writeFileSync(path.join(root, "status.json"), status);
-			await assert.rejects(runtime.call("subagent", { action: "steer", options: { dir: root }, message: "After the decision, inspect docs." }), (error: Error) => {
-				assert.ok(error.message.includes(`"replyTo":"${requestId}"`), error.message);
-				assert.match(error.message, /not delivered or queued/);
-				return true;
+			const status = JSON.stringify({
+				runId,
+				sessionId: runtime.sessionFile,
+				state: "running",
+				mode: "single",
+				pid: process.pid,
+				startedAt: Date.now(),
+				steps: [{ agent: "worker", status: "running" }],
 			});
+			fs.writeFileSync(path.join(root, "status.json"), status);
+			await assert.rejects(
+				runtime.call("subagent", {
+					action: "steer",
+					options: { dir: root },
+					message: "After the decision, inspect docs.",
+				}),
+				(error: Error) => {
+					assert.ok(error.message.includes(`"replyTo":"${requestId}"`), error.message);
+					assert.match(error.message, /not delivered or queued/);
+					return true;
+				},
+			);
 			assert.equal(runtime.notices.length, 0, "receipt lookup must not register or notify");
 			assert.equal(fs.readFileSync(path.join(root, "status.json"), "utf8"), status);
 			assert.deepEqual(fs.readdirSync(path.join(resolveSupervisorChannelDir(runId, "worker", 0), "replies")), []);
@@ -557,24 +889,56 @@ describe("supervisor ask registration", () => {
 		const state = makeState(ctx.sessionManager.getSessionFile(), ctx);
 		state.lastUiContext = null;
 		const runId = randomUUID();
-		const channel = createNativeSupervisorChannel(makePi({ tools: new Map(), onSend: () => { throw new Error("lookup must not notify"); } }) as never, state);
+		const channel = createNativeSupervisorChannel(
+			makePi({
+				tools: new Map(),
+				onSend: () => {
+					throw new Error("lookup must not notify");
+				},
+			}) as never,
+			state,
+		);
 		let probes = 0;
 		let race = false;
 		let racedAsk: string | undefined;
 		const executor = createSubagentExecutor({
-			pi: {} as never, state, config: { maxSubagentDepth: 2, control: {}, intercomBridge: {} } as never,
-			asyncByDefault: false, tempArtifactsDir: root, getSubagentSessionRoot: () => root,
-			expandTilde: value => value, discoverAgents: () => ({ agents: [] }),
-			findPendingAsks: target => {
+			pi: {} as never,
+			state,
+			config: { maxSubagentDepth: 2, control: {}, intercomBridge: {} } as never,
+			asyncByDefault: false,
+			tempArtifactsDir: root,
+			getSubagentSessionRoot: () => root,
+			expandTilde: (value) => value,
+			discoverAgents: () => ({ agents: [] }),
+			findPendingAsks: (target) => {
 				const asks = channel.findPendingAsks(target);
 				if (race) racedAsk = writeRequest({ sessionId: owner, runId });
 				return asks;
 			},
-			kill: () => { probes++; return true; },
+			kill: () => {
+				probes++;
+				return true;
+			},
 		});
-		const status = { runId, sessionId: ctx.sessionManager.getSessionFile(), state: "running", mode: "single", pid: process.pid, startedAt: Date.now(), updatedAt: Date.now(), steps: [{ agent: "worker", status: "running" }] };
+		const status = {
+			runId,
+			sessionId: ctx.sessionManager.getSessionFile(),
+			state: "running",
+			mode: "single",
+			pid: process.pid,
+			startedAt: Date.now(),
+			updatedAt: Date.now(),
+			steps: [{ agent: "worker", status: "running" }],
+		};
 		fs.writeFileSync(path.join(root, "status.json"), JSON.stringify(status));
-		const invoke = (mode: "steer" | "follow_up") => executor.executePublic(randomUUID(), { action: "steer", dir: root, message: "After this is resolved, update docs.", mode }, new AbortController().signal, undefined, ctx as never);
+		const invoke = (mode: "steer" | "follow_up") =>
+			executor.executePublic(
+				randomUUID(),
+				{ action: "steer", dir: root, message: "After this is resolved, update docs.", mode },
+				new AbortController().signal,
+				undefined,
+				ctx as never,
+			);
 		try {
 			const first = writeRequest({ sessionId: owner, runId });
 			const second = writeRequest({ sessionId: owner, runId });
@@ -606,11 +970,15 @@ describe("supervisor ask registration", () => {
 			assert.doesNotMatch(text(raced), /unblocked|consumed/);
 			assert.ok(fs.existsSync(path.join(dir, "requests", `${racedAsk}.json`)));
 			assert.deepEqual(fs.readdirSync(path.join(dir, "replies")), []);
-		} finally { channel.dispose(); fs.rmSync(root, { recursive: true, force: true }); }
+		} finally {
+			channel.dispose();
+			fs.rmSync(root, { recursive: true, force: true });
+		}
 	});
 
 	it("receipt lookup is read-only, fresh and exact for runtime owner, run, agent and index", () => {
-		const owner = randomUUID(), runId = randomUUID();
+		const owner = randomUUID(),
+			runId = randomUUID();
 		const state = makeState("/sessions/parent.jsonl", makeCtx(owner));
 		state.lastUiContext = null;
 		const channel = createNativeSupervisorChannel({} as never, state);
@@ -655,33 +1023,61 @@ describe("supervisor ask registration", () => {
 		let unrefs = 0;
 		const sent: string[] = [];
 		const pi = {
-			getAllTools: () => [], registerTool() {}, getSessionName: () => "parent",
-			events: { emit() {}, on() { return () => {}; } },
-			sendMessage(message: { details?: { id?: string } }) { if (message.details?.id) sent.push(message.details.id); },
+			getAllTools: () => [],
+			registerTool() {},
+			getSessionName: () => "parent",
+			events: {
+				emit() {},
+				on() {
+					return () => {};
+				},
+			},
+			sendMessage(message: { details?: { id?: string } }) {
+				if (message.details?.id) sent.push(message.details.id);
+			},
 		};
 		const channel = createNativeSupervisorChannel(pi as never, state, {
 			platform: "darwin",
-			watch: (() => { throw new Error("Darwin must not call fs.watch"); }) as never,
+			watch: (() => {
+				throw new Error("Darwin must not call fs.watch");
+			}) as never,
 			timers: {
 				setInterval: ((handler: () => void, delay: number) => {
 					assert.equal(delay, 250);
 					starts += 1;
-					const token = { unref() { unrefs += 1; } };
+					const token = {
+						unref() {
+							unrefs += 1;
+						},
+					};
 					intervals.set(token, handler);
 					return token;
 				}) as typeof setInterval,
-				clearInterval: ((token: object) => { intervals.delete(token); }) as typeof clearInterval,
-				setImmediate, clearImmediate,
+				clearInterval: ((token: object) => {
+					intervals.delete(token);
+				}) as typeof clearInterval,
+				setImmediate,
+				clearImmediate,
 			},
 		});
-		const tick = () => { for (const handler of [...intervals.values()]) handler(); };
+		const tick = () => {
+			for (const handler of [...intervals.values()]) handler();
+		};
 		let terminal: () => void = () => {};
 		const executor = createSubagentExecutor({
-			pi: pi as never, state, config: { maxSubagentDepth: 2, control: {}, intercomBridge: {} } as never,
-			asyncByDefault: false, tempArtifactsDir: root, getSubagentSessionRoot: () => root,
-			expandTilde: (value) => value, discoverAgents: () => ({ agents: [] }),
+			pi: pi as never,
+			state,
+			config: { maxSubagentDepth: 2, control: {}, intercomBridge: {} } as never,
+			asyncByDefault: false,
+			tempArtifactsDir: root,
+			getSubagentSessionRoot: () => root,
+			expandTilde: (value) => value,
+			discoverAgents: () => ({ agents: [] }),
 			activateSupervisorTransport: () => channel.activateTransport(),
-			refreshResultDelivery: () => { if ([...state.asyncJobs.values()].every(job => job.status !== "running" && job.status !== "queued")) terminal(); },
+			refreshResultDelivery: () => {
+				if ([...state.asyncJobs.values()].every((job) => job.status !== "running" && job.status !== "queued"))
+					terminal();
+			},
 		});
 		const dirs: string[] = [];
 		try {
@@ -689,8 +1085,16 @@ describe("supervisor ask registration", () => {
 			channel.activateTransport();
 			assert.equal(intervals.size, 0, "idle registration has no timer");
 			for (let cycle = 0; cycle < 2; cycle += 1) {
-				const done = new Promise<void>(resolve => { terminal = resolve; });
-				const result = await executor.executePublic(randomUUID(), { workflowScript: "return [];", async: true }, new AbortController().signal, undefined, ctx as never);
+				const done = new Promise<void>((resolve) => {
+					terminal = resolve;
+				});
+				const result = await executor.executePublic(
+					randomUUID(),
+					{ workflowScript: "return [];", async: true },
+					new AbortController().signal,
+					undefined,
+					ctx as never,
+				);
 				assert.equal(result.isError, undefined, JSON.stringify(result));
 				const runId = result.details!.asyncId!;
 				const job = state.asyncJobs.get(runId)!;
@@ -699,12 +1103,19 @@ describe("supervisor ask registration", () => {
 				assert.equal(state.foregroundControls.size, 0);
 				const delayedAsk = writeRequest({ sessionId, runId });
 				tick();
-				assert.ok(sent.includes(delayedAsk), "lone registered workflow must discover a delayed ask without a query or foreground activation");
+				assert.ok(
+					sent.includes(delayedAsk),
+					"lone registered workflow must discover a delayed ask without a query or foreground activation",
+				);
 				assert.equal(intervals.size, 1);
 				assert.equal(starts, cycle + 1);
 				const controlId = randomUUID();
 				// Model the unchanged foreground insertion/activation and last-control removal.
-				state.foregroundControls.set(controlId, { runId: controlId, activeChildren: new Map(), schedulingOwners: 1 } as never);
+				state.foregroundControls.set(controlId, {
+					runId: controlId,
+					activeChildren: new Map(),
+					schedulingOwners: 1,
+				} as never);
 				channel.activateTransport();
 				assert.equal(starts, cycle + 1, "foreground activation reuses the poller");
 				state.foregroundControls.delete(controlId);
@@ -804,7 +1215,18 @@ describe("supervisor ask registration", () => {
 		`;
 		const env = { ...process.env };
 		delete env.PI_SUBAGENT_CHILD;
-		execFileSync(process.execPath, ["--experimental-strip-types", "--import", "./test/support/register-loader.mjs", "--input-type=module", "--eval", script], { cwd: process.cwd(), env, stdio: "pipe", timeout: 30_000 });
+		execFileSync(
+			process.execPath,
+			[
+				"--experimental-strip-types",
+				"--import",
+				"./test/support/register-loader.mjs",
+				"--input-type=module",
+				"--eval",
+				script,
+			],
+			{ cwd: process.cwd(), env, stdio: "pipe", timeout: 30_000 },
+		);
 	});
 
 	it("fails closed for explicit mistargets and ambiguity without UI, then answers only the exact ask", async () => {
@@ -818,17 +1240,32 @@ describe("supervisor ask registration", () => {
 			channel.start();
 			const first = writeRequest({ sessionId, runId });
 			const tool = tools.get(NATIVE_SUPERVISOR_TOOL_NAME)!;
-			await assert.rejects(tool.execute("wrong", { action: "reply", to: "different-agent", message: "Approved" }), /No pending supervisor request matches/);
+			await assert.rejects(
+				tool.execute("wrong", { action: "reply", to: "different-agent", message: "Approved" }),
+				/No pending supervisor request matches/,
+			);
 			// A reply to a request that is gone names the one that can still be answered.
-			await assert.rejects(tool.execute("unknown", { action: "reply", replyTo: "unknown", message: "Approved" }), (error: Error) => {
-				assert.match(error.message, /No pending supervisor request found for replyTo 'unknown'\. It was answered, expired or withdrawn\. Pending now:/);
-				assert.match(error.message, new RegExp(`- ${first}: worker \\[${runId}#0\\]`));
-				return true;
-			});
+			await assert.rejects(
+				tool.execute("unknown", { action: "reply", replyTo: "unknown", message: "Approved" }),
+				(error: Error) => {
+					assert.match(
+						error.message,
+						/No pending supervisor request found for replyTo 'unknown'\. It was answered, expired or withdrawn\. Pending now:/,
+					);
+					assert.match(error.message, new RegExp(`- ${first}: worker \\[${runId}#0\\]`));
+					return true;
+				},
+			);
 			assert.equal(channel.pending.has(first), true);
 			const second = writeRequest({ sessionId, runId });
-			await assert.rejects(tool.execute("ambiguous", { action: "reply", message: "Approved" }), /Multiple pending supervisor requests/);
-			await assert.rejects(tool.execute("agent", { action: "reply", to: "worker", message: "Approved" }), /Multiple pending supervisor requests match/);
+			await assert.rejects(
+				tool.execute("ambiguous", { action: "reply", message: "Approved" }),
+				/Multiple pending supervisor requests/,
+			);
+			await assert.rejects(
+				tool.execute("agent", { action: "reply", to: "worker", message: "Approved" }),
+				/Multiple pending supervisor requests match/,
+			);
 			const replies = path.join(resolveSupervisorChannelDir(runId, "worker", 0), "replies");
 			assert.deepEqual(fs.readdirSync(replies), []);
 			await tool.execute("exact", { action: "reply", replyTo: second, message: "Only second" });
@@ -836,7 +1273,9 @@ describe("supervisor ask registration", () => {
 			assert.equal(JSON.parse(fs.readFileSync(path.join(replies, `${second}.json`), "utf8")).message, "Only second");
 			assert.equal(channel.pending.has(first), true);
 			assert.equal(channel.pending.has(second), false);
-		} finally { channel.dispose(); }
+		} finally {
+			channel.dispose();
+		}
 	});
 
 	it("rejects stale discovered and cached asks with no UI", async () => {
@@ -850,7 +1289,10 @@ describe("supervisor ask registration", () => {
 			channel.start();
 			const tool = tools.get(NATIVE_SUPERVISOR_TOOL_NAME)!;
 			const expired = writeRequest({ sessionId, runId, expiresAt: Date.now() - 1 });
-			await assert.rejects(tool.execute("expired", { action: "reply", replyTo: expired, message: "Too late" }), /No pending supervisor request found.*No pending supervisor requests\./);
+			await assert.rejects(
+				tool.execute("expired", { action: "reply", replyTo: expired, message: "Too late" }),
+				/No pending supervisor request found.*No pending supervisor requests\./,
+			);
 			const missing = writeRequest({ sessionId, runId });
 			const resolved = writeRequest({ sessionId, runId });
 			await tool.execute("pending", { action: "pending" });
@@ -860,12 +1302,17 @@ describe("supervisor ask registration", () => {
 			const replyFile = path.join(dir, "replies", `${resolved}.json`);
 			fs.writeFileSync(replyFile, JSON.stringify({ message: "Already answered" }));
 			for (const replyTo of [missing, resolved]) {
-				await assert.rejects(tool.execute("stale", { action: "reply", replyTo, message: "Must not overwrite" }), /No pending supervisor request found/);
+				await assert.rejects(
+					tool.execute("stale", { action: "reply", replyTo, message: "Must not overwrite" }),
+					/No pending supervisor request found/,
+				);
 			}
 			assert.equal(channel.pending.size, 0);
 			assert.deepEqual(fs.readdirSync(path.join(dir, "replies")), [`${resolved}.json`]);
 			assert.equal(JSON.parse(fs.readFileSync(replyFile, "utf8")).message, "Already answered");
-		} finally { channel.dispose(); }
+		} finally {
+			channel.dispose();
+		}
 	});
 
 	it("rechecks cached ownership without UI and never uses the persisted identity as authority", async () => {
@@ -882,15 +1329,27 @@ describe("supervisor ask registration", () => {
 			assert.equal(channel.pending.has(requestId), true);
 			state.lastUiContext = null;
 			state.supervisorOwnerSessionId = `replacement-${randomUUID()}`;
-			await assert.rejects(tool.execute("foreign", { action: "reply", replyTo: requestId, message: "Wrong owner" }), /No pending supervisor request found/);
+			await assert.rejects(
+				tool.execute("foreign", { action: "reply", replyTo: requestId, message: "Wrong owner" }),
+				/No pending supervisor request found/,
+			);
 			assert.equal(channel.pending.size, 0);
 			state.supervisorOwnerSessionId = null;
 			const uncached = writeRequest({ sessionId, runId });
-			await assert.rejects(tool.execute("no-owner", { action: "reply", replyTo: uncached, message: "No authority" }), /No pending supervisor request found/);
+			await assert.rejects(
+				tool.execute("no-owner", { action: "reply", replyTo: uncached, message: "No authority" }),
+				/No pending supervisor request found/,
+			);
 			const dir = resolveSupervisorChannelDir(runId, "worker", 0);
-			assert.equal(fs.existsSync(path.join(dir, "requests", `${requestId}.json`)), true, "foreign requests are not ours to delete");
+			assert.equal(
+				fs.existsSync(path.join(dir, "requests", `${requestId}.json`)),
+				true,
+				"foreign requests are not ours to delete",
+			);
 			assert.deepEqual(fs.readdirSync(path.join(dir, "replies")), []);
-		} finally { channel.dispose(); }
+		} finally {
+			channel.dispose();
+		}
 	});
 
 	// D1: `refreshPendingRequests` only re-evaluates asks already in `pending`; it never reads the
@@ -903,7 +1362,9 @@ describe("supervisor ask registration", () => {
 		const state = makeState(sessionId, makeCtx(sessionId));
 		const channel = createNativeSupervisorChannel(makePi({ tools }) as never, state, {
 			platform: "darwin",
-			watch: (() => { throw new Error("darwin must not install a supervisor fs watcher"); }) as never,
+			watch: (() => {
+				throw new Error("darwin must not install a supervisor fs watcher");
+			}) as never,
 			timers: {
 				setInterval: (() => ({ unref() {} }) as NodeJS.Timeout) as typeof setInterval,
 				clearInterval: (() => {}) as typeof clearInterval,
@@ -920,7 +1381,11 @@ describe("supervisor ask registration", () => {
 
 			const result = await tools.get(NATIVE_SUPERVISOR_TOOL_NAME)!.execute("pending", { action: "pending" });
 
-			assert.equal(channel.pending.has(requestId), true, "an explicit supervisor query must be authoritative against disk");
+			assert.equal(
+				channel.pending.has(requestId),
+				true,
+				"an explicit supervisor query must be authoritative against disk",
+			);
 			assert.match(text(result), new RegExp(requestId), "the ask must be listed with its reply id");
 		} finally {
 			channel.dispose();
@@ -931,7 +1396,11 @@ describe("supervisor ask registration", () => {
 		const sessionId = `session-${randomUUID()}`;
 		const runId = `run-${randomUUID()}`;
 		const tools = new Map<string, SupervisorTool>();
-		const channel = createNativeSupervisorChannel(makePi({ tools }) as never, makeState(sessionId, makeCtx(sessionId)), { platform: "darwin" });
+		const channel = createNativeSupervisorChannel(
+			makePi({ tools }) as never,
+			makeState(sessionId, makeCtx(sessionId)),
+			{ platform: "darwin" },
+		);
 
 		try {
 			channel.start();
@@ -984,7 +1453,11 @@ describe("supervisor ask registration", () => {
 
 		try {
 			channel.start();
-			assert.equal(channel.pending.has(foreignId), false, "session-ownership filtering must survive the null-context path");
+			assert.equal(
+				channel.pending.has(foreignId),
+				false,
+				"session-ownership filtering must survive the null-context path",
+			);
 		} finally {
 			channel.dispose();
 		}
@@ -998,10 +1471,13 @@ describe("supervisor ask registration", () => {
 		state.lastUiContext = null;
 		let attempts = 0;
 		let requestFile = "";
-		const pi = makePi({ tools, onSend: (message) => {
-			attempts++;
-			assert.fail(`progress update should not be sent: ${message.content}`);
-		} });
+		const pi = makePi({
+			tools,
+			onSend: (message) => {
+				attempts++;
+				assert.fail(`progress update should not be sent: ${message.content}`);
+			},
+		});
 		const channel = createNativeSupervisorChannel(pi as never, state, { platform: "darwin" });
 		try {
 			channel.start();
@@ -1018,7 +1494,9 @@ describe("supervisor ask registration", () => {
 			await tool.execute("after-acceptance", { action: "pending" });
 			assert.equal(attempts, 0);
 			assert.equal(channel.pending.size, 0);
-		} finally { channel.dispose(); }
+		} finally {
+			channel.dispose();
+		}
 	});
 
 	it("moves a queued ask's deadline forward until its notice reaches the parent model", async () => {
@@ -1031,27 +1509,42 @@ describe("supervisor ask registration", () => {
 			on(name: string, handler: (event: unknown) => void) {
 				const set = handlers.get(name) ?? new Set();
 				handlers.set(name, set.add(handler));
-				return () => { set.delete(handler); };
+				return () => {
+					set.delete(handler);
+				};
 			},
 		};
-		const emit = (name: string, event: unknown) => { for (const handler of handlers.get(name) ?? []) handler(event); };
+		const emit = (name: string, event: unknown) => {
+			for (const handler of handlers.get(name) ?? []) handler(event);
+		};
 		let appended = false;
 		const channel = createNativeSupervisorChannel(pi as never, makeState(sessionId, makeCtx(sessionId)), {
 			platform: "darwin",
 			parentWake: { sendMessage: () => appended },
 		});
-		const expiresAt = (requestId: string) => JSON.parse(fs.readFileSync(path.join(resolveSupervisorChannelDir(runId, "worker", 0), "requests", `${requestId}.json`), "utf-8")).expiresAt as number;
+		const expiresAt = (requestId: string) =>
+			JSON.parse(
+				fs.readFileSync(
+					path.join(resolveSupervisorChannelDir(runId, "worker", 0), "requests", `${requestId}.json`),
+					"utf-8",
+				),
+			).expiresAt as number;
 		try {
 			channel.start();
 			const queued = writeRequest({ sessionId, runId, expiresAt: Date.now() + 100 });
 			channel.hasPendingRequests();
 			channel.hasPendingRequests();
-			assert.ok(expiresAt(queued) > Date.now() + 500, "a notice Pi queued behind a busy run must not let the ask expire unread");
+			assert.ok(
+				expiresAt(queued) > Date.now() + 500,
+				"a notice Pi queued behind a busy run must not let the ask expire unread",
+			);
 			await new Promise((resolve) => setTimeout(resolve, 200));
 			assert.equal(channel.hasPendingRequests(), true);
 			assert.equal(channel.pending.has(queued), true, "the parent keeps the ask past its original deadline");
 
-			emit("message_start", { message: { role: "custom", customType: "subagent_supervisor_request", details: { requestId: queued } } });
+			emit("message_start", {
+				message: { role: "custom", customType: "subagent_supervisor_request", details: { requestId: queued } },
+			});
 			assert.equal(handlers.get("message_start")?.size ?? 0, 0, "delivery ends the extension and its subscription");
 			const delivered = expiresAt(queued);
 			await new Promise((resolve) => setTimeout(resolve, 600));
@@ -1064,16 +1557,26 @@ describe("supervisor ask registration", () => {
 			emit("agent_settled", {});
 			const settled = expiresAt(dropped);
 			channel.hasPendingRequests();
-			assert.equal(expiresAt(dropped), settled, "a notice still queued when the run settles was dropped and is not extended");
+			assert.equal(
+				expiresAt(dropped),
+				settled,
+				"a notice still queued when the run settles was dropped and is not extended",
+			);
 
 			appended = true;
 			const visibleDeadline = Date.now() + 500;
 			const visible = writeRequest({ sessionId, runId, expiresAt: visibleDeadline });
 			channel.hasPendingRequests();
 			channel.hasPendingRequests();
-			assert.equal(expiresAt(visible), visibleDeadline, "an ask appended to an idle parent is visible already and keeps its deadline");
+			assert.equal(
+				expiresAt(visible),
+				visibleDeadline,
+				"an ask appended to an idle parent is visible already and keeps its deadline",
+			);
 			assert.equal(handlers.get("message_start")?.size ?? 0, 0);
-		} finally { channel.dispose(); }
+		} finally {
+			channel.dispose();
+		}
 	});
 
 	it("registers both asks even when every user-turn notification throws", () => {
@@ -1081,14 +1584,25 @@ describe("supervisor ask registration", () => {
 		const runId = `run-${randomUUID()}`;
 		const requestId = writeRequest({ sessionId, runId });
 		const tools = new Map<string, SupervisorTool>();
-		const pi = makePi({ tools, onSend: () => { throw new Error("no UI attached"); } });
+		const pi = makePi({
+			tools,
+			onSend: () => {
+				throw new Error("no UI attached");
+			},
+		});
 		const secondId = writeRequest({ sessionId, runId });
-		const channel = createNativeSupervisorChannel(pi as never, makeState(sessionId, makeCtx(sessionId)), { platform: "darwin" });
+		const channel = createNativeSupervisorChannel(pi as never, makeState(sessionId, makeCtx(sessionId)), {
+			platform: "darwin",
+		});
 
 		try {
 			channel.start();
 			assert.equal(channel.pending.has(requestId), true, "a display failure must not lose an already-queued ask");
-			assert.equal(channel.pending.has(secondId), true, "a display failure must not abort discovery of remaining asks");
+			assert.equal(
+				channel.pending.has(secondId),
+				true,
+				"a display failure must not abort discovery of remaining asks",
+			);
 		} finally {
 			channel.dispose();
 		}
@@ -1105,14 +1619,30 @@ describe("supervisor ask registration", () => {
 		const state = makeState(sessionId, makeCtx(sessionId));
 		const queued: ForegroundSteerInput[] = [];
 		const control: ForegroundRunControl = {
-			runId: workflowRunId, mode: "single", startedAt: 100, updatedAt: 100,
-			activeChildren: new Map([[0, {
-				index: 0, agent: "worker", startedAt: 100, updatedAt: 100,
-				steer: async (input) => { queued.push(input); return { state: "queued" }; },
-			}]]),
+			runId: workflowRunId,
+			mode: "single",
+			startedAt: 100,
+			updatedAt: 100,
+			activeChildren: new Map([
+				[
+					0,
+					{
+						index: 0,
+						agent: "worker",
+						startedAt: 100,
+						updatedAt: 100,
+						steer: async (input) => {
+							queued.push(input);
+							return { state: "queued" };
+						},
+					},
+				],
+			]),
 		};
 		state.foregroundControls.set(workflowRunId, control);
-		const channel = createNativeSupervisorChannel(makePi({ tools: supervisorTools }) as never, state, { platform: "darwin" });
+		const channel = createNativeSupervisorChannel(makePi({ tools: supervisorTools }) as never, state, {
+			platform: "darwin",
+		});
 
 		try {
 			channel.start();
@@ -1137,7 +1667,10 @@ describe("supervisor ask registration", () => {
 				message: "Which option should I take?",
 			} as never);
 
-			await waitForCondition(() => fs.readdirSync(path.join(channelDir, "requests")).length > 0, "the child's ask to reach disk");
+			await waitForCondition(
+				() => fs.readdirSync(path.join(channelDir, "requests")).length > 0,
+				"the child's ask to reach disk",
+			);
 			await supervisorTools.get(NATIVE_SUPERVISOR_TOOL_NAME)!.execute("pending", { action: "pending" });
 
 			const requestId = [...channel.pending.keys()][0]!;
@@ -1145,7 +1678,11 @@ describe("supervisor ask registration", () => {
 			const otherIndexAsk = writeRequest({ sessionId, runId: workflowRunId, index: 3 });
 			await supervisorTools.get(NATIVE_SUPERVISOR_TOOL_NAME)!.execute("pending", { action: "pending" });
 			for (const mode of ["steer", "follow_up"] as const) {
-				const result = await steerWorkflowForegroundTarget({ target, message: "After this is resolved, update the docs.", mode });
+				const result = await steerWorkflowForegroundTarget({
+					target,
+					message: "After this is resolved, update the docs.",
+					mode,
+				});
 				assert.equal(result.details.steering?.state, "pending");
 				assert.equal(result.details.steering?.targets[0]?.state, "queued");
 				assert.doesNotMatch(text(result), /the child is unblocked/);
@@ -1159,7 +1696,9 @@ describe("supervisor ask registration", () => {
 				{ message: "After this is resolved, update the docs.", mode: "follow_up" },
 			]);
 			await supervisorTools.get(NATIVE_SUPERVISOR_TOOL_NAME)!.execute("reply", {
-				action: "reply", replyTo: requestId, message: "Take option A.",
+				action: "reply",
+				replyTo: requestId,
+				message: "Take option A.",
 			});
 
 			const childResult = await blocked;

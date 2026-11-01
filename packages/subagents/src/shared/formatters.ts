@@ -4,11 +4,11 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
-import type { Usage, SingleResult, TokenUsage } from "./types.ts";
-import type { ChainStep } from "./settings.ts";
-import { isDynamicParallelStep, isParallelStep } from "./settings.ts";
 import { previewDisplayText, sanitizeDisplayText } from "./display-text.ts";
 import { splitKnownThinkingSuffix, THINKING_LEVELS } from "./model-info.ts";
+import type { ChainStep } from "./settings.ts";
+import { isDynamicParallelStep, isParallelStep } from "./settings.ts";
+import type { SingleResult, TokenUsage, Usage } from "./types.ts";
 
 /**
  * Format token count for compact display.
@@ -25,8 +25,17 @@ export function formatTokenUsage(usage: TokenUsage, legacyLabel = "tok"): string
 		? `${formatTokens(usage.window)} window · ${formatTokens(usage.total)} spent`
 		: `${formatTokens(usage.total)} ${legacyLabel}`;
 }
-export function formatContextUsage(usage: Pick<TokenUsage, "window" | "windowPeak">, contextLimit: number): string | undefined {
-	if (usage.window === undefined || !Number.isFinite(usage.window) || !Number.isFinite(contextLimit) || contextLimit <= 0) return undefined;
+export function formatContextUsage(
+	usage: Pick<TokenUsage, "window" | "windowPeak">,
+	contextLimit: number,
+): string | undefined {
+	if (
+		usage.window === undefined ||
+		!Number.isFinite(usage.window) ||
+		!Number.isFinite(contextLimit) ||
+		contextLimit <= 0
+	)
+		return undefined;
 	const peak = usage.windowPeak !== undefined && Number.isFinite(usage.windowPeak) ? usage.windowPeak : usage.window;
 	const used = Math.max(0, usage.window, peak);
 	return `ctx ${formatTokens(used)}/${formatTokens(contextLimit)} (${Math.round((used / contextLimit) * 100)}%)`;
@@ -75,7 +84,13 @@ export function buildChainSummary(
 	failedStep?: { index: number; error: string },
 ): string {
 	const stepNames = steps
-		.map((step) => (isParallelStep(step) ? `parallel[${step.parallel.length}]` : isDynamicParallelStep(step) ? `expand:${step.parallel.agent}` : step.agent))
+		.map((step) =>
+			isParallelStep(step)
+				? `parallel[${step.parallel.length}]`
+				: isDynamicParallelStep(step)
+					? `expand:${step.parallel.agent}`
+					: step.agent,
+		)
 		.join(" → ");
 
 	const totalDuration = results.reduce((sum, r) => sum + (r.progress?.durationMs || 0), 0);
@@ -117,11 +132,8 @@ export function formatToolCall(name: string, args: Record<string, unknown>, expa
 		case "read":
 		case "write":
 		case "edit": {
-			const target = typeof args.path === "string"
-				? args.path
-				: typeof args.file_path === "string"
-					? args.file_path
-					: "";
+			const target =
+				typeof args.path === "string" ? args.path : typeof args.file_path === "string" ? args.file_path : "";
 			return `${name} ${sanitizeDisplayText(shortenPath(target))}`;
 		}
 		default: {

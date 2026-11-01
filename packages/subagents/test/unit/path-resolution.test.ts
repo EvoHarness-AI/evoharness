@@ -1,10 +1,10 @@
-import { describe, test, before, after } from "node:test";
 import * as assert from "node:assert";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { after, before, describe, test } from "node:test";
 import { discoverAgents } from "../../src/agents/agents.ts";
-import { resolveSkillPath, clearSkillCache } from "../../src/agents/skills.ts";
+import { clearSkillCache, resolveSkillPath } from "../../src/agents/skills.ts";
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-path-resolution-"));
 const cwdDir = path.join(tmpDir, "cwd");
@@ -46,7 +46,10 @@ describe("Path resolution for .agents and ~/.agents", () => {
 	test("should resolve skills in .agents/skills", () => {
 		const skillsDir = path.join(cwdDir, ".agents", "skills");
 		fs.mkdirSync(skillsDir, { recursive: true });
-		fs.writeFileSync(path.join(skillsDir, "test-skill-1.md"), "---\nname: test-skill-1\ndescription: test desc\n---\nSkill content");
+		fs.writeFileSync(
+			path.join(skillsDir, "test-skill-1.md"),
+			"---\nname: test-skill-1\ndescription: test desc\n---\nSkill content",
+		);
 
 		clearSkillCache();
 		const resolved = resolveSkillPath("test-skill-1", cwdDir);
@@ -57,7 +60,10 @@ describe("Path resolution for .agents and ~/.agents", () => {
 	test("should resolve skills in ~/.agents/skills", () => {
 		const userSkillsDir = path.join(userAgentsDir, "skills");
 		fs.mkdirSync(userSkillsDir, { recursive: true });
-		fs.writeFileSync(path.join(userSkillsDir, "test-skill-2.md"), "---\nname: test-skill-2\ndescription: test desc\n---\nSkill content");
+		fs.writeFileSync(
+			path.join(userSkillsDir, "test-skill-2.md"),
+			"---\nname: test-skill-2\ndescription: test desc\n---\nSkill content",
+		);
 
 		clearSkillCache();
 		const resolved = resolveSkillPath("test-skill-2", cwdDir);
@@ -73,11 +79,11 @@ describe("Path resolution for .agents and ~/.agents", () => {
 		fs.mkdirSync(agentsDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(legacyDir, "test-agent-legacy.md"),
-			"---\nname: test-agent-legacy\ndescription: Legacy agent\n---\nLegacy content"
+			"---\nname: test-agent-legacy\ndescription: Legacy agent\n---\nLegacy content",
 		);
 		fs.writeFileSync(
 			path.join(agentsDir, "test-agent-1.md"),
-			"---\nname: test-agent-1\ndescription: Test agent\n---\nAgent content"
+			"---\nname: test-agent-1\ndescription: Test agent\n---\nAgent content",
 		);
 
 		const result = discoverAgents(cwdDir, "project");
@@ -92,7 +98,7 @@ describe("Path resolution for .agents and ~/.agents", () => {
 	test("should resolve agents in ~/.agents", () => {
 		fs.writeFileSync(
 			path.join(userAgentsDir, "test-agent-2.md"),
-			"---\nname: test-agent-2\ndescription: Test agent\n---\nAgent content"
+			"---\nname: test-agent-2\ndescription: Test agent\n---\nAgent content",
 		);
 
 		const result = discoverAgents(cwdDir, "user");

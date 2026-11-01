@@ -4,9 +4,9 @@ import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
 import {
+	ActiveAsyncCapacityError,
 	acquireActiveAsyncCapacity,
 	activeAsyncCapacitySessionKey,
-	ActiveAsyncCapacityError,
 	getActiveAsyncCapacitySnapshot,
 	inspectActiveAsyncCapacityOwner,
 	transferActiveAsyncCapacity,
@@ -28,13 +28,15 @@ function observedProof(runId: string, runnerProcessInstanceId: string) {
 		runId,
 		runnerProcessInstanceId,
 		observedAt: 300,
-		instances: [{
-			kind: "runner",
-			processInstanceId: runnerProcessInstanceId,
-			closeObservedAt: 300,
-			exitCode: 0,
-			signal: null,
-		}],
+		instances: [
+			{
+				kind: "runner",
+				processInstanceId: runnerProcessInstanceId,
+				closeObservedAt: 300,
+				exitCode: 0,
+				signal: null,
+			},
+		],
 	};
 }
 
@@ -49,7 +51,10 @@ describe("active async capacity", () => {
 			const runId = `run-boot-${index}`;
 			const asyncDir = path.join(rootDir, "runs", runId);
 			try {
-				const handle = acquireActiveAsyncCapacity({ sessionId: "session-boot", limit: 1, runId, kind: "runner", asyncDir }, { rootDir });
+				const handle = acquireActiveAsyncCapacity(
+					{ sessionId: "session-boot", limit: 1, runId, kind: "runner", asyncDir },
+					{ rootDir },
+				);
 				assert.ok(handle);
 				handle.markStarted(`runner-${index}`);
 				writeJson(path.join(asyncDir, "status.json"), {
@@ -62,7 +67,13 @@ describe("active async capacity", () => {
 					bootId: "boot-before",
 					startedAt: 0,
 					lastActivityAt: 0,
-					processTerminal: { version: 1, state: "unknown", runId, runnerProcessInstanceId: `runner-${index}`, reason: "stale-repair" },
+					processTerminal: {
+						version: 1,
+						state: "unknown",
+						runId,
+						runnerProcessInstanceId: `runner-${index}`,
+						reason: "stale-repair",
+					},
 				});
 				const options = {
 					rootDir,
@@ -70,7 +81,9 @@ describe("active async capacity", () => {
 					abandonedSlotReleaseAfterMs: 1_000,
 					pidNamespaceScope: () => "pid:[1]",
 					bootId: () => "boot-now",
-					pidLiveness: (): "alive" => { throw new Error("the runner pid must not be probed"); },
+					pidLiveness: (): "alive" => {
+						throw new Error("the runner pid must not be probed");
+					},
 				};
 				const inspection = inspectActiveAsyncCapacityOwner({ runId, sessionId: "session-boot", asyncDir }, options);
 				assert.equal(inspection.release.state, testCase.releases ? "releasable" : "retained", testCase.name);
@@ -84,12 +97,27 @@ describe("active async capacity", () => {
 	it("admits exactly to the limit and rolls back only its own unstarted slot", () => {
 		const rootDir = tempRoot();
 		try {
-			const first = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "run-a", kind: "runner", asyncDir: path.join(rootDir, "run-a") }, { rootDir, token: () => "token-a" });
+			const first = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "run-a", kind: "runner", asyncDir: path.join(rootDir, "run-a") },
+				{ rootDir, token: () => "token-a" },
+			);
 			assert.ok(first);
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir }), { used: 1, limit: 1 });
 			assert.throws(
-				() => acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "run-b", kind: "runner", asyncDir: path.join(rootDir, "run-b") }, { rootDir, token: () => "token-b" }),
-				(error: unknown) => error instanceof ActiveAsyncCapacityError && error.message === "Active async run capacity exhausted: 1/1 used.",
+				() =>
+					acquireActiveAsyncCapacity(
+						{
+							sessionId: "session-a",
+							limit: 1,
+							runId: "run-b",
+							kind: "runner",
+							asyncDir: path.join(rootDir, "run-b"),
+						},
+						{ rootDir, token: () => "token-b" },
+					),
+				(error: unknown) =>
+					error instanceof ActiveAsyncCapacityError &&
+					error.message === "Active async run capacity exhausted: 1/1 used.",
 			);
 			assert.equal(first.rollback(), true);
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir }), { used: 0, limit: 1 });
@@ -102,11 +130,33 @@ describe("active async capacity", () => {
 		const rootDir = tempRoot();
 		try {
 			// Create a valid occupied slot, then corrupt only its owner metadata.
-			const handle = acquireActiveAsyncCapacity({ sessionId: "session-corrupt", limit: 1, runId: "run-a", kind: "runner", asyncDir: path.join(rootDir, "run-a") }, { rootDir });
+			const handle = acquireActiveAsyncCapacity(
+				{
+					sessionId: "session-corrupt",
+					limit: 1,
+					runId: "run-a",
+					kind: "runner",
+					asyncDir: path.join(rootDir, "run-a"),
+				},
+				{ rootDir },
+			);
 			assert.ok(handle);
 			fs.writeFileSync(path.join(rootDir, handle.owner.ownerSessionKey, "slot-0", "owner.json"), "not json");
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-corrupt", 1, { rootDir }), { used: 1, limit: 1 });
-			assert.throws(() => acquireActiveAsyncCapacity({ sessionId: "session-corrupt", limit: 1, runId: "run-b", kind: "runner", asyncDir: path.join(rootDir, "run-b") }, { rootDir }), ActiveAsyncCapacityError);
+			assert.throws(
+				() =>
+					acquireActiveAsyncCapacity(
+						{
+							sessionId: "session-corrupt",
+							limit: 1,
+							runId: "run-b",
+							kind: "runner",
+							asyncDir: path.join(rootDir, "run-b"),
+						},
+						{ rootDir },
+					),
+				ActiveAsyncCapacityError,
+			);
 		} finally {
 			fs.rmSync(rootDir, { recursive: true, force: true });
 		}
@@ -116,7 +166,16 @@ describe("active async capacity", () => {
 		const rootDir = tempRoot();
 		let now = 100;
 		try {
-			const runner = acquireActiveAsyncCapacity({ sessionId: "session-clock", limit: 2, runId: "runner", kind: "runner", asyncDir: path.join(rootDir, "runner") }, { rootDir, now: () => now });
+			const runner = acquireActiveAsyncCapacity(
+				{
+					sessionId: "session-clock",
+					limit: 2,
+					runId: "runner",
+					kind: "runner",
+					asyncDir: path.join(rootDir, "runner"),
+				},
+				{ rootDir, now: () => now },
+			);
 			assert.ok(runner);
 			assert.equal(runner.owner.reservedAt, 100);
 			now = 200;
@@ -124,7 +183,16 @@ describe("active async capacity", () => {
 			assert.equal(runner.owner.runnerStartedAt, 200);
 
 			now = 300;
-			const workflow = acquireActiveAsyncCapacity({ sessionId: "session-clock", limit: 2, runId: "workflow", kind: "workflow", asyncDir: path.join(rootDir, "workflow") }, { rootDir, now: () => now });
+			const workflow = acquireActiveAsyncCapacity(
+				{
+					sessionId: "session-clock",
+					limit: 2,
+					runId: "workflow",
+					kind: "workflow",
+					asyncDir: path.join(rootDir, "workflow"),
+				},
+				{ rootDir, now: () => now },
+			);
 			assert.ok(workflow);
 			workflow.markWorkflowStarted();
 			assert.equal(workflow.owner.runnerStartedAt, 300);
@@ -136,7 +204,16 @@ describe("active async capacity", () => {
 	it("does not roll back when runner start was recorded only in memory", () => {
 		const rootDir = tempRoot();
 		try {
-			const handle = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "run-a", kind: "runner", asyncDir: path.join(rootDir, "runs", "run-a") }, { rootDir });
+			const handle = acquireActiveAsyncCapacity(
+				{
+					sessionId: "session-a",
+					limit: 1,
+					runId: "run-a",
+					kind: "runner",
+					asyncDir: path.join(rootDir, "runs", "run-a"),
+				},
+				{ rootDir },
+			);
 			assert.ok(handle);
 			handle.owner.runnerProcessInstanceId = "runner-a";
 			handle.owner.runnerStartedAt = Date.now();
@@ -152,12 +229,31 @@ describe("active async capacity", () => {
 		const rootDir = tempRoot();
 		const asyncDir = path.join(rootDir, "runs", "run-a");
 		try {
-			const handle = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 2, runId: "run-a", kind: "runner", asyncDir }, { rootDir });
+			const handle = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 2, runId: "run-a", kind: "runner", asyncDir },
+				{ rootDir },
+			);
 			assert.ok(handle);
 			handle.markStarted("runner-a");
-			writeJson(path.join(asyncDir, "status.json"), { runId: "run-a", sessionId: "session-a", mode: "single", state: "complete", startedAt: 100, processTerminal: { version: 1, state: "unknown", runId: "run-a", runnerProcessInstanceId: "runner-a", reason: "process-tree-unverified" } });
+			writeJson(path.join(asyncDir, "status.json"), {
+				runId: "run-a",
+				sessionId: "session-a",
+				mode: "single",
+				state: "complete",
+				startedAt: 100,
+				processTerminal: {
+					version: 1,
+					state: "unknown",
+					runId: "run-a",
+					runnerProcessInstanceId: "runner-a",
+					reason: "process-tree-unverified",
+				},
+			});
 
-			const retained = inspectActiveAsyncCapacityOwner({ runId: "run-a", sessionId: "session-a", asyncDir }, { rootDir });
+			const retained = inspectActiveAsyncCapacityOwner(
+				{ runId: "run-a", sessionId: "session-a", asyncDir },
+				{ rootDir },
+			);
 
 			assert.equal(retained.relation, "current");
 			assert.equal(retained.release.state, "retained");
@@ -165,7 +261,10 @@ describe("active async capacity", () => {
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 2, { rootDir }), { used: 1, limit: 2 });
 
 			writeJson(path.join(asyncDir, "process-terminal.json"), observedProof("run-a", "runner-a"));
-			const releasable = inspectActiveAsyncCapacityOwner({ runId: "run-a", sessionId: "session-a", asyncDir }, { rootDir });
+			const releasable = inspectActiveAsyncCapacityOwner(
+				{ runId: "run-a", sessionId: "session-a", asyncDir },
+				{ rootDir },
+			);
 			assert.equal(releasable.release.state, "releasable");
 			assert.match(releasable.release.reason, /observed process-terminal proof/);
 			assert.equal(releasable.slotDir ? fs.existsSync(releasable.slotDir) : false, true);
@@ -178,13 +277,42 @@ describe("active async capacity", () => {
 		const rootDir = tempRoot();
 		const asyncDir = path.join(rootDir, "runs", "run-a");
 		try {
-			const handle = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 2, runId: "run-a", kind: "runner", asyncDir }, { rootDir });
+			const handle = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 2, runId: "run-a", kind: "runner", asyncDir },
+				{ rootDir },
+			);
 			assert.ok(handle);
 			handle.markStarted("runner-a");
-			writeJson(path.join(asyncDir, "status.json"), { runId: "run-a", sessionId: "session-a", mode: "single", state: "running", startedAt: 100, processTerminal: { version: 1, state: "pending", runId: "run-a", runnerProcessInstanceId: "runner-a" } });
+			writeJson(path.join(asyncDir, "status.json"), {
+				runId: "run-a",
+				sessionId: "session-a",
+				mode: "single",
+				state: "running",
+				startedAt: 100,
+				processTerminal: { version: 1, state: "pending", runId: "run-a", runnerProcessInstanceId: "runner-a" },
+			});
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 2, { rootDir }), { used: 1, limit: 2 });
-			writeJson(path.join(asyncDir, "status.json"), { runId: "run-a", sessionId: "session-a", mode: "single", state: "complete", startedAt: 100, processTerminal: { version: 1, state: "unknown", runId: "run-a", runnerProcessInstanceId: "runner-a", reason: "process-tree-unverified" } });
-			writeJson(path.join(asyncDir, "process-terminal.json"), { version: 1, state: "unknown", runId: "run-a", runnerProcessInstanceId: "runner-a", reason: "process-tree-unverified" });
+			writeJson(path.join(asyncDir, "status.json"), {
+				runId: "run-a",
+				sessionId: "session-a",
+				mode: "single",
+				state: "complete",
+				startedAt: 100,
+				processTerminal: {
+					version: 1,
+					state: "unknown",
+					runId: "run-a",
+					runnerProcessInstanceId: "runner-a",
+					reason: "process-tree-unverified",
+				},
+			});
+			writeJson(path.join(asyncDir, "process-terminal.json"), {
+				version: 1,
+				state: "unknown",
+				runId: "run-a",
+				runnerProcessInstanceId: "runner-a",
+				reason: "process-tree-unverified",
+			});
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 2, { rootDir }), { used: 1, limit: 2 });
 			writeJson(path.join(asyncDir, "process-terminal.json"), observedProof("run-a", "runner-a"));
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 2, { rootDir }), { used: 0, limit: 2 });
@@ -197,19 +325,40 @@ describe("active async capacity", () => {
 		const rootDir = tempRoot();
 		const asyncDir = path.join(rootDir, "runs", "run-a");
 		try {
-			const handle = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "run-a", kind: "runner", asyncDir }, { rootDir, token: () => "token-a" });
+			const handle = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "run-a", kind: "runner", asyncDir },
+				{ rootDir, token: () => "token-a" },
+			);
 			assert.ok(handle);
 			handle.markStarted("runner-a");
-			writeJson(path.join(asyncDir, "status.json"), { runId: "run-a", sessionId: "session-a", mode: "single", state: "complete", startedAt: 100 });
+			writeJson(path.join(asyncDir, "status.json"), {
+				runId: "run-a",
+				sessionId: "session-a",
+				mode: "single",
+				state: "complete",
+				startedAt: 100,
+			});
 			writeJson(path.join(asyncDir, "process-terminal.json"), observedProof("run-a", "runner-a"));
 
 			let replacement: ReturnType<typeof acquireActiveAsyncCapacity>;
-			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, {
-				rootDir,
-				afterSlotRename: () => {
-					replacement = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "run-b", kind: "runner", asyncDir: path.join(rootDir, "runs", "run-b") }, { rootDir, token: () => "token-b" });
-				},
-			}), { used: 1, limit: 1 });
+			assert.deepEqual(
+				getActiveAsyncCapacitySnapshot("session-a", 1, {
+					rootDir,
+					afterSlotRename: () => {
+						replacement = acquireActiveAsyncCapacity(
+							{
+								sessionId: "session-a",
+								limit: 1,
+								runId: "run-b",
+								kind: "runner",
+								asyncDir: path.join(rootDir, "runs", "run-b"),
+							},
+							{ rootDir, token: () => "token-b" },
+						);
+					},
+				}),
+				{ used: 1, limit: 1 },
+			);
 			assert.equal(replacement!.owner.runId, "run-b");
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir }), { used: 1, limit: 1 });
 		} finally {
@@ -220,14 +369,32 @@ describe("active async capacity", () => {
 	it("does not delete a slot recreated during pre-start rollback", () => {
 		const rootDir = tempRoot();
 		try {
-			const first = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "run-a", kind: "runner", asyncDir: path.join(rootDir, "runs", "run-a") }, {
-				rootDir,
-				token: () => "token-a",
-				afterSlotRename: () => {
-					const replacement = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "run-b", kind: "runner", asyncDir: path.join(rootDir, "runs", "run-b") }, { rootDir, token: () => "token-b" });
-					assert.ok(replacement);
+			const first = acquireActiveAsyncCapacity(
+				{
+					sessionId: "session-a",
+					limit: 1,
+					runId: "run-a",
+					kind: "runner",
+					asyncDir: path.join(rootDir, "runs", "run-a"),
 				},
-			});
+				{
+					rootDir,
+					token: () => "token-a",
+					afterSlotRename: () => {
+						const replacement = acquireActiveAsyncCapacity(
+							{
+								sessionId: "session-a",
+								limit: 1,
+								runId: "run-b",
+								kind: "runner",
+								asyncDir: path.join(rootDir, "runs", "run-b"),
+							},
+							{ rootDir, token: () => "token-b" },
+						);
+						assert.ok(replacement);
+					},
+				},
+			);
 			assert.ok(first);
 			assert.equal(first.rollback(), true);
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir }), { used: 1, limit: 1 });
@@ -242,20 +409,41 @@ describe("active async capacity", () => {
 		const sourceDir = path.join(rootDir, "runs", "source");
 		const failedDir = path.join(rootDir, "runs", "failed-revival");
 		try {
-			const source = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "source", kind: "runner", asyncDir: sourceDir }, { rootDir });
+			const source = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "source", kind: "runner", asyncDir: sourceDir },
+				{ rootDir },
+			);
 			assert.ok(source);
 			source.markStarted("source-runner");
-			writeJson(path.join(sourceDir, "status.json"), { runId: "source", sessionId: "session-a", mode: "single", state: "paused", startedAt: 100 });
-			const transferred = transferActiveAsyncCapacity({ sessionId: "session-a", limit: 1, sourceRunId: "source", runId: "failed-revival", asyncDir: failedDir }, { rootDir });
+			writeJson(path.join(sourceDir, "status.json"), {
+				runId: "source",
+				sessionId: "session-a",
+				mode: "single",
+				state: "paused",
+				startedAt: 100,
+			});
+			const transferred = transferActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, sourceRunId: "source", runId: "failed-revival", asyncDir: failedDir },
+				{ rootDir },
+			);
 			assert.ok(transferred);
 			transferred.markStarted("failed-runner");
 			assert.equal(transferred.rollbackBeforeRunnerProceed("failed-runner"), true);
 
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir }), { used: 1, limit: 1 });
-			const sourceInspection = inspectActiveAsyncCapacityOwner({ sessionId: "session-a", runId: "source", asyncDir: sourceDir }, { rootDir });
+			const sourceInspection = inspectActiveAsyncCapacityOwner(
+				{ sessionId: "session-a", runId: "source", asyncDir: sourceDir },
+				{ rootDir },
+			);
 			assert.equal(sourceInspection.relation, "current");
 			assert.equal(sourceInspection.owner?.runId, "source");
-			assert.equal(inspectActiveAsyncCapacityOwner({ sessionId: "session-a", runId: "failed-revival", asyncDir: failedDir }, { rootDir }).relation, "none");
+			assert.equal(
+				inspectActiveAsyncCapacityOwner(
+					{ sessionId: "session-a", runId: "failed-revival", asyncDir: failedDir },
+					{ rootDir },
+				).relation,
+				"none",
+			);
 		} finally {
 			fs.rmSync(rootDir, { recursive: true, force: true });
 		}
@@ -266,12 +454,18 @@ describe("active async capacity", () => {
 		const unboundDir = path.join(rootDir, "runs", "pre-bind");
 		const asyncDir = path.join(rootDir, "runs", "pre-proceed");
 		try {
-			const unbound = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "pre-bind", kind: "runner", asyncDir: unboundDir }, { rootDir });
+			const unbound = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "pre-bind", kind: "runner", asyncDir: unboundDir },
+				{ rootDir },
+			);
 			assert.ok(unbound);
 			assert.equal(unbound.rollbackBeforeRunnerProceed("pre-bind-runner"), false);
 			assert.equal(unbound.rollback(), true);
 
-			const handle = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "pre-proceed", kind: "runner", asyncDir }, { rootDir });
+			const handle = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "pre-proceed", kind: "runner", asyncDir },
+				{ rootDir },
+			);
 			assert.ok(handle);
 			handle.markStarted("pre-proceed-runner");
 			assert.equal(handle.rollback(), false);
@@ -281,21 +475,47 @@ describe("active async capacity", () => {
 			assert.equal(handle.rollbackBeforeRunnerProceed("pre-proceed-runner"), true);
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir }), { used: 0, limit: 1 });
 
-			const bindFailure = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "pre-proceed-bind-failure", kind: "runner", asyncDir: path.join(rootDir, "runs", "pre-proceed-bind-failure") }, {
-				rootDir,
-				writeOwner() { throw new Error("simulated durable bind failure"); },
-			});
+			const bindFailure = acquireActiveAsyncCapacity(
+				{
+					sessionId: "session-a",
+					limit: 1,
+					runId: "pre-proceed-bind-failure",
+					kind: "runner",
+					asyncDir: path.join(rootDir, "runs", "pre-proceed-bind-failure"),
+				},
+				{
+					rootDir,
+					writeOwner() {
+						throw new Error("simulated durable bind failure");
+					},
+				},
+			);
 			assert.ok(bindFailure);
-			assert.throws(() => bindFailure.markStarted("pre-proceed-bind-failure-runner"), /simulated durable bind failure/);
+			assert.throws(
+				() => bindFailure.markStarted("pre-proceed-bind-failure-runner"),
+				/simulated durable bind failure/,
+			);
 			assert.equal(bindFailure.rollback(), false);
 			assert.equal(bindFailure.rollbackBeforeRunnerProceed("pre-proceed-bind-failure-runner"), true);
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir }), { used: 0, limit: 1 });
 
-			const divergent = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "pre-proceed-divergent", kind: "runner", asyncDir: path.join(rootDir, "runs", "pre-proceed-divergent") }, { rootDir });
+			const divergent = acquireActiveAsyncCapacity(
+				{
+					sessionId: "session-a",
+					limit: 1,
+					runId: "pre-proceed-divergent",
+					kind: "runner",
+					asyncDir: path.join(rootDir, "runs", "pre-proceed-divergent"),
+				},
+				{ rootDir },
+			);
 			assert.ok(divergent);
 			const unstartedOwner = { ...divergent.owner };
 			divergent.markStarted("pre-proceed-divergent-runner");
-			writeJson(path.join(rootDir, activeAsyncCapacitySessionKey("session-a"), "slot-0", "owner.json"), unstartedOwner);
+			writeJson(
+				path.join(rootDir, activeAsyncCapacitySessionKey("session-a"), "slot-0", "owner.json"),
+				unstartedOwner,
+			);
 			assert.equal(divergent.rollback(), false);
 			assert.equal(divergent.rollbackBeforeRunnerProceed("pre-proceed-divergent-runner"), true);
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir }), { used: 0, limit: 1 });
@@ -309,14 +529,38 @@ describe("active async capacity", () => {
 		const sourceDir = path.join(rootDir, "runs", "source");
 		const revivedDir = path.join(rootDir, "runs", "revived");
 		try {
-			const source = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "source", kind: "runner", asyncDir: sourceDir }, { rootDir });
+			const source = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "source", kind: "runner", asyncDir: sourceDir },
+				{ rootDir },
+			);
 			assert.ok(source);
 			source.markStarted("source-runner");
-			writeJson(path.join(sourceDir, "status.json"), { runId: "source", sessionId: "session-a", mode: "single", state: "complete", startedAt: 100 });
+			writeJson(path.join(sourceDir, "status.json"), {
+				runId: "source",
+				sessionId: "session-a",
+				mode: "single",
+				state: "complete",
+				startedAt: 100,
+			});
 			writeJson(path.join(sourceDir, "process-terminal.json"), observedProof("source", "source-runner"));
-			const transferred = transferActiveAsyncCapacity({ sessionId: "session-a", limit: 1, sourceRunId: "source", runId: "revived", asyncDir: revivedDir }, { rootDir });
+			const transferred = transferActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, sourceRunId: "source", runId: "revived", asyncDir: revivedDir },
+				{ rootDir },
+			);
 			assert.ok(transferred);
-			writeJson(path.join(revivedDir, "status.json"), { runId: "revived", sessionId: "session-a", mode: "single", state: "failed", startedAt: 200, processTerminal: { version: 1, state: "not-started", runId: "revived", runnerProcessInstanceId: "revived-runner" } });
+			writeJson(path.join(revivedDir, "status.json"), {
+				runId: "revived",
+				sessionId: "session-a",
+				mode: "single",
+				state: "failed",
+				startedAt: 200,
+				processTerminal: {
+					version: 1,
+					state: "not-started",
+					runId: "revived",
+					runnerProcessInstanceId: "revived-runner",
+				},
+			});
 			transferred.markStarted("revived-runner");
 			assert.equal(transferred.rollback(), false);
 
@@ -333,14 +577,29 @@ describe("active async capacity", () => {
 		const sourceDir = path.join(rootDir, "runs", "source");
 		const nextDir = path.join(rootDir, "runs", "next");
 		try {
-			const source = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "source", kind: "runner", asyncDir: sourceDir }, { rootDir });
+			const source = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "source", kind: "runner", asyncDir: sourceDir },
+				{ rootDir },
+			);
 			assert.ok(source);
 			source.markStarted("runner-source");
-			writeJson(path.join(sourceDir, "status.json"), { runId: "source", sessionId: "session-a", mode: "single", state: "paused", startedAt: 100 });
-			const next = transferActiveAsyncCapacity({ sessionId: "session-a", limit: 1, sourceRunId: "source", runId: "next", asyncDir: nextDir }, { rootDir });
+			writeJson(path.join(sourceDir, "status.json"), {
+				runId: "source",
+				sessionId: "session-a",
+				mode: "single",
+				state: "paused",
+				startedAt: 100,
+			});
+			const next = transferActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, sourceRunId: "source", runId: "next", asyncDir: nextDir },
+				{ rootDir },
+			);
 			assert.ok(next);
 
-			const inspection = inspectActiveAsyncCapacityOwner({ runId: "source", sessionId: "session-a", asyncDir: sourceDir }, { rootDir });
+			const inspection = inspectActiveAsyncCapacityOwner(
+				{ runId: "source", sessionId: "session-a", asyncDir: sourceDir },
+				{ rootDir },
+			);
 
 			assert.equal(inspection.relation, "source");
 			assert.equal(inspection.owner?.runId, "next");
@@ -355,11 +614,29 @@ describe("active async capacity", () => {
 		const rootDir = tempRoot();
 		const sourceDir = path.join(rootDir, "runs", "source");
 		try {
-			const source = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "source", kind: "runner", asyncDir: sourceDir }, { rootDir });
+			const source = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "source", kind: "runner", asyncDir: sourceDir },
+				{ rootDir },
+			);
 			assert.ok(source);
 			source.markStarted("runner-source");
-			writeJson(path.join(sourceDir, "status.json"), { runId: "source", sessionId: "session-a", mode: "single", state: "paused", startedAt: 100 });
-			const next = transferActiveAsyncCapacity({ sessionId: "session-a", limit: 1, sourceRunId: "source", runId: "next", asyncDir: path.join(rootDir, "runs", "next") }, { rootDir });
+			writeJson(path.join(sourceDir, "status.json"), {
+				runId: "source",
+				sessionId: "session-a",
+				mode: "single",
+				state: "paused",
+				startedAt: 100,
+			});
+			const next = transferActiveAsyncCapacity(
+				{
+					sessionId: "session-a",
+					limit: 1,
+					sourceRunId: "source",
+					runId: "next",
+					asyncDir: path.join(rootDir, "runs", "next"),
+				},
+				{ rootDir },
+			);
 			assert.ok(next);
 			assert.equal(next.owner.sourceRunId, "source");
 			assert.equal(next.owner.generation, 1);
@@ -373,11 +650,29 @@ describe("active async capacity", () => {
 		const rootDir = tempRoot();
 		const sourceDir = path.join(rootDir, "runs", "source");
 		try {
-			const source = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "source", kind: "runner", asyncDir: sourceDir }, { rootDir });
+			const source = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "source", kind: "runner", asyncDir: sourceDir },
+				{ rootDir },
+			);
 			assert.ok(source);
 			source.markStarted("runner-source");
-			writeJson(path.join(sourceDir, "status.json"), { runId: "source", sessionId: "session-a", mode: "single", state: "paused", startedAt: 100 });
-			const next = transferActiveAsyncCapacity({ sessionId: "session-a", limit: undefined, sourceRunId: "source", runId: "next", asyncDir: path.join(rootDir, "runs", "next") }, { rootDir });
+			writeJson(path.join(sourceDir, "status.json"), {
+				runId: "source",
+				sessionId: "session-a",
+				mode: "single",
+				state: "paused",
+				startedAt: 100,
+			});
+			const next = transferActiveAsyncCapacity(
+				{
+					sessionId: "session-a",
+					limit: undefined,
+					sourceRunId: "source",
+					runId: "next",
+					asyncDir: path.join(rootDir, "runs", "next"),
+				},
+				{ rootDir },
+			);
 			assert.ok(next);
 			assert.equal(next.owner.runId, "next");
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", undefined, { rootDir }), { used: 1, limit: 0 });
@@ -392,19 +687,61 @@ describe("active async capacity", () => {
 		const workflowDir = path.join(asyncRoot, "workflow");
 		const childDir = path.join(asyncRoot, "child");
 		try {
-			const workflow = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "workflow", kind: "workflow", asyncDir: workflowDir }, { rootDir });
+			const workflow = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "workflow", kind: "workflow", asyncDir: workflowDir },
+				{ rootDir },
+			);
 			assert.ok(workflow);
 			workflow.markWorkflowStarted();
-			writeJson(path.join(workflowDir, "status.json"), { runId: "workflow", sessionId: "session-a", mode: "workflow", state: "complete", startedAt: 100, steps: [{ agent: "worker", workflowKey: "foreground", async: false, status: "running" }] });
-			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir, liveWorkflowRunIds: new Set(["workflow"]) }), { used: 1, limit: 1 });
+			writeJson(path.join(workflowDir, "status.json"), {
+				runId: "workflow",
+				sessionId: "session-a",
+				mode: "workflow",
+				state: "complete",
+				startedAt: 100,
+				steps: [{ agent: "worker", workflowKey: "foreground", async: false, status: "running" }],
+			});
+			assert.deepEqual(
+				getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir, liveWorkflowRunIds: new Set(["workflow"]) }),
+				{ used: 1, limit: 1 },
+			);
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir }), { used: 0, limit: 1 });
 
-			const second = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "workflow-2", kind: "workflow", asyncDir: workflowDir }, { rootDir });
+			const second = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "workflow-2", kind: "workflow", asyncDir: workflowDir },
+				{ rootDir },
+			);
 			assert.ok(second);
 			second.markWorkflowStarted();
-			writeJson(path.join(workflowDir, "status.json"), { runId: "workflow-2", sessionId: "session-a", mode: "workflow", state: "failed", startedAt: 100, steps: [{ agent: "worker", workflowKey: "async", runId: "child", async: true, status: "running" }] });
-			writeJson(path.join(childDir, "status.json"), { runId: "child", sessionId: "session-a", mode: "single", state: "complete", startedAt: 100, processTerminal: { version: 1, state: "unknown", runId: "child", runnerProcessInstanceId: "runner-child", reason: "process-tree-unverified" } });
-			writeJson(path.join(childDir, "process-terminal.json"), { version: 1, state: "unknown", runId: "child", runnerProcessInstanceId: "runner-child", reason: "process-tree-unverified" });
+			writeJson(path.join(workflowDir, "status.json"), {
+				runId: "workflow-2",
+				sessionId: "session-a",
+				mode: "workflow",
+				state: "failed",
+				startedAt: 100,
+				steps: [{ agent: "worker", workflowKey: "async", runId: "child", async: true, status: "running" }],
+			});
+			writeJson(path.join(childDir, "status.json"), {
+				runId: "child",
+				sessionId: "session-a",
+				mode: "single",
+				state: "complete",
+				startedAt: 100,
+				processTerminal: {
+					version: 1,
+					state: "unknown",
+					runId: "child",
+					runnerProcessInstanceId: "runner-child",
+					reason: "process-tree-unverified",
+				},
+			});
+			writeJson(path.join(childDir, "process-terminal.json"), {
+				version: 1,
+				state: "unknown",
+				runId: "child",
+				runnerProcessInstanceId: "runner-child",
+				reason: "process-tree-unverified",
+			});
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir }), { used: 1, limit: 1 });
 			writeJson(path.join(childDir, "process-terminal.json"), observedProof("child", "runner-child"));
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir }), { used: 0, limit: 1 });
@@ -419,11 +756,33 @@ describe("active async capacity", () => {
 		const workflowDir = path.join(asyncRoot, "workflow");
 		const childDir = path.join(asyncRoot, "revived-child");
 		try {
-			const workflow = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "workflow", kind: "workflow", asyncDir: workflowDir }, { rootDir });
+			const workflow = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "workflow", kind: "workflow", asyncDir: workflowDir },
+				{ rootDir },
+			);
 			assert.ok(workflow);
 			workflow.markWorkflowStarted();
-			writeJson(path.join(workflowDir, "status.json"), { runId: "workflow", sessionId: "session-a", mode: "workflow", state: "failed", startedAt: 100, steps: [{ agent: "worker", workflowKey: "resume", runId: "revived-child", async: true, status: "failed" }] });
-			writeJson(path.join(childDir, "status.json"), { runId: "revived-child", sessionId: "session-a", mode: "single", state: "failed", startedAt: 100, processTerminal: { version: 1, state: "not-started", runId: "revived-child", runnerProcessInstanceId: "runner-child" } });
+			writeJson(path.join(workflowDir, "status.json"), {
+				runId: "workflow",
+				sessionId: "session-a",
+				mode: "workflow",
+				state: "failed",
+				startedAt: 100,
+				steps: [{ agent: "worker", workflowKey: "resume", runId: "revived-child", async: true, status: "failed" }],
+			});
+			writeJson(path.join(childDir, "status.json"), {
+				runId: "revived-child",
+				sessionId: "session-a",
+				mode: "single",
+				state: "failed",
+				startedAt: 100,
+				processTerminal: {
+					version: 1,
+					state: "not-started",
+					runId: "revived-child",
+					runnerProcessInstanceId: "runner-child",
+				},
+			});
 
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir }), { used: 1, limit: 1 });
 			writeJson(path.join(childDir, "process-terminal.json"), observedProof("revived-child", "runner-child"));
@@ -437,7 +796,10 @@ describe("active async capacity", () => {
 		const rootDir = tempRoot();
 		const workflowDir = path.join(rootDir, "runs", "workflow");
 		try {
-			const workflow = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "workflow", kind: "workflow", asyncDir: workflowDir }, { rootDir });
+			const workflow = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "workflow", kind: "workflow", asyncDir: workflowDir },
+				{ rootDir },
+			);
 			assert.ok(workflow);
 			workflow.markWorkflowStarted();
 			writeJson(path.join(workflowDir, "status.json"), {
@@ -446,7 +808,15 @@ describe("active async capacity", () => {
 				mode: "workflow",
 				state: "failed",
 				startedAt: 100,
-				steps: [{ agent: "worker", workflowKey: "prep-failure", status: "failed", async: false, error: "gate cannot be combined with acceptance" }],
+				steps: [
+					{
+						agent: "worker",
+						workflowKey: "prep-failure",
+						status: "failed",
+						async: false,
+						error: "gate cannot be combined with acceptance",
+					},
+				],
 			});
 
 			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir }), { used: 0, limit: 1 });
@@ -460,7 +830,10 @@ describe("active async capacity", () => {
 		const asyncRoot = path.join(rootDir, "runs");
 		const workflowDir = path.join(asyncRoot, "workflow");
 		try {
-			const workflow = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "workflow", kind: "workflow", asyncDir: workflowDir }, { rootDir });
+			const workflow = acquireActiveAsyncCapacity(
+				{ sessionId: "session-a", limit: 1, runId: "workflow", kind: "workflow", asyncDir: workflowDir },
+				{ rootDir },
+			);
 			assert.ok(workflow);
 			workflow.markWorkflowStarted();
 			writeJson(path.join(asyncRoot, "child", "mission.json"), {});
@@ -471,10 +844,22 @@ describe("active async capacity", () => {
 				state: "complete",
 				startedAt: 100,
 				endedAt: 200,
-				steps: [{ agent: "worker", workflowKey: "launch-failure", runId: "child", async: true, status: "failed", error: "Failed to start async run 'child': cwd is missing" }],
+				steps: [
+					{
+						agent: "worker",
+						workflowKey: "launch-failure",
+						runId: "child",
+						async: true,
+						status: "failed",
+						error: "Failed to start async run 'child': cwd is missing",
+					},
+				],
 			});
 
-			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir, now: () => 201 }), { used: 0, limit: 1 });
+			assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, { rootDir, now: () => 201 }), {
+				used: 0,
+				limit: 1,
+			});
 		} finally {
 			fs.rmSync(rootDir, { recursive: true, force: true });
 		}
@@ -482,18 +867,63 @@ describe("active async capacity", () => {
 
 	it("reclaims only old failed runs with dead runners under the abandoned-timeout policy", () => {
 		const cases = [
-			{ name: "dead old", state: "failed", pidLiveness: "dead" as const, lastActivityAt: 0, threshold: 1_000, releases: true },
-			{ name: "dead recent", state: "failed", pidLiveness: "dead" as const, lastActivityAt: 9_500, threshold: 1_000, releases: false },
-			{ name: "alive old", state: "failed", pidLiveness: "alive" as const, lastActivityAt: 0, threshold: 1_000, releases: false },
-			{ name: "unknown old", state: "failed", pidLiveness: "unknown" as const, lastActivityAt: 0, threshold: 1_000, releases: false },
-			{ name: "strict mode", state: "failed", pidLiveness: "dead" as const, lastActivityAt: 0, threshold: false as const, releases: false },
-			{ name: "successful old", state: "complete", pidLiveness: "dead" as const, lastActivityAt: 0, threshold: 1_000, releases: false },
+			{
+				name: "dead old",
+				state: "failed",
+				pidLiveness: "dead" as const,
+				lastActivityAt: 0,
+				threshold: 1_000,
+				releases: true,
+			},
+			{
+				name: "dead recent",
+				state: "failed",
+				pidLiveness: "dead" as const,
+				lastActivityAt: 9_500,
+				threshold: 1_000,
+				releases: false,
+			},
+			{
+				name: "alive old",
+				state: "failed",
+				pidLiveness: "alive" as const,
+				lastActivityAt: 0,
+				threshold: 1_000,
+				releases: false,
+			},
+			{
+				name: "unknown old",
+				state: "failed",
+				pidLiveness: "unknown" as const,
+				lastActivityAt: 0,
+				threshold: 1_000,
+				releases: false,
+			},
+			{
+				name: "strict mode",
+				state: "failed",
+				pidLiveness: "dead" as const,
+				lastActivityAt: 0,
+				threshold: false as const,
+				releases: false,
+			},
+			{
+				name: "successful old",
+				state: "complete",
+				pidLiveness: "dead" as const,
+				lastActivityAt: 0,
+				threshold: 1_000,
+				releases: false,
+			},
 		];
 		for (const [index, testCase] of cases.entries()) {
 			const rootDir = tempRoot();
 			const asyncDir = path.join(rootDir, "runs", `run-${index}`);
 			try {
-				const handle = acquireActiveAsyncCapacity({ sessionId: "session-policy", limit: 1, runId: `run-${index}`, kind: "runner", asyncDir }, { rootDir });
+				const handle = acquireActiveAsyncCapacity(
+					{ sessionId: "session-policy", limit: 1, runId: `run-${index}`, kind: "runner", asyncDir },
+					{ rootDir },
+				);
 				assert.ok(handle);
 				handle.markStarted(`runner-${index}`);
 				writeJson(path.join(asyncDir, "status.json"), {
@@ -504,7 +934,13 @@ describe("active async capacity", () => {
 					pid: 50_000 + index,
 					startedAt: 0,
 					lastActivityAt: testCase.lastActivityAt,
-					processTerminal: { version: 1, state: "unknown", runId: `run-${index}`, runnerProcessInstanceId: `runner-${index}`, reason: "stale-repair" },
+					processTerminal: {
+						version: 1,
+						state: "unknown",
+						runId: `run-${index}`,
+						runnerProcessInstanceId: `runner-${index}`,
+						reason: "stale-repair",
+					},
 				});
 				const options = {
 					rootDir,
@@ -512,13 +948,19 @@ describe("active async capacity", () => {
 					pidLiveness: () => testCase.pidLiveness,
 					abandonedSlotReleaseAfterMs: testCase.threshold,
 				};
-				const inspection = inspectActiveAsyncCapacityOwner({ runId: `run-${index}`, sessionId: "session-policy", asyncDir }, options);
+				const inspection = inspectActiveAsyncCapacityOwner(
+					{ runId: `run-${index}`, sessionId: "session-policy", asyncDir },
+					options,
+				);
 				assert.equal(inspection.release.state, testCase.releases ? "releasable" : "retained", testCase.name);
 				if (testCase.releases) {
 					assert.match(inspection.release.reason, /abandoned-timeout/);
 					assert.match(inspection.release.reason, /process proof unknown/);
 					assert.deepEqual(getActiveAsyncCapacitySnapshot("session-policy", 1, options), { used: 0, limit: 1 });
-					assert.match(fs.readFileSync(path.join(asyncDir, "events.jsonl"), "utf-8"), /"releasedBy":"abandoned-timeout"/);
+					assert.match(
+						fs.readFileSync(path.join(asyncDir, "events.jsonl"), "utf-8"),
+						/"releasedBy":"abandoned-timeout"/,
+					);
 				} else {
 					assert.deepEqual(getActiveAsyncCapacitySnapshot("session-policy", 1, options), { used: 1, limit: 1 });
 				}
@@ -529,21 +971,71 @@ describe("active async capacity", () => {
 	});
 
 	it("reclaims a terminal workflow only when every unresolved async child is an old terminal run with a dead runner", () => {
-		type Child = { state: string; lastActivityAt?: number; pid?: "dead" | "alive"; sessionId?: string; runnerId?: unknown; pidNamespace?: string; processTerminal?: Record<string, unknown> };
+		type Child = {
+			state: string;
+			lastActivityAt?: number;
+			pid?: "dead" | "alive";
+			sessionId?: string;
+			runnerId?: unknown;
+			pidNamespace?: string;
+			processTerminal?: Record<string, unknown>;
+		};
 		const abandoned: Child = { state: "failed", lastActivityAt: 0, pid: "dead" };
-		const cases: Array<{ name: string; children: Child[]; endedAt?: number; threshold?: number | false; releases: boolean }> = [
+		const cases: Array<{
+			name: string;
+			children: Child[];
+			endedAt?: number;
+			threshold?: number | false;
+			releases: boolean;
+		}> = [
 			{ name: "abandoned children", children: [abandoned, abandoned], releases: true },
 			{ name: "later child still running", children: [abandoned, { state: "running" }], releases: false },
 			{ name: "workflow ended recently", children: [abandoned], endedAt: 9_500, releases: false },
 			{ name: "child active recently", children: [{ ...abandoned, lastActivityAt: 9_500 }], releases: false },
-			{ name: "stopped and complete children", children: [{ ...abandoned, state: "stopped" }, { ...abandoned, state: "complete" }], releases: true },
+			{
+				name: "stopped and complete children",
+				children: [
+					{ ...abandoned, state: "stopped" },
+					{ ...abandoned, state: "complete" },
+				],
+				releases: true,
+			},
 			// A stopped result repaired after its launcher was gone (#2863).
-			{ name: "observer-unavailable stopped child", children: [abandoned, { ...abandoned, state: "stopped", processTerminal: { version: 1, state: "unknown", runId: "child-1", runnerProcessInstanceId: "observer-unavailable", reason: "observer-unavailable" } }], releases: true },
+			{
+				name: "observer-unavailable stopped child",
+				children: [
+					abandoned,
+					{
+						...abandoned,
+						state: "stopped",
+						processTerminal: {
+							version: 1,
+							state: "unknown",
+							runId: "child-1",
+							runnerProcessInstanceId: "observer-unavailable",
+							reason: "observer-unavailable",
+						},
+					},
+				],
+				releases: true,
+			},
 			{ name: "paused child", children: [{ ...abandoned, state: "paused" }], releases: false },
-			{ name: "stopped child runner alive", children: [{ ...abandoned, state: "stopped", pid: "alive" }], releases: false },
+			{
+				name: "stopped child runner alive",
+				children: [{ ...abandoned, state: "stopped", pid: "alive" }],
+				releases: false,
+			},
 			{ name: "child runner alive", children: [{ ...abandoned, pid: "alive" }], releases: false },
-			{ name: "child runner in another PID namespace", children: [{ ...abandoned, pidNamespace: "pid:[2]" }], releases: false },
-			{ name: "child from another session", children: [{ ...abandoned, sessionId: "other-session" }], releases: false },
+			{
+				name: "child runner in another PID namespace",
+				children: [{ ...abandoned, pidNamespace: "pid:[2]" }],
+				releases: false,
+			},
+			{
+				name: "child from another session",
+				children: [{ ...abandoned, sessionId: "other-session" }],
+				releases: false,
+			},
 			{ name: "malformed child runner identity", children: [{ ...abandoned, runnerId: 42 }], releases: false },
 			{ name: "strict mode", children: [abandoned], threshold: false, releases: false },
 		];
@@ -553,29 +1045,73 @@ describe("active async capacity", () => {
 			const workflowDir = path.join(asyncRoot, "workflow");
 			const pids = new Map<number, "dead" | "alive">();
 			try {
-				const workflow = acquireActiveAsyncCapacity({ sessionId: "session-a", limit: 1, runId: "workflow", kind: "workflow", asyncDir: workflowDir }, { rootDir });
+				const workflow = acquireActiveAsyncCapacity(
+					{ sessionId: "session-a", limit: 1, runId: "workflow", kind: "workflow", asyncDir: workflowDir },
+					{ rootDir },
+				);
 				assert.ok(workflow);
 				workflow.markWorkflowStarted();
 				const steps = testCase.children.map((child, index) => {
 					const runId = `child-${index}`;
 					const pid = 50_000 + index;
 					pids.set(pid, child.pid ?? "alive");
-					writeJson(path.join(asyncRoot, runId, "status.json"), { runId, sessionId: child.sessionId ?? "session-a", mode: "single", state: child.state, pid, pidNamespaceScope: child.pidNamespace ?? "pid:[1]", startedAt: 0, lastActivityAt: child.lastActivityAt, processTerminal: child.processTerminal ?? { version: 1, state: "pending", runId, runnerProcessInstanceId: child.runnerId ?? `runner-${index}` } });
-					writeJson(path.join(asyncRoot, runId, "process-terminal.json"), { version: 1, state: "pending", runId, runnerProcessInstanceId: `runner-${index}` });
+					writeJson(path.join(asyncRoot, runId, "status.json"), {
+						runId,
+						sessionId: child.sessionId ?? "session-a",
+						mode: "single",
+						state: child.state,
+						pid,
+						pidNamespaceScope: child.pidNamespace ?? "pid:[1]",
+						startedAt: 0,
+						lastActivityAt: child.lastActivityAt,
+						processTerminal: child.processTerminal ?? {
+							version: 1,
+							state: "pending",
+							runId,
+							runnerProcessInstanceId: child.runnerId ?? `runner-${index}`,
+						},
+					});
+					writeJson(path.join(asyncRoot, runId, "process-terminal.json"), {
+						version: 1,
+						state: "pending",
+						runId,
+						runnerProcessInstanceId: `runner-${index}`,
+					});
 					return { agent: "worker", workflowKey: runId, runId, async: true, status: child.state };
 				});
-				writeJson(path.join(workflowDir, "status.json"), { runId: "workflow", sessionId: "session-a", mode: "workflow", state: "failed", startedAt: 0, endedAt: testCase.endedAt ?? 0, steps });
-				const options = { rootDir, now: () => 10_000, pidLiveness: (pid: number) => pids.get(pid) ?? "unknown" as const, pidNamespaceScope: () => "pid:[1]", abandonedSlotReleaseAfterMs: testCase.threshold ?? 1_000 };
+				writeJson(path.join(workflowDir, "status.json"), {
+					runId: "workflow",
+					sessionId: "session-a",
+					mode: "workflow",
+					state: "failed",
+					startedAt: 0,
+					endedAt: testCase.endedAt ?? 0,
+					steps,
+				});
+				const options = {
+					rootDir,
+					now: () => 10_000,
+					pidLiveness: (pid: number) => pids.get(pid) ?? ("unknown" as const),
+					pidNamespaceScope: () => "pid:[1]",
+					abandonedSlotReleaseAfterMs: testCase.threshold ?? 1_000,
+				};
 
 				const inspection = inspectActiveAsyncCapacityOwner({ runId: "workflow", sessionId: "session-a" }, options);
 				assert.equal(inspection.release.state, testCase.releases ? "releasable" : "retained", testCase.name);
-				assert.deepEqual(getActiveAsyncCapacitySnapshot("session-a", 1, options), { used: testCase.releases ? 0 : 1, limit: 1 }, testCase.name);
+				assert.deepEqual(
+					getActiveAsyncCapacitySnapshot("session-a", 1, options),
+					{ used: testCase.releases ? 0 : 1, limit: 1 },
+					testCase.name,
+				);
 				if (testCase.releases) {
 					const event = JSON.parse(fs.readFileSync(path.join(workflowDir, "events.jsonl"), "utf-8"));
 					assert.equal(event.releasedBy, "abandoned-timeout");
 					assert.equal(event.processProof, "unknown");
 					assert.equal(event.controller, "unregistered");
-					assert.deepEqual(event.abandonedChildren.map((child: { runId: string; state: string }) => [child.runId, child.state]), testCase.children.map((child, index) => [`child-${index}`, child.state]));
+					assert.deepEqual(
+						event.abandonedChildren.map((child: { runId: string; state: string }) => [child.runId, child.state]),
+						testCase.children.map((child, index) => [`child-${index}`, child.state]),
+					);
 				}
 			} finally {
 				fs.rmSync(rootDir, { recursive: true, force: true });

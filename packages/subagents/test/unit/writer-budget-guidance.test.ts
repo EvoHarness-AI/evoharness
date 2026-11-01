@@ -21,5 +21,4 @@ describe("writer budget guidance", () => {
 		}
 		assert.match(toolReference, /elapsed timeout is not a mutation-safe boundary/i);
 	});
-
 });

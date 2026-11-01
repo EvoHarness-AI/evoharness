@@ -41,8 +41,14 @@ describe("single model resolution", () => {
 
 	it("resolves explicit models against the registry instead of the parent", () => {
 		const parent = { provider: "anthropic", id: "claude-sonnet-4" };
-		assert.equal(resolveSubagentModelOverride("gpt-5-mini", parent, models, undefined, { source: "explicit" }), "openai/gpt-5-mini");
-		assert.equal(resolveSubagentModelOverride("openai/gpt-5-mini", parent, models, undefined, { source: "explicit" }), "openai/gpt-5-mini");
+		assert.equal(
+			resolveSubagentModelOverride("gpt-5-mini", parent, models, undefined, { source: "explicit" }),
+			"openai/gpt-5-mini",
+		);
+		assert.equal(
+			resolveSubagentModelOverride("openai/gpt-5-mini", parent, models, undefined, { source: "explicit" }),
+			"openai/gpt-5-mini",
+		);
 	});
 
 	it("uses provider preference for ambiguous bare and owner/name ids", () => {
@@ -53,19 +59,42 @@ describe("single model resolution", () => {
 
 	it("rejects unknown explicit/configured models and suggests a unique alternate provider", () => {
 		assert.throws(
-			() => resolveSubagentModelOverride("openai/claude-sonnet-4", undefined, models, undefined, { source: "explicit" }),
+			() =>
+				resolveSubagentModelOverride("openai/claude-sonnet-4", undefined, models, undefined, {
+					source: "explicit",
+				}),
 			/Unknown subagent model 'openai\/claude-sonnet-4'.*Did you mean 'anthropic\/claude-sonnet-4'/,
 		);
 		assert.throws(() => resolveModelSelection("missing", models), /Unknown subagent model 'missing'/);
-		assert.equal(resolveEffectiveSubagentModel("missing", "gpt-5-mini", undefined, models, undefined, { source: "inherited" }), "missing");
+		assert.equal(
+			resolveEffectiveSubagentModel("missing", "gpt-5-mini", undefined, models, undefined, { source: "inherited" }),
+			"missing",
+		);
 	});
 
 	it("lists up to five exact registry ids for an unknown or ambiguous model", () => {
-		assert.throws(() => resolveModelSelection("gpt-5-mni:high", models), /Unknown subagent model 'gpt-5-mni:high'.*Closest registry models: openai\/gpt-5-mini:high\./);
-		assert.throws(() => resolveModelSelection("shared", models), /Unknown subagent model 'shared'.*Closest registry models: anthropic\/shared, openai\/shared\./);
-		const crowded = ["a", "b", "c", "d", "e", "f", "g"].map((provider) => ({ provider, id: "same", fullId: `${provider}/same` }));
-		assert.throws(() => resolveModelSelection("same", crowded), (error: Error) => /Closest registry models: a\/same, b\/same, c\/same, d\/same, e\/same\.$/.test(error.message));
-		assert.throws(() => resolveModelSelection("missing", models), (error: Error) => !error.message.includes("Closest registry models"));
+		assert.throws(
+			() => resolveModelSelection("gpt-5-mni:high", models),
+			/Unknown subagent model 'gpt-5-mni:high'.*Closest registry models: openai\/gpt-5-mini:high\./,
+		);
+		assert.throws(
+			() => resolveModelSelection("shared", models),
+			/Unknown subagent model 'shared'.*Closest registry models: anthropic\/shared, openai\/shared\./,
+		);
+		const crowded = ["a", "b", "c", "d", "e", "f", "g"].map((provider) => ({
+			provider,
+			id: "same",
+			fullId: `${provider}/same`,
+		}));
+		assert.throws(
+			() => resolveModelSelection("same", crowded),
+			(error: Error) =>
+				/Closest registry models: a\/same, b\/same, c\/same, d\/same, e\/same\.$/.test(error.message),
+		);
+		assert.throws(
+			() => resolveModelSelection("missing", models),
+			(error: Error) => !error.message.includes("Closest registry models"),
+		);
 	});
 
 	it("normalizes registry spelling without switching a qualified provider", () => {
@@ -83,7 +112,10 @@ describe("single model resolution", () => {
 		assert.equal(resolveModelSelection("openrouter/auto-beta", registry).model, "openrouter/openrouter/auto-beta");
 		assert.equal(resolveModelSelection("OpenRouter/Auto_Beta", registry).model, "openrouter/openrouter/auto-beta");
 		assert.equal(resolveModelSelection("openrouter/auto", registry).model, "openrouter/auto");
-		assert.throws(() => resolveModelSelection("openrouter/free", registry), /Unknown subagent model 'openrouter\/free'/);
+		assert.throws(
+			() => resolveModelSelection("openrouter/free", registry),
+			/Unknown subagent model 'openrouter\/free'/,
+		);
 		// An ordinary id that already resolved keeps winning over a provider-prefixed one.
 		const collision = [...registry, { provider: "openrouter", id: "auto_beta", fullId: "openrouter/auto_beta" }];
 		assert.equal(resolveModelSelection("OpenRouter/Auto-Beta", collision).model, "openrouter/auto_beta");
@@ -102,21 +134,37 @@ describe("single model resolution", () => {
 
 	it("enforces explicit and strict scopes while warning for inherited violations", () => {
 		const scope = resolveModelScopesForAgent({ allow: ["anthropic/*"], enforce: true }, "worker", undefined);
-		assert.throws(() => resolveModelSelection("openai/gpt-5-mini", models, undefined, { scope, origin: "explicit" }), /outside the configured subagent model scope/);
+		assert.throws(
+			() => resolveModelSelection("openai/gpt-5-mini", models, undefined, { scope, origin: "explicit" }),
+			/outside the configured subagent model scope/,
+		);
 		const warnings: string[] = [];
-		assert.equal(resolveSubagentModelOverride("openai/gpt-5-mini", undefined, models, undefined, {
-			scope,
-			source: "inherited",
-			onWarn: (violation) => warnings.push(violation.message),
-		}), "openai/gpt-5-mini");
+		assert.equal(
+			resolveSubagentModelOverride("openai/gpt-5-mini", undefined, models, undefined, {
+				scope,
+				source: "inherited",
+				onWarn: (violation) => warnings.push(violation.message),
+			}),
+			"openai/gpt-5-mini",
+		);
 		assert.equal(warnings.length, 1);
-		const strict = resolveModelScopesForAgent({ allow: ["anthropic/*"], enforce: true, strict: true }, "worker", undefined);
-		assert.throws(() => resolveModelSelection("openai/gpt-5-mini", models, undefined, { scope: strict, origin: "inherited" }), /outside the configured subagent model scope/);
+		const strict = resolveModelScopesForAgent(
+			{ allow: ["anthropic/*"], enforce: true, strict: true },
+			"worker",
+			undefined,
+		);
+		assert.throws(
+			() => resolveModelSelection("openai/gpt-5-mini", models, undefined, { scope: strict, origin: "inherited" }),
+			/outside the configured subagent model scope/,
+		);
 	});
 
 	it("fails closed when enforced inherit has no parent model", () => {
 		const scope = resolveModelScopesForAgent({ allow: ["inherit"], enforce: true }, "worker", undefined);
-		assert.throws(() => resolveModelSelection(undefined, models, undefined, { scope }), /'inherit' requires a current parent session model/);
+		assert.throws(
+			() => resolveModelSelection(undefined, models, undefined, { scope }),
+			/'inherit' requires a current parent session model/,
+		);
 	});
 });
 
@@ -124,31 +172,71 @@ describe("model response identity", () => {
 	it("accepts exact, bare, leaf, and declared alias response ids", () => {
 		assert.equal(formatSubagentModelVerificationError("openai/gpt-5-mini:high", "gpt-5-mini", models), undefined);
 		assert.equal(formatSubagentModelVerificationError("huggingface/org/model-v1", "model-v1", models), undefined);
-		assert.equal(formatSubagentModelVerificationError("openai/gpt-5-mini", "gateway-model", models, {
-			"openai/gpt-5-mini": ["gateway-model"],
-		}), undefined);
+		assert.equal(
+			formatSubagentModelVerificationError("openai/gpt-5-mini", "gateway-model", models, {
+				"openai/gpt-5-mini": ["gateway-model"],
+			}),
+			undefined,
+		);
 	});
 
 	it("rejects a different response route and does not apply another model's alias", () => {
-		assert.match(formatSubagentModelVerificationError("openai/gpt-5-mini", "anthropic/claude-sonnet-4", models) ?? "", /model_verification_failed/);
-		assert.match(formatSubagentModelVerificationError("openai/gpt-5-mini", "gateway-model", models, {
-			"anthropic/claude-sonnet-4": ["gateway-model"],
-		}) ?? "", /model_verification_failed/);
+		assert.match(
+			formatSubagentModelVerificationError("openai/gpt-5-mini", "anthropic/claude-sonnet-4", models) ?? "",
+			/model_verification_failed/,
+		);
+		assert.match(
+			formatSubagentModelVerificationError("openai/gpt-5-mini", "gateway-model", models, {
+				"anthropic/claude-sonnet-4": ["gateway-model"],
+			}) ?? "",
+			/model_verification_failed/,
+		);
 	});
 
 	it("verifies a virtual-model child against its exact selection, not the dispatched model", () => {
-		assert.equal(formatSubagentModelVerificationError("openai/gpt-5-mini:high", "anthropic/claude-sonnet-4", models, undefined, "openai/gpt-5-mini"), undefined);
-		const virtualMismatch = formatSubagentModelVerificationError("openai/gpt-5-mini", "gpt-5-mini", models, undefined, "other-router/gpt-5-mini") ?? "";
-		assert.match(virtualMismatch, /model_verification_failed: native Pi child selected virtual model 'other-router\/gpt-5-mini'/);
+		assert.equal(
+			formatSubagentModelVerificationError(
+				"openai/gpt-5-mini:high",
+				"anthropic/claude-sonnet-4",
+				models,
+				undefined,
+				"openai/gpt-5-mini",
+			),
+			undefined,
+		);
+		const virtualMismatch =
+			formatSubagentModelVerificationError(
+				"openai/gpt-5-mini",
+				"gpt-5-mini",
+				models,
+				undefined,
+				"other-router/gpt-5-mini",
+			) ?? "";
+		assert.match(
+			virtualMismatch,
+			/model_verification_failed: native Pi child selected virtual model 'other-router\/gpt-5-mini'/,
+		);
 		assert.doesNotMatch(virtualMismatch, /declare the exact mapping/);
-		assert.match(formatSubagentModelVerificationError("openai/gpt-5-mini", "gpt-5-mini", models, undefined, "gpt-5-mini") ?? "", /model_verification_failed/);
-		assert.match(formatSubagentModelVerificationError("openai/gpt-5-mini", "anthropic/claude-sonnet-4", models) ?? "", /model_verification_failed/);
+		assert.match(
+			formatSubagentModelVerificationError("openai/gpt-5-mini", "gpt-5-mini", models, undefined, "gpt-5-mini") ?? "",
+			/model_verification_failed/,
+		);
+		assert.match(
+			formatSubagentModelVerificationError("openai/gpt-5-mini", "anthropic/claude-sonnet-4", models) ?? "",
+			/model_verification_failed/,
+		);
 	});
 });
 
 describe("context overflow classification", () => {
 	it("detects common context overflow errors", () => {
-		for (const error of ["maximum context length exceeded", "context window overflow", "too many tokens", "context_length_exceeded", "input too long"]) {
+		for (const error of [
+			"maximum context length exceeded",
+			"context window overflow",
+			"too many tokens",
+			"context_length_exceeded",
+			"input too long",
+		]) {
 			assert.equal(isContextOverflow(error), true, error);
 		}
 	});

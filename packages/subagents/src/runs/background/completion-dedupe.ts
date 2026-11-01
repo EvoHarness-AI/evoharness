@@ -24,9 +24,7 @@ export function buildCompletionKey(data: CompletionDataLike, fallback: string): 
 	const sessionId = asNonEmptyString(data.sessionId) ?? "no-session";
 	const id = asNonEmptyString(data.id);
 	const state = asNonEmptyString(data.state);
-	if (id) return state
-		? `session:${sessionId}:id:${id}:state:${state}`
-		: `session:${sessionId}:id:${id}`;
+	if (id) return state ? `session:${sessionId}:id:${id}:state:${state}` : `session:${sessionId}:id:${id}`;
 	const agent = asNonEmptyString(data.agent) ?? "unknown";
 	const timestamp = asFiniteNumber(data.timestamp);
 	const taskIndex = asFiniteNumber(data.taskIndex);

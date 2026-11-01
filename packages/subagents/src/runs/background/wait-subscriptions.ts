@@ -1,10 +1,7 @@
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { randomUUID } from "node:crypto";
 import type { ExtensionAPI } from "@evoharness/coding-agent";
-import { listAsyncRuns, type AsyncRunSummary } from "./async-status.ts";
-import { formatResumeFirstFailedRunDetail } from "./resume-guidance.ts";
-import { readCompletionReplay } from "./completion-replay.ts";
 import { writeAtomicJson } from "../../shared/atomic-json.ts";
 import { COMPLETION_ACTION, STATUS_ACTION } from "../../shared/parent-wake.ts";
 import {
@@ -19,6 +16,9 @@ import {
 	type WaitCompletion,
 	type WaitSubscriptionRecord,
 } from "../../shared/types.ts";
+import { type AsyncRunSummary, listAsyncRuns } from "./async-status.ts";
+import { readCompletionReplay } from "./completion-replay.ts";
+import { formatResumeFirstFailedRunDetail } from "./resume-guidance.ts";
 
 const SUBSCRIPTION_VERSION = 1;
 // Outcomes that report no saved results, so the notice points the parent at the run status instead.
@@ -64,21 +64,29 @@ interface WaitSubscriptionManagerOptions {
 }
 
 function isNotFound(error: unknown): boolean {
-	return typeof error === "object" && error !== null && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT";
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"code" in error &&
+		(error as NodeJS.ErrnoException).code === "ENOENT"
+	);
 }
 
 function parseRecord(value: unknown): WaitSubscriptionRecord | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const record = value as Partial<WaitSubscriptionRecord>;
-	if (record.version !== SUBSCRIPTION_VERSION
-		|| typeof record.token !== "string"
-		|| !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(record.token)
-		|| typeof record.sessionId !== "string"
-		|| (record.targetKind !== "async" && record.targetKind !== "foreground")
-		|| typeof record.runId !== "string"
-		|| typeof record.requestedId !== "string"
-		|| typeof record.createdAt !== "number"
-		|| typeof record.expiresAt !== "number") return undefined;
+	if (
+		record.version !== SUBSCRIPTION_VERSION ||
+		typeof record.token !== "string" ||
+		!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(record.token) ||
+		typeof record.sessionId !== "string" ||
+		(record.targetKind !== "async" && record.targetKind !== "foreground") ||
+		typeof record.runId !== "string" ||
+		typeof record.requestedId !== "string" ||
+		typeof record.createdAt !== "number" ||
+		typeof record.expiresAt !== "number"
+	)
+		return undefined;
 	return record as WaitSubscriptionRecord;
 }
 
@@ -90,12 +98,19 @@ function subscriptionFile(dir: string, token: string): string {
 	return path.join(dir, `${token}.json`);
 }
 
-export function formatWaitSubscriptions(state: Pick<SubagentState, "waitSubscriptions">, now = Date.now()): string | undefined {
-	const subscriptions = [...(state.waitSubscriptions?.values() ?? [])].sort((left, right) => left.createdAt - right.createdAt);
+export function formatWaitSubscriptions(
+	state: Pick<SubagentState, "waitSubscriptions">,
+	now = Date.now(),
+): string | undefined {
+	const subscriptions = [...(state.waitSubscriptions?.values() ?? [])].sort(
+		(left, right) => left.createdAt - right.createdAt,
+	);
 	if (subscriptions.length === 0) return undefined;
 	const lines = [`Armed wait subscriptions (${subscriptions.length}):`];
 	for (const record of subscriptions) {
-		lines.push(`- ${record.token}: ${record.targetKind} run ${record.runId}, timeout in ${Math.max(0, record.expiresAt - now)}ms`);
+		lines.push(
+			`- ${record.token}: ${record.targetKind} run ${record.runId}, timeout in ${Math.max(0, record.expiresAt - now)}ms`,
+		);
 	}
 	return lines.join("\n");
 }
@@ -191,17 +206,20 @@ export function createWaitSubscriptionManager(
 			return;
 		}
 		try {
-			pi.sendMessage({
-				customType: "subagent-wait-subscription",
-				content: `Wait subscription ${record.token} fired for run ${record.runId}: ${outcome}. ${detail}\n\nParent action: ${STATUS_OUTCOMES.has(outcome) ? STATUS_ACTION : COMPLETION_ACTION}`,
-				display: true,
-				details: {
-					token: record.token,
-					runId: record.runId,
-					outcome,
-					...(completion ? { completions: [completion] } : {}),
+			pi.sendMessage(
+				{
+					customType: "subagent-wait-subscription",
+					content: `Wait subscription ${record.token} fired for run ${record.runId}: ${outcome}. ${detail}\n\nParent action: ${STATUS_OUTCOMES.has(outcome) ? STATUS_ACTION : COMPLETION_ACTION}`,
+					display: true,
+					details: {
+						token: record.token,
+						runId: record.runId,
+						outcome,
+						...(completion ? { completions: [completion] } : {}),
+					},
 				},
-			}, { triggerTurn: true });
+				{ triggerTurn: true },
+			);
 		} catch (error) {
 			console.error(`Failed to deliver wait subscription '${record.token}' after clearing it:`, error);
 		}
@@ -210,7 +228,11 @@ export function createWaitSubscriptionManager(
 	const reconcileRecord = (record: WaitSubscriptionRecord) => {
 		if (record.sessionId !== state.currentSessionId) return;
 		if (now() >= record.expiresAt) {
-			settle(record, "timed out", "The targeted run may still be active; inspect its status before taking follow-up action.");
+			settle(
+				record,
+				"timed out",
+				"The targeted run may still be active; inspect its status before taking follow-up action.",
+			);
 			return;
 		}
 		if (record.targetKind === "foreground") {
@@ -218,11 +240,19 @@ export function createWaitSubscriptionManager(
 			if (!run && unresolvedRestoredForegroundTokens.has(record.token)) return;
 			if (run) unresolvedRestoredForegroundTokens.delete(record.token);
 			if (!run || run.sessionId !== record.sessionId) {
-				settle(record, "could not be reconciled", "The remembered foreground run disappeared before completion was confirmed.");
+				settle(
+					record,
+					"could not be reconciled",
+					"The remembered foreground run disappeared before completion was confirmed.",
+				);
 				return;
 			}
 			const detached = run.children.filter((child) => child.status === "detached");
-			if (detached.some((child) => child.activityState === "needs_attention" && child.currentTool === "contact_supervisor")) {
+			if (
+				detached.some(
+					(child) => child.activityState === "needs_attention" && child.currentTool === "contact_supervisor",
+				)
+			) {
 				settle(record, "needs attention", "Reply to the pending supervisor request or inspect the run status.");
 				return;
 			}
@@ -243,7 +273,11 @@ export function createWaitSubscriptionManager(
 		});
 		const run = runs.find((candidate) => candidate.id === record.runId);
 		if (!run) {
-			settle(record, "could not be reconciled", "The exact async run disappeared before a terminal result was confirmed.");
+			settle(
+				record,
+				"could not be reconciled",
+				"The exact async run disappeared before a terminal result was confirmed.",
+			);
 			return;
 		}
 		if (needsAttention(run)) {
@@ -253,7 +287,10 @@ export function createWaitSubscriptionManager(
 		if (run.state !== "queued" && run.state !== "running") {
 			let completion: WaitCompletion | undefined;
 			try {
-				completion = readCompletionReplay(resultsDir, record.runId, { sessionId: record.sessionId, now: now() })?.completion;
+				completion = readCompletionReplay(resultsDir, record.runId, {
+					sessionId: record.sessionId,
+					now: now(),
+				})?.completion;
 			} catch (error) {
 				console.error(`Failed to read completion replay for wait subscription '${record.token}':`, error);
 			}
@@ -274,7 +311,11 @@ export function createWaitSubscriptionManager(
 				reconcileRecord(record);
 			} catch (error) {
 				console.error(`Failed to reconcile wait subscription '${record.token}':`, error);
-				settle(record, "reconciliation failed", "The targeted run could not be reconciled. Inspect its status before taking follow-up action.");
+				settle(
+					record,
+					"reconciliation failed",
+					"The targeted run could not be reconciled. Inspect its status before taking follow-up action.",
+				);
 			}
 		}
 	};
@@ -334,7 +375,8 @@ export function createWaitSubscriptionManager(
 					if (!record || file !== `${record.token}.json`) continue;
 					if (record.sessionId === state.currentSessionId) {
 						subscriptions.set(record.token, record);
-						if (record.targetKind === "foreground" && !state.foregroundRuns?.has(record.runId)) unresolvedRestoredForegroundTokens.add(record.token);
+						if (record.targetKind === "foreground" && !state.foregroundRuns?.has(record.runId))
+							unresolvedRestoredForegroundTokens.add(record.token);
 					}
 				} catch (error) {
 					console.error(`Ignoring invalid wait subscription '${path.join(subscriptionsDir, file)}':`, error);
@@ -349,7 +391,11 @@ export function createWaitSubscriptionManager(
 			if (interval) clearInterval(interval);
 			interval = undefined;
 			for (const unsubscribe of unsubscribes) {
-				try { unsubscribe(); } catch { /* best effort */ }
+				try {
+					unsubscribe();
+				} catch {
+					/* best effort */
+				}
 			}
 			subscriptions.clear();
 		},

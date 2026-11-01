@@ -1,14 +1,14 @@
-import {
-	type ActivityState,
-	type ControlConfig,
-	type ControlEvent,
-	type ControlEventType,
-	type ControlNotificationChannel,
-	type ResolvedControlConfig,
-} from "../../shared/types.ts";
-import { isToolTimeoutExempt } from "./tool-timeout.ts";
 import { createHash } from "node:crypto";
 import { previewDisplayText } from "../../shared/display-text.ts";
+import type {
+	ActivityState,
+	ControlConfig,
+	ControlEvent,
+	ControlEventType,
+	ControlNotificationChannel,
+	ResolvedControlConfig,
+} from "../../shared/types.ts";
+import { isToolTimeoutExempt } from "./tool-timeout.ts";
 
 const CONTROL_EVENT_TYPES: ControlEventType[] = ["active_long_running", "needs_attention"];
 const CONTROL_NOTIFICATION_CHANNELS: ControlNotificationChannel[] = ["event", "async", "intercom"];
@@ -38,35 +38,37 @@ function parseControlList<T extends string>(value: unknown, allowed: readonly T[
 	return parsed.length > 0 ? Array.from(new Set(parsed)) : undefined;
 }
 
-export function resolveControlConfig(
-	globalConfig?: ControlConfig,
-	override?: ControlConfig,
-): ResolvedControlConfig {
+export function resolveControlConfig(globalConfig?: ControlConfig, override?: ControlConfig): ResolvedControlConfig {
 	const enabled = override?.enabled ?? globalConfig?.enabled ?? DEFAULT_CONTROL_CONFIG.enabled;
 	const overrideNeedsAttentionAfterMs = parsePositiveInt(override?.needsAttentionAfterMs);
 	const globalNeedsAttentionAfterMs = parsePositiveInt(globalConfig?.needsAttentionAfterMs);
-	const globalNeedsAttentionAfterMsIsExplicit = (globalConfig as Partial<ResolvedControlConfig> | undefined)?.needsAttentionAfterMsIsExplicit ?? globalNeedsAttentionAfterMs !== undefined;
-	const needsAttentionAfterMs = overrideNeedsAttentionAfterMs
-		?? globalNeedsAttentionAfterMs
-		?? DEFAULT_CONTROL_CONFIG.needsAttentionAfterMs;
-	const needsAttentionAfterMsIsExplicit = overrideNeedsAttentionAfterMs !== undefined
-		|| globalNeedsAttentionAfterMsIsExplicit;
-	const activeNoticeAfterMs = parsePositiveInt(override?.activeNoticeAfterMs)
-		?? parsePositiveInt(globalConfig?.activeNoticeAfterMs)
-		?? DEFAULT_CONTROL_CONFIG.activeNoticeAfterMs;
-	const activeNoticeAfterTurns = parsePositiveInt(override?.activeNoticeAfterTurns)
-		?? parsePositiveInt(globalConfig?.activeNoticeAfterTurns);
-	const activeNoticeAfterTokens = parsePositiveInt(override?.activeNoticeAfterTokens)
-		?? parsePositiveInt(globalConfig?.activeNoticeAfterTokens);
-	const failedToolAttemptsBeforeAttention = parsePositiveInt(override?.failedToolAttemptsBeforeAttention)
-		?? parsePositiveInt(globalConfig?.failedToolAttemptsBeforeAttention)
-		?? DEFAULT_CONTROL_CONFIG.failedToolAttemptsBeforeAttention;
-	const notifyOn = parseControlList(override?.notifyOn, CONTROL_EVENT_TYPES)
-		?? parseControlList(globalConfig?.notifyOn, CONTROL_EVENT_TYPES)
-		?? DEFAULT_CONTROL_CONFIG.notifyOn;
-	const notifyChannels = parseControlList(override?.notifyChannels, CONTROL_NOTIFICATION_CHANNELS)
-		?? parseControlList(globalConfig?.notifyChannels, CONTROL_NOTIFICATION_CHANNELS)
-		?? DEFAULT_CONTROL_CONFIG.notifyChannels;
+	const globalNeedsAttentionAfterMsIsExplicit =
+		(globalConfig as Partial<ResolvedControlConfig> | undefined)?.needsAttentionAfterMsIsExplicit ??
+		globalNeedsAttentionAfterMs !== undefined;
+	const needsAttentionAfterMs =
+		overrideNeedsAttentionAfterMs ?? globalNeedsAttentionAfterMs ?? DEFAULT_CONTROL_CONFIG.needsAttentionAfterMs;
+	const needsAttentionAfterMsIsExplicit =
+		overrideNeedsAttentionAfterMs !== undefined || globalNeedsAttentionAfterMsIsExplicit;
+	const activeNoticeAfterMs =
+		parsePositiveInt(override?.activeNoticeAfterMs) ??
+		parsePositiveInt(globalConfig?.activeNoticeAfterMs) ??
+		DEFAULT_CONTROL_CONFIG.activeNoticeAfterMs;
+	const activeNoticeAfterTurns =
+		parsePositiveInt(override?.activeNoticeAfterTurns) ?? parsePositiveInt(globalConfig?.activeNoticeAfterTurns);
+	const activeNoticeAfterTokens =
+		parsePositiveInt(override?.activeNoticeAfterTokens) ?? parsePositiveInt(globalConfig?.activeNoticeAfterTokens);
+	const failedToolAttemptsBeforeAttention =
+		parsePositiveInt(override?.failedToolAttemptsBeforeAttention) ??
+		parsePositiveInt(globalConfig?.failedToolAttemptsBeforeAttention) ??
+		DEFAULT_CONTROL_CONFIG.failedToolAttemptsBeforeAttention;
+	const notifyOn =
+		parseControlList(override?.notifyOn, CONTROL_EVENT_TYPES) ??
+		parseControlList(globalConfig?.notifyOn, CONTROL_EVENT_TYPES) ??
+		DEFAULT_CONTROL_CONFIG.notifyOn;
+	const notifyChannels =
+		parseControlList(override?.notifyChannels, CONTROL_NOTIFICATION_CHANNELS) ??
+		parseControlList(globalConfig?.notifyChannels, CONTROL_NOTIFICATION_CHANNELS) ??
+		DEFAULT_CONTROL_CONFIG.notifyChannels;
 	return {
 		enabled,
 		needsAttentionAfterMs,
@@ -153,11 +155,13 @@ export function buildControlEvent(input: {
 	const type = input.type ?? (input.to === "active_long_running" ? "active_long_running" : "needs_attention");
 	const elapsedMs = input.elapsedMs ?? (input.lastActivityAt ? Math.max(0, ts - input.lastActivityAt) : undefined);
 	const elapsedSeconds = elapsedMs !== undefined ? Math.floor(elapsedMs / 1000) : undefined;
-	const message = input.message ?? (type === "active_long_running"
-		? `${input.agent} is still active but long-running`
-		: elapsedSeconds !== undefined
-			? `${input.agent} needs attention (no observed activity for ${elapsedSeconds}s)`
-			: `${input.agent} needs attention`);
+	const message =
+		input.message ??
+		(type === "active_long_running"
+			? `${input.agent} is still active but long-running`
+			: elapsedSeconds !== undefined
+				? `${input.agent} needs attention (no observed activity for ${elapsedSeconds}s)`
+				: `${input.agent} needs attention`);
 	return {
 		type,
 		...(input.from ? { from: input.from } : {}),
@@ -196,7 +200,12 @@ export function controlNotificationKey(event: ControlEvent, childIntercomTarget?
 	return `${childKey}:${event.type}:${event.reason ?? "idle"}${callKey}:${contextHash}`;
 }
 
-export function claimControlNotification(config: ResolvedControlConfig, event: ControlEvent, seenKeys: Set<string>, childIntercomTarget?: string): boolean {
+export function claimControlNotification(
+	config: ResolvedControlConfig,
+	event: ControlEvent,
+	seenKeys: Set<string>,
+	childIntercomTarget?: string,
+): boolean {
 	if (!shouldNotifyControlEvent(config, event)) return false;
 	const key = controlNotificationKey(event, childIntercomTarget);
 	if (seenKeys.has(key)) return false;
@@ -210,17 +219,32 @@ function formatLongRunningFacts(event: ControlEvent): string | undefined {
 	if (event.turns !== undefined) facts.push(`${event.turns} turns`);
 	if (event.tokens !== undefined) facts.push(`${event.tokens} tokens`);
 	if (event.toolCount !== undefined) facts.push(`${event.toolCount} tools`);
-	if (event.currentTool) facts.push(`tool ${event.currentTool}${event.currentToolDurationMs !== undefined ? ` ${Math.floor(Math.max(0, event.currentToolDurationMs) / 1000)}s` : ""}`);
+	if (event.currentTool)
+		facts.push(
+			`tool ${event.currentTool}${event.currentToolDurationMs !== undefined ? ` ${Math.floor(Math.max(0, event.currentToolDurationMs) / 1000)}s` : ""}`,
+		);
 	if (event.currentPath) facts.push(`path ${event.currentPath}`);
 	return facts.length > 0 ? facts.join(" | ") : undefined;
 }
 
 export function formatControlNudge(event: ControlEvent): string {
 	const scope = event.label ?? event.phase ?? event.workflowKey ?? event.taskPreview;
-	if (event.recentFailureSummary) return previewDisplayText(`Resolve the recent failure${scope ? ` for ${scope}` : ""}: ${event.recentFailureSummary}. Report the smallest next step or ask for a decision.`, 160);
+	if (event.recentFailureSummary)
+		return previewDisplayText(
+			`Resolve the recent failure${scope ? ` for ${scope}` : ""}: ${event.recentFailureSummary}. Report the smallest next step or ask for a decision.`,
+			160,
+		);
 	if (event.currentTool || event.currentPath) {
-		const current = [event.currentTool ? `tool ${event.currentTool}` : undefined, event.currentPath ? `path ${event.currentPath}` : undefined].filter(Boolean).join(" at ");
-		return previewDisplayText(`Check ${current}${scope ? ` for ${scope}` : ""}. Report the smallest next step or ask for a decision.`, 160);
+		const current = [
+			event.currentTool ? `tool ${event.currentTool}` : undefined,
+			event.currentPath ? `path ${event.currentPath}` : undefined,
+		]
+			.filter(Boolean)
+			.join(" at ");
+		return previewDisplayText(
+			`Check ${current}${scope ? ` for ${scope}` : ""}. Report the smallest next step or ask for a decision.`,
+			160,
+		);
 	}
 	if (scope) return previewDisplayText(`Continue ${scope}. Report the smallest next step or ask for a decision.`, 160);
 	return "What are you blocked on? Reply with the smallest next step or ask for a decision.";
@@ -253,20 +277,28 @@ export function formatControlNoticeMessage(event: ControlEvent, childIntercomTar
 	}
 
 	if (event.reason === "tool_open_threshold" && event.currentTool === "bash") {
-		const command = (label: string, action: string) => `${label}: subagent(${JSON.stringify({ action, id: runTarget, options: { ...(event.index !== undefined ? { index: event.index } : {}), toolCallId: event.toolCallId } })})`;
+		const command = (label: string, action: string) =>
+			`${label}: subagent(${JSON.stringify({ action, id: runTarget, options: { ...(event.index !== undefined ? { index: event.index } : {}), toolCallId: event.toolCallId } })})`;
 		return lines([
 			...head("Subagent needs attention"),
 			"Hint: Inspect the running command and recent output before nudging. A queued steer does not cancel an in-flight bash call. A dev server or watch command may intentionally never return. Elapsed time alone does not prove the command is stuck.",
 			"Recovery: For a local Pi child explicitly granted subagent_command, yield a needed persistent command or cancel the exact incorrect command, then steer the child. Query command.status to confirm the result. If command controls are unavailable, inspect partial changes and interruption scope before interrupt/resume; interrupt is run-scoped and may affect siblings.",
-			...(event.toolCallId && event.hasCommandController ? [command("Command", "command.status"), command("Yield", "command.yield"), command("Cancel", "command.cancel")] : []),
+			...(event.toolCallId && event.hasCommandController
+				? [
+						command("Command", "command.status"),
+						command("Yield", "command.yield"),
+						command("Cancel", "command.cancel"),
+					]
+				: []),
 			status,
 			`Transcript: subagent({ action: "status", id: "${runTarget}", options: { view: "transcript"${event.index !== undefined ? `, index: ${event.index}` : ""} } })`,
 		]);
 	}
 
-	const supervisorHint = event.reason === "supervisor_request"
-		? "Supervisor request: reply to the pending request. If subagent_supervisor pending is empty, check intercom pending because an external intercom tool may own the request."
-		: undefined;
+	const supervisorHint =
+		event.reason === "supervisor_request"
+			? "Supervisor request: reply to the pending request. If subagent_supervisor pending is empty, check intercom pending because an external intercom tool may own the request."
+			: undefined;
 	return lines([
 		...head("Subagent needs attention"),
 		event.recentFailureSummary ? `Recent failures: ${event.recentFailureSummary}` : undefined,
@@ -280,17 +312,15 @@ export function formatControlNoticeMessage(event: ControlEvent, childIntercomTar
 	]);
 }
 
-
 export function formatControlIntercomMessage(event: ControlEvent, childIntercomTarget?: string): string {
-	const statusLabel = event.type === "active_long_running"
-			? "subagent active but long-running"
-			: "subagent needs attention";
+	const statusLabel =
+		event.type === "active_long_running" ? "subagent active but long-running" : "subagent needs attention";
 	return [
 		statusLabel,
 		"",
 		event.type === "active_long_running"
-				? `${event.agent} is still active but long-running in run ${event.runId}.`
-				: `${event.agent} needs attention in run ${event.runId}.`,
+			? `${event.agent} is still active but long-running in run ${event.runId}.`
+			: `${event.agent} needs attention in run ${event.runId}.`,
 		"",
 		formatControlNoticeMessage(event, childIntercomTarget),
 	].join("\n");

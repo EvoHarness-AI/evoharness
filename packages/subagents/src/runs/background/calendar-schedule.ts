@@ -5,28 +5,40 @@ const require = createRequire(import.meta.url);
 let cachedTemporal: typeof Temporal | undefined;
 
 function getTemporal(): typeof Temporal {
-	return cachedTemporal ??= (require("@js-temporal/polyfill") as typeof import("@js-temporal/polyfill")).Temporal;
+	return (cachedTemporal ??= (require("@js-temporal/polyfill") as typeof import("@js-temporal/polyfill")).Temporal);
 }
 
 export const CALENDAR_WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"] as const;
-export type CalendarWeekday = typeof CALENDAR_WEEKDAYS[number];
+export type CalendarWeekday = (typeof CALENDAR_WEEKDAYS)[number];
 export type CalendarRule = { every: "day" | "week"; at: string; timezone: string; on?: CalendarWeekday[] };
 export type CalendarOccurrence = { nextLocalDate: string; nextRunAt: string };
 export type CalendarTrigger = CalendarRule & CalendarOccurrence & { kind: "calendar" };
 const SEARCH_DAYS = 32;
 
-export function normalizeCalendarRule(input: { every?: unknown; at?: unknown; timezone?: unknown; on?: unknown }): CalendarRule {
+export function normalizeCalendarRule(input: {
+	every?: unknown;
+	at?: unknown;
+	timezone?: unknown;
+	on?: unknown;
+}): CalendarRule {
 	if (input.every !== "day" && input.every !== "week") throw new Error("Calendar every must be 'day' or 'week'.");
-	if (typeof input.at !== "string" || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(input.at)) throw new Error("Calendar at must use HH:mm (00:00-23:59).");
-	if (typeof input.timezone !== "string" || !input.timezone.trim() || /^[+-]/.test(input.timezone.trim())) throw new Error("Calendar timezone requires an IANA name, such as 'Asia/Taipei', or 'UTC'.");
+	if (typeof input.at !== "string" || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(input.at))
+		throw new Error("Calendar at must use HH:mm (00:00-23:59).");
+	if (typeof input.timezone !== "string" || !input.timezone.trim() || /^[+-]/.test(input.timezone.trim()))
+		throw new Error("Calendar timezone requires an IANA name, such as 'Asia/Taipei', or 'UTC'.");
 	let timezone: string;
-	try { timezone = new Intl.DateTimeFormat("en", { timeZone: input.timezone.trim() }).resolvedOptions().timeZone; }
-	catch { throw new Error(`Invalid calendar timezone '${input.timezone}'. Use an IANA name or 'UTC'.`); }
+	try {
+		timezone = new Intl.DateTimeFormat("en", { timeZone: input.timezone.trim() }).resolvedOptions().timeZone;
+	} catch {
+		throw new Error(`Invalid calendar timezone '${input.timezone}'. Use an IANA name or 'UTC'.`);
+	}
 	if (input.every === "day") {
-		if (input.on !== undefined) throw new Error("Daily schedules do not accept on; use every:'week' with a weekday array.");
+		if (input.on !== undefined)
+			throw new Error("Daily schedules do not accept on; use every:'week' with a weekday array.");
 		return { every: "day", at: input.at, timezone };
 	}
-	if (!Array.isArray(input.on) || input.on.length === 0 || input.on.some((day) => !CALENDAR_WEEKDAYS.includes(day))) throw new Error("Weekly on must be a non-empty array of mon/tue/wed/thu/fri/sat/sun.");
+	if (!Array.isArray(input.on) || input.on.length === 0 || input.on.some((day) => !CALENDAR_WEEKDAYS.includes(day)))
+		throw new Error("Weekly on must be a non-empty array of mon/tue/wed/thu/fri/sat/sun.");
 	const selected = input.on;
 	return { every: "week", at: input.at, timezone, on: CALENDAR_WEEKDAYS.filter((day) => selected.includes(day)) };
 }
@@ -59,7 +71,11 @@ export function nextCalendarOccurrence(rule: CalendarRule, after: number, minimu
 	throw new Error("No valid calendar occurrence within 32 local dates; check the timezone and rule.");
 }
 
-export function latestCalendarOccurrence(rule: CalendarRule, now: number, minimumDate: string): CalendarOccurrence | undefined {
+export function latestCalendarOccurrence(
+	rule: CalendarRule,
+	now: number,
+	minimumDate: string,
+): CalendarOccurrence | undefined {
 	const floor = localDate(minimumDate);
 	let date = referenceDate(rule, now);
 	for (let i = 0; i < SEARCH_DAYS; i++, date = date.subtract({ days: 1 })) {
@@ -80,8 +96,10 @@ export function calendarDateAfter(rule: CalendarRule, consumedAt: number, pendin
 export function restoreCalendarTrigger(input: CalendarTrigger): CalendarTrigger {
 	const rule = normalizeCalendarRule(input);
 	let date = localDate(input.nextLocalDate);
-	if (rule.every === "week" && !rule.on!.includes(CALENDAR_WEEKDAYS[date.dayOfWeek - 1]!)) throw new Error("Calendar nextLocalDate is outside the selected weekdays.");
-	if (typeof input.nextRunAt !== "string" || !Number.isFinite(Date.parse(input.nextRunAt))) throw new Error("Calendar nextRunAt must be a valid timestamp.");
+	if (rule.every === "week" && !rule.on!.includes(CALENDAR_WEEKDAYS[date.dayOfWeek - 1]!))
+		throw new Error("Calendar nextLocalDate is outside the selected weekdays.");
+	if (typeof input.nextRunAt !== "string" || !Number.isFinite(Date.parse(input.nextRunAt)))
+		throw new Error("Calendar nextRunAt must be a valid timestamp.");
 	for (let i = 0; i < SEARCH_DAYS; i++, date = date.add({ days: 1 })) {
 		const candidate = occurrence(rule, date);
 		if (candidate) return { kind: "calendar", ...rule, ...candidate };

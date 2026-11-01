@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import * as path from "node:path";
-import { fileURLToPath, pathToFileURL } from "node:url";
 import test from "node:test";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
@@ -16,8 +16,12 @@ test("watchdog modules link on the stable host surface without newer pi-ai expor
 		if (typeof arbiter.createWatchdogPermissionArbiter !== "function") throw new Error("permission arbiter module did not load");
 	`;
 
-	execFileSync(process.execPath, ["--experimental-strip-types", "--loader", loader, "--input-type=module", "--eval", script], {
-		cwd: projectRoot,
-		stdio: "pipe",
-	});
+	execFileSync(
+		process.execPath,
+		["--experimental-strip-types", "--loader", loader, "--input-type=module", "--eval", script],
+		{
+			cwd: projectRoot,
+			stdio: "pipe",
+		},
+	);
 });

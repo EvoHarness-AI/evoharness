@@ -1,7 +1,7 @@
 export const SUBAGENT_WATCHDOG_WARNING_TYPE = "subagent_watchdog_warning";
 
 export const WATCHDOG_WARNING_SEVERITIES = ["concern", "blocker"] as const;
-export type WatchdogSeverity = typeof WATCHDOG_WARNING_SEVERITIES[number];
+export type WatchdogSeverity = (typeof WATCHDOG_WARNING_SEVERITIES)[number];
 
 export const WATCHDOG_WARNING_CATEGORIES = [
 	"correctness",
@@ -13,22 +13,29 @@ export const WATCHDOG_WARNING_CATEGORIES = [
 	"loop-risk",
 	"other",
 ] as const;
-export type WatchdogCategory = typeof WATCHDOG_WARNING_CATEGORIES[number];
+export type WatchdogCategory = (typeof WATCHDOG_WARNING_CATEGORIES)[number];
 
 export const WATCHDOG_WARNING_IMPORTANCES = ["low", "medium", "high"] as const;
-export type WatchdogImportance = typeof WATCHDOG_WARNING_IMPORTANCES[number];
+export type WatchdogImportance = (typeof WATCHDOG_WARNING_IMPORTANCES)[number];
 
 export const WATCHDOG_WARNING_SOURCES = ["main", "child", "lsp"] as const;
-export type WatchdogWarningSource = typeof WATCHDOG_WARNING_SOURCES[number];
+export type WatchdogWarningSource = (typeof WATCHDOG_WARNING_SOURCES)[number];
 
 export const WATCHDOG_LSP_DIAGNOSTIC_SEVERITIES = ["error", "warning", "info", "hint"] as const;
-export type WatchdogLspDiagnosticSeverity = typeof WATCHDOG_LSP_DIAGNOSTIC_SEVERITIES[number];
+export type WatchdogLspDiagnosticSeverity = (typeof WATCHDOG_LSP_DIAGNOSTIC_SEVERITIES)[number];
 
 export const WATCHDOG_LSP_STATUSES = ["disabled", "ok", "skipped", "unavailable", "timeout", "failed"] as const;
-export type WatchdogLspStatus = typeof WATCHDOG_LSP_STATUSES[number];
+export type WatchdogLspStatus = (typeof WATCHDOG_LSP_STATUSES)[number];
 
-export const WATCHDOG_RUNTIME_STATUSES = ["idle", "queued", "reviewing", "waiting-at-agent-end", "stale", "failed"] as const;
-export type WatchdogRuntimeStatus = typeof WATCHDOG_RUNTIME_STATUSES[number];
+export const WATCHDOG_RUNTIME_STATUSES = [
+	"idle",
+	"queued",
+	"reviewing",
+	"waiting-at-agent-end",
+	"stale",
+	"failed",
+] as const;
+export type WatchdogRuntimeStatus = (typeof WATCHDOG_RUNTIME_STATUSES)[number];
 
 export const WATCHDOG_WARNING_STATES = [
 	"candidate",
@@ -40,7 +47,7 @@ export const WATCHDOG_WARNING_STATES = [
 	"stalemate",
 	"suppressed",
 ] as const;
-export type WatchdogWarningState = typeof WATCHDOG_WARNING_STATES[number];
+export type WatchdogWarningState = (typeof WATCHDOG_WARNING_STATES)[number];
 
 export interface WatchdogWarning {
 	severity: WatchdogSeverity;

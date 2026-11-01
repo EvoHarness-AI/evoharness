@@ -22,7 +22,8 @@ export function resolvePiSessionId(sessionFile: string | undefined): string | un
 			const line = buffer.toString("utf-8", 0, bytes).split("\n", 1)[0];
 			if (!line) return undefined;
 			const header = JSON.parse(line) as { type?: unknown; id?: unknown };
-			if (header.type === "session" && typeof header.id === "string" && /^[A-Za-z0-9-]{8,}$/.test(header.id)) return header.id;
+			if (header.type === "session" && typeof header.id === "string" && /^[A-Za-z0-9-]{8,}$/.test(header.id))
+				return header.id;
 			return undefined;
 		} finally {
 			fs.closeSync(fd);

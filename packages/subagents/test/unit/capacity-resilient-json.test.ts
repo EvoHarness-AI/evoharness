@@ -78,7 +78,11 @@ describe("createCapacityResilientJsonWriter", () => {
 	});
 
 	it("preserves synchronous throwing for non-capacity failures", () => {
-		const writer = createCapacityResilientJsonWriter({ write: () => { throw new Error("invalid path"); } });
+		const writer = createCapacityResilientJsonWriter({
+			write: () => {
+				throw new Error("invalid path");
+			},
+		});
 		assert.throws(() => writer.write("status.json", {}), /invalid path/);
 	});
 
@@ -86,7 +90,9 @@ describe("createCapacityResilientJsonWriter", () => {
 		const timers = createTimers();
 		const writer = createCapacityResilientJsonWriter({
 			timerApi: timers.timerApi,
-			onError: () => { throw new Error("reporting failed"); },
+			onError: () => {
+				throw new Error("reporting failed");
+			},
 			write: (filePath) => {
 				if (filePath === "status.json") throw capacityError("ENOSPC");
 			},
@@ -104,7 +110,9 @@ describe("createCapacityResilientJsonWriter", () => {
 		const writer = createCapacityResilientJsonWriter({
 			timerApi: timers.timerApi,
 			onSuccess: (_filePath, payload) => successfulPayloads.push(payload),
-			write: () => { if (!available) throw capacityError("ENOSPC"); },
+			write: () => {
+				if (!available) throw capacityError("ENOSPC");
+			},
 		});
 		writer.write("status.json", { state: "running" });
 		assert.deepEqual(successfulPayloads, []);
@@ -119,12 +127,16 @@ describe("createCapacityResilientJsonWriter", () => {
 		let indexUpdates = 0;
 		const indexWriter = createCapacityResilientJsonWriter({
 			timerApi: timers.timerApi,
-			write: () => { indexUpdates += 1; },
+			write: () => {
+				indexUpdates += 1;
+			},
 		});
 		const statusWriter = createCapacityResilientJsonWriter({
 			timerApi: timers.timerApi,
 			onSuccess: () => indexWriter.write("run", { state: "complete" }),
-			write: () => { if (!statusAvailable) throw capacityError("ENOSPC"); },
+			write: () => {
+				if (!statusAvailable) throw capacityError("ENOSPC");
+			},
 		});
 		statusWriter.write("status", { state: "complete" });
 		assert.equal(indexUpdates, 0);

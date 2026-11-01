@@ -83,8 +83,11 @@ function validateProvider(value: unknown): BackgroundWorkProvider {
 		throw new Error("Background-work provider must be an object.");
 	}
 	const provider = value as Record<string, unknown>;
-	const unknownFields = Object.keys(provider).filter((key) => !["name", "listActiveWork", "wakeChannels", "reconcile"].includes(key));
-	if (unknownFields.length > 0) throw new Error(`Background-work provider has unknown fields: ${unknownFields.join(", ")}.`);
+	const unknownFields = Object.keys(provider).filter(
+		(key) => !["name", "listActiveWork", "wakeChannels", "reconcile"].includes(key),
+	);
+	if (unknownFields.length > 0)
+		throw new Error(`Background-work provider has unknown fields: ${unknownFields.join(", ")}.`);
 	const name = validateString(provider.name, "Background-work provider name", MAX_PROVIDER_NAME_LENGTH);
 	if (typeof provider.listActiveWork !== "function") {
 		throw new Error(`Background-work provider '${name}' must expose listActiveWork().`);
@@ -97,7 +100,8 @@ function validateProvider(value: unknown): BackgroundWorkProvider {
 			throw new Error(`Background-work provider '${name}' wakeChannels must be an array when provided.`);
 		}
 		const channels = provider.wakeChannels.map((channel, index) =>
-			validateString(channel, `Background-work provider '${name}' wakeChannels[${index}]`, MAX_WAKE_CHANNEL_LENGTH));
+			validateString(channel, `Background-work provider '${name}' wakeChannels[${index}]`, MAX_WAKE_CHANNEL_LENGTH),
+		);
 		if (new Set(channels).size !== channels.length) {
 			throw new Error(`Background-work provider '${name}' wakeChannels must not contain duplicates.`);
 		}
@@ -112,11 +116,17 @@ function validateItem(provider: string, value: unknown, index: number): Backgrou
 	const item = value as Record<string, unknown>;
 	const unknownFields = Object.keys(item).filter((key) => key !== "id" && key !== "sessionId");
 	if (unknownFields.length > 0) {
-		throw new Error(`Background-work provider '${provider}' item ${index} has unknown fields: ${unknownFields.join(", ")}.`);
+		throw new Error(
+			`Background-work provider '${provider}' item ${index} has unknown fields: ${unknownFields.join(", ")}.`,
+		);
 	}
 	return {
 		id: validateString(item.id, `Background-work provider '${provider}' item ${index} id`, MAX_ITEM_ID_LENGTH),
-		sessionId: validateString(item.sessionId, `Background-work provider '${provider}' item ${index} sessionId`, MAX_SESSION_ID_LENGTH),
+		sessionId: validateString(
+			item.sessionId,
+			`Background-work provider '${provider}' item ${index} sessionId`,
+			MAX_SESSION_ID_LENGTH,
+		),
 	};
 }
 
@@ -139,11 +149,13 @@ export function registerBackgroundWorkProvider(provider: BackgroundWorkProvider)
 
 export function listBackgroundWorkProviders(): readonly BackgroundWorkProvider[] {
 	const current = registry();
-	if (current.providers.size > MAX_PROVIDERS) throw new Error(`Background-work registry contains more than ${MAX_PROVIDERS} providers.`);
+	if (current.providers.size > MAX_PROVIDERS)
+		throw new Error(`Background-work registry contains more than ${MAX_PROVIDERS} providers.`);
 	const providers: BackgroundWorkProvider[] = [];
 	for (const [key, value] of current.providers) {
 		const provider = validateProvider(value);
-		if (key !== provider.name) throw new Error(`Background-work registry key '${key}' does not match provider name '${provider.name}'.`);
+		if (key !== provider.name)
+			throw new Error(`Background-work registry key '${key}' does not match provider name '${provider.name}'.`);
 		providers.push(provider);
 	}
 	return providers;
@@ -164,7 +176,11 @@ export function listBackgroundWorkWakeChannels(): readonly string[] {
  * providers as `sessionId`, and items keyed by any of them are kept.
  */
 export function snapshotBackgroundWork(sessionIds: readonly string[], nowMs = Date.now()): BackgroundWorkSnapshot {
-	const accepted = [...new Set(sessionIds.map((value) => validateString(value, "Background-work snapshot sessionId", MAX_SESSION_ID_LENGTH)))];
+	const accepted = [
+		...new Set(
+			sessionIds.map((value) => validateString(value, "Background-work snapshot sessionId", MAX_SESSION_ID_LENGTH)),
+		),
+	];
 	const sessionId = accepted[0];
 	if (sessionId === undefined) throw new Error("Background-work snapshot needs at least one session id.");
 	const providers = listBackgroundWorkProviders();
@@ -192,13 +208,17 @@ export function snapshotBackgroundWork(sessionIds: readonly string[], nowMs = Da
 			throw new Error(`Background-work provider '${provider.name}' listActiveWork() must return an array.`);
 		}
 		if (active.length > MAX_ITEMS_PER_PROVIDER) {
-			throw new Error(`Background-work provider '${provider.name}' returned ${active.length} items; maximum is ${MAX_ITEMS_PER_PROVIDER}.`);
+			throw new Error(
+				`Background-work provider '${provider.name}' returned ${active.length} items; maximum is ${MAX_ITEMS_PER_PROVIDER}.`,
+			);
 		}
 		active.forEach((value, index) => {
 			const item = validateItem(provider.name, value, index);
 			const identity = `${provider.name}\0${item.sessionId}\0${item.id}`;
 			if (identities.has(identity)) {
-				throw new Error(`Background-work provider '${provider.name}' returned duplicate item '${item.id}' for session '${item.sessionId}'.`);
+				throw new Error(
+					`Background-work provider '${provider.name}' returned duplicate item '${item.id}' for session '${item.sessionId}'.`,
+				);
 			}
 			identities.add(identity);
 			if (accepted.includes(item.sessionId)) items.push({ provider: provider.name, ...item });

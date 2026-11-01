@@ -40,12 +40,7 @@ function reportData(overrides: Record<string, unknown> = {}): Record<string, unk
 }
 
 function report(overrides: Record<string, unknown> = {}, fence = "acceptance-report"): string {
-	return [
-		"done",
-		`\`\`\`${fence}`,
-		JSON.stringify(reportData(overrides)),
-		"```",
-	].join("\n");
+	return ["done", `\`\`\`${fence}`, JSON.stringify(reportData(overrides)), "```"].join("\n");
 }
 
 function tempRepo(): string {
@@ -68,27 +63,77 @@ describe("acceptance gates", () => {
 	it("applies checked acceptance to declared builtin writer profiles", () => {
 		const builtins = discoverAgentsAll(tempRepo()).builtin;
 		const writerNames = ["worker", "claude-code-writer", "codex-exec-writer", "cursor-agent-writer"];
-		assert.deepEqual(writerNames.map((name) => builtins.find((agent) => agent.name === name)?.acceptanceRole), writerNames.map(() => "writer"));
+		assert.deepEqual(
+			writerNames.map((name) => builtins.find((agent) => agent.name === name)?.acceptanceRole),
+			writerNames.map(() => "writer"),
+		);
 		assert.equal(builtins.find((agent) => agent.name === "delegate")?.acceptanceRole, undefined);
 		const worker = builtins.find((agent) => agent.name === "worker");
-		assert.equal(resolveEffectiveAcceptance({ agentName: "worker", acceptanceRole: worker?.acceptanceRole }).level, "checked");
+		assert.equal(
+			resolveEffectiveAcceptance({ agentName: "worker", acceptanceRole: worker?.acceptanceRole }).level,
+			"checked",
+		);
 	});
 	it("needs no acceptance report from the builtin read-only agents unless the caller asks for one", () => {
 		const builtins = discoverAgentsAll(tempRepo()).builtin;
 		for (const name of ["reviewer", "oracle", "evidence-auditor"]) {
 			const agent = builtins.find((candidate) => candidate.name === name);
-			assert.equal(resolveEffectiveAcceptance({ agentName: name, acceptanceRole: agent?.acceptanceRole, task: "Review the diff." }).level, "none", name);
-			assert.equal(resolveEffectiveAcceptance({ agentName: name, acceptanceRole: agent?.acceptanceRole, task: "Review the diff.", explicit: { level: "checked" } }).level, "checked", name);
+			assert.equal(
+				resolveEffectiveAcceptance({
+					agentName: name,
+					acceptanceRole: agent?.acceptanceRole,
+					task: "Review the diff.",
+				}).level,
+				"none",
+				name,
+			);
+			assert.equal(
+				resolveEffectiveAcceptance({
+					agentName: name,
+					acceptanceRole: agent?.acceptanceRole,
+					task: "Review the diff.",
+					explicit: { level: "checked" },
+				}).level,
+				"checked",
+				name,
+			);
 		}
 	});
 
-
 	it("infers evidence levels and review requirements from declared roles", () => {
-		assert.equal(resolveEffectiveAcceptance({ agentName: "worker", acceptanceRole: "read-only", task: "Implement the fix", mode: "single" }).level, "none");
-		assert.equal(resolveEffectiveAcceptance({ agentName: "reviewer", acceptanceRole: "writer", task: "Review-only. Do not edit.", mode: "single" }).level, "checked");
+		assert.equal(
+			resolveEffectiveAcceptance({
+				agentName: "worker",
+				acceptanceRole: "read-only",
+				task: "Implement the fix",
+				mode: "single",
+			}).level,
+			"none",
+		);
+		assert.equal(
+			resolveEffectiveAcceptance({
+				agentName: "reviewer",
+				acceptanceRole: "writer",
+				task: "Review-only. Do not edit.",
+				mode: "single",
+			}).level,
+			"checked",
+		);
 		for (const resolved of [
-			resolveEffectiveAcceptance({ agentName: "worker", acceptanceRole: "writer", task: "Implement the fix", mode: "single", async: true }),
-			resolveEffectiveAcceptance({ agentName: "worker", acceptanceRole: "writer", task: "Fix each item", mode: "chain", dynamic: true }),
+			resolveEffectiveAcceptance({
+				agentName: "worker",
+				acceptanceRole: "writer",
+				task: "Implement the fix",
+				mode: "single",
+				async: true,
+			}),
+			resolveEffectiveAcceptance({
+				agentName: "worker",
+				acceptanceRole: "writer",
+				task: "Fix each item",
+				mode: "chain",
+				dynamic: true,
+			}),
 		]) {
 			assert.equal(resolved.level, "checked");
 			assert.equal(resolved.review && resolved.review !== false ? resolved.review.required : undefined, true);
@@ -103,11 +148,30 @@ describe("acceptance gates", () => {
 		];
 		for (const task of tasks) {
 			for (const agentName of ["worker", "reviewer", "oracle", "release-analyst"]) {
-				assert.equal(resolveEffectiveAcceptance({ agentName, task, async: true, dynamic: true }).level, "attested", `${agentName}: ${task}`);
-				assert.equal(resolveEffectiveAcceptance({ agentName, acceptanceRole: "read-only", task, async: true, dynamic: true }).level, "none", `${agentName}: ${task}`);
-				const writer = resolveEffectiveAcceptance({ agentName, acceptanceRole: "writer", task, async: true, dynamic: true });
+				assert.equal(
+					resolveEffectiveAcceptance({ agentName, task, async: true, dynamic: true }).level,
+					"attested",
+					`${agentName}: ${task}`,
+				);
+				assert.equal(
+					resolveEffectiveAcceptance({ agentName, acceptanceRole: "read-only", task, async: true, dynamic: true })
+						.level,
+					"none",
+					`${agentName}: ${task}`,
+				);
+				const writer = resolveEffectiveAcceptance({
+					agentName,
+					acceptanceRole: "writer",
+					task,
+					async: true,
+					dynamic: true,
+				});
 				assert.equal(writer.level, "checked", `${agentName}: ${task}`);
-				assert.equal(writer.review && writer.review !== false ? writer.review.required : undefined, true, `${agentName}: ${task}`);
+				assert.equal(
+					writer.review && writer.review !== false ? writer.review.required : undefined,
+					true,
+					`${agentName}: ${task}`,
+				);
 			}
 		}
 	});
@@ -124,13 +188,27 @@ describe("acceptance gates", () => {
 	});
 
 	it("agent contract disables inferred acceptance without changing current defaults", () => {
-		const current = resolveEffectiveAcceptance({ agentName: "worker", acceptanceRole: "writer", task: "Implement the fix", mode: "single", async: true });
+		const current = resolveEffectiveAcceptance({
+			agentName: "worker",
+			acceptanceRole: "writer",
+			task: "Implement the fix",
+			mode: "single",
+			async: true,
+		});
 		assert.equal(current.level, "checked");
 		assert.equal(current.review && current.review !== false ? current.review.required : undefined, true);
 		assert.deepEqual(current.inferredReason, ["async declared writer"]);
 
 		for (const explicit of [undefined, "auto" as const, false] as const) {
-			const resolved = resolveEffectiveAcceptance({ agentName: "worker", acceptanceRole: "writer", task: "Implement the fix", mode: "single", async: true, explicit, agentContract: { version: 1 } });
+			const resolved = resolveEffectiveAcceptance({
+				agentName: "worker",
+				acceptanceRole: "writer",
+				task: "Implement the fix",
+				mode: "single",
+				async: true,
+				explicit,
+				agentContract: { version: 1 },
+			});
 			assert.equal(resolved.level, "none");
 			assert.deepEqual(resolved.inferredReason, []);
 			assert.equal(resolved.explicit, explicit !== undefined);
@@ -145,7 +223,12 @@ describe("acceptance gates", () => {
 			agentContract: { version: 1 },
 		});
 		assert.equal(formatAcceptancePrompt(checked, { reportOptional: true }), "");
-		const checkedLedger = await evaluateAcceptance({ acceptance: checked, output: "done", cwd: process.cwd(), reportOptional: true });
+		const checkedLedger = await evaluateAcceptance({
+			acceptance: checked,
+			output: "done",
+			cwd: process.cwd(),
+			reportOptional: true,
+		});
 		assert.equal(checkedLedger.status, "checked");
 		assert.equal(acceptanceFailureMessage(checkedLedger), undefined);
 
@@ -156,13 +239,22 @@ describe("acceptance gates", () => {
 			agentContract: { version: 1 },
 		});
 		assert.equal(formatAcceptancePrompt(verified, { reportOptional: true }), "");
-		const verifiedLedger = await evaluateAcceptance({ acceptance: verified, output: "done", cwd: process.cwd(), reportOptional: true });
+		const verifiedLedger = await evaluateAcceptance({
+			acceptance: verified,
+			output: "done",
+			cwd: process.cwd(),
+			reportOptional: true,
+		});
 		assert.equal(verifiedLedger.status, "verified");
 		assert.equal(verifiedLedger.verifyRuns[0]?.status, "passed");
 	});
 
 	it("current/default acceptance still rejects missing required reports", async () => {
-		const current = resolveEffectiveAcceptance({ agentName: "worker", task: "Implement the fix", explicit: "checked" });
+		const current = resolveEffectiveAcceptance({
+			agentName: "worker",
+			task: "Implement the fix",
+			explicit: "checked",
+		});
 		const ledger = await evaluateAcceptance({ acceptance: current, output: "done", cwd: process.cwd() });
 
 		assert.equal(ledger.status, "rejected");
@@ -186,7 +278,7 @@ describe("acceptance gates", () => {
 		assert.match(prompt, /criteriaSatisfied\[\]\.status.*satisfied, not-satisfied, not-applicable/);
 		assert.match(prompt, /commandsRun\[\]\.result.*passed, failed, not-run/);
 		assert.match(prompt, /manualNotes.*optional strings.*empty string.*does not satisfy.*manual-notes/);
-		assert.match(prompt, /"reviewFindings": \[\n    "blocker:/);
+		assert.match(prompt, /"reviewFindings": \[\n {4}"blocker:/);
 	});
 
 	it("labels declared review gates as optional when required is false", () => {
@@ -227,26 +319,39 @@ describe("acceptance gates", () => {
 	});
 
 	it("includes every required resolved criterion in report examples", () => {
-		const inferred = resolveEffectiveAcceptance({ agentName: "worker", acceptanceRole: "writer", task: "Implement the fix", mode: "single", async: true });
+		const inferred = resolveEffectiveAcceptance({
+			agentName: "worker",
+			acceptanceRole: "writer",
+			task: "Implement the fix",
+			mode: "single",
+			async: true,
+		});
 		const inferredExample = formatAcceptancePrompt(inferred).match(/```acceptance-report\n([\s\S]*?)\n```/);
 		assert.ok(inferredExample?.[1]);
 		assert.deepEqual(
-			(JSON.parse(inferredExample[1]!) as { criteriaSatisfied: Array<{ id: string }> }).criteriaSatisfied.map((criterion) => criterion.id),
+			(JSON.parse(inferredExample[1]!) as { criteriaSatisfied: Array<{ id: string }> }).criteriaSatisfied.map(
+				(criterion) => criterion.id,
+			),
 			["criterion-1", "criterion-2"],
 		);
 
 		const custom = resolveEffectiveAcceptance({
 			agentName: "worker",
 			task: "Implement the fix",
-			explicit: { level: "checked", criteria: [
-				{ id: "required-check", must: "Required", severity: "required" },
-				{ id: "recommended-check", must: "Recommended", severity: "recommended" },
-			] },
+			explicit: {
+				level: "checked",
+				criteria: [
+					{ id: "required-check", must: "Required", severity: "required" },
+					{ id: "recommended-check", must: "Recommended", severity: "recommended" },
+				],
+			},
 		});
 		const customExample = formatAcceptancePrompt(custom).match(/```acceptance-report\n([\s\S]*?)\n```/);
 		assert.ok(customExample?.[1]);
 		assert.deepEqual(
-			(JSON.parse(customExample[1]!) as { criteriaSatisfied: Array<{ id: string }> }).criteriaSatisfied.map((criterion) => criterion.id),
+			(JSON.parse(customExample[1]!) as { criteriaSatisfied: Array<{ id: string }> }).criteriaSatisfied.map(
+				(criterion) => criterion.id,
+			),
 			["required-check"],
 		);
 	});
@@ -260,25 +365,25 @@ describe("acceptance gates", () => {
 
 		const genericJson = parseAcceptanceReport(`done\n\
 \
-\`\`\`json\n{\"notes\":\"not an acceptance report\"}\n\`\`\``);
+\`\`\`json\n{"notes":"not an acceptance report"}\n\`\`\``);
 		assert.equal(genericJson.report, undefined);
 		assert.match(genericJson.error ?? "", /Structured acceptance report not found/);
 
 		const criteriaOnlyJson = parseAcceptanceReport(`done\n\
 \
-\`\`\`json\n{\"criteriaSatisfied\":[{\"id\":\"criterion-1\",\"status\":\"satisfied\",\"evidence\":\"example\"}]}\n\`\`\``);
+\`\`\`json\n{"criteriaSatisfied":[{"id":"criterion-1","status":"satisfied","evidence":"example"}]}\n\`\`\``);
 		assert.equal(criteriaOnlyJson.report, undefined);
 		assert.match(criteriaOnlyJson.error ?? "", /Structured acceptance report not found/);
 
 		const criteriaWithUnknownJson = parseAcceptanceReport(`done\n\
 \
-\`\`\`json\n{\"criteriaSatisfied\":[],\"unexpected\":true}\n\`\`\``);
+\`\`\`json\n{"criteriaSatisfied":[],"unexpected":true}\n\`\`\``);
 		assert.equal(criteriaWithUnknownJson.report, undefined);
 		assert.match(criteriaWithUnknownJson.error ?? "", /unexpected: unsupported acceptance report field/);
 
 		const invalidSignalJson = `done\n\
 \
-\`\`\`json\n{\"criteriaSatisfied\":[{\"id\":\"criterion-1\",\"status\":\"satisfied\",\"evidence\":\"example\"}],\"changedFiles\":false}\n\`\`\``;
+\`\`\`json\n{"criteriaSatisfied":[{"id":"criterion-1","status":"satisfied","evidence":"example"}],"changedFiles":false}\n\`\`\``;
 		const genericJsonWithInvalidSignal = parseAcceptanceReport(invalidSignalJson);
 		assert.equal(genericJsonWithInvalidSignal.report, undefined);
 		assert.match(genericJsonWithInvalidSignal.error ?? "", /changedFiles: expected string\[\]; got boolean false/);
@@ -286,7 +391,7 @@ describe("acceptance gates", () => {
 
 		const partialWrapperJson = `done\n\
 \
-\`\`\`json\n{\"acceptance\":{\"changedFiles\":[\"src/file.ts\"]}}\n\`\`\``;
+\`\`\`json\n{"acceptance":{"changedFiles":["src/file.ts"]}}\n\`\`\``;
 		const genericJsonWithPartialWrapper = parseAcceptanceReport(partialWrapperJson);
 		assert.equal(genericJsonWithPartialWrapper.report, undefined);
 		assert.match(genericJsonWithPartialWrapper.error ?? "", /Structured acceptance report not found/);
@@ -294,7 +399,7 @@ describe("acceptance gates", () => {
 
 		const reportShapedJson = `done\n\
 \
-\`\`\`json\n{\"changedFiles\":[\"src/file.ts\"]}\n\`\`\``;
+\`\`\`json\n{"changedFiles":["src/file.ts"]}\n\`\`\``;
 		const genericReportShapedJson = parseAcceptanceReport(reportShapedJson);
 		assert.equal(genericReportShapedJson.report, undefined);
 		assert.match(genericReportShapedJson.error ?? "", /Structured acceptance report not found/);
@@ -303,7 +408,7 @@ describe("acceptance gates", () => {
 		for (const malformedOutput of [
 			"```acceptance-report\n{bad-json\n```",
 			"```acceptance-report\n```",
-			"```acceptance-report\n{\"changedFiles\": false}",
+			'```acceptance-report\n{"changedFiles": false}',
 			"ACCEPTANCE_REPORT: { not json",
 			"ACCEPTANCE_REPORT: no object",
 		]) {
@@ -355,23 +460,15 @@ describe("acceptance gates", () => {
 		const parsed = parseAcceptanceReport(output);
 
 		assert.ok(parsed.report);
-		assert.equal(stripAcceptanceReport(output), [
-			"metadata",
-			"```json",
-			JSON.stringify({ notes: "not an acceptance report" }),
-			"```",
-			"done",
-		].join("\n"));
+		assert.equal(
+			stripAcceptanceReport(output),
+			["metadata", "```json", JSON.stringify({ notes: "not an acceptance report" }), "```", "done"].join("\n"),
+		);
 	});
 
 	it("unwraps every accepted report wrapper", () => {
 		for (const wrapper of ["acceptance", "acceptance-report", "acceptance_report", "acceptanceReport"]) {
-			const output = [
-				"done",
-				"```json",
-				JSON.stringify({ [wrapper]: reportData() }),
-				"```",
-			].join("\n");
+			const output = ["done", "```json", JSON.stringify({ [wrapper]: reportData() }), "```"].join("\n");
 			const parsed = parseAcceptanceReport(output);
 
 			assert.ok(parsed.report, wrapper);
@@ -384,18 +481,20 @@ describe("acceptance gates", () => {
 		const output = [
 			"done",
 			"```acceptance_report",
-			JSON.stringify({ acceptance_report: {
-				criteria_satisfied: { id: "Criterion_1", status: "DONE", evidence: "verified" },
-				changed_files: "src/file.ts",
-				tests_added_or_updated: "test/file.test.ts",
-				commands_run: { command: "npm test", result: "success", summary: "passed" },
-				validation_output: "tests passed",
-				residual_risks: "none",
-				no_staged_files: " TRUE ",
-				diff_summary: "patched",
-				review_findings: "no blockers",
-				manual_notes: "complete",
-			} }),
+			JSON.stringify({
+				acceptance_report: {
+					criteria_satisfied: { id: "Criterion_1", status: "DONE", evidence: "verified" },
+					changed_files: "src/file.ts",
+					tests_added_or_updated: "test/file.test.ts",
+					commands_run: { command: "npm test", result: "success", summary: "passed" },
+					validation_output: "tests passed",
+					residual_risks: "none",
+					no_staged_files: " TRUE ",
+					diff_summary: "patched",
+					review_findings: "no blockers",
+					manual_notes: "complete",
+				},
+			}),
 			"```",
 		].join("\n");
 		const parsed = parseAcceptanceReport(output);
@@ -422,7 +521,9 @@ describe("acceptance gates", () => {
 			["not met", "not-satisfied"],
 			["not_applicable", "not-applicable"],
 		] as const) {
-			const parsed = parseAcceptanceReport(report({ criteriaSatisfied: [{ id: "Criterion 1", status: value, evidence: "proof" }] }));
+			const parsed = parseAcceptanceReport(
+				report({ criteriaSatisfied: [{ id: "Criterion 1", status: value, evidence: "proof" }] }),
+			);
 			assert.equal(parsed.report?.criteriaSatisfied?.[0]?.id, "criterion-1");
 			assert.equal(parsed.report?.criteriaSatisfied?.[0]?.status, expected);
 		}
@@ -431,7 +532,9 @@ describe("acceptance gates", () => {
 			["failure", "failed"],
 			["not run", "not-run"],
 		] as const) {
-			const parsed = parseAcceptanceReport(report({ commandsRun: [{ command: "check", result: value, summary: "complete" }] }));
+			const parsed = parseAcceptanceReport(
+				report({ commandsRun: [{ command: "check", result: value, summary: "complete" }] }),
+			);
 			assert.equal(parsed.report?.commandsRun?.[0]?.result, expected);
 		}
 	});
@@ -439,9 +542,18 @@ describe("acceptance gates", () => {
 	it("rejects unknown and ambiguous report fields with exact diagnostics", () => {
 		for (const [value, expected] of [
 			[{ ...reportData(), unexpected: true }, /unexpected: unsupported acceptance report field/],
-			[{ ...reportData(), changed_files: ["src/other.ts"] }, /changed_files: duplicates normalized field 'changedFiles'/],
-			[{ acceptance: reportData(), changedFiles: ["src/file.ts"] }, /changedFiles: unsupported alongside acceptance report wrapper 'acceptance'/],
-			[{ acceptance: reportData(), acceptance_report: reportData() }, /multiple acceptance report wrappers are ambiguous/],
+			[
+				{ ...reportData(), changed_files: ["src/other.ts"] },
+				/changed_files: duplicates normalized field 'changedFiles'/,
+			],
+			[
+				{ acceptance: reportData(), changedFiles: ["src/file.ts"] },
+				/changedFiles: unsupported alongside acceptance report wrapper 'acceptance'/,
+			],
+			[
+				{ acceptance: reportData(), acceptance_report: reportData() },
+				/multiple acceptance report wrappers are ambiguous/,
+			],
 		] as const) {
 			const parsed = parseAcceptanceReport(`\`\`\`acceptance-report\n${JSON.stringify(value)}\n\`\`\``);
 			assert.equal(parsed.report, undefined);
@@ -451,12 +563,35 @@ describe("acceptance gates", () => {
 
 	it("rejects unknown enums, duplicate criterion ids, and blank evidence", () => {
 		for (const [overrides, expected] of [
-			[{ commandsRun: [{ command: "npm test", result: "maybe", summary: "passed" }] }, /commandsRun\[0\]\.result.*got "maybe"/],
-			[{ commandsRun: [{ command: "npm test", result: "passed", summary: "", exitCode: 0 }] }, /commandsRun\[0\]\.exitCode: unsupported acceptance command field/],
-			[{ commandsRun: [{ command: "npm test", result: "passed", summary: "" }] }, /commandsRun\[0\]\.summary: expected non-empty string; got ""/],
-			[{ criteriaSatisfied: [{ id: "criterion-1", status: "maybe", evidence: "proof" }] }, /criteriaSatisfied\[0\]\.status.*got "maybe"/],
-			[{ criteriaSatisfied: [{ id: "criterion-1", status: "satisfied", evidence: "proof", confidence: 1 }] }, /criteriaSatisfied\[0\]\.confidence: unsupported acceptance criterion field/],
-			[{ criteriaSatisfied: [{ id: "criterion-1", status: "satisfied", evidence: "proof" }, { id: "Criterion_1", status: "satisfied", evidence: "proof" }] }, /duplicate normalized criterion id 'criterion-1'/],
+			[
+				{ commandsRun: [{ command: "npm test", result: "maybe", summary: "passed" }] },
+				/commandsRun\[0\]\.result.*got "maybe"/,
+			],
+			[
+				{ commandsRun: [{ command: "npm test", result: "passed", summary: "", exitCode: 0 }] },
+				/commandsRun\[0\]\.exitCode: unsupported acceptance command field/,
+			],
+			[
+				{ commandsRun: [{ command: "npm test", result: "passed", summary: "" }] },
+				/commandsRun\[0\]\.summary: expected non-empty string; got ""/,
+			],
+			[
+				{ criteriaSatisfied: [{ id: "criterion-1", status: "maybe", evidence: "proof" }] },
+				/criteriaSatisfied\[0\]\.status.*got "maybe"/,
+			],
+			[
+				{ criteriaSatisfied: [{ id: "criterion-1", status: "satisfied", evidence: "proof", confidence: 1 }] },
+				/criteriaSatisfied\[0\]\.confidence: unsupported acceptance criterion field/,
+			],
+			[
+				{
+					criteriaSatisfied: [
+						{ id: "criterion-1", status: "satisfied", evidence: "proof" },
+						{ id: "Criterion_1", status: "satisfied", evidence: "proof" },
+					],
+				},
+				/duplicate normalized criterion id 'criterion-1'/,
+			],
 			[{ reviewFindings: [{}] }, /reviewFindings\[0\]: expected non-empty string; got object/],
 			[{ noStagedFiles: "yes" }, /noStagedFiles: expected boolean; got "yes"/],
 		] as const) {
@@ -468,9 +603,15 @@ describe("acceptance gates", () => {
 
 	it("tolerates empty-string entries in string-array fields by dropping them at parse time", () => {
 		// A model writing ["\"\""] for "no items" must not fail the whole report.
-		for (const field of ["changedFiles", "testsAddedOrUpdated", "validationOutput", "residualRisks", "reviewFindings"] as const) {
+		for (const field of [
+			"changedFiles",
+			"testsAddedOrUpdated",
+			"validationOutput",
+			"residualRisks",
+			"reviewFindings",
+		] as const) {
 			const parsed = parseAcceptanceReport(report({ [field]: [""] }));
-			assert.equal(parsed.error, undefined, `${field}: ["\"\""] should parse`);
+			assert.equal(parsed.error, undefined, `${field}: [""""] should parse`);
 			assert.deepEqual(parsed.report?.[field], [], `${field}: empty-string entries dropped`);
 		}
 
@@ -525,26 +666,44 @@ describe("acceptance gates", () => {
 	});
 
 	it("reports field-level validation errors for malformed acceptance-report fields", () => {
-		const invalidReviewerReport = parseAcceptanceReport(report({
-			reviewFindings: [{ id: "B-1", severity: "blocker", finding: "Missing evidence" }],
-		}));
+		const invalidReviewerReport = parseAcceptanceReport(
+			report({
+				reviewFindings: [{ id: "B-1", severity: "blocker", finding: "Missing evidence" }],
+			}),
+		);
 		assert.equal(invalidReviewerReport.report, undefined);
 		assert.match(invalidReviewerReport.error ?? "", /reviewFindings\[0\]: expected non-empty string; got object/);
 
-		const invalidCommandReport = parseAcceptanceReport(report({
-			commandsRun: [{ command: "npm test", exitCode: 0 }],
-		}));
+		const invalidCommandReport = parseAcceptanceReport(
+			report({
+				commandsRun: [{ command: "npm test", exitCode: 0 }],
+			}),
+		);
 		assert.equal(invalidCommandReport.report, undefined);
-		assert.match(invalidCommandReport.error ?? "", /commandsRun\[0\]\.result: expected one of "passed", "failed", "not-run"; got missing/);
-		assert.match(invalidCommandReport.error ?? "", /commandsRun\[0\]\.summary: expected non-empty string; got missing/);
+		assert.match(
+			invalidCommandReport.error ?? "",
+			/commandsRun\[0\]\.result: expected one of "passed", "failed", "not-run"; got missing/,
+		);
+		assert.match(
+			invalidCommandReport.error ?? "",
+			/commandsRun\[0\]\.summary: expected non-empty string; got missing/,
+		);
 
-		const invalidCriteriaReport = parseAcceptanceReport(report({
-			criteriaSatisfied: [{ id: 7, status: "maybe", evidence: "" }],
-		}));
+		const invalidCriteriaReport = parseAcceptanceReport(
+			report({
+				criteriaSatisfied: [{ id: 7, status: "maybe", evidence: "" }],
+			}),
+		);
 		assert.equal(invalidCriteriaReport.report, undefined);
 		assert.match(invalidCriteriaReport.error ?? "", /criteriaSatisfied\[0\]\.id: expected string; got number 7/);
-		assert.match(invalidCriteriaReport.error ?? "", /criteriaSatisfied\[0\]\.status: expected one of "satisfied", "not-satisfied", "not-applicable"; got "maybe"/);
-		assert.match(invalidCriteriaReport.error ?? "", /criteriaSatisfied\[0\]\.evidence: expected non-empty string; got ""/);
+		assert.match(
+			invalidCriteriaReport.error ?? "",
+			/criteriaSatisfied\[0\]\.status: expected one of "satisfied", "not-satisfied", "not-applicable"; got "maybe"/,
+		);
+		assert.match(
+			invalidCriteriaReport.error ?? "",
+			/criteriaSatisfied\[0\]\.evidence: expected non-empty string; got ""/,
+		);
 	});
 
 	it("explicit none disables inferred gates when a reason is present", () => {
@@ -573,8 +732,14 @@ describe("acceptance gates", () => {
 			});
 
 			assert.equal(ledger.status, "checked");
-			assert.equal(ledger.runtimeChecks.find((check) => check.id === "evidence:changed-files")?.status, "not-applicable");
-			assert.equal(ledger.runtimeChecks.find((check) => check.id === "evidence:tests-added")?.status, "not-applicable");
+			assert.equal(
+				ledger.runtimeChecks.find((check) => check.id === "evidence:changed-files")?.status,
+				"not-applicable",
+			);
+			assert.equal(
+				ledger.runtimeChecks.find((check) => check.id === "evidence:tests-added")?.status,
+				"not-applicable",
+			);
 		} finally {
 			fs.rmSync(cwd, { recursive: true, force: true });
 		}
@@ -586,7 +751,10 @@ describe("acceptance gates", () => {
 			const acceptance = resolveEffectiveAcceptance({
 				agentName: "reviewer",
 				task: "Review-only. Do not edit.",
-				explicit: { level: "checked", evidence: ["review-findings", "commands-run", "validation-output", "residual-risks"] },
+				explicit: {
+					level: "checked",
+					evidence: ["review-findings", "commands-run", "validation-output", "residual-risks"],
+				},
 			});
 			const ledger = await evaluateAcceptance({
 				acceptance,
@@ -601,7 +769,10 @@ describe("acceptance gates", () => {
 			});
 
 			assert.equal(ledger.status, "checked");
-			assert.equal(ledger.runtimeChecks.find((check) => check.id === "evidence:no-staged-files"), undefined);
+			assert.equal(
+				ledger.runtimeChecks.find((check) => check.id === "evidence:no-staged-files"),
+				undefined,
+			);
 			assert.equal(ledger.runtimeChecks.find((check) => check.id === "no-staged-files")?.status, "passed");
 		} finally {
 			fs.rmSync(cwd, { recursive: true, force: true });
@@ -614,7 +785,10 @@ describe("acceptance gates", () => {
 			const acceptance = resolveEffectiveAcceptance({
 				agentName: "reviewer",
 				task: "Review-only. Do not edit.",
-				explicit: { level: "checked", evidence: ["review-findings", "commands-run", "validation-output", "residual-risks"] },
+				explicit: {
+					level: "checked",
+					evidence: ["review-findings", "commands-run", "validation-output", "residual-risks"],
+				},
 			});
 			const ledger = await evaluateAcceptance({
 				acceptance,
@@ -644,7 +818,10 @@ describe("acceptance gates", () => {
 			const acceptance = resolveEffectiveAcceptance({
 				agentName: "reviewer",
 				task: "Review-only. Do not edit.",
-				explicit: { level: "checked", evidence: ["review-findings", "commands-run", "validation-output", "residual-risks"] },
+				explicit: {
+					level: "checked",
+					evidence: ["review-findings", "commands-run", "validation-output", "residual-risks"],
+				},
 			});
 			const ledger = await evaluateAcceptance({
 				acceptance,
@@ -659,7 +836,10 @@ describe("acceptance gates", () => {
 			});
 
 			assert.equal(ledger.status, "rejected");
-			assert.equal(ledger.runtimeChecks.find((check) => check.id === "evidence:no-staged-files"), undefined);
+			assert.equal(
+				ledger.runtimeChecks.find((check) => check.id === "evidence:no-staged-files"),
+				undefined,
+			);
 			assert.equal(ledger.runtimeChecks.find((check) => check.id === "no-staged-files")?.status, "failed");
 			assert.match(acceptanceFailureMessage(ledger) ?? "", /Staged files present/);
 		} finally {
@@ -688,7 +868,10 @@ describe("acceptance gates", () => {
 			});
 
 			assert.equal(ledger.status, "checked");
-			assert.equal(ledger.runtimeChecks.find((check) => check.id === "evidence:no-staged-files"), undefined);
+			assert.equal(
+				ledger.runtimeChecks.find((check) => check.id === "evidence:no-staged-files"),
+				undefined,
+			);
 			assert.equal(ledger.runtimeChecks.find((check) => check.id === "staged-index-unchanged")?.status, "passed");
 		} finally {
 			fs.rmSync(cwd, { recursive: true, force: true });
@@ -709,7 +892,12 @@ describe("acceptance gates", () => {
 			fs.writeFileSync(path.join(cwd, "child-staged.txt"), "unexpected\n", "utf-8");
 			execFileSync("git", ["add", "child-staged.txt"], { cwd });
 
-			const changed = await evaluateAcceptance({ acceptance, output: report({ noStagedFiles: false }), cwd, stagedIndexBaseline: baseline });
+			const changed = await evaluateAcceptance({
+				acceptance,
+				output: report({ noStagedFiles: false }),
+				cwd,
+				stagedIndexBaseline: baseline,
+			});
 			const unavailable = await evaluateAcceptance({ acceptance, output: report({ noStagedFiles: false }), cwd });
 
 			assert.equal(changed.status, "rejected");
@@ -745,18 +933,30 @@ describe("acceptance gates", () => {
 	it("still rejects missing changed and test evidence and empty required commands", async () => {
 		const cwd = tempRepo();
 		try {
-			const acceptance = resolveEffectiveAcceptance({ agentName: "worker", task: "Implement a fix", explicit: { level: "checked" } });
-			const missing = await evaluateAcceptance({ acceptance, output: report({
-				changedFiles: undefined,
-				testsAddedOrUpdated: undefined,
-			}), cwd });
+			const acceptance = resolveEffectiveAcceptance({
+				agentName: "worker",
+				task: "Implement a fix",
+				explicit: { level: "checked" },
+			});
+			const missing = await evaluateAcceptance({
+				acceptance,
+				output: report({
+					changedFiles: undefined,
+					testsAddedOrUpdated: undefined,
+				}),
+				cwd,
+			});
 			assert.equal(missing.status, "rejected");
 			assert.match(acceptanceFailureMessage(missing) ?? "", /changed-files evidence missing/);
 
-			const missingTests = await evaluateAcceptance({ acceptance, output: report({
-				changedFiles: [],
-				testsAddedOrUpdated: undefined,
-			}), cwd });
+			const missingTests = await evaluateAcceptance({
+				acceptance,
+				output: report({
+					changedFiles: [],
+					testsAddedOrUpdated: undefined,
+				}),
+				cwd,
+			});
 			assert.equal(missingTests.status, "rejected");
 			assert.match(acceptanceFailureMessage(missingTests) ?? "", /tests-added evidence missing/);
 
@@ -788,7 +988,10 @@ describe("acceptance gates", () => {
 
 			assert.equal(ledger.status, "rejected");
 			assert.match(acceptanceFailureMessage(ledger) ?? "", /Failed to parse acceptance-report/);
-			assert.match(acceptanceFailureMessage(ledger) ?? "", /reviewFindings\[0\]: expected non-empty string; got object/);
+			assert.match(
+				acceptanceFailureMessage(ledger) ?? "",
+				/reviewFindings\[0\]: expected non-empty string; got object/,
+			);
 		} finally {
 			fs.rmSync(cwd, { recursive: true, force: true });
 		}
@@ -846,12 +1049,17 @@ describe("acceptance gates", () => {
 			});
 			const ledger = await evaluateAcceptance({
 				acceptance,
-				output: report({ criteriaSatisfied: [{ id: "regression", status: "not-satisfied", evidence: "test missing" }] }),
+				output: report({
+					criteriaSatisfied: [{ id: "regression", status: "not-satisfied", evidence: "test missing" }],
+				}),
 				cwd,
 			});
 
 			assert.equal(ledger.status, "rejected");
-			assert.match(acceptanceFailureMessage(ledger) ?? "", /Required criterion 'regression' was reported as not-satisfied/);
+			assert.match(
+				acceptanceFailureMessage(ledger) ?? "",
+				/Required criterion 'regression' was reported as not-satisfied/,
+			);
 		} finally {
 			fs.rmSync(cwd, { recursive: true, force: true });
 		}
@@ -863,7 +1071,10 @@ describe("acceptance gates", () => {
 			const passing = resolveEffectiveAcceptance({
 				agentName: "worker",
 				task: "Implement a fix",
-				explicit: { level: "verified", verify: [{ id: "pass", command: "node -e \"process.exit(0)\"", timeoutMs: 10_000 }] },
+				explicit: {
+					level: "verified",
+					verify: [{ id: "pass", command: 'node -e "process.exit(0)"', timeoutMs: 10_000 }],
+				},
 			});
 			const passLedger = await evaluateAcceptance({ acceptance: passing, output: report(), cwd });
 			assert.equal(passLedger.status, "verified");
@@ -872,7 +1083,10 @@ describe("acceptance gates", () => {
 			const failing = resolveEffectiveAcceptance({
 				agentName: "worker",
 				task: "Implement a fix",
-				explicit: { level: "verified", verify: [{ id: "fail", command: "node -e \"process.exit(7)\"", timeoutMs: 10_000 }] },
+				explicit: {
+					level: "verified",
+					verify: [{ id: "fail", command: 'node -e "process.exit(7)"', timeoutMs: 10_000 }],
+				},
 			});
 			const failLedger = await evaluateAcceptance({ acceptance: failing, output: report(), cwd });
 			assert.equal(failLedger.status, "rejected");
@@ -900,7 +1114,12 @@ describe("acceptance gates", () => {
 				},
 			});
 
-			const ledger = await evaluateAcceptance({ acceptance, output: report({ noStagedFiles: false }), cwd, stagedIndexBaseline: baseline });
+			const ledger = await evaluateAcceptance({
+				acceptance,
+				output: report({ noStagedFiles: false }),
+				cwd,
+				stagedIndexBaseline: baseline,
+			});
 
 			assert.equal(ledger.status, "rejected");
 			assert.equal(ledger.verifyRuns[0]?.status, "passed");
@@ -935,7 +1154,9 @@ describe("acceptance gates", () => {
 				cwd,
 				reviewResult: {
 					status: "blockers",
-					findings: [{ severity: "blocker", issue: "Missing test", rationale: "Acceptance requires test evidence." }],
+					findings: [
+						{ severity: "blocker", issue: "Missing test", rationale: "Acceptance requires test evidence." },
+					],
 				},
 			});
 			assert.equal(blockers.status, "rejected");
@@ -964,11 +1185,20 @@ describe("acceptance gates", () => {
 				});
 
 				assert.equal(acceptance.level, "checked");
-				assert.equal(acceptance.review && acceptance.review !== false ? acceptance.review.required : undefined, true);
-				const ledger = await evaluateAcceptance({ acceptance, output: report({ criteriaSatisfied: [
-					{ id: "criterion-1", status: "satisfied", evidence: "implemented" },
-					{ id: "criterion-2", status: "satisfied", evidence: "evidence returned" },
-				] }), cwd });
+				assert.equal(
+					acceptance.review && acceptance.review !== false ? acceptance.review.required : undefined,
+					true,
+				);
+				const ledger = await evaluateAcceptance({
+					acceptance,
+					output: report({
+						criteriaSatisfied: [
+							{ id: "criterion-1", status: "satisfied", evidence: "implemented" },
+							{ id: "criterion-2", status: "satisfied", evidence: "evidence returned" },
+						],
+					}),
+					cwd,
+				});
 				assert.equal(ledger.status, "review-required");
 				assert.equal(ledger.evidenceStatus, "checked");
 				assert.equal(ledger.reviewResult?.status, "review-required");
@@ -990,10 +1220,12 @@ describe("acceptance gates", () => {
 				});
 				const ledger = await evaluateAcceptance({
 					acceptance,
-					output: report({ criteriaSatisfied: [
-						{ id: "criterion-1", status: "satisfied", evidence: "implemented" },
-						{ id: "criterion-2", status: "satisfied", evidence: "evidence returned" },
-					] }),
+					output: report({
+						criteriaSatisfied: [
+							{ id: "criterion-1", status: "satisfied", evidence: "implemented" },
+							{ id: "criterion-2", status: "satisfied", evidence: "evidence returned" },
+						],
+					}),
 					cwd,
 					reviewResult: { status: "review-required", findings: [] },
 				});
@@ -1022,7 +1254,10 @@ describe("acceptance gates", () => {
 			});
 
 			assert.equal(ledger.status, "rejected");
-			assert.match(acceptanceFailureMessage(ledger) ?? "", /criterion|changed-files|tests-added|commands-run|validation-output|no-staged-files/);
+			assert.match(
+				acceptanceFailureMessage(ledger) ?? "",
+				/criterion|changed-files|tests-added|commands-run|validation-output|no-staged-files/,
+			);
 		} finally {
 			fs.rmSync(cwd, { recursive: true, force: true });
 		}
@@ -1093,15 +1328,36 @@ describe("acceptance gates", () => {
 			const childAMessages: Message[] = [
 				{
 					role: "assistant",
-					content: [{ type: "toolCall", id: "w1", name: "write", arguments: { path: sharedPath, content: report({ notes: "child A report" }) } }],
+					content: [
+						{
+							type: "toolCall",
+							id: "w1",
+							name: "write",
+							arguments: { path: sharedPath, content: report({ notes: "child A report" }) },
+						},
+					],
 					api: "test",
 					provider: "test",
 					model: "mock/test-model",
-					usage: { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } },
+					usage: {
+						input: 1,
+						output: 1,
+						cacheRead: 0,
+						cacheWrite: 0,
+						totalTokens: 2,
+						cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+					},
 					stopReason: "toolUse",
 					timestamp: 0,
 				},
-				{ role: "toolResult", toolCallId: "w1", toolName: "write", content: [{ type: "text", text: "ok" }], isError: false, timestamp: 0 },
+				{
+					role: "toolResult",
+					toolCallId: "w1",
+					toolName: "write",
+					content: [{ type: "text", text: "ok" }],
+					isError: false,
+					timestamp: 0,
+				},
 			];
 			const childAContent = extractChildWrittenOutput(childAMessages, sharedPath, cwd);
 			assert.equal(typeof childAContent, "string");
@@ -1134,7 +1390,7 @@ describe("acceptance gates", () => {
 			const malformedReports = [
 				"```acceptance-report\n{ not json\n```",
 				"```acceptance-report\n```",
-				"```acceptance-report\n{\"changedFiles\": false}",
+				'```acceptance-report\n{"changedFiles": false}',
 				"ACCEPTANCE_REPORT: { not json",
 			];
 
@@ -1175,7 +1431,12 @@ describe("acceptance gates", () => {
 			const ledger = await evaluateAcceptance({
 				acceptance,
 				output: "file-only child output",
-				fileOutput: { content: `ACCEPTANCE_REPORT: ${malformed}`, path: reportPath, authoritative: true, durable: true },
+				fileOutput: {
+					content: `ACCEPTANCE_REPORT: ${malformed}`,
+					path: reportPath,
+					authoritative: true,
+					durable: true,
+				},
 				cwd,
 			});
 
@@ -1189,7 +1450,12 @@ describe("acceptance gates", () => {
 			const optional = await evaluateAcceptance({
 				acceptance,
 				output: "file-only child output",
-				fileOutput: { content: `ACCEPTANCE_REPORT: ${malformed}`, path: reportPath, authoritative: true, durable: true },
+				fileOutput: {
+					content: `ACCEPTANCE_REPORT: ${malformed}`,
+					path: reportPath,
+					authoritative: true,
+					durable: true,
+				},
 				cwd,
 				reportOptional: true,
 			});
@@ -1199,7 +1465,12 @@ describe("acceptance gates", () => {
 			const missing = await evaluateAcceptance({
 				acceptance,
 				output: "file-only child output",
-				fileOutput: { content: "artifact without acceptance metadata", path: reportPath, authoritative: true, durable: true },
+				fileOutput: {
+					content: "artifact without acceptance metadata",
+					path: reportPath,
+					authoritative: true,
+					durable: true,
+				},
 				cwd,
 			});
 			assert.equal(missing.status, "rejected");
@@ -1207,7 +1478,12 @@ describe("acceptance gates", () => {
 			const textOnlyMalformed = await evaluateAcceptance({
 				acceptance,
 				output: `ACCEPTANCE_REPORT: ${malformed}`,
-				fileOutput: { content: "artifact without acceptance metadata", path: reportPath, authoritative: true, durable: true },
+				fileOutput: {
+					content: "artifact without acceptance metadata",
+					path: reportPath,
+					authoritative: true,
+					durable: true,
+				},
 				cwd,
 			});
 			assert.equal(textOnlyMalformed.status, "rejected");
@@ -1215,8 +1491,17 @@ describe("acceptance gates", () => {
 
 			const unmet = await evaluateAcceptance({
 				acceptance,
-				output: report({ criteriaSatisfied: [{ id: "criterion-1", status: "not-satisfied", evidence: "not proved" }] }),
-				fileOutput: { content: report({ criteriaSatisfied: [{ id: "criterion-1", status: "not-satisfied", evidence: "not proved" }] }), path: reportPath, authoritative: true, durable: true },
+				output: report({
+					criteriaSatisfied: [{ id: "criterion-1", status: "not-satisfied", evidence: "not proved" }],
+				}),
+				fileOutput: {
+					content: report({
+						criteriaSatisfied: [{ id: "criterion-1", status: "not-satisfied", evidence: "not proved" }],
+					}),
+					path: reportPath,
+					authoritative: true,
+					durable: true,
+				},
 				cwd,
 			});
 			assert.equal(unmet.status, "rejected");
@@ -1277,9 +1562,17 @@ describe("acceptance gates", () => {
 			tasks: [{ acceptance: true }],
 			chain: [{ acceptance: true }, { parallel: [{ acceptance: true }] }, { parallel: { acceptance: true } }],
 		});
-		const paths = ["acceptance", "tasks[0].acceptance", "chain[0].acceptance", "chain[1].parallel[0].acceptance", "chain[2].parallel.acceptance"];
+		const paths = [
+			"acceptance",
+			"tasks[0].acceptance",
+			"chain[0].acceptance",
+			"chain[1].parallel[0].acceptance",
+			"chain[2].parallel.acceptance",
+		];
 		assert.equal(errors.length, paths.length);
-		paths.forEach((path, index) => assert.ok(errors[index]?.startsWith(`${path} must be a string level, false, or an object.`)));
+		paths.forEach((path, index) =>
+			assert.ok(errors[index]?.startsWith(`${path} must be a string level, false, or an object.`)),
+		);
 	});
 
 	it("requires outputSchema for explicit structured acceptance report mode", () => {
@@ -1294,7 +1587,12 @@ describe("acceptance gates", () => {
 			chain: [
 				{ acceptance: { level: "checked", report: "on" } },
 				{ outputSchema: schema, acceptance: { level: "checked", report: "off" } },
-				{ parallel: [{ acceptance: { level: "checked", report: "on" } }, { outputSchema: schema, acceptance: { level: "checked", report: "on" } }] },
+				{
+					parallel: [
+						{ acceptance: { level: "checked", report: "on" } },
+						{ outputSchema: schema, acceptance: { level: "checked", report: "on" } },
+					],
+				},
 				{ parallel: { acceptance: { level: "checked", report: "off" } } },
 			],
 		});
@@ -1332,7 +1630,10 @@ describe("acceptance gates", () => {
 		assert.equal(conflictingGate.ok, false);
 		assert.match(conflictingGate.error, /cannot be combined with acceptance/);
 		assert.match(conflictingGate.error, /Both fields were present: gate="npm test" acceptance="checked"/);
-		const oversizedAcceptance = normalizeGateAcceptance("npm test", { level: "checked", evidence: ["a".repeat(200)] });
+		const oversizedAcceptance = normalizeGateAcceptance("npm test", {
+			level: "checked",
+			evidence: ["a".repeat(200)],
+		});
 		assert.equal(oversizedAcceptance.ok, false);
 		assert.match(oversizedAcceptance.error || "", /Both fields were present/);
 		assert.ok(!(oversizedAcceptance.error || "").includes("a".repeat(200)));
@@ -1350,15 +1651,31 @@ describe("acceptance gates", () => {
 			const acceptance = resolveEffectiveAcceptance({
 				agentName: "worker",
 				task: "run explicit verification",
-				explicit: { level: "verified", verify: [
-					{ id: "one", command: `${process.execPath} -e "require('node:fs').writeFileSync('one.txt','ok')"` },
-					{ id: "two", command: `${process.execPath} -e "require('node:fs').writeFileSync('two.txt','ok')"` },
-				] },
+				explicit: {
+					level: "verified",
+					verify: [
+						{ id: "one", command: `${process.execPath} -e "require('node:fs').writeFileSync('one.txt','ok')"` },
+						{ id: "two", command: `${process.execPath} -e "require('node:fs').writeFileSync('two.txt','ok')"` },
+					],
+				},
 				agentContract: { version: 1 },
 			});
-			const ledger = await evaluateAcceptance({ acceptance, output: "done", cwd, reportOptional: true, artifactsDir, runId: "multi-verify" });
+			const ledger = await evaluateAcceptance({
+				acceptance,
+				output: "done",
+				cwd,
+				reportOptional: true,
+				artifactsDir,
+				runId: "multi-verify",
+			});
 			assert.equal(ledger.status, "verified");
-			assert.deepEqual(ledger.verifyRuns.map((run) => [run.id, run.status]), [["one", "passed"], ["two", "passed"]]);
+			assert.deepEqual(
+				ledger.verifyRuns.map((run) => [run.id, run.status]),
+				[
+					["one", "passed"],
+					["two", "passed"],
+				],
+			);
 			assert.equal(fs.readFileSync(path.join(cwd, "one.txt"), "utf-8"), "ok");
 			assert.equal(fs.readFileSync(path.join(cwd, "two.txt"), "utf-8"), "ok");
 		} finally {
@@ -1375,10 +1692,27 @@ describe("acceptance gates", () => {
 			const passing = resolveEffectiveAcceptance({
 				agentName: "worker",
 				task: "run gate",
-				explicit: { level: "verified", verify: [{ id: "gate", command: `${process.execPath} -e "process.stdout.write(process.env.GATE_SECRET+':'+process.env.GATE_INHERITED_SECRET);require('node:fs').appendFileSync('count.txt','x')"`, env: { GATE_SECRET: "not-persisted" } }] },
+				explicit: {
+					level: "verified",
+					verify: [
+						{
+							id: "gate",
+							command: `${process.execPath} -e "process.stdout.write(process.env.GATE_SECRET+':'+process.env.GATE_INHERITED_SECRET);require('node:fs').appendFileSync('count.txt','x')"`,
+							env: { GATE_SECRET: "not-persisted" },
+						},
+					],
+				},
 				agentContract: { version: 1 },
 			});
-			const evaluate = () => evaluateAcceptance({ acceptance: passing, output: "done", cwd, reportOptional: true, artifactsDir, runId: "memo-run" });
+			const evaluate = () =>
+				evaluateAcceptance({
+					acceptance: passing,
+					output: "done",
+					cwd,
+					reportOptional: true,
+					artifactsDir,
+					runId: "memo-run",
+				});
 			const first = await evaluate();
 			const same = await evaluate();
 			fs.writeFileSync(path.join(cwd, "untracked.txt"), "ignored\n", "utf-8");
@@ -1404,11 +1738,33 @@ describe("acceptance gates", () => {
 			const failing = resolveEffectiveAcceptance({
 				agentName: "worker",
 				task: "run gate",
-				explicit: { level: "verified", verify: [{ id: "gate", command: `${process.execPath} -e "require('node:fs').appendFileSync('fail-count.txt','x');process.exit(7)"` }] },
+				explicit: {
+					level: "verified",
+					verify: [
+						{
+							id: "gate",
+							command: `${process.execPath} -e "require('node:fs').appendFileSync('fail-count.txt','x');process.exit(7)"`,
+						},
+					],
+				},
 				agentContract: { version: 1 },
 			});
-			const failOnce = await evaluateAcceptance({ acceptance: failing, output: "done", cwd, reportOptional: true, artifactsDir, runId: "failure-run" });
-			const failCached = await evaluateAcceptance({ acceptance: failing, output: "done", cwd, reportOptional: true, artifactsDir, runId: "failure-run" });
+			const failOnce = await evaluateAcceptance({
+				acceptance: failing,
+				output: "done",
+				cwd,
+				reportOptional: true,
+				artifactsDir,
+				runId: "failure-run",
+			});
+			const failCached = await evaluateAcceptance({
+				acceptance: failing,
+				output: "done",
+				cwd,
+				reportOptional: true,
+				artifactsDir,
+				runId: "failure-run",
+			});
 			assert.equal(failOnce.status, "rejected");
 			assert.equal(failCached.status, "rejected");
 			assert.equal(failCached.verifyRuns[0]?.memoized, true);
@@ -1427,45 +1783,125 @@ describe("acceptance gates", () => {
 
 		assert.deepEqual(normalizeAcceptanceInput(encoded), inline);
 		assert.deepEqual(validateAcceptanceInput(encoded), validateAcceptanceInput(inline));
-		assert.match(validateAcceptanceInput(JSON.stringify({ evidence: "commands-run" })).join("\n"), /acceptance\.evidence must be an array/);
-		assert.match(validateAcceptanceInput('{"level":"checked"').join("\n"), /acceptance JSON string must encode a valid acceptance object/i);
-		assert.match(validateAcceptanceInput(JSON.stringify(["checked"])).join("\n"), /acceptance JSON string must encode an object/i);
+		assert.match(
+			validateAcceptanceInput(JSON.stringify({ evidence: "commands-run" })).join("\n"),
+			/acceptance\.evidence must be an array/,
+		);
+		assert.match(
+			validateAcceptanceInput('{"level":"checked"').join("\n"),
+			/acceptance JSON string must encode a valid acceptance object/i,
+		);
+		assert.match(
+			validateAcceptanceInput(JSON.stringify(["checked"])).join("\n"),
+			/acceptance JSON string must encode an object/i,
+		);
 	});
 
 	it("validates invalid disable and verify shapes", () => {
-		assert.deepEqual(validateAcceptanceInput({ level: "none" }), ["acceptance.reason is required when level is none."]);
-		assert.deepEqual(validateAcceptanceInput("none"), ["acceptance level \"none\" requires a reason; use { level: \"none\", reason: \"...\" }."]);
-		assert.match(validateAcceptanceInput("verified").join("\n"), /object form with at least one runtime verify command.*Use level "checked" or provide a non-empty acceptance\.verify array/);
+		assert.deepEqual(validateAcceptanceInput({ level: "none" }), [
+			"acceptance.reason is required when level is none.",
+		]);
+		assert.deepEqual(validateAcceptanceInput("none"), [
+			'acceptance level "none" requires a reason; use { level: "none", reason: "..." }.',
+		]);
+		assert.match(
+			validateAcceptanceInput("verified").join("\n"),
+			/object form with at least one runtime verify command.*Use level "checked" or provide a non-empty acceptance\.verify array/,
+		);
 		for (const input of [{ level: "verified" }, { level: "verified", verify: [] }]) {
-			assert.match(validateAcceptanceInput(input).join("\n"), /at least one runtime command when level is verified.*Use level "checked" or provide a non-empty acceptance\.verify array/);
+			assert.match(
+				validateAcceptanceInput(input).join("\n"),
+				/at least one runtime command when level is verified.*Use level "checked" or provide a non-empty acceptance\.verify array/,
+			);
 		}
-		assert.deepEqual(validateAcceptanceInput({ level: "verified", verify: [{ id: "tests", command: "npm test" }] }), []);
-		assert.deepEqual(validateAcceptanceInput({ level: "verified", verify: [{ id: "tests", command: "npm test" }, { id: "lint", command: "npm run lint" }] }), []);
+		assert.deepEqual(
+			validateAcceptanceInput({ level: "verified", verify: [{ id: "tests", command: "npm test" }] }),
+			[],
+		);
+		assert.deepEqual(
+			validateAcceptanceInput({
+				level: "verified",
+				verify: [
+					{ id: "tests", command: "npm test" },
+					{ id: "lint", command: "npm run lint" },
+				],
+			}),
+			[],
+		);
 		assert.deepEqual(validateAcceptanceInput({ level: "checked" }), []);
 		assert.deepEqual(validateAcceptanceInput({ level: "checked", report: "on" }), []);
 		assert.deepEqual(validateAcceptanceInput({ level: "checked", preserveStagedIndex: true }), []);
-		assert.match(validateAcceptanceInput({ level: "checked", preserveStagedIndex: false }).join("\n"), /preserveStagedIndex must be true/);
-		assert.match(validateAcceptanceInput({ preserveStagedIndex: true }).join("\n"), /requires level checked or verified/);
+		assert.match(
+			validateAcceptanceInput({ level: "checked", preserveStagedIndex: false }).join("\n"),
+			/preserveStagedIndex must be true/,
+		);
+		assert.match(
+			validateAcceptanceInput({ preserveStagedIndex: true }).join("\n"),
+			/requires level checked or verified/,
+		);
 		assert.match(validateAcceptanceInput({ report: "sometimes" }).join("\n"), /acceptance\.report must be on or off/);
-		assert.deepEqual(validateAcceptanceInput({ verify: [{ id: "missing-command" }] }), ["acceptance.verify[0].command is required."]);
-		assert.deepEqual(validateAcceptanceInput({ verify: [{ id: "fractional", command: "npm test", timeoutMs: 1.5 }] }), ["acceptance.verify[0].timeoutMs must be an integer >= 1."]);
+		assert.deepEqual(validateAcceptanceInput({ verify: [{ id: "missing-command" }] }), [
+			"acceptance.verify[0].command is required.",
+		]);
+		assert.deepEqual(
+			validateAcceptanceInput({ verify: [{ id: "fractional", command: "npm test", timeoutMs: 1.5 }] }),
+			["acceptance.verify[0].timeoutMs must be an integer >= 1."],
+		);
 		assert.deepEqual(validateAcceptanceInput(false), []);
 		assert.deepEqual(validateAcceptanceInput("checked"), []);
-		assert.match(validateAcceptanceInput("reviewed").join("\n"), /achieved status.*omit acceptance.*acceptance\.review\.required/i);
-		assert.match(validateAcceptanceInput({ level: "reviewed" }).join("\n"), /achieved status.*omit acceptance.*acceptance\.review\.required/i);
-		assert.deepEqual(validateAcceptanceInput({ criteria: ["ship the fix"], review: false, stopRules: ["stay scoped"] }), []);
-		assert.match(validateAcceptanceInput({ criteria: [{ id: "missing-must" }] }).join("\n"), /acceptance\.criteria\[0\]\.must is required/);
-		assert.match(validateAcceptanceInput({ criteria: [
-			{ id: "Release_Check", must: "first" },
-			{ id: "release check", must: "second" },
-		] }).join("\n"), /acceptance\.criteria\[1\]\.id duplicates normalized criterion id 'release-check'/);
-		assert.match(validateAcceptanceInput({ criteria: [123] }).join("\n"), /acceptance\.criteria\[0\] must be a string or an object/);
-		assert.match(validateAcceptanceInput({ evidence: "commands-run" }).join("\n"), /acceptance\.evidence must be an array.*Supported evidence kinds:.*commands-run.*changed-files/s);
-		assert.match(validateAcceptanceInput({ evidence: ["bogus"] }).join("\n"), /acceptance\.evidence\[0\] "bogus" is not a supported evidence kind.*Supported evidence kinds:.*manual-notes.*Example:/s);
-		assert.match(validateAcceptanceInput({ criteria: [{ id: "ship", must: "ship", evidence: ["commands_run"] }] }).join("\n"), /acceptance\.criteria\[0\]\.evidence\[0\] "commands_run" is not a supported evidence kind.*Supported evidence kinds:/s);
-		assert.match(validateAcceptanceInput({ review: true }).join("\n"), /acceptance\.review must be false or an object/);
-		assert.match(validateAcceptanceInput({ review: { required: "yes" } }).join("\n"), /acceptance\.review\.required must be a boolean/);
-		assert.match(validateAcceptanceInput({ stopRules: [123] }).join("\n"), /acceptance\.stopRules\[0\] must be a string/);
+		assert.match(
+			validateAcceptanceInput("reviewed").join("\n"),
+			/achieved status.*omit acceptance.*acceptance\.review\.required/i,
+		);
+		assert.match(
+			validateAcceptanceInput({ level: "reviewed" }).join("\n"),
+			/achieved status.*omit acceptance.*acceptance\.review\.required/i,
+		);
+		assert.deepEqual(
+			validateAcceptanceInput({ criteria: ["ship the fix"], review: false, stopRules: ["stay scoped"] }),
+			[],
+		);
+		assert.match(
+			validateAcceptanceInput({ criteria: [{ id: "missing-must" }] }).join("\n"),
+			/acceptance\.criteria\[0\]\.must is required/,
+		);
+		assert.match(
+			validateAcceptanceInput({
+				criteria: [
+					{ id: "Release_Check", must: "first" },
+					{ id: "release check", must: "second" },
+				],
+			}).join("\n"),
+			/acceptance\.criteria\[1\]\.id duplicates normalized criterion id 'release-check'/,
+		);
+		assert.match(
+			validateAcceptanceInput({ criteria: [123] }).join("\n"),
+			/acceptance\.criteria\[0\] must be a string or an object/,
+		);
+		assert.match(
+			validateAcceptanceInput({ evidence: "commands-run" }).join("\n"),
+			/acceptance\.evidence must be an array.*Supported evidence kinds:.*commands-run.*changed-files/s,
+		);
+		assert.match(
+			validateAcceptanceInput({ evidence: ["bogus"] }).join("\n"),
+			/acceptance\.evidence\[0\] "bogus" is not a supported evidence kind.*Supported evidence kinds:.*manual-notes.*Example:/s,
+		);
+		assert.match(
+			validateAcceptanceInput({ criteria: [{ id: "ship", must: "ship", evidence: ["commands_run"] }] }).join("\n"),
+			/acceptance\.criteria\[0\]\.evidence\[0\] "commands_run" is not a supported evidence kind.*Supported evidence kinds:/s,
+		);
+		assert.match(
+			validateAcceptanceInput({ review: true }).join("\n"),
+			/acceptance\.review must be false or an object/,
+		);
+		assert.match(
+			validateAcceptanceInput({ review: { required: "yes" } }).join("\n"),
+			/acceptance\.review\.required must be a boolean/,
+		);
+		assert.match(
+			validateAcceptanceInput({ stopRules: [123] }).join("\n"),
+			/acceptance\.stopRules\[0\] must be a string/,
+		);
 		assert.match(validateAcceptanceInput({ surprise: true }).join("\n"), /acceptance\.surprise is not supported/);
 	});
 
@@ -1482,54 +1918,54 @@ describe("quoteExecutableForShell", () => {
 	it("quotes an unquoted Windows executable path containing spaces", () => {
 		assert.equal(
 			quoteExecutableForShell("C:\\Program Files\\vendor\\tool.exe --flag", "win32"),
-			"\"C:\\Program Files\\vendor\\tool.exe\" --flag",
+			'"C:\\Program Files\\vendor\\tool.exe" --flag',
 		);
 	});
 
 	it("quotes an unquoted Windows executable path with parentheses", () => {
 		assert.equal(
 			quoteExecutableForShell("C:\\Program Files (x86)\\vendor\\tool.exe --flag", "win32"),
-			"\"C:\\Program Files (x86)\\vendor\\tool.exe\" --flag",
+			'"C:\\Program Files (x86)\\vendor\\tool.exe" --flag',
 		);
 	});
 
 	it("quotes an extensionless spaced executable before a later drive-root argument", () => {
 		assert.equal(
 			quoteExecutableForShell("C:\\Program Files\\Tool\\verify C:\\path\\to\\file.exe", "win32"),
-			"\"C:\\Program Files\\Tool\\verify\" C:\\path\\to\\file.exe",
+			'"C:\\Program Files\\Tool\\verify" C:\\path\\to\\file.exe',
 		);
 	});
 
 	it("quotes an extensionless spaced executable before a flag argument", () => {
 		assert.equal(
 			quoteExecutableForShell("C:\\Program Files\\Tool\\verify --flag", "win32"),
-			"\"C:\\Program Files\\Tool\\verify\" --flag",
+			'"C:\\Program Files\\Tool\\verify" --flag',
 		);
 	});
 
 	it("quotes an extensionless spaced executable filename before a flag argument", () => {
 		assert.equal(
 			quoteExecutableForShell("C:\\Program Files\\my tool --flag", "win32"),
-			"\"C:\\Program Files\\my tool\" --flag",
+			'"C:\\Program Files\\my tool" --flag',
 		);
 	});
 
 	it("quotes a spaced executable before a later drive-root executable argument", () => {
 		assert.equal(
 			quoteExecutableForShell("C:\\Program Files\\Tool\\verify.exe C:\\path\\to\\file.exe", "win32"),
-			"\"C:\\Program Files\\Tool\\verify.exe\" C:\\path\\to\\file.exe",
+			'"C:\\Program Files\\Tool\\verify.exe" C:\\path\\to\\file.exe',
 		);
 	});
 
 	it("quotes a spaced executable filename", () => {
 		assert.equal(
 			quoteExecutableForShell("C:\\Program Files\\my tool.exe --flag", "win32"),
-			"\"C:\\Program Files\\my tool.exe\" --flag",
+			'"C:\\Program Files\\my tool.exe" --flag',
 		);
 	});
 
 	it("leaves an already-quoted command unchanged", () => {
-		const command = "\"C:\\Program Files\\vendor\\tool.exe\" --flag";
+		const command = '"C:\\Program Files\\vendor\\tool.exe" --flag';
 		assert.equal(quoteExecutableForShell(command, "win32"), command);
 	});
 
@@ -1555,7 +1991,7 @@ describe("quoteExecutableForShell", () => {
 	it("quotes a shallow spaced executable filename", () => {
 		assert.equal(
 			quoteExecutableForShell("C:\\Program Files\\node script.exe", "win32"),
-			"\"C:\\Program Files\\node script.exe\"",
+			'"C:\\Program Files\\node script.exe"',
 		);
 	});
 

@@ -7,7 +7,11 @@ function pathWithin(base: string, candidate: string): boolean {
 	return resolvedCandidate === resolvedBase || resolvedCandidate.startsWith(`${resolvedBase}${path.sep}`);
 }
 
-export function isTrustedRecordedSessionFile(realPath: string, recordedFiles: string[], sessionsBase: string | undefined): boolean {
+export function isTrustedRecordedSessionFile(
+	realPath: string,
+	recordedFiles: string[],
+	sessionsBase: string | undefined,
+): boolean {
 	if (!sessionsBase || recordedFiles.length === 0) return false;
 	try {
 		const realSessionsBase = fs.realpathSync(sessionsBase);

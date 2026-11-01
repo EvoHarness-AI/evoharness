@@ -6,22 +6,44 @@ import registerNotify from "../../src/runs/background/notify.ts";
 function harness(manager: { getSessionId(): string }, appended = false) {
 	let beforeSettle: any;
 	const sent: any[] = [];
-	const notifier = registerNotify({
-		events: { on: () => () => {} }, isHeld: () => false,
-		on(_name: string, handler: any) { beforeSettle = handler; return () => { beforeSettle = undefined; }; },
-		sendMessage(message: any) { sent.push(message); return appended; },
-	} as never, { currentSessionId: manager.getSessionId(), completionOwnerId: "owner" }, { batchConfig: { enabled: false } });
+	const notifier = registerNotify(
+		{
+			events: { on: () => () => {} },
+			isHeld: () => false,
+			on(_name: string, handler: any) {
+				beforeSettle = handler;
+				return () => {
+					beforeSettle = undefined;
+				};
+			},
+			sendMessage(message: any) {
+				sent.push(message);
+				return appended;
+			},
+		} as never,
+		{ currentSessionId: manager.getSessionId(), completionOwnerId: "owner" },
+		{ batchConfig: { enabled: false } },
+	);
 	return {
-		notifier, sent,
+		notifier,
+		sent,
 		bind: () => notifier.bindSession(manager),
-		deliver: () => notifier.deliver({
-			id: randomUUID(), sessionId: manager.getSessionId(), completionOwnerId: "owner",
-			success: true, agent: "workflow", summary: "Saved report ready.",
-		}),
-		settle: (messages: any[]) => beforeSettle?.({
-			outcome: "completed", continue: false, entries: [],
-			context: { canContinue: true, pendingMessages: [], contextMessages: messages },
-		}),
+		deliver: () =>
+			notifier.deliver({
+				id: randomUUID(),
+				sessionId: manager.getSessionId(),
+				completionOwnerId: "owner",
+				success: true,
+				agent: "workflow",
+				summary: "Saved report ready.",
+			}),
+		settle: (messages: any[]) =>
+			beforeSettle?.({
+				outcome: "completed",
+				continue: false,
+				entries: [],
+				context: { canContinue: true, pendingMessages: [], contextMessages: messages },
+			}),
 	};
 }
 

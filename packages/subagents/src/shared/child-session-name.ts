@@ -36,11 +36,7 @@ export function deriveChildSessionName(input: {
 	// Never build a name from redacted text — the excerpt would be meaningless
 	// and the redaction marker itself carries no information.
 	const excerptSource =
-		rawLabel && rawLabel !== PROMPT_REDACTED
-			? rawLabel
-			: rawTask && rawTask !== PROMPT_REDACTED
-				? rawTask
-				: "";
+		rawLabel && rawLabel !== PROMPT_REDACTED ? rawLabel : rawTask && rawTask !== PROMPT_REDACTED ? rawTask : "";
 	const excerpt = excerptSource ? previewDisplayText(excerptSource, TASK_EXCERPT_MAX_CHARS) : "";
 	const base = agent && excerpt ? `${agent}: ${excerpt}` : agent || excerpt;
 	if (!base) return undefined;

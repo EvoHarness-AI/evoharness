@@ -25,8 +25,11 @@ export async function verifyRevival(
 	const completed = nextCompletion("standalone child response verified REVIVAL_");
 	// Establish a real owner first, then challenge it while its provider call holds the lease.
 	const winnerLaunch = await tool.execute(
-		"REVIVAL_A", { action: "resume", id: source.asyncId, message: "REVIVAL_A", options: { acceptance: false, timeoutMs: 20000 } },
-		new AbortController().signal, undefined, ctx,
+		"REVIVAL_A",
+		{ action: "resume", id: source.asyncId, message: "REVIVAL_A", options: { acceptance: false, timeoutMs: 20000 } },
+		new AbortController().signal,
+		undefined,
+		ctx,
 	);
 	const winner = winnerLaunch.details as Run;
 	const winnerStatus = JSON.parse(fs.readFileSync(`${winner.asyncDir}/status.json`, "utf8"));
@@ -41,15 +44,53 @@ export async function verifyRevival(
 	assert.equal(lease.owner.sourceRunId, source.asyncId);
 	assert.equal(lease.owner.parentSessionId, ctx.sessionManager.getSessionId());
 	assert.equal(lease.owner.pid, winnerStatus.pid);
-	await waitForFile("/stage/lifecycle.jsonl", (text) => text.trim().split("\n").map((line) => JSON.parse(line)).some((event) => event.event === "request" && event.pid === lease.owner.pid));
-	const request = fs.readFileSync("/stage/lifecycle.jsonl", "utf8").trim().split("\n").map((line) => JSON.parse(line)).find((event) => event.event === "request" && event.pid === lease.owner.pid);
-	assert.ok(JSON.stringify(request.messages).includes("standalone child response verified SINGLE"), "revival must load the actual previous SDK conversation");
-	const refusal = await tool.execute(
-		"REVIVAL_B", { action: "resume", id: source.asyncId, message: "REVIVAL_B", options: { acceptance: false, timeoutMs: 20000 } },
-		new AbortController().signal, undefined, ctx,
-	).then(() => assert.fail("a second revival must not acquire the owned session"), String);
-	assert.ok(refusal.includes(`'${canonicalSessionFile}' is already owned by run '${winner.asyncId}'`), "a second revival must refuse the exact owned session and name its owner");
-	fs.writeFileSync("/stage/revival-competition.json", JSON.stringify({ winner, refusal, owner: { runId: lease.owner.runId, sourceRunId: lease.owner.sourceRunId, pid: lease.owner.pid } }, null, 2));
+	await waitForFile("/stage/lifecycle.jsonl", (text) =>
+		text
+			.trim()
+			.split("\n")
+			.map((line) => JSON.parse(line))
+			.some((event) => event.event === "request" && event.pid === lease.owner.pid),
+	);
+	const request = fs
+		.readFileSync("/stage/lifecycle.jsonl", "utf8")
+		.trim()
+		.split("\n")
+		.map((line) => JSON.parse(line))
+		.find((event) => event.event === "request" && event.pid === lease.owner.pid);
+	assert.ok(
+		JSON.stringify(request.messages).includes("standalone child response verified SINGLE"),
+		"revival must load the actual previous SDK conversation",
+	);
+	const refusal = await tool
+		.execute(
+			"REVIVAL_B",
+			{
+				action: "resume",
+				id: source.asyncId,
+				message: "REVIVAL_B",
+				options: { acceptance: false, timeoutMs: 20000 },
+			},
+			new AbortController().signal,
+			undefined,
+			ctx,
+		)
+		.then(() => assert.fail("a second revival must not acquire the owned session"), String);
+	assert.ok(
+		refusal.includes(`'${canonicalSessionFile}' is already owned by run '${winner.asyncId}'`),
+		"a second revival must refuse the exact owned session and name its owner",
+	);
+	fs.writeFileSync(
+		"/stage/revival-competition.json",
+		JSON.stringify(
+			{
+				winner,
+				refusal,
+				owner: { runId: lease.owner.runId, sourceRunId: lease.owner.sourceRunId, pid: lease.owner.pid },
+			},
+			null,
+			2,
+		),
+	);
 	const contenders = fs.readdirSync(root).filter((name) => !before.has(name));
 	assert.equal(contenders.length, 2, "both requests must reach independent configured runners");
 	const losingId = contenders.find((id) => id !== winner.asyncId)!;
@@ -59,15 +100,38 @@ export async function verifyRevival(
 	const losingStatus = JSON.parse(fs.readFileSync(`${root}/${losingId}/status.json`, "utf8"));
 	assert.equal(losingStatus.state, "failed");
 	assert.notEqual(losingStatus.pid, winnerStatus.pid);
-	assert.notEqual(losingStatus.processTerminal.runnerProcessInstanceId, winnerStatus.processTerminal.runnerProcessInstanceId);
+	assert.notEqual(
+		losingStatus.processTerminal.runnerProcessInstanceId,
+		winnerStatus.processTerminal.runnerProcessInstanceId,
+	);
 	assert.throws(() => process.kill(losingStatus.pid, 0), { code: "ESRCH" });
-	assert.ok(!fs.readFileSync("/stage/lifecycle.jsonl", "utf8").trim().split("\n").map((line) => JSON.parse(line)).some((event) => event.pid === losingStatus.pid), "loser must not enter the provider/session");
+	assert.ok(
+		!fs
+			.readFileSync("/stage/lifecycle.jsonl", "utf8")
+			.trim()
+			.split("\n")
+			.map((line) => JSON.parse(line))
+			.some((event) => event.pid === losingStatus.pid),
+		"loser must not enter the provider/session",
+	);
 	const retainedLease = inspectSessionLease(sessionFile);
 	assert.ok(retainedLease.state === "owned", "loser cleanup must not release the winner's lease");
 	assert.equal(retainedLease.canonicalSessionId, canonicalSessionId);
 	assert.deepEqual(
-		{ token: retainedLease.owner.token, runId: retainedLease.owner.runId, sourceRunId: retainedLease.owner.sourceRunId, parentSessionId: retainedLease.owner.parentSessionId, pid: retainedLease.owner.pid },
-		{ token: lease.owner.token, runId: lease.owner.runId, sourceRunId: lease.owner.sourceRunId, parentSessionId: lease.owner.parentSessionId, pid: lease.owner.pid },
+		{
+			token: retainedLease.owner.token,
+			runId: retainedLease.owner.runId,
+			sourceRunId: retainedLease.owner.sourceRunId,
+			parentSessionId: retainedLease.owner.parentSessionId,
+			pid: retainedLease.owner.pid,
+		},
+		{
+			token: lease.owner.token,
+			runId: lease.owner.runId,
+			sourceRunId: lease.owner.sourceRunId,
+			parentSessionId: lease.owner.parentSessionId,
+			pid: lease.owner.pid,
+		},
 		"loser cleanup must not replace or release the winner's lease",
 	);
 	fs.writeFileSync("/stage/release", "go");
@@ -75,7 +139,18 @@ export async function verifyRevival(
 	await finish(winner, "complete", lease.owner.token);
 
 	const failedCompletion = nextCompletion("fixture revival failure");
-	const failedLaunch = await tool.execute("revival-failure", { action: "resume", id: winner.asyncId, message: "REVIVAL_FAIL", options: { acceptance: false, timeoutMs: 20000 } }, new AbortController().signal, undefined, ctx);
+	const failedLaunch = await tool.execute(
+		"revival-failure",
+		{
+			action: "resume",
+			id: winner.asyncId,
+			message: "REVIVAL_FAIL",
+			options: { acceptance: false, timeoutMs: 20000 },
+		},
+		new AbortController().signal,
+		undefined,
+		ctx,
+	);
 	const failed = failedLaunch.details as Run;
 	await failedCompletion;
 	await waitForFile(`${failed.asyncDir}/process-terminal.json`, (text) => JSON.parse(text).state !== "pending");
@@ -83,7 +158,10 @@ export async function verifyRevival(
 	assert.equal(typeof failedCandidate.revivalLeaseToken, "string");
 	await finish(failed, "failed", failedCandidate.revivalLeaseToken);
 	assert.match(JSON.parse(fs.readFileSync(`${failed.asyncDir}/status.json`, "utf8")).error, /fixture revival failure/);
-	fs.writeFileSync("/stage/revival-result.json", JSON.stringify({ source, winner, loser: losingId, failed, sessionFile }, null, 2));
+	fs.writeFileSync(
+		"/stage/revival-result.json",
+		JSON.stringify({ source, winner, loser: losingId, failed, sessionFile }, null, 2),
+	);
 
 	async function finish(run: Run, state: string, token: string): Promise<void> {
 		await waitForFile(`${run.asyncDir}/process-terminal.json`, (text) => JSON.parse(text).state !== "pending");
@@ -100,10 +178,30 @@ export async function verifyRevival(
 		assert.equal(candidate.revivalLeaseReleaseAcknowledged, true);
 		assert.equal(inspectSessionLease(sessionFile).state, "free");
 		assert.throws(() => process.kill(status.pid, 0), { code: "ESRCH" });
-		const handshake = fs.readFileSync("/stage/handshake.jsonl", "utf8").trim().split("\n").map((line) => JSON.parse(line)).filter((event) => event.runId === run.asyncId);
-		assert.deepEqual(handshake.map((event) => [event.action, event.stateBefore]), [["ack", "ready"], ["confirm", "acknowledged"], ["proceed", "confirmed"]]);
+		const handshake = fs
+			.readFileSync("/stage/handshake.jsonl", "utf8")
+			.trim()
+			.split("\n")
+			.map((line) => JSON.parse(line))
+			.filter((event) => event.runId === run.asyncId);
+		assert.deepEqual(
+			handshake.map((event) => [event.action, event.stateBefore]),
+			[
+				["ack", "ready"],
+				["confirm", "acknowledged"],
+				["proceed", "confirmed"],
+			],
+		);
 		assert.ok(handshake.every((event) => event.tokenMatches && !event.childStartedBeforeCommit));
-		const lifecycle = fs.readFileSync("/stage/lifecycle.jsonl", "utf8").trim().split("\n").map((line) => JSON.parse(line)).filter((event) => event.pid === status.pid);
-		assert.deepEqual(lifecycle.map((event) => event.event), ["start", "request", "shutdown"]);
+		const lifecycle = fs
+			.readFileSync("/stage/lifecycle.jsonl", "utf8")
+			.trim()
+			.split("\n")
+			.map((line) => JSON.parse(line))
+			.filter((event) => event.pid === status.pid);
+		assert.deepEqual(
+			lifecycle.map((event) => event.event),
+			["start", "request", "shutdown"],
+		);
 	}
 }

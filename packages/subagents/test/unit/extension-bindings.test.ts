@@ -1,16 +1,16 @@
 import assert from "node:assert/strict";
 import * as os from "node:os";
 import { describe, it } from "node:test";
-import { launchBindingDigest } from "../../src/shared/launch-contract.ts";
+import { buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
 import {
+	type ExtensionBindings,
 	MAX_EXTENSION_BINDING_NAMESPACES,
 	MAX_EXTENSION_BINDINGS_BYTES,
-	PI_SUBAGENT_EXTENSION_BINDINGS_ENV,
-	type ExtensionBindings,
 	normalizeExtensionBindings,
 	omitExtensionBindingsEnv,
+	PI_SUBAGENT_EXTENSION_BINDINGS_ENV,
 } from "../../src/runs/shared/extension-bindings.ts";
-import { buildInProcessChildLaunch } from "../../src/runs/shared/child-launch.ts";
+import { launchBindingDigest } from "../../src/shared/launch-contract.ts";
 
 function childLaunch(extensionBindings?: ExtensionBindings, host: "parent" | "runner" = "runner") {
 	const normalizedExtensionBindings = normalizeExtensionBindings(extensionBindings)?.value;
@@ -27,7 +27,10 @@ function childLaunch(extensionBindings?: ExtensionBindings, host: "parent" | "ru
 	}).session;
 }
 
-function childEnv(extensionBindings?: ExtensionBindings, host: "parent" | "runner" = "runner"): Record<string, string | undefined> {
+function childEnv(
+	extensionBindings?: ExtensionBindings,
+	host: "parent" | "runner" = "runner",
+): Record<string, string | undefined> {
 	return childLaunch(extensionBindings, host).processEnv ?? {};
 }
 
@@ -43,7 +46,15 @@ describe("extension bindings", () => {
 
 	it("rejects malformed, oversized, and unsafe values", () => {
 		assert.throws(() => normalizeExtensionBindings({ invalid: true }), /namespace/);
-		assert.throws(() => normalizeExtensionBindings(Object.fromEntries(Array.from({ length: MAX_EXTENSION_BINDING_NAMESPACES + 1 }, (_, index) => [`pkg${index}\/1`, true]))), /at most/);
+		assert.throws(
+			() =>
+				normalizeExtensionBindings(
+					Object.fromEntries(
+						Array.from({ length: MAX_EXTENSION_BINDING_NAMESPACES + 1 }, (_, index) => [`pkg${index}/1`, true]),
+					),
+				),
+			/at most/,
+		);
 		assert.throws(() => normalizeExtensionBindings({ "pkg/1": "x".repeat(MAX_EXTENSION_BINDINGS_BYTES) }), /maximum/);
 		assert.throws(() => normalizeExtensionBindings({ "pkg/1": Number.NaN }), /finite/);
 		const cyclic: Record<string, unknown> = { "pkg/1": {} };
@@ -58,8 +69,15 @@ describe("extension bindings", () => {
 		const omitted = childEnv();
 		assert.equal(Object.hasOwn(omitted, PI_SUBAGENT_EXTENSION_BINDINGS_ENV), true);
 		assert.equal(omitted[PI_SUBAGENT_EXTENSION_BINDINGS_ENV], undefined);
-		assert.equal(childEnv({ "child/1": { z: 1, a: 2 } })[PI_SUBAGENT_EXTENSION_BINDINGS_ENV], '{"child/1":{"a":2,"z":1}}');
-		assert.equal(childLaunch(undefined, "runner").restoreProcessEnv, undefined, "the runner hosts only children and keeps the last child's values");
+		assert.equal(
+			childEnv({ "child/1": { z: 1, a: 2 } })[PI_SUBAGENT_EXTENSION_BINDINGS_ENV],
+			'{"child/1":{"a":2,"z":1}}',
+		);
+		assert.equal(
+			childLaunch(undefined, "runner").restoreProcessEnv,
+			undefined,
+			"the runner hosts only children and keeps the last child's values",
+		);
 	});
 
 	it("gives an in-process foreground child only its bindings, restored after start", () => {
@@ -67,19 +85,31 @@ describe("extension bindings", () => {
 		assert.deepEqual(launch.processEnv, { [PI_SUBAGENT_EXTENSION_BINDINGS_ENV]: '{"child/1":{"a":2,"z":1}}' });
 		assert.equal(launch.restoreProcessEnv, true);
 		const omitted = childLaunch(undefined, "parent");
-		assert.equal(Object.hasOwn(omitted.processEnv ?? {}, PI_SUBAGENT_EXTENSION_BINDINGS_ENV), true, "an unbound child clears bindings it would otherwise inherit from its host");
+		assert.equal(
+			Object.hasOwn(omitted.processEnv ?? {}, PI_SUBAGENT_EXTENSION_BINDINGS_ENV),
+			true,
+			"an unbound child clears bindings it would otherwise inherit from its host",
+		);
 		assert.equal(omitted.processEnv?.[PI_SUBAGENT_EXTENSION_BINDINGS_ENV], undefined);
 	});
 
 	it("removes ambient bindings from external runner environments", () => {
-		assert.deepEqual(omitExtensionBindingsEnv({ KEEP_ME: "yes", [PI_SUBAGENT_EXTENSION_BINDINGS_ENV]: "secret" }), { KEEP_ME: "yes" });
+		assert.deepEqual(omitExtensionBindingsEnv({ KEEP_ME: "yes", [PI_SUBAGENT_EXTENSION_BINDINGS_ENV]: "secret" }), {
+			KEEP_ME: "yes",
+		});
 	});
 
 	it("changes launch provenance only when the binding changes", () => {
 		const base = { definitionDigest: "definition", task: "task", inheritProjectContext: false, inheritSkills: false };
 		const omitted = launchBindingDigest(base);
-		const first = launchBindingDigest({ ...base, extensionBindings: normalizeExtensionBindings({ "policy/1": { role: "coder" } })!.value });
-		const second = launchBindingDigest({ ...base, extensionBindings: normalizeExtensionBindings({ "policy/1": { role: "reviewer" } })!.value });
+		const first = launchBindingDigest({
+			...base,
+			extensionBindings: normalizeExtensionBindings({ "policy/1": { role: "coder" } })!.value,
+		});
+		const second = launchBindingDigest({
+			...base,
+			extensionBindings: normalizeExtensionBindings({ "policy/1": { role: "reviewer" } })!.value,
+		});
 		assert.notEqual(first, omitted);
 		assert.notEqual(first, second);
 	});

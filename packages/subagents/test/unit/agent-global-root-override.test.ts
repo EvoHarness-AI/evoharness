@@ -7,7 +7,12 @@ import { clearAgentDiscoveryCache, discoverAgentSnapshot, discoverAgents } from 
 
 const temp = fs.mkdtempSync(path.join(os.tmpdir(), "pi-agent-global-root-"));
 const fixtureRoot = path.join(temp, "quote's & space");
-const previous = Object.fromEntries(["HOME", "USERPROFILE", "APPDATA", "EVOHARNESS_CODING_AGENT_DIR", "EVOHARNESS_OFFLINE", "PATH"].map((key) => [key, process.env[key]]));
+const previous = Object.fromEntries(
+	["HOME", "USERPROFILE", "APPDATA", "EVOHARNESS_CODING_AGENT_DIR", "EVOHARNESS_OFFLINE", "PATH"].map((key) => [
+		key,
+		process.env[key],
+	]),
+);
 const project = path.join(fixtureRoot, "project");
 const rootA = path.join(fixtureRoot, "prefix-a", "lib", "node_modules");
 const rootB = path.join(fixtureRoot, "prefix-b", "lib", "node_modules");
@@ -36,14 +41,20 @@ before(() => {
 	writePackage(rootB, "global-b");
 	const bin = path.join(fixtureRoot, "bin");
 	fs.mkdirSync(bin);
-	fs.writeFileSync(path.join(bin, "fake-npm.cjs"), `const fs = require("node:fs");
+	fs.writeFileSync(
+		path.join(bin, "fake-npm.cjs"),
+		`const fs = require("node:fs");
 fs.appendFileSync(${JSON.stringify(invocationFile)}, "x");
 process.stdout.write(${JSON.stringify(`${rootA}\n`)});
-`);
+`,
+	);
 	const npm = path.join(bin, process.platform === "win32" ? "npm.cmd" : "npm");
-	fs.writeFileSync(npm, process.platform === "win32"
-		? `@echo off\r\n"${process.execPath}" "%~dp0fake-npm.cjs" %*\r\n`
-		: `#!/bin/sh\nexec "${process.execPath}" "$(dirname "$0")/fake-npm.cjs" "$@"\n`);
+	fs.writeFileSync(
+		npm,
+		process.platform === "win32"
+			? `@echo off\r\n"${process.execPath}" "%~dp0fake-npm.cjs" %*\r\n`
+			: `#!/bin/sh\nexec "${process.execPath}" "$(dirname "$0")/fake-npm.cjs" "$@"\n`,
+	);
 	if (process.platform !== "win32") fs.chmodSync(npm, 0o755);
 	process.env.PATH = `${bin}${path.delimiter}${previous.PATH ?? ""}`;
 	clearAgentDiscoveryCache();
@@ -60,27 +71,56 @@ after(() => {
 
 it("explicit null skips global lookup while retaining local agents and does not poison later roots", () => {
 	const pending = discoverAgentSnapshot(project, "both", undefined, { includeChains: false, globalNpmRoot: null });
-	assert.equal(pending.effective.agents.some((agent) => agent.name === "local-only"), true);
-	assert.equal(pending.effective.agents.some((agent) => agent.name === "global-a"), false);
-	assert.equal(pending.all.package.some((agent) => agent.name === "global-a"), false);
+	assert.equal(
+		pending.effective.agents.some((agent) => agent.name === "local-only"),
+		true,
+	);
+	assert.equal(
+		pending.effective.agents.some((agent) => agent.name === "global-a"),
+		false,
+	);
+	assert.equal(
+		pending.all.package.some((agent) => agent.name === "global-a"),
+		false,
+	);
 	assert.equal(fs.existsSync(invocationFile), false);
 
 	const completed = discoverAgentSnapshot(project, "both", undefined, { includeChains: false, globalNpmRoot: rootA });
-	assert.equal(completed.effective.agents.some((agent) => agent.name === "global-a"), true);
-	assert.equal(completed.all.package.some((agent) => agent.name === "global-a"), true);
+	assert.equal(
+		completed.effective.agents.some((agent) => agent.name === "global-a"),
+		true,
+	);
+	assert.equal(
+		completed.all.package.some((agent) => agent.name === "global-a"),
+		true,
+	);
 	assert.equal(fs.existsSync(invocationFile), false);
 });
 
 it("preserves synchronous custom-prefix lookup without an override", () => {
 	const result = discoverAgents(project, "both");
-	assert.equal(result.agents.some((agent) => agent.name === "global-a" && agent.source === "package"), true);
+	assert.equal(
+		result.agents.some((agent) => agent.name === "global-a" && agent.source === "package"),
+		true,
+	);
 	assert.equal(fs.readFileSync(invocationFile, "utf8").trim(), "x");
 });
 
 it("different explicit roots cannot reuse stale cached package sources", () => {
 	const changed = discoverAgents(project, "both", undefined, { globalNpmRoot: rootB });
-	assert.equal(changed.agents.some((agent) => agent.name === "global-b"), true);
-	assert.equal(changed.agents.some((agent) => agent.name === "global-a"), false);
-	assert.equal(discoverAgents(project, "user", undefined, { globalNpmRoot: rootB }).agents.some((agent) => agent.name === "global-b"), true);
+	assert.equal(
+		changed.agents.some((agent) => agent.name === "global-b"),
+		true,
+	);
+	assert.equal(
+		changed.agents.some((agent) => agent.name === "global-a"),
+		false,
+	);
+	assert.equal(
+		discoverAgents(project, "user", undefined, { globalNpmRoot: rootB }).agents.some(
+			(agent) => agent.name === "global-b",
+		),
+		true,
+	);
 	assert.equal(fs.readFileSync(invocationFile, "utf8").trim(), "x");
 });

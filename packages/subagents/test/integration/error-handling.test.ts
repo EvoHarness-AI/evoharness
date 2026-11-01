@@ -7,18 +7,18 @@
  * Requires pi packages for execution tests. Skips gracefully if unavailable.
  */
 
-import { describe, it, before, after, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import * as path from "node:path";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import type { MockPi } from "../support/helpers.ts";
 import {
 	createMockPi,
 	createTempDir,
-	removeTempDir,
-	makeAgentConfigs,
-	makeAgent,
-	makeMinimalCtx,
 	events,
+	makeAgent,
+	makeAgentConfigs,
+	makeMinimalCtx,
+	removeTempDir,
 	tryImport,
 } from "../support/helpers.ts";
 
@@ -159,10 +159,7 @@ describe("runSync error handling", { skip: !piAvailable ? "pi packages not avail
 
 	it("fails a zero-exit child that stops during a tool after earlier assistant output", async () => {
 		mockPi.onCall({
-			jsonl: [
-				events.assistantMessage("Work is in progress"),
-				events.toolStart("bash", { command: "write files" }),
-			],
+			jsonl: [events.assistantMessage("Work is in progress"), events.toolStart("bash", { command: "write files" })],
 			exitCode: 0,
 		});
 		const agents = makeAgentConfigs(["worker"]);
@@ -177,10 +174,7 @@ describe("runSync error handling", { skip: !piAvailable ? "pi packages not avail
 
 	it("keeps a terminal answer authoritative over an earlier tool timeout", async () => {
 		mockPi.onCall({
-			steps: [
-				{ jsonl: [events.toolStart("bash")] },
-				{ delay: 50, jsonl: [events.assistantMessage("Done")] },
-			],
+			steps: [{ jsonl: [events.toolStart("bash")] }, { delay: 50, jsonl: [events.assistantMessage("Done")] }],
 			keepAliveAfterFinalMessageMs: 1_500,
 		});
 		const agents = makeAgentConfigs(["worker"]);
@@ -195,87 +189,123 @@ describe("runSync error handling", { skip: !piAvailable ? "pi packages not avail
 		assert.equal(result.finalOutput, "Done");
 	});
 
-	it("kills a wedged foreground tool at the configured per-tool timeout", { skip: process.platform === "win32" ? "timeout signal delivery intermittent on Windows CI" : undefined }, async () => {
-		mockPi.onCall({
-			steps: [
-				{ jsonl: [events.toolStart("bash")] },
-				{ delay: 30_000 },
-			],
-		});
-		const agents = makeAgentConfigs(["slow"]);
+	it(
+		"kills a wedged foreground tool at the configured per-tool timeout",
+		{ skip: process.platform === "win32" ? "timeout signal delivery intermittent on Windows CI" : undefined },
+		async () => {
+			mockPi.onCall({
+				steps: [{ jsonl: [events.toolStart("bash")] }, { delay: 30_000 }],
+			});
+			const agents = makeAgentConfigs(["slow"]);
 
-		const result = await runSync(tempDir, agents, "slow", "Wait", {
-			toolTimeoutMs: 1_000,
-			timeoutMs: 8_000,
-		});
+			const result = await runSync(tempDir, agents, "slow", "Wait", {
+				toolTimeoutMs: 1_000,
+				timeoutMs: 8_000,
+			});
 
-		assert.equal(result.timedOut, true);
-		assert.match(result.error ?? "", /Tool 'bash' exceeded its timeout of 1000ms\./);
-		assert.match(result.finalOutput ?? "", /^Tool 'bash' exceeded its timeout of 1000ms\.\n\nRecovery summary:/);
-		assert.doesNotMatch(result.finalOutput ?? "", /Subagent timed out after/);
-	});
+			assert.equal(result.timedOut, true);
+			assert.match(result.error ?? "", /Tool 'bash' exceeded its timeout of 1000ms\./);
+			assert.match(result.finalOutput ?? "", /^Tool 'bash' exceeded its timeout of 1000ms\.\n\nRecovery summary:/);
+			assert.doesNotMatch(result.finalOutput ?? "", /Subagent timed out after/);
+		},
+	);
 
-	it("reports a foreground tool timeout without a run timeout as the tool timeout", { skip: process.platform === "win32" ? "timeout signal delivery intermittent on Windows CI" : undefined }, async () => {
-		mockPi.onCall({
-			steps: [
-				{ jsonl: [events.toolStart("bash")] },
-				{ delay: 30_000 },
-			],
-		});
-		const agents = makeAgentConfigs(["slow"]);
+	it(
+		"reports a foreground tool timeout without a run timeout as the tool timeout",
+		{ skip: process.platform === "win32" ? "timeout signal delivery intermittent on Windows CI" : undefined },
+		async () => {
+			mockPi.onCall({
+				steps: [{ jsonl: [events.toolStart("bash")] }, { delay: 30_000 }],
+			});
+			const agents = makeAgentConfigs(["slow"]);
 
-		const result = await runSync(tempDir, agents, "slow", "Wait", { toolTimeoutMs: 1_000 });
+			const result = await runSync(tempDir, agents, "slow", "Wait", { toolTimeoutMs: 1_000 });
 
-		assert.equal(result.timedOut, true);
-		assert.equal(result.error, "Tool 'bash' exceeded its timeout of 1000ms.");
-		assert.match(result.finalOutput ?? "", /^Tool 'bash' exceeded its timeout of 1000ms\.\n\nRecovery summary:/);
-		assert.doesNotMatch(result.finalOutput ?? "", /timed out after 0ms/);
-	});
+			assert.equal(result.timedOut, true);
+			assert.equal(result.error, "Tool 'bash' exceeded its timeout of 1000ms.");
+			assert.match(result.finalOutput ?? "", /^Tool 'bash' exceeded its timeout of 1000ms\.\n\nRecovery summary:/);
+			assert.doesNotMatch(result.finalOutput ?? "", /timed out after 0ms/);
+		},
+	);
 
-	it("keeps the tool timeout as the cause when a child ignores abort past the run deadline", { timeout: 15_000 }, async () => {
-		let abortCalls = 0;
-		const factory = {
-			async create() {
-				let listener: (event: { type: string; [key: string]: unknown }) => void = () => {};
-				return {
-					subscribe(handler: typeof listener) { listener = handler; return () => {}; },
-					async prompt() {
-						listener({ type: "tool_execution_start", toolCallId: "call-1", toolName: "bash", args: { command: "sleep 100" } });
-						await new Promise(() => {});
-					},
-					async steer() {}, async followUp() {}, async dispose() {},
-					async abort() { abortCalls++; },
-					messages: [], sessionFile: undefined, sessionId: "ignores-abort", modelId: "mock/model",
-				};
-			},
-			async dispose() {},
-		};
+	it(
+		"keeps the tool timeout as the cause when a child ignores abort past the run deadline",
+		{ timeout: 15_000 },
+		async () => {
+			let abortCalls = 0;
+			const factory = {
+				async create() {
+					let listener: (event: { type: string; [key: string]: unknown }) => void = () => {};
+					return {
+						subscribe(handler: typeof listener) {
+							listener = handler;
+							return () => {};
+						},
+						async prompt() {
+							listener({
+								type: "tool_execution_start",
+								toolCallId: "call-1",
+								toolName: "bash",
+								args: { command: "sleep 100" },
+							});
+							await new Promise(() => {});
+						},
+						async steer() {},
+						async followUp() {},
+						async dispose() {},
+						async abort() {
+							abortCalls++;
+						},
+						messages: [],
+						sessionFile: undefined,
+						sessionId: "ignores-abort",
+						modelId: "mock/model",
+					};
+				},
+				async dispose() {},
+			};
 
-		const result = await runSync(tempDir, makeAgentConfigs(["slow"]), "slow", "Wait", {
-			toolTimeoutMs: 300,
-			timeoutMs: 800,
-			childSessionFactory: factory,
-		});
+			const result = await runSync(tempDir, makeAgentConfigs(["slow"]), "slow", "Wait", {
+				toolTimeoutMs: 300,
+				timeoutMs: 800,
+				childSessionFactory: factory,
+			});
 
-		assert.equal(result.timedOut, true);
-		assert.equal(result.error, "Tool 'bash' exceeded its timeout of 300ms.");
-		assert.match(result.finalOutput ?? "", /^Tool 'bash' exceeded its timeout of 300ms\.\n\nRecovery summary:/);
-		assert.equal(abortCalls, 1);
-	});
+			assert.equal(result.timedOut, true);
+			assert.equal(result.error, "Tool 'bash' exceeded its timeout of 300ms.");
+			assert.match(result.finalOutput ?? "", /^Tool 'bash' exceeded its timeout of 300ms\.\n\nRecovery summary:/);
+			assert.equal(abortCalls, 1);
+		},
+	);
 
 	it("emits foreground open-tool attention for an earlier overlapping tool", async () => {
 		mockPi.onCall({
 			steps: [
-				{ jsonl: [{ type: "tool_execution_start", toolCallId: "bash-1", toolName: "bash", args: { command: "sleep 2" } }] },
-				{ delay: 50, jsonl: [
-					{ type: "tool_execution_start", toolCallId: "read-1", toolName: "read", args: { path: "README.md" } },
-					{ type: "tool_execution_end", toolCallId: "read-1", toolName: "read" },
-				] },
-				{ delay: 1_200, jsonl: [
-					{ type: "tool_execution_end", toolCallId: "bash-1", toolName: "bash" },
-					events.toolResult("bash", "done"),
-					events.assistantMessage("Done"),
-				] },
+				{
+					jsonl: [
+						{
+							type: "tool_execution_start",
+							toolCallId: "bash-1",
+							toolName: "bash",
+							args: { command: "sleep 2" },
+						},
+					],
+				},
+				{
+					delay: 50,
+					jsonl: [
+						{ type: "tool_execution_start", toolCallId: "read-1", toolName: "read", args: { path: "README.md" } },
+						{ type: "tool_execution_end", toolCallId: "read-1", toolName: "read" },
+					],
+				},
+				{
+					delay: 1_200,
+					jsonl: [
+						{ type: "tool_execution_end", toolCallId: "bash-1", toolName: "bash" },
+						events.toolResult("bash", "done"),
+						events.assistantMessage("Done"),
+					],
+				},
 			],
 		});
 		const agents = makeAgentConfigs(["slow"]);
@@ -283,8 +313,14 @@ describe("runSync error handling", { skip: !piAvailable ? "pi packages not avail
 
 		const result = await runSync(tempDir, agents, "slow", "Wait", {
 			runId: "foreground-overlap-attention",
-			controlConfig: { enabled: true, needsAttentionAfterMs: 999_999, activeNoticeAfterMs: 100, notifyOn: ["needs_attention"] },
-			onControlEvent: (event: { type?: string; reason?: string; currentTool?: string; message?: string }) => controlEvents.push(event),
+			controlConfig: {
+				enabled: true,
+				needsAttentionAfterMs: 999_999,
+				activeNoticeAfterMs: 100,
+				notifyOn: ["needs_attention"],
+			},
+			onControlEvent: (event: { type?: string; reason?: string; currentTool?: string; message?: string }) =>
+				controlEvents.push(event),
 		});
 
 		const attention = controlEvents.find((event) => event.reason === "tool_open_threshold");
@@ -295,48 +331,108 @@ describe("runSync error handling", { skip: !piAvailable ? "pi packages not avail
 	});
 
 	it("emits attention once per long-open foreground call after an earlier attention state", async () => {
-		mockPi.onCall({ steps: [
-			{ jsonl: [{ type: "tool_execution_start", toolCallId: "first", toolName: "bash", args: { command: "sleep 2" } }] },
-			{ delay: 1600, jsonl: [{ type: "tool_execution_end", toolCallId: "first", toolName: "bash" }, events.toolResult("bash", "done")] },
-			{ jsonl: [{ type: "tool_execution_start", toolCallId: "second", toolName: "bash", args: { command: "sleep 2" } }] },
-			{ delay: 1600, jsonl: [{ type: "tool_execution_end", toolCallId: "second", toolName: "bash" }, events.toolResult("bash", "done"), events.assistantMessage("Done")] },
-		] });
+		mockPi.onCall({
+			steps: [
+				{
+					jsonl: [
+						{ type: "tool_execution_start", toolCallId: "first", toolName: "bash", args: { command: "sleep 2" } },
+					],
+				},
+				{
+					delay: 1600,
+					jsonl: [
+						{ type: "tool_execution_end", toolCallId: "first", toolName: "bash" },
+						events.toolResult("bash", "done"),
+					],
+				},
+				{
+					jsonl: [
+						{
+							type: "tool_execution_start",
+							toolCallId: "second",
+							toolName: "bash",
+							args: { command: "sleep 2" },
+						},
+					],
+				},
+				{
+					delay: 1600,
+					jsonl: [
+						{ type: "tool_execution_end", toolCallId: "second", toolName: "bash" },
+						events.toolResult("bash", "done"),
+						events.assistantMessage("Done"),
+					],
+				},
+			],
+		});
 		const notices: Array<{ reason?: string; toolCallId?: string }> = [];
 		const result = await runSync(tempDir, makeAgentConfigs(["worker"]), "worker", "Run commands", {
 			runId: "foreground-sequential-attention",
-			controlConfig: { enabled: true, needsAttentionAfterMs: 999_999, activeNoticeAfterMs: 100, notifyOn: ["needs_attention"] },
+			controlConfig: {
+				enabled: true,
+				needsAttentionAfterMs: 999_999,
+				activeNoticeAfterMs: 100,
+				notifyOn: ["needs_attention"],
+			},
 			onControlEvent: (event: { reason?: string; toolCallId?: string }) => notices.push(event),
 		});
 		assert.equal(result.exitCode, 0);
-		assert.deepEqual(notices.filter((event) => event.reason === "tool_open_threshold").map((event) => event.toolCallId), ["first", "second"]);
+		assert.deepEqual(
+			notices.filter((event) => event.reason === "tool_open_threshold").map((event) => event.toolCallId),
+			["first", "second"],
+		);
 	});
 
 	it("emits attention once for each overlapping long-open foreground call", async () => {
-		mockPi.onCall({ steps: [
-			{ jsonl: [{ type: "tool_execution_start", toolCallId: "first", toolName: "bash", args: { command: "sleep 3" } }] },
-			{ delay: 50, jsonl: [{ type: "tool_execution_start", toolCallId: "second", toolName: "bash", args: { command: "sleep 3" } }] },
-			{ delay: 2600, jsonl: [
-				{ type: "tool_execution_end", toolCallId: "first", toolName: "bash" },
-				{ type: "tool_execution_end", toolCallId: "second", toolName: "bash" },
-				events.toolResult("bash", "done"),
-				events.assistantMessage("Done"),
-			] },
-		] });
+		mockPi.onCall({
+			steps: [
+				{
+					jsonl: [
+						{ type: "tool_execution_start", toolCallId: "first", toolName: "bash", args: { command: "sleep 3" } },
+					],
+				},
+				{
+					delay: 50,
+					jsonl: [
+						{
+							type: "tool_execution_start",
+							toolCallId: "second",
+							toolName: "bash",
+							args: { command: "sleep 3" },
+						},
+					],
+				},
+				{
+					delay: 2600,
+					jsonl: [
+						{ type: "tool_execution_end", toolCallId: "first", toolName: "bash" },
+						{ type: "tool_execution_end", toolCallId: "second", toolName: "bash" },
+						events.toolResult("bash", "done"),
+						events.assistantMessage("Done"),
+					],
+				},
+			],
+		});
 		const notices: Array<{ reason?: string; toolCallId?: string }> = [];
 		const result = await runSync(tempDir, makeAgentConfigs(["worker"]), "worker", "Run commands", {
 			runId: "foreground-overlapping-attention",
-			controlConfig: { enabled: true, needsAttentionAfterMs: 999_999, activeNoticeAfterMs: 100, notifyOn: ["needs_attention"] },
+			controlConfig: {
+				enabled: true,
+				needsAttentionAfterMs: 999_999,
+				activeNoticeAfterMs: 100,
+				notifyOn: ["needs_attention"],
+			},
 			onControlEvent: (event: { reason?: string; toolCallId?: string }) => notices.push(event),
 		});
 		assert.equal(result.exitCode, 0);
-		assert.deepEqual(notices.filter((event) => event.reason === "tool_open_threshold").map((event) => event.toolCallId), ["first", "second"]);
+		assert.deepEqual(
+			notices.filter((event) => event.reason === "tool_open_threshold").map((event) => event.toolCallId),
+			["first", "second"],
+		);
 	});
 
 	it("handles abort signal (completes faster than delay)", async () => {
-		mockPi.onCall({ steps: [
-			{ jsonl: [events.toolStart("bash", { command: "wait" })] },
-			{ delay: 10000 },
-		] });
+		mockPi.onCall({ steps: [{ jsonl: [events.toolStart("bash", { command: "wait" })] }, { delay: 10000 }] });
 		const agents = makeAgentConfigs(["slow"]);
 		const controller = new AbortController();
 

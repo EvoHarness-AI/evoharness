@@ -1,5 +1,5 @@
-import type { AgentConfig, ChainConfig, ChainStepConfig } from "./agents.ts";
 import type { ProactiveSkillSubagentsConfig } from "../shared/types.ts";
+import type { AgentConfig, ChainConfig, ChainStepConfig } from "./agents.ts";
 
 const SUBAGENT_ORCHESTRATION_SKILL = "pi-subagents";
 const DEFAULT_MIN_REFERENCES = 2;
@@ -53,19 +53,34 @@ export function resolveProactiveSkillSubagentsConfig(
 		enabled: config?.enabled ?? true,
 		minReferences: positiveInteger(config?.minReferences) ?? DEFAULT_MIN_REFERENCES,
 		maxRecommendations: Math.min(maxRecommendations, MAX_RECOMMENDATION_CAP),
-		preferredAgent: typeof config?.preferredAgent === "string" && config.preferredAgent.trim()
-			? config.preferredAgent.trim()
-			: DEFAULT_PREFERRED_AGENT,
+		preferredAgent:
+			typeof config?.preferredAgent === "string" && config.preferredAgent.trim()
+				? config.preferredAgent.trim()
+				: DEFAULT_PREFERRED_AGENT,
 	};
 }
 
 function normalizeSkillNames(value: unknown): string[] {
 	if (value === false || value === true || value === undefined || value === null) return [];
 	if (Array.isArray(value)) {
-		return [...new Set(value.filter((entry): entry is string => typeof entry === "string").map((entry) => entry.trim()).filter(Boolean))];
+		return [
+			...new Set(
+				value
+					.filter((entry): entry is string => typeof entry === "string")
+					.map((entry) => entry.trim())
+					.filter(Boolean),
+			),
+		];
 	}
 	if (typeof value === "string") {
-		return [...new Set(value.split(",").map((entry) => entry.trim()).filter(Boolean))];
+		return [
+			...new Set(
+				value
+					.split(",")
+					.map((entry) => entry.trim())
+					.filter(Boolean),
+			),
+		];
 	}
 	return [];
 }
@@ -140,23 +155,30 @@ export function recommendProactiveSkillSubagents(input: {
 		}
 	}
 
-	return [...counts.entries()]
-		// Hidden skills (disable-model-invocation: true) are user-only and must
-		// never surface in model-facing proactive recommendations.
-		.filter(([skill, sources]) => sources.size >= config.minReferences && (!availableByName || availableByName.has(skill)) && availableByName?.get(skill)?.disableModelInvocation !== true)
-		.map(([skill, sources]) => {
-			const description = availableByName?.get(skill)?.description;
-			return {
-				skill,
-				agent,
-				references: sources.size,
-				sources: [...sources].sort((a, b) => a.localeCompare(b)),
-				...(description !== undefined ? { description } : {}),
-				reason: `referenced by ${sources.size} configured agents/chains`,
-			};
-		})
-		.sort((a, b) => b.references - a.references || a.skill.localeCompare(b.skill))
-		.slice(0, config.maxRecommendations);
+	return (
+		[...counts.entries()]
+			// Hidden skills (disable-model-invocation: true) are user-only and must
+			// never surface in model-facing proactive recommendations.
+			.filter(
+				([skill, sources]) =>
+					sources.size >= config.minReferences &&
+					(!availableByName || availableByName.has(skill)) &&
+					availableByName?.get(skill)?.disableModelInvocation !== true,
+			)
+			.map(([skill, sources]) => {
+				const description = availableByName?.get(skill)?.description;
+				return {
+					skill,
+					agent,
+					references: sources.size,
+					sources: [...sources].sort((a, b) => a.localeCompare(b)),
+					...(description !== undefined ? { description } : {}),
+					reason: `referenced by ${sources.size} configured agents/chains`,
+				};
+			})
+			.sort((a, b) => b.references - a.references || a.skill.localeCompare(b.skill))
+			.slice(0, config.maxRecommendations)
+	);
 }
 
 export function formatProactiveSkillSubagentRecommendations(
@@ -188,10 +210,12 @@ export function buildProactiveSkillSubagentRecommendationLines(input: {
 	} catch {
 		availableSkills = [];
 	}
-	return formatProactiveSkillSubagentRecommendations(recommendProactiveSkillSubagents({
-		agents: input.agents,
-		...(input.chains !== undefined ? { chains: input.chains } : {}),
-		availableSkills,
-		...(input.config !== undefined ? { config: input.config } : {}),
-	}));
+	return formatProactiveSkillSubagentRecommendations(
+		recommendProactiveSkillSubagents({
+			agents: input.agents,
+			...(input.chains !== undefined ? { chains: input.chains } : {}),
+			availableSkills,
+			...(input.config !== undefined ? { config: input.config } : {}),
+		}),
+	);
 }

@@ -1,10 +1,10 @@
-import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import { describe, it } from "node:test";
 import {
-	CHILD_WATCHDOG_STATUS_EVENT,
-	CHILD_WATCHDOG_WARNING_LIMIT,
 	acceptChildWatchdogEvent,
 	applyChildWatchdogMessage,
+	CHILD_WATCHDOG_STATUS_EVENT,
+	CHILD_WATCHDOG_WARNING_LIMIT,
 	childWatchdogIsActive,
 	childWatchdogProgressForModel,
 	decodeChildWatchdogConfig,
@@ -12,19 +12,40 @@ import {
 	resolveChildWatchdogConfig,
 	unresolvedChildWatchdogBlockers,
 } from "../../src/watchdog/child-status.ts";
-import { DEFAULT_WATCHDOG_CONFIG } from "../../src/watchdog/settings.ts";
 import { childResolvedConfig } from "../../src/watchdog/register-child.ts";
+import { DEFAULT_WATCHDOG_CONFIG } from "../../src/watchdog/settings.ts";
 
 describe("child watchdog warning envelope", () => {
 	it("marks status-event findings addressed on assistant turns", () => {
-		const snapshot = acceptChildWatchdogEvent({ current: undefined, event: {
-			type: CHILD_WATCHDOG_STATUS_EVENT, seq: 1, phase: "idle", ts: 5,
-			warning: { severity: "blocker", importance: "high", category: "correctness", summary: "Unverified tests", evidence: "No test command.", recommendedAction: "Run tests.", addressed: false, stalemate: true },
-		} });
+		const snapshot = acceptChildWatchdogEvent({
+			current: undefined,
+			event: {
+				type: CHILD_WATCHDOG_STATUS_EVENT,
+				seq: 1,
+				phase: "idle",
+				ts: 5,
+				warning: {
+					severity: "blocker",
+					importance: "high",
+					category: "correctness",
+					summary: "Unverified tests",
+					evidence: "No test command.",
+					recommendedAction: "Run tests.",
+					addressed: false,
+					stalemate: true,
+				},
+			},
+		});
 		assert.equal(applyChildWatchdogMessage(undefined, { role: "assistant", content: [] }), undefined);
-		assert.equal(applyChildWatchdogMessage(undefined, { role: "custom", customType: "subagent-notify", details: {} }), undefined);
+		assert.equal(
+			applyChildWatchdogMessage(undefined, { role: "custom", customType: "subagent-notify", details: {} }),
+			undefined,
+		);
 		const addressed = applyChildWatchdogMessage(snapshot, { role: "assistant" });
-		assert.equal(addressed?.warnings?.every((entry) => entry.addressed), true);
+		assert.equal(
+			addressed?.warnings?.every((entry) => entry.addressed),
+			true,
+		);
 		assert.equal(unresolvedChildWatchdogBlockers(addressed).length, 1, "stalemate remains unresolved");
 		assert.equal(applyChildWatchdogMessage(addressed, { role: "assistant" }), undefined, "nothing left to address");
 	});
@@ -38,8 +59,20 @@ describe("child watchdog status helpers", () => {
 			snapshot = acceptChildWatchdogEvent({
 				current: snapshot,
 				event: {
-					type: CHILD_WATCHDOG_STATUS_EVENT, seq: index + 1, phase: "idle", ts: index,
-					warning: { severity: index === 4 ? "blocker" : "concern", importance, category: "correctness", summary: `${importance}-summary-${index}`, evidence: `${importance}-evidence-${index}`, recommendedAction: `${importance}-action-${index}`, addressed: false, stalemate: false },
+					type: CHILD_WATCHDOG_STATUS_EVENT,
+					seq: index + 1,
+					phase: "idle",
+					ts: index,
+					warning: {
+						severity: index === 4 ? "blocker" : "concern",
+						importance,
+						category: "correctness",
+						summary: `${importance}-summary-${index}`,
+						evidence: `${importance}-evidence-${index}`,
+						recommendedAction: `${importance}-action-${index}`,
+						addressed: false,
+						stalemate: false,
+					},
 				},
 			});
 		}
@@ -51,15 +84,24 @@ describe("child watchdog status helpers", () => {
 	});
 
 	it("resolves child cadence from override, then children, then the top-level cadence", () => {
-		const base = { ...DEFAULT_WATCHDOG_CONFIG, enabled: true, children: { ...DEFAULT_WATCHDOG_CONFIG.children, enabled: true, overrides: {} } };
+		const base = {
+			...DEFAULT_WATCHDOG_CONFIG,
+			enabled: true,
+			children: { ...DEFAULT_WATCHDOG_CONFIG.children, enabled: true, overrides: {} },
+		};
 		assert.deepEqual(resolveChildWatchdogConfig({ config: base, agent: "worker" })?.cadence, { everyNTools: null });
 		const root = { ...base, cadence: { everyNTools: 20 } };
 		assert.deepEqual(resolveChildWatchdogConfig({ config: root, agent: "worker" })?.cadence, { everyNTools: 20 });
 		const children = { ...root, children: { ...root.children, cadence: { everyNTools: 10 } } };
 		assert.deepEqual(resolveChildWatchdogConfig({ config: children, agent: "worker" })?.cadence, { everyNTools: 10 });
-		const override = { ...children, children: { ...children.children, overrides: { worker: { cadence: { everyNTools: 5 } } } } };
+		const override = {
+			...children,
+			children: { ...children.children, overrides: { worker: { cadence: { everyNTools: 5 } } } },
+		};
 		assert.deepEqual(resolveChildWatchdogConfig({ config: override, agent: "worker" })?.cadence, { everyNTools: 5 });
-		assert.deepEqual(resolveChildWatchdogConfig({ config: override, agent: "reviewer" })?.cadence, { everyNTools: 10 });
+		assert.deepEqual(resolveChildWatchdogConfig({ config: override, agent: "reviewer" })?.cadence, {
+			everyNTools: 10,
+		});
 	});
 
 	it("preserves child model and explicit override thinking when resolving config", () => {
@@ -139,14 +181,65 @@ describe("child watchdog status helpers", () => {
 		} as const;
 
 		assert.equal(isChildWatchdogStatusEvent(firstEvent), true);
-		const first = acceptChildWatchdogEvent({ event: firstEvent, runId: "run-1", agent: "worker", childIndex: 0, current: undefined });
+		const first = acceptChildWatchdogEvent({
+			event: firstEvent,
+			runId: "run-1",
+			agent: "worker",
+			childIndex: 0,
+			current: undefined,
+		});
 		assert.deepEqual(first, { phase: "reviewing", seq: 1, lastUpdate: 10 });
 		assert.equal(childWatchdogIsActive(first), true);
-		assert.equal(acceptChildWatchdogEvent({ event: firstEvent, current: first, runId: "run-1", agent: "worker", childIndex: 0 }), undefined);
-		assert.equal(acceptChildWatchdogEvent({ event: { ...firstEvent, seq: 2, runId: undefined }, current: first, runId: "run-1", agent: "worker", childIndex: 0 }), undefined);
-		assert.equal(acceptChildWatchdogEvent({ event: { ...firstEvent, seq: 2, agent: undefined }, current: first, runId: "run-1", agent: "worker", childIndex: 0 }), undefined);
-		assert.equal(acceptChildWatchdogEvent({ event: { ...firstEvent, seq: 2, childIndex: undefined }, current: first, runId: "run-1", agent: "worker", childIndex: 0 }), undefined);
-		assert.equal(acceptChildWatchdogEvent({ event: { ...firstEvent, seq: 2, agent: "other" }, current: first, runId: "run-1", agent: "worker", childIndex: 0 }), undefined);
+		assert.equal(
+			acceptChildWatchdogEvent({
+				event: firstEvent,
+				current: first,
+				runId: "run-1",
+				agent: "worker",
+				childIndex: 0,
+			}),
+			undefined,
+		);
+		assert.equal(
+			acceptChildWatchdogEvent({
+				event: { ...firstEvent, seq: 2, runId: undefined },
+				current: first,
+				runId: "run-1",
+				agent: "worker",
+				childIndex: 0,
+			}),
+			undefined,
+		);
+		assert.equal(
+			acceptChildWatchdogEvent({
+				event: { ...firstEvent, seq: 2, agent: undefined },
+				current: first,
+				runId: "run-1",
+				agent: "worker",
+				childIndex: 0,
+			}),
+			undefined,
+		);
+		assert.equal(
+			acceptChildWatchdogEvent({
+				event: { ...firstEvent, seq: 2, childIndex: undefined },
+				current: first,
+				runId: "run-1",
+				agent: "worker",
+				childIndex: 0,
+			}),
+			undefined,
+		);
+		assert.equal(
+			acceptChildWatchdogEvent({
+				event: { ...firstEvent, seq: 2, agent: "other" },
+				current: first,
+				runId: "run-1",
+				agent: "worker",
+				childIndex: 0,
+			}),
+			undefined,
+		);
 
 		const settled = acceptChildWatchdogEvent({
 			event: { ...firstEvent, seq: 2, phase: "idle", ts: 20 },
@@ -166,8 +259,20 @@ describe("child watchdog status helpers", () => {
 		}
 		assert.equal(isChildWatchdogStatusEvent(null), false);
 		assert.equal(isChildWatchdogStatusEvent([]), false);
-		const warning = { severity: "concern", importance: "low", category: "other", summary: "summary", evidence: "evidence", recommendedAction: "act", addressed: false, stalemate: false };
+		const warning = {
+			severity: "concern",
+			importance: "low",
+			category: "other",
+			summary: "summary",
+			evidence: "evidence",
+			recommendedAction: "act",
+			addressed: false,
+			stalemate: false,
+		};
 		assert.equal(isChildWatchdogStatusEvent({ ...event, warning: { ...warning, displayedAt: 1 } }), false);
-		assert.equal(isChildWatchdogStatusEvent({ ...event, warning: { ...warning, displayedAt: "2026-09-13T00:00:00.000Z" } }), true);
+		assert.equal(
+			isChildWatchdogStatusEvent({ ...event, warning: { ...warning, displayedAt: "2026-09-13T00:00:00.000Z" } }),
+			true,
+		);
 	});
 });

@@ -24,7 +24,11 @@ function signalProcess(id: number, signal: NodeJS.Signals): SignalResult {
 function activeProcessGroupMembers(processGroupId: number): number[] | { diagnostic: string } {
 	const result = spawnSync("ps", ["-axo", "pid=,pgid=,stat="], { encoding: "utf-8" });
 	if (result.error || result.status !== 0) {
-		return { diagnostic: result.error ? diagnostic(result.error) : (result.stderr.trim() || `ps exited with ${result.status}`) };
+		return {
+			diagnostic: result.error
+				? diagnostic(result.error)
+				: result.stderr.trim() || `ps exited with ${result.status}`,
+		};
 	}
 	const members: number[] = [];
 	for (const line of result.stdout.split("\n")) {
@@ -63,7 +67,10 @@ async function waitUntilGroupTerminal(
 		const remaining = deadline - Date.now();
 		if (remaining <= 0) {
 			if (!Array.isArray(members)) return { state: "enumeration-failed", diagnostic: members.diagnostic };
-			return { state: "still-active", diagnostic: `Process group ${processGroupId} still has active members: ${members.join(", ")}.` };
+			return {
+				state: "still-active",
+				diagnostic: `Process group ${processGroupId} still has active members: ${members.join(", ")}.`,
+			};
 		}
 		await new Promise<void>((resolve) => setTimeout(resolve, Math.min(VERIFY_INTERVAL_MS, remaining)));
 	}
@@ -79,7 +86,11 @@ function observedUnlessLiveDetached(processGroupId: number, detached: readonly n
 		return result.status === 0 && Boolean(result.stdout.trim()) && !result.stdout.trim().startsWith("Z");
 	});
 	if (live.length === 0) return observed(processGroupId);
-	return { state: "unknown", reason: "verification-failed", diagnostic: `Owned detached descendant(s) still active: ${live.join(", ")}.` };
+	return {
+		state: "unknown",
+		reason: "verification-failed",
+		diagnostic: `Owned detached descendant(s) still active: ${live.join(", ")}.`,
+	};
 }
 
 /** Owns one writer process group and arbitrates its cleanup exactly once. */

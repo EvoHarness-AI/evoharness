@@ -10,7 +10,7 @@ export function herdrPaneRecord(value: unknown): Record<string, unknown> | undef
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const record = value as Record<string, unknown>;
 	return record.pane && typeof record.pane === "object" && !Array.isArray(record.pane)
-		? record.pane as Record<string, unknown>
+		? (record.pane as Record<string, unknown>)
 		: record;
 }
 
@@ -29,16 +29,36 @@ export function herdrPaneFocusTarget(value: unknown): { paneId?: string; tabId?:
 	};
 }
 
-export async function focusHerdrPane(client: HerdrClient, paneId: string, signal?: AbortSignal): Promise<HerdrPaneFocusResult> {
+export async function focusHerdrPane(
+	client: HerdrClient,
+	paneId: string,
+	signal?: AbortSignal,
+): Promise<HerdrPaneFocusResult> {
 	const live = await client.run(["pane", "get", paneId], { timeoutMs: 5_000, signal });
 	if (live.ok === false) return live;
 	const target = herdrPaneFocusTarget(live.data);
 	if (!target.paneId) {
-		return { ok: false, error: { code: "INVALID_PANE_RESPONSE", message: `Herdr pane get returned no pane id for '${paneId}'.`, details: live.data } };
+		return {
+			ok: false,
+			error: {
+				code: "INVALID_PANE_RESPONSE",
+				message: `Herdr pane get returned no pane id for '${paneId}'.`,
+				details: live.data,
+			},
+		};
 	}
 	if (target.tabId) {
 		const focused = await client.run(["tab", "focus", target.tabId], { timeoutMs: 5_000, signal });
-		return focused.ok ? { ok: true, data: { paneId: target.paneId, tabId: target.tabId, ...(target.workspaceId ? { workspaceId: target.workspaceId } : {}) } } : focused;
+		return focused.ok
+			? {
+					ok: true,
+					data: {
+						paneId: target.paneId,
+						tabId: target.tabId,
+						...(target.workspaceId ? { workspaceId: target.workspaceId } : {}),
+					},
+				}
+			: focused;
 	}
 	if (target.workspaceId) {
 		const focused = await client.run(["workspace", "focus", target.workspaceId], { timeoutMs: 5_000, signal });

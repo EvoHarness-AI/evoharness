@@ -3,9 +3,9 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
+import type { SubagentParamsLike } from "../../src/runs/foreground/subagent-executor.ts";
 import { discoverPromptWorkflows, registerPromptWorkflowCommands } from "../../src/slash/prompt-workflows.ts";
 import { runWorkflowScript } from "../../src/workflows/scripted-workflow.ts";
-import type { SubagentParamsLike } from "../../src/runs/foreground/subagent-executor.ts";
 
 const originalAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 
@@ -47,19 +47,27 @@ describe("prompt workflows", () => {
 	});
 
 	it("discovers project workflows over user workflows", () => {
-		writePrompt(path.join(agentDir, "prompts"), "native-test", `---
+		writePrompt(
+			path.join(agentDir, "prompts"),
+			"native-test",
+			`---
 description: User version
 subagent: reviewer
 ---
 User body
-`);
-		writePrompt(path.join(cwd, ".pi", "prompts"), "native-test", `---
+`,
+		);
+		writePrompt(
+			path.join(cwd, ".pi", "prompts"),
+			"native-test",
+			`---
 description: Project version
 subagent: worker
 model: openai/gpt-5-mini
 ---
 Project body $1
-`);
+`,
+		);
 
 		const workflow = discoverPromptWorkflows(cwd).find((entry) => entry.name === "native-test");
 
@@ -70,11 +78,15 @@ Project body $1
 
 	it("discovers symlinked prompt files and skips dangling links", () => {
 		const promptsDir = path.join(agentDir, "prompts");
-		writePrompt(path.join(tempDir, "dotfiles"), "linked", `---
+		writePrompt(
+			path.join(tempDir, "dotfiles"),
+			"linked",
+			`---
 description: Linked prompt
 ---
 Say hi
-`);
+`,
+		);
 		fs.mkdirSync(promptsDir, { recursive: true });
 		fs.symlinkSync(path.join(tempDir, "dotfiles", "linked.md"), path.join(promptsDir, "linked.md"));
 		fs.symlinkSync(path.join(tempDir, "dotfiles", "missing.md"), path.join(promptsDir, "dangling.md"));
@@ -91,26 +103,33 @@ Say hi
 	});
 
 	it("runs a named workflow through native subagent execution", async () => {
-		writePrompt(path.join(cwd, ".pi", "prompts"), "native-run", `---
+		writePrompt(
+			path.join(cwd, ".pi", "prompts"),
+			"native-run",
+			`---
 description: Run native prompt
 subagent: reviewer
 model: anthropic/claude-sonnet-4
 skill: deslop,typescript-code
 ---
 Review $1 with $ARGUMENTS
-`);
+`,
+		);
 		const commands = new Map<string, { handler: (args: string, ctx: never) => Promise<void> }>();
 		const sent: unknown[] = [];
 		const runs: SubagentParamsLike[] = [];
 		registerPromptWorkflowCommands({
 			pi: {
-				registerCommand: (name: string, command: { handler: (args: string, ctx: never) => Promise<void> }) => commands.set(name, command),
+				registerCommand: (name: string, command: { handler: (args: string, ctx: never) => Promise<void> }) =>
+					commands.set(name, command),
 				sendMessage: (message: unknown) => sent.push(message),
 			} as never,
-			run: async (params) => { runs.push(params); },
+			run: async (params) => {
+				runs.push(params);
+			},
 		});
 
-		await commands.get("prompt-workflow")!.handler('native-run target --fork', makeCtx(cwd));
+		await commands.get("prompt-workflow")!.handler("native-run target --fork", makeCtx(cwd));
 
 		assert.equal(sent.length, 0);
 		assert.equal(runs.length, 1);
@@ -133,27 +152,38 @@ Review $1 with $ARGUMENTS
 	});
 
 	it("runs declared prompt sequences through workflowScript", async () => {
-		writePrompt(path.join(cwd, ".pi", "prompts"), "native-analyze", `---
+		writePrompt(
+			path.join(cwd, ".pi", "prompts"),
+			"native-analyze",
+			`---
 description: Analyze
 subagent: scout
 chain: native-analyze -> native-fix
 ---
 Analyze $@
-`);
-		writePrompt(path.join(cwd, ".pi", "prompts"), "native-fix", `---
+`,
+		);
+		writePrompt(
+			path.join(cwd, ".pi", "prompts"),
+			"native-fix",
+			`---
 description: Fix
 subagent: worker
 ---
 Fix from {previous}: $@
-`);
+`,
+		);
 		const commands = new Map<string, { handler: (args: string, ctx: never) => Promise<void> }>();
 		const runs: SubagentParamsLike[] = [];
 		registerPromptWorkflowCommands({
 			pi: {
-				registerCommand: (name: string, command: { handler: (args: string, ctx: never) => Promise<void> }) => commands.set(name, command),
+				registerCommand: (name: string, command: { handler: (args: string, ctx: never) => Promise<void> }) =>
+					commands.set(name, command),
 				sendMessage: () => {},
 			} as never,
-			run: async (params) => { runs.push(params); },
+			run: async (params) => {
+				runs.push(params);
+			},
 		});
 
 		await commands.get("prompt-workflow")!.handler("native-analyze bug report", makeCtx(cwd));
@@ -176,9 +206,16 @@ Fix from {previous}: $@
 			script,
 			async launch(key, childParams) {
 				launches.push({ key, task: childParams.task });
-				return { key, ok: true, output: key === "prompt-1-native-analyze" ? "analysis output" : "fixed output", artifactPaths: [] };
+				return {
+					key,
+					ok: true,
+					output: key === "prompt-1-native-analyze" ? "analysis output" : "fixed output",
+					artifactPaths: [],
+				};
 			},
-			async status(key) { return { key, ok: true, output: "ok", artifactPaths: [] }; },
+			async status(key) {
+				return { key, ok: true, output: "ok", artifactPaths: [] };
+			},
 		});
 		assert.deepEqual(launches, [
 			{ key: "prompt-1-native-analyze", task: "Analyze bug report" },

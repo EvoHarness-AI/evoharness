@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { isRuntimeAcknowledgedExtensionId, projectRuntimeAcknowledgedExtensions, sanitizeRuntimeAcknowledgedExtensions } from "../../src/runs/shared/runtime-acknowledged-extensions.ts";
+import {
+	isRuntimeAcknowledgedExtensionId,
+	projectRuntimeAcknowledgedExtensions,
+	sanitizeRuntimeAcknowledgedExtensions,
+} from "../../src/runs/shared/runtime-acknowledged-extensions.ts";
 
 describe("runtime acknowledged extension projection", () => {
 	it("validates opaque ids without path-like content", () => {
@@ -26,13 +30,27 @@ describe("runtime acknowledged extension projection", () => {
 	});
 
 	it("sanitizes persisted projections and rejects invalid shapes", () => {
-		assert.deepEqual(sanitizeRuntimeAcknowledgedExtensions({ version: 1, source: "child-runtime", ids: ["ok", "ok", "bad/path"], omitted: 2 }), {
-			version: 1,
-			source: "child-runtime",
-			ids: ["ok"],
-			omitted: 2,
-		});
-		assert.equal(sanitizeRuntimeAcknowledgedExtensions({ version: 1, source: "launch-resolved", ids: ["ok"] }), undefined);
-		assert.equal(sanitizeRuntimeAcknowledgedExtensions({ version: 1, source: "child-runtime", ids: ["bad/path"] }), undefined);
+		assert.deepEqual(
+			sanitizeRuntimeAcknowledgedExtensions({
+				version: 1,
+				source: "child-runtime",
+				ids: ["ok", "ok", "bad/path"],
+				omitted: 2,
+			}),
+			{
+				version: 1,
+				source: "child-runtime",
+				ids: ["ok"],
+				omitted: 2,
+			},
+		);
+		assert.equal(
+			sanitizeRuntimeAcknowledgedExtensions({ version: 1, source: "launch-resolved", ids: ["ok"] }),
+			undefined,
+		);
+		assert.equal(
+			sanitizeRuntimeAcknowledgedExtensions({ version: 1, source: "child-runtime", ids: ["bad/path"] }),
+			undefined,
+		);
 	});
 });

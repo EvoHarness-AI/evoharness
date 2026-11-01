@@ -65,12 +65,18 @@ function existingFile(value: unknown): string | undefined {
 }
 
 function outputArtifactPath(child: Record<string, unknown>): string | undefined {
-	if (!child.artifactPaths || typeof child.artifactPaths !== "object" || Array.isArray(child.artifactPaths)) return undefined;
+	if (!child.artifactPaths || typeof child.artifactPaths !== "object" || Array.isArray(child.artifactPaths))
+		return undefined;
 	return existingFile((child.artifactPaths as Record<string, unknown>).outputPath);
 }
 
 /** Create a small archive that references saved child artifacts and retains only bounded fallback output text. */
-export function writeCompletionArchive(resultsDir: string, runId: string, data: Record<string, unknown>, createdAt: number): string {
+export function writeCompletionArchive(
+	resultsDir: string,
+	runId: string,
+	data: Record<string, unknown>,
+	createdAt: number,
+): string {
 	const entries: CompletionArchiveEntry[] = [];
 	const results = Array.isArray(data.results) ? data.results : [];
 	for (let resultIndex = 0; resultIndex < results.length; resultIndex++) {
@@ -91,7 +97,10 @@ export function writeCompletionArchive(resultsDir: string, runId: string, data: 
 		const output = nonEmptyString(child.output);
 		const error = nonEmptyString(child.error);
 		if (output || error) {
-			const bounded = utf8Tail([error ? `Error: ${error}` : undefined, output].filter(Boolean).join("\n"), ARCHIVE_TEXT_LIMIT_BYTES);
+			const bounded = utf8Tail(
+				[error ? `Error: ${error}` : undefined, output].filter(Boolean).join("\n"),
+				ARCHIVE_TEXT_LIMIT_BYTES,
+			);
 			entries.push({
 				...(agent ? { agent } : {}),
 				resultIndex,
@@ -128,17 +137,24 @@ function parseCompletion(value: unknown, runId: string): WaitCompletion | undefi
 function parseReplay(value: unknown): CompletionReplayRecord | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const record = value as Partial<CompletionReplayRecord>;
-	if (record.version !== REPLAY_VERSION
-		|| typeof record.runId !== "string"
-		|| typeof record.sessionId !== "string"
-		|| typeof record.completedAt !== "number"
-		|| typeof record.expiresAt !== "number"
-		|| typeof record.archivePath !== "string") return undefined;
+	if (
+		record.version !== REPLAY_VERSION ||
+		typeof record.runId !== "string" ||
+		typeof record.sessionId !== "string" ||
+		typeof record.completedAt !== "number" ||
+		typeof record.expiresAt !== "number" ||
+		typeof record.archivePath !== "string"
+	)
+		return undefined;
 	const completion = parseCompletion(record.completion, record.runId);
-	return completion ? { ...record, completion } as CompletionReplayRecord : undefined;
+	return completion ? ({ ...record, completion } as CompletionReplayRecord) : undefined;
 }
 
-function validateReplayRecord(resultsDir: string, runId: string, record: CompletionReplayRecord): CompletionReplayRecord | undefined {
+function validateReplayRecord(
+	resultsDir: string,
+	runId: string,
+	record: CompletionReplayRecord,
+): CompletionReplayRecord | undefined {
 	if (record.runId !== runId) return undefined;
 	const archivePath = completionArchivePath(resultsDir, runId);
 	return path.resolve(record.archivePath) === path.resolve(archivePath)
@@ -159,25 +175,39 @@ function runIdFromReplayFile(file: string): string | undefined {
 function removeBestEffort(filePath: string): void {
 	try {
 		fs.rmSync(filePath, { force: true });
-	} catch { /* cleanup only */ }
+	} catch {
+		/* cleanup only */
+	}
 }
 
 function parseArchive(value: unknown): CompletionArchive | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const archive = value as Partial<CompletionArchive>;
-	if (archive.version !== ARCHIVE_VERSION || typeof archive.runId !== "string" || typeof archive.createdAt !== "number" || !Array.isArray(archive.entries)) return undefined;
+	if (
+		archive.version !== ARCHIVE_VERSION ||
+		typeof archive.runId !== "string" ||
+		typeof archive.createdAt !== "number" ||
+		!Array.isArray(archive.entries)
+	)
+		return undefined;
 	const entries = archive.entries.flatMap((value): CompletionArchiveEntry[] => {
 		if (!value || typeof value !== "object" || Array.isArray(value)) return [];
 		const entry = value as Partial<CompletionArchiveEntry>;
 		if (entry.source !== "output-artifact" && entry.source !== "session" && entry.source !== "result-tail") return [];
-		return [{
-			...(typeof entry.agent === "string" ? { agent: entry.agent } : {}),
-			...(typeof entry.resultIndex === "number" && Number.isSafeInteger(entry.resultIndex) && entry.resultIndex >= 0 ? { resultIndex: entry.resultIndex } : {}),
-			source: entry.source,
-			...(typeof entry.path === "string" ? { path: entry.path } : {}),
-			...(typeof entry.text === "string" ? { text: entry.text } : {}),
-			...(entry.truncated === true ? { truncated: true } : {}),
-		}];
+		return [
+			{
+				...(typeof entry.agent === "string" ? { agent: entry.agent } : {}),
+				...(typeof entry.resultIndex === "number" &&
+				Number.isSafeInteger(entry.resultIndex) &&
+				entry.resultIndex >= 0
+					? { resultIndex: entry.resultIndex }
+					: {}),
+				source: entry.source,
+				...(typeof entry.path === "string" ? { path: entry.path } : {}),
+				...(typeof entry.text === "string" ? { text: entry.text } : {}),
+				...(entry.truncated === true ? { truncated: true } : {}),
+			},
+		];
 	});
 	return { version: ARCHIVE_VERSION, runId: archive.runId, createdAt: archive.createdAt, entries };
 }
@@ -209,7 +239,11 @@ export function writeCompletionReplay(input: {
 }
 
 /** Read a current replay record. Unknown fields are ignored and unknown versions are skipped. */
-export function readCompletionReplay(resultsDir: string, runId: string, options: { sessionId?: string; now?: number } = {}): CompletionReplayRecord | undefined {
+export function readCompletionReplay(
+	resultsDir: string,
+	runId: string,
+	options: { sessionId?: string; now?: number } = {},
+): CompletionReplayRecord | undefined {
 	const replayPath = completionReplayPath(resultsDir, runId);
 	let parsed: CompletionReplayRecord | undefined;
 	try {
@@ -245,7 +279,12 @@ export function readCompletionArchive(archivePath: string): CompletionArchive | 
 	}
 }
 
-export function cleanupCompletionReplayIfDue(resultsDir: string, now: number, maxAgeMs: number, intervalMs = CLEANUP_INTERVAL_MS): boolean {
+export function cleanupCompletionReplayIfDue(
+	resultsDir: string,
+	now: number,
+	maxAgeMs: number,
+	intervalMs = CLEANUP_INTERVAL_MS,
+): boolean {
 	const last = lastCleanupByResultsDir.get(resultsDir);
 	if (last !== undefined && now - last < intervalMs) return false;
 	lastCleanupByResultsDir.set(resultsDir, now);
@@ -272,16 +311,24 @@ export function cleanupCompletionReplay(resultsDir: string, now: number, maxAgeM
 				} else if (!record && now - fs.statSync(filePath).mtimeMs > maxAgeMs) {
 					fs.rmSync(filePath, { force: true });
 				}
-			} catch { /* one bad entry must not block cleanup */ }
+			} catch {
+				/* one bad entry must not block cleanup */
+			}
 		}
-	} catch { /* replay directory may not exist yet */ }
+	} catch {
+		/* replay directory may not exist yet */
+	}
 	const archiveDir = path.join(resultsDir, ARCHIVE_DIR_NAME);
 	try {
 		for (const file of fs.readdirSync(archiveDir)) {
 			const filePath = path.join(archiveDir, file);
 			try {
 				if (now - fs.statSync(filePath).mtimeMs > maxAgeMs) fs.rmSync(filePath, { force: true });
-			} catch { /* one bad entry must not block cleanup */ }
+			} catch {
+				/* one bad entry must not block cleanup */
+			}
 		}
-	} catch { /* archive directory may not exist yet */ }
+	} catch {
+		/* archive directory may not exist yet */
+	}
 }

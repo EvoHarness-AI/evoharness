@@ -104,7 +104,11 @@ export function canPreferForkFromSnapshot(input: PreferredForkSnapshot): boolean
 	}
 }
 
-function isUnsafeAnthropicThinkingBlock(message: BranchSessionEntry["message"], block: unknown, verbatim: boolean): boolean {
+function isUnsafeAnthropicThinkingBlock(
+	message: BranchSessionEntry["message"],
+	block: unknown,
+	verbatim: boolean,
+): boolean {
 	if (!message || !block || typeof block !== "object" || !("type" in block)) return false;
 	if (verbatim) return block.type === "redacted_thinking";
 	const provider = typeof message.provider === "string" ? message.provider.toLowerCase() : "";
@@ -114,21 +118,23 @@ function isUnsafeAnthropicThinkingBlock(message: BranchSessionEntry["message"], 
 	if (block.type === "redacted_thinking") return true;
 	if (block.type !== "thinking" || !isAnthropic) return false;
 	const record = block as Record<string, unknown>;
-	const signature = "thinkingSignature" in record ? record.thinkingSignature : "signature" in record ? record.signature : undefined;
+	const signature =
+		"thinkingSignature" in record ? record.thinkingSignature : "signature" in record ? record.signature : undefined;
 	return record.redacted === true || (typeof signature === "string" && signature.length > 0);
 }
 
 function sanitizeUnsafeThinkingBlocks(entries: BranchSessionEntry[], rewritten: boolean): boolean {
 	let sanitized = false;
-	const entriesById = new Map(entries.flatMap((entry) => entry.id ? [[entry.id, entry] as const] : []));
+	const entriesById = new Map(entries.flatMap((entry) => (entry.id ? [[entry.id, entry] as const] : [])));
 	for (const entry of entries) {
-		const targetMessage = entry.type === "context_edit" && entry.targetId
-			? entriesById.get(entry.targetId)?.message
-			: entry.message;
+		const targetMessage =
+			entry.type === "context_edit" && entry.targetId ? entriesById.get(entry.targetId)?.message : entry.message;
 		const contentOwner = entry.type === "context_edit" ? entry.replacement : targetMessage;
 		if (targetMessage?.role !== "assistant" || !contentOwner || !Array.isArray(contentOwner.content)) continue;
 		const verbatim = !rewritten && entry.type !== "context_edit";
-		const filtered = contentOwner.content.filter((block) => !isUnsafeAnthropicThinkingBlock(targetMessage, block, verbatim));
+		const filtered = contentOwner.content.filter(
+			(block) => !isUnsafeAnthropicThinkingBlock(targetMessage, block, verbatim),
+		);
 		if (filtered.length === contentOwner.content.length) continue;
 		contentOwner.content = filtered;
 		sanitized = true;
@@ -137,13 +143,19 @@ function sanitizeUnsafeThinkingBlocks(entries: BranchSessionEntry[], rewritten: 
 }
 
 function readSessionEntries(sessionFile: string): BranchSessionEntry[] {
-	const lines = fs.readFileSync(sessionFile, "utf-8").split("\n").filter((line) => line.trim().length > 0);
+	const lines = fs
+		.readFileSync(sessionFile, "utf-8")
+		.split("\n")
+		.filter((line) => line.trim().length > 0);
 	return lines.map((line, index) => {
 		try {
 			return JSON.parse(line) as BranchSessionEntry;
 		} catch (error) {
 			const cause = error instanceof Error ? error : new Error(String(error));
-			throw new Error(`Unable to inspect forked session ${sessionFile}: invalid JSONL on line ${index + 1}: ${cause.message}`, { cause });
+			throw new Error(
+				`Unable to inspect forked session ${sessionFile}: invalid JSONL on line ${index + 1}: ${cause.message}`,
+				{ cause },
+			);
 		}
 	});
 }
@@ -170,9 +182,10 @@ export function createForkContextResolver(
 		throw new Error("Forked subagent context requires a current leaf to fork from.");
 	}
 
-	const openSession = options.openSession
-		?? sessionManager.openSession
-		?? ((file: string, dir?: string) => SessionManager.open(file, dir));
+	const openSession =
+		options.openSession ??
+		sessionManager.openSession ??
+		((file: string, dir?: string) => SessionManager.open(file, dir));
 	// Fork files must not land in the parent's top-level session directory.
 	// Pi's recent-session discovery (`pi -c` → findMostRecentSession) is
 	// non-recursive and picks the largest-mtime *.jsonl in that directory, so
@@ -185,11 +198,7 @@ export function createForkContextResolver(
 	// loose next to run-N/ result directories. Derived from the file path
 	// rather than getSessionDir() so it also works when the manager cannot
 	// report its directory.
-	const forksDir = path.join(
-		path.dirname(parentSessionFile),
-		path.basename(parentSessionFile, ".jsonl"),
-		"forks",
-	);
+	const forksDir = path.join(path.dirname(parentSessionFile), path.basename(parentSessionFile, ".jsonl"), "forks");
 	const cachedSessionFiles = new Map<number, string>();
 	const preparedIndexes = new Set<number>();
 	const preparationPromises = new Map<number, Promise<void>>();
@@ -199,7 +208,9 @@ export function createForkContextResolver(
 		if (cached) return cached;
 		try {
 			if (!fs.existsSync(parentSessionFile)) {
-				throw new Error(`Parent session file does not exist: ${parentSessionFile}. Pi has not persisted enough history to fork yet.`);
+				throw new Error(
+					`Parent session file does not exist: ${parentSessionFile}. Pi has not persisted enough history to fork yet.`,
+				);
 			}
 			// Nested resume accepts a session file only under a directory named by the run's id.
 			const sessionDir = path.join(forksDir, options.runDirName());
@@ -212,11 +223,17 @@ export function createForkContextResolver(
 				const header = sourceManager.getHeader?.();
 				const entries = sourceManager.getEntries?.();
 				if (!header || !entries) {
-					throw new Error(`Session manager returned a forked session file that does not exist and cannot be persisted by fallback: ${sessionFile}`);
+					throw new Error(
+						`Session manager returned a forked session file that does not exist and cannot be persisted by fallback: ${sessionFile}`,
+					);
 				}
 				sanitizeUnsafeThinkingBlocks(entries, Boolean(options.pruneSession));
 				fs.mkdirSync(path.dirname(sessionFile), { recursive: true });
-				fs.writeFileSync(sessionFile, `${[header, ...entries].map((entry) => JSON.stringify(entry)).join("\n")}\n`, "utf-8");
+				fs.writeFileSync(
+					sessionFile,
+					`${[header, ...entries].map((entry) => JSON.stringify(entry)).join("\n")}\n`,
+					"utf-8",
+				);
 			} else {
 				const entries = readSessionEntries(sessionFile);
 				if (sanitizeUnsafeThinkingBlocks(entries, Boolean(options.pruneSession))) {

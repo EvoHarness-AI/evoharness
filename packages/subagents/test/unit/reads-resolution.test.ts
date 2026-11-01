@@ -1,8 +1,8 @@
-import { describe, test, before, after } from "node:test";
 import * as assert from "node:assert";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { after, before, describe, test } from "node:test";
 import { expandHomePath, resolveChainPath } from "../../src/shared/settings.ts";
 
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-reads-resolution-"));
@@ -49,10 +49,7 @@ describe("reads path resolution", () => {
 
 	describe("resolveChainPath", () => {
 		test("expands ~ before resolving", () => {
-			assert.equal(
-				resolveChainPath("~/.zprofile", chainDir),
-				path.join(homeDir, ".zprofile"),
-			);
+			assert.equal(resolveChainPath("~/.zprofile", chainDir), path.join(homeDir, ".zprofile"));
 		});
 
 		test("passes absolute paths through", () => {

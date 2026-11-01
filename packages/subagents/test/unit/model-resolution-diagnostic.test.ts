@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { formatChildModelResolutionDiagnostic, isChildModelResolutionFailure } from "../../src/runs/shared/model-resolution-diagnostic.ts";
+import {
+	formatChildModelResolutionDiagnostic,
+	isChildModelResolutionFailure,
+} from "../../src/runs/shared/model-resolution-diagnostic.ts";
 
-const CORE_MESSAGE = 'Model "pengepul/commandcode/deepseek/deepseek-v4.1-flash:max" not found. Use --list-models to see available models.';
-const CORE_PROVIDER_MESSAGE = 'Unknown provider "pengepul/commandcode". Use --list-models to see available providers/models.';
+const CORE_MESSAGE =
+	'Model "pengepul/commandcode/deepseek/deepseek-v4.1-flash:max" not found. Use --list-models to see available models.';
+const CORE_PROVIDER_MESSAGE =
+	'Unknown provider "pengepul/commandcode". Use --list-models to see available providers/models.';
 
 describe("child model resolution diagnostic", () => {
 	it("matches core's model-resolution failure text and leaves other failures alone", () => {
@@ -22,12 +27,24 @@ describe("child model resolution diagnostic", () => {
 			model: "pengepul/commandcode/deepseek/deepseek-v4.1-flash",
 			host: "parent",
 		});
-		assert.match(text, /Agent 'provider-model-worker' ran as a foreground child, which never loads the parent's ambient extensions\. It inherits the providers they registered, but not virtual models registered with `pi\.registerVirtualModel\(\)`/);
-		assert.match(text, /If 'pengepul\/commandcode\/deepseek\/deepseek-v4\.1-flash' is served by a provider extension, check the parent's `\/model` list and the child extension diagnostics/);
-		assert.match(text, /If it is an extension-registered virtual model, the extension that registers it must load in this child/);
+		assert.match(
+			text,
+			/Agent 'provider-model-worker' ran as a foreground child, which never loads the parent's ambient extensions\. It inherits the providers they registered, but not virtual models registered with `pi\.registerVirtualModel\(\)`/,
+		);
+		assert.match(
+			text,
+			/If 'pengepul\/commandcode\/deepseek\/deepseek-v4\.1-flash' is served by a provider extension, check the parent's `\/model` list and the child extension diagnostics/,
+		);
+		assert.match(
+			text,
+			/If it is an extension-registered virtual model, the extension that registers it must load in this child/,
+		);
 		assert.doesNotMatch(text, /`async: true`/);
 		assert.match(text, /`subagentOnlyExtensions` or `extensions` in the agent frontmatter/);
-		assert.match(text, /register it from the host with `registerRequiredChildExtensions` so it loads for every launch/);
+		assert.match(
+			text,
+			/register it from the host with `registerRequiredChildExtensions` so it loads for every launch/,
+		);
 		assert.doesNotMatch(text, /background child without the ambient extensions/);
 		assert.doesNotMatch(text, /Capability ceiling/);
 	});
@@ -42,7 +59,10 @@ describe("child model resolution diagnostic", () => {
 		assert.match(text, /Capability ceiling from policy-fixture denies extensions/);
 		assert.match(text, /`async: true` does not help either/);
 		assert.match(text, /Relax the capability ceiling to allow extensions/);
-		assert.match(text, /served by a provider extension or is an extension-registered virtual model, that extension cannot load/);
+		assert.match(
+			text,
+			/served by a provider extension or is an extension-registered virtual model, that extension cannot load/,
+		);
 		assert.doesNotMatch(text, /registerRequiredChildExtensions/);
 		assert.doesNotMatch(text, /must run as background children/);
 		assert.doesNotMatch(text, /load the provider extension explicitly/);
@@ -67,9 +87,15 @@ describe("child model resolution diagnostic", () => {
 			host: "runner",
 		});
 		assert.match(text, /^Subagent ran as a background child without the ambient extensions/);
-		assert.match(text, /If 'pengepul\/commandcode\/deepseek\/deepseek-v4\.1-flash' is served by a provider extension or is an extension-registered virtual model, that extension is not loaded for this child: list it in `subagentOnlyExtensions` or `extensions` in the agent frontmatter/);
+		assert.match(
+			text,
+			/If 'pengepul\/commandcode\/deepseek\/deepseek-v4\.1-flash' is served by a provider extension or is an extension-registered virtual model, that extension is not loaded for this child: list it in `subagentOnlyExtensions` or `extensions` in the agent frontmatter/,
+		);
 		assert.match(text, /leave `extensions` unset/);
-		assert.match(text, /register it from the host with `registerRequiredChildExtensions` so it loads for every launch/);
+		assert.match(
+			text,
+			/register it from the host with `registerRequiredChildExtensions` so it loads for every launch/,
+		);
 		assert.doesNotMatch(text, /foreground child/);
 		assert.doesNotMatch(text, /Capability ceiling/);
 	});

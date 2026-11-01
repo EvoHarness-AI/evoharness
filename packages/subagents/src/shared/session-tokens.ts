@@ -4,7 +4,8 @@ import type { TokenUsage } from "./types.ts";
 
 function findLatestSessionFile(sessionDir: string): string | null {
 	try {
-		const files = fs.readdirSync(sessionDir)
+		const files = fs
+			.readdirSync(sessionDir)
 			.filter((f) => f.endsWith(".jsonl"))
 			.map((f) => path.join(sessionDir, f));
 		if (files.length === 0) return null;
@@ -36,7 +37,8 @@ export function parseSessionTokens(sessionDir: string): TokenUsage | null {
 					const cacheReadValue = usage.cacheReadTokens ?? usage.cacheRead;
 					const turnInput = typeof inputValue === "number" && Number.isFinite(inputValue) ? inputValue : 0;
 					const turnOutput = typeof outputValue === "number" && Number.isFinite(outputValue) ? outputValue : 0;
-					const cacheRead = typeof cacheReadValue === "number" && Number.isFinite(cacheReadValue) ? cacheReadValue : 0;
+					const cacheRead =
+						typeof cacheReadValue === "number" && Number.isFinite(cacheReadValue) ? cacheReadValue : 0;
 					const turnWindow = turnInput + cacheRead;
 					input += turnInput;
 					output += turnOutput;

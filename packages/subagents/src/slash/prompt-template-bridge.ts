@@ -9,20 +9,20 @@ import {
 	type SubagentDelegationResponse,
 	type SubagentDelegationUpdate,
 } from "../api/delegation.ts";
-import { parseSubagentDelegationRequest } from "./delegation-request.ts";
 import { sameProviderDiagnostics } from "../shared/provider-diagnostics.ts";
 import {
+	type DelegatedSubagentExecutionParams,
+	type PromptTemplateBridgeResult,
+	type PromptTemplateDelegationRequest,
+	type PromptTemplateDelegationResponse,
 	parsePromptTemplateRequest,
 	toDelegationUpdate,
 	toPromptTemplateResponse,
 	toSubagentDelegationExecutionParams,
 	toSubagentDelegationResponse,
 	toSubagentDelegationUpdate,
-	type DelegatedSubagentExecutionParams,
-	type PromptTemplateBridgeResult,
-	type PromptTemplateDelegationRequest,
-	type PromptTemplateDelegationResponse,
 } from "./delegation-adapters.ts";
+import { parseSubagentDelegationRequest } from "./delegation-request.ts";
 
 export const PROMPT_TEMPLATE_SUBAGENT_REQUEST_EVENT = SUBAGENT_DELEGATION_REQUEST_EVENT;
 export const PROMPT_TEMPLATE_SUBAGENT_STARTED_EVENT = SUBAGENT_DELEGATION_STARTED_EVENT;
@@ -58,10 +58,12 @@ interface PromptTemplateBridgeOptions<Ctx extends { cwd?: string }> {
 function hasStructuredDelegationMarker(data: unknown): boolean {
 	if (!data || typeof data !== "object" || Array.isArray(data)) return false;
 	const value = data as Record<string, unknown>;
-	return Object.hasOwn(value, "ownerRunId")
-		|| Object.hasOwn(value, "nodeId")
-		|| Object.hasOwn(value, "result")
-		|| Object.hasOwn(value, "version");
+	return (
+		Object.hasOwn(value, "ownerRunId") ||
+		Object.hasOwn(value, "nodeId") ||
+		Object.hasOwn(value, "result") ||
+		Object.hasOwn(value, "version")
+	);
 }
 
 function validId(value: unknown): value is string {
@@ -84,35 +86,39 @@ function sameRecentTools(
 }
 
 /** A cache-only or turn-only change with unchanged tokens/tool progress must still count as a change, not a heartbeat. */
-function sameUpdateUsage(
-	left: SubagentDelegationUpdate["usage"],
-	right: SubagentDelegationUpdate["usage"],
-): boolean {
+function sameUpdateUsage(left: SubagentDelegationUpdate["usage"], right: SubagentDelegationUpdate["usage"]): boolean {
 	if (left === right) return true;
 	if (!left || !right) return false;
-	return left.input === right.input
-		&& left.output === right.output
-		&& left.cacheRead === right.cacheRead
-		&& left.cacheWrite === right.cacheWrite
-		&& left.turns === right.turns;
+	return (
+		left.input === right.input &&
+		left.output === right.output &&
+		left.cacheRead === right.cacheRead &&
+		left.cacheWrite === right.cacheWrite &&
+		left.turns === right.turns
+	);
 }
 
 /** Duration is a heartbeat clock, not delegation-visible progress; terminal usage remains authoritative. */
-function sameStructuredDelegationUpdateProgress(left: SubagentDelegationUpdate, right: SubagentDelegationUpdate): boolean {
-	return left.requestId === right.requestId
-		&& left.ownerRunId === right.ownerRunId
-		&& left.nodeId === right.nodeId
-		&& left.runId === right.runId
-		&& left.currentTool === right.currentTool
-		&& left.currentToolArgs === right.currentToolArgs
-		&& left.recentOutput === right.recentOutput
-		&& sameStringArray(left.recentOutputLines, right.recentOutputLines)
-		&& sameRecentTools(left.recentTools, right.recentTools)
-		&& left.model === right.model
-		&& left.toolCount === right.toolCount
-		&& left.tokens === right.tokens
-		&& sameUpdateUsage(left.usage, right.usage)
-		&& sameProviderDiagnostics(left.providerDiagnostics, right.providerDiagnostics);
+function sameStructuredDelegationUpdateProgress(
+	left: SubagentDelegationUpdate,
+	right: SubagentDelegationUpdate,
+): boolean {
+	return (
+		left.requestId === right.requestId &&
+		left.ownerRunId === right.ownerRunId &&
+		left.nodeId === right.nodeId &&
+		left.runId === right.runId &&
+		left.currentTool === right.currentTool &&
+		left.currentToolArgs === right.currentToolArgs &&
+		left.recentOutput === right.recentOutput &&
+		sameStringArray(left.recentOutputLines, right.recentOutputLines) &&
+		sameRecentTools(left.recentTools, right.recentTools) &&
+		left.model === right.model &&
+		left.toolCount === right.toolCount &&
+		left.tokens === right.tokens &&
+		sameUpdateUsage(left.usage, right.usage) &&
+		sameProviderDiagnostics(left.providerDiagnostics, right.providerDiagnostics)
+	);
 }
 
 export function registerPromptTemplateDelegationBridge<Ctx extends { cwd?: string }>(
@@ -162,7 +168,8 @@ export function registerPromptTemplateDelegationBridge<Ctx extends { cwd?: strin
 		}
 	};
 	const nodeKey = (ownerRunId: string, nodeId: string): string => JSON.stringify([ownerRunId, nodeId]);
-	const attemptKey = (requestId: string, ownerRunId: string, nodeId: string): string => JSON.stringify([requestId, ownerRunId, nodeId]);
+	const attemptKey = (requestId: string, ownerRunId: string, nodeId: string): string =>
+		JSON.stringify([requestId, ownerRunId, nodeId]);
 	const rememberPendingLegacyCancel = (requestId: string): void => {
 		boundedRemember(pendingLegacyCancels, requestId);
 	};
@@ -231,7 +238,11 @@ export function registerPromptTemplateDelegationBridge<Ctx extends { cwd?: strin
 		} else {
 			if (data && typeof data === "object" && !Array.isArray(data)) {
 				const legacy = data as Record<string, unknown>;
-				if ((legacy.tasks !== undefined || legacy.worktree !== undefined) && typeof legacy.requestId === "string" && legacy.requestId) {
+				if (
+					(legacy.tasks !== undefined || legacy.worktree !== undefined) &&
+					typeof legacy.requestId === "string" &&
+					legacy.requestId
+				) {
 					options.events.emit(PROMPT_TEMPLATE_SUBAGENT_RESPONSE_EVENT, {
 						requestId: legacy.requestId,
 						messages: [],
@@ -247,7 +258,8 @@ export function registerPromptTemplateDelegationBridge<Ctx extends { cwd?: strin
 				...legacyRequest,
 				messages: [],
 				isError: true,
-				errorText: "Legacy prompt-template direct delegation was removed; use a workflow script through the subagent tool or structured delegation.",
+				errorText:
+					"Legacy prompt-template direct delegation was removed; use a workflow script through the subagent tool or structured delegation.",
 			} satisfies PromptTemplateDelegationResponse);
 			return;
 		}
@@ -309,7 +321,10 @@ export function registerPromptTemplateDelegationBridge<Ctx extends { cwd?: strin
 		const controller = new AbortController();
 		if (structuredRequest && key) {
 			attemptControllers.set(key, controller);
-			activeOwnedNodes.set(nodeKey(structuredRequest.ownerRunId, structuredRequest.nodeId), { attemptKey: key, controller });
+			activeOwnedNodes.set(nodeKey(structuredRequest.ownerRunId, structuredRequest.nodeId), {
+				attemptKey: key,
+				controller,
+			});
 		} else {
 			legacyControllers.set(requestId, controller);
 			if (pendingLegacyCancels.delete(requestId)) controller.abort();
@@ -344,29 +359,25 @@ export function registerPromptTemplateDelegationBridge<Ctx extends { cwd?: strin
 		);
 
 		try {
-			const executeRequest = structuredRequest && options.executeStructured
-				? options.executeStructured
-				: options.execute;
+			const executeRequest =
+				structuredRequest && options.executeStructured ? options.executeStructured : options.execute;
 			let lastStructuredUpdate: SubagentDelegationUpdate | undefined;
-			const result = await executeRequest(
-				requestId,
-				params,
-				controller.signal,
-				ctx,
-				(update) => {
-					if (key ? !ownsAttempt(key, controller) : !ownsLegacyRequest(requestId, controller)) return;
-					if (structuredRequest) {
-						const payload = toSubagentDelegationUpdate(structuredRequest, update);
-						if (payload && (!lastStructuredUpdate || !sameStructuredDelegationUpdateProgress(lastStructuredUpdate, payload))) {
-							lastStructuredUpdate = payload;
-							options.events.emit(SUBAGENT_DELEGATION_UPDATE_EVENT, payload);
-						}
-						return;
+			const result = await executeRequest(requestId, params, controller.signal, ctx, (update) => {
+				if (key ? !ownsAttempt(key, controller) : !ownsLegacyRequest(requestId, controller)) return;
+				if (structuredRequest) {
+					const payload = toSubagentDelegationUpdate(structuredRequest, update);
+					if (
+						payload &&
+						(!lastStructuredUpdate || !sameStructuredDelegationUpdateProgress(lastStructuredUpdate, payload))
+					) {
+						lastStructuredUpdate = payload;
+						options.events.emit(SUBAGENT_DELEGATION_UPDATE_EVENT, payload);
 					}
-					const payload = toDelegationUpdate(requestId, update);
-					if (payload) options.events.emit(PROMPT_TEMPLATE_SUBAGENT_UPDATE_EVENT, payload);
-				},
-			);
+					return;
+				}
+				const payload = toDelegationUpdate(requestId, update);
+				if (payload) options.events.emit(PROMPT_TEMPLATE_SUBAGENT_UPDATE_EVENT, payload);
+			});
 			if (key ? !ownsAttempt(key, controller) : !ownsLegacyRequest(requestId, controller)) return;
 			if (structuredRequest && key) {
 				emitTerminal(key, toSubagentDelegationResponse(structuredRequest, result, controller.signal.aborted));

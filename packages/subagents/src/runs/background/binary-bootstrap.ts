@@ -1,18 +1,18 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createJiti } from "jiti";
 import * as piCore from "@evoharness/agent-core";
 import * as piAi from "@evoharness/ai/compat";
-import * as piTui from "@evoharness/tui";
 import * as sdk from "@evoharness/coding-agent";
+import * as piTui from "@evoharness/tui";
+import { createJiti } from "jiti";
 import * as typebox from "typebox";
 import * as typeboxCompile from "typebox/compile";
 import * as typeboxValue from "typebox/value";
-import { installRunnerHttpDispatcher } from "./runner-http-dispatcher.ts";
 import { resolveRuntimeModuleExtension } from "../../shared/runtime-module-path.ts";
-import { runConfiguredSubagent, validateSubagentRunConfig } from "./subagent-runner-bootstrap.ts";
 import { getAgentDir } from "../../shared/utils.ts";
+import { installRunnerHttpDispatcher } from "./runner-http-dispatcher.ts";
+import { runConfiguredSubagent, validateSubagentRunConfig } from "./subagent-runner-bootstrap.ts";
 
 /**
  * Pi's extension loader supplies the embedded SDK. Bare Bun/Node cannot replace
@@ -25,7 +25,8 @@ export default async function runBinaryBootstrap(): Promise<never> {
 	const configPath = process.env.PI_SUBAGENT_RUNNER_CONFIG;
 	delete process.env.PI_SUBAGENT_RUNNER_CONFIG;
 	try {
-		if (!configPath || !path.isAbsolute(configPath)) throw new Error("Missing absolute PI_SUBAGENT_RUNNER_CONFIG path");
+		if (!configPath || !path.isAbsolute(configPath))
+			throw new Error("Missing absolute PI_SUBAGENT_RUNNER_CONFIG path");
 		const rawConfig: unknown = JSON.parse(fs.readFileSync(configPath, "utf8"));
 		validateSubagentRunConfig(rawConfig);
 		const config = rawConfig;

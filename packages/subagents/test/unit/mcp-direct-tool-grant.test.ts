@@ -70,12 +70,7 @@ test("enforces server includeTools before exclusions for tools and generated res
 		},
 		metadata: {
 			demo: {
-				tools: [
-					{ name: "get_public" },
-					{ name: "get_secret" },
-					{ name: "list_records" },
-					{ name: "other" },
-				],
+				tools: [{ name: "get_public" }, { name: "get_secret" }, { name: "list_records" }, { name: "other" }],
 				resources: [
 					{ name: "Run Book", uri: "resource://run-book" },
 					{ name: "Private Notes", uri: "resource://private-notes" },

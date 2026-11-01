@@ -73,7 +73,10 @@ describe("ensureAccessibleDir", () => {
 			throw error;
 		};
 
-		for (const fsImpl of [{ mkdirSync: denied, accessSync: () => {} }, { mkdirSync: () => {}, accessSync: denied }]) {
+		for (const fsImpl of [
+			{ mkdirSync: denied, accessSync: () => {} },
+			{ mkdirSync: () => {}, accessSync: denied },
+		]) {
 			const waits: number[] = [];
 
 			const result = ensureAccessibleDir(dirPath, {
@@ -111,12 +114,16 @@ describe("ensureAccessibleDir", () => {
 		fakeFs.failAccessCodes = ["ENOENT"];
 		const waits: number[] = [];
 
-		assert.throws(() => ensureAccessibleDir("/tmp/pi-subagents-user/async-subagent-results", {
-			fs: fakeFs as any,
-			retryDirectoryErrors: true,
-			retryDelaysMs: [1, 2, 3],
-			wait: (delayMs) => waits.push(delayMs),
-		}), /ENOENT/);
+		assert.throws(
+			() =>
+				ensureAccessibleDir("/tmp/pi-subagents-user/async-subagent-results", {
+					fs: fakeFs as any,
+					retryDirectoryErrors: true,
+					retryDelaysMs: [1, 2, 3],
+					wait: (delayMs) => waits.push(delayMs),
+				}),
+			/ENOENT/,
+		);
 		assert.equal(fakeFs.mkdirCalls, 1);
 		assert.equal(fakeFs.accessCalls, 1);
 		assert.deepEqual(waits, []);

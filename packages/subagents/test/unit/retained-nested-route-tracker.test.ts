@@ -11,9 +11,15 @@ import type { SubagentState } from "../../src/shared/types.ts";
 const routeRoots: string[] = [];
 
 class Watcher extends EventEmitter implements fs.FSWatcher {
-	close() { this.emit("close"); }
-	ref() { return this; }
-	unref() { return this; }
+	close() {
+		this.emit("close");
+	}
+	ref() {
+		return this;
+	}
+	unref() {
+		return this;
+	}
 }
 
 function route(rootRunId: string) {
@@ -136,7 +142,9 @@ describe("retained foreground nested route tracker", () => {
 		let notify: (() => void) | undefined;
 		let closed = 0;
 		const watcher = new Watcher();
-		watcher.on("close", () => { closed += 1; });
+		watcher.on("close", () => {
+			closed += 1;
+		});
 		const tracker = createRetainedNestedRouteTracker(state, {
 			platform: "linux",
 			pollIntervalMs: 60_000,

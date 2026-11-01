@@ -57,8 +57,15 @@ function registry(): Registry {
 }
 
 function validateText(value: unknown, field: string): string {
-	if (typeof value !== "string" || !value.trim() || /[\u0000-\u001f\u007f]/u.test(value) || Buffer.byteLength(value.trim(), "utf8") > 256) {
-		throw new Error(`Invalid capability ceiling ${field}; expected a non-empty string without control characters (max 256 UTF-8 bytes).`);
+	if (
+		typeof value !== "string" ||
+		!value.trim() ||
+		/[\u0000-\u001f\u007f]/u.test(value) ||
+		Buffer.byteLength(value.trim(), "utf8") > 256
+	) {
+		throw new Error(
+			`Invalid capability ceiling ${field}; expected a non-empty string without control characters (max 256 UTF-8 bytes).`,
+		);
 	}
 	return value.trim();
 }
@@ -68,23 +75,31 @@ export function normalizeCapabilityCeilingAllowedAgents(values: unknown): string
 }
 
 function normalizeCeiling(ceiling: SubagentCapabilityCeiling): ResolvedSubagentCapabilityCeiling {
-	if (!ceiling || typeof ceiling !== "object" || Array.isArray(ceiling)) throw new Error("Invalid capability ceiling; expected an object.");
+	if (!ceiling || typeof ceiling !== "object" || Array.isArray(ceiling))
+		throw new Error("Invalid capability ceiling; expected an object.");
 	const hasAllowedTools = Object.hasOwn(ceiling, "allowedTools");
 	const hasAllowedAgents = Object.hasOwn(ceiling, "allowedAgents");
 	const hasDenyExtensions = Object.hasOwn(ceiling, "denyExtensions");
-	if (!hasAllowedTools && !hasAllowedAgents && !hasDenyExtensions) throw new Error("Invalid capability ceiling; expected allowedTools, allowedAgents, or denyExtensions.");
-	if (hasDenyExtensions && typeof ceiling.denyExtensions !== "boolean") throw new Error("Invalid capability ceiling denyExtensions; expected a boolean.");
+	if (!hasAllowedTools && !hasAllowedAgents && !hasDenyExtensions)
+		throw new Error("Invalid capability ceiling; expected allowedTools, allowedAgents, or denyExtensions.");
+	if (hasDenyExtensions && typeof ceiling.denyExtensions !== "boolean")
+		throw new Error("Invalid capability ceiling denyExtensions; expected a boolean.");
 	const normalizeList = (field: "allowedTools" | "allowedAgents", pattern: RegExp): string[] | undefined => {
 		if (!Object.hasOwn(ceiling, field)) return undefined;
 		const values = ceiling[field];
 		if (!Array.isArray(values)) throw new Error(`Invalid capability ceiling ${field}; expected an array.`);
 		if (values.length > 256) throw new Error(`Invalid capability ceiling ${field}; expected at most 256 names.`);
-		return [...new Set(values.map((entry) => {
-			const name = validateText(entry, `${field} entry`);
-			if (!pattern.test(name)) throw new Error(`Invalid capability ceiling ${field} entry '${name}'.`);
-			if (Buffer.byteLength(name, "utf8") > 128) throw new Error(`Invalid capability ceiling ${field} entry '${name}'; max 128 UTF-8 bytes.`);
-			return name;
-		}))].sort();
+		return [
+			...new Set(
+				values.map((entry) => {
+					const name = validateText(entry, `${field} entry`);
+					if (!pattern.test(name)) throw new Error(`Invalid capability ceiling ${field} entry '${name}'.`);
+					if (Buffer.byteLength(name, "utf8") > 128)
+						throw new Error(`Invalid capability ceiling ${field} entry '${name}'; max 128 UTF-8 bytes.`);
+					return name;
+				}),
+			),
+		].sort();
 	};
 	const allowedTools = normalizeList("allowedTools", /^[A-Za-z0-9_.:-]+$/u);
 	const allowedAgents = normalizeList("allowedAgents", /^[A-Za-z0-9_.:-]+$/u);
@@ -97,18 +112,25 @@ function normalizeCeiling(ceiling: SubagentCapabilityCeiling): ResolvedSubagentC
 	};
 }
 
-export function parseSubagentCapabilityCeiling(value: unknown, field = "capability ceiling"): ResolvedSubagentCapabilityCeiling {
-	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error(`Invalid ${field}; expected an object.`);
+export function parseSubagentCapabilityCeiling(
+	value: unknown,
+	field = "capability ceiling",
+): ResolvedSubagentCapabilityCeiling {
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw new Error(`Invalid ${field}; expected an object.`);
 	const record = value as Record<string, unknown>;
 	if (record.version !== SUBAGENT_CAPABILITY_CEILING_VERSION) throw new Error(`Invalid ${field} version.`);
 	const normalized = normalizeCeiling(record as SubagentCapabilityCeiling);
 	const sources = record.sources;
-	if (!Array.isArray(sources) || sources.some((source) => typeof source !== "string")) throw new Error(`Invalid ${field} sources; expected an array of strings.`);
+	if (!Array.isArray(sources) || sources.some((source) => typeof source !== "string"))
+		throw new Error(`Invalid ${field} sources; expected an array of strings.`);
 	normalized.sources = [...new Set(sources.map((source) => validateText(source, `${field} source`)))].sort();
 	return normalized;
 }
 
-export function registerSubagentCapabilityCeiling(options: RegisterSubagentCapabilityCeilingOptions): SubagentCapabilityCeilingHandle {
+export function registerSubagentCapabilityCeiling(
+	options: RegisterSubagentCapabilityCeilingOptions,
+): SubagentCapabilityCeilingHandle {
 	const sessionId = validateText(options.sessionId, "sessionId");
 	const source = validateText(options.source, "source");
 	let normalized = normalizeCeiling(options.ceiling);
@@ -142,11 +164,15 @@ export function registerSubagentCapabilityCeiling(options: RegisterSubagentCapab
 	};
 }
 
-export function intersectSubagentCapabilityCeilings(...ceilings: Array<ResolvedSubagentCapabilityCeiling | undefined>): ResolvedSubagentCapabilityCeiling | undefined {
+export function intersectSubagentCapabilityCeilings(
+	...ceilings: Array<ResolvedSubagentCapabilityCeiling | undefined>
+): ResolvedSubagentCapabilityCeiling | undefined {
 	const active = ceilings.filter((ceiling): ceiling is ResolvedSubagentCapabilityCeiling => ceiling !== undefined);
 	if (active.length === 0) return undefined;
 	const intersectLists = (field: "allowedTools" | "allowedAgents"): string[] | undefined => {
-		const definedLists = active.filter((ceiling) => ceiling[field] !== undefined).map((ceiling) => new Set(ceiling[field]));
+		const definedLists = active
+			.filter((ceiling) => ceiling[field] !== undefined)
+			.map((ceiling) => new Set(ceiling[field]));
 		if (definedLists.length === 0) return undefined;
 		return [...definedLists[0]!].filter((entry) => definedLists.every((list) => list.has(entry))).sort();
 	};
@@ -161,7 +187,10 @@ export function intersectSubagentCapabilityCeilings(...ceilings: Array<ResolvedS
 	};
 }
 
-export function resolveSubagentCapabilityCeiling(sessionId: string | undefined, inherited?: ResolvedSubagentCapabilityCeiling): ResolvedSubagentCapabilityCeiling | undefined {
+export function resolveSubagentCapabilityCeiling(
+	sessionId: string | undefined,
+	inherited?: ResolvedSubagentCapabilityCeiling,
+): ResolvedSubagentCapabilityCeiling | undefined {
 	const active: ResolvedSubagentCapabilityCeiling[] = [];
 	if (sessionId) {
 		const registrations = registry().get(sessionId);
@@ -171,44 +200,68 @@ export function resolveSubagentCapabilityCeiling(sessionId: string | undefined, 
 }
 
 /** Ceilings are registered under `ctx.sessionManager.getSessionId()`; pass that id, never the session file path. */
-export function resolveCurrentSubagentCapabilityCeiling(piSessionId: string | undefined): ResolvedSubagentCapabilityCeiling | undefined {
+export function resolveCurrentSubagentCapabilityCeiling(
+	piSessionId: string | undefined,
+): ResolvedSubagentCapabilityCeiling | undefined {
 	return resolveSubagentCapabilityCeiling(piSessionId, undefined);
 }
 
-export function isAgentAllowedByCapabilityCeiling(agentName: string, ceiling: ResolvedSubagentCapabilityCeiling | undefined): boolean {
+export function isAgentAllowedByCapabilityCeiling(
+	agentName: string,
+	ceiling: ResolvedSubagentCapabilityCeiling | undefined,
+): boolean {
 	return ceiling?.allowedAgents === undefined || ceiling.allowedAgents.includes(agentName);
 }
 
-export function capabilityCeilingAgentRestrictionMessage(agentName: string, ceiling: ResolvedSubagentCapabilityCeiling | undefined): string | undefined {
+export function capabilityCeilingAgentRestrictionMessage(
+	agentName: string,
+	ceiling: ResolvedSubagentCapabilityCeiling | undefined,
+): string | undefined {
 	if (isAgentAllowedByCapabilityCeiling(agentName, ceiling)) return undefined;
 	const sources = ceiling?.sources.length ? ceiling.sources.join(", ") : "unknown source";
 	const allowed = ceiling?.allowedAgents?.length ? ceiling.allowedAgents.join(", ") : "(none)";
 	return `Capability ceiling from ${sources} does not allow agent '${agentName}'. Allowed agents: ${allowed}.`;
 }
 
-export function assertAgentAllowedByCapabilityCeiling(agentName: string, ceiling: ResolvedSubagentCapabilityCeiling | undefined): void {
+export function assertAgentAllowedByCapabilityCeiling(
+	agentName: string,
+	ceiling: ResolvedSubagentCapabilityCeiling | undefined,
+): void {
 	const message = capabilityCeilingAgentRestrictionMessage(agentName, ceiling);
 	if (message) throw new Error(message);
 }
 
-export function capabilityCeilingAgentRestrictionSources(ceiling: ResolvedSubagentCapabilityCeiling | undefined): string[] | undefined {
+export function capabilityCeilingAgentRestrictionSources(
+	ceiling: ResolvedSubagentCapabilityCeiling | undefined,
+): string[] | undefined {
 	return ceiling?.allowedAgents === undefined ? undefined : [...ceiling.sources];
 }
 
-export function encodeSubagentCapabilityCeiling(ceiling: ResolvedSubagentCapabilityCeiling | undefined): string | undefined {
+export function encodeSubagentCapabilityCeiling(
+	ceiling: ResolvedSubagentCapabilityCeiling | undefined,
+): string | undefined {
 	if (!ceiling) return undefined;
 	return Buffer.from(JSON.stringify(ceiling), "utf8").toString("base64url");
 }
 
-export function decodeSubagentCapabilityCeiling(value: string | undefined): ResolvedSubagentCapabilityCeiling | undefined {
+export function decodeSubagentCapabilityCeiling(
+	value: string | undefined,
+): ResolvedSubagentCapabilityCeiling | undefined {
 	if (value === undefined || value === "") return undefined;
 	let parsed: unknown;
 	try {
 		parsed = JSON.parse(Buffer.from(value, "base64url").toString("utf8"));
 	} catch (error) {
-		throw new Error(`Invalid inherited capability ceiling: ${error instanceof Error ? error.message : String(error)}`);
+		throw new Error(
+			`Invalid inherited capability ceiling: ${error instanceof Error ? error.message : String(error)}`,
+		);
 	}
-	if (!parsed || typeof parsed !== "object" || Array.isArray(parsed) || (parsed as { version?: unknown }).version !== SUBAGENT_CAPABILITY_CEILING_VERSION) {
+	if (
+		!parsed ||
+		typeof parsed !== "object" ||
+		Array.isArray(parsed) ||
+		(parsed as { version?: unknown }).version !== SUBAGENT_CAPABILITY_CEILING_VERSION
+	) {
 		throw new Error("Invalid inherited capability ceiling version.");
 	}
 	return parseSubagentCapabilityCeiling(parsed, "inherited capability ceiling");

@@ -1,35 +1,59 @@
 import { createHash } from "node:crypto";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { declarationsEqual, getCurrentSystemMessage, getCurrentTools, type AnthropicMessagesCompat, type SystemMessage, type TranscriptMessages } from "@evoharness/ai";
-import type { BeforeAgentStartEvent, BeforeProviderRequestEvent, ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
+import {
+	type AnthropicMessagesCompat,
+	declarationsEqual,
+	getCurrentSystemMessage,
+	getCurrentTools,
+	type SystemMessage,
+	type TranscriptMessages,
+} from "@evoharness/ai";
+import type {
+	BeforeAgentStartEvent,
+	BeforeProviderRequestEvent,
+	ExtensionAPI,
+	ExtensionContext,
+} from "@evoharness/coding-agent";
 import { registerNativeSupervisorClient } from "../../intercom/native-supervisor-channel.ts";
-import { permissionDecision } from "./permissions.ts";
-import type { SteerRequest } from "../background/control-channel.ts";
-import { RUNTIME_EXTENSION_ACK_EVENT, isRuntimeAcknowledgedExtensionId } from "./runtime-acknowledged-extensions.ts";
-import { createStructuredOutputToolParameters, MISSING_STRUCTURED_ACCEPTANCE_REPORT_ERROR, validateStructuredOutputValue } from "./structured-output.ts";
-import { validateAcceptanceReport } from "./acceptance.ts";
-import { formatChildToolDiagnostic } from "./tool-availability.ts";
-import { shouldBlockToolForBudget, toolBudgetBlockedMessage, toolBudgetSoftNudge } from "./tool-budget.ts";
+import { MODEL_ONLY_TOOL } from "../../shared/extension-context.ts";
+import { resolveCurrentSessionId } from "../../shared/session-identity.ts";
 import type { ResolvedToolBudget, SubagentState } from "../../shared/types.ts";
 import { INTERCOM_SESSION_IDENTITY_EVENT } from "../../shared/types.ts";
-import { resolveCurrentSessionId } from "../../shared/session-identity.ts";
 import { getAgentDir } from "../../shared/utils.ts";
-import { registerChildWatchdog } from "../../watchdog/register-child.ts";
 import type { ChildWatchdogConfig } from "../../watchdog/child-status.ts";
-import { requestWatchdogPermission, type WatchdogPermissionRequest, type WatchdogPermissionResult } from "../../watchdog/permission-arbiter.ts";
-import { SUBAGENT_WATCHDOG_WARNING_TYPE } from "../../watchdog/types.ts";
-import { captureWatchdogDiffBaseline, createWatchdogDiffTool, WATCHDOG_DIFF_TOOL_NAME } from "../../watchdog/diff-tool.ts";
-import { inheritedNestedRouteOf } from "./nested-events.ts";
-import { registerWaitTool } from "../background/wait-tool.ts";
-import { drainOutstandingWork } from "../background/auto-drain.ts";
-import { MODEL_ONLY_TOOL } from "../../shared/extension-context.ts";
 import {
-	childSupervisorMetadata,
-	evaluateChildToolDiagnostic,
+	captureWatchdogDiffBaseline,
+	createWatchdogDiffTool,
+	WATCHDOG_DIFF_TOOL_NAME,
+} from "../../watchdog/diff-tool.ts";
+import {
+	requestWatchdogPermission,
+	type WatchdogPermissionRequest,
+	type WatchdogPermissionResult,
+} from "../../watchdog/permission-arbiter.ts";
+import { registerChildWatchdog } from "../../watchdog/register-child.ts";
+import { SUBAGENT_WATCHDOG_WARNING_TYPE } from "../../watchdog/types.ts";
+import { drainOutstandingWork } from "../background/auto-drain.ts";
+import type { SteerRequest } from "../background/control-channel.ts";
+import { registerWaitTool } from "../background/wait-tool.ts";
+import { validateAcceptanceReport } from "./acceptance.ts";
+import {
 	type ChildPermissions,
 	type ChildRuntimeConfig,
+	childSupervisorMetadata,
+	evaluateChildToolDiagnostic,
 } from "./child-runtime-config.ts";
+import { inheritedNestedRouteOf } from "./nested-events.ts";
+import { permissionDecision } from "./permissions.ts";
+import { isRuntimeAcknowledgedExtensionId, RUNTIME_EXTENSION_ACK_EVENT } from "./runtime-acknowledged-extensions.ts";
+import {
+	createStructuredOutputToolParameters,
+	MISSING_STRUCTURED_ACCEPTANCE_REPORT_ERROR,
+	validateStructuredOutputValue,
+} from "./structured-output.ts";
+import { formatChildToolDiagnostic } from "./tool-availability.ts";
+import { shouldBlockToolForBudget, toolBudgetBlockedMessage, toolBudgetSoftNudge } from "./tool-budget.ts";
 
 const STRUCTURED_OUTPUT_INSTRUCTIONS = [
 	"This subagent step has a strict structured output contract.",
@@ -86,9 +110,13 @@ function registerRuntimeExtensionAcknowledgements(pi: ExtensionAPI, sink: ((ids:
 		return undefined;
 	};
 	try {
-		const events = (pi as { events?: { on?: (event: string, handler: (payload: unknown) => unknown) => unknown } }).events;
+		const events = (pi as { events?: { on?: (event: string, handler: (payload: unknown) => unknown) => unknown } })
+			.events;
 		events?.on?.(RUNTIME_EXTENSION_ACK_EVENT, acknowledge);
-		const onRuntimeEvent = pi.on as unknown as (event: string, handler: (event?: unknown, ctx?: unknown) => unknown) => void;
+		const onRuntimeEvent = pi.on as unknown as (
+			event: string,
+			handler: (event?: unknown, ctx?: unknown) => unknown,
+		) => void;
 		onRuntimeEvent("agent_end", finalize);
 		onRuntimeEvent("session_shutdown", finalize);
 	} catch {
@@ -118,7 +146,10 @@ export function stripProjectContext(prompt: string): string {
 	}
 	const legacyStartIndex = prompt.indexOf(PROJECT_CONTEXT_LEGACY_HEADER);
 	if (legacyStartIndex === -1) return prompt;
-	const endIndex = findSectionEnd(prompt, legacyStartIndex + PROJECT_CONTEXT_LEGACY_HEADER.length, [SKILLS_HEADER, DATE_HEADER]);
+	const endIndex = findSectionEnd(prompt, legacyStartIndex + PROJECT_CONTEXT_LEGACY_HEADER.length, [
+		SKILLS_HEADER,
+		DATE_HEADER,
+	]);
 	return `${prompt.slice(0, legacyStartIndex)}${prompt.slice(endIndex)}`;
 }
 
@@ -135,7 +166,7 @@ function canonicalDirectory(dir: string): string {
 function expandContextPath(filePath: string): string {
 	const home = process.env.HOME ?? process.env.USERPROFILE;
 	return filePath === "~"
-		? home ?? filePath
+		? (home ?? filePath)
 		: /^~[\\/]/.test(filePath)
 			? path.join(home ?? "~", filePath.slice(2))
 			: filePath;
@@ -153,12 +184,15 @@ function isGlobalContextFile(filePath: string): boolean {
 
 function stripGlobalInstructionsFromXmlContext(context: string): string {
 	const block = /<project_instructions\s+path=(["'])(.*?)\1\s*>[\s\S]*?<\/project_instructions>\s*/gi;
-	return context.replace(block, (match, _quote: string, filePath: string) => isGlobalContextFile(filePath) ? "" : match);
+	return context.replace(block, (match, _quote: string, filePath: string) =>
+		isGlobalContextFile(filePath) ? "" : match,
+	);
 }
 
 function stripGlobalInstructionsFromLegacyContext(context: string): string {
-	const sections = [...context.matchAll(/^## ([^\r\n]+)(?:\r?\n|$)/gm)]
-		.filter((match) => isContextFilePath(match[1]!.trim()));
+	const sections = [...context.matchAll(/^## ([^\r\n]+)(?:\r?\n|$)/gm)].filter((match) =>
+		isContextFilePath(match[1]!.trim()),
+	);
 	let rewritten = "";
 	let cursor = 0;
 	for (let index = 0; index < sections.length; index++) {
@@ -179,7 +213,10 @@ export function stripGlobalContext(prompt: string): string {
 	});
 	const legacyStartIndex = rewrittenXml.indexOf(PROJECT_CONTEXT_LEGACY_HEADER);
 	if (legacyStartIndex === -1) return rewrittenXml;
-	const legacyEndIndex = findSectionEnd(rewrittenXml, legacyStartIndex + PROJECT_CONTEXT_LEGACY_HEADER.length, [SKILLS_HEADER, DATE_HEADER]);
+	const legacyEndIndex = findSectionEnd(rewrittenXml, legacyStartIndex + PROJECT_CONTEXT_LEGACY_HEADER.length, [
+		SKILLS_HEADER,
+		DATE_HEADER,
+	]);
 	const legacyContext = rewrittenXml.slice(legacyStartIndex, legacyEndIndex);
 	return `${rewrittenXml.slice(0, legacyStartIndex)}${stripGlobalInstructionsFromLegacyContext(legacyContext)}${rewrittenXml.slice(legacyEndIndex)}`;
 }
@@ -194,12 +231,18 @@ export function stripInheritedSkills(prompt: string): string {
 export function stripSubagentOrchestrationSkill(prompt: string): string {
 	return prompt
 		.replace(/\n{0,2}<skill\s+name=["']pi-subagents["'][^>]*>[\s\S]*?<\/skill>\n{0,2}/g, "\n\n")
-		.replace(/[ \t]*<skill>\s*[\s\S]*?<\/skill>\s*/g, (block) => SUBAGENT_ORCHESTRATION_SKILL_NAME_PATTERN.test(block) ? "" : block);
+		.replace(/[ \t]*<skill>\s*[\s\S]*?<\/skill>\s*/g, (block) =>
+			SUBAGENT_ORCHESTRATION_SKILL_NAME_PATTERN.test(block) ? "" : block,
+		);
 }
 
 function stripChildBoundaryInstructions(prompt: string): string {
 	let rewritten = prompt;
-	for (const instructions of [CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS, CHILD_FANOUT_BOUNDARY_INSTRUCTIONS, STRUCTURED_OUTPUT_INSTRUCTIONS]) {
+	for (const instructions of [
+		CHILD_SUBAGENT_BOUNDARY_INSTRUCTIONS,
+		CHILD_FANOUT_BOUNDARY_INSTRUCTIONS,
+		STRUCTURED_OUTPUT_INSTRUCTIONS,
+	]) {
 		rewritten = rewritten.split(`\n\n${instructions}`).join("").split(instructions).join("");
 	}
 	return rewritten.replace(/^(?:[ \t]*\r?\n)+/, "");
@@ -237,17 +280,27 @@ export function rewriteSubagentPrompt(prompt: string, options: InheritedPromptOp
 }
 
 /** In place, so later handlers and the final render never see the removed context. */
-function filterChildPromptOptions(options: BeforeAgentStartEvent["systemPromptOptions"], inherited: InheritedPromptOptions): void {
+function filterChildPromptOptions(
+	options: BeforeAgentStartEvent["systemPromptOptions"],
+	inherited: InheritedPromptOptions,
+): void {
 	if (!inherited.inheritProjectContext) options.contextFiles = [];
-	else if (!inherited.inheritGlobalContext) options.contextFiles = options.contextFiles.filter((file) => !isGlobalContextFile(file.path));
+	else if (!inherited.inheritGlobalContext)
+		options.contextFiles = options.contextFiles.filter((file) => !isGlobalContextFile(file.path));
 	options.skills = inherited.inheritSkills ? options.skills.filter((skill) => skill.name !== "pi-subagents") : [];
 	// Role prompts can embed context, skill catalogs, or an earlier child's boundary as text.
 	if (options.customPrompt) options.customPrompt = stripInheritedPromptText(options.customPrompt, inherited);
-	if (options.appendSystemPrompt) options.appendSystemPrompt = stripInheritedPromptText(options.appendSystemPrompt, inherited);
+	if (options.appendSystemPrompt)
+		options.appendSystemPrompt = stripInheritedPromptText(options.appendSystemPrompt, inherited);
 }
 
 function rewritesChildPrompt(config: ChildRuntimeConfig): boolean {
-	return config.inheritProjectContext !== undefined || config.inheritGlobalContext !== undefined || config.inheritSkills !== undefined || Boolean(config.fanoutChild);
+	return (
+		config.inheritProjectContext !== undefined ||
+		config.inheritGlobalContext !== undefined ||
+		config.inheritSkills !== undefined ||
+		Boolean(config.fanoutChild)
+	);
 }
 
 /** Installed after every other extension: a returned prompt freezes out sections added after it. */
@@ -258,7 +311,10 @@ export function registerSubagentPromptBoundary(pi: ExtensionAPI, config: ChildRu
 	// message instead (see projectForkRequest).
 	if (config.forkCacheKey) return;
 	pi.on("before_agent_start", (event) => {
-		const finalized = appendChildBoundary(event.systemPrompt, { fanoutChild: config.fanoutChild, structuredOutput: Boolean(config.structuredOutput) });
+		const finalized = appendChildBoundary(event.systemPrompt, {
+			fanoutChild: config.fanoutChild,
+			structuredOutput: Boolean(config.structuredOutput),
+		});
 		return finalized === event.systemPrompt ? undefined : { systemPrompt: finalized };
 	});
 }
@@ -295,9 +351,14 @@ const PROMPT_CACHE_KEY_APIS = new Set([
 	"openai-responses",
 ]);
 
-const isSystemMessage = <T extends { role: string }>(message: T): message is T & SystemMessage => message.role === "system";
-const writtenBefore = (message: { timestamp?: unknown }, forkedAt: number) => typeof message.timestamp === "number" && message.timestamp < forkedAt;
-const promptText = (message: SystemMessage | undefined) => typeof message?.content === "string" ? message.content : (message?.content ?? []).map((block) => block.text).join("");
+const isSystemMessage = <T extends { role: string }>(message: T): message is T & SystemMessage =>
+	message.role === "system";
+const writtenBefore = (message: { timestamp?: unknown }, forkedAt: number) =>
+	typeof message.timestamp === "number" && message.timestamp < forkedAt;
+const promptText = (message: SystemMessage | undefined) =>
+	typeof message?.content === "string"
+		? message.content
+		: (message?.content ?? []).map((block) => block.text).join("");
 
 /** The system messages older than `forkedAt`: the prompt and tool state a fork inherited. */
 export function systemMessagesBefore<T extends { role: string }>(messages: readonly T[], forkedAt: number): T[] {
@@ -310,9 +371,16 @@ export type InheritedModel = { provider: string; api: string; model: string };
 /** The provider, API and model of the last assistant message older than `forkedAt`. */
 export function modelBefore(messages: readonly { role: string }[], forkedAt: number): InheritedModel | undefined {
 	for (let index = messages.length - 1; index >= 0; index--) {
-		const message = messages[index] as { role: string; timestamp?: unknown; provider?: unknown; api?: unknown; model?: unknown };
+		const message = messages[index] as {
+			role: string;
+			timestamp?: unknown;
+			provider?: unknown;
+			api?: unknown;
+			model?: unknown;
+		};
 		if (message.role !== "assistant" || !writtenBefore(message, forkedAt)) continue;
-		if (typeof message.provider !== "string" || typeof message.api !== "string" || typeof message.model !== "string") return undefined;
+		if (typeof message.provider !== "string" || typeof message.api !== "string" || typeof message.model !== "string")
+			return undefined;
 		return { provider: message.provider, api: message.api, model: message.model };
 	}
 	return undefined;
@@ -323,7 +391,15 @@ export function modelBefore(messages: readonly { role: string }[], forkedAt: num
  * than who it is. A fork is told which tools it can call, and it inherited the rest with the
  * parent's prompt, so its own versions of these sections are not repeated in its task message.
  */
-const LOADOUT_SECTIONS = new Set(["tools", "rules", "docs", "skills", "advertised_subagents", "mcp_servers", "project_context"]);
+const LOADOUT_SECTIONS = new Set([
+	"tools",
+	"rules",
+	"docs",
+	"skills",
+	"advertised_subagents",
+	"mcp_servers",
+	"project_context",
+]);
 
 /**
  * The child's own instructions, which a fork sends in its task message instead of its system
@@ -331,12 +407,21 @@ const LOADOUT_SECTIONS = new Set(["tools", "rules", "docs", "skills", "advertise
  * ones, the tools it can call, and its boundary. `parent` is the inherited system messages and
  * `child` the whole request.
  */
-function forkInstructions(input: { parent: TranscriptMessages; child: TranscriptMessages; own: TranscriptMessages; boundary?: string }): string {
+function forkInstructions(input: {
+	parent: TranscriptMessages;
+	child: TranscriptMessages;
+	own: TranscriptMessages;
+	boundary?: string;
+}): string {
 	const parent = getCurrentSystemMessage(input.parent);
 	const child = getCurrentSystemMessage(input.child);
 	const parts = [
 		"The system prompt and tool list of this conversation are the parent session's, sent unchanged so this request reuses the parent's prompt cache. The instructions below are yours and take precedence over the parent's role.",
-		`Tools you can call: ${getCurrentTools(input.child).map((tool) => tool.name).join(", ") || "none"}. Any other declared tool belongs to the parent session and fails if called.`,
+		`Tools you can call: ${
+			getCurrentTools(input.child)
+				.map((tool) => tool.name)
+				.join(", ") || "none"
+		}. Any other declared tool belongs to the parent session and fails if called.`,
 	];
 	const ownPrompt = promptText(getCurrentSystemMessage(input.own));
 	if (ownPrompt.length > 0) parts.push(ownPrompt);
@@ -375,15 +460,30 @@ function prependText<T>(message: T, text: string): T {
  * child left no inherited message, there is no parent prefix to match: the child's own prompt is
  * sent, with the boundary added as a section.
  */
-export function projectForkRequest<T extends { role: string }>(messages: T[], inherited: readonly T[], forkedAt: number, options: { boundary?: string } = {}): T[] {
+export function projectForkRequest<T extends { role: string }>(
+	messages: T[],
+	inherited: readonly T[],
+	forkedAt: number,
+	options: { boundary?: string } = {},
+): T[] {
 	const own = (message: T) => !writtenBefore(message as { timestamp?: unknown }, forkedAt);
 	if (inherited.length === 0 || !messages.some((message) => !isSystemMessage(message) && !own(message))) {
 		if (!options.boundary) return messages;
 		const at = messages.findIndex((message) => !isSystemMessage(message));
-		const section = { role: "system", content: "", sections: { subagent_boundary: `<subagent_boundary>\n${options.boundary}\n</subagent_boundary>` }, timestamp: forkedAt } as unknown as T;
+		const section = {
+			role: "system",
+			content: "",
+			sections: { subagent_boundary: `<subagent_boundary>\n${options.boundary}\n</subagent_boundary>` },
+			timestamp: forkedAt,
+		} as unknown as T;
 		return at === -1 ? [...messages, section] : [...messages.slice(0, at), section, ...messages.slice(at)];
 	}
-	const instructions = forkInstructions({ parent: inherited, child: messages, own: messages.filter((message) => isSystemMessage(message) && own(message)), boundary: options.boundary });
+	const instructions = forkInstructions({
+		parent: inherited,
+		child: messages,
+		own: messages.filter((message) => isSystemMessage(message) && own(message)),
+		boundary: options.boundary,
+	});
 	const parentTools = new Map(getCurrentTools(inherited).map((tool) => [tool.name, tool]));
 	const childTools = getCurrentTools(messages).filter((tool) => {
 		const parentTool = parentTools.get(tool.name);
@@ -391,7 +491,9 @@ export function projectForkRequest<T extends { role: string }>(messages: T[], in
 	});
 	const redefined = childTools.filter((tool) => parentTools.has(tool.name)).map((tool) => ({ name: tool.name }));
 	const sentInherited = messages.filter((message) => isSystemMessage(message) && !own(message));
-	const uncollapsed = sentInherited.length === inherited.length && sentInherited.every((message, index) => JSON.stringify(message) === JSON.stringify(inherited[index]));
+	const uncollapsed =
+		sentInherited.length === inherited.length &&
+		sentInherited.every((message, index) => JSON.stringify(message) === JSON.stringify(inherited[index]));
 	const conversation = messages.filter((message) => !isSystemMessage(message));
 	const head = getCurrentSystemMessage(inherited) as T | undefined;
 	const next = uncollapsed
@@ -400,8 +502,21 @@ export function projectForkRequest<T extends { role: string }>(messages: T[], in
 	const firstOwn = next.findIndex((message) => !isSystemMessage(message) && own(message));
 	const task = next.findIndex((message) => message.role === "user" && own(message));
 	const additions: T[] = [];
-	if (childTools.length > 0) additions.push({ role: "system", content: "", ...(redefined.length > 0 ? { toolsRemoved: redefined } : {}), toolsAdded: childTools, timestamp: forkedAt } as unknown as T);
-	if (task === -1) additions.push({ role: "system", content: "", sections: { subagent_instructions: instructions }, timestamp: forkedAt } as unknown as T);
+	if (childTools.length > 0)
+		additions.push({
+			role: "system",
+			content: "",
+			...(redefined.length > 0 ? { toolsRemoved: redefined } : {}),
+			toolsAdded: childTools,
+			timestamp: forkedAt,
+		} as unknown as T);
+	if (task === -1)
+		additions.push({
+			role: "system",
+			content: "",
+			sections: { subagent_instructions: instructions },
+			timestamp: forkedAt,
+		} as unknown as T);
 	else next[task] = prependText(next[task]!, instructions);
 	const at = firstOwn === -1 ? next.length : firstOwn;
 	return [...next.slice(0, at), ...additions, ...next.slice(at)];
@@ -416,16 +531,31 @@ export function projectForkRequest<T extends { role: string }>(messages: T[], in
  * when the child runs on the model that wrote its inherited history (`parentModel`, the last
  * inherited assistant message): any other model holds no cache of that prefix.
  */
-export function applyForkSessionAffinity(headers: Record<string, string | null | undefined> | undefined, model: ExtensionContext["model"] | undefined, parentSessionId: string | undefined, parentModel: InheritedModel | undefined): void {
+export function applyForkSessionAffinity(
+	headers: Record<string, string | null | undefined> | undefined,
+	model: ExtensionContext["model"] | undefined,
+	parentSessionId: string | undefined,
+	parentModel: InheritedModel | undefined,
+): void {
 	const parent = parentSessionId?.trim();
 	if (!headers || !parent || model?.api !== "anthropic-messages") return;
-	if (!parentModel || parentModel.provider !== model.provider || parentModel.api !== model.api || parentModel.model !== model.id) return;
+	if (
+		!parentModel ||
+		parentModel.provider !== model.provider ||
+		parentModel.api !== model.api ||
+		parentModel.model !== model.id
+	)
+		return;
 	const compat = model.compat as AnthropicMessagesCompat | undefined;
 	if (!compat?.sendSessionAffinityHeaders) return;
 	headers[compat.sessionAffinityFormat === "openrouter" ? "x-session-id" : "x-session-affinity"] = parent;
 }
 
-export function rewriteForkCacheProviderRequest(event: BeforeProviderRequestEvent, ctx: Pick<ExtensionContext, "model"> | undefined, forkCacheKey: string | undefined): unknown {
+export function rewriteForkCacheProviderRequest(
+	event: BeforeProviderRequestEvent,
+	ctx: Pick<ExtensionContext, "model"> | undefined,
+	forkCacheKey: string | undefined,
+): unknown {
 	const key = forkCacheKey?.trim();
 	if (!key || !PROMPT_CACHE_KEY_APIS.has(ctx?.model?.api ?? "")) return undefined;
 	if (!event || typeof event !== "object") return undefined;
@@ -440,7 +570,11 @@ function portableToolId(id: string, preserveBoundedCompositeToolIds = false): st
 	// Codex splits call_id|item_id on replay; each wire ID must remain portable and bounded.
 	if (preserveBoundedCompositeToolIds) {
 		const parts = id.split("|");
-		if (parts.length === 2 && parts.every((part) => PORTABLE_TOOL_ID_PATTERN.test(part) && part.length <= MAX_PORTABLE_TOOL_ID_LENGTH)) return id;
+		if (
+			parts.length === 2 &&
+			parts.every((part) => PORTABLE_TOOL_ID_PATTERN.test(part) && part.length <= MAX_PORTABLE_TOOL_ID_LENGTH)
+		)
+			return id;
 	}
 	const encoded = `tool_${Buffer.from(id).toString("base64url") || "empty"}`;
 	if (encoded.length <= MAX_PORTABLE_TOOL_ID_LENGTH) return encoded;
@@ -480,27 +614,45 @@ function stripAssistantSubagentToolCallBlocks(message: unknown): unknown | undef
  * inherited as the parent sent it, so its requests can reuse the parent's prompt cache; only tool
  * ids are still made portable there. The child cannot run `subagent` either way.
  */
-export function stripParentOnlySubagentMessages(messages: unknown[], options: { sanitizeToolIds?: boolean; preserveBoundedCompositeToolIds?: boolean; preserveFanoutToolHistory?: boolean; inheritedBefore?: number } = {}): unknown[] {
+export function stripParentOnlySubagentMessages(
+	messages: unknown[],
+	options: {
+		sanitizeToolIds?: boolean;
+		preserveBoundedCompositeToolIds?: boolean;
+		preserveFanoutToolHistory?: boolean;
+		inheritedBefore?: number;
+	} = {},
+): unknown[] {
 	const preserveCurrentFanoutToolHistory = options.preserveFanoutToolHistory === true;
 	const sanitizeToolIds = options.sanitizeToolIds ?? true;
 	const inheritedBefore = options.inheritedBefore;
 	// Every message Pi projects from a session has a timestamp, so one without it was added at
 	// request time and is treated as the child's own.
-	const inherited = (message: unknown) => inheritedBefore !== undefined && typeof (message as { timestamp?: unknown })?.timestamp === "number" && (message as { timestamp: number }).timestamp < inheritedBefore;
+	const inherited = (message: unknown) =>
+		inheritedBefore !== undefined &&
+		typeof (message as { timestamp?: unknown })?.timestamp === "number" &&
+		(message as { timestamp: number }).timestamp < inheritedBefore;
 	let changed = false;
 	const filtered: unknown[] = [];
 	for (const message of messages) {
 		const keep = inherited(message);
-		if (!keep && (isParentOnlySubagentMessage(message) || (!preserveCurrentFanoutToolHistory && isSubagentToolResultMessage(message)))) {
+		if (
+			!keep &&
+			(isParentOnlySubagentMessage(message) ||
+				(!preserveCurrentFanoutToolHistory && isSubagentToolResultMessage(message)))
+		) {
 			changed = true;
 			continue;
 		}
-		const stripped = keep || preserveCurrentFanoutToolHistory ? message : stripAssistantSubagentToolCallBlocks(message);
+		const stripped =
+			keep || preserveCurrentFanoutToolHistory ? message : stripAssistantSubagentToolCallBlocks(message);
 		if (stripped === undefined) {
 			changed = true;
 			continue;
 		}
-		const sanitized = sanitizeToolIds ? sanitizeToolHistoryMessage(stripped, options.preserveBoundedCompositeToolIds === true) : stripped;
+		const sanitized = sanitizeToolIds
+			? sanitizeToolHistoryMessage(stripped, options.preserveBoundedCompositeToolIds === true)
+			: stripped;
 		if (stripped !== message || sanitized !== stripped) changed = true;
 		filtered.push(sanitized);
 	}
@@ -509,7 +661,9 @@ export function stripParentOnlySubagentMessages(messages: unknown[], options: { 
 
 export function formatSteerMessage(request: SteerRequest): string {
 	return [
-		request.mode === "follow_up" ? "Queued follow-up from the parent orchestrator:" : "Mid-run steering from the parent orchestrator:",
+		request.mode === "follow_up"
+			? "Queued follow-up from the parent orchestrator:"
+			: "Mid-run steering from the parent orchestrator:",
 		"",
 		request.message,
 		"",
@@ -521,19 +675,29 @@ export function registerPermissionGate(
 	pi: ExtensionAPI,
 	permissions: ChildPermissions | undefined,
 	childWatchdog: ChildWatchdogConfig | undefined,
-	requestPermission: (request: WatchdogPermissionRequest) => Promise<WatchdogPermissionResult> = requestWatchdogPermission,
+	requestPermission: (
+		request: WatchdogPermissionRequest,
+	) => Promise<WatchdogPermissionResult> = requestWatchdogPermission,
 ): void {
 	const rules = permissions?.rules;
 	if (!rules || Object.keys(rules).length === 0) return;
 	const rawWatchdogConfig = childWatchdog ? JSON.stringify(childWatchdog) : undefined;
 	const timeoutMs = childWatchdog?.agentEndTimeoutMs ?? 30_000;
-	const onRuntimeEvent = pi.on as unknown as (event: string, handler: (event: { toolName?: string; input?: unknown }, ctx: ExtensionContext) => unknown) => void;
+	const onRuntimeEvent = pi.on as unknown as (
+		event: string,
+		handler: (event: { toolName?: string; input?: unknown }, ctx: ExtensionContext) => unknown,
+	) => void;
 	onRuntimeEvent("tool_call", async (event, ctx) => {
 		const toolName = typeof event.toolName === "string" ? event.toolName : "tool";
 		const decision = permissionDecision(rules, toolName);
 		if (decision === "allow") return undefined;
-		if (decision === "deny") return { block: true, reason: `Blocked by pi-subagents permission rule: '${toolName}' is denied.` };
-		if (ctx.signal?.aborted) return { block: true, reason: "Blocked by pi-subagents permission rule: Watchdog permission decision was cancelled." };
+		if (decision === "deny")
+			return { block: true, reason: `Blocked by pi-subagents permission rule: '${toolName}' is denied.` };
+		if (ctx.signal?.aborted)
+			return {
+				block: true,
+				reason: "Blocked by pi-subagents permission rule: Watchdog permission decision was cancelled.",
+			};
 		let timeout: ReturnType<typeof setTimeout> | undefined;
 		let abort: (() => void) | undefined;
 		let result: WatchdogPermissionResult;
@@ -549,14 +713,27 @@ export function registerPermissionGate(
 				}),
 				new Promise<WatchdogPermissionResult>((resolve) => {
 					if (!ctx.signal) return;
-					abort = () => resolve({ approved: false, reason: "Watchdog permission decision was cancelled.", source: "watchdog" });
+					abort = () =>
+						resolve({
+							approved: false,
+							reason: "Watchdog permission decision was cancelled.",
+							source: "watchdog",
+						});
 					ctx.signal.addEventListener("abort", abort, { once: true });
 				}),
-				new Promise<never>((_, reject) => { timeout = setTimeout(() => reject(new Error(`Watchdog permission decision timed out after ${timeoutMs}ms.`)), timeoutMs); }),
+				new Promise<never>((_, reject) => {
+					timeout = setTimeout(
+						() => reject(new Error(`Watchdog permission decision timed out after ${timeoutMs}ms.`)),
+						timeoutMs,
+					);
+				}),
 			]);
 		} catch (error) {
 			const reason = error instanceof Error ? error.message : String(error);
-			return { block: true, reason: `Blocked by pi-subagents permission rule: Watchdog permission arbiter failed closed: ${reason}` };
+			return {
+				block: true,
+				reason: `Blocked by pi-subagents permission rule: Watchdog permission arbiter failed closed: ${reason}`,
+			};
 		} finally {
 			if (timeout) clearTimeout(timeout);
 			if (abort) ctx.signal?.removeEventListener("abort", abort);
@@ -570,8 +747,12 @@ function registerToolBudget(pi: ExtensionAPI, budget: ResolvedToolBudget | undef
 	if (!budget) return;
 	let toolCount = 0;
 	let softNudged = false;
-	const sendUserMessage = (pi as { sendUserMessage?: (content: string, options: { deliverAs: "steer" }) => unknown }).sendUserMessage;
-	const onRuntimeEvent = pi.on as unknown as (event: string, handler: (event: { toolName?: string }) => unknown) => void;
+	const sendUserMessage = (pi as { sendUserMessage?: (content: string, options: { deliverAs: "steer" }) => unknown })
+		.sendUserMessage;
+	const onRuntimeEvent = pi.on as unknown as (
+		event: string,
+		handler: (event: { toolName?: string }) => unknown,
+	) => void;
 	onRuntimeEvent("tool_call", (event) => {
 		const toolName = typeof event.toolName === "string" ? event.toolName : "tool";
 		toolCount++;
@@ -588,10 +769,15 @@ function registerToolBudget(pi: ExtensionAPI, budget: ResolvedToolBudget | undef
 	});
 }
 
-function registerStructuredOutputTool(pi: ExtensionAPI, structured: NonNullable<ChildRuntimeConfig["structuredOutput"]>): void {
-	const terminalState = structured.terminalState ??= { captured: false };
+function registerStructuredOutputTool(
+	pi: ExtensionAPI,
+	structured: NonNullable<ChildRuntimeConfig["structuredOutput"]>,
+): void {
+	const terminalState = (structured.terminalState ??= { captured: false });
 	const required = structured.acceptanceReport === "required";
-	const parameters = createStructuredOutputToolParameters(structured.schema, { acceptanceReport: structured.acceptanceReport });
+	const parameters = createStructuredOutputToolParameters(structured.schema, {
+		acceptanceReport: structured.acceptanceReport,
+	});
 	const registerTool = pi.registerTool as unknown as (tool: {
 		name: string;
 		label: string;
@@ -616,7 +802,9 @@ function registerStructuredOutputTool(pi: ExtensionAPI, structured: NonNullable<
 			if (required && params.acceptanceReport !== undefined) {
 				const acceptanceValidation = validateAcceptanceReport(params.acceptanceReport, "acceptanceReport");
 				if (!acceptanceValidation.report) {
-					throw new Error(`Invalid structured output acceptance report: ${acceptanceValidation.errors.join("; ")}`);
+					throw new Error(
+						`Invalid structured output acceptance report: ${acceptanceValidation.errors.join("; ")}`,
+					);
 				}
 			}
 			structured.capture(params.value, structured.acceptanceReport ? params.acceptanceReport : undefined);
@@ -631,7 +819,11 @@ function registerStructuredOutputTool(pi: ExtensionAPI, structured: NonNullable<
 }
 
 /** Register every child-side hook the prompt runtime owns for one child session. */
-export default function registerSubagentPromptRuntime(pi: ExtensionAPI, config?: ChildRuntimeConfig, drainObservation?: import("./readonly-drain-observation.ts").ReadonlyDrainObservation): void {
+export default function registerSubagentPromptRuntime(
+	pi: ExtensionAPI,
+	config?: ChildRuntimeConfig,
+	drainObservation?: import("./readonly-drain-observation.ts").ReadonlyDrainObservation,
+): void {
 	// A path-based load has no ChildRuntimeConfig. This can happen if an
 	// ambient-extension discovery path finds the runtime module in addition to
 	// the configured inline factory. It must be inert rather than crashing the
@@ -640,33 +832,44 @@ export default function registerSubagentPromptRuntime(pi: ExtensionAPI, config?:
 	registerRuntimeExtensionAcknowledgements(pi, config.runtimeAcknowledgements);
 	registerPermissionGate(pi, config.permissions, config.childWatchdog);
 	registerToolBudget(pi, config.toolBudget);
-	if (config.structuredOutput && !config.structuredOutput.terminalState) config.structuredOutput.terminalState = { captured: false };
+	if (config.structuredOutput && !config.structuredOutput.terminalState)
+		config.structuredOutput.terminalState = { captured: false };
 	registerChildWatchdog(pi, config.childWatchdog, config.watchdogStatus, config.structuredOutput?.terminalState);
 	const requestedWatchdogDiff = config.requiredTools?.includes(WATCHDOG_DIFF_TOOL_NAME);
-	const reviewerLaunchBaseline = requestedWatchdogDiff && config.cwd
-		? captureWatchdogDiffBaseline(config.cwd)
-		: undefined;
+	const reviewerLaunchBaseline =
+		requestedWatchdogDiff && config.cwd ? captureWatchdogDiffBaseline(config.cwd) : undefined;
 	if (requestedWatchdogDiff && typeof pi.registerTool === "function") {
 		pi.registerTool(createWatchdogDiffTool(reviewerLaunchBaseline, { workingTreeAtLaunch: true }));
 	}
-	const waitState = config.runtimeState ?? {
-		baseCwd: "",
-		currentSessionId: null,
-		asyncJobs: new Map(),
-		foregroundRuns: new Map(),
-		foregroundControls: new Map(),
-		lastForegroundControlId: null,
-		cleanupTimers: new Map(),
-		lastUiContext: null,
-		poller: null,
-		completionSeen: new Map(),
-		watcher: null,
-		watcherRestartTimer: null,
-		resultFileCoalescer: { schedule: () => false, clear: () => {} },
-	} as unknown as SubagentState;
+	const waitState =
+		config.runtimeState ??
+		({
+			baseCwd: "",
+			currentSessionId: null,
+			asyncJobs: new Map(),
+			foregroundRuns: new Map(),
+			foregroundControls: new Map(),
+			lastForegroundControlId: null,
+			cleanupTimers: new Map(),
+			lastUiContext: null,
+			poller: null,
+			completionSeen: new Map(),
+			watcher: null,
+			watcherRestartTimer: null,
+			resultFileCoalescer: { schedule: () => false, clear: () => {} },
+		} as unknown as SubagentState);
 	const nestedRootRunId = inheritedNestedRouteOf(config)?.rootRunId;
 	// fanout-child assigns config.hasPendingSupervisorRequest after this hook registers, so read it per wait.
-	if (typeof pi.registerTool === "function") registerWaitTool(pi, waitState, config.waitTool.enabled, undefined, config.waitTool.defaultTimeoutMs, { nestedRootRunId }, () => config.hasPendingSupervisorRequest?.() === true);
+	if (typeof pi.registerTool === "function")
+		registerWaitTool(
+			pi,
+			waitState,
+			config.waitTool.enabled,
+			undefined,
+			config.waitTool.defaultTimeoutMs,
+			{ nestedRootRunId },
+			() => config.hasPendingSupervisorRequest?.() === true,
+		);
 	const supervisorMetadata = childSupervisorMetadata(config);
 	let nativeSupervisorClientRegistered = false;
 	const registerNativeSupervisorClientOnce = (): void => {
@@ -674,16 +877,23 @@ export default function registerSubagentPromptRuntime(pi: ExtensionAPI, config?:
 		nativeSupervisorClientRegistered = true;
 		registerNativeSupervisorClient(pi, supervisorMetadata);
 	};
-	const onRuntimeEvent = pi.on as unknown as (event: string, handler: (event: unknown, ctx?: ExtensionContext) => unknown) => void;
+	const onRuntimeEvent = pi.on as unknown as (
+		event: string,
+		handler: (event: unknown, ctx?: ExtensionContext) => unknown,
+	) => void;
 	onRuntimeEvent("session_start", (_event: unknown, ctx?: ExtensionContext) => {
-		const sessionManager = (ctx as { sessionManager?: Parameters<typeof resolveCurrentSessionId>[0] } | undefined)?.sessionManager;
+		const sessionManager = (ctx as { sessionManager?: Parameters<typeof resolveCurrentSessionId>[0] } | undefined)
+			?.sessionManager;
 		waitState.currentSessionId = sessionManager ? resolveCurrentSessionId(sessionManager) : null;
 		waitState.supervisorOwnerSessionId = sessionManager?.getSessionId() || null;
 		registerNativeSupervisorClientOnce();
 	});
 	onRuntimeEvent("agent_start", () => {
 		if (!config.requiredTools) return;
-		const diagnostic = evaluateChildToolDiagnostic(config, pi.getAllTools().map((tool) => tool.name));
+		const diagnostic = evaluateChildToolDiagnostic(
+			config,
+			pi.getAllTools().map((tool) => tool.name),
+		);
 		config.toolDiagnostic?.(diagnostic);
 		if (diagnostic) throw new Error(formatChildToolDiagnostic(diagnostic));
 	});
@@ -691,46 +901,75 @@ export default function registerSubagentPromptRuntime(pi: ExtensionAPI, config?:
 		if ((ctx as { hasUI?: boolean } | undefined)?.hasUI === true) drainObservation?.deny();
 		if (drainObservation) {
 			try {
-				if ((ctx as ExtensionContext)?.sessionManager?.getSessionFile() !== waitState.currentSessionId) drainObservation.deny();
-			} catch { drainObservation.deny(); }
+				if ((ctx as ExtensionContext)?.sessionManager?.getSessionFile() !== waitState.currentSessionId)
+					drainObservation.deny();
+			} catch {
+				drainObservation.deny();
+			}
 		}
 		config.holdFinalDrain?.(true);
 		try {
-			await drainOutstandingWork({ state: waitState, events: pi.events, nestedRootRunId, hasPendingSupervisorRequest: config.hasPendingSupervisorRequest }, drainObservation);
+			await drainOutstandingWork(
+				{
+					state: waitState,
+					events: pi.events,
+					nestedRootRunId,
+					hasPendingSupervisorRequest: config.hasPendingSupervisorRequest,
+				},
+				drainObservation,
+			);
 		} finally {
 			config.holdFinalDrain?.(false);
 		}
 	});
 	if (config.structuredOutput) registerStructuredOutputTool(pi, config.structuredOutput);
 
-	onRuntimeEvent("before_provider_request", (event: unknown, ctx?: ExtensionContext) => rewriteForkCacheProviderRequest(event as BeforeProviderRequestEvent, ctx, config.forkCacheKey));
+	onRuntimeEvent("before_provider_request", (event: unknown, ctx?: ExtensionContext) =>
+		rewriteForkCacheProviderRequest(event as BeforeProviderRequestEvent, ctx, config.forkCacheKey),
+	);
 
 	// A fork launch sets forkCacheKey. Pi writes the fork's session header when it copies the
 	// parent's branch, so every inherited message is older and every message this child writes,
 	// also after a resume, is not.
 	// The inherited system messages and model are read from the session once: a request may hold
 	// only Pi's collapsed leading message, and what came before the fork never changes.
-	let inherited: { session: string; forkedAt: number; system: Array<{ role: string }>; model?: InheritedModel } | undefined;
+	let inherited:
+		| { session: string; forkedAt: number; system: Array<{ role: string }>; model?: InheritedModel }
+		| undefined;
 	const readInherited = (ctx: ExtensionContext | undefined) => {
 		const header = ctx?.sessionManager?.getHeader();
 		if (!header) return undefined;
 		if (inherited?.session !== header.id) {
 			const forkedAt = Date.parse(header.timestamp);
 			const messages = Number.isFinite(forkedAt) ? ctx!.sessionManager.buildSessionProjection().messages : [];
-			inherited = { session: header.id, forkedAt, system: systemMessagesBefore(messages, forkedAt), model: modelBefore(messages, forkedAt) };
+			inherited = {
+				session: header.id,
+				forkedAt,
+				system: systemMessagesBefore(messages, forkedAt),
+				model: modelBefore(messages, forkedAt),
+			};
 		}
 		return Number.isFinite(inherited.forkedAt) ? inherited : undefined;
 	};
-	const boundary = rewritesChildPrompt(config) ? childBoundary({ fanoutChild: config.fanoutChild, structuredOutput: Boolean(config.structuredOutput) }) : undefined;
-	if (config.forkCacheKey) onRuntimeEvent("before_provider_headers", (event: unknown, ctx?: ExtensionContext) => {
-		applyForkSessionAffinity((event as { headers?: Record<string, string | null | undefined> } | undefined)?.headers, ctx?.model, config.parentSessionId, readInherited(ctx)?.model);
-	});
+	const boundary = rewritesChildPrompt(config)
+		? childBoundary({ fanoutChild: config.fanoutChild, structuredOutput: Boolean(config.structuredOutput) })
+		: undefined;
+	if (config.forkCacheKey)
+		onRuntimeEvent("before_provider_headers", (event: unknown, ctx?: ExtensionContext) => {
+			applyForkSessionAffinity(
+				(event as { headers?: Record<string, string | null | undefined> } | undefined)?.headers,
+				ctx?.model,
+				config.parentSessionId,
+				readInherited(ctx)?.model,
+			);
+		});
 	// The strip runs on context_with_system, not context: Pi treats any change a context handler
 	// makes to the message list as a rewritten conversation and folds every mid-conversation system
 	// message into the leading one, so every later request would miss the prompt cache. The strip
 	// passes system messages through unchanged.
 	onRuntimeEvent("context_with_system", (event: unknown, ctx?: ExtensionContext) => {
-		if (!event || typeof event !== "object" || !("messages" in event) || !Array.isArray(event.messages)) return undefined;
+		if (!event || typeof event !== "object" || !("messages" in event) || !Array.isArray(event.messages))
+			return undefined;
 		const fork = config.forkCacheKey ? readInherited(ctx) : undefined;
 		const stripped = stripParentOnlySubagentMessages(event.messages, {
 			sanitizeToolIds: !COMPOSITE_TOOL_ID_APIS.has(ctx?.model?.api ?? ""),
@@ -739,7 +978,9 @@ export default function registerSubagentPromptRuntime(pi: ExtensionAPI, config?:
 			preserveFanoutToolHistory: config.fanoutChild,
 			...(fork ? { inheritedBefore: fork.forkedAt } : {}),
 		});
-		const messages = fork ? projectForkRequest(stripped as Array<{ role: string }>, fork.system, fork.forkedAt, { boundary }) : stripped;
+		const messages = fork
+			? projectForkRequest(stripped as Array<{ role: string }>, fork.system, fork.forkedAt, { boundary })
+			: stripped;
 		return messages === event.messages ? undefined : { messages };
 	});
 
@@ -750,16 +991,27 @@ export default function registerSubagentPromptRuntime(pi: ExtensionAPI, config?:
 	let intercomIdClaimed = false;
 	if (routingName) {
 		pi.events.on(INTERCOM_SESSION_IDENTITY_EVENT, (request: unknown) => {
-			if (!request || typeof request !== "object" || !("version" in request) || request.version !== 1 || !("claim" in request) || typeof request.claim !== "function") return;
+			if (
+				!request ||
+				typeof request !== "object" ||
+				!("version" in request) ||
+				request.version !== 1 ||
+				!("claim" in request) ||
+				typeof request.claim !== "function"
+			)
+				return;
 			request.claim(routingName);
 			intercomIdClaimed = true;
 		});
 	}
 
 	onRuntimeEvent("before_agent_start", async (event: unknown) => {
-		if (!event || typeof event !== "object" || !("systemPrompt" in event) || typeof event.systemPrompt !== "string") return undefined;
+		if (!event || typeof event !== "object" || !("systemPrompt" in event) || typeof event.systemPrompt !== "string")
+			return undefined;
 		registerNativeSupervisorClientOnce();
-		const childSessionName = intercomIdClaimed ? config.sessionName || routingName : routingName || config.sessionName;
+		const childSessionName = intercomIdClaimed
+			? config.sessionName || routingName
+			: routingName || config.sessionName;
 		if (childSessionName && typeof pi.setSessionName === "function") {
 			pi.setSessionName(childSessionName);
 		}

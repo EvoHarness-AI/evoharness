@@ -7,17 +7,25 @@
  * Requires pi packages to be importable. Skips gracefully if unavailable.
  */
 
-import { after, afterEach, before, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { ChildProcess, spawnSync } from "node:child_process";
 import { channel } from "node:diagnostics_channel";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { asyncResultTimeoutEvidence } from "./async-result-timeout-evidence.ts";
-import { createEventBus, createMockPi, createTempDir, makeAgent, removeTempDir, resolveMockPiCallArgs, tryImport } from "./helpers.ts";
-import type { MockPi } from "./helpers.ts";
+import { after, afterEach, before, beforeEach } from "node:test";
 import { CHILD_WATCHDOG_STATUS_EVENT } from "../../src/watchdog/child-status.ts";
+import { asyncResultTimeoutEvidence } from "./async-result-timeout-evidence.ts";
+import type { MockPi } from "./helpers.ts";
+import {
+	createEventBus,
+	createMockPi,
+	createTempDir,
+	makeAgent,
+	removeTempDir,
+	resolveMockPiCallArgs,
+	tryImport,
+} from "./helpers.ts";
 
 interface LaunchResolvedExtensions {
 	version?: number;
@@ -47,7 +55,14 @@ interface UsageBudgetState {
 interface AsyncExecutionResult {
 	content: Array<{ text?: string }>;
 	isError?: boolean;
-	details: { asyncId?: string; asyncDir?: string; launchContractDigest?: string; launchResolvedExtensions?: LaunchResolvedExtensions; runtimeAcknowledgedExtensions?: RuntimeAcknowledgedExtensions; usageBudget?: UsageBudgetState };
+	details: {
+		asyncId?: string;
+		asyncDir?: string;
+		launchContractDigest?: string;
+		launchResolvedExtensions?: LaunchResolvedExtensions;
+		runtimeAcknowledgedExtensions?: RuntimeAcknowledgedExtensions;
+		usageBudget?: UsageBudgetState;
+	};
 }
 
 interface AsyncResultPayload {
@@ -66,16 +81,110 @@ interface AsyncResultPayload {
 	deadlineAt?: number;
 	timedOut?: boolean;
 	stopped?: boolean;
-	turnBudget?: { maxTurns: number; graceTurns: number; outcome: string; turnCount: number; wrapUpRequestedAtTurn?: number; terminationDeferredAtTurn?: number; exceededAtTurn?: number };
+	turnBudget?: {
+		maxTurns: number;
+		graceTurns: number;
+		outcome: string;
+		turnCount: number;
+		wrapUpRequestedAtTurn?: number;
+		terminationDeferredAtTurn?: number;
+		exceededAtTurn?: number;
+	};
 	turnBudgetExceeded?: boolean;
 	wrapUpRequested?: boolean;
 	totalTokens?: { input: number; output: number; total: number };
 	totalCost?: { inputTokens: number; outputTokens: number; costUsd: number };
 	usageBudget?: UsageBudgetState;
-	results: Array<{ agent?: string; sessionName?: string; launchContractDigest?: string; launchResolvedExtensions?: LaunchResolvedExtensions; runtimeAcknowledgedExtensions?: RuntimeAcknowledgedExtensions; output?: string; outputState?: "present" | "absent" | "unknown"; success?: boolean; error?: string; timedOut?: boolean; timeoutRecovery?: { changedFiles?: string[]; message?: string; warning?: string; recoveryNeeded?: boolean; reason?: string; reportStatus?: string }; stopped?: boolean; turnBudget?: { maxTurns: number; graceTurns: number; outcome: string; turnCount: number; wrapUpRequestedAtTurn?: number; terminationDeferredAtTurn?: number; exceededAtTurn?: number }; turnBudgetExceeded?: boolean; wrapUpRequested?: boolean; model?: string; thinking?: string; totalCost?: { inputTokens: number; outputTokens: number; costUsd: number }; usage?: { input: number; output: number; cacheRead: number; cacheWrite: number; cost: number; turns: number }; structuredOutput?: unknown; agentContract?: { version: 1 }; execution?: { status?: string; success?: boolean; exitCode?: number }; effects?: { fileMutation?: { status?: string; attempted?: boolean }; settlementDiagnostic?: { finalTextPresent?: boolean; mutation?: { attempted?: boolean; observed?: boolean }; requiredOutput?: { kind?: string; path?: string; missing?: boolean }; afterCompactionSettlement?: boolean } }; intercomTarget?: string; acceptance?: { status?: string; effectiveAcceptance?: { level?: string }; childReport?: unknown; runtimeChecks?: Array<{ id?: string; status?: string; message?: string }> }; artifactPaths?: { outputPath?: string; inputPath?: string; metadataPath?: string; transcriptPath?: string }; outputSaveError?: string; artifactOutputSaveFailed?: true; metadataSaveError?: string; capabilityCeiling?: { version?: number; allowedTools?: string[]; denyExtensions?: boolean; sources?: string[] }; capabilityAudit?: { effectiveTools?: string[]; removedTools?: string[]; extensionsDenied?: boolean } }>;
+	results: Array<{
+		agent?: string;
+		sessionName?: string;
+		launchContractDigest?: string;
+		launchResolvedExtensions?: LaunchResolvedExtensions;
+		runtimeAcknowledgedExtensions?: RuntimeAcknowledgedExtensions;
+		output?: string;
+		outputState?: "present" | "absent" | "unknown";
+		success?: boolean;
+		error?: string;
+		timedOut?: boolean;
+		timeoutRecovery?: {
+			changedFiles?: string[];
+			message?: string;
+			warning?: string;
+			recoveryNeeded?: boolean;
+			reason?: string;
+			reportStatus?: string;
+		};
+		stopped?: boolean;
+		turnBudget?: {
+			maxTurns: number;
+			graceTurns: number;
+			outcome: string;
+			turnCount: number;
+			wrapUpRequestedAtTurn?: number;
+			terminationDeferredAtTurn?: number;
+			exceededAtTurn?: number;
+		};
+		turnBudgetExceeded?: boolean;
+		wrapUpRequested?: boolean;
+		model?: string;
+		thinking?: string;
+		totalCost?: { inputTokens: number; outputTokens: number; costUsd: number };
+		usage?: { input: number; output: number; cacheRead: number; cacheWrite: number; cost: number; turns: number };
+		structuredOutput?: unknown;
+		agentContract?: { version: 1 };
+		execution?: { status?: string; success?: boolean; exitCode?: number };
+		effects?: {
+			fileMutation?: { status?: string; attempted?: boolean };
+			settlementDiagnostic?: {
+				finalTextPresent?: boolean;
+				mutation?: { attempted?: boolean; observed?: boolean };
+				requiredOutput?: { kind?: string; path?: string; missing?: boolean };
+				afterCompactionSettlement?: boolean;
+			};
+		};
+		intercomTarget?: string;
+		acceptance?: {
+			status?: string;
+			effectiveAcceptance?: { level?: string };
+			childReport?: unknown;
+			runtimeChecks?: Array<{ id?: string; status?: string; message?: string }>;
+		};
+		artifactPaths?: { outputPath?: string; inputPath?: string; metadataPath?: string; transcriptPath?: string };
+		outputSaveError?: string;
+		artifactOutputSaveFailed?: true;
+		metadataSaveError?: string;
+		capabilityCeiling?: { version?: number; allowedTools?: string[]; denyExtensions?: boolean; sources?: string[] };
+		capabilityAudit?: { effectiveTools?: string[]; removedTools?: string[]; extensionsDenied?: boolean };
+	}>;
 	outputs?: Record<string, { text?: string; structured?: unknown }>;
-	workflowGraph?: { nodes?: Array<{ kind?: string; label?: string; phase?: string; status?: string; acceptanceStatus?: string; error?: string; outputName?: string; structured?: boolean; children?: Array<{ label?: string; outputName?: string; itemKey?: string; status?: string; acceptanceStatus?: string; error?: string }> }> };
-	parallelHandoff?: { version?: number; path?: string; groupCount?: number; childCount?: number; changedPatches?: number; cleanupState?: string };
+	workflowGraph?: {
+		nodes?: Array<{
+			kind?: string;
+			label?: string;
+			phase?: string;
+			status?: string;
+			acceptanceStatus?: string;
+			error?: string;
+			outputName?: string;
+			structured?: boolean;
+			children?: Array<{
+				label?: string;
+				outputName?: string;
+				itemKey?: string;
+				status?: string;
+				acceptanceStatus?: string;
+				error?: string;
+			}>;
+		}>;
+	};
+	parallelHandoff?: {
+		version?: number;
+		path?: string;
+		groupCount?: number;
+		childCount?: number;
+		changedPatches?: number;
+		cleanupState?: string;
+	};
 	capabilityCeiling?: { version?: number; allowedTools?: string[]; denyExtensions?: boolean; sources?: string[] };
 	capabilityAudit?: { effectiveTools?: string[]; removedTools?: string[]; extensionsDenied?: boolean };
 }
@@ -97,14 +206,29 @@ interface AsyncStatusPayload {
 	deadlineAt?: number;
 	timedOut?: boolean;
 	stopped?: boolean;
-	turnBudget?: { maxTurns: number; graceTurns: number; outcome: string; turnCount: number; wrapUpRequestedAtTurn?: number; terminationDeferredAtTurn?: number; exceededAtTurn?: number };
+	turnBudget?: {
+		maxTurns: number;
+		graceTurns: number;
+		outcome: string;
+		turnCount: number;
+		wrapUpRequestedAtTurn?: number;
+		terminationDeferredAtTurn?: number;
+		exceededAtTurn?: number;
+	};
 	turnBudgetExceeded?: boolean;
 	wrapUpRequested?: boolean;
 	totalTokens?: { total: number };
 	totalCost?: { inputTokens: number; outputTokens: number; costUsd: number };
 	usageBudget?: UsageBudgetState;
 	parallelGroups?: Array<{ start: number; count: number; stepIndex: number }>;
-	parallelHandoff?: { version?: number; path?: string; groupCount?: number; childCount?: number; changedPatches?: number; cleanupState?: string };
+	parallelHandoff?: {
+		version?: number;
+		path?: string;
+		groupCount?: number;
+		childCount?: number;
+		changedPatches?: number;
+		cleanupState?: string;
+	};
 	capabilityCeiling?: { version?: number; allowedTools?: string[]; denyExtensions?: boolean; sources?: string[] };
 	capabilityAudit?: { effectiveTools?: string[]; removedTools?: string[]; extensionsDenied?: boolean };
 	steps?: Array<{
@@ -120,7 +244,14 @@ interface AsyncStatusPayload {
 		status?: string;
 		exitCode?: number;
 		timedOut?: boolean;
-		timeoutRecovery?: { changedFiles?: string[]; message?: string; warning?: string; recoveryNeeded?: boolean; reason?: string; reportStatus?: string };
+		timeoutRecovery?: {
+			changedFiles?: string[];
+			message?: string;
+			warning?: string;
+			recoveryNeeded?: boolean;
+			reason?: string;
+			reportStatus?: string;
+		};
 		error?: string;
 		model?: string;
 		thinking?: string;
@@ -131,10 +262,26 @@ interface AsyncStatusPayload {
 		launchResolvedExtensions?: LaunchResolvedExtensions;
 		runtimeAcknowledgedExtensions?: RuntimeAcknowledgedExtensions;
 		execution?: { status?: string; success?: boolean; exitCode?: number };
-		effects?: { fileMutation?: { status?: string; attempted?: boolean }; settlementDiagnostic?: { finalTextPresent?: boolean; mutation?: { attempted?: boolean; observed?: boolean }; requiredOutput?: { kind?: string; path?: string; missing?: boolean }; afterCompactionSettlement?: boolean } };
+		effects?: {
+			fileMutation?: { status?: string; attempted?: boolean };
+			settlementDiagnostic?: {
+				finalTextPresent?: boolean;
+				mutation?: { attempted?: boolean; observed?: boolean };
+				requiredOutput?: { kind?: string; path?: string; missing?: boolean };
+				afterCompactionSettlement?: boolean;
+			};
+		};
 		acceptance?: { status?: string };
 		contextLimit?: number;
-		turnBudget?: { maxTurns: number; graceTurns: number; outcome: string; turnCount: number; wrapUpRequestedAtTurn?: number; terminationDeferredAtTurn?: number; exceededAtTurn?: number };
+		turnBudget?: {
+			maxTurns: number;
+			graceTurns: number;
+			outcome: string;
+			turnCount: number;
+			wrapUpRequestedAtTurn?: number;
+			terminationDeferredAtTurn?: number;
+			exceededAtTurn?: number;
+		};
 		turnBudgetExceeded?: boolean;
 		wrapUpRequested?: boolean;
 		capabilityCeiling?: { version?: number; allowedTools?: string[]; denyExtensions?: boolean; sources?: string[] };
@@ -147,16 +294,26 @@ interface MockPiCallRecord {
 	effectiveArgs?: string[];
 	systemPrompts?: Array<{ mode?: string; path?: string; text?: string; error?: string }>;
 	requiredChildTools?: string[];
-	launch?: { tools?: string[]; builtinMcpTools?: Array<{ name: string; selector: string }>; ambientExtensions?: boolean; processEnv?: Record<string, string> };
+	launch?: {
+		tools?: string[];
+		builtinMcpTools?: Array<{ name: string; selector: string }>;
+		ambientExtensions?: boolean;
+		processEnv?: Record<string, string>;
+	};
 	/** The `ChildRuntimeConfig` the scripted child session was launched with. */
 	runtime?: Record<string, unknown>;
 }
 
 /** Recorded child runtime config of the mock call at `index`, once it exists. */
-async function waitForMockPiRuntime(mockPi: MockPi, index: number, timeoutMs = 30_000): Promise<Record<string, unknown>> {
+async function waitForMockPiRuntime(
+	mockPi: MockPi,
+	index: number,
+	timeoutMs = 30_000,
+): Promise<Record<string, unknown>> {
 	const deadline = Date.now() + timeoutMs;
 	for (;;) {
-		const callFile = fs.readdirSync(mockPi.dir)
+		const callFile = fs
+			.readdirSync(mockPi.dir)
 			.filter((name) => name.startsWith("call-") && name.endsWith(".json"))
 			.sort()
 			.at(index);
@@ -173,17 +330,25 @@ async function waitForMockPiRuntime(mockPi: MockPi, index: number, timeoutMs = 3
 function writeWatchdogSettings(projectDir: string, tailMs = 120_000): void {
 	const settingsPath = path.join(projectDir, ".pi", "settings.json");
 	fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
-	fs.writeFileSync(settingsPath, JSON.stringify({
-		subagents: {
-			watchdog: {
-				enabled: true,
-				children: {
-					enabled: true,
-					watchdogTailTimeoutMs: tailMs,
+	fs.writeFileSync(
+		settingsPath,
+		JSON.stringify(
+			{
+				subagents: {
+					watchdog: {
+						enabled: true,
+						children: {
+							enabled: true,
+							watchdogTailTimeoutMs: tailMs,
+						},
+					},
 				},
 			},
-		},
-	}, null, 2), "utf-8");
+			null,
+			2,
+		),
+		"utf-8",
+	);
 }
 
 async function withIsolatedWatchdogSettings<T>(projectDir: string, run: () => Promise<T>): Promise<T> {
@@ -224,9 +389,13 @@ function mockAssistantMessage(text: string, stopReason: "stop" | "tool_use" = "s
 		type: "message_end",
 		message: {
 			role: "assistant",
-			content: stopReason === "tool_use"
-				? [{ type: "text", text }, { type: "toolCall", name: "bash", arguments: { command: "echo test" } }]
-				: [{ type: "text", text }],
+			content:
+				stopReason === "tool_use"
+					? [
+							{ type: "text", text },
+							{ type: "toolCall", name: "bash", arguments: { command: "echo test" } },
+						]
+					: [{ type: "text", text }],
 			model: "mock/test-model",
 			stopReason,
 			usage: {
@@ -263,8 +432,12 @@ interface TypesModule {
 
 interface ExecutorModule {
 	createSubagentExecutor?: (...args: unknown[]) => {
-		execute: (...args: unknown[]) => Promise<{ content: Array<{ text?: string }>; isError?: boolean; details?: { asyncId?: string } }>;
-		executePublic: (...args: unknown[]) => Promise<{ content: Array<{ text?: string }>; isError?: boolean; details?: { asyncId?: string } }>;
+		execute: (
+			...args: unknown[]
+		) => Promise<{ content: Array<{ text?: string }>; isError?: boolean; details?: { asyncId?: string } }>;
+		executePublic: (
+			...args: unknown[]
+		) => Promise<{ content: Array<{ text?: string }>; isError?: boolean; details?: { asyncId?: string } }>;
 	};
 }
 
@@ -314,7 +487,11 @@ function writePackageSkill(packageRoot: string, skillName: string): void {
 	fs.mkdirSync(skillDir, { recursive: true });
 	fs.writeFileSync(
 		path.join(packageRoot, "package.json"),
-		JSON.stringify({ name: `${skillName}-pkg`, version: "1.0.0", pi: { skills: [`./skills/${skillName}`] } }, null, 2),
+		JSON.stringify(
+			{ name: `${skillName}-pkg`, version: "1.0.0", pi: { skills: [`./skills/${skillName}`] } },
+			null,
+			2,
+		),
 		"utf-8",
 	);
 	fs.writeFileSync(
@@ -346,18 +523,16 @@ async function waitForAsyncResultFile(id: string, timeoutMs = 15_000): Promise<s
 			let mockEvidence = "mock queue: not configured";
 			if (queueDir) {
 				try {
-					const calls = fs.readdirSync(queueDir).filter((name) => name.startsWith("call-") && name.endsWith(".json"));
+					const calls = fs
+						.readdirSync(queueDir)
+						.filter((name) => name.startsWith("call-") && name.endsWith(".json"));
 					mockEvidence = `mock queue: readable, prompt call records=${calls.length} (current fixture, not correlated to run)`;
 				} catch (error) {
 					const code = (error as NodeJS.ErrnoException).code;
 					mockEvidence = `mock queue: ${code === "ENOENT" ? "absent" : `unreadable (${code ?? "unknown"})`}`;
 				}
 			}
-			assert.fail([
-				`Timed out waiting for async result file: ${resultPath}`,
-				mockEvidence,
-				...evidence,
-			].join("\n"));
+			assert.fail([`Timed out waiting for async result file: ${resultPath}`, mockEvidence, ...evidence].join("\n"));
 		}
 		await new Promise((resolve) => setTimeout(resolve, 100));
 	}
@@ -366,20 +541,52 @@ async function waitForAsyncResultFile(id: string, timeoutMs = 15_000): Promise<s
 
 // #1906 only: observation, never a terminality predicate or process controller.
 export function observeSharedCwdRunner(id: string) {
-	const number = (value: unknown) => typeof value === "number" && Number.isFinite(value) ? value : undefined;
-	const known = (value: unknown, values: string[]) => typeof value === "string" && values.includes(value) ? value : undefined;
-	const record = (value: unknown): Record<string, unknown> => value !== null && typeof value === "object" ? value as Record<string, unknown> : {};
-	const errorCode = (error: unknown) => known(record(error).code, ["ENOENT", "EACCES", "EPERM", "EBUSY", "EIO", "EMFILE", "ENFILE", "ENOSPC"]) ?? "other";
+	const number = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? value : undefined);
+	const known = (value: unknown, values: string[]) =>
+		typeof value === "string" && values.includes(value) ? value : undefined;
+	const record = (value: unknown): Record<string, unknown> =>
+		value !== null && typeof value === "object" ? (value as Record<string, unknown>) : {};
+	const errorCode = (error: unknown) =>
+		known(record(error).code, ["ENOENT", "EACCES", "EPERM", "EBUSY", "EIO", "EMFILE", "ENFILE", "ENOSPC"]) ?? "other";
 	const project = (value: unknown) => {
 		const raw = record(value);
 		return {
 			runMatches: (raw.runId ?? raw.id) === id,
-			runnerProcessInstanceId: typeof raw.runnerProcessInstanceId === "string" && /^[a-zA-Z0-9:-]{1,128}$/.test(raw.runnerProcessInstanceId) ? raw.runnerProcessInstanceId : undefined,
-			state: known(raw.state, ["pending", "running", "complete", "failed", "cancelled", "observed", "unknown", "not-started"]),
-			reason: known(raw.reason, ["observer-unavailable", "runner-candidate-missing", "runner-instance-mismatch", "writer-close-unverified", "process-tree-unverified", "canonical-session-unavailable", "canonical-session-lease-active", "canonical-session-release-unverified", "proof-write-failed", "stale-repair"]),
-			pid: number(raw.pid), ts: number(raw.ts), timestamp: number(raw.timestamp),
-			startedAt: number(raw.startedAt), endedAt: number(raw.endedAt), observedAt: number(raw.observedAt),
-			exitCode: number(raw.exitCode), success: typeof raw.success === "boolean" ? raw.success : undefined,
+			runnerProcessInstanceId:
+				typeof raw.runnerProcessInstanceId === "string" &&
+				/^[a-zA-Z0-9:-]{1,128}$/.test(raw.runnerProcessInstanceId)
+					? raw.runnerProcessInstanceId
+					: undefined,
+			state: known(raw.state, [
+				"pending",
+				"running",
+				"complete",
+				"failed",
+				"cancelled",
+				"observed",
+				"unknown",
+				"not-started",
+			]),
+			reason: known(raw.reason, [
+				"observer-unavailable",
+				"runner-candidate-missing",
+				"runner-instance-mismatch",
+				"writer-close-unverified",
+				"process-tree-unverified",
+				"canonical-session-unavailable",
+				"canonical-session-lease-active",
+				"canonical-session-release-unverified",
+				"proof-write-failed",
+				"stale-repair",
+			]),
+			pid: number(raw.pid),
+			ts: number(raw.ts),
+			timestamp: number(raw.timestamp),
+			startedAt: number(raw.startedAt),
+			endedAt: number(raw.endedAt),
+			observedAt: number(raw.observedAt),
+			exitCode: number(raw.exitCode),
+			success: typeof raw.success === "boolean" ? raw.success : undefined,
 		};
 	};
 	const marks: Record<string, number | boolean> = {};
@@ -393,13 +600,26 @@ export function observeSharedCwdRunner(id: string) {
 		const proc = record(message).process;
 		if (!(proc instanceof ChildProcess) || processes.length >= 8) return;
 		const events: unknown[] = [];
-		const add = (type: string, code?: unknown, signal?: unknown) => events.push({ type, at: Date.now(), pid: proc.pid, code: number(code) ?? (code === null ? null : undefined), signal: known(signal, ["SIGTERM", "SIGKILL", "SIGINT", "SIGABRT", "SIGSEGV"]) });
+		const add = (type: string, code?: unknown, signal?: unknown) =>
+			events.push({
+				type,
+				at: Date.now(),
+				pid: proc.pid,
+				code: number(code) ?? (code === null ? null : undefined),
+				signal: known(signal, ["SIGTERM", "SIGKILL", "SIGINT", "SIGABRT", "SIGSEGV"]),
+			});
 		const spawn = () => add("spawn");
 		const error = (err: Error) => events.push({ type: "error", at: Date.now(), code: errorCode(err) });
 		const exit = (code: number | null, signal: NodeJS.Signals | null) => add("exit", code, signal);
 		const close = (code: number | null, signal: NodeJS.Signals | null) => add("close", code, signal);
 		proc.once("spawn", spawn).once("error", error).once("exit", exit).once("close", close);
-		processes.push({ proc, events, dispose: () => { proc.off("spawn", spawn).off("error", error).off("exit", exit).off("close", close); } });
+		processes.push({
+			proc,
+			events,
+			dispose: () => {
+				proc.off("spawn", spawn).off("error", error).off("exit", exit).off("close", close);
+			},
+		});
 	};
 	return {
 		marks,
@@ -424,7 +644,15 @@ export function observeSharedCwdRunner(id: string) {
 		},
 		summary() {
 			const matched = processes.filter(({ proc }) => pid !== undefined && proc.pid === pid);
-			return { id, pid, marks, notifications, capturedProcesses: processes.length, correlatedProcesses: matched.length, processEvents: matched.map(({ events }) => events) };
+			return {
+				id,
+				pid,
+				marks,
+				notifications,
+				capturedProcesses: processes.length,
+				correlatedProcesses: matched.length,
+				processEvents: matched.map(({ events }) => events),
+			};
 		},
 		// One bounded read per known file, only after failure. No arbitrary text escapes.
 		snapshot() {
@@ -432,15 +660,30 @@ export function observeSharedCwdRunner(id: string) {
 			const matched = processes.filter(({ proc }) => pid !== undefined && proc.pid === pid);
 			const processState = matched.map(({ proc }) => ({
 				exitCode: proc.exitCode,
-				signalCode: proc.signalCode === null ? null : known(proc.signalCode, ["SIGTERM", "SIGKILL", "SIGINT", "SIGABRT", "SIGSEGV"]) ?? "other",
+				signalCode:
+					proc.signalCode === null
+						? null
+						: (known(proc.signalCode, ["SIGTERM", "SIGKILL", "SIGINT", "SIGABRT", "SIGSEGV"]) ?? "other"),
 			}));
 			// PID presence is not identity or cleanup authority. Probe at most once.
 			if (!signalZero && matched.length === 1 && pid !== undefined) {
 				const at = Date.now();
-				try { process.kill(pid, 0); signalZero = { at, state: "present" }; }
-				catch (error) { signalZero = { at, state: known(record(error).code, ["ESRCH", "EPERM", "EACCES", "EINVAL"]) ?? "other" }; }
+				try {
+					process.kill(pid, 0);
+					signalZero = { at, state: "present" };
+				} catch (error) {
+					signalZero = { at, state: known(record(error).code, ["ESRCH", "EPERM", "EACCES", "EINVAL"]) ?? "other" };
+				}
 			}
-			const files = ["process-terminal.json", "process-terminal-candidate.json", "status.json", "result", "events.jsonl", "runner.stdout.log", "runner.stderr.log"].map((name) => {
+			const files = [
+				"process-terminal.json",
+				"process-terminal-candidate.json",
+				"status.json",
+				"result",
+				"events.jsonl",
+				"runner.stdout.log",
+				"runner.stderr.log",
+			].map((name) => {
 				const file = name === "result" ? path.join(RESULTS_DIR, `${id}.json`) : path.join(ASYNC_DIR, id, name);
 				let fd: number | undefined;
 				const readAt = Date.now();
@@ -457,40 +700,101 @@ export function observeSharedCwdRunner(id: string) {
 					if (name.endsWith(".log")) {
 						const phases = [];
 						for (const line of text.split("\n").slice(offset > 0 ? 1 : 0)) {
-							const match = /^#1906 phase=(dispose-entry|dispose-return|exit) invocation=(\d{1,16}) ts=(\d{1,16}) pid=(\d{1,16})$/.exec(line);
+							const match =
+								/^#1906 phase=(dispose-entry|dispose-return|exit) invocation=(\d{1,16}) ts=(\d{1,16}) pid=(\d{1,16})$/.exec(
+									line,
+								);
 							if (!match || matched.length !== 1) continue;
 							const [invocation, ts, markerPid] = match.slice(2).map(Number);
-							if (![invocation, ts, markerPid].every(Number.isSafeInteger) || markerPid !== pid || ts <= 0) continue;
+							if (![invocation, ts, markerPid].every(Number.isSafeInteger) || markerPid !== pid || ts <= 0)
+								continue;
 							if (match[1] === "exit" ? invocation !== 0 : invocation < 1) continue;
 							phases.push({ phase: match[1], invocation, ts, pid: markerPid });
 						}
-						return { ...base, markers: ["ENOENT", "EACCES", "EPERM", "EBUSY", "ENOSPC", "SyntaxError", "TypeError", "UnhandledPromiseRejection"].filter((marker) => text.includes(marker)), phases: phases.slice(-16) };
+						return {
+							...base,
+							markers: [
+								"ENOENT",
+								"EACCES",
+								"EPERM",
+								"EBUSY",
+								"ENOSPC",
+								"SyntaxError",
+								"TypeError",
+								"UnhandledPromiseRejection",
+							].filter((marker) => text.includes(marker)),
+							phases: phases.slice(-16),
+						};
 					}
 					if (name === "events.jsonl") {
 						let parseErrors = 0;
 						const lifecycle = [];
-						for (const line of text.split("\n").slice(offset > 0 ? 1 : 0).filter(Boolean)) {
+						for (const line of text
+							.split("\n")
+							.slice(offset > 0 ? 1 : 0)
+							.filter(Boolean)) {
 							try {
 								const event = record(JSON.parse(line));
-								if (["subagent.run.started", "subagent.run.completed", "subagent.run.process_terminal"].includes(String(event.type))) lifecycle.push({ type: event.type, ...project(event), proof: project(event.processTerminal) });
-							} catch { parseErrors++; }
+								if (
+									["subagent.run.started", "subagent.run.completed", "subagent.run.process_terminal"].includes(
+										String(event.type),
+									)
+								)
+									lifecycle.push({
+										type: event.type,
+										...project(event),
+										proof: project(event.processTerminal),
+									});
+							} catch {
+								parseErrors++;
+							}
 						}
-						return { ...base, parseErrors, lifecycle: lifecycle.slice(-16), terminalPresentInRead: lifecycle.some((event) => event.type === "subagent.run.process_terminal") };
+						return {
+							...base,
+							parseErrors,
+							lifecycle: lifecycle.slice(-16),
+							terminalPresentInRead: lifecycle.some((event) => event.type === "subagent.run.process_terminal"),
+						};
 					}
 					const raw = record(JSON.parse(text));
-					return { ...base, ...project(raw), proof: project(raw.processTerminal), writers: ["0", "1"].map((index) => ({ index, count: Array.isArray(record(raw.writers)[index]) ? (record(raw.writers)[index] as unknown[]).length : undefined, expected: number(record(raw.expectedWriters)[index]) })) };
-				} catch (error) { return { name, readAt, state: error instanceof SyntaxError ? "invalid-json" : errorCode(error) }; }
-				finally { if (fd !== undefined) fs.closeSync(fd); }
+					return {
+						...base,
+						...project(raw),
+						proof: project(raw.processTerminal),
+						writers: ["0", "1"].map((index) => ({
+							index,
+							count: Array.isArray(record(raw.writers)[index])
+								? (record(raw.writers)[index] as unknown[]).length
+								: undefined,
+							expected: number(record(raw.expectedWriters)[index]),
+						})),
+					};
+				} catch (error) {
+					return { name, readAt, state: error instanceof SyntaxError ? "invalid-json" : errorCode(error) };
+				} finally {
+					if (fd !== undefined) fs.closeSync(fd);
+				}
 			});
-			return { snapshotAt, finishedAt: Date.now(), waitElapsedMs: typeof marks.waitStartedAt === "number" ? snapshotAt - marks.waitStartedAt : undefined, processState, signalZero, files };
+			return {
+				snapshotAt,
+				finishedAt: Date.now(),
+				waitElapsedMs: typeof marks.waitStartedAt === "number" ? snapshotAt - marks.waitStartedAt : undefined,
+				processState,
+				signalZero,
+				files,
+			};
 		},
 		// Called only at the failing assertion boundary, before fixture cleanup.
 		reportFailure(diagnostic: (message: string) => void) {
 			if (reported) return;
 			reported = true;
 			let text: string;
-			try { text = JSON.stringify({ ...this.summary(), snapshot: this.snapshot() }); }
-			catch { diagnostic("#1906 failure snapshot unavailable (contents withheld)"); return; }
+			try {
+				text = JSON.stringify({ ...this.summary(), snapshot: this.snapshot() });
+			} catch {
+				diagnostic("#1906 failure snapshot unavailable (contents withheld)");
+				return;
+			}
 			diagnostic(`#1906 ${text}`);
 			const directory = process.env.PI_SUBAGENTS_TERMINAL_EVIDENCE_DIR;
 			if (!directory) return;
@@ -499,9 +803,13 @@ export function observeSharedCwdRunner(id: string) {
 				if (Buffer.byteLength(text) > 65536) throw new Error("snapshot exceeds bound");
 				fs.mkdirSync(directory, { recursive: true });
 				fs.writeFileSync(path.join(directory, "shared-cwd-terminal.json"), text, { mode: 0o600 });
-			} catch { diagnostic("#1906 failure artifact unavailable (contents withheld)"); }
+			} catch {
+				diagnostic("#1906 failure artifact unavailable (contents withheld)");
+			}
 		},
-		dispose() { for (const entry of processes) entry.dispose(); },
+		dispose() {
+			for (const entry of processes) entry.dispose();
+		},
 	};
 }
 
@@ -519,7 +827,11 @@ async function waitForAsyncEvent(id: string, type: string, timeoutMs = 10_000): 
 	assert.fail(`Timed out waiting for async event '${type}': ${eventsPath}`);
 }
 
-async function waitForAsyncState(id: string, predicate: (status: AsyncStatusPayload) => boolean, timeoutMs = 10_000): Promise<AsyncStatusPayload> {
+async function waitForAsyncState(
+	id: string,
+	predicate: (status: AsyncStatusPayload) => boolean,
+	timeoutMs = 10_000,
+): Promise<AsyncStatusPayload> {
 	const statusPath = path.join(ASYNC_DIR, id, "status.json");
 	const deadline = Date.now() + timeoutMs;
 	let last: AsyncStatusPayload | undefined;
@@ -531,13 +843,20 @@ async function waitForAsyncState(id: string, predicate: (status: AsyncStatusPayl
 		}
 		await new Promise((resolve) => setTimeout(resolve, 50));
 	}
-	assert.fail(`Timed out waiting for async status: ${statusPath} (last state: ${last?.state ?? "missing"}, error: ${last?.error ?? "none"}, step statuses: ${last?.steps?.map((step) => step.status).join(",") ?? "none"})`);
+	assert.fail(
+		`Timed out waiting for async status: ${statusPath} (last state: ${last?.state ?? "missing"}, error: ${last?.error ?? "none"}, step statuses: ${last?.steps?.map((step) => step.status).join(",") ?? "none"})`,
+	);
 }
 
-async function waitForMockPiCall(mockPi: MockPi, index: number, timeoutMs = 30_000): Promise<{ args: string[]; systemPrompts: NonNullable<MockPiCallRecord["systemPrompts"]> }> {
+async function waitForMockPiCall(
+	mockPi: MockPi,
+	index: number,
+	timeoutMs = 30_000,
+): Promise<{ args: string[]; systemPrompts: NonNullable<MockPiCallRecord["systemPrompts"]> }> {
 	const deadline = Date.now() + timeoutMs;
 	for (;;) {
-		const callFile = fs.readdirSync(mockPi.dir)
+		const callFile = fs
+			.readdirSync(mockPi.dir)
 			.filter((name) => name.startsWith("call-") && name.endsWith(".json"))
 			.sort()
 			.at(index);
@@ -556,7 +875,8 @@ async function waitForMockPiArgs(mockPi: MockPi, index: number, timeoutMs = 30_0
 }
 
 function readLastMockPiArgs(mockPi: MockPi): string[] {
-	const callFile = fs.readdirSync(mockPi.dir)
+	const callFile = fs
+		.readdirSync(mockPi.dir)
 		.filter((name) => name.startsWith("call-") && name.endsWith(".json"))
 		.sort()
 		.at(-1);
@@ -567,7 +887,8 @@ function readLastMockPiArgs(mockPi: MockPi): string[] {
 }
 
 function readMockPiArgs(mockPi: MockPi, index: number): string[] {
-	const callFile = fs.readdirSync(mockPi.dir)
+	const callFile = fs
+		.readdirSync(mockPi.dir)
 		.filter((name) => name.startsWith("call-") && name.endsWith(".json"))
 		.sort()
 		.at(index);
@@ -578,7 +899,8 @@ function readMockPiArgs(mockPi: MockPi, index: number): string[] {
 }
 
 function readMockPiRequiredTools(mockPi: MockPi, index: number): string[] {
-	const callFile = fs.readdirSync(mockPi.dir)
+	const callFile = fs
+		.readdirSync(mockPi.dir)
 		.filter((name) => name.startsWith("call-") && name.endsWith(".json"))
 		.sort()
 		.at(index);
@@ -589,7 +911,8 @@ function readMockPiRequiredTools(mockPi: MockPi, index: number): string[] {
 }
 
 function readMockPiArgsMatching(mockPi: MockPi, text: string): string[] {
-	const callFiles = fs.readdirSync(mockPi.dir)
+	const callFiles = fs
+		.readdirSync(mockPi.dir)
 		.filter((name) => name.startsWith("call-") && name.endsWith(".json"))
 		.sort();
 	for (const callFile of callFiles) {
@@ -626,54 +949,105 @@ export function installAsyncExecutionHooks(): void {
 	});
 }
 
-	function makeAsyncExecutor(
-		agents: ReturnType<typeof makeAgent>[],
-		config: Record<string, unknown> = {},
-		discoverOverride?: (cwd: string) => { agents: ReturnType<typeof makeAgent>[]; cwd?: string; scope?: "user" | "project" | "both"; directories?: Array<{ source: "builtin" | "package" | "user" | "project" | "runtime"; path: string; state: "absent" | "empty" | "candidates" | "unreadable" | "not-directory"; candidateCount?: number }> },
-	) {
-		return createSubagentExecutor!({
-			pi: { events: createEventBus(), getSessionName: () => undefined },
-			state: { baseCwd: tempDir, currentSessionId: null, asyncJobs: new Map(), foregroundControls: new Map(), lastForegroundControlId: null },
-			config,
-			asyncByDefault: false,
-			tempArtifactsDir: tempDir,
-			getSubagentSessionRoot: () => tempDir,
-			expandTilde: (p: string) => p,
-			discoverAgents: (cwd: string) => discoverOverride ? discoverOverride(cwd) : ({ agents }),
-		});
-	}
+function makeAsyncExecutor(
+	agents: ReturnType<typeof makeAgent>[],
+	config: Record<string, unknown> = {},
+	discoverOverride?: (cwd: string) => {
+		agents: ReturnType<typeof makeAgent>[];
+		cwd?: string;
+		scope?: "user" | "project" | "both";
+		directories?: Array<{
+			source: "builtin" | "package" | "user" | "project" | "runtime";
+			path: string;
+			state: "absent" | "empty" | "candidates" | "unreadable" | "not-directory";
+			candidateCount?: number;
+		}>;
+	},
+) {
+	return createSubagentExecutor!({
+		pi: { events: createEventBus(), getSessionName: () => undefined },
+		state: {
+			baseCwd: tempDir,
+			currentSessionId: null,
+			asyncJobs: new Map(),
+			foregroundControls: new Map(),
+			lastForegroundControlId: null,
+		},
+		config,
+		asyncByDefault: false,
+		tempArtifactsDir: tempDir,
+		getSubagentSessionRoot: () => tempDir,
+		expandTilde: (p: string) => p,
+		discoverAgents: (cwd: string) => (discoverOverride ? discoverOverride(cwd) : { agents }),
+	});
+}
 
-	async function readAsyncPayload(id: string): Promise<AsyncResultPayload> {
-		const resultPath = await waitForAsyncResultFile(id, 10_000);
-		return JSON.parse(fs.readFileSync(resultPath, "utf-8")) as AsyncResultPayload;
-	}
+async function readAsyncPayload(id: string): Promise<AsyncResultPayload> {
+	const resultPath = await waitForAsyncResultFile(id, 10_000);
+	return JSON.parse(fs.readFileSync(resultPath, "utf-8")) as AsyncResultPayload;
+}
 
-	function launchProtocolTest(id: string): void {
-		const receipt = executeAsyncSingle(id, {
-			agent: "worker",
-			task: "Exercise child protocol",
-			agentConfig: makeAgent("worker"),
-			ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
-			artifactConfig: { enabled: false, includeInput: false, includeOutput: false, includeJsonl: false, includeMetadata: false, cleanupDays: 7 },
-			shareEnabled: false,
-			sessionRoot: path.join(tempDir, "sessions"),
-			maxSubagentDepth: 2,
-			acceptance: false,
-		});
-		assert.equal(receipt.isError === true, false, "protocol launch must succeed");
-		assert.equal(receipt.details.asyncId === id, true, "protocol launch must identify the requested run");
-		assert.equal(receipt.details.asyncDir === path.join(ASYNC_DIR, id), true, "protocol launch must identify the expected artifacts");
-	}
+function launchProtocolTest(id: string): void {
+	const receipt = executeAsyncSingle(id, {
+		agent: "worker",
+		task: "Exercise child protocol",
+		agentConfig: makeAgent("worker"),
+		ctx: { pi: { events: { emit() {} } }, cwd: tempDir, currentSessionId: "session-1" },
+		artifactConfig: {
+			enabled: false,
+			includeInput: false,
+			includeOutput: false,
+			includeJsonl: false,
+			includeMetadata: false,
+			cleanupDays: 7,
+		},
+		shareEnabled: false,
+		sessionRoot: path.join(tempDir, "sessions"),
+		maxSubagentDepth: 2,
+		acceptance: false,
+	});
+	assert.equal(receipt.isError === true, false, "protocol launch must succeed");
+	assert.equal(receipt.details.asyncId === id, true, "protocol launch must identify the requested run");
+	assert.equal(
+		receipt.details.asyncDir === path.join(ASYNC_DIR, id),
+		true,
+		"protocol launch must identify the expected artifacts",
+	);
+}
 
 export type { AsyncExecutionResult, AsyncResultPayload, AsyncStatusPayload, MockPiCallRecord };
 export {
-	available, isAsyncAvailable, executeAsyncSingle, executeAsyncChain,
-	resolveTargetedAsyncRun, readStatus, pruneStatusCacheForAsyncRoot,
-	ASYNC_DIR, RESULTS_DIR, TEMP_ROOT_DIR, createSubagentExecutor,
-	tempDir, mockPi, makeAsyncExecutor, readAsyncPayload, launchProtocolTest,
-	waitForMockPiRuntime, writeWatchdogSettings, withIsolatedWatchdogSettings,
-	childWatchdogStatus, mockAssistantMessage, escapeRegExp, createRepo,
-	writePackageSkill, readIfExists, waitForAsyncResultFile, waitForAsyncEvent,
-	waitForAsyncState, waitForMockPiCall, readLastMockPiArgs,
-	readMockPiArgs, readMockPiRequiredTools, readMockPiArgsMatching,
+	available,
+	isAsyncAvailable,
+	executeAsyncSingle,
+	executeAsyncChain,
+	resolveTargetedAsyncRun,
+	readStatus,
+	pruneStatusCacheForAsyncRoot,
+	ASYNC_DIR,
+	RESULTS_DIR,
+	TEMP_ROOT_DIR,
+	createSubagentExecutor,
+	tempDir,
+	mockPi,
+	makeAsyncExecutor,
+	readAsyncPayload,
+	launchProtocolTest,
+	waitForMockPiRuntime,
+	writeWatchdogSettings,
+	withIsolatedWatchdogSettings,
+	childWatchdogStatus,
+	mockAssistantMessage,
+	escapeRegExp,
+	createRepo,
+	writePackageSkill,
+	readIfExists,
+	waitForAsyncResultFile,
+	waitForAsyncEvent,
+	waitForAsyncState,
+	waitForMockPiCall,
+	readLastMockPiArgs,
+	readMockPiArgs,
+	readMockPiRequiredTools,
+	readMockPiArgsMatching,
 };

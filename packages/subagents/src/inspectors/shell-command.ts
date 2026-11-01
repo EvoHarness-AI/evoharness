@@ -7,7 +7,11 @@ function isBareExecutable(value: string): boolean {
 	return /^[\w./@:-]+$/.test(value);
 }
 
-export function formatShellCommand(exe: string, args: readonly string[], platform: NodeJS.Platform = process.platform): string {
+export function formatShellCommand(
+	exe: string,
+	args: readonly string[],
+	platform: NodeJS.Platform = process.platform,
+): string {
 	const quotedArgs = args.map((arg) => shellQuote(arg, platform));
 	if (platform === "win32") return `& ${[shellQuote(exe, platform), ...quotedArgs].join(" ")}`;
 	// Nushell treats a leading quoted token as a string, so use a bare invoker for paths that need quoting.

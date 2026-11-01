@@ -9,7 +9,10 @@ describe("watchdog scope artifact", () => {
 
 		const entries = scope.snapshot();
 		assert.equal(entries.length, 8);
-		assert.deepEqual(entries.map((entry) => entry.prompt), ["prompt-2", "prompt-3", "prompt-4", "prompt-5", "prompt-6", "prompt-7", "prompt-8", "prompt-9"]);
+		assert.deepEqual(
+			entries.map((entry) => entry.prompt),
+			["prompt-2", "prompt-3", "prompt-4", "prompt-5", "prompt-6", "prompt-7", "prompt-8", "prompt-9"],
+		);
 		assert.match(scope.render(), /newest last/);
 		assert.match(scope.render(), /Side questions are additive/);
 		assert.match(scope.render(), /evidence-backed reminders/);

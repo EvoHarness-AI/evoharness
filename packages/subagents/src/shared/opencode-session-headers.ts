@@ -25,6 +25,7 @@ export function opencodeSessionHeaders(
 	sessionId: string | undefined,
 ): ProviderHeaders | undefined {
 	if (!sessionId) return undefined;
-	if (model.provider !== "opencode" && model.provider !== "opencode-go" && !matchesOpenCodeHost(model.baseUrl)) return undefined;
+	if (model.provider !== "opencode" && model.provider !== "opencode-go" && !matchesOpenCodeHost(model.baseUrl))
+		return undefined;
 	return { "x-opencode-session": sessionId, "x-opencode-client": "pi" };
 }

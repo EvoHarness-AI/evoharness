@@ -26,7 +26,13 @@ type RenderSubagentResult = (
 type RenderSubagentSummary = (
 	result: {
 		content: Array<{ type: "text"; text: string }>;
-		details?: { mode: "single" | "parallel" | "chain" | "workflow" | "management"; results: unknown[]; progress?: unknown[]; asyncId?: string; workflowGraph?: unknown };
+		details?: {
+			mode: "single" | "parallel" | "chain" | "workflow" | "management";
+			results: unknown[];
+			progress?: unknown[];
+			asyncId?: string;
+			workflowGraph?: unknown;
+		};
 	},
 	options: { isPartial?: boolean },
 	theme: RenderTheme,
@@ -34,7 +40,7 @@ type RenderSubagentSummary = (
 
 let renderSubagentResult: RenderSubagentResult | undefined;
 let renderSubagentSummary: RenderSubagentSummary | undefined;
-({ renderSubagentResult, renderSubagentSummary } = await import("../../src/tui/render.ts") as {
+({ renderSubagentResult, renderSubagentSummary } = (await import("../../src/tui/render.ts")) as {
 	renderSubagentResult?: RenderSubagentResult;
 	renderSubagentSummary?: RenderSubagentSummary;
 });
@@ -98,28 +104,87 @@ describe("renderSubagentResult fork indicator", () => {
 		const cases = [
 			{
 				mode: "single" as const,
-				results: [{ agent: "single", task: "run", exitCode: 0, messages: [], usage: emptyUsage, children: [nestedChild("single-child")] }],
+				results: [
+					{
+						agent: "single",
+						task: "run",
+						exitCode: 0,
+						messages: [],
+						usage: emptyUsage,
+						children: [nestedChild("single-child")],
+					},
+				],
 			},
 			{
 				mode: "parallel" as const,
 				totalSteps: 2,
 				results: [
-					{ agent: "parallel-a", task: "run", exitCode: 0, messages: [], usage: emptyUsage, progress: { status: "running", index: 0, agent: "parallel-a", toolCount: 0, tokens: 0, durationMs: 0 }, children: [nestedChild("parallel-child-a")] },
-					{ agent: "parallel-b", task: "run", exitCode: 0, messages: [], usage: emptyUsage, progress: { status: "running", index: 1, agent: "parallel-b", toolCount: 0, tokens: 0, durationMs: 0 }, children: [nestedChild("parallel-child-b")] },
+					{
+						agent: "parallel-a",
+						task: "run",
+						exitCode: 0,
+						messages: [],
+						usage: emptyUsage,
+						progress: {
+							status: "running",
+							index: 0,
+							agent: "parallel-a",
+							toolCount: 0,
+							tokens: 0,
+							durationMs: 0,
+						},
+						children: [nestedChild("parallel-child-a")],
+					},
+					{
+						agent: "parallel-b",
+						task: "run",
+						exitCode: 0,
+						messages: [],
+						usage: emptyUsage,
+						progress: {
+							status: "running",
+							index: 1,
+							agent: "parallel-b",
+							toolCount: 0,
+							tokens: 0,
+							durationMs: 0,
+						},
+						children: [nestedChild("parallel-child-b")],
+					},
 				],
 			},
 			{
 				mode: "chain" as const,
 				chainAgents: ["chain-a", "chain-b"],
 				results: [
-					{ agent: "chain-a", task: "run", exitCode: 0, messages: [], usage: emptyUsage, progress: { status: "running", index: 0, agent: "chain-a", toolCount: 0, tokens: 0, durationMs: 0 }, children: [nestedChild("chain-child-a")] },
-					{ agent: "chain-b", task: "run", exitCode: 0, messages: [], usage: emptyUsage, progress: { status: "running", index: 1, agent: "chain-b", toolCount: 0, tokens: 0, durationMs: 0 }, children: [nestedChild("chain-child-b")] },
+					{
+						agent: "chain-a",
+						task: "run",
+						exitCode: 0,
+						messages: [],
+						usage: emptyUsage,
+						progress: { status: "running", index: 0, agent: "chain-a", toolCount: 0, tokens: 0, durationMs: 0 },
+						children: [nestedChild("chain-child-a")],
+					},
+					{
+						agent: "chain-b",
+						task: "run",
+						exitCode: 0,
+						messages: [],
+						usage: emptyUsage,
+						progress: { status: "running", index: 1, agent: "chain-b", toolCount: 0, tokens: 0, durationMs: 0 },
+						children: [nestedChild("chain-child-b")],
+					},
 				],
 			},
 		];
 
 		for (const details of cases) {
-			const widget = renderSubagentResult!({ content: [{ type: "text", text: "running" }], details }, { expanded: true }, theme);
+			const widget = renderSubagentResult!(
+				{ content: [{ type: "text", text: "running" }], details },
+				{ expanded: true },
+				theme,
+			);
 			const text = widget.render(160).join("\n");
 			for (const result of details.results) {
 				assert.match(text, new RegExp(`${result.children[0].id} · running`));
@@ -128,47 +193,65 @@ describe("renderSubagentResult fork indicator", () => {
 	});
 
 	it("renders result-owned nested children for terminal foreground results", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "failed" }],
-			details: {
-				mode: "parallel",
-				totalSteps: 1,
-				results: [{
-					agent: "owner",
-					task: "run",
-					exitCode: 1,
-					error: "failed",
-					messages: [],
-					usage: emptyUsage,
-					children: [nestedChild("terminal-child", "failed")],
-				}],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "failed" }],
+				details: {
+					mode: "parallel",
+					totalSteps: 1,
+					results: [
+						{
+							agent: "owner",
+							task: "run",
+							exitCode: 1,
+							error: "failed",
+							messages: [],
+							usage: emptyUsage,
+							children: [nestedChild("terminal-child", "failed")],
+						},
+					],
+				},
 			},
-		}, { expanded: true }, theme);
+			{ expanded: true },
+			theme,
+		);
 
 		assert.match(widget.render(160).join("\n"), /terminal-child · failed/);
 
-		const compact = renderSubagentResult!({
-			content: [{ type: "text", text: "done" }],
-			details: {
-				mode: "single",
-				results: [{
-					agent: "owner",
-					task: "run",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					children: [nestedChild("compact-terminal-child", "complete")],
-				}],
+		const compact = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					mode: "single",
+					results: [
+						{
+							agent: "owner",
+							task: "run",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							children: [nestedChild("compact-terminal-child", "complete")],
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme).render(160).join("\n");
+			{ expanded: false },
+			theme,
+		)
+			.render(160)
+			.join("\n");
 		assert.match(compact, /↳ └─ \[\d{2}:\d{2}:\d{2}\] . compact-terminal-child · complete · Done/);
 	});
 	it("collapses multiline structured management output to a first-line summary", () => {
 		const output = `\n${"Managed agents: ".padEnd(220, "x")}\n- reviewer\n- writer`;
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: output }],
-			details: { mode: "management", context: "fork", results: [] },
-		}, { expanded: false }, theme);
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: output }],
+				details: { mode: "management", context: "fork", results: [] },
+			},
+			{ expanded: false },
+			theme,
+		);
 
 		const lines = widget.render(120).map((line) => line.trimEnd());
 		assert.match(lines[0]!, /^\[fork\] Managed agents:/);
@@ -179,11 +262,15 @@ describe("renderSubagentResult fork indicator", () => {
 	});
 
 	it("keeps multiline structured zero-result errors visible", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "Error: management failed\nfirst diagnostic\nsecond diagnostic" }],
-			isError: true,
-			details: { mode: "management", results: [] },
-		}, { expanded: false }, theme);
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "Error: management failed\nfirst diagnostic\nsecond diagnostic" }],
+				isError: true,
+				details: { mode: "management", results: [] },
+			},
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /Error: management failed/);
@@ -194,10 +281,14 @@ describe("renderSubagentResult fork indicator", () => {
 
 	it("keeps full multiline structured output when expanded", () => {
 		const output = "Managed agents:\n- reviewer\n- writer";
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: output }],
-			details: { mode: "management", results: [] },
-		}, { expanded: true }, theme);
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: output }],
+				details: { mode: "management", results: [] },
+			},
+			{ expanded: true },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /Managed agents:/);
@@ -207,10 +298,14 @@ describe("renderSubagentResult fork indicator", () => {
 	});
 
 	it("collapses multiline structured single output using the same contract", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "Run status:\nState: running\nTranscript: available" }],
-			details: { mode: "single", results: [] },
-		}, { expanded: false }, theme);
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "Run status:\nState: running\nTranscript: available" }],
+				details: { mode: "single", results: [] },
+			},
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /^Run status:/);
@@ -220,57 +315,90 @@ describe("renderSubagentResult fork indicator", () => {
 	});
 
 	it("preserves unstructured multiline and structured single-line output", () => {
-		const unstructured = renderSubagentResult!({
-			content: [{ type: "text", text: "Error:\nfirst detail\nsecond detail" }],
-		}, { expanded: false }, theme).render(120).join("\n");
+		const unstructured = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "Error:\nfirst detail\nsecond detail" }],
+			},
+			{ expanded: false },
+			theme,
+		)
+			.render(120)
+			.join("\n");
 		assert.match(unstructured, /first detail/);
 		assert.match(unstructured, /second detail/);
 		assert.ok(!unstructured.includes(expandHint));
 
-		const singleLine = renderSubagentResult!({
-			content: [{ type: "text", text: "No active async run transcript is available." }],
-			details: { mode: "single", results: [] },
-		}, { expanded: false }, theme).render(120).map((line) => line.trimEnd()).join("\n");
+		const singleLine = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "No active async run transcript is available." }],
+				details: { mode: "single", results: [] },
+			},
+			{ expanded: false },
+			theme,
+		)
+			.render(120)
+			.map((line) => line.trimEnd())
+			.join("\n");
 		assert.equal(singleLine, "No active async run transcript is available.");
 		assert.ok(!singleLine.includes(expandHint));
 	});
 
 	it("shows [fork] when details are empty but context is fork", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "Async: reviewer [abc123]" }],
-			details: { mode: "single", context: "fork", results: [] },
-		}, { expanded: false }, theme);
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "Async: reviewer [abc123]" }],
+				details: { mode: "single", context: "fork", results: [] },
+			},
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /\[fork\]/);
 	});
 
 	it("shows nested foreground children with timestamps on running single results", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "running" }],
-			details: {
-				mode: "single",
-				results: [{
-					agent: "execute",
-					task: "run plan",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: { status: "running", index: 0, agent: "execute", toolCount: 1, tokens: 10, durationMs: 1_000, lastActivityAt: 1_700_000_001_000 },
-					children: [{
-						id: "impl-1",
-						parentRunId: "root",
-						parentStepIndex: 0,
-						depth: 1,
-						path: [{ runId: "root", stepIndex: 0, agent: "execute" }],
-						state: "running",
-						agent: "implement",
-						lastUpdate: 1_700_000_002_000,
-						currentTool: "bash",
-					}],
-				}],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "running" }],
+				details: {
+					mode: "single",
+					results: [
+						{
+							agent: "execute",
+							task: "run plan",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								status: "running",
+								index: 0,
+								agent: "execute",
+								toolCount: 1,
+								tokens: 10,
+								durationMs: 1_000,
+								lastActivityAt: 1_700_000_001_000,
+							},
+							children: [
+								{
+									id: "impl-1",
+									parentRunId: "root",
+									parentStepIndex: 0,
+									depth: 1,
+									path: [{ runId: "root", stepIndex: 0, agent: "execute" }],
+									state: "running",
+									agent: "implement",
+									lastUpdate: 1_700_000_002_000,
+									currentTool: "bash",
+								},
+							],
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme);
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /↳ └─ \[\d{2}:\d{2}:\d{2}\] . implement · running · bash/);
@@ -278,21 +406,27 @@ describe("renderSubagentResult fork indicator", () => {
 
 	it("shows [fresh] and [fork] on single-result headers", () => {
 		for (const context of ["fresh", "fork"] as const) {
-			const widget = renderSubagentResult!({
-				content: [{ type: "text", text: "done" }],
-				details: {
-					mode: "single",
-					context,
-					results: [{
-						agent: "reviewer",
-						task: "review",
+			const widget = renderSubagentResult!(
+				{
+					content: [{ type: "text", text: "done" }],
+					details: {
+						mode: "single",
 						context,
-						exitCode: 0,
-						messages: [],
-						usage: emptyUsage,
-					}],
+						results: [
+							{
+								agent: "reviewer",
+								task: "review",
+								context,
+								exitCode: 0,
+								messages: [],
+								usage: emptyUsage,
+							},
+						],
+					},
 				},
-			}, { expanded: false }, theme);
+				{ expanded: false },
+				theme,
+			);
 
 			const text = widget.render(120).join("\n");
 			assert.match(text, new RegExp(`\\[${context}\\]`));
@@ -300,33 +434,45 @@ describe("renderSubagentResult fork indicator", () => {
 	});
 
 	it("shows [mixed] on mixed runs and per-child context badges", () => {
-		const compact = renderSubagentResult!({
-			content: [{ type: "text", text: "done" }],
-			details: {
-				mode: "parallel",
-				context: "mixed",
-				results: [
-					{ agent: "scout", task: "scan", context: "fresh", exitCode: 0, messages: [], usage: emptyUsage },
-					{ agent: "worker", task: "fix", context: "fork", exitCode: 0, messages: [], usage: emptyUsage },
-				],
+		const compact = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					mode: "parallel",
+					context: "mixed",
+					results: [
+						{ agent: "scout", task: "scan", context: "fresh", exitCode: 0, messages: [], usage: emptyUsage },
+						{ agent: "worker", task: "fix", context: "fork", exitCode: 0, messages: [], usage: emptyUsage },
+					],
+				},
 			},
-		}, { expanded: false }, theme).render(160).join("\n");
+			{ expanded: false },
+			theme,
+		)
+			.render(160)
+			.join("\n");
 
 		assert.match(compact, /parallel \[mixed\]/);
 		assert.match(compact, /scan \[fresh\]/);
 		assert.match(compact, /fix \[fork\]/);
 
-		const expanded = renderSubagentResult!({
-			content: [{ type: "text", text: "done" }],
-			details: {
-				mode: "parallel",
-				context: "mixed",
-				results: [
-					{ agent: "scout", task: "scan", context: "fresh", exitCode: 0, messages: [], usage: emptyUsage },
-					{ agent: "worker", task: "fix", context: "fork", exitCode: 0, messages: [], usage: emptyUsage },
-				],
+		const expanded = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					mode: "parallel",
+					context: "mixed",
+					results: [
+						{ agent: "scout", task: "scan", context: "fresh", exitCode: 0, messages: [], usage: emptyUsage },
+						{ agent: "worker", task: "fix", context: "fork", exitCode: 0, messages: [], usage: emptyUsage },
+					],
+				},
 			},
-		}, { expanded: true }, theme).render(160).join("\n");
+			{ expanded: true },
+			theme,
+		)
+			.render(160)
+			.join("\n");
 
 		assert.match(expanded, /parallel \[mixed\]/);
 		assert.match(expanded, /scan \[fresh\]/);
@@ -334,57 +480,86 @@ describe("renderSubagentResult fork indicator", () => {
 	});
 
 	it("uses compacted tool-call summaries when messages were stripped", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "done" }],
-			details: {
-				mode: "single",
-				results: [{
-					agent: "reviewer",
-					task: "review",
-					exitCode: 0,
-					messages: undefined,
-					toolCalls: [{
-						text: "$ npm test -- --watch...",
-						expandedText: "$ npm test -- --watch --runInBand --reporter=dot",
-					}],
-					usage: emptyUsage,
-				}],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					mode: "single",
+					results: [
+						{
+							agent: "reviewer",
+							task: "review",
+							exitCode: 0,
+							messages: undefined,
+							toolCalls: [
+								{
+									text: "$ npm test -- --watch...",
+									expandedText: "$ npm test -- --watch --runInBand --reporter=dot",
+								},
+							],
+							usage: emptyUsage,
+						},
+					],
+				},
 			},
-		}, { expanded: true }, theme);
+			{ expanded: true },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /npm test -- --watch --runInBand --reporter=dot/);
 	});
 
 	it("shows the full task in expanded mode", () => {
-		const longTask = "Review the auth flow, trace the race condition, and document the precise failing tool sequence at the end.";
-		const collapsed = withTerminalWidth(40, () => renderSubagentResult!({
-			content: [{ type: "text", text: "done" }],
-			details: {
-				mode: "single",
-				results: [{
-					agent: "reviewer",
-					task: longTask,
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-				}],
-			},
-		}, { expanded: false }, theme).render(40).join("\n"));
+		const longTask =
+			"Review the auth flow, trace the race condition, and document the precise failing tool sequence at the end.";
+		const collapsed = withTerminalWidth(40, () =>
+			renderSubagentResult!(
+				{
+					content: [{ type: "text", text: "done" }],
+					details: {
+						mode: "single",
+						results: [
+							{
+								agent: "reviewer",
+								task: longTask,
+								exitCode: 0,
+								messages: [],
+								usage: emptyUsage,
+							},
+						],
+					},
+				},
+				{ expanded: false },
+				theme,
+			)
+				.render(40)
+				.join("\n"),
+		);
 
-		const expanded = withTerminalWidth(40, () => renderSubagentResult!({
-			content: [{ type: "text", text: "done" }],
-			details: {
-				mode: "single",
-				results: [{
-					agent: "reviewer",
-					task: longTask,
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-				}],
-			},
-		}, { expanded: true }, theme).render(40).join("\n"));
+		const expanded = withTerminalWidth(40, () =>
+			renderSubagentResult!(
+				{
+					content: [{ type: "text", text: "done" }],
+					details: {
+						mode: "single",
+						results: [
+							{
+								agent: "reviewer",
+								task: longTask,
+								exitCode: 0,
+								messages: [],
+								usage: emptyUsage,
+							},
+						],
+					},
+				},
+				{ expanded: true },
+				theme,
+			)
+				.render(40)
+				.join("\n"),
+		);
 
 		const unwrap = (text: string) => text.replace(/\s+/g, "");
 		assert.doesNotMatch(unwrap(collapsed), /precisefailingtoolsequenceattheend\./);
@@ -397,7 +572,19 @@ describe("renderSubagentResult fork indicator", () => {
 				name: "running",
 				glyph: "⠋",
 				label: "running",
-				extra: { progress: { index: 0, agent: "reviewer", status: "running", task: "review", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 } },
+				extra: {
+					progress: {
+						index: 0,
+						agent: "reviewer",
+						status: "running",
+						task: "review",
+						recentTools: [],
+						recentOutput: [],
+						toolCount: 0,
+						tokens: 0,
+						durationMs: 0,
+					},
+				},
 			},
 			{
 				name: "detached",
@@ -406,7 +593,17 @@ describe("renderSubagentResult fork indicator", () => {
 				extra: {
 					detached: true,
 					detachedReason: "continuing externally",
-					progress: { index: 0, agent: "reviewer", status: "running", task: "review", recentTools: [], recentOutput: [], toolCount: 1, tokens: 42, durationMs: 1000 },
+					progress: {
+						index: 0,
+						agent: "reviewer",
+						status: "running",
+						task: "review",
+						recentTools: [],
+						recentOutput: [],
+						toolCount: 1,
+						tokens: 42,
+						durationMs: 1000,
+					},
 				},
 			},
 			{
@@ -416,7 +613,17 @@ describe("renderSubagentResult fork indicator", () => {
 				extra: {
 					stopped: true,
 					exitCode: 1,
-					progress: { index: 0, agent: "reviewer", status: "running", task: "review", recentTools: [], recentOutput: [], toolCount: 1, tokens: 42, durationMs: 1000 },
+					progress: {
+						index: 0,
+						agent: "reviewer",
+						status: "running",
+						task: "review",
+						recentTools: [],
+						recentOutput: [],
+						toolCount: 1,
+						tokens: 42,
+						durationMs: 1000,
+					},
 				},
 			},
 			{
@@ -426,7 +633,17 @@ describe("renderSubagentResult fork indicator", () => {
 				extra: {
 					interrupted: true,
 					exitCode: 1,
-					progress: { index: 0, agent: "reviewer", status: "running", task: "review", recentTools: [], recentOutput: [], toolCount: 1, tokens: 42, durationMs: 1000 },
+					progress: {
+						index: 0,
+						agent: "reviewer",
+						status: "running",
+						task: "review",
+						recentTools: [],
+						recentOutput: [],
+						toolCount: 1,
+						tokens: 42,
+						durationMs: 1000,
+					},
 				},
 			},
 			{ name: "failed", glyph: "✗", label: "failed", extra: { exitCode: 1, error: "boom" } },
@@ -454,9 +671,16 @@ describe("renderSubagentResult fork indicator", () => {
 
 			assert.equal(firstGrapheme(compact), testCase.glyph, `${testCase.name} compact glyph`);
 			assert.equal(firstGrapheme(expanded), testCase.glyph, `${testCase.name} expanded glyph`);
-			assert.match((expanded.split("\n")[0] ?? "").trimEnd(), new RegExp(`reviewer(?: \\| [^·]+)? · ${testCase.label}$`), `${testCase.name} expanded label`);
-			const compactEvidence = { detached: "Detached", stopped: "Stopped", interrupted: "Paused", failed: "Error" }[testCase.name];
-			if (compactEvidence) assert.match(compact, new RegExp(`⎿  ${compactEvidence}`), `${testCase.name} compact evidence`);
+			assert.match(
+				(expanded.split("\n")[0] ?? "").trimEnd(),
+				new RegExp(`reviewer(?: \\| [^·]+)? · ${testCase.label}$`),
+				`${testCase.name} expanded label`,
+			);
+			const compactEvidence = { detached: "Detached", stopped: "Stopped", interrupted: "Paused", failed: "Error" }[
+				testCase.name
+			];
+			if (compactEvidence)
+				assert.match(compact, new RegExp(`⎿  ${compactEvidence}`), `${testCase.name} compact evidence`);
 		}
 	});
 
@@ -479,23 +703,31 @@ describe("renderSubagentResult fork indicator", () => {
 		] as const;
 
 		for (const testCase of cases) {
-			const summary = renderSubagentSummary!({
-				content: [{ type: "text", text: testCase.name }],
-				details: {
-					mode: "single",
-					asyncId: "async-review",
-					progress: [progress],
-					results: [{
-						agent: "reviewer",
-						task: "review",
-						exitCode: 0,
-						messages: [],
-						usage: emptyUsage,
-						progress,
-						...testCase.flag,
-					}],
+			const summary = renderSubagentSummary!(
+				{
+					content: [{ type: "text", text: testCase.name }],
+					details: {
+						mode: "single",
+						asyncId: "async-review",
+						progress: [progress],
+						results: [
+							{
+								agent: "reviewer",
+								task: "review",
+								exitCode: 0,
+								messages: [],
+								usage: emptyUsage,
+								progress,
+								...testCase.flag,
+							},
+						],
+					},
 				},
-			}, {}, theme).render(120).join("\n");
+				{},
+				theme,
+			)
+				.render(120)
+				.join("\n");
 
 			assert.match(summary, new RegExp(`· ${testCase.state}$`), testCase.name);
 			assert.doesNotMatch(summary, /running/, testCase.name);
@@ -516,18 +748,39 @@ describe("renderSubagentResult fork indicator", () => {
 		});
 		const stoppedProgress = progress(0, "stopped-reviewer");
 		const runningProgress = progress(1, "running-reviewer");
-		const summary = renderSubagentSummary!({
-			content: [{ type: "text", text: "mixed" }],
-			details: {
-				mode: "parallel",
-				asyncId: "async-review",
-				progress: [stoppedProgress, runningProgress],
-				results: [
-					{ agent: "stopped-reviewer", task: "review", exitCode: 1, messages: [], usage: emptyUsage, stopped: true, progress: stoppedProgress },
-					{ agent: "running-reviewer", task: "review", exitCode: 0, messages: [], usage: emptyUsage, progress: runningProgress },
-				],
+		const summary = renderSubagentSummary!(
+			{
+				content: [{ type: "text", text: "mixed" }],
+				details: {
+					mode: "parallel",
+					asyncId: "async-review",
+					progress: [stoppedProgress, runningProgress],
+					results: [
+						{
+							agent: "stopped-reviewer",
+							task: "review",
+							exitCode: 1,
+							messages: [],
+							usage: emptyUsage,
+							stopped: true,
+							progress: stoppedProgress,
+						},
+						{
+							agent: "running-reviewer",
+							task: "review",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: runningProgress,
+						},
+					],
+				},
 			},
-		}, {}, theme).render(120).join("\n");
+			{},
+			theme,
+		)
+			.render(120)
+			.join("\n");
 
 		assert.match(summary, /· running$/);
 	});
@@ -547,19 +800,49 @@ describe("renderSubagentResult fork indicator", () => {
 		const stoppedProgress = progress(0, "stopped-reviewer");
 		const pausedProgress = progress(1, "paused-reviewer");
 		const detachedProgress = progress(2, "detached-reviewer");
-		const summary = renderSubagentSummary!({
-			content: [{ type: "text", text: "all terminal" }],
-			details: {
-				mode: "parallel",
-				asyncId: "async-review",
-				progress: [stoppedProgress, pausedProgress, detachedProgress],
-				results: [
-					{ agent: "stopped-reviewer", task: "review", exitCode: 1, messages: [], usage: emptyUsage, stopped: true, progress: stoppedProgress },
-					{ agent: "paused-reviewer", task: "review", exitCode: 1, messages: [], usage: emptyUsage, interrupted: true, progress: pausedProgress },
-					{ agent: "detached-reviewer", task: "review", exitCode: 0, messages: [], usage: emptyUsage, detached: true, progress: detachedProgress },
-				],
+		const summary = renderSubagentSummary!(
+			{
+				content: [{ type: "text", text: "all terminal" }],
+				details: {
+					mode: "parallel",
+					asyncId: "async-review",
+					progress: [stoppedProgress, pausedProgress, detachedProgress],
+					results: [
+						{
+							agent: "stopped-reviewer",
+							task: "review",
+							exitCode: 1,
+							messages: [],
+							usage: emptyUsage,
+							stopped: true,
+							progress: stoppedProgress,
+						},
+						{
+							agent: "paused-reviewer",
+							task: "review",
+							exitCode: 1,
+							messages: [],
+							usage: emptyUsage,
+							interrupted: true,
+							progress: pausedProgress,
+						},
+						{
+							agent: "detached-reviewer",
+							task: "review",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							detached: true,
+							progress: detachedProgress,
+						},
+					],
+				},
 			},
-		}, {}, theme).render(120).join("\n");
+			{},
+			theme,
+		)
+			.render(120)
+			.join("\n");
 
 		assert.match(summary, /· stopped$/);
 		assert.doesNotMatch(summary, /running/);
@@ -578,15 +861,28 @@ describe("renderSubagentResult fork indicator", () => {
 				tokens: 42,
 				durationMs: 1_000,
 			}));
-			const summary = renderSubagentSummary!({
-				content: [{ type: "text", text: "done" }],
-				details: {
-					mode,
-					asyncId: `async-${mode}`,
-					progress,
-					results: progress.map((entry) => ({ agent: entry.agent, task: "review", exitCode: 0, messages: [], usage: emptyUsage, progress: entry })),
+			const summary = renderSubagentSummary!(
+				{
+					content: [{ type: "text", text: "done" }],
+					details: {
+						mode,
+						asyncId: `async-${mode}`,
+						progress,
+						results: progress.map((entry) => ({
+							agent: entry.agent,
+							task: "review",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: entry,
+						})),
+					},
 				},
-			}, {}, theme).render(120).join("\n");
+				{},
+				theme,
+			)
+				.render(120)
+				.join("\n");
 
 			assert.match(summary, /· completed$/, mode);
 			assert.doesNotMatch(summary, /running/, mode);
@@ -598,7 +894,13 @@ describe("renderSubagentResult fork indicator", () => {
 			content: [{ type: "text" as const, text: "inconclusive gate" }],
 			details: {
 				mode: "workflow" as const,
-				results: ["worker", "reviewer"].map((agent) => ({ agent, task: "gate", exitCode: 0, messages: [], usage: emptyUsage })),
+				results: ["worker", "reviewer"].map((agent) => ({
+					agent,
+					task: "gate",
+					exitCode: 0,
+					messages: [],
+					usage: emptyUsage,
+				})),
 				workflowGraph: {
 					runId: "workflow-partial",
 					mode: "workflow" as const,
@@ -629,15 +931,29 @@ describe("renderSubagentResult fork indicator", () => {
 				tokens: 42,
 				durationMs: 1_000,
 			}));
-			const summary = renderSubagentSummary!({
-				content: [{ type: "text", text: "failed" }],
-				details: {
-					mode,
-					asyncId: `async-${mode}`,
-					progress,
-					results: progress.map((entry) => ({ agent: entry.agent, task: "review", exitCode: 1, error: "boom", messages: [], usage: emptyUsage, progress: entry })),
+			const summary = renderSubagentSummary!(
+				{
+					content: [{ type: "text", text: "failed" }],
+					details: {
+						mode,
+						asyncId: `async-${mode}`,
+						progress,
+						results: progress.map((entry) => ({
+							agent: entry.agent,
+							task: "review",
+							exitCode: 1,
+							error: "boom",
+							messages: [],
+							usage: emptyUsage,
+							progress: entry,
+						})),
+					},
 				},
-			}, {}, theme).render(120).join("\n");
+				{},
+				theme,
+			)
+				.render(120)
+				.join("\n");
 
 			assert.match(summary, /· failed$/, mode);
 			assert.doesNotMatch(summary, /running/, mode);
@@ -654,7 +970,17 @@ describe("renderSubagentResult fork indicator", () => {
 				finalOutput: "output",
 				messages: [],
 				usage: emptyUsage,
-				progress: { index: 0, agent: "detached-agent", status: "running" as const, task: "one", recentTools: [], recentOutput: [], toolCount: 1, tokens: 42, durationMs: 1000 },
+				progress: {
+					index: 0,
+					agent: "detached-agent",
+					status: "running" as const,
+					task: "one",
+					recentTools: [],
+					recentOutput: [],
+					toolCount: 1,
+					tokens: 42,
+					durationMs: 1000,
+				},
 			},
 			{
 				agent: "stopped-agent",
@@ -664,7 +990,17 @@ describe("renderSubagentResult fork indicator", () => {
 				finalOutput: "output",
 				messages: [],
 				usage: emptyUsage,
-				progress: { index: 1, agent: "stopped-agent", status: "running" as const, task: "two", recentTools: [], recentOutput: [], toolCount: 1, tokens: 42, durationMs: 1000 },
+				progress: {
+					index: 1,
+					agent: "stopped-agent",
+					status: "running" as const,
+					task: "two",
+					recentTools: [],
+					recentOutput: [],
+					toolCount: 1,
+					tokens: 42,
+					durationMs: 1000,
+				},
 			},
 			{
 				agent: "paused-agent",
@@ -674,10 +1010,35 @@ describe("renderSubagentResult fork indicator", () => {
 				finalOutput: "Interrupted. Waiting for explicit next action.",
 				messages: [],
 				usage: emptyUsage,
-				progress: { index: 2, agent: "paused-agent", status: "running" as const, task: "three", recentTools: [], recentOutput: [], toolCount: 1, tokens: 42, durationMs: 1000 },
+				progress: {
+					index: 2,
+					agent: "paused-agent",
+					status: "running" as const,
+					task: "three",
+					recentTools: [],
+					recentOutput: [],
+					toolCount: 1,
+					tokens: 42,
+					durationMs: 1000,
+				},
 			},
-			{ agent: "failed-agent", task: "four", exitCode: 1, error: "boom", finalOutput: "output", messages: [], usage: emptyUsage },
-			{ agent: "completed-agent", task: "five", exitCode: 0, finalOutput: "output", messages: [], usage: emptyUsage },
+			{
+				agent: "failed-agent",
+				task: "four",
+				exitCode: 1,
+				error: "boom",
+				finalOutput: "output",
+				messages: [],
+				usage: emptyUsage,
+			},
+			{
+				agent: "completed-agent",
+				task: "five",
+				exitCode: 0,
+				finalOutput: "output",
+				messages: [],
+				usage: emptyUsage,
+			},
 		];
 		const result = {
 			content: [{ type: "text" as const, text: "mixed" }],
@@ -707,32 +1068,44 @@ describe("renderSubagentResult fork indicator", () => {
 				isError: true,
 				details: {
 					mode: "workflow" as const,
-					results: [{
-						agent: "reviewer",
-						task: "Review changes",
-						exitCode: childFailed ? 1 : 0,
-						error: childFailed ? childError : undefined,
-						finalOutput: childFailed ? "" : "Review complete",
-						messages: [],
-						usage: emptyUsage,
-					}],
+					results: [
+						{
+							agent: "reviewer",
+							task: "Review changes",
+							exitCode: childFailed ? 1 : 0,
+							error: childFailed ? childError : undefined,
+							finalOutput: childFailed ? "" : "Review complete",
+							messages: [],
+							usage: emptyUsage,
+						},
+					],
 					workflow: {
 						value: "workflow finished",
 						trace: [],
 						emits: [],
 						console: [],
 						receipt: {
-							hostSteps: [{
-								version: 1, kind: "host-step", monitorKind: "command",
-								id: "ci", label: "CI", state: "error", detail: hostError,
-								exitCode: 127, updatedAt: 1,
-							}],
+							hostSteps: [
+								{
+									version: 1,
+									kind: "host-step",
+									monitorKind: "command",
+									id: "ci",
+									label: "CI",
+									state: "error",
+									detail: hostError,
+									exitCode: 127,
+									updatedAt: 1,
+								},
+							],
 						},
 					},
 				},
 			};
 			for (const expanded of childFailed ? [true] : [false, true]) {
-				const text = withTerminalWidth(220, () => renderSubagentResult!(result, { expanded }, theme).render(220).join("\n"));
+				const text = withTerminalWidth(220, () =>
+					renderSubagentResult!(result, { expanded }, theme).render(220).join("\n"),
+				);
 				assert.equal(text.split(hostError).length - 1, 1, text);
 				if (expanded) assert.equal(text.split(childError).length - 1, childFailed ? 1 : 0, text);
 			}
@@ -745,16 +1118,28 @@ describe("renderSubagentResult fork indicator", () => {
 			details: {
 				mode: "parallel" as const,
 				totalSteps: 1,
-				results: [{
-					agent: "paused-agent",
-					task: "pause",
-					exitCode: 1,
-					interrupted: true,
-					finalOutput: "Interrupted. Waiting for explicit next action.",
-					messages: [],
-					usage: emptyUsage,
-					progress: { index: 0, agent: "paused-agent", status: "running" as const, task: "pause", recentTools: [], recentOutput: [], toolCount: 1, tokens: 42, durationMs: 1000 },
-				}],
+				results: [
+					{
+						agent: "paused-agent",
+						task: "pause",
+						exitCode: 1,
+						interrupted: true,
+						finalOutput: "Interrupted. Waiting for explicit next action.",
+						messages: [],
+						usage: emptyUsage,
+						progress: {
+							index: 0,
+							agent: "paused-agent",
+							status: "running" as const,
+							task: "pause",
+							recentTools: [],
+							recentOutput: [],
+							toolCount: 1,
+							tokens: 42,
+							durationMs: 1000,
+						},
+					},
+				],
 			},
 		};
 
@@ -766,191 +1151,310 @@ describe("renderSubagentResult fork indicator", () => {
 	});
 
 	it("uses glyph-first compact rendering for completed subagents", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "done" }],
-			details: {
-				mode: "single",
-				results: [{
-					agent: "reviewer",
-					task: "review",
-					exitCode: 0,
-					messages: [],
-					usage: { ...emptyUsage, turns: 2 },
-					progressSummary: { toolCount: 3, tokens: 1200, durationMs: 1500 },
-					sessionFile: "/tmp/session.jsonl",
-				}],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					mode: "single",
+					results: [
+						{
+							agent: "reviewer",
+							task: "review",
+							exitCode: 0,
+							messages: [],
+							usage: { ...emptyUsage, turns: 2 },
+							progressSummary: { toolCount: 3, tokens: 1200, durationMs: 1500 },
+							sessionFile: "/tmp/session.jsonl",
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme);
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /^✓ reviewer/);
 		assert.match(text, /⟳ 2/);
 		assert.match(text, /3 tool uses/);
 		assert.match(text, /1\.2k token/);
-		assert.match(text, /⎿  Done/);
+		assert.match(text, /⎿ {2}Done/);
 		assert.match(text, /session: \/tmp\/session\.jsonl/);
 	});
 
 	it("keeps failure reasons visible in compact rendering", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "failed" }],
-			details: {
-				mode: "single",
-				results: [{
-					agent: "reviewer",
-					task: "review",
-					exitCode: 1,
-					error: "boom",
-					messages: [],
-					usage: emptyUsage,
-				}],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "failed" }],
+				details: {
+					mode: "single",
+					results: [
+						{
+							agent: "reviewer",
+							task: "review",
+							exitCode: 1,
+							error: "boom",
+							messages: [],
+							usage: emptyUsage,
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme);
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /^✗ reviewer/);
-		assert.match(text, /⎿  Error: boom/);
+		assert.match(text, /⎿ {2}Error: boom/);
 	});
 
 	it("shows live detail hints for running subagents", () => {
 		const now = Date.now();
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "(running...)" }],
-			details: {
-				mode: "single",
-				results: [{
-					agent: "reviewer",
-					task: "review",
-					exitCode: 0,
-					messages: [],
-					artifactPaths: {
-						outputPath: "/tmp/reviewer_output.md",
-					},
-					usage: emptyUsage,
-					progress: {
-						index: 0,
-						agent: "reviewer",
-						status: "running",
-						task: "review",
-						lastActivityAt: now - 2_000,
-						currentTool: "read",
-						currentToolArgs: "package.json",
-						currentToolStartedAt: now - 3_000,
-						recentTools: [],
-						recentOutput: [],
-						toolCount: 1,
-						tokens: 42,
-						durationMs: 3_000,
-					},
-				}],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "(running...)" }],
+				details: {
+					mode: "single",
+					results: [
+						{
+							agent: "reviewer",
+							task: "review",
+							exitCode: 0,
+							messages: [],
+							artifactPaths: {
+								outputPath: "/tmp/reviewer_output.md",
+							},
+							usage: emptyUsage,
+							progress: {
+								index: 0,
+								agent: "reviewer",
+								status: "running",
+								task: "review",
+								lastActivityAt: now - 2_000,
+								currentTool: "read",
+								currentToolArgs: "package.json",
+								currentToolStartedAt: now - 3_000,
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 1,
+								tokens: 42,
+								durationMs: 3_000,
+							},
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme);
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /Press the expand key for live detail/);
 		assert.match(text, /active 2s ago/);
-		assert.match(text, /⎿  read: package\.json \| 3\.0s/);
+		assert.match(text, /⎿ {2}read: package\.json \| 3\.0s/);
 		assert.match(text, /output: \/tmp\/reviewer_output\.md/);
 	});
 
 	it("shows model and thinking on running compact single and multi rows", () => {
-		const single = renderSubagentResult!({
-			content: [{ type: "text", text: "(running...)" }],
-			details: {
-				mode: "single",
-				results: [{
-					agent: "reviewer",
-					task: "review",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: {
-						index: 0,
-						agent: "reviewer",
-						status: "running",
-						task: "review",
-						model: "openai-codex/gpt-5.5",
-						thinking: "high",
-						recentTools: [],
-						recentOutput: [],
-						toolCount: 1,
-						tokens: 42,
-						durationMs: 3_000,
-					},
-				}],
+		const single = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "(running...)" }],
+				details: {
+					mode: "single",
+					results: [
+						{
+							agent: "reviewer",
+							task: "review",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 0,
+								agent: "reviewer",
+								status: "running",
+								task: "review",
+								model: "openai-codex/gpt-5.5",
+								thinking: "high",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 1,
+								tokens: 42,
+								durationMs: 3_000,
+							},
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme).render(160).join("\n");
+			{ expanded: false },
+			theme,
+		)
+			.render(160)
+			.join("\n");
 		assert.match(single, /reviewer \(openai-codex\/gpt-5\.5 · thinking high\)/);
 
-		const multi = renderSubagentResult!({
-			content: [{ type: "text", text: "(running...)" }],
-			details: {
-				mode: "parallel",
-				totalSteps: 2,
-				results: [
-					{ agent: "scout", task: "scan", exitCode: 0, messages: [], usage: emptyUsage, model: "anthropic/claude-haiku-4-5", thinking: "low", progress: { index: 0, agent: "scout", status: "running", task: "scan", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 } },
-					{ agent: "worker", task: "fix", exitCode: 0, messages: [], usage: emptyUsage, progress: { index: 1, agent: "worker", status: "running", task: "fix", model: "openai/gpt-5-mini", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 } },
-				],
+		const multi = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "(running...)" }],
+				details: {
+					mode: "parallel",
+					totalSteps: 2,
+					results: [
+						{
+							agent: "scout",
+							task: "scan",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							model: "anthropic/claude-haiku-4-5",
+							thinking: "low",
+							progress: {
+								index: 0,
+								agent: "scout",
+								status: "running",
+								task: "scan",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 0,
+								tokens: 0,
+								durationMs: 0,
+							},
+						},
+						{
+							agent: "worker",
+							task: "fix",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 1,
+								agent: "worker",
+								status: "running",
+								task: "fix",
+								model: "openai/gpt-5-mini",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 0,
+								tokens: 0,
+								durationMs: 0,
+							},
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme).render(160).join("\n");
+			{ expanded: false },
+			theme,
+		)
+			.render(160)
+			.join("\n");
 		assert.match(multi, /scan \(anthropic\/claude-haiku-4-5 · thinking low\)/);
 		assert.match(multi, /fix \(openai\/gpt-5-mini\)/);
 
-		const expanded = renderSubagentResult!({
-			content: [{ type: "text", text: "done" }],
-			details: {
-				mode: "parallel",
-				totalSteps: 1,
-				results: [{
-					agent: "reviewer",
-					task: "review",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progressSummary: { toolCount: 1, tokens: 42, durationMs: 3_000, model: "openai-codex/gpt-5.5", thinking: "high" },
-				}],
+		const expanded = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					mode: "parallel",
+					totalSteps: 1,
+					results: [
+						{
+							agent: "reviewer",
+							task: "review",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progressSummary: {
+								toolCount: 1,
+								tokens: 42,
+								durationMs: 3_000,
+								model: "openai-codex/gpt-5.5",
+								thinking: "high",
+							},
+						},
+					],
+				},
 			},
-		}, { expanded: true }, theme).render(160).join("\n");
+			{ expanded: true },
+			theme,
+		)
+			.render(160)
+			.join("\n");
 		assert.match(expanded, /review \(openai-codex\/gpt-5\.5 · thinking high\)/);
 
-		const expandedSingle = renderSubagentResult!({
-			content: [{ type: "text", text: "done" }],
-			details: {
-				mode: "single",
-				results: [{
-					agent: "reviewer",
-					task: "review",
-					model: "router/auto",
-					exitCode: 0,
-					messages: [],
-					finalOutput: "done",
-					usage: emptyUsage,
-					progress: { index: 0, agent: "reviewer", status: "completed", task: "review", model: "openai-codex/gpt-6.1-sol", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 1 },
-				}],
+		const expandedSingle = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					mode: "single",
+					results: [
+						{
+							agent: "reviewer",
+							task: "review",
+							model: "router/auto",
+							exitCode: 0,
+							messages: [],
+							finalOutput: "done",
+							usage: emptyUsage,
+							progress: {
+								index: 0,
+								agent: "reviewer",
+								status: "completed",
+								task: "review",
+								model: "openai-codex/gpt-6.1-sol",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 0,
+								tokens: 0,
+								durationMs: 1,
+							},
+						},
+					],
+				},
 			},
-		}, { expanded: true }, theme).render(160).join("\n");
+			{ expanded: true },
+			theme,
+		)
+			.render(160)
+			.join("\n");
 		assert.match(expandedSingle, /openai-codex\/gpt-6\.1-sol/);
 		assert.doesNotMatch(expandedSingle, /router\/auto/);
 	});
 
 	it("strips repeated agent prefixes in expanded running multi-result rows", () => {
 		const sessionName = "reviewer: Review the diff";
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "(running...)" }],
-			details: {
-				mode: "parallel",
-				totalSteps: 1,
-				results: [{
-					agent: "reviewer",
-					sessionName,
-					task: "Review the diff",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: { index: 0, agent: "reviewer", sessionName, status: "running", task: "Review the diff", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
-				}],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "(running...)" }],
+				details: {
+					mode: "parallel",
+					totalSteps: 1,
+					results: [
+						{
+							agent: "reviewer",
+							sessionName,
+							task: "Review the diff",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 0,
+								agent: "reviewer",
+								sessionName,
+								status: "running",
+								task: "Review the diff",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 0,
+								tokens: 0,
+								durationMs: 0,
+							},
+						},
+					],
+				},
 			},
-		}, { expanded: true }, theme);
+			{ expanded: true },
+			theme,
+		);
 
 		const text = widget.render(160).join("\n");
 		assert.match(text, /Review the diff[^\n]* · running/);
@@ -962,28 +1466,30 @@ describe("renderSubagentResult fork indicator", () => {
 			content: [{ type: "text" as const, text: "(running...)" }],
 			details: {
 				mode: "single" as const,
-				results: [{
-					agent: "reviewer",
-					task: "review",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: {
-						index: 0,
+				results: [
+					{
 						agent: "reviewer",
-						status: "running" as const,
 						task: "review",
-						lastActivityAt: 2_000,
-						currentTool: "read",
-						currentToolArgs: "package.json",
-						currentToolStartedAt: 1_000,
-						recentTools: [],
-						recentOutput: [],
-						toolCount: 1,
-						tokens: 42,
-						durationMs: 3_000,
+						exitCode: 0,
+						messages: [],
+						usage: emptyUsage,
+						progress: {
+							index: 0,
+							agent: "reviewer",
+							status: "running" as const,
+							task: "review",
+							lastActivityAt: 2_000,
+							currentTool: "read",
+							currentToolArgs: "package.json",
+							currentToolStartedAt: 1_000,
+							recentTools: [],
+							recentOutput: [],
+							toolCount: 1,
+							tokens: 42,
+							durationMs: 3_000,
+						},
 					},
-				}],
+				],
 			},
 		};
 		const [first, second] = withMockedDateNow(0, () => [
@@ -995,102 +1501,150 @@ describe("renderSubagentResult fork indicator", () => {
 	});
 
 	it("advances running compact result glyphs when progress changes", () => {
-		const renderGlyph = (toolCount: number) => firstGrapheme(renderSubagentResult!({
-			content: [{ type: "text", text: "(running...)" }],
-			details: {
-				mode: "single",
-				results: [{
-					agent: "reviewer",
-					task: "review",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: {
-						index: 0,
-						agent: "reviewer",
-						status: "running",
-						task: "review",
-						recentTools: [],
-						recentOutput: [],
-						toolCount,
-						tokens: 0,
-						durationMs: 0,
+		const renderGlyph = (toolCount: number) =>
+			firstGrapheme(
+				renderSubagentResult!(
+					{
+						content: [{ type: "text", text: "(running...)" }],
+						details: {
+							mode: "single",
+							results: [
+								{
+									agent: "reviewer",
+									task: "review",
+									exitCode: 0,
+									messages: [],
+									usage: emptyUsage,
+									progress: {
+										index: 0,
+										agent: "reviewer",
+										status: "running",
+										task: "review",
+										recentTools: [],
+										recentOutput: [],
+										toolCount,
+										tokens: 0,
+										durationMs: 0,
+									},
+								},
+							],
+						},
 					},
-				}],
-			},
-		}, { expanded: false }, theme).render(120)[0] ?? "");
+					{ expanded: false },
+					theme,
+				).render(120)[0] ?? "",
+			);
 
 		assert.notEqual(renderGlyph(1), renderGlyph(2));
 	});
 
 	it("keeps paused multi-result runs visible in the compact headline", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "paused" }],
-			details: {
-				mode: "chain",
-				chainAgents: ["worker"],
-				results: [{
-					agent: "worker",
-					task: "pause",
-					exitCode: 0,
-					interrupted: true,
-					messages: [],
-					usage: emptyUsage,
-				}],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "paused" }],
+				details: {
+					mode: "chain",
+					chainAgents: ["worker"],
+					results: [
+						{
+							agent: "worker",
+							task: "pause",
+							exitCode: 0,
+							interrupted: true,
+							messages: [],
+							usage: emptyUsage,
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme);
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /^■ chain/);
-		assert.match(text, /⎿  Paused/);
+		assert.match(text, /⎿ {2}Paused/);
 	});
 
 	it("keeps empty-output warnings visible in compact multi-result rendering", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "done" }],
-			details: {
-				mode: "chain",
-				chainAgents: ["worker"],
-				results: [{
-					agent: "worker",
-					task: "check without output target",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-				}],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					mode: "chain",
+					chainAgents: ["worker"],
+					results: [
+						{
+							agent: "worker",
+							task: "check without output target",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme);
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
-		assert.match(text, /⎿  Done \(no text output\)/);
+		assert.match(text, /⎿ {2}Done \(no text output\)/);
 		assert.doesNotMatch(text, /0ms/);
 	});
 
 	it("keeps pending placeholder steps pending in compact rendering", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "running" }],
-			details: {
-				mode: "chain",
-				chainAgents: ["a", "b"],
-				totalSteps: 2,
-				currentStepIndex: 0,
-				results: [{
-					agent: "a",
-					task: "first",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: { index: 0, agent: "a", status: "running", task: "first", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
-				}, {
-					agent: "b",
-					task: "second",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: { index: 1, agent: "b", status: "pending", task: "second", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
-				}],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "running" }],
+				details: {
+					mode: "chain",
+					chainAgents: ["a", "b"],
+					totalSteps: 2,
+					currentStepIndex: 0,
+					results: [
+						{
+							agent: "a",
+							task: "first",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 0,
+								agent: "a",
+								status: "running",
+								task: "first",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 0,
+								tokens: 0,
+								durationMs: 0,
+							},
+						},
+						{
+							agent: "b",
+							task: "second",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 1,
+								agent: "b",
+								status: "pending",
+								task: "second",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 0,
+								tokens: 0,
+								durationMs: 0,
+							},
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme);
+			{ expanded: false },
+			theme,
+		);
 
 		const lines = widget.render(120);
 		const pendingIndex = lines.findIndex((line) => /Step 2\/2: second/.test(line));
@@ -1101,42 +1655,50 @@ describe("renderSubagentResult fork indicator", () => {
 	});
 
 	it("uses running/done wording and readable labels for live parallel rendering", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "(running...)" }],
-			details: {
-				mode: "parallel",
-				totalSteps: 3,
-				results: [{
-					agent: "worker",
-					task: "third task",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: {
-						index: 2,
-						agent: "worker",
-						status: "running",
-						task: "third task",
-						recentTools: [],
-						recentOutput: [],
-						toolCount: 1,
-						tokens: 0,
-						durationMs: 10,
-					},
-				}],
-				progress: [{
-					index: 0,
-					agent: "scout",
-					status: "running",
-					task: "first",
-					recentTools: [],
-					recentOutput: [],
-					toolCount: 0,
-					tokens: 0,
-					durationMs: 10,
-				}],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "(running...)" }],
+				details: {
+					mode: "parallel",
+					totalSteps: 3,
+					results: [
+						{
+							agent: "worker",
+							task: "third task",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 2,
+								agent: "worker",
+								status: "running",
+								task: "third task",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 1,
+								tokens: 0,
+								durationMs: 10,
+							},
+						},
+					],
+					progress: [
+						{
+							index: 0,
+							agent: "scout",
+							status: "running",
+							task: "first",
+							recentTools: [],
+							recentOutput: [],
+							toolCount: 0,
+							tokens: 0,
+							durationMs: 10,
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme);
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /parallel · 2 agents running · 0\/3 done/);
@@ -1146,61 +1708,161 @@ describe("renderSubagentResult fork indicator", () => {
 	});
 
 	it("shows mixed done/running counters for top-level parallel mode", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "(running...)" }],
-			details: {
-				mode: "parallel",
-				totalSteps: 3,
-				results: [{
-					agent: "scout",
-					task: "first",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: { index: 0, agent: "scout", status: "completed", task: "first", recentTools: [], recentOutput: [], toolCount: 1, tokens: 0, durationMs: 10 },
-				}, {
-					agent: "reviewer",
-					task: "second",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: { index: 1, agent: "reviewer", status: "running", task: "second", recentTools: [], recentOutput: [], toolCount: 1, tokens: 0, durationMs: 10 },
-				}],
-				progress: [{ index: 0, agent: "scout", status: "completed", task: "first", recentTools: [], recentOutput: [], toolCount: 1, tokens: 0, durationMs: 10 }, { index: 1, agent: "reviewer", status: "running", task: "second", recentTools: [], recentOutput: [], toolCount: 1, tokens: 0, durationMs: 10 }],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "(running...)" }],
+				details: {
+					mode: "parallel",
+					totalSteps: 3,
+					results: [
+						{
+							agent: "scout",
+							task: "first",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 0,
+								agent: "scout",
+								status: "completed",
+								task: "first",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 1,
+								tokens: 0,
+								durationMs: 10,
+							},
+						},
+						{
+							agent: "reviewer",
+							task: "second",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 1,
+								agent: "reviewer",
+								status: "running",
+								task: "second",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 1,
+								tokens: 0,
+								durationMs: 10,
+							},
+						},
+					],
+					progress: [
+						{
+							index: 0,
+							agent: "scout",
+							status: "completed",
+							task: "first",
+							recentTools: [],
+							recentOutput: [],
+							toolCount: 1,
+							tokens: 0,
+							durationMs: 10,
+						},
+						{
+							index: 1,
+							agent: "reviewer",
+							status: "running",
+							task: "second",
+							recentTools: [],
+							recentOutput: [],
+							toolCount: 1,
+							tokens: 0,
+							durationMs: 10,
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme);
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /parallel · 1 agent running · 1\/3 done/);
 	});
 
 	it("labels active chain parallel groups with chain step and readable candidates", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "running" }],
-			details: {
-				mode: "chain",
-				totalSteps: 3,
-				currentStepIndex: 0,
-				chainAgents: ["[scout+reviewer+worker]", "planner", "writer"],
-				results: [{
-					agent: "scout",
-					sessionName: "  scout: Scan the repository  ",
-					task: "scan",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: { index: 0, agent: "scout", status: "running", task: "scan", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
-				}, {
-					agent: "reviewer",
-					task: "review",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: { index: 1, agent: "reviewer", status: "running", task: "review", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
-				}],
-				progress: [{ index: 0, agent: "scout", status: "running", task: "scan", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 }, { index: 1, agent: "reviewer", status: "running", task: "review", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 }],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "running" }],
+				details: {
+					mode: "chain",
+					totalSteps: 3,
+					currentStepIndex: 0,
+					chainAgents: ["[scout+reviewer+worker]", "planner", "writer"],
+					results: [
+						{
+							agent: "scout",
+							sessionName: "  scout: Scan the repository  ",
+							task: "scan",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 0,
+								agent: "scout",
+								status: "running",
+								task: "scan",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 0,
+								tokens: 0,
+								durationMs: 0,
+							},
+						},
+						{
+							agent: "reviewer",
+							task: "review",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 1,
+								agent: "reviewer",
+								status: "running",
+								task: "review",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 0,
+								tokens: 0,
+								durationMs: 0,
+							},
+						},
+					],
+					progress: [
+						{
+							index: 0,
+							agent: "scout",
+							status: "running",
+							task: "scan",
+							recentTools: [],
+							recentOutput: [],
+							toolCount: 0,
+							tokens: 0,
+							durationMs: 0,
+						},
+						{
+							index: 1,
+							agent: "reviewer",
+							status: "running",
+							task: "review",
+							recentTools: [],
+							recentOutput: [],
+							toolCount: 0,
+							tokens: 0,
+							durationMs: 0,
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme);
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /chain · step 1\/3 · parallel group: 2 agents running · 0\/3 done/);
@@ -1211,42 +1873,110 @@ describe("renderSubagentResult fork indicator", () => {
 	});
 
 	it("shows only the active parallel group for mixed chains after a serial step", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "running" }],
-			details: {
-				mode: "chain",
-				totalSteps: 3,
-				currentStepIndex: 1,
-				chainAgents: ["planner", "[scout+reviewer]", "writer"],
-				results: [{
-					agent: "planner",
-					task: "plan",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: { index: 0, agent: "planner", status: "completed", task: "plan", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
-				}, {
-					agent: "scout",
-					task: "scan",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: { index: 1, agent: "scout", status: "running", task: "scan", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
-				}, {
-					agent: "reviewer",
-					task: "review",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: { index: 2, agent: "reviewer", status: "running", task: "review", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
-				}],
-				progress: [
-					{ index: 0, agent: "planner", status: "completed", task: "plan", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
-					{ index: 1, agent: "scout", status: "running", task: "scan", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
-					{ index: 2, agent: "reviewer", status: "running", task: "review", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
-				],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "running" }],
+				details: {
+					mode: "chain",
+					totalSteps: 3,
+					currentStepIndex: 1,
+					chainAgents: ["planner", "[scout+reviewer]", "writer"],
+					results: [
+						{
+							agent: "planner",
+							task: "plan",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 0,
+								agent: "planner",
+								status: "completed",
+								task: "plan",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 0,
+								tokens: 0,
+								durationMs: 0,
+							},
+						},
+						{
+							agent: "scout",
+							task: "scan",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 1,
+								agent: "scout",
+								status: "running",
+								task: "scan",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 0,
+								tokens: 0,
+								durationMs: 0,
+							},
+						},
+						{
+							agent: "reviewer",
+							task: "review",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 2,
+								agent: "reviewer",
+								status: "running",
+								task: "review",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 0,
+								tokens: 0,
+								durationMs: 0,
+							},
+						},
+					],
+					progress: [
+						{
+							index: 0,
+							agent: "planner",
+							status: "completed",
+							task: "plan",
+							recentTools: [],
+							recentOutput: [],
+							toolCount: 0,
+							tokens: 0,
+							durationMs: 0,
+						},
+						{
+							index: 1,
+							agent: "scout",
+							status: "running",
+							task: "scan",
+							recentTools: [],
+							recentOutput: [],
+							toolCount: 0,
+							tokens: 0,
+							durationMs: 0,
+						},
+						{
+							index: 2,
+							agent: "reviewer",
+							status: "running",
+							task: "review",
+							recentTools: [],
+							recentOutput: [],
+							toolCount: 0,
+							tokens: 0,
+							durationMs: 0,
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme);
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /chain · step 2\/3 · parallel group: 2 agents running · 0\/2 done/);
@@ -1258,29 +1988,73 @@ describe("renderSubagentResult fork indicator", () => {
 
 	it("uses logical chain progress and readable labels for completed mixed chains", () => {
 		const progress = [
-			{ index: 0, agent: "planner", status: "completed" as const, task: "plan", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 1 },
-			{ index: 1, agent: "scout", status: "completed" as const, task: "scan", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 1 },
-			{ index: 2, agent: "reviewer", status: "completed" as const, task: "review", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 1 },
-			{ index: 3, agent: "writer", status: "completed" as const, task: "write", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 1 },
-		];
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "done" }],
-			details: {
-				mode: "chain",
-				totalSteps: 3,
-				chainAgents: ["planner", "[scout+reviewer]", "writer"],
-				results: progress.map((entry) => ({
-					agent: entry.agent,
-					...(entry.agent === "scout" ? { sessionName: "  scout: Scan completed targets  " } : {}),
-					task: entry.task,
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progressSummary: { toolCount: 0, tokens: 0, durationMs: 1 },
-				})),
-				progress,
+			{
+				index: 0,
+				agent: "planner",
+				status: "completed" as const,
+				task: "plan",
+				recentTools: [],
+				recentOutput: [],
+				toolCount: 0,
+				tokens: 0,
+				durationMs: 1,
 			},
-		}, { expanded: false }, theme);
+			{
+				index: 1,
+				agent: "scout",
+				status: "completed" as const,
+				task: "scan",
+				recentTools: [],
+				recentOutput: [],
+				toolCount: 0,
+				tokens: 0,
+				durationMs: 1,
+			},
+			{
+				index: 2,
+				agent: "reviewer",
+				status: "completed" as const,
+				task: "review",
+				recentTools: [],
+				recentOutput: [],
+				toolCount: 0,
+				tokens: 0,
+				durationMs: 1,
+			},
+			{
+				index: 3,
+				agent: "writer",
+				status: "completed" as const,
+				task: "write",
+				recentTools: [],
+				recentOutput: [],
+				toolCount: 0,
+				tokens: 0,
+				durationMs: 1,
+			},
+		];
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "done" }],
+				details: {
+					mode: "chain",
+					totalSteps: 3,
+					chainAgents: ["planner", "[scout+reviewer]", "writer"],
+					results: progress.map((entry) => ({
+						agent: entry.agent,
+						...(entry.agent === "scout" ? { sessionName: "  scout: Scan completed targets  " } : {}),
+						task: entry.task,
+						exitCode: 0,
+						messages: [],
+						usage: emptyUsage,
+						progressSummary: { toolCount: 0, tokens: 0, durationMs: 1 },
+					})),
+					progress,
+				},
+			},
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /chain · step 3\/3/);
@@ -1292,23 +2066,39 @@ describe("renderSubagentResult fork indicator", () => {
 	});
 
 	it("keeps serial chain wording for non-parallel steps", () => {
-		const widget = renderSubagentResult!({
-			content: [{ type: "text", text: "running" }],
-			details: {
-				mode: "chain",
-				totalSteps: 3,
-				currentStepIndex: 0,
-				chainAgents: ["scout", "reviewer", "worker"],
-				results: [{
-					agent: "scout",
-					task: "scan",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-					progress: { index: 0, agent: "scout", status: "running", task: "scan", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
-				}],
+		const widget = renderSubagentResult!(
+			{
+				content: [{ type: "text", text: "running" }],
+				details: {
+					mode: "chain",
+					totalSteps: 3,
+					currentStepIndex: 0,
+					chainAgents: ["scout", "reviewer", "worker"],
+					results: [
+						{
+							agent: "scout",
+							task: "scan",
+							exitCode: 0,
+							messages: [],
+							usage: emptyUsage,
+							progress: {
+								index: 0,
+								agent: "scout",
+								status: "running",
+								task: "scan",
+								recentTools: [],
+								recentOutput: [],
+								toolCount: 0,
+								tokens: 0,
+								durationMs: 0,
+							},
+						},
+					],
+				},
 			},
-		}, { expanded: false }, theme);
+			{ expanded: false },
+			theme,
+		);
 
 		const text = widget.render(120).join("\n");
 		assert.match(text, /chain · step 1\/3/);
@@ -1321,14 +2111,16 @@ describe("renderSubagentResult fork indicator", () => {
 			content: [{ type: "text" as const, text: "done" }],
 			details: {
 				mode: "single" as const,
-				results: [{
-					agent: "reviewer",
-					sessionName: "reviewer: Review the current docs",
-					task: "Review the current docs",
-					exitCode: 0,
-					messages: [],
-					usage: emptyUsage,
-				}],
+				results: [
+					{
+						agent: "reviewer",
+						sessionName: "reviewer: Review the current docs",
+						task: "Review the current docs",
+						exitCode: 0,
+						messages: [],
+						usage: emptyUsage,
+					},
+				],
 			},
 		};
 
@@ -1361,7 +2153,17 @@ describe("renderSubagentResult fork indicator", () => {
 						exitCode: 0,
 						messages: [],
 						usage: emptyUsage,
-						progress: { index: 0, agent: "scout", status: "running" as const, task: "Gather context", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
+						progress: {
+							index: 0,
+							agent: "scout",
+							status: "running" as const,
+							task: "Gather context",
+							recentTools: [],
+							recentOutput: [],
+							toolCount: 0,
+							tokens: 0,
+							durationMs: 0,
+						},
 					},
 					{
 						agent: "reviewer",
@@ -1370,7 +2172,17 @@ describe("renderSubagentResult fork indicator", () => {
 						exitCode: 0,
 						messages: [],
 						usage: emptyUsage,
-						progress: { index: 1, agent: "reviewer", status: "running" as const, task: "Review diff", recentTools: [], recentOutput: [], toolCount: 0, tokens: 0, durationMs: 0 },
+						progress: {
+							index: 1,
+							agent: "reviewer",
+							status: "running" as const,
+							task: "Review diff",
+							recentTools: [],
+							recentOutput: [],
+							toolCount: 0,
+							tokens: 0,
+							durationMs: 0,
+						},
 					},
 				],
 			},
@@ -1386,7 +2198,7 @@ describe("renderSubagentResult fork indicator", () => {
 		}
 	});
 
-	it("keeps logical Step n\/m labels for foreground chain parallel groups", () => {
+	it("keeps logical Step n/m labels for foreground chain parallel groups", () => {
 		const result = {
 			content: [{ type: "text" as const, text: "done" }],
 			details: {
@@ -1395,8 +2207,22 @@ describe("renderSubagentResult fork indicator", () => {
 				totalSteps: 3,
 				results: [
 					{ agent: "planner", task: "Plan", exitCode: 0, messages: [], usage: emptyUsage },
-					{ agent: "scout", sessionName: "scout: Gather context", task: "Gather context", exitCode: 0, messages: [], usage: emptyUsage },
-					{ agent: "reviewer", sessionName: "reviewer: Review diff", task: "Review diff", exitCode: 0, messages: [], usage: emptyUsage },
+					{
+						agent: "scout",
+						sessionName: "scout: Gather context",
+						task: "Gather context",
+						exitCode: 0,
+						messages: [],
+						usage: emptyUsage,
+					},
+					{
+						agent: "reviewer",
+						sessionName: "reviewer: Review diff",
+						task: "Review diff",
+						exitCode: 0,
+						messages: [],
+						usage: emptyUsage,
+					},
 					{ agent: "writer", task: "Write", exitCode: 0, messages: [], usage: emptyUsage },
 				],
 			},
@@ -1431,7 +2257,11 @@ describe("renderSubagentResult fork indicator", () => {
 			assert.equal(rows.length, 2);
 			assert.notEqual(rows[0], rows[1], "duplicate unlabeled rows need stable disambiguators");
 			for (const row of rows) {
-				assert.equal(row.match(/Inspect the same files/g)?.length, 1, "duplicate rows should render the candidate only once");
+				assert.equal(
+					row.match(/Inspect the same files/g)?.length,
+					1,
+					"duplicate rows should render the candidate only once",
+				);
 			}
 		}
 	});
@@ -1442,29 +2272,41 @@ describe("renderSubagentResult fork indicator", () => {
 			details: {
 				mode: "parallel" as const,
 				totalSteps: 1,
-				results: [{
-					agent: "reviewer",
-					sessionName: "reviewer: Review the current docs",
-					task: "[Write to: /tmp/review.md] Review the current docs",
-					exitCode: 1,
-					error: "Review failed after checking the current docs",
-					messages: [],
-					usage: emptyUsage,
-					artifactPaths: { outputPath: "/tmp/review-artifact.md" },
-					children: [nestedChild("failed-child", "failed")],
-				}],
+				results: [
+					{
+						agent: "reviewer",
+						sessionName: "reviewer: Review the current docs",
+						task: "[Write to: /tmp/review.md] Review the current docs",
+						exitCode: 1,
+						error: "Review failed after checking the current docs",
+						messages: [],
+						usage: emptyUsage,
+						artifactPaths: { outputPath: "/tmp/review-artifact.md" },
+						children: [nestedChild("failed-child", "failed")],
+					},
+				],
 			},
 		};
 
 		for (const expanded of [false, true]) {
 			const lines = renderSubagentResult!(result, { expanded }, theme).render(180);
 			const text = lines.join("\n");
-			assert.ok(lines.some((line) => /^\s+output: \/tmp\/review\.md$/.test(line)), "output evidence should be its own line");
-			assert.ok(lines.some((line) => new RegExp(`^\\s+${expanded ? "artifacts" : "output"}: \/tmp\/review-artifact\\.md$`).test(line)), "artifact evidence should be its own line");
+			assert.ok(
+				lines.some((line) => /^\s+output: \/tmp\/review\.md$/.test(line)),
+				"output evidence should be its own line",
+			);
+			assert.ok(
+				lines.some((line) =>
+					new RegExp(`^\\s+${expanded ? "artifacts" : "output"}: /tmp/review-artifact\\.md$`).test(line),
+				),
+				"artifact evidence should be its own line",
+			);
 			if (expanded) assert.match(text, /failed-child · failed/, "nested failure evidence should remain visible");
-			assert.ok(lines.some((line) => /(?:Error|error): Review failed after checking the current docs/.test(line)), expanded ? "expanded result should keep failure evidence" : "compact result should keep failure evidence");
+			assert.ok(
+				lines.some((line) => /(?:Error|error): Review failed after checking the current docs/.test(line)),
+				expanded ? "expanded result should keep failure evidence" : "compact result should keep failure evidence",
+			);
 			assert.doesNotMatch(text, /Agent 1\/1: reviewer.*(?:Error|error):/);
 		}
 	});
-
 });

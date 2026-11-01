@@ -6,10 +6,7 @@ import {
 } from "./types.ts";
 
 function escapeXmlText(value: string): string {
-	return value
-		.replace(/&/g, "&amp;")
-		.replace(/</g, "&lt;")
-		.replace(/>/g, "&gt;");
+	return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
 function escapeXmlAttribute(value: string): string {
@@ -21,7 +18,10 @@ function tag(name: string, value: string | number | boolean | undefined): string
 	return `<${name}>${escapeXmlText(String(value))}</${name}>`;
 }
 
-export function normalizeWatchdogWarningDetails(warning: WatchdogWarning, extras: Partial<WatchdogWarningDetails> = {}): WatchdogWarningDetails {
+export function normalizeWatchdogWarningDetails(
+	warning: WatchdogWarning,
+	extras: Partial<WatchdogWarningDetails> = {},
+): WatchdogWarningDetails {
 	return {
 		...warning,
 		category: warning.category ?? extras.category ?? "other",
@@ -55,7 +55,9 @@ export function formatWatchdogWarningContent(warning: WatchdogWarning): string {
 			? "<blocker_guidance>If this warning changes the outcome, produce a new self-contained final answer after addressing it.</blocker_guidance>"
 			: undefined,
 		"</subagent_watchdog>",
-	].filter((line): line is string => Boolean(line)).join("\n");
+	]
+		.filter((line): line is string => Boolean(line))
+		.join("\n");
 }
 
 export function createWatchdogWarningMessage(

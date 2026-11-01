@@ -25,7 +25,7 @@ try {
 		finalizeSlashResult,
 		getSlashRenderableSnapshot,
 		restoreSlashFinalSnapshots,
-	} = await import("../../src/slash/slash-live-state.ts") as SlashLiveStateModule);
+	} = (await import("../../src/slash/slash-live-state.ts")) as SlashLiveStateModule);
 } catch {
 	available = false;
 }
@@ -42,18 +42,20 @@ describe("slash live state", { skip: !available ? "slash-live-state.ts not impor
 			requestId: "req-1",
 			currentTool: "find",
 			toolCount: 2,
-			progress: [{
-				agent: "scout",
-				status: "running",
-				task: "scan codebase",
-				currentTool: "find",
-				currentToolArgs: '{"pattern":"**/*.ts"}',
-				recentTools: [{ tool: "ls", args: '{"path":"."}', endMs: 10 }],
-				recentOutput: ["src/index.ts", "src/render.ts"],
-				toolCount: 2,
-				tokens: 120,
-				durationMs: 400,
-			}],
+			progress: [
+				{
+					agent: "scout",
+					status: "running",
+					task: "scan codebase",
+					currentTool: "find",
+					currentToolArgs: '{"pattern":"**/*.ts"}',
+					recentTools: [{ tool: "ls", args: '{"path":"."}', endMs: 10 }],
+					recentOutput: ["src/index.ts", "src/render.ts"],
+					toolCount: 2,
+					tokens: 120,
+					durationMs: 400,
+				},
+			],
 		});
 
 		const snapshot = getSlashRenderableSnapshot!(details);
@@ -66,7 +68,7 @@ describe("slash live state", { skip: !available ? "slash-live-state.ts not impor
 	it("marks async initial slash snapshots as background", () => {
 		clearSlashSnapshots!();
 		const details = buildSlashInitialResult!("req-bg", {
-			workflowScript: "return runs.run(\"run\", { agent: \"scout\", task: \"inspect\" })",
+			workflowScript: 'return runs.run("run", { agent: "scout", task: "inspect" })',
 			async: true,
 		});
 
@@ -78,23 +80,32 @@ describe("slash live state", { skip: !available ? "slash-live-state.ts not impor
 	it("does not assign a parallel child update to another chain placeholder", () => {
 		clearSlashSnapshots!();
 		const details = buildSlashInitialResult!("req-parallel", {
-			chain: [{ parallel: [{ agent: "scout", task: "map" }, { agent: "context-builder", task: "analyze" }] }],
+			chain: [
+				{
+					parallel: [
+						{ agent: "scout", task: "map" },
+						{ agent: "context-builder", task: "analyze" },
+					],
+				},
+			],
 		});
 
 		applySlashUpdate!("req-parallel", {
 			requestId: "req-parallel",
-			progress: [{
-				index: 1,
-				agent: "context-builder",
-				status: "running",
-				task: "analyze",
-				currentTool: "find",
-				recentTools: [],
-				recentOutput: [],
-				toolCount: 38,
-				tokens: 1_000,
-				durationMs: 1_000,
-			}],
+			progress: [
+				{
+					index: 1,
+					agent: "context-builder",
+					status: "running",
+					task: "analyze",
+					currentTool: "find",
+					recentTools: [],
+					recentOutput: [],
+					toolCount: 38,
+					tokens: 1_000,
+					durationMs: 1_000,
+				},
+			],
 		});
 
 		const results = getSlashRenderableSnapshot!(details).result.details.results;
@@ -135,13 +146,15 @@ describe("slash live state", { skip: !available ? "slash-live-state.ts not impor
 				content: [{ type: "text", text: "Done." }],
 				details: {
 					mode: "single",
-					results: [{
-						agent: "scout",
-						task: "scan codebase",
-						exitCode: 0,
-						messages: [],
-						usage: { input: 1, output: 2, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 1 },
-					}],
+					results: [
+						{
+							agent: "scout",
+							task: "scan codebase",
+							exitCode: 0,
+							messages: [],
+							usage: { input: 1, output: 2, cacheRead: 0, cacheWrite: 0, cost: 0, turns: 1 },
+						},
+					],
 				},
 			},
 			isError: false,

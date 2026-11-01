@@ -31,29 +31,57 @@ describe("boot id", () => {
 		assert.equal(reads, 1);
 	});
 
-	it("reads a real boot id on Linux and macOS", { skip: process.platform !== "linux" && process.platform !== "darwin" ? "no boot id on this platform" : undefined }, () => {
-		assert.match(currentBootId() ?? "", /^[0-9a-f-]{36}$/i);
-	});
+	it(
+		"reads a real boot id on Linux and macOS",
+		{
+			skip:
+				process.platform !== "linux" && process.platform !== "darwin" ? "no boot id on this platform" : undefined,
+		},
+		() => {
+			assert.match(currentBootId() ?? "", /^[0-9a-f-]{36}$/i);
+		},
+	);
 
 	it("primes the runner from its config, so the runner never reads the boot id itself", async () => {
 		const asyncDir = fs.mkdtempSync(path.join(os.tmpdir(), "boot-id-runner-"));
 		try {
-			for (const [bootId, expected] of [["boot-from-pi", "boot-from-pi"], [undefined, undefined], ["", undefined]] as const) {
+			for (const [bootId, expected] of [
+				["boot-from-pi", "boot-from-pi"],
+				[undefined, undefined],
+				["", undefined],
+			] as const) {
 				let reads = 0;
 				resetBootIdForTesting(() => {
 					reads += 1;
 					return "boot-read-by-runner";
 				});
 				let seen: string | undefined = "not-run";
-				await runConfiguredSubagent({
-					id: "run-boot",
-					steps: [{ agent: "worker", task: "work", inheritProjectContext: false, inheritGlobalContext: false, inheritSkills: false }],
-					resultPath: path.join(asyncDir, "result.json"),
-					cwd: asyncDir,
-					asyncDir,
-					placeholder: "pending",
-					...(bootId !== undefined ? { bootId } : {}),
-				}, { loadExecutionModule: async () => ({ runConfiguredSubagentExecution: async () => { seen = currentBootId(); } }) });
+				await runConfiguredSubagent(
+					{
+						id: "run-boot",
+						steps: [
+							{
+								agent: "worker",
+								task: "work",
+								inheritProjectContext: false,
+								inheritGlobalContext: false,
+								inheritSkills: false,
+							},
+						],
+						resultPath: path.join(asyncDir, "result.json"),
+						cwd: asyncDir,
+						asyncDir,
+						placeholder: "pending",
+						...(bootId !== undefined ? { bootId } : {}),
+					},
+					{
+						loadExecutionModule: async () => ({
+							runConfiguredSubagentExecution: async () => {
+								seen = currentBootId();
+							},
+						}),
+					},
+				);
 				assert.equal(seen, expected, `config bootId ${JSON.stringify(bootId)}`);
 				assert.equal(reads, 0);
 			}

@@ -31,7 +31,10 @@ export function defaultToolTimeoutMs(toolName: string | undefined): number | und
 		: undefined;
 }
 
-export function effectiveToolTimeoutMs(toolName: string | undefined, configuredToolTimeoutMs: number | undefined): number | undefined {
+export function effectiveToolTimeoutMs(
+	toolName: string | undefined,
+	configuredToolTimeoutMs: number | undefined,
+): number | undefined {
 	if (isToolTimeoutExempt(toolName)) return undefined;
 	return configuredToolTimeoutMs ?? defaultToolTimeoutMs(toolName);
 }

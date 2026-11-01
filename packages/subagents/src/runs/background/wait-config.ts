@@ -22,7 +22,8 @@ function environmentValue(value: string | undefined): boolean | undefined {
 function environmentDefaultTimeoutMs(value: string | undefined): number | undefined {
 	if (value === undefined) return undefined;
 	const parsed = Number(value);
-	if (!Number.isInteger(parsed) || parsed < 1) throw new Error(`${WAIT_TOOL_DEFAULT_TIMEOUT_MS_ENV} must be a positive integer.`);
+	if (!Number.isInteger(parsed) || parsed < 1)
+		throw new Error(`${WAIT_TOOL_DEFAULT_TIMEOUT_MS_ENV} must be a positive integer.`);
 	return parsed;
 }
 
@@ -30,21 +31,29 @@ function configuredValue(config: unknown): { enabled?: boolean; defaultTimeoutMs
 	if (config === undefined) return {};
 	if (typeof config === "boolean") return { enabled: config };
 	if (!config || typeof config !== "object" || Array.isArray(config)) {
-		throw new Error("config.waitTool must be a boolean or an object with optional enabled and defaultTimeoutMs values.");
+		throw new Error(
+			"config.waitTool must be a boolean or an object with optional enabled and defaultTimeoutMs values.",
+		);
 	}
 	const { enabled, defaultTimeoutMs } = config as { enabled?: unknown; defaultTimeoutMs?: unknown };
-	if (enabled !== undefined && typeof enabled !== "boolean") throw new Error("config.waitTool.enabled must be a boolean.");
+	if (enabled !== undefined && typeof enabled !== "boolean")
+		throw new Error("config.waitTool.enabled must be a boolean.");
 	if (defaultTimeoutMs !== undefined && (!Number.isInteger(defaultTimeoutMs) || (defaultTimeoutMs as number) < 1)) {
 		throw new Error("config.waitTool.defaultTimeoutMs must be a positive integer.");
 	}
 	return { enabled, ...(defaultTimeoutMs !== undefined ? { defaultTimeoutMs: defaultTimeoutMs as number } : {}) };
 }
 
-export function resolveWaitToolConfig(config?: WaitToolConfig, env: Record<string, string | undefined> = process.env): ResolvedWaitToolConfig {
+export function resolveWaitToolConfig(
+	config?: WaitToolConfig,
+	env: Record<string, string | undefined> = process.env,
+): ResolvedWaitToolConfig {
 	const configured = configuredValue(config);
 	const envDefaultTimeoutMs = environmentDefaultTimeoutMs(env[WAIT_TOOL_DEFAULT_TIMEOUT_MS_ENV]);
 	return {
 		enabled: environmentValue(env[WAIT_TOOL_ENABLED_ENV]) ?? configured.enabled ?? true,
-		...(envDefaultTimeoutMs ?? configured.defaultTimeoutMs !== undefined ? { defaultTimeoutMs: envDefaultTimeoutMs ?? configured.defaultTimeoutMs } : {}),
+		...((envDefaultTimeoutMs ?? configured.defaultTimeoutMs !== undefined)
+			? { defaultTimeoutMs: envDefaultTimeoutMs ?? configured.defaultTimeoutMs }
+			: {}),
 	};
 }

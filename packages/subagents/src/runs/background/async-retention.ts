@@ -1,14 +1,14 @@
 import { execFile } from "node:child_process";
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { randomUUID } from "node:crypto";
 import { Worker } from "node:worker_threads";
-import { writeAtomicJson } from "../../shared/atomic-json.ts";
-import type { AsyncStatus } from "../../shared/types.ts";
-import { readMissionBinding, type MissionLaunchBinding } from "../../missions/lifecycle.ts";
+import { type MissionLaunchBinding, readMissionBinding } from "../../missions/lifecycle.ts";
 import { MissionNotFoundError, readMission } from "../../missions/store.ts";
 import type { MissionStatus } from "../../missions/types.ts";
+import { writeAtomicJson } from "../../shared/atomic-json.ts";
+import type { AsyncStatus } from "../../shared/types.ts";
 import { REVIVAL_ORIGIN_FILE } from "../../workflows/workflow-revival.ts";
 import { ACTIVE_RUN_INDEX_DIR } from "./active-run-index.ts";
 import { encodeIndexSegment } from "./index-segment.ts";
@@ -128,7 +128,12 @@ export interface AsyncRetentionResult {
 }
 
 function isNotFound(error: unknown): boolean {
-	return typeof error === "object" && error !== null && "code" in error && (error as NodeJS.ErrnoException).code === "ENOENT";
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"code" in error &&
+		(error as NodeJS.ErrnoException).code === "ENOENT"
+	);
 }
 
 function compactError(error: unknown): string {
@@ -148,7 +153,9 @@ function listDir(dir: string): fs.Dirent[] {
 function readJson(filePath: string): Record<string, unknown> | undefined {
 	try {
 		const parsed = JSON.parse(fs.readFileSync(filePath).toString("utf8")) as unknown;
-		return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : undefined;
+		return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+			? (parsed as Record<string, unknown>)
+			: undefined;
 	} catch {
 		return undefined;
 	}
@@ -156,13 +163,16 @@ function readJson(filePath: string): Record<string, unknown> | undefined {
 
 function readStatus(runDir: string): AsyncStatus | undefined {
 	const value = readJson(path.join(runDir, "status.json"));
-	if (!value
-		|| typeof value.runId !== "string"
-		|| typeof value.state !== "string"
-		|| typeof value.mode !== "string"
-		|| !RUN_MODES.has(value.mode as AsyncStatus["mode"])
-		|| typeof value.startedAt !== "number"
-		|| !Number.isFinite(value.startedAt)) return undefined;
+	if (
+		!value ||
+		typeof value.runId !== "string" ||
+		typeof value.state !== "string" ||
+		typeof value.mode !== "string" ||
+		!RUN_MODES.has(value.mode as AsyncStatus["mode"]) ||
+		typeof value.startedAt !== "number" ||
+		!Number.isFinite(value.startedAt)
+	)
+		return undefined;
 	return value as unknown as AsyncStatus;
 }
 
@@ -181,8 +191,13 @@ function validRunId(runId: string): boolean {
 }
 
 function statusTimestamp(status: AsyncStatus, runDir: string): number | undefined {
-	if (status.endedAt !== undefined && (typeof status.endedAt !== "number" || !Number.isFinite(status.endedAt))) return undefined;
-	if (status.lastUpdate !== undefined && (typeof status.lastUpdate !== "number" || !Number.isFinite(status.lastUpdate))) return undefined;
+	if (status.endedAt !== undefined && (typeof status.endedAt !== "number" || !Number.isFinite(status.endedAt)))
+		return undefined;
+	if (
+		status.lastUpdate !== undefined &&
+		(typeof status.lastUpdate !== "number" || !Number.isFinite(status.lastUpdate))
+	)
+		return undefined;
 	const logical = status.endedAt ?? status.lastUpdate;
 	try {
 		const physical = Math.max(fs.statSync(runDir).mtimeMs, fs.statSync(path.join(runDir, "status.json")).mtimeMs);
@@ -204,9 +219,7 @@ function hasResumableContract(runDir: string, status: AsyncStatus): boolean {
 	if (!fs.existsSync(descriptorPath)) return false;
 	const descriptor = readJson(descriptorPath);
 	if (!descriptor) return true;
-	const sessionFiles = [
-		typeof descriptor.sessionFile === "string" ? descriptor.sessionFile : undefined,
-	];
+	const sessionFiles = [typeof descriptor.sessionFile === "string" ? descriptor.sessionFile : undefined];
 	if (descriptor.sourceRunId !== status.runId) return true;
 	return sessionFiles.some(existingRegularFile);
 }
@@ -216,7 +229,9 @@ function activeMarkerExists(asyncDirRoot: string, runId: string): boolean {
 }
 
 function missionObserverIndexExists(resultsDir: string, runId: string): boolean {
-	return fs.existsSync(path.join(resultsDir, "result-index", "observers", "mission", `${encodeIndexSegment(runId)}.json`));
+	return fs.existsSync(
+		path.join(resultsDir, "result-index", "observers", "mission", `${encodeIndexSegment(runId)}.json`),
+	);
 }
 
 // The retention window doubles as a terminal mission's grace period. Unreadable references and
@@ -252,7 +267,10 @@ function removeRunTombstoneMarker(maintenanceRoot: string, runId: string): void 
 	fs.rmSync(runTombstoneMarkerPath(maintenanceRoot, runId), { force: true });
 }
 
-function readRunTombstoneMarker(maintenanceRoot: string, runId: string): { runId: string; tombstonePath: string } | undefined | "unreadable" {
+function readRunTombstoneMarker(
+	maintenanceRoot: string,
+	runId: string,
+): { runId: string; tombstonePath: string } | undefined | "unreadable" {
 	const markerPath = runTombstoneMarkerPath(maintenanceRoot, runId);
 	try {
 		const stat = fs.lstatSync(markerPath);
@@ -261,13 +279,23 @@ function readRunTombstoneMarker(maintenanceRoot: string, runId: string): { runId
 		return isNotFound(error) ? undefined : "unreadable";
 	}
 	const marker = readJson(markerPath);
-	if (marker?.version !== 1 || marker.runId !== runId || typeof marker.tombstonePath !== "string" || !marker.tombstonePath) return "unreadable";
+	if (
+		marker?.version !== 1 ||
+		marker.runId !== runId ||
+		typeof marker.tombstonePath !== "string" ||
+		!marker.tombstonePath
+	)
+		return "unreadable";
 	return { runId, tombstonePath: marker.tombstonePath };
 }
 
 function runTombstoneMarkerMatches(maintenanceRoot: string, runId: string, tombstonePath: string): boolean {
 	const marker = readRunTombstoneMarker(maintenanceRoot, runId);
-	return marker !== undefined && marker !== "unreadable" && path.resolve(marker.tombstonePath) === path.resolve(tombstonePath);
+	return (
+		marker !== undefined &&
+		marker !== "unreadable" &&
+		path.resolve(marker.tombstonePath) === path.resolve(tombstonePath)
+	);
 }
 
 function runTombstoneMarkerBlocks(maintenanceRoot: string, runId: string): boolean {
@@ -285,11 +313,17 @@ function runTombstoneMarkerBlocks(maintenanceRoot: string, runId: string): boole
 
 function unresolvedHandoff(manifestPath: string): boolean {
 	const manifest = readJson(manifestPath);
-	if (!manifest || manifest.version !== 1 || !Array.isArray(manifest.groups) || manifest.groups.length === 0) return true;
+	if (!manifest || manifest.version !== 1 || !Array.isArray(manifest.groups) || manifest.groups.length === 0)
+		return true;
 	return manifest.groups.some((value) => {
 		if (!value || typeof value !== "object" || Array.isArray(value)) return true;
 		const cleanup = (value as Record<string, unknown>).cleanup;
-		return !cleanup || typeof cleanup !== "object" || Array.isArray(cleanup) || (cleanup as Record<string, unknown>).state !== "complete";
+		return (
+			!cleanup ||
+			typeof cleanup !== "object" ||
+			Array.isArray(cleanup) ||
+			(cleanup as Record<string, unknown>).state !== "complete"
+		);
 	});
 }
 
@@ -317,7 +351,8 @@ function runSkipReason(input: {
 	const { runDir, status } = input;
 	if (!status) return "invalid-status";
 	if (!validRunId(status.runId)) return "identity-mismatch";
-	if (path.basename(runDir) !== status.runId && !path.basename(runDir).startsWith(RUN_TOMBSTONE_PREFIX)) return "identity-mismatch";
+	if (path.basename(runDir) !== status.runId && !path.basename(runDir).startsWith(RUN_TOMBSTONE_PREFIX))
+		return "identity-mismatch";
 	if (input.protectedRunIds.has(status.runId)) return "runtime-reference";
 	if (input.waitRunIds.has(status.runId)) return "wait-reference";
 	if (activeMarkerExists(input.asyncDirRoot, status.runId)) return "active-index";
@@ -330,7 +365,8 @@ function runSkipReason(input: {
 	if (hasUnresolvedRunHandoff(runDir, status)) return "handoff-reference";
 	const timestamp = statusTimestamp(status, runDir);
 	// Unknown ages stay protected.
-	if (hasResumableContract(runDir, status) && (timestamp === undefined || timestamp > input.resumableCutoff)) return "resumable";
+	if (hasResumableContract(runDir, status) && (timestamp === undefined || timestamp > input.resumableCutoff))
+		return "resumable";
 	if (timestamp === undefined) return "unknown-age";
 	if (timestamp > input.cutoff) return "recent";
 	return undefined;
@@ -341,7 +377,8 @@ function parseWaitRunIds(dir: string): { runIds: Set<string>; safe: boolean } {
 	for (const entry of listDir(dir)) {
 		if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
 		const record = readJson(path.join(dir, entry.name));
-		if (!record || typeof record.runId !== "string" || typeof record.expiresAt !== "number") return { runIds, safe: false };
+		if (!record || typeof record.runId !== "string" || typeof record.expiresAt !== "number")
+			return { runIds, safe: false };
 		runIds.add(record.runId);
 	}
 	return { runIds, safe: true };
@@ -349,7 +386,7 @@ function parseWaitRunIds(dir: string): { runIds: Set<string>; safe: boolean } {
 
 function readCursor(root: string): RetentionCursor {
 	const value = readJson(path.join(root, CURSOR_NAME));
-	return value?.version === 1 ? value as unknown as RetentionCursor : { version: 1 };
+	return value?.version === 1 ? (value as unknown as RetentionCursor) : { version: 1 };
 }
 
 let currentProcessStartIdentity: Promise<string | undefined> | undefined;
@@ -367,7 +404,10 @@ async function computeProcessStartIdentity(pid: number): Promise<string | undefi
 			const stat = fs.readFileSync(`/proc/${pid}/stat`).toString("utf8");
 			const commandEnd = stat.lastIndexOf(")");
 			if (commandEnd === -1) return undefined;
-			const fields = stat.slice(commandEnd + 1).trim().split(/\s+/);
+			const fields = stat
+				.slice(commandEnd + 1)
+				.trim()
+				.split(/\s+/);
 			return fields[19] ? `linux:${fields[19]}` : undefined;
 		} catch {
 			return undefined;
@@ -376,9 +416,14 @@ async function computeProcessStartIdentity(pid: number): Promise<string | undefi
 	if (process.platform === "win32") {
 		// PowerShell takes ~0.5 s to start; a synchronous spawn would freeze the TUI.
 		const started = await new Promise<string>((resolve) => {
-			execFile("powershell.exe", ["-NoProfile", "-Command", `(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CreationDate`], { encoding: "utf-8", windowsHide: true, timeout: 5_000 }, (error, stdout) => {
-				resolve(error ? "" : stdout.trim());
-			});
+			execFile(
+				"powershell.exe",
+				["-NoProfile", "-Command", `(Get-CimInstance Win32_Process -Filter "ProcessId=${pid}").CreationDate`],
+				{ encoding: "utf-8", windowsHide: true, timeout: 5_000 },
+				(error, stdout) => {
+					resolve(error ? "" : stdout.trim());
+				},
+			);
 		});
 		return started ? `win:${started}` : undefined;
 	}
@@ -399,19 +444,26 @@ function processIsAlive(pid: number): boolean | undefined {
 
 function parseLockOwner(lockDir: string): RetentionLockOwner | undefined {
 	const owner = readJson(path.join(lockDir, "owner.json"));
-	if (owner?.version !== 1
-		|| typeof owner.token !== "string"
-		|| typeof owner.pid !== "number"
-		|| !Number.isInteger(owner.pid)
-		|| owner.pid <= 0
-		|| typeof owner.hostname !== "string"
-		|| typeof owner.startedAt !== "number"
-		|| !Number.isFinite(owner.startedAt)) return undefined;
+	if (
+		owner?.version !== 1 ||
+		typeof owner.token !== "string" ||
+		typeof owner.pid !== "number" ||
+		!Number.isInteger(owner.pid) ||
+		owner.pid <= 0 ||
+		typeof owner.hostname !== "string" ||
+		typeof owner.startedAt !== "number" ||
+		!Number.isFinite(owner.startedAt)
+	)
+		return undefined;
 	if (owner.processStartIdentity !== undefined && typeof owner.processStartIdentity !== "string") return undefined;
 	return owner as unknown as RetentionLockOwner;
 }
 
-async function staleLock(lockDir: string, now: number, options: Required<Pick<AsyncRetentionOptions, "hostname" | "isProcessAlive" | "getProcessStartIdentity">>): Promise<{ stale: boolean; token?: string }> {
+async function staleLock(
+	lockDir: string,
+	now: number,
+	options: Required<Pick<AsyncRetentionOptions, "hostname" | "isProcessAlive" | "getProcessStartIdentity">>,
+): Promise<{ stale: boolean; token?: string }> {
 	const owner = parseLockOwner(lockDir);
 	if (!owner) {
 		try {
@@ -425,7 +477,8 @@ async function staleLock(lockDir: string, now: number, options: Required<Pick<As
 	if (alive === false) return { stale: true, token: owner.token };
 	if (alive === true && owner.processStartIdentity) {
 		const currentIdentity = await options.getProcessStartIdentity(owner.pid);
-		if (currentIdentity !== undefined && currentIdentity !== owner.processStartIdentity) return { stale: true, token: owner.token };
+		if (currentIdentity !== undefined && currentIdentity !== owner.processStartIdentity)
+			return { stale: true, token: owner.token };
 	}
 	return { stale: now - owner.startedAt >= LOCK_STALE_MS, token: owner.token };
 }
@@ -446,7 +499,11 @@ function createLockDirectory(lockDir: string, owner: RetentionLockOwner): boolea
 	}
 }
 
-async function acquireRetentionLock(lockDir: string, owner: RetentionLockOwner, options: Required<Pick<AsyncRetentionOptions, "hostname" | "isProcessAlive" | "getProcessStartIdentity">>): Promise<boolean> {
+async function acquireRetentionLock(
+	lockDir: string,
+	owner: RetentionLockOwner,
+	options: Required<Pick<AsyncRetentionOptions, "hostname" | "isProcessAlive" | "getProcessStartIdentity">>,
+): Promise<boolean> {
 	for (let attempt = 0; attempt < 4; attempt += 1) {
 		if (createLockDirectory(lockDir, owner)) return true;
 		const stale = await staleLock(lockDir, owner.startedAt, options);
@@ -472,7 +529,8 @@ function releaseRetentionLock(lockDir: string, token: string): void {
 function resultRunId(candidate: ResultCandidate, data: Record<string, unknown>): string | undefined {
 	if (typeof data.runId === "string") return data.runId;
 	if (typeof data.id === "string") return data.id;
-	if ((candidate.kind === "public" || candidate.kind === "pending") && path.basename(candidate.path).endsWith(".json")) return path.basename(candidate.path, ".json");
+	if ((candidate.kind === "public" || candidate.kind === "pending") && path.basename(candidate.path).endsWith(".json"))
+		return path.basename(candidate.path, ".json");
 	return undefined;
 }
 
@@ -481,8 +539,9 @@ function resultTimestamp(data: Record<string, unknown>, filePath: string): numbe
 		const value = data[field];
 		if (value !== undefined && (typeof value !== "number" || !Number.isFinite(value))) return undefined;
 	}
-	const logical = RESULT_TIMESTAMP_FIELDS.map((field) => data[field])
-		.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+	const logical = RESULT_TIMESTAMP_FIELDS.map((field) => data[field]).filter(
+		(value): value is number => typeof value === "number" && Number.isFinite(value),
+	);
 	try {
 		return Math.max(fs.statSync(filePath).mtimeMs, ...logical);
 	} catch {
@@ -491,21 +550,29 @@ function resultTimestamp(data: Record<string, unknown>, filePath: string): numbe
 }
 
 function terminalResult(data: Record<string, unknown>): boolean {
-	return data.success === true || data.success === false || (typeof data.state === "string" && TERMINAL_STATES.has(data.state as AsyncStatus["state"]));
+	return (
+		data.success === true ||
+		data.success === false ||
+		(typeof data.state === "string" && TERMINAL_STATES.has(data.state as AsyncStatus["state"]))
+	);
 }
 
 function resultHasResumableSession(data: Record<string, unknown>): boolean {
 	if (existingRegularFile(typeof data.sessionFile === "string" ? data.sessionFile : undefined)) return true;
-	return Array.isArray(data.results) && data.results.some((value) => {
-		if (!value || typeof value !== "object" || Array.isArray(value)) return false;
-		const sessionFile = (value as Record<string, unknown>).sessionFile;
-		return existingRegularFile(typeof sessionFile === "string" ? sessionFile : undefined);
-	});
+	return (
+		Array.isArray(data.results) &&
+		data.results.some((value) => {
+			if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+			const sessionFile = (value as Record<string, unknown>).sessionFile;
+			return existingRegularFile(typeof sessionFile === "string" ? sessionFile : undefined);
+		})
+	);
 }
 
 function hasUnresolvedResultHandoff(data: Record<string, unknown>): boolean {
 	if (data.parallelHandoff === undefined) return false;
-	if (!data.parallelHandoff || typeof data.parallelHandoff !== "object" || Array.isArray(data.parallelHandoff)) return true;
+	if (!data.parallelHandoff || typeof data.parallelHandoff !== "object" || Array.isArray(data.parallelHandoff))
+		return true;
 	const manifestPath = (data.parallelHandoff as Record<string, unknown>).path;
 	return typeof manifestPath !== "string" || !manifestPath || unresolvedHandoff(manifestPath);
 }
@@ -536,12 +603,29 @@ function resultSkipReason(input: {
 	if (activeMarkerExists(input.asyncDirRoot, runId)) return "active-index";
 	if (fs.existsSync(path.join(input.asyncDirRoot, runId))) return "run-present";
 	if (missionObserverIndexExists(input.resultsDir, runId)) return "mission-reference";
-	if (input.data.mode === "workflow" || completionMode(input.data) === "workflow" || typeof input.data.parentWorkflowRunId === "string" || typeof input.data.workflowKey === "string") return "workflow-reference";
+	if (
+		input.data.mode === "workflow" ||
+		completionMode(input.data) === "workflow" ||
+		typeof input.data.parentWorkflowRunId === "string" ||
+		typeof input.data.workflowKey === "string"
+	)
+		return "workflow-reference";
 	if (hasUnresolvedResultHandoff(input.data)) return "handoff-reference";
 	const timestamp = resultTimestamp(input.data, input.candidate.path);
-	if (resultHasResumableSession(input.data) && (timestamp === undefined || timestamp > input.resumableCutoff)) return "resumable";
-	if (input.candidate.kind === "archive" && fs.existsSync(path.join(input.resultsDir, "completion-replay", `${encodeURIComponent(runId)}.json`))) return "replay-reference";
-	if (!terminalResult(input.data) && input.candidate.kind !== "replay" && input.candidate.kind !== "archive" && input.candidate.kind !== "tombstone") return "non-terminal-result";
+	if (resultHasResumableSession(input.data) && (timestamp === undefined || timestamp > input.resumableCutoff))
+		return "resumable";
+	if (
+		input.candidate.kind === "archive" &&
+		fs.existsSync(path.join(input.resultsDir, "completion-replay", `${encodeURIComponent(runId)}.json`))
+	)
+		return "replay-reference";
+	if (
+		!terminalResult(input.data) &&
+		input.candidate.kind !== "replay" &&
+		input.candidate.kind !== "archive" &&
+		input.candidate.kind !== "tombstone"
+	)
+		return "non-terminal-result";
 	if (timestamp === undefined) return "unknown-age";
 	if (timestamp > input.cutoff) return "recent";
 	return undefined;
@@ -549,31 +633,34 @@ function resultSkipReason(input: {
 
 function appendMaintenanceLog(root: string, result: AsyncRetentionResult, now: number, deletedIds: string[]): void {
 	fs.mkdirSync(root, { recursive: true });
-	fs.appendFileSync(path.join(root, LOG_NAME), `${JSON.stringify({
-		at: new Date(now).toISOString(),
-		acquired: result.acquired,
-		scanned: result.scanned,
-		repairedRuns: result.repairedRuns,
-		deletedRuns: result.deletedRuns,
-		deletedResults: result.deletedResults,
-		reapedTombstones: result.reapedTombstones,
-		skipped: result.skipped,
-		deleted: deletedIds.slice(0, ASYNC_RETENTION_BATCH_SIZE),
-		errors: result.errors.length,
-		rawReads: result.rawReads,
-		sourceExhausted: result.sourceExhausted,
-		discoveryDurationMs: result.discoveryDurationMs,
-		commitDurationMs: result.commitDurationMs,
-		cancelled: result.cancelled,
-		workerFailed: result.workerFailed,
-		durationMs: result.durationMs,
-	})}\n`, "utf-8");
+	fs.appendFileSync(
+		path.join(root, LOG_NAME),
+		`${JSON.stringify({
+			at: new Date(now).toISOString(),
+			acquired: result.acquired,
+			scanned: result.scanned,
+			repairedRuns: result.repairedRuns,
+			deletedRuns: result.deletedRuns,
+			deletedResults: result.deletedResults,
+			reapedTombstones: result.reapedTombstones,
+			skipped: result.skipped,
+			deleted: deletedIds.slice(0, ASYNC_RETENTION_BATCH_SIZE),
+			errors: result.errors.length,
+			rawReads: result.rawReads,
+			sourceExhausted: result.sourceExhausted,
+			discoveryDurationMs: result.discoveryDurationMs,
+			commitDurationMs: result.commitDurationMs,
+			cancelled: result.cancelled,
+			workerFailed: result.workerFailed,
+			durationMs: result.durationMs,
+		})}\n`,
+		"utf-8",
+	);
 }
 
 function increment(record: Record<string, number>, key: string): void {
 	record[key] = (record[key] ?? 0) + 1;
 }
-
 
 class RetentionCancelledError extends Error {}
 
@@ -585,37 +672,99 @@ function safeRelative(relative: string): boolean {
 	return relative.length > 0 && !path.isAbsolute(relative) && !relative.split(path.sep).includes("..");
 }
 
-function parseDiscoveryResult(message: unknown, passId: string, runBudget: number, resultBudget: number): RetentionDiscovery {
-	if (!isRecord(message) || message.type !== "result" || message.passId !== passId) throw new Error("Retention discovery worker returned a stale or malformed pass id.");
-	if (!Number.isFinite(message.discoveryDurationMs) || (message.discoveryDurationMs as number) < 0) throw new Error("Retention discovery worker returned an invalid duration.");
-	if (!Number.isInteger(message.rawReads) || (message.rawReads as number) < 0) throw new Error("Retention discovery worker returned an invalid raw-read count.");
-	if (!isRecord(message.sourceExhausted) || Object.values(message.sourceExhausted).some((value) => typeof value !== "boolean")) throw new Error("Retention discovery worker returned invalid source telemetry.");
-	if (!Array.isArray(message.runCandidates) || message.runCandidates.length > runBudget) throw new Error("Retention discovery worker exceeded the run budget.");
-	if (!Array.isArray(message.resultCandidates) || message.resultCandidates.length > resultBudget) throw new Error("Retention discovery worker exceeded the result budget.");
-	if (!Array.isArray(message.cursorOps) || message.cursorOps.length > runBudget + resultBudget + 8) throw new Error("Retention discovery worker returned invalid cursor operations.");
+function parseDiscoveryResult(
+	message: unknown,
+	passId: string,
+	runBudget: number,
+	resultBudget: number,
+): RetentionDiscovery {
+	if (!isRecord(message) || message.type !== "result" || message.passId !== passId)
+		throw new Error("Retention discovery worker returned a stale or malformed pass id.");
+	if (!Number.isFinite(message.discoveryDurationMs) || (message.discoveryDurationMs as number) < 0)
+		throw new Error("Retention discovery worker returned an invalid duration.");
+	if (!Number.isInteger(message.rawReads) || (message.rawReads as number) < 0)
+		throw new Error("Retention discovery worker returned an invalid raw-read count.");
+	if (
+		!isRecord(message.sourceExhausted) ||
+		Object.values(message.sourceExhausted).some((value) => typeof value !== "boolean")
+	)
+		throw new Error("Retention discovery worker returned invalid source telemetry.");
+	if (!Array.isArray(message.runCandidates) || message.runCandidates.length > runBudget)
+		throw new Error("Retention discovery worker exceeded the run budget.");
+	if (!Array.isArray(message.resultCandidates) || message.resultCandidates.length > resultBudget)
+		throw new Error("Retention discovery worker exceeded the result budget.");
+	if (!Array.isArray(message.cursorOps) || message.cursorOps.length > runBudget + resultBudget + 8)
+		throw new Error("Retention discovery worker returned invalid cursor operations.");
 	for (const candidate of message.runCandidates) {
-		if (!isRecord(candidate) || typeof candidate.name !== "string" || typeof candidate.relative !== "string" || !validRunId(candidate.name) || candidate.relative !== candidate.name) throw new Error("Retention discovery worker returned an unsafe run candidate.");
+		if (
+			!isRecord(candidate) ||
+			typeof candidate.name !== "string" ||
+			typeof candidate.relative !== "string" ||
+			!validRunId(candidate.name) ||
+			candidate.relative !== candidate.name
+		)
+			throw new Error("Retention discovery worker returned an unsafe run candidate.");
 	}
 	const resultKinds = new Set(["public", "pending", "replay", "archive", "tombstone"]);
 	const resultKeys = new Set(["resultPublicAfter", "resultReplayAfter", "resultArchiveAfter"]);
 	for (const candidate of message.resultCandidates) {
-		if (!isRecord(candidate) || typeof candidate.name !== "string" || typeof candidate.relative !== "string" || path.basename(candidate.name) !== candidate.name || !safeRelative(candidate.relative) || path.basename(candidate.relative) !== candidate.name || !resultKinds.has(candidate.kind as string) || !isRecord(candidate.cursor)) throw new Error("Retention discovery worker returned an unsafe result candidate.");
+		if (
+			!isRecord(candidate) ||
+			typeof candidate.name !== "string" ||
+			typeof candidate.relative !== "string" ||
+			path.basename(candidate.name) !== candidate.name ||
+			!safeRelative(candidate.relative) ||
+			path.basename(candidate.relative) !== candidate.name ||
+			!resultKinds.has(candidate.kind as string) ||
+			!isRecord(candidate.cursor)
+		)
+			throw new Error("Retention discovery worker returned an unsafe result candidate.");
 		const cursor = candidate.cursor;
 		if (cursor.type === "pending") {
-			if (typeof cursor.session !== "string" || !validRunId(cursor.session) || path.dirname(candidate.relative) !== path.join("result-pending", cursor.session)) throw new Error("Retention discovery worker returned an invalid pending candidate.");
+			if (
+				typeof cursor.session !== "string" ||
+				!validRunId(cursor.session) ||
+				path.dirname(candidate.relative) !== path.join("result-pending", cursor.session)
+			)
+				throw new Error("Retention discovery worker returned an invalid pending candidate.");
 		} else if (cursor.type === "result") {
-			if (typeof cursor.key !== "string" || !resultKeys.has(cursor.key)) throw new Error("Retention discovery worker returned an invalid result cursor.");
-			const expectedDir = cursor.key === "resultPublicAfter" ? "." : cursor.key === "resultReplayAfter" ? "completion-replay" : "output-archives";
-			if (path.dirname(candidate.relative) !== expectedDir) throw new Error("Retention discovery worker returned a result from the wrong source.");
+			if (typeof cursor.key !== "string" || !resultKeys.has(cursor.key))
+				throw new Error("Retention discovery worker returned an invalid result cursor.");
+			const expectedDir =
+				cursor.key === "resultPublicAfter"
+					? "."
+					: cursor.key === "resultReplayAfter"
+						? "completion-replay"
+						: "output-archives";
+			if (path.dirname(candidate.relative) !== expectedDir)
+				throw new Error("Retention discovery worker returned a result from the wrong source.");
 		} else throw new Error("Retention discovery worker returned an invalid result cursor target.");
 	}
-	const scalarKeys = new Set(["runAfter", "resultPublicAfter", "resultReplayAfter", "resultArchiveAfter", "pendingSessionAfter"]);
+	const scalarKeys = new Set([
+		"runAfter",
+		"resultPublicAfter",
+		"resultReplayAfter",
+		"resultArchiveAfter",
+		"pendingSessionAfter",
+	]);
 	for (const operation of message.cursorOps) {
-		if (!isRecord(operation) || typeof operation.type !== "string") throw new Error("Retention discovery worker returned a malformed cursor operation.");
+		if (!isRecord(operation) || typeof operation.type !== "string")
+			throw new Error("Retention discovery worker returned a malformed cursor operation.");
 		if (operation.type === "set" || operation.type === "delete") {
-			if (typeof operation.key !== "string" || !scalarKeys.has(operation.key) || (operation.type === "set" && (typeof operation.value !== "string" || !safeRelative(operation.value)))) throw new Error("Retention discovery worker returned an invalid scalar cursor operation.");
+			if (
+				typeof operation.key !== "string" ||
+				!scalarKeys.has(operation.key) ||
+				(operation.type === "set" && (typeof operation.value !== "string" || !safeRelative(operation.value)))
+			)
+				throw new Error("Retention discovery worker returned an invalid scalar cursor operation.");
 		} else if (operation.type === "set-pending" || operation.type === "delete-pending") {
-			if (typeof operation.session !== "string" || !validRunId(operation.session) || (operation.type === "set-pending" && (typeof operation.value !== "string" || !safeRelative(operation.value)))) throw new Error("Retention discovery worker returned an invalid pending cursor operation.");
+			if (
+				typeof operation.session !== "string" ||
+				!validRunId(operation.session) ||
+				(operation.type === "set-pending" &&
+					(typeof operation.value !== "string" || !safeRelative(operation.value)))
+			)
+				throw new Error("Retention discovery worker returned an invalid pending cursor operation.");
 		} else throw new Error("Retention discovery worker returned an unknown cursor operation.");
 	}
 	return message as unknown as RetentionDiscovery;
@@ -657,7 +806,8 @@ function runRetentionDiscovery(input: {
 		worker.once("message", (message: unknown) => {
 			if (settled) return;
 			try {
-				if (isRecord(message) && message.type === "error" && message.passId === input.passId) throw new Error(`Retention discovery failed: ${String(message.error)}`);
+				if (isRecord(message) && message.type === "error" && message.passId === input.passId)
+					throw new Error(`Retention discovery failed: ${String(message.error)}`);
 				const discovery = parseDiscoveryResult(message, input.passId, input.runBudget, input.resultBudget);
 				settled = true;
 				cleanup();
@@ -666,7 +816,15 @@ function runRetentionDiscovery(input: {
 				fail(error instanceof Error ? error : new Error(String(error)));
 			}
 		});
-		worker.postMessage({ type: "discover", passId: input.passId, asyncDirRoot: input.asyncDirRoot, resultsDir: input.resultsDir, cursor: input.cursor, runBudget: input.runBudget, resultBudget: input.resultBudget });
+		worker.postMessage({
+			type: "discover",
+			passId: input.passId,
+			asyncDirRoot: input.asyncDirRoot,
+			resultsDir: input.resultsDir,
+			cursor: input.cursor,
+			runBudget: input.runBudget,
+			resultBudget: input.resultBudget,
+		});
 	});
 }
 
@@ -679,7 +837,8 @@ function applyCursorOperations(cursor: RetentionCursor, operations: CursorOperat
 			cursor.resultPendingAfterBySession[operation.session] = operation.value;
 		} else {
 			delete cursor.resultPendingAfterBySession?.[operation.session];
-			if (cursor.resultPendingAfterBySession && Object.keys(cursor.resultPendingAfterBySession).length === 0) delete cursor.resultPendingAfterBySession;
+			if (cursor.resultPendingAfterBySession && Object.keys(cursor.resultPendingAfterBySession).length === 0)
+				delete cursor.resultPendingAfterBySession;
 		}
 	}
 }
@@ -690,7 +849,10 @@ export async function cleanupAsyncRetention(options: AsyncRetentionOptions): Pro
 	const currentTime = now();
 	const retentionMs = options.retentionMs ?? RETENTION_MS;
 	const tombstoneGraceMs = options.tombstoneGraceMs ?? ASYNC_RETENTION_TOMBSTONE_GRACE_MS;
-	const batchSize = Math.min(ASYNC_RETENTION_BATCH_SIZE, Math.max(1, Math.trunc(options.batchSize ?? ASYNC_RETENTION_BATCH_SIZE)));
+	const batchSize = Math.min(
+		ASYNC_RETENTION_BATCH_SIZE,
+		Math.max(1, Math.trunc(options.batchSize ?? ASYNC_RETENTION_BATCH_SIZE)),
+	);
 	const randomId = options.randomId ?? randomUUID;
 	const maintenanceRoot = options.maintenanceRoot ?? path.dirname(options.asyncDirRoot);
 	const lockDir = path.join(maintenanceRoot, LOCK_NAME);
@@ -698,8 +860,18 @@ export async function cleanupAsyncRetention(options: AsyncRetentionOptions): Pro
 	const pid = options.pid ?? process.pid;
 	const hostname = options.hostname ?? os.hostname();
 	const getProcessStartIdentity = options.getProcessStartIdentity ?? processStartIdentity;
-	const currentProcessStartIdentity = options.processStartIdentity ?? await getProcessStartIdentity(pid) ?? (pid === process.pid ? `runtime:${Math.round(Date.now() - process.uptime() * 1000)}` : undefined);
-	const lockOwner: RetentionLockOwner = { version: 1, token: lockToken, pid, hostname, startedAt: currentTime, ...(currentProcessStartIdentity ? { processStartIdentity: currentProcessStartIdentity } : {}) };
+	const currentProcessStartIdentity =
+		options.processStartIdentity ??
+		(await getProcessStartIdentity(pid)) ??
+		(pid === process.pid ? `runtime:${Math.round(Date.now() - process.uptime() * 1000)}` : undefined);
+	const lockOwner: RetentionLockOwner = {
+		version: 1,
+		token: lockToken,
+		pid,
+		hostname,
+		startedAt: currentTime,
+		...(currentProcessStartIdentity ? { processStartIdentity: currentProcessStartIdentity } : {}),
+	};
 	const lockOptions = { hostname, isProcessAlive: options.isProcessAlive ?? processIsAlive, getProcessStartIdentity };
 	const result: AsyncRetentionResult = {
 		acquired: false,
@@ -735,7 +907,7 @@ export async function cleanupAsyncRetention(options: AsyncRetentionOptions): Pro
 		return true;
 	};
 	fs.mkdirSync(maintenanceRoot, { recursive: true });
-	if (!await acquireRetentionLock(lockDir, lockOwner, lockOptions)) {
+	if (!(await acquireRetentionLock(lockDir, lockOwner, lockOptions))) {
 		increment(result.skipped, "lock-busy");
 		return finish();
 	}
@@ -758,7 +930,8 @@ export async function cleanupAsyncRetention(options: AsyncRetentionOptions): Pro
 				cursor,
 				runBudget,
 				resultBudget,
-				workerUrl: options.discoveryWorkerUrl ?? new URL("../../../async-retention-discovery-worker.mjs", import.meta.url),
+				workerUrl:
+					options.discoveryWorkerUrl ?? new URL("../../../async-retention-discovery-worker.mjs", import.meta.url),
 				signal: options.signal,
 			});
 		} catch (error) {
@@ -803,10 +976,12 @@ export async function cleanupAsyncRetention(options: AsyncRetentionOptions): Pro
 					continue;
 				}
 				let status = readStatus(runDir);
-				if (status?.state === "running"
-					&& validRunId(status.runId)
-					&& path.basename(runDir) === status.runId
-					&& !protectedRunIds.has(status.runId)) {
+				if (
+					status?.state === "running" &&
+					validRunId(status.runId) &&
+					path.basename(runDir) === status.runId &&
+					!protectedRunIds.has(status.runId)
+				) {
 					const reconciliation = reconcileAsyncRun(runDir, {
 						resultsDir: options.resultsDir,
 						kill: options.reconcileKill,
@@ -815,7 +990,16 @@ export async function cleanupAsyncRetention(options: AsyncRetentionOptions): Pro
 					status = reconciliation.status ?? undefined;
 					if (reconciliation.repaired) result.repairedRuns += 1;
 				}
-				const initialReason = runSkipReason({ runDir, status, asyncDirRoot: options.asyncDirRoot, resultsDir: options.resultsDir, cutoff, resumableCutoff, protectedRunIds, waitRunIds: waitReferences.runIds });
+				const initialReason = runSkipReason({
+					runDir,
+					status,
+					asyncDirRoot: options.asyncDirRoot,
+					resultsDir: options.resultsDir,
+					cutoff,
+					resumableCutoff,
+					protectedRunIds,
+					waitRunIds: waitReferences.runIds,
+				});
 				if (initialReason) {
 					increment(result.skipped, initialReason);
 					continue;
@@ -830,7 +1014,18 @@ export async function cleanupAsyncRetention(options: AsyncRetentionOptions): Pro
 						continue;
 					}
 					const freshWaitReferences = parseWaitRunIds(waitSubscriptionsDir);
-					const finalReason = freshWaitReferences.safe ? runSkipReason({ runDir, status, asyncDirRoot: options.asyncDirRoot, resultsDir: options.resultsDir, cutoff, resumableCutoff, protectedRunIds, waitRunIds: freshWaitReferences.runIds }) : "wait-references-unknown";
+					const finalReason = freshWaitReferences.safe
+						? runSkipReason({
+								runDir,
+								status,
+								asyncDirRoot: options.asyncDirRoot,
+								resultsDir: options.resultsDir,
+								cutoff,
+								resumableCutoff,
+								protectedRunIds,
+								waitRunIds: freshWaitReferences.runIds,
+							})
+						: "wait-references-unknown";
 					if (finalReason) {
 						increment(result.skipped, `recheck-${finalReason}`);
 						continue;
@@ -854,7 +1049,18 @@ export async function cleanupAsyncRetention(options: AsyncRetentionOptions): Pro
 				}
 				const recheckStatus = readStatus(tombstone);
 				const freshWaitReferences = parseWaitRunIds(waitSubscriptionsDir);
-				const recheckReason = freshWaitReferences.safe ? runSkipReason({ runDir: tombstone, status: recheckStatus, asyncDirRoot: options.asyncDirRoot, resultsDir: options.resultsDir, cutoff, resumableCutoff, protectedRunIds, waitRunIds: freshWaitReferences.runIds }) : "wait-references-unknown";
+				const recheckReason = freshWaitReferences.safe
+					? runSkipReason({
+							runDir: tombstone,
+							status: recheckStatus,
+							asyncDirRoot: options.asyncDirRoot,
+							resultsDir: options.resultsDir,
+							cutoff,
+							resumableCutoff,
+							protectedRunIds,
+							waitRunIds: freshWaitReferences.runIds,
+						})
+					: "wait-references-unknown";
 				if (recheckReason) {
 					if (!fs.existsSync(runDir)) {
 						fs.renameSync(tombstone, runDir);
@@ -877,7 +1083,10 @@ export async function cleanupAsyncRetention(options: AsyncRetentionOptions): Pro
 		for (const discoveredCandidate of discovery.resultCandidates) {
 			if (markCancelled()) return finish();
 			result.scanned += 1;
-			const candidate: ResultCandidate = { ...discoveredCandidate, path: path.join(options.resultsDir, discoveredCandidate.relative) };
+			const candidate: ResultCandidate = {
+				...discoveredCandidate,
+				path: path.join(options.resultsDir, discoveredCandidate.relative),
+			};
 			let mutationStateChanged = false;
 			try {
 				const stat = lstatSync(candidate.path);
@@ -886,7 +1095,17 @@ export async function cleanupAsyncRetention(options: AsyncRetentionOptions): Pro
 					continue;
 				}
 				const data = readJson(candidate.path);
-				const reason = resultSkipReason({ candidate, data, asyncDirRoot: options.asyncDirRoot, resultsDir: options.resultsDir, maintenanceRoot, cutoff, resumableCutoff, protectedRunIds, waitRunIds: waitReferences.runIds });
+				const reason = resultSkipReason({
+					candidate,
+					data,
+					asyncDirRoot: options.asyncDirRoot,
+					resultsDir: options.resultsDir,
+					maintenanceRoot,
+					cutoff,
+					resumableCutoff,
+					protectedRunIds,
+					waitRunIds: waitReferences.runIds,
+				});
 				if (reason) {
 					increment(result.skipped, reason);
 					continue;
@@ -897,7 +1116,19 @@ export async function cleanupAsyncRetention(options: AsyncRetentionOptions): Pro
 						continue;
 					}
 					const freshWaitReferences = parseWaitRunIds(waitSubscriptionsDir);
-					const finalReason = freshWaitReferences.safe ? resultSkipReason({ candidate, data, asyncDirRoot: options.asyncDirRoot, resultsDir: options.resultsDir, maintenanceRoot, cutoff, resumableCutoff, protectedRunIds, waitRunIds: freshWaitReferences.runIds }) : "wait-references-unknown";
+					const finalReason = freshWaitReferences.safe
+						? resultSkipReason({
+								candidate,
+								data,
+								asyncDirRoot: options.asyncDirRoot,
+								resultsDir: options.resultsDir,
+								maintenanceRoot,
+								cutoff,
+								resumableCutoff,
+								protectedRunIds,
+								waitRunIds: freshWaitReferences.runIds,
+							})
+						: "wait-references-unknown";
 					if (finalReason) {
 						increment(result.skipped, `recheck-${finalReason}`);
 						continue;
@@ -908,13 +1139,28 @@ export async function cleanupAsyncRetention(options: AsyncRetentionOptions): Pro
 					deletedIds.push(`result-tombstone:${resultRunId(candidate, data!)}`);
 					continue;
 				}
-				const tombstone = path.join(path.dirname(candidate.path), `${RESULT_TOMBSTONE_PREFIX}${candidate.kind}-${randomId()}`);
+				const tombstone = path.join(
+					path.dirname(candidate.path),
+					`${RESULT_TOMBSTONE_PREFIX}${candidate.kind}-${randomId()}`,
+				);
 				fs.renameSync(candidate.path, tombstone);
 				mutationStateChanged = true;
 				const tombstoneCandidate = { ...candidate, path: tombstone, kind: "tombstone" as const };
 				const recheckData = readJson(tombstone);
 				const freshWaitReferences = parseWaitRunIds(waitSubscriptionsDir);
-				const recheckReason = freshWaitReferences.safe ? resultSkipReason({ candidate: tombstoneCandidate, data: recheckData, asyncDirRoot: options.asyncDirRoot, resultsDir: options.resultsDir, maintenanceRoot, cutoff, resumableCutoff, protectedRunIds, waitRunIds: freshWaitReferences.runIds }) : "wait-references-unknown";
+				const recheckReason = freshWaitReferences.safe
+					? resultSkipReason({
+							candidate: tombstoneCandidate,
+							data: recheckData,
+							asyncDirRoot: options.asyncDirRoot,
+							resultsDir: options.resultsDir,
+							maintenanceRoot,
+							cutoff,
+							resumableCutoff,
+							protectedRunIds,
+							waitRunIds: freshWaitReferences.runIds,
+						})
+					: "wait-references-unknown";
 				if (recheckReason) {
 					if (!fs.existsSync(candidate.path)) {
 						fs.renameSync(tombstone, candidate.path);
@@ -945,6 +1191,10 @@ export async function cleanupAsyncRetention(options: AsyncRetentionOptions): Pro
 		writeAtomicJson(path.join(maintenanceRoot, CURSOR_NAME), cursor);
 		return finish();
 	} finally {
-		try { releaseRetentionLock(lockDir, lockToken); } catch { /* a stale lock blocks the next pass safely */ }
+		try {
+			releaseRetentionLock(lockDir, lockToken);
+		} catch {
+			/* a stale lock blocks the next pass safely */
+		}
 	}
 }

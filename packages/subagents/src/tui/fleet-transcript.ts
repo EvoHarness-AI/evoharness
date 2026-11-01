@@ -1,7 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { getLanguageFromPath, highlightCode, type ExtensionContext } from "@evoharness/coding-agent";
-import { Markdown, truncateToWidth, visibleWidth, wrapTextWithAnsi, type MarkdownTheme } from "@evoharness/tui";
+import { type ExtensionContext, getLanguageFromPath, highlightCode } from "@evoharness/coding-agent";
+import { Markdown, type MarkdownTheme, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@evoharness/tui";
 import { safeTerminalText as safeDisplayText } from "../shared/display-text.ts";
 import { isTrustedRecordedSessionFile } from "../shared/session-file-trust.ts";
 
@@ -50,7 +50,20 @@ type Theme = ExtensionContext["ui"]["theme"];
 export type FleetTranscriptEvent =
 	| { kind: "assistant"; text: string; model?: string; timestamp?: number }
 	| { kind: "user"; text: string; timestamp?: number }
-	| { kind: "tool"; toolCallId?: string; name: string; args?: string; argsPayload?: string; output?: string; outputTruncated?: boolean; status: "running" | "complete" | "error"; error?: string; startedAt?: number; endedAt?: number; timestamp?: number }
+	| {
+			kind: "tool";
+			toolCallId?: string;
+			name: string;
+			args?: string;
+			argsPayload?: string;
+			output?: string;
+			outputTruncated?: boolean;
+			status: "running" | "complete" | "error";
+			error?: string;
+			startedAt?: number;
+			endedAt?: number;
+			timestamp?: number;
+	  }
 	| { kind: "notice"; text: string; tone: "muted" | "warning" | "error"; timestamp?: number };
 
 export interface FleetTranscript {
@@ -87,9 +100,7 @@ interface MutableToolEvent {
 }
 
 function objectValue(value: unknown): Record<string, unknown> | undefined {
-	return value && typeof value === "object" && !Array.isArray(value)
-		? value as Record<string, unknown>
-		: undefined;
+	return value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>) : undefined;
 }
 
 function stringValue(value: unknown): string | undefined {
@@ -114,12 +125,19 @@ function isNotFoundError(error: unknown): boolean {
 	return Boolean(objectValue(error)?.code === "ENOENT");
 }
 
-function validateTranscriptPath(filePath: string, trustedRoots: string[], trustedFiles: string[] = [], trustedFileRoot?: string): { resolvedPath?: string; warning?: string } {
-	if (trustedRoots.length === 0 && (!trustedFileRoot || trustedFiles.length === 0)) return { warning: `Transcript preview has no trusted root: ${filePath}` };
+function validateTranscriptPath(
+	filePath: string,
+	trustedRoots: string[],
+	trustedFiles: string[] = [],
+	trustedFileRoot?: string,
+): { resolvedPath?: string; warning?: string } {
+	if (trustedRoots.length === 0 && (!trustedFileRoot || trustedFiles.length === 0))
+		return { warning: `Transcript preview has no trusted root: ${filePath}` };
 	const resolvedPath = path.resolve(filePath);
-	const recordedCandidate = trustedFileRoot
-		&& pathWithin(trustedFileRoot, resolvedPath)
-		&& trustedFiles.some((file) => path.resolve(file) === resolvedPath);
+	const recordedCandidate =
+		trustedFileRoot &&
+		pathWithin(trustedFileRoot, resolvedPath) &&
+		trustedFiles.some((file) => path.resolve(file) === resolvedPath);
 	if (!trustedRoots.some((root) => pathWithin(root, resolvedPath)) && !recordedCandidate) {
 		return { warning: `Transcript is outside trusted roots: ${filePath}` };
 	}
@@ -134,10 +152,11 @@ function validateTranscriptPath(filePath: string, trustedRoots: string[], truste
 	if (!stat.isFile()) return { warning: `Transcript path is not a file: ${filePath}` };
 	try {
 		const realPath = fs.realpathSync(resolvedPath);
-		const realRoots = trustedRoots
-			.filter((root) => fs.existsSync(root))
-			.map((root) => fs.realpathSync(root));
-		if (!realRoots.some((root) => pathWithin(root, realPath)) && !isTrustedRecordedSessionFile(realPath, trustedFiles, trustedFileRoot)) {
+		const realRoots = trustedRoots.filter((root) => fs.existsSync(root)).map((root) => fs.realpathSync(root));
+		if (
+			!realRoots.some((root) => pathWithin(root, realPath)) &&
+			!isTrustedRecordedSessionFile(realPath, trustedFiles, trustedFileRoot)
+		) {
 			return { warning: `Transcript resolves outside trusted roots: ${filePath}` };
 		}
 		return { resolvedPath: realPath };
@@ -241,7 +260,10 @@ function appendTextEvent(
 	events.push({ kind, text: clipped, ...metadata });
 }
 
-function parseTranscriptLines(lines: string[], conversationStarted = false): { events: FleetTranscriptEvent[]; malformed: number; explicitTruncation: boolean } {
+function parseTranscriptLines(
+	lines: string[],
+	conversationStarted = false,
+): { events: FleetTranscriptEvent[]; malformed: number; explicitTruncation: boolean } {
 	const events: FleetTranscriptEvent[] = [];
 	let malformed = 0;
 	let explicitTruncation = false;
@@ -288,7 +310,13 @@ function parseTranscriptLines(lines: string[], conversationStarted = false): { e
 		}
 		if (recordType === "stderr") {
 			const text = stringValue(record.text);
-			if (text) events.push({ kind: "notice", text: clipMessage(text), tone: "error", ...(timestamp !== undefined ? { timestamp } : {}) });
+			if (text)
+				events.push({
+					kind: "notice",
+					text: clipMessage(text),
+					tone: "error",
+					...(timestamp !== undefined ? { timestamp } : {}),
+				});
 			continue;
 		}
 		if (recordType !== "message") continue;
@@ -317,9 +345,13 @@ function parseTranscriptLines(lines: string[], conversationStarted = false): { e
 				if (timestamp !== undefined && tool.endedAt === undefined) tool.endedAt = timestamp;
 				if (text && (!failed || tool.output === undefined)) {
 					tool.output = clipMessage(text);
-					tool.outputTruncated = record.outputTruncated === true || text.includes("… payload truncated") || text.includes("[Showing lines");
+					tool.outputTruncated =
+						record.outputTruncated === true ||
+						text.includes("… payload truncated") ||
+						text.includes("[Showing lines");
 				}
-				if (failed && text) tool.error = clipMessage(text.split(/\r?\n/).find((candidate) => candidate.trim()) ?? text);
+				if (failed && text)
+					tool.error = clipMessage(text.split(/\r?\n/).find((candidate) => candidate.trim()) ?? text);
 			}
 			continue;
 		}
@@ -329,10 +361,11 @@ function parseTranscriptLines(lines: string[], conversationStarted = false): { e
 			const rawModel = stringValue(record.model) ?? stringValue(message?.model);
 			const provider = stringValue(message?.provider);
 			const model = rawModel && provider ? `${provider}/${rawModel}` : rawModel;
-			if (text) appendTextEvent(events, "assistant", text, {
-				...(model ? { model } : {}),
-				...(timestamp !== undefined ? { timestamp } : {}),
-			});
+			if (text)
+				appendTextEvent(events, "assistant", text, {
+					...(model ? { model } : {}),
+					...(timestamp !== undefined ? { timestamp } : {}),
+				});
 			continue;
 		}
 		if (role === "user" && assistantSeen && text) {
@@ -347,9 +380,20 @@ function parseTranscriptLines(lines: string[], conversationStarted = false): { e
 }
 
 export function readFleetTranscript(filePath: string, options: FleetTranscriptReadOptions): FleetTranscript {
-	const validated = validateTranscriptPath(filePath, options.trustedRoots, options.trustedFiles, options.trustedFileRoot);
+	const validated = validateTranscriptPath(
+		filePath,
+		options.trustedRoots,
+		options.trustedFiles,
+		options.trustedFileRoot,
+	);
 	if (!validated.resolvedPath) {
-		return { path: filePath, events: [], truncated: false, readFailed: true, ...(validated.warning ? { warning: safeDisplayText(validated.warning) } : {}) };
+		return {
+			path: filePath,
+			events: [],
+			truncated: false,
+			readFailed: true,
+			...(validated.warning ? { warning: safeDisplayText(validated.warning) } : {}),
+		};
 	}
 	const maxRecords = Math.max(1, options.maxRecords ?? DEFAULT_MAX_RECORDS);
 	const tail = readTailLines(validated.resolvedPath, Math.max(1024, options.maxBytes ?? DEFAULT_MAX_BYTES));
@@ -358,7 +402,9 @@ export function readFleetTranscript(filePath: string, options: FleetTranscriptRe
 	const parsed = parseTranscriptLines(selectedLines, recordsOmitted);
 	const warnings = [
 		tail.warning,
-		parsed.malformed > 0 ? `Skipped ${parsed.malformed} malformed transcript record${parsed.malformed === 1 ? "" : "s"}.` : undefined,
+		parsed.malformed > 0
+			? `Skipped ${parsed.malformed} malformed transcript record${parsed.malformed === 1 ? "" : "s"}.`
+			: undefined,
 	].filter((value): value is string => Boolean(value));
 	return {
 		path: filePath,
@@ -429,9 +475,16 @@ function renderExpandedTool(
 				: language
 					? highlightCode(output, language)
 					: output.split("\n");
-		lines.push(railLine(`${glyph} ${theme.fg("toolTitle", theme.bold(`read ${filePath ?? event.args ?? ""}`))}`, width, theme));
+		lines.push(
+			railLine(
+				`${glyph} ${theme.fg("toolTitle", theme.bold(`read ${filePath ?? event.args ?? ""}`))}`,
+				width,
+				theme,
+			),
+		);
 		for (const line of rendered) {
-			for (const wrapped of renderWrapped(line, Math.max(1, width - 4))) lines.push(railLine(`  ${wrapped}`, width, theme));
+			for (const wrapped of renderWrapped(line, Math.max(1, width - 4)))
+				lines.push(railLine(`  ${wrapped}`, width, theme));
 		}
 		return lines;
 	}
@@ -439,13 +492,21 @@ function renderExpandedTool(
 	if (event.argsPayload) {
 		lines.push(railLine(theme.fg("dim", "  args"), width, theme));
 		for (const argLine of event.argsPayload.split(/\r?\n/)) {
-			for (const wrapped of renderWrapped(theme.fg("muted", argLine), Math.max(1, width - 4))) lines.push(railLine(`  ${wrapped}`, width, theme));
+			for (const wrapped of renderWrapped(theme.fg("muted", argLine), Math.max(1, width - 4)))
+				lines.push(railLine(`  ${wrapped}`, width, theme));
 		}
 	}
 	if (output) {
-		lines.push(railLine(theme.fg(event.status === "error" ? "error" : "dim", event.status === "error" ? "  error" : "  output"), width, theme));
+		lines.push(
+			railLine(
+				theme.fg(event.status === "error" ? "error" : "dim", event.status === "error" ? "  error" : "  output"),
+				width,
+				theme,
+			),
+		);
 		for (const outputLine of output.split(/\r?\n/)) {
-			for (const wrapped of renderWrapped(theme.fg(outputColor, outputLine), Math.max(1, width - 4))) lines.push(railLine(`  ${wrapped}`, width, theme));
+			for (const wrapped of renderWrapped(theme.fg(outputColor, outputLine), Math.max(1, width - 4)))
+				lines.push(railLine(`  ${wrapped}`, width, theme));
 		}
 	}
 	return lines;
@@ -490,7 +551,9 @@ export function renderFleetTranscript(
 			const title = theme.fg("toolTitle", theme.bold(event.name));
 			const args = event.args ? ` ${theme.fg("dim", event.args)}` : "";
 			const suffix = event.status === "running" ? theme.fg("warning", " running") : "";
-			lines.push(bounded(`${theme.fg("borderMuted", "├─")} ${statusGlyph(event, theme)} ${title}${args}${suffix}`, width));
+			lines.push(
+				bounded(`${theme.fg("borderMuted", "├─")} ${statusGlyph(event, theme)} ${title}${args}${suffix}`, width),
+			);
 			if (event.output && event.status !== "error" && event.name === "bash") {
 				const outputLines = event.output.replace(/\s+$/, "").split(/\r?\n/);
 				const visible = outputLines.slice(-TOOL_PREVIEW_LINES);
@@ -500,7 +563,8 @@ export function renderFleetTranscript(
 						lines.push(railLine(`  ${wrapped}`, width, theme));
 					}
 				}
-				if (hidden > 0) lines.push(railLine(theme.fg("dim", `  … ${hidden} earlier lines · x to expand`), width, theme));
+				if (hidden > 0)
+					lines.push(railLine(theme.fg("dim", `  … ${hidden} earlier lines · x to expand`), width, theme));
 				const duration = toolDuration(event);
 				lines.push(railLine(theme.fg("dim", `  Took${duration ? ` ${duration}` : ""}`), width, theme));
 			} else if (event.output && event.status !== "error") {

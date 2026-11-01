@@ -32,7 +32,16 @@ describe("result delivery ownership", () => {
 			recordSessionReplacement(`bound-${index + 1}`, `bound-${index}`);
 			state.currentSessionId = `bound-${index + 1}`;
 		}
-		assert.deepEqual(ownership.claimedSessionIds(), ["bound-8", "bound-7", "bound-6", "bound-5", "bound-4", "bound-3", "bound-2", "bound-1"]);
+		assert.deepEqual(ownership.claimedSessionIds(), [
+			"bound-8",
+			"bound-7",
+			"bound-6",
+			"bound-5",
+			"bound-4",
+			"bound-3",
+			"bound-2",
+			"bound-1",
+		]);
 		assert.equal(ownership.owns("bound-0", OWNER), false);
 		assert.equal(ownership.owns("bound-1", OWNER), true);
 	});
@@ -42,7 +51,8 @@ describe("result delivery ownership", () => {
 		const ownership = createResultDeliveryOwnership(state);
 		recordSessionReplacement("cap-1", "cap-0");
 		assert.deepEqual(ownership.claimedSessionIds(), ["cap-0"]);
-		for (let index = 0; index < 64; index += 1) recordSessionReplacement(`cap-later-${index}`, `cap-earlier-${index}`);
+		for (let index = 0; index < 64; index += 1)
+			recordSessionReplacement(`cap-later-${index}`, `cap-earlier-${index}`);
 		assert.deepEqual(ownership.claimedSessionIds(), []);
 	});
 });

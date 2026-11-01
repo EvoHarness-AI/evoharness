@@ -4,26 +4,30 @@ import * as path from "node:path";
 /** Writes `<name>.cmd` exactly as npm's cmd-shim does for a `#!/usr/bin/env node` bin at `target` (relative, backslashes). */
 export function writeNpmNodeShim(directory: string, name: string, target: string): string {
 	const commandPath = path.join(directory, `${name}.cmd`);
-	fs.writeFileSync(commandPath, [
-		"@ECHO off",
-		"GOTO start",
-		":find_dp0",
-		"SET dp0=%~dp0",
-		"EXIT /b",
-		":start",
-		"SETLOCAL",
-		"CALL :find_dp0",
-		"",
-		'IF EXIST "%dp0%\\node.exe" (',
-		'  SET "_prog=%dp0%\\node.exe"',
-		") ELSE (",
-		'  SET "_prog=node"',
-		"  SET PATHEXT=%PATHEXT:;.JS;=;%",
-		")",
-		"",
-		`endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\${target}" %*`,
-		"",
-	].join("\r\n"), { encoding: "utf-8", mode: 0o755 });
+	fs.writeFileSync(
+		commandPath,
+		[
+			"@ECHO off",
+			"GOTO start",
+			":find_dp0",
+			"SET dp0=%~dp0",
+			"EXIT /b",
+			":start",
+			"SETLOCAL",
+			"CALL :find_dp0",
+			"",
+			'IF EXIST "%dp0%\\node.exe" (',
+			'  SET "_prog=%dp0%\\node.exe"',
+			") ELSE (",
+			'  SET "_prog=node"',
+			"  SET PATHEXT=%PATHEXT:;.JS;=;%",
+			")",
+			"",
+			`endLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\${target}" %*`,
+			"",
+		].join("\r\n"),
+		{ encoding: "utf-8", mode: 0o755 },
+	);
 	return commandPath;
 }
 

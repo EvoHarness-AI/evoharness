@@ -42,8 +42,18 @@ test("resolves existing disposable Cursor smoke roots", () => {
 test("requires disposable attestation and separate existing roots", () => {
 	const input = roots();
 	try {
-		assert.throws(() => cursorSmokeInputs({ ...env(input.workspace, input.stateRoot), PI_SUBAGENTS_CURSOR_SMOKE_DISPOSABLE: undefined }), /DISPOSABLE=1 is required/);
-		assert.throws(() => cursorSmokeInputs(env(input.workspace, path.join(input.workspace, "missing"))), /STATE_ROOT must point to an existing directory/);
+		assert.throws(
+			() =>
+				cursorSmokeInputs({
+					...env(input.workspace, input.stateRoot),
+					PI_SUBAGENTS_CURSOR_SMOKE_DISPOSABLE: undefined,
+				}),
+			/DISPOSABLE=1 is required/,
+		);
+		assert.throws(
+			() => cursorSmokeInputs(env(input.workspace, path.join(input.workspace, "missing"))),
+			/STATE_ROOT must point to an existing directory/,
+		);
 		assert.throws(() => cursorSmokeInputs(env(input.workspace, input.workspace)), /must be separate directories/);
 	} finally {
 		fs.rmSync(input.root, { recursive: true, force: true });

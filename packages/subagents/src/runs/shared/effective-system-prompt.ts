@@ -1,6 +1,6 @@
-import type { AgentConfig } from "../../agents/agents.ts";
 import { buildAgentMemoryInjection } from "../../agents/agent-memory.ts";
 import { appendAgentRefinementOverlay } from "../../agents/agent-refinements.ts";
+import type { AgentConfig } from "../../agents/agents.ts";
 import { buildSkillInjection } from "../../agents/skills.ts";
 
 export interface EffectiveSystemPromptInput {

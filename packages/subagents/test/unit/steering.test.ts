@@ -3,9 +3,21 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { describe, it } from "node:test";
-import { actionResultFromSteeringStatus, claimSteeringRecovery, createSteeringStatus, recordSteeringRequest, remainingSteeringRecoveryLimits, steeringMessagePreview, steeringReceipt, takeMatchingAcceptedSteer, terminalSteeringNoticeState, unconsumedSteerReason, updateSteeringTarget } from "../../src/runs/background/steering.ts";
-import { applySteeringRecoveryAgentConfig } from "../../src/runs/background/async-resume.ts";
 import type { AgentConfig } from "../../src/agents/agents.ts";
+import { applySteeringRecoveryAgentConfig } from "../../src/runs/background/async-resume.ts";
+import {
+	actionResultFromSteeringStatus,
+	claimSteeringRecovery,
+	createSteeringStatus,
+	recordSteeringRequest,
+	remainingSteeringRecoveryLimits,
+	steeringMessagePreview,
+	steeringReceipt,
+	takeMatchingAcceptedSteer,
+	terminalSteeringNoticeState,
+	unconsumedSteerReason,
+	updateSteeringTarget,
+} from "../../src/runs/background/steering.ts";
 
 describe("steering lifecycle ledger", () => {
 	it("redacts, bounds, and separates steering message previews", () => {
@@ -19,7 +31,10 @@ describe("steering lifecycle ledger", () => {
 		assert.match(receipt, /\[redacted\]/);
 		assert.doesNotMatch(receipt, new RegExp(secret));
 		assert.match(receipt, /^Steering delivered\.\n\nMessage sent:\n```text\n[\s\S]+\n```$/);
-		assert.match(steeringReceipt("review this:\n```\ntext\n```", "Steering queued."), /^Steering queued\.\n\nMessage sent:\n````text\n[\s\S]+\n````$/);
+		assert.match(
+			steeringReceipt("review this:\n```\ntext\n```", "Steering queued."),
+			/^Steering queued\.\n\nMessage sent:\n````text\n[\s\S]+\n````$/,
+		);
 	});
 
 	it("retains 20 recent requests while aggregate totals remain monotonic", () => {
@@ -45,10 +60,16 @@ describe("steering lifecycle ledger", () => {
 			{ id: "other", text: "different" },
 		];
 		assert.equal(takeMatchingAcceptedSteer(accepted, "same guidance")?.id, "first");
-		assert.deepEqual(accepted.map((entry) => entry.id), ["second", "other"]);
+		assert.deepEqual(
+			accepted.map((entry) => entry.id),
+			["second", "other"],
+		);
 		assert.equal(takeMatchingAcceptedSteer(accepted, "same guidance")?.id, "second");
 		assert.equal(takeMatchingAcceptedSteer(accepted, "same guidance"), undefined);
-		assert.deepEqual(accepted.map((entry) => entry.id), ["other"]);
+		assert.deepEqual(
+			accepted.map((entry) => entry.id),
+			["other"],
+		);
 	});
 
 	it("describes unconsumed requests by delivery mode, not aggregate queue state", () => {
@@ -60,7 +81,12 @@ describe("steering lifecycle ledger", () => {
 
 	it("does not double-count pending when a routed target becomes queued then delivered", () => {
 		const status = createSteeringStatus();
-		recordSteeringRequest(status, { id: "one", requestedAt: 1, message: "guidance", targets: [{ index: 0, state: "routed" }] });
+		recordSteeringRequest(status, {
+			id: "one",
+			requestedAt: 1,
+			message: "guidance",
+			targets: [{ index: 0, state: "routed" }],
+		});
 		assert.equal(status.pending, 1);
 		updateSteeringTarget(status, "one", 0, "queued", 2);
 		assert.equal(status.pending, 1);
@@ -75,23 +101,35 @@ describe("steering lifecycle ledger", () => {
 			id: "mixed",
 			requestedAt: 1,
 			message: "correct course",
-			targets: [{ index: 0, state: "routed" }, { index: 1, state: "routed" }],
+			targets: [
+				{ index: 0, state: "routed" },
+				{ index: 1, state: "routed" },
+			],
 		});
 		updateSteeringTarget(status, "mixed", 0, "delivered", 2);
 		updateSteeringTarget(status, "mixed", 1, "failed", 3, { reason: "unsupported" });
 		const partial = actionResultFromSteeringStatus(status, "run", "mixed");
 		assert.equal(partial?.state, "partial");
-		assert.deepEqual(partial?.targets.map((target) => target.state), ["delivered", "failed"]);
+		assert.deepEqual(
+			partial?.targets.map((target) => target.state),
+			["delivered", "failed"],
+		);
 	});
 
 	it("classifies terminal mixed outcomes regardless of acknowledgment order", () => {
-		for (const order of [["failed", "delivered"], ["delivered", "failed"]] as const) {
+		for (const order of [
+			["failed", "delivered"],
+			["delivered", "failed"],
+		] as const) {
 			const status = createSteeringStatus();
 			recordSteeringRequest(status, {
 				id: "notice",
 				requestedAt: 1,
 				message: "correct course",
-				targets: [{ index: 0, state: "routed" }, { index: 1, state: "routed" }],
+				targets: [
+					{ index: 0, state: "routed" },
+					{ index: 1, state: "routed" },
+				],
 			});
 			updateSteeringTarget(status, "notice", 0, order[0], 2);
 			assert.equal(terminalSteeringNoticeState(status, "notice"), undefined);
@@ -132,7 +170,12 @@ describe("steering lifecycle ledger", () => {
 
 	it("keeps recovery authoritative when delivery is acknowledged late", () => {
 		const status = createSteeringStatus();
-		recordSteeringRequest(status, { id: "recover", requestedAt: 1, message: "guidance", targets: [{ index: 0, state: "routed" }] });
+		recordSteeringRequest(status, {
+			id: "recover",
+			requestedAt: 1,
+			message: "guidance",
+			targets: [{ index: 0, state: "routed" }],
+		});
 		updateSteeringTarget(status, "recover", 0, "recovered", 4, { replacementRunId: "replacement" });
 		updateSteeringTarget(status, "recover", 0, "late", 5, { reason: "after recovery commit" });
 		const result = actionResultFromSteeringStatus(status, "source", "recover", "replacement");
@@ -144,16 +187,23 @@ describe("steering lifecycle ledger", () => {
 	});
 
 	it("preserves only remaining deadline and tool budgets", () => {
-		assert.deepEqual(remainingSteeringRecoveryLimits({
-			absoluteDeadlineAt: 10_000,
-			initialToolBudget: { soft: 45, hard: 65, block: ["read"] },
-		}, {
-			toolBudget: { soft: 45, hard: 65, block: ["read"], toolCount: 50, outcome: "soft-reached" },
-		}, 4_000), {
-			timeoutMs: 6_000,
-			absoluteDeadlineAt: 10_000,
-			toolBudget: { hard: 15, block: ["read"] },
-		});
+		assert.deepEqual(
+			remainingSteeringRecoveryLimits(
+				{
+					absoluteDeadlineAt: 10_000,
+					initialToolBudget: { soft: 45, hard: 65, block: ["read"] },
+				},
+				{
+					toolBudget: { soft: 45, hard: 65, block: ["read"], toolCount: 50, outcome: "soft-reached" },
+				},
+				4_000,
+			),
+			{
+				timeoutMs: 6_000,
+				absoluteDeadlineAt: 10_000,
+				toolBudget: { hard: 15, block: ["read"] },
+			},
+		);
 	});
 
 	it("reconstructs the original agent contract without leaking changed current fields", () => {
@@ -203,7 +253,16 @@ describe("steering lifecycle ledger", () => {
 		assert.equal(recovered.inheritProjectContext, false);
 		assert.deepEqual(recovered.toolBudget, { hard: 7, block: ["read"] });
 		assert.equal(recovered.maxSubagentDepth, 2);
-		for (const field of ["extensions", "subagentOnlyExtensions", "mcpDirectTools", "skills", "skillPath", "filePath", "memory", "output"] as const) {
+		for (const field of [
+			"extensions",
+			"subagentOnlyExtensions",
+			"mcpDirectTools",
+			"skills",
+			"skillPath",
+			"filePath",
+			"memory",
+			"output",
+		] as const) {
 			assert.equal(recovered[field], undefined, `${field} leaked from current config`);
 		}
 	});
@@ -241,6 +300,9 @@ describe("steering lifecycle ledger", () => {
 
 	it("rejects recovery when a configured deadline or tool budget is exhausted", () => {
 		assert.throws(() => remainingSteeringRecoveryLimits({ absoluteDeadlineAt: 5 }, {}, 5), /deadline budget/);
-		assert.throws(() => remainingSteeringRecoveryLimits({ initialToolBudget: { hard: 2, block: "*" } }, { toolCount: 2 }), /tool budget/);
+		assert.throws(
+			() => remainingSteeringRecoveryLimits({ initialToolBudget: { hard: 2, block: "*" } }, { toolCount: 2 }),
+			/tool budget/,
+		);
 	});
 });

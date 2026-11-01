@@ -1,10 +1,10 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { isStorageCapacityError } from "../../shared/file-system-retry.ts";
 import type { AsyncStatus } from "../../shared/types.ts";
 import { readStatus } from "../../shared/utils.ts";
 import { encodeIndexSegment } from "./index-segment.ts";
 import { updateTerminalRunIndex } from "./terminal-run-index.ts";
-import { isStorageCapacityError } from "../../shared/file-system-retry.ts";
 
 export const ACTIVE_RUN_INDEX_DIR = ".active-runs";
 export const DEFAULT_STALE_TERMINAL_ACTIVE_MARKER_MS = 24 * 60 * 60 * 1000;
@@ -76,7 +76,12 @@ export function releaseActiveRunIndex(asyncDir: string): void {
 	releaseToolCallAliases(asyncDir);
 }
 
-export function updateActiveRunIndex(asyncDir: string, state: AsyncStatus["state"], toolCallId?: string, options: { retryCapacityErrors?: boolean; terminalIndexBeforeRelease?: boolean } = {}): void {
+export function updateActiveRunIndex(
+	asyncDir: string,
+	state: AsyncStatus["state"],
+	toolCallId?: string,
+	options: { retryCapacityErrors?: boolean; terminalIndexBeforeRelease?: boolean } = {},
+): void {
 	const marker = markerPath(asyncDir);
 	if (isActiveAsyncState(state)) {
 		fs.mkdirSync(path.dirname(marker), { recursive: true });
@@ -133,7 +138,8 @@ export function activeRunMarkerAgeMs(asyncDir: string, now = Date.now()): number
 
 export function readActiveRunIndex(asyncDirRoot: string): string[] | undefined {
 	try {
-		return fs.readdirSync(indexDir(asyncDirRoot), { withFileTypes: true })
+		return fs
+			.readdirSync(indexDir(asyncDirRoot), { withFileTypes: true })
 			.filter((entry) => entry.isFile())
 			.map((entry) => entry.name);
 	} catch (error) {
@@ -144,7 +150,8 @@ export function readActiveRunIndex(asyncDirRoot: string): string[] | undefined {
 
 export function readActiveRunToolCallIndex(asyncDirRoot: string, toolCallId: string): string[] {
 	try {
-		return fs.readdirSync(toolCallIndexDir(asyncDirRoot, toolCallId), { withFileTypes: true })
+		return fs
+			.readdirSync(toolCallIndexDir(asyncDirRoot, toolCallId), { withFileTypes: true })
 			.filter((entry) => entry.isFile())
 			.map((entry) => entry.name);
 	} catch (error) {

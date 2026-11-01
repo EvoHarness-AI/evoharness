@@ -4,32 +4,41 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import os from "node:os";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
 import { describe, it } from "node:test";
+import { pathToFileURL } from "node:url";
 import { runWorkflowScript, WorkflowScriptError } from "../../src/workflows/scripted-workflow.ts";
 import { WorkflowScriptProcess } from "../../src/workflows/workflow-script-worker.ts";
 
 const acornPath = createRequire(import.meta.url).resolve("acorn");
 const host = {
-	async launch(key: string) { return { key, ok: true, output: "ok", artifactPaths: [] }; },
-	async status(key: string) { return { key, ok: true, output: "ok", artifactPaths: [] }; },
+	async launch(key: string) {
+		return { key, ok: true, output: "ok", artifactPaths: [] };
+	},
+	async status(key: string) {
+		return { key, ok: true, output: "ok", artifactPaths: [] };
+	},
 };
 
 describe("restricted Node workflow process", { skip: Boolean(process.versions.bun) }, () => {
-	it("denies file writes, unrelated reads, child processes and nested workers outside the vm", { timeout: 10_000 }, async (t) => {
-		const root = fs.mkdtempSync(path.join(os.tmpdir(), "workflow-permission-"));
-		t.after(() => fs.rmSync(root, { recursive: true, force: true }));
-		// The process cwd is the parser's directory, which worker threads can read, so keep the probes outside it.
-		fs.mkdirSync(path.join(root, "parser"));
-		const parser = path.join(root, "parser", "parser-probe.cjs");
-		const secret = path.join(root, "outside.txt");
-		const canary = path.join(root, "must-not-write.txt");
-		const supervisor = new URL("../../workflow-script-process.cjs", import.meta.url);
-		const packageManifest = new URL("../../package.json", import.meta.url);
-		fs.writeFileSync(secret, "fixture, not a credential");
-		// A controlled parser fixture runs directly in the real script thread, outside its VM.
-		// This probes the actual launch permissions without needing a VM escape or a second profile.
-		fs.writeFileSync(parser, `
+	it(
+		"denies file writes, unrelated reads, child processes and nested workers outside the vm",
+		{ timeout: 10_000 },
+		async (t) => {
+			const root = fs.mkdtempSync(path.join(os.tmpdir(), "workflow-permission-"));
+			t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+			// The process cwd is the parser's directory, which worker threads can read, so keep the probes outside it.
+			fs.mkdirSync(path.join(root, "parser"));
+			const parser = path.join(root, "parser", "parser-probe.cjs");
+			const secret = path.join(root, "outside.txt");
+			const canary = path.join(root, "must-not-write.txt");
+			const supervisor = new URL("../../workflow-script-process.cjs", import.meta.url);
+			const packageManifest = new URL("../../package.json", import.meta.url);
+			fs.writeFileSync(secret, "fixture, not a credential");
+			// A controlled parser fixture runs directly in the real script thread, outside its VM.
+			// This probes the actual launch permissions without needing a VM escape or a second profile.
+			fs.writeFileSync(
+				parser,
+				`
 			const { parentPort, Worker } = require("node:worker_threads");
 			const denied = fn => { try { fn(); return "ALLOWED"; } catch (error) { return error.code; } };
 			parentPort.postMessage({
@@ -43,20 +52,35 @@ describe("restricted Node workflow process", { skip: Boolean(process.versions.bu
 				inheritedEnvironment: Object.keys(process.env).filter(key => key.toLowerCase() !== "systemroot"),
 			});
 			module.exports.parse = () => ({ type: "Program", body: [] });
-		`);
-		const worker = new WorkflowScriptProcess(parser);
-		const [proof] = await once(worker, "message");
-		// Windows cannot remove the temp root while the process still runs in it.
-		await worker.terminate();
-		assert.deepEqual(proof, { read: "ERR_ACCESS_DENIED", readUrl: "ERR_ACCESS_DENIED", supervisor: "ALLOWED", packageManifest: "ERR_ACCESS_DENIED", write: "ERR_ACCESS_DENIED", spawn: "ERR_ACCESS_DENIED", worker: "ERR_ACCESS_DENIED", inheritedEnvironment: [] });
-		assert.equal(fs.existsSync(canary), false);
-	});
+		`,
+			);
+			const worker = new WorkflowScriptProcess(parser);
+			const [proof] = await once(worker, "message");
+			// Windows cannot remove the temp root while the process still runs in it.
+			await worker.terminate();
+			assert.deepEqual(proof, {
+				read: "ERR_ACCESS_DENIED",
+				readUrl: "ERR_ACCESS_DENIED",
+				supervisor: "ALLOWED",
+				packageManifest: "ERR_ACCESS_DENIED",
+				write: "ERR_ACCESS_DENIED",
+				spawn: "ERR_ACCESS_DENIED",
+				worker: "ERR_ACCESS_DENIED",
+				inheritedEnvironment: [],
+			});
+			assert.equal(fs.existsSync(canary), false);
+		},
+	);
 
 	it("does not inherit Node startup flags from the host", async () => {
 		const previous = process.env.NODE_OPTIONS;
 		try {
 			process.env.NODE_OPTIONS = "--not-a-node-option";
-			const result = await runWorkflowScript({ ...host, script: 'emit(args.value); return (await runs.run("check", {agent:"worker",task:"check"})).output;', args: { value: [1, null, "kept"] } });
+			const result = await runWorkflowScript({
+				...host,
+				script: 'emit(args.value); return (await runs.run("check", {agent:"worker",task:"check"})).output;',
+				args: { value: [1, null, "kept"] },
+			});
 			assert.equal(result.value, "ok");
 			assert.deepEqual(result.emits, [[1, null, "kept"]]);
 		} finally {
@@ -70,9 +94,20 @@ describe("restricted Node workflow process", { skip: Boolean(process.versions.bu
 			const controller = new AbortController();
 			const timer = abort ? setTimeout(() => controller.abort(new Error("Stop busy workflow")), 250) : undefined;
 			try {
-				await assert.rejects(runWorkflowScript({ ...host, script: "while (true) {}", signal: controller.signal, ...(abort ? {} : { timeoutMs: 250 }) }),
-					(error: unknown) => error instanceof WorkflowScriptError && (abort ? error.message === "Stop busy workflow" : error.errorKind === "timeout"));
-			} finally { if (timer) clearTimeout(timer); }
+				await assert.rejects(
+					runWorkflowScript({
+						...host,
+						script: "while (true) {}",
+						signal: controller.signal,
+						...(abort ? {} : { timeoutMs: 250 }),
+					}),
+					(error: unknown) =>
+						error instanceof WorkflowScriptError &&
+						(abort ? error.message === "Stop busy workflow" : error.errorKind === "timeout"),
+				);
+			} finally {
+				if (timer) clearTimeout(timer);
+			}
 		}
 	});
 

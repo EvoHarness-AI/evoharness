@@ -2,15 +2,20 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import type { ExtensionAPI, ExtensionContext } from "@evoharness/coding-agent";
-import { BUILTIN_AGENT_NAMES, validateOptionalMachine } from "../agents/agents.ts";
+import { type BUILTIN_AGENT_NAMES, validateOptionalMachine } from "../agents/agents.ts";
 import { getPiSpawnCommand } from "../runs/shared/pi-spawn.ts";
-import { findModelInfo, getSupportedThinkingLevels, splitKnownThinkingSuffix, toModelInfo } from "../shared/model-info.ts";
+import {
+	findModelInfo,
+	getSupportedThinkingLevels,
+	splitKnownThinkingSuffix,
+	toModelInfo,
+} from "../shared/model-info.ts";
 import { withSettingsFileLease } from "../shared/settings-file-lease.ts";
 import { getAgentDir } from "../shared/utils.ts";
 
 export const DEFAULT_PROVIDER_MODELS_MAX_AGE_DAYS = 7;
 
-type BuiltinAgentName = typeof BUILTIN_AGENT_NAMES[number];
+type BuiltinAgentName = (typeof BUILTIN_AGENT_NAMES)[number];
 export type ProfileKind = "quota" | "quality";
 export type ProbeStatus = "ok" | "unavailable" | "auth" | "timeout" | "error" | "skipped";
 export type CostTier = "cheap" | "medium" | "expensive";
@@ -107,7 +112,13 @@ const SAFE_PATH_TOKEN = /^[A-Za-z0-9][A-Za-z0-9._-]*$/;
 function normalizePathToken(value: string, label: string): string {
 	const trimmed = value.trim();
 	if (!trimmed) throw new Error(`${label} is required.`);
-	if (!SAFE_PATH_TOKEN.test(trimmed) || trimmed === "." || trimmed === ".." || trimmed.includes("/") || trimmed.includes("\\")) {
+	if (
+		!SAFE_PATH_TOKEN.test(trimmed) ||
+		trimmed === "." ||
+		trimmed === ".." ||
+		trimmed.includes("/") ||
+		trimmed.includes("\\")
+	) {
 		throw new Error(`${label} must be a safe file name using only letters, numbers, dots, underscores, and hyphens.`);
 	}
 	return trimmed;
@@ -146,9 +157,15 @@ function validateSubagentProfile(filePath: string, parsed: Record<string, unknow
 			throw new Error(`Profile '${filePath}' has invalid thinking for '${name}'; expected a string or false.`);
 		}
 		if (override.machine !== undefined && override.machine !== false) {
-			override.machine = validateOptionalMachine(override.machine, `Profile '${filePath}' has invalid machine for '${name}'`);
+			override.machine = validateOptionalMachine(
+				override.machine,
+				`Profile '${filePath}' has invalid machine for '${name}'`,
+			);
 		}
-		if ((override as Record<string, unknown>).fallbackModels !== undefined) throw new Error(`Profile '${filePath}' uses removed field fallbackModels for '${name}'; configure one model instead.`);
+		if ((override as Record<string, unknown>).fallbackModels !== undefined)
+			throw new Error(
+				`Profile '${filePath}' uses removed field fallbackModels for '${name}'; configure one model instead.`,
+			);
 	}
 	const disableBuiltins = (subagents as Record<string, unknown>).disableBuiltins;
 	if (disableBuiltins !== undefined && typeof disableBuiltins !== "boolean") {
@@ -217,7 +234,9 @@ interface ClassificationContext {
 
 function combinedCost(cost: ModelClassificationInput["cost"]): number | undefined {
 	if (!cost) return undefined;
-	const values = [cost.input, cost.output, cost.cacheRead, cost.cacheWrite].filter((value): value is number => typeof value === "number" && Number.isFinite(value));
+	const values = [cost.input, cost.output, cost.cacheRead, cost.cacheWrite].filter(
+		(value): value is number => typeof value === "number" && Number.isFinite(value),
+	);
 	if (values.length === 0) return undefined;
 	return values.reduce((sum, value) => sum + value, 0);
 }
@@ -266,7 +285,10 @@ function agentsForRoleTier(roleTier: RecommendedRoleTier): BuiltinAgentName[] {
 	return ["worker", "reviewer", "oracle"];
 }
 
-function classifyModel(input: ModelClassificationInput, context: ClassificationContext): {
+function classifyModel(
+	input: ModelClassificationInput,
+	context: ClassificationContext,
+): {
 	profileRank: number;
 	costTier: CostTier;
 	qualityTier: QualityTier;
@@ -294,27 +316,35 @@ function classifyModel(input: ModelClassificationInput, context: ClassificationC
 		...(input.reasoning === true ? [1] : []),
 		...(input.reasoning === false ? [0] : []),
 	];
-	const latencyHintsFast = tokens.has("highspeed") || tokens.has("flash") || tokens.has("instant") || tokens.has("turbo");
+	const latencyHintsFast =
+		tokens.has("highspeed") || tokens.has("flash") || tokens.has("instant") || tokens.has("turbo");
 	const latencyHintsSlow = tokens.has("pro") || tokens.has("ultra") || tokens.has("opus") || tokens.has("max");
 	let qualityScore = qualitySignals.reduce((sum, value) => sum + value, 0) / qualitySignals.length;
 	if (latencyHintsFast) {
 		qualityScore -= 0.2;
 	}
 	qualityScore = Math.max(0, Math.min(1, qualityScore));
-	const costTier = costNorm !== undefined
-		? rankToCostTier(costNorm)
-		: band === 0 ? "cheap" : band >= 3 ? "expensive" : "medium";
+	const costTier =
+		costNorm !== undefined ? rankToCostTier(costNorm) : band === 0 ? "cheap" : band >= 3 ? "expensive" : "medium";
 	const qualityTier = scoreToQualityTier(qualityScore);
 	const latencyTier: LatencyTier = latencyHintsFast
 		? "fast"
 		: latencyHintsSlow
 			? "slow"
 			: costNorm !== undefined
-				? (costNorm <= 0.33 ? "fast" : costNorm <= 0.66 ? "medium" : "slow")
-				: (band <= 1 ? "fast" : band >= 3 ? "slow" : "medium");
+				? costNorm <= 0.33
+					? "fast"
+					: costNorm <= 0.66
+						? "medium"
+						: "slow"
+				: band <= 1
+					? "fast"
+					: band >= 3
+						? "slow"
+						: "medium";
 	const recommendedRoleTier = qualityTierToRoleTier(qualityTier, costTier);
 	const latencyPenalty = latencyHintsFast ? 125 : 0;
-	const profileRank = Math.round((qualityScore * 100) * 10) + Math.round(versionScore * 25) - latencyPenalty;
+	const profileRank = Math.round(qualityScore * 100 * 10) + Math.round(versionScore * 25) - latencyPenalty;
 	return {
 		profileRank,
 		costTier,
@@ -330,7 +360,8 @@ function resolveProbeStatus(text: string, timedOut: boolean): ProbeStatus {
 	if (timedOut) return "timeout";
 	if (!text) return "error";
 	if (/(unauthori[sz]ed|forbidden|api key|auth|billing|credit|quota)/i.test(text)) return "auth";
-	if (/(not found|unknown model|model unavailable|model disabled|unsupported model|unavailable)/i.test(text)) return "unavailable";
+	if (/(not found|unknown model|model unavailable|model disabled|unsupported model|unavailable)/i.test(text))
+		return "unavailable";
 	return "error";
 }
 
@@ -350,7 +381,10 @@ async function probeModel(
 	const stderr = typeof result.stderr === "string" ? result.stderr.trim() : "";
 	const combined = [stderr, stdout].filter(Boolean).join("\n").trim();
 	if (result.code === 0) return { status: "ok", message: stdout || "Probe succeeded." };
-	return { status: resolveProbeStatus(combined, result.killed === true), message: combined || `Probe exited with code ${result.code ?? "unknown"}.` };
+	return {
+		status: resolveProbeStatus(combined, result.killed === true),
+		message: combined || `Probe exited with code ${result.code ?? "unknown"}.`,
+	};
 }
 
 function roundIndex(count: number, position: number): number {
@@ -359,16 +393,15 @@ function roundIndex(count: number, position: number): number {
 }
 
 function profilePositions(kind: ProfileKind): { cheap: number; medium: number; strong: number } {
-	return kind === "quota"
-		? { cheap: 0, medium: 1 / 3, strong: 2 / 3 }
-		: { cheap: 1 / 3, medium: 2 / 3, strong: 1 };
+	return kind === "quota" ? { cheap: 0, medium: 1 / 3, strong: 2 / 3 } : { cheap: 1 / 3, medium: 2 / 3, strong: 1 };
 }
 
-function pickTierModels(models: ProviderModelCatalogModel[], kind: ProfileKind): { cheap: string; medium: string; strong: string } {
+function pickTierModels(
+	models: ProviderModelCatalogModel[],
+	kind: ProfileKind,
+): { cheap: string; medium: string; strong: string } {
 	if (models.length === 0) throw new Error("No provider models are available for profile generation.");
-	const selectionPool = kind === "quota" && models.length > 1
-		? models.slice(0, -1)
-		: models;
+	const selectionPool = kind === "quota" && models.length > 1 ? models.slice(0, -1) : models;
 	const positions = profilePositions(kind);
 	return {
 		cheap: selectionPool[roundIndex(selectionPool.length, positions.cheap)]!.fullId,
@@ -390,15 +423,20 @@ function dominatesModel(a: ProviderModelCatalogModel, b: ProviderModelCatalogMod
 	if ((a.observed.reasoning === true ? 1 : 0) < (b.observed.reasoning === true ? 1 : 0)) return false;
 	if ((a.observed.contextWindow ?? 0) < (b.observed.contextWindow ?? 0)) return false;
 	if ((a.observed.maxTokens ?? 0) < (b.observed.maxTokens ?? 0)) return false;
-	return costA < costB
-		|| a.derived.profileRank > b.derived.profileRank
-		|| (a.observed.reasoning === true && b.observed.reasoning !== true)
-		|| (a.observed.contextWindow ?? 0) > (b.observed.contextWindow ?? 0)
-		|| (a.observed.maxTokens ?? 0) > (b.observed.maxTokens ?? 0);
+	return (
+		costA < costB ||
+		a.derived.profileRank > b.derived.profileRank ||
+		(a.observed.reasoning === true && b.observed.reasoning !== true) ||
+		(a.observed.contextWindow ?? 0) > (b.observed.contextWindow ?? 0) ||
+		(a.observed.maxTokens ?? 0) > (b.observed.maxTokens ?? 0)
+	);
 }
 
 function filterDominatedModels(models: ProviderModelCatalogModel[]): ProviderModelCatalogModel[] {
-	return models.filter((candidate, index) => !models.some((other, otherIndex) => otherIndex !== index && dominatesModel(other, candidate)));
+	return models.filter(
+		(candidate, index) =>
+			!models.some((other, otherIndex) => otherIndex !== index && dominatesModel(other, candidate)),
+	);
 }
 
 function buildProfileFile(models: { cheap: string; medium: string; strong: string }): SubagentProfileFile {
@@ -417,12 +455,20 @@ function buildProfileFile(models: { cheap: string; medium: string; strong: strin
 }
 
 function catalogModelIsUsable(model: ProviderModelCatalogModel): boolean {
-	return model.observed.availableInRegistry && model.observed.probe.status !== "unavailable" && model.observed.probe.status !== "auth" && model.observed.probe.status !== "timeout" && model.observed.probe.status !== "error";
+	return (
+		model.observed.availableInRegistry &&
+		model.observed.probe.status !== "unavailable" &&
+		model.observed.probe.status !== "auth" &&
+		model.observed.probe.status !== "timeout" &&
+		model.observed.probe.status !== "error"
+	);
 }
 
 function modelUsesHeuristicClassification(model: ProviderModelCatalogModel): boolean {
-	return model.derived.classificationSources.includes("heuristic-name")
-		&& !model.derived.classificationSources.includes("official-metadata");
+	return (
+		model.derived.classificationSources.includes("heuristic-name") &&
+		!model.derived.classificationSources.includes("official-metadata")
+	);
 }
 
 function warningLineForHeuristicFallback(): string {
@@ -468,7 +514,8 @@ export function getProviderModelsPath(provider: string): string {
 
 export function listSubagentProfiles(): string[] {
 	const dir = ensureSubagentProfilesDir();
-	return fs.readdirSync(dir, { withFileTypes: true })
+	return fs
+		.readdirSync(dir, { withFileTypes: true })
 		.filter((entry) => entry.isFile() && entry.name.endsWith(".json"))
 		.map((entry) => entry.name.slice(0, -5))
 		.sort((a, b) => a.localeCompare(b));
@@ -486,19 +533,27 @@ export function applySubagentProfile(name: string): { filePath: string; settings
 	const settingsPath = getUserSettingsPath();
 	withSettingsFileLease(settingsPath, () => {
 		const settings = readSettingsFile(settingsPath);
-		const existing = settings.subagents && typeof settings.subagents === "object" && !Array.isArray(settings.subagents)
-			? settings.subagents as Record<string, unknown>
-			: {};
+		const existing =
+			settings.subagents && typeof settings.subagents === "object" && !Array.isArray(settings.subagents)
+				? (settings.subagents as Record<string, unknown>)
+				: {};
 		// A profile owns the complete agent mapping, but unrelated subagent settings
 		// (notably disableBuiltins, modelScope, watchdog, etc.) survive profile switches.
 		// Machine placement is not a model choice, so an existing pin survives a profile switch too.
 		const agentOverrides: Record<string, ProfileAgentOverride> = { ...profile.subagents.agentOverrides };
-		const existingOverrides = existing.agentOverrides && typeof existing.agentOverrides === "object" && !Array.isArray(existing.agentOverrides)
-			? existing.agentOverrides as Record<string, unknown>
-			: {};
+		const existingOverrides =
+			existing.agentOverrides &&
+			typeof existing.agentOverrides === "object" &&
+			!Array.isArray(existing.agentOverrides)
+				? (existing.agentOverrides as Record<string, unknown>)
+				: {};
 		for (const [name, value] of Object.entries(existingOverrides)) {
-			const machine = value && typeof value === "object" && !Array.isArray(value) ? (value as Record<string, unknown>).machine : undefined;
-			if (typeof machine === "string" && agentOverrides[name]?.machine === undefined) agentOverrides[name] = { ...agentOverrides[name], machine };
+			const machine =
+				value && typeof value === "object" && !Array.isArray(value)
+					? (value as Record<string, unknown>).machine
+					: undefined;
+			if (typeof machine === "string" && agentOverrides[name]?.machine === undefined)
+				agentOverrides[name] = { ...agentOverrides[name], machine };
 		}
 		settings.subagents = {
 			...existing,
@@ -516,7 +571,10 @@ export function readProviderModelCatalog(provider: string): ProviderModelCatalog
 	return readJsonObjectFile(filePath) as unknown as ProviderModelCatalogFile;
 }
 
-export function isProviderModelCatalogStale(catalog: ProviderModelCatalogFile, maxAgeDays = DEFAULT_PROVIDER_MODELS_MAX_AGE_DAYS): boolean {
+export function isProviderModelCatalogStale(
+	catalog: ProviderModelCatalogFile,
+	maxAgeDays = DEFAULT_PROVIDER_MODELS_MAX_AGE_DAYS,
+): boolean {
 	const refreshedAt = Date.parse(catalog.refreshedAt);
 	if (!Number.isFinite(refreshedAt)) return true;
 	const maxAgeMs = maxAgeDays * 24 * 60 * 60 * 1000;
@@ -535,7 +593,12 @@ export async function refreshProviderModelCatalog(
 	if (!options.force) {
 		const existing = readProviderModelCatalog(normalizedProvider);
 		if (existing && !isProviderModelCatalogStale(existing, maxAgeDays)) {
-			return { filePath, catalog: existing, reused: true, heuristicFallbackCount: countHeuristicFallbackModels(existing) };
+			return {
+				filePath,
+				catalog: existing,
+				reused: true,
+				heuristicFallbackCount: countHeuristicFallbackModels(existing),
+			};
 		}
 	}
 
@@ -545,40 +608,56 @@ export async function refreshProviderModelCatalog(
 	}
 
 	const observedModels = [] as Array<{
-		rawModel: typeof availableModels[number];
+		rawModel: (typeof availableModels)[number];
 		modelRecord: Record<string, unknown> & { provider: string; id: string; name?: string };
 		fullId: string;
 		probe: { status: ProbeStatus; message?: string };
 	}>;
 	for (const rawModel of availableModels) {
-		const modelRecord = rawModel as unknown as Record<string, unknown> & { provider: string; id: string; name?: string };
+		const modelRecord = rawModel as unknown as Record<string, unknown> & {
+			provider: string;
+			id: string;
+			name?: string;
+		};
 		const fullId = `${modelRecord.provider}/${modelRecord.id}`;
-		const probe = options.probe === false
-			? { status: "skipped" as const, message: "Live probing disabled." }
-			: await probeModel(pi, fullId);
+		const probe =
+			options.probe === false
+				? { status: "skipped" as const, message: "Live probing disabled." }
+				: await probeModel(pi, fullId);
 		observedModels.push({ rawModel, modelRecord, fullId, probe });
 	}
-	const classificationContext = buildClassificationContext(observedModels.map(({ modelRecord }) => ({
-		id: modelRecord.id,
-		...(typeof modelRecord.name === "string" ? { name: modelRecord.name } : {}),
-		...(typeof modelRecord.reasoning === "boolean" ? { reasoning: modelRecord.reasoning } : {}),
-		...(typeof modelRecord.contextWindow === "number" ? { contextWindow: modelRecord.contextWindow } : {}),
-		...(typeof modelRecord.maxTokens === "number" ? { maxTokens: modelRecord.maxTokens } : {}),
-		...(modelRecord.cost && typeof modelRecord.cost === "object" ? { cost: modelRecord.cost as ProviderModelCatalogModel["observed"]["cost"] } : {}),
-	})));
-	const models: ProviderModelCatalogModel[] = [];
-	for (const { rawModel, modelRecord, fullId, probe } of observedModels) {
-		const classification = classifyModel({
+	const classificationContext = buildClassificationContext(
+		observedModels.map(({ modelRecord }) => ({
 			id: modelRecord.id,
 			...(typeof modelRecord.name === "string" ? { name: modelRecord.name } : {}),
 			...(typeof modelRecord.reasoning === "boolean" ? { reasoning: modelRecord.reasoning } : {}),
 			...(typeof modelRecord.contextWindow === "number" ? { contextWindow: modelRecord.contextWindow } : {}),
 			...(typeof modelRecord.maxTokens === "number" ? { maxTokens: modelRecord.maxTokens } : {}),
-			...(modelRecord.cost && typeof modelRecord.cost === "object" ? { cost: modelRecord.cost as ProviderModelCatalogModel["observed"]["cost"] } : {}),
-		}, classificationContext);
-		const warnings = classification.classificationSources.includes("heuristic-name") && !classification.classificationSources.includes("official-metadata")
-			? [warningLineForHeuristicFallback()]
-			: [];
+			...(modelRecord.cost && typeof modelRecord.cost === "object"
+				? { cost: modelRecord.cost as ProviderModelCatalogModel["observed"]["cost"] }
+				: {}),
+		})),
+	);
+	const models: ProviderModelCatalogModel[] = [];
+	for (const { rawModel, modelRecord, fullId, probe } of observedModels) {
+		const classification = classifyModel(
+			{
+				id: modelRecord.id,
+				...(typeof modelRecord.name === "string" ? { name: modelRecord.name } : {}),
+				...(typeof modelRecord.reasoning === "boolean" ? { reasoning: modelRecord.reasoning } : {}),
+				...(typeof modelRecord.contextWindow === "number" ? { contextWindow: modelRecord.contextWindow } : {}),
+				...(typeof modelRecord.maxTokens === "number" ? { maxTokens: modelRecord.maxTokens } : {}),
+				...(modelRecord.cost && typeof modelRecord.cost === "object"
+					? { cost: modelRecord.cost as ProviderModelCatalogModel["observed"]["cost"] }
+					: {}),
+			},
+			classificationContext,
+		);
+		const warnings =
+			classification.classificationSources.includes("heuristic-name") &&
+			!classification.classificationSources.includes("official-metadata")
+				? [warningLineForHeuristicFallback()]
+				: [];
 		models.push({
 			id: modelRecord.id,
 			fullId,
@@ -589,7 +668,9 @@ export async function refreshProviderModelCatalog(
 				thinkingLevels: getSupportedThinkingLevels(toModelInfo(rawModel)).map((level) => level),
 				...(typeof modelRecord.contextWindow === "number" ? { contextWindow: modelRecord.contextWindow } : {}),
 				...(typeof modelRecord.maxTokens === "number" ? { maxTokens: modelRecord.maxTokens } : {}),
-				...(modelRecord.cost && typeof modelRecord.cost === "object" ? { cost: modelRecord.cost as ProviderModelCatalogModel["observed"]["cost"] } : {}),
+				...(modelRecord.cost && typeof modelRecord.cost === "object"
+					? { cost: modelRecord.cost as ProviderModelCatalogModel["observed"]["cost"] }
+					: {}),
 				probe: {
 					status: probe.status,
 					checkedAt: new Date().toISOString(),
@@ -618,9 +699,21 @@ export async function generateProfilesForProvider(
 	ctx: Pick<ExtensionContext, "cwd" | "modelRegistry">,
 	provider: string,
 	options: { maxAgeDays?: number; forceRefresh?: boolean; probe?: boolean } = {},
-): Promise<{ quotaPath: string; qualityPath: string; catalogPath: string; quotaModels: { cheap: string; medium: string; strong: string }; qualityModels: { cheap: string; medium: string; strong: string }; heuristicFallbackCount: number; selectedHeuristicFallbackCount: number }> {
+): Promise<{
+	quotaPath: string;
+	qualityPath: string;
+	catalogPath: string;
+	quotaModels: { cheap: string; medium: string; strong: string };
+	qualityModels: { cheap: string; medium: string; strong: string };
+	heuristicFallbackCount: number;
+	selectedHeuristicFallbackCount: number;
+}> {
 	const normalizedProvider = normalizeProviderName(provider);
-	const { filePath: catalogPath, catalog, heuristicFallbackCount } = await refreshProviderModelCatalog(pi, ctx, normalizedProvider, {
+	const {
+		filePath: catalogPath,
+		catalog,
+		heuristicFallbackCount,
+	} = await refreshProviderModelCatalog(pi, ctx, normalizedProvider, {
 		maxAgeDays: options.maxAgeDays,
 		force: options.forceRefresh,
 		probe: options.probe,
@@ -638,8 +731,18 @@ export async function generateProfilesForProvider(
 	writeJsonFile(quotaPath, buildProfileFile(quotaModels));
 	writeJsonFile(qualityPath, buildProfileFile(qualityModels));
 	const selectedModels = new Set([...Object.values(quotaModels), ...Object.values(qualityModels)]);
-	const selectedHeuristicFallbackCount = profileModels.filter((model) => selectedModels.has(model.fullId) && modelUsesHeuristicClassification(model)).length;
-	return { quotaPath, qualityPath, catalogPath, quotaModels, qualityModels, heuristicFallbackCount, selectedHeuristicFallbackCount };
+	const selectedHeuristicFallbackCount = profileModels.filter(
+		(model) => selectedModels.has(model.fullId) && modelUsesHeuristicClassification(model),
+	).length;
+	return {
+		quotaPath,
+		qualityPath,
+		catalogPath,
+		quotaModels,
+		qualityModels,
+		heuristicFallbackCount,
+		selectedHeuristicFallbackCount,
+	};
 }
 
 export async function checkSubagentProfile(

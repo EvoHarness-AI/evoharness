@@ -3,8 +3,8 @@ import { execFileSync } from "node:child_process";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { fileURLToPath } from "node:url";
 import { describe, it } from "node:test";
+import { fileURLToPath } from "node:url";
 import {
 	buildSubagentToolDescription,
 	buildSubagentToolPromptMetadata,
@@ -31,11 +31,16 @@ function parentToolEnv(agentDir?: string): NodeJS.ProcessEnv {
 
 describe("registered subagent tool description", () => {
 	it("keeps the operator authority gate visible in every description mode", () => {
-		const authorityGate = "Delegate only when the operator asked, directly or through applicable user/project instructions; size, complexity or risk alone is not authorization.";
+		const authorityGate =
+			"Delegate only when the operator asked, directly or through applicable user/project instructions; size, complexity or risk alone is not authorization.";
 		const cwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-authority-"));
 		const agentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-agent-"));
 		fs.mkdirSync(path.join(cwd, ".pi"), { recursive: true });
-		fs.writeFileSync(path.join(cwd, ".pi", "subagent-tool-description.md"), "Operator-owned custom guidance.", "utf-8");
+		fs.writeFileSync(
+			path.join(cwd, ".pi", "subagent-tool-description.md"),
+			"Operator-owned custom guidance.",
+			"utf-8",
+		);
 
 		for (const description of [
 			buildSubagentToolDescription(),
@@ -47,8 +52,16 @@ describe("registered subagent tool description", () => {
 		}
 
 		const fallbackCwd = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-authority-fallback-"));
-		assert.ok(buildSubagentToolDescription({ toolDescriptionMode: "custom" }, { cwd: fallbackCwd, agentDir, warn() {} }).includes(authorityGate));
-		assert.match(buildSubagentToolDescription({ toolDescriptionMode: "custom" }, { cwd, agentDir }), /Operator-owned custom guidance/);
+		assert.ok(
+			buildSubagentToolDescription(
+				{ toolDescriptionMode: "custom" },
+				{ cwd: fallbackCwd, agentDir, warn() {} },
+			).includes(authorityGate),
+		);
+		assert.match(
+			buildSubagentToolDescription({ toolDescriptionMode: "custom" }, { cwd, agentDir }),
+			/Operator-owned custom guidance/,
+		);
 	});
 
 	it("uses a one-line snippet only by default", () => {
@@ -66,7 +79,11 @@ describe("registered subagent tool description", () => {
 	});
 
 	it("keeps call shapes, discovery and safety rules in every built-in mode", () => {
-		for (const description of [DEFAULT_SUBAGENT_TOOL_DESCRIPTION, FULL_SUBAGENT_TOOL_DESCRIPTION, COMPACT_SUBAGENT_TOOL_DESCRIPTION]) {
+		for (const description of [
+			DEFAULT_SUBAGENT_TOOL_DESCRIPTION,
+			FULL_SUBAGENT_TOOL_DESCRIPTION,
+			COMPACT_SUBAGENT_TOOL_DESCRIPTION,
+		]) {
 			for (const contract of [
 				/One child: \{agent,task\}/,
 				/exactly one top-level subagent workflow call with async:true; write one ```js workflow block in this reply, then call subagent\(\{workflow:true\}\)/,
@@ -76,8 +93,12 @@ describe("registered subagent tool description", () => {
 				/One writer per cwd\/worktree/,
 				/After a launch or runtime failure, stop and report it; never silently switch to interactive_shell, pi -ne or another CLI/,
 				/guide workflows\/recommended-orchestration-pattern.*guide workflows\/scripted-workflows.*guide tool-reference\/retained-children.*guide tool-reference\/external-cli-agent-profiles/,
-			]) assert.match(description, contract);
-			assert.ok(description.endsWith(SUBAGENT_SAFETY_GUIDANCE) || description.includes(`${SUBAGENT_SAFETY_GUIDANCE}\n\nDETAILS:`));
+			])
+				assert.match(description, contract);
+			assert.ok(
+				description.endsWith(SUBAGENT_SAFETY_GUIDANCE) ||
+					description.includes(`${SUBAGENT_SAFETY_GUIDANCE}\n\nDETAILS:`),
+			);
 		}
 	});
 
@@ -85,7 +106,10 @@ describe("registered subagent tool description", () => {
 		assert.equal(buildSubagentToolDescription({ toolDescriptionMode: "full" }), FULL_SUBAGENT_TOOL_DESCRIPTION);
 		assert.equal(buildSubagentToolDescription({ toolDescriptionMode: "compact" }), COMPACT_SUBAGENT_TOOL_DESCRIPTION);
 		assert.ok(COMPACT_SUBAGENT_TOOL_DESCRIPTION.length < FULL_SUBAGENT_TOOL_DESCRIPTION.length);
-		assert.match(FULL_SUBAGENT_TOOL_DESCRIPTION, /runs.lanes.*structuredOutput.verdict === 'blocked'.*never reviewer prose/);
+		assert.match(
+			FULL_SUBAGENT_TOOL_DESCRIPTION,
+			/runs.lanes.*structuredOutput.verdict === 'blocked'.*never reviewer prose/,
+		);
 		assert.match(FULL_SUBAGENT_TOOL_DESCRIPTION, /mission:false.*state.get.*state.set/);
 		for (const detail of [
 			/explicit return, top-level await.*nested async function\/arrow\/method helpers are rejected/,
@@ -98,11 +122,19 @@ describe("registered subagent tool description", () => {
 			/preflight at launch decides, and passive PATH\/PATHEXT\/X_OK is not authentication\/version\/launch proof/,
 			/Oracle\/advisor unknowns use supervisor dialogue/,
 			/Governed-workflow fallback to foreground\/CLI needs explicit owner approval, not Pi core's generic pi -ne hint/,
-		]) assert.match(FULL_SUBAGENT_TOOL_DESCRIPTION, detail);
+		])
+			assert.match(FULL_SUBAGENT_TOOL_DESCRIPTION, detail);
 		const workflows = fs.readFileSync(path.join(projectRoot, "docs/workflows.md"), "utf8");
 		const reference = fs.readFileSync(path.join(projectRoot, "docs/tool-reference.md"), "utf8");
-		for (const heading of ["Parallel sequential lanes", "Host command steps", "Advanced rolling child runs", "Worktree isolation"]) assert.ok(workflows.includes(heading));
-		for (const heading of ["Acceptance gates", "Retained children", "Management actions", "Workflow steering"]) assert.ok(reference.includes(heading));
+		for (const heading of [
+			"Parallel sequential lanes",
+			"Host command steps",
+			"Advanced rolling child runs",
+			"Worktree isolation",
+		])
+			assert.ok(workflows.includes(heading));
+		for (const heading of ["Acceptance gates", "Retained children", "Management actions", "Workflow steering"])
+			assert.ok(reference.includes(heading));
 		assert.match(reference, /JSON-encoded object strings/);
 	});
 
@@ -215,16 +247,20 @@ describe("registered subagent tool description", () => {
 	it("falls back to full mode when toolDescriptionMode is invalid", () => {
 		const warnings: string[] = [];
 
-		const description = buildSubagentToolDescription(
-			{ toolDescriptionMode: "tiny" } as never,
-			{ warn: (message) => warnings.push(message) },
-		);
+		const description = buildSubagentToolDescription({ toolDescriptionMode: "tiny" } as never, {
+			warn: (message) => warnings.push(message),
+		});
 
 		assert.equal(description, FULL_SUBAGENT_TOOL_DESCRIPTION);
 		assert.ok(warnings.some((message) => message.includes("Ignoring invalid toolDescriptionMode")));
 	});
 
-	function readRegisteredTool(agentDir: string): { description: string; promptSnippet?: string; promptGuidelines?: string[]; properties: string[] } {
+	function readRegisteredTool(agentDir: string): {
+		description: string;
+		promptSnippet?: string;
+		promptGuidelines?: string[];
+		properties: string[];
+	} {
 		const script = String.raw`
 			import registerSubagentExtension from "./src/extension/index.ts";
 			const events = { on() { return () => {}; }, emit() {} };
@@ -259,7 +295,12 @@ describe("registered subagent tool description", () => {
 			],
 			{ cwd: projectRoot, env: parentToolEnv(agentDir), encoding: "utf-8" },
 		);
-		return JSON.parse(output) as { description: string; promptSnippet?: string; promptGuidelines?: string[]; properties: string[] };
+		return JSON.parse(output) as {
+			description: string;
+			promptSnippet?: string;
+			promptGuidelines?: string[];
+			properties: string[];
+		};
 	}
 
 	function writeExtensionConfig(agentDir: string, config: Record<string, unknown>): void {
@@ -294,7 +335,11 @@ describe("registered subagent tool description", () => {
 
 		const customAgentDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-tool-desc-custom-"));
 		writeExtensionConfig(customAgentDir, { toolDescriptionMode: "custom" });
-		fs.writeFileSync(path.join(customAgentDir, "subagent-tool-description.md"), "Registered custom description.", "utf-8");
+		fs.writeFileSync(
+			path.join(customAgentDir, "subagent-tool-description.md"),
+			"Registered custom description.",
+			"utf-8",
+		);
 		const customDescription = readRegisteredTool(customAgentDir).description;
 		assert.match(customDescription, /Registered custom description/);
 		assert.match(customDescription, /SAFETY-CRITICAL SUBAGENT GUIDANCE/);

@@ -4,13 +4,42 @@ import { normalizePublicSubagentExecution } from "../../src/extension/public-exe
 
 describe("public subagent execution normalization", () => {
 	it("accepts structured single-child, workflow, management, and schedules", () => {
-		assert.deepEqual(normalizePublicSubagentExecution({ workflowScript: "return 1", globalConcurrencyLimit: 4, maxSubagentSpawnsPerRun: 8 }), { ok: true, params: { workflowScript: "return 1", globalConcurrencyLimit: 4, maxSubagentSpawnsPerRun: 8 } });
-		assert.deepEqual(normalizePublicSubagentExecution({ workflowScript: "return args.task", args: { task: "review" } }), { ok: true, params: { workflowScript: "return args.task", args: { task: "review" } } });
-		assert.deepEqual(normalizePublicSubagentExecution({ workflow: "review", args: { task: "Review this" } }), { ok: true, params: { workflow: "review", args: { task: "Review this" } } });
-		assert.deepEqual(normalizePublicSubagentExecution({ workflowScript: "return 1", preflight: { version: 1, lanes: [] } }), { ok: true, params: { workflowScript: "return 1", preflight: { version: 1, lanes: [] } } });
-		assert.deepEqual(normalizePublicSubagentExecution({ workflow: "workflows/review.js", globalConcurrencyLimit: 2 }), { ok: true, params: { workflow: "workflows/review.js", globalConcurrencyLimit: 2 } });
-		assert.deepEqual(normalizePublicSubagentExecution({ workflow: "workflows/review.js", args: { task: "review" } }), { ok: true, params: { workflow: "workflows/review.js", args: { task: "review" } } });
-		assert.deepEqual(normalizePublicSubagentExecution({ workflow: true, maxSubagentSpawnsPerRun: 8, preflight: { version: 1, lanes: [] } }), { ok: true, params: { workflow: true, maxSubagentSpawnsPerRun: 8, preflight: { version: 1, lanes: [] } } });
+		assert.deepEqual(
+			normalizePublicSubagentExecution({
+				workflowScript: "return 1",
+				globalConcurrencyLimit: 4,
+				maxSubagentSpawnsPerRun: 8,
+			}),
+			{ ok: true, params: { workflowScript: "return 1", globalConcurrencyLimit: 4, maxSubagentSpawnsPerRun: 8 } },
+		);
+		assert.deepEqual(
+			normalizePublicSubagentExecution({ workflowScript: "return args.task", args: { task: "review" } }),
+			{ ok: true, params: { workflowScript: "return args.task", args: { task: "review" } } },
+		);
+		assert.deepEqual(normalizePublicSubagentExecution({ workflow: "review", args: { task: "Review this" } }), {
+			ok: true,
+			params: { workflow: "review", args: { task: "Review this" } },
+		});
+		assert.deepEqual(
+			normalizePublicSubagentExecution({ workflowScript: "return 1", preflight: { version: 1, lanes: [] } }),
+			{ ok: true, params: { workflowScript: "return 1", preflight: { version: 1, lanes: [] } } },
+		);
+		assert.deepEqual(
+			normalizePublicSubagentExecution({ workflow: "workflows/review.js", globalConcurrencyLimit: 2 }),
+			{ ok: true, params: { workflow: "workflows/review.js", globalConcurrencyLimit: 2 } },
+		);
+		assert.deepEqual(
+			normalizePublicSubagentExecution({ workflow: "workflows/review.js", args: { task: "review" } }),
+			{ ok: true, params: { workflow: "workflows/review.js", args: { task: "review" } } },
+		);
+		assert.deepEqual(
+			normalizePublicSubagentExecution({
+				workflow: true,
+				maxSubagentSpawnsPerRun: 8,
+				preflight: { version: 1, lanes: [] },
+			}),
+			{ ok: true, params: { workflow: true, maxSubagentSpawnsPerRun: 8, preflight: { version: 1, lanes: [] } } },
+		);
 		const task = "Use `quotes`\nand newlines";
 		assert.deepEqual(normalizePublicSubagentExecution({ agent: " worker ", task, context: "fresh", async: false }), {
 			ok: true,
@@ -53,37 +82,83 @@ describe("public subagent execution normalization", () => {
 				output: true,
 			},
 		});
-		assert.deepEqual(normalizePublicSubagentExecution({ action: " list " }), { ok: true, params: { action: "list" } });
-		assert.deepEqual(normalizePublicSubagentExecution({ action: " list ", capabilities: true }), { ok: true, params: { action: "list", capabilities: true } });
+		assert.deepEqual(normalizePublicSubagentExecution({ action: " list " }), {
+			ok: true,
+			params: { action: "list" },
+		});
+		assert.deepEqual(normalizePublicSubagentExecution({ action: " list ", capabilities: true }), {
+			ok: true,
+			params: { action: "list", capabilities: true },
+		});
 		assert.deepEqual(
-			normalizePublicSubagentExecution({ action: " validate ", workflowScript: "return args.task", args: { task: "review" } }),
+			normalizePublicSubagentExecution({
+				action: " validate ",
+				workflowScript: "return args.task",
+				args: { task: "review" },
+			}),
 			{ ok: true, params: { action: "validate", workflowScript: "return args.task", args: { task: "review" } } },
 		);
+		assert.deepEqual(normalizePublicSubagentExecution({ action: " validate ", workflow: "./workflow.js" }), {
+			ok: true,
+			params: { action: "validate", workflow: "./workflow.js" },
+		});
+		const windowsPath = {
+			workflow: "C:\\ci\\sweep.js",
+			preflight: { version: 1, coverage: "complete", lanes: [{ key: "main", mode: "mutation" }] },
+		};
 		assert.deepEqual(
-			normalizePublicSubagentExecution({ action: " validate ", workflow: "./workflow.js" }),
-			{ ok: true, params: { action: "validate", workflow: "./workflow.js" } },
+			normalizePublicSubagentExecution(windowsPath),
+			{ ok: true, params: windowsPath },
+			"a Windows script path is a path, not a resource name",
 		);
-		const windowsPath = { workflow: "C:\\ci\\sweep.js", preflight: { version: 1, coverage: "complete", lanes: [{ key: "main", mode: "mutation" }] } };
-		assert.deepEqual(normalizePublicSubagentExecution(windowsPath), { ok: true, params: windowsPath }, "a Windows script path is a path, not a resource name");
 		assert.deepEqual(
-			normalizePublicSubagentExecution({ action: " validate ", workflowScript: "return 1", maxSubagentSpawnsPerRun: 5 }),
+			normalizePublicSubagentExecution({
+				action: " validate ",
+				workflowScript: "return 1",
+				maxSubagentSpawnsPerRun: 5,
+			}),
 			{ ok: true, params: { action: "validate", workflowScript: "return 1", maxSubagentSpawnsPerRun: 5 } },
 		);
 		assert.deepEqual(
-			normalizePublicSubagentExecution({ action: " schedule.create ", every: "1h", workflowScript: "return args.task", args: { task: "review" } }),
-			{ ok: true, params: { action: "schedule.create", every: "1h", workflowScript: "return args.task", args: { task: "review" } } },
+			normalizePublicSubagentExecution({
+				action: " schedule.create ",
+				every: "1h",
+				workflowScript: "return args.task",
+				args: { task: "review" },
+			}),
+			{
+				ok: true,
+				params: {
+					action: "schedule.create",
+					every: "1h",
+					workflowScript: "return args.task",
+					args: { task: "review" },
+				},
+			},
 		);
-		assert.deepEqual(
-			normalizePublicSubagentExecution({ action: " schedule.create ", every: "1h", workflow: true }),
-			{ ok: true, params: { action: "schedule.create", every: "1h", workflow: true } },
-		);
+		assert.deepEqual(normalizePublicSubagentExecution({ action: " schedule.create ", every: "1h", workflow: true }), {
+			ok: true,
+			params: { action: "schedule.create", every: "1h", workflow: true },
+		});
 	});
 
 	it("rejects unsafe base refs at the public boundary", () => {
-		for (const baseRef of ["refs/heads/unsafe..ref", "branch name", "HEAD^{tree}", "@", "a".repeat(40), "a".repeat(64), 42]) {
+		for (const baseRef of [
+			"refs/heads/unsafe..ref",
+			"branch name",
+			"HEAD^{tree}",
+			"@",
+			"a".repeat(40),
+			"a".repeat(64),
+			42,
+		]) {
 			const result = normalizePublicSubagentExecution({ agent: "worker", baseRef });
 			assert.equal(result.ok, false, String(baseRef));
-			if (!result.ok) assert.match(result.error, /baseRef.*HEAD.*named ref.*40\/64-character commit IDs.*revision expressions.*unsupported/);
+			if (!result.ok)
+				assert.match(
+					result.error,
+					/baseRef.*HEAD.*named ref.*40\/64-character commit IDs.*revision expressions.*unsupported/,
+				);
 		}
 	});
 
@@ -94,16 +169,25 @@ describe("public subagent execution normalization", () => {
 	});
 
 	it("accepts base refs on resume because resume consumes them", () => {
-		assert.deepEqual(normalizePublicSubagentExecution({ action: " resume ", id: "run-1", message: "Continue", baseRef: "refs/heads/release" }), {
-			ok: true,
-			params: { action: "resume", id: "run-1", message: "Continue", baseRef: "refs/heads/release" },
-		});
+		assert.deepEqual(
+			normalizePublicSubagentExecution({
+				action: " resume ",
+				id: "run-1",
+				message: "Continue",
+				baseRef: "refs/heads/release",
+			}),
+			{
+				ok: true,
+				params: { action: "resume", id: "run-1", message: "Continue", baseRef: "refs/heads/release" },
+			},
+		);
 	});
 
 	it("rejects the removed workflowScriptPath field and names the path form", () => {
 		const result = normalizePublicSubagentExecution({ workflowScriptPath: "workflow.js" });
 		assert.equal(result.ok, false);
-		if (!result.ok) assert.match(result.error, /workflowScriptPath was removed.*workflow: "\.\/path\/to\/script\.js"/);
+		if (!result.ok)
+			assert.match(result.error, /workflowScriptPath was removed.*workflow: "\.\/path\/to\/script\.js"/);
 	});
 
 	it("rejects named workflow combinations and caller-controlled provenance fields", () => {
@@ -137,12 +221,18 @@ describe("public subagent execution normalization", () => {
 	it("rejects options.reuseFrom without a workflow", () => {
 		for (const params of [{ reuseFrom: "run-1" }, { agent: "worker", task: "work", reuseFrom: "run-1" }] as const) {
 			const result = normalizePublicSubagentExecution(params);
-			assert.deepEqual(result, { ok: false, error: "options.reuseFrom requires a workflow launch.", mode: "workflow" });
+			assert.deepEqual(result, {
+				ok: false,
+				error: "options.reuseFrom requires a workflow launch.",
+				mode: "workflow",
+			});
 		}
 	});
 
 	it("keeps raw workflow inputs untrusted and rejects invalid named-resource arguments", () => {
-		const raw = normalizePublicSubagentExecution({ workflowScript: `return await runs.host("ci", { kind: "command", command: "npm test", timeoutMs: 1000 });` });
+		const raw = normalizePublicSubagentExecution({
+			workflowScript: `return await runs.host("ci", { kind: "command", command: "npm test", timeoutMs: 1000 });`,
+		});
 		assert.equal(raw.ok, true);
 		if (raw.ok) assert.equal(Object.hasOwn(raw.params, "resource"), false);
 		for (const params of [

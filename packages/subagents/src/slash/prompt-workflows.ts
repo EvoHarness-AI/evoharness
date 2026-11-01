@@ -59,7 +59,12 @@ function readPromptFiles(cwd: string): string[] {
 }
 
 function firstNonEmptyLine(value: string): string {
-	return value.split(/\r?\n/).map((line) => line.trim()).find(Boolean) ?? "Prompt workflow";
+	return (
+		value
+			.split(/\r?\n/)
+			.map((line) => line.trim())
+			.find(Boolean) ?? "Prompt workflow"
+	);
 }
 
 function stringField(frontmatter: Record<string, string>, key: string): string | undefined {
@@ -77,7 +82,10 @@ function booleanField(frontmatter: Record<string, string>, key: string): boolean
 function parseSkill(value: string | undefined): string | string[] | false | undefined {
 	if (!value) return undefined;
 	if (value === "false") return false;
-	const parts = value.split(",").map((part) => part.trim()).filter(Boolean);
+	const parts = value
+		.split(",")
+		.map((part) => part.trim())
+		.filter(Boolean);
 	return parts.length > 1 ? parts : parts[0];
 }
 
@@ -102,7 +110,9 @@ function loadPromptWorkflow(filePath: string): PromptWorkflow | undefined {
 		body,
 		filePath,
 		agent: parseAgent(frontmatter),
-		...(booleanField(frontmatter, "inheritContext") === true || booleanField(frontmatter, "fork") === true ? { context: "fork" as const } : {}),
+		...(booleanField(frontmatter, "inheritContext") === true || booleanField(frontmatter, "fork") === true
+			? { context: "fork" as const }
+			: {}),
 		...(booleanField(frontmatter, "fresh") === true ? { context: "fresh" as const } : {}),
 		...(model ? { model } : {}),
 		...(skill !== undefined ? { skill } : {}),
@@ -162,11 +172,20 @@ function substituteArgs(template: string, args: string[]): string {
 	return template
 		.replace(/\$ARGUMENTS/g, all)
 		.replace(/\$@/g, all)
-		.replace(/\$\{(\d+):-([^}]*)\}/g, (_match, index: string, fallback: string) => args[Number(index) - 1] || fallback)
+		.replace(
+			/\$\{(\d+):-([^}]*)\}/g,
+			(_match, index: string, fallback: string) => args[Number(index) - 1] || fallback,
+		)
 		.replace(/\$(\d+)/g, (_match, index: string) => args[Number(index) - 1] ?? "");
 }
 
-function parseRuntimeOptions(words: string[]): { args: string[]; agentOverride?: string; fork?: boolean; fresh?: boolean; bg?: boolean } {
+function parseRuntimeOptions(words: string[]): {
+	args: string[];
+	agentOverride?: string;
+	fork?: boolean;
+	fresh?: boolean;
+	bg?: boolean;
+} {
 	const args: string[] = [];
 	let agentOverride: string | undefined;
 	let fork = false;
@@ -200,12 +219,18 @@ function parseRuntimeOptions(words: string[]): { args: string[]; agentOverride?:
 	return { args, agentOverride, fork, fresh, bg };
 }
 
-
 function splitPromptChain(input: string): string[] {
-	return input.split(" -> ").map((part) => part.trim()).filter(Boolean);
+	return input
+		.split(" -> ")
+		.map((part) => part.trim())
+		.filter(Boolean);
 }
 
-function workflowParams(workflow: PromptWorkflow, args: string[], runtime: ReturnType<typeof parseRuntimeOptions>): SubagentParamsLike {
+function workflowParams(
+	workflow: PromptWorkflow,
+	args: string[],
+	runtime: ReturnType<typeof parseRuntimeOptions>,
+): SubagentParamsLike {
 	const task = substituteArgs(workflow.body, args).trim();
 	const context = runtime.fork ? "fork" : runtime.fresh ? "fresh" : workflow.context;
 	return {
@@ -219,7 +244,11 @@ function workflowParams(workflow: PromptWorkflow, args: string[], runtime: Retur
 	};
 }
 
-function promptWorkflowExecutionParams(workflows: PromptWorkflow[], args: string[], runtime: ReturnType<typeof parseRuntimeOptions>): SubagentParamsLike {
+function promptWorkflowExecutionParams(
+	workflows: PromptWorkflow[],
+	args: string[],
+	runtime: ReturnType<typeof parseRuntimeOptions>,
+): SubagentParamsLike {
 	return {
 		workflowScript: promptWorkflowScript(workflows, args, runtime),
 		agentScope: "both",
@@ -227,7 +256,11 @@ function promptWorkflowExecutionParams(workflows: PromptWorkflow[], args: string
 	};
 }
 
-function promptWorkflowScript(workflows: PromptWorkflow[], args: string[], runtime: ReturnType<typeof parseRuntimeOptions>): string {
+function promptWorkflowScript(
+	workflows: PromptWorkflow[],
+	args: string[],
+	runtime: ReturnType<typeof parseRuntimeOptions>,
+): string {
 	const launches = workflows.map((workflow, index) => {
 		const params = workflowParams(workflow, args, runtime);
 		const task = params.task ?? "";
@@ -256,10 +289,7 @@ function formatWorkflowList(workflows: PromptWorkflow[]): string {
 	].join("\n");
 }
 
-export function registerPromptWorkflowCommands(input: {
-	pi: ExtensionAPI;
-	run: PromptWorkflowRunner;
-}): void {
+export function registerPromptWorkflowCommands(input: { pi: ExtensionAPI; run: PromptWorkflowRunner }): void {
 	const { pi, run } = input;
 
 	pi.registerCommand("prompt-workflow", {
@@ -269,7 +299,9 @@ export function registerPromptWorkflowCommands(input: {
 			const name = words.shift();
 			const workflows = discoverPromptWorkflows(ctx.cwd);
 			if (!name || name === "list") {
-				pi.sendMessage({ content: formatWorkflowList(workflows), display: true } as Parameters<typeof pi.sendMessage>[0]);
+				pi.sendMessage({ content: formatWorkflowList(workflows), display: true } as Parameters<
+					typeof pi.sendMessage
+				>[0]);
 				return;
 			}
 			const workflow = findWorkflow(workflows, name);
@@ -294,5 +326,4 @@ export function registerPromptWorkflowCommands(input: {
 			}
 		},
 	});
-
 }

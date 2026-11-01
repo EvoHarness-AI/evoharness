@@ -3,10 +3,10 @@ import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
 import { afterEach, describe, it } from "node:test";
-import { createSubagentExecutor } from "../../src/runs/foreground/subagent-executor.ts";
 import { resolveAsyncResumeTarget } from "../../src/runs/background/async-resume.ts";
+import { createSubagentExecutor } from "../../src/runs/foreground/subagent-executor.ts";
 import { parallelHandoffPath } from "../../src/runs/shared/parallel-handoff.ts";
-import { DIRS, type AsyncStatus, type SubagentState } from "../../src/shared/types.ts";
+import { type AsyncStatus, DIRS, type SubagentState } from "../../src/shared/types.ts";
 
 const cleanupRoots: string[] = [];
 
@@ -31,7 +31,17 @@ function createState(sessionId: string | null): SubagentState {
 
 function createExecutor(state: SubagentState, cwd: string) {
 	return createSubagentExecutor({
-		pi: { events: { emit() {}, on() { return () => {}; } }, getSessionName() { return "parent"; } } as never,
+		pi: {
+			events: {
+				emit() {},
+				on() {
+					return () => {};
+				},
+			},
+			getSessionName() {
+				return "parent";
+			},
+		} as never,
 		state,
 		config: { maxSubagentDepth: 2, control: {}, intercomBridge: {} } as never,
 		asyncByDefault: false,
@@ -48,10 +58,18 @@ function createContext(cwd: string) {
 		hasUI: false,
 		ui: {},
 		sessionManager: {
-			getSessionId() { return "session-1644"; },
-			getSessionFile() { return null; },
+			getSessionId() {
+				return "session-1644";
+			},
+			getSessionFile() {
+				return null;
+			},
 		},
-		modelRegistry: { getAvailable() { return []; } },
+		modelRegistry: {
+			getAvailable() {
+				return [];
+			},
+		},
 	} as never;
 }
 
@@ -75,46 +93,72 @@ function writeRetainedChild(input: {
 	if (input.writeSession !== false) fs.writeFileSync(sessionFile, "{}\n", "utf-8");
 	const state = input.state ?? "complete";
 	const stepStatus = input.stepStatus ?? "complete";
-	fs.writeFileSync(path.join(childDir, "status.json"), JSON.stringify({
-		runId: input.childRunId,
-		sessionId: input.sessionId,
-		mode: input.mode ?? "single",
-		state,
-		startedAt: 100,
-		endedAt: state === "complete" ? 200 : undefined,
-		cwd: input.root,
-		sessionFile,
-		steps: [{ agent: "worker", status: stepStatus, sessionFile }],
-	}), "utf-8");
+	fs.writeFileSync(
+		path.join(childDir, "status.json"),
+		JSON.stringify({
+			runId: input.childRunId,
+			sessionId: input.sessionId,
+			mode: input.mode ?? "single",
+			state,
+			startedAt: 100,
+			endedAt: state === "complete" ? 200 : undefined,
+			cwd: input.root,
+			sessionFile,
+			steps: [{ agent: "worker", status: stepStatus, sessionFile }],
+		}),
+		"utf-8",
+	);
 }
 
 function writeManagedWorktreeHandoff(root: string, childRunId: string): void {
 	const childDir = path.join(DIRS.async, childRunId);
 	const worktreePath = path.join(root, `${childRunId}-worktree`);
 	fs.mkdirSync(worktreePath, { recursive: true });
-	fs.writeFileSync(parallelHandoffPath(childDir), JSON.stringify({
-		version: 1,
-		runId: childRunId,
-		mode: "single",
-		source: "async",
-		cwd: root,
-		createdAt: 100,
-		updatedAt: 200,
-		groups: [{
-			stepIndex: 0,
-			baseCommit: "a".repeat(40),
-			repoRoot: root,
-			children: [{
-				index: 0,
-				taskIndex: 0,
-				agent: "worker",
-				status: "completed",
-				summary: "done",
-				patch: { path: path.join(root, "patch.diff"), branch: "work", changed: false, diffStat: "", filesChanged: 0, insertions: 0, deletions: 0 },
-			}],
-			cleanup: { state: "partial", pruned: false, tasks: [{ index: 0, path: worktreePath, branch: "work", worktreeRemoved: false, branchRemoved: false }] },
-		}],
-	}), "utf-8");
+	fs.writeFileSync(
+		parallelHandoffPath(childDir),
+		JSON.stringify({
+			version: 1,
+			runId: childRunId,
+			mode: "single",
+			source: "async",
+			cwd: root,
+			createdAt: 100,
+			updatedAt: 200,
+			groups: [
+				{
+					stepIndex: 0,
+					baseCommit: "a".repeat(40),
+					repoRoot: root,
+					children: [
+						{
+							index: 0,
+							taskIndex: 0,
+							agent: "worker",
+							status: "completed",
+							summary: "done",
+							patch: {
+								path: path.join(root, "patch.diff"),
+								branch: "work",
+								changed: false,
+								diffStat: "",
+								filesChanged: 0,
+								insertions: 0,
+								deletions: 0,
+							},
+						},
+					],
+					cleanup: {
+						state: "partial",
+						pruned: false,
+						tasks: [
+							{ index: 0, path: worktreePath, branch: "work", worktreeRemoved: false, branchRemoved: false },
+						],
+					},
+				},
+			],
+		}),
+		"utf-8",
+	);
 }
 
 function writeWorkflowStatus(input: {
@@ -133,18 +177,28 @@ function writeWorkflowStatus(input: {
 	if (input.malformed) {
 		fs.writeFileSync(statusPath, "{not-json", "utf-8");
 	} else {
-		fs.writeFileSync(statusPath, JSON.stringify({
-			runId: input.parentRunId,
-			sessionId: input.sessionId ?? "session-1644",
-			mode: "workflow",
-			state: input.parentState ?? "complete",
-			startedAt: 100,
-			endedAt: 200,
-			steps: input.steps ?? [{ agent: "worker", workflowKey: input.key ?? "advisor", runId: input.childRunId, status: "complete" }],
-			...(input.workflowChildren === undefined ? {} : { workflowChildren: input.workflowChildren }),
-		}), "utf-8");
+		fs.writeFileSync(
+			statusPath,
+			JSON.stringify({
+				runId: input.parentRunId,
+				sessionId: input.sessionId ?? "session-1644",
+				mode: "workflow",
+				state: input.parentState ?? "complete",
+				startedAt: 100,
+				endedAt: 200,
+				steps: input.steps ?? [
+					{ agent: "worker", workflowKey: input.key ?? "advisor", runId: input.childRunId, status: "complete" },
+				],
+				...(input.workflowChildren === undefined ? {} : { workflowChildren: input.workflowChildren }),
+			}),
+			"utf-8",
+		);
 	}
-	fs.writeFileSync(path.join(asyncDir, "events.jsonl"), `${JSON.stringify({ type: "subagent.workflow.child.completed", runId: input.parentRunId, childRunId: input.childRunId })}\n`, "utf-8");
+	fs.writeFileSync(
+		path.join(asyncDir, "events.jsonl"),
+		`${JSON.stringify({ type: "subagent.workflow.child.completed", runId: input.parentRunId, childRunId: input.childRunId })}\n`,
+		"utf-8",
+	);
 	return asyncDir;
 }
 
@@ -197,9 +251,18 @@ describe("workflow keyed resume recovery hint", () => {
 
 		const text = await runMissingReceiptResume({ root, parentRunId });
 
-		assert.match(text, new RegExp(`Direct resumable child for workflow key 'advisor': subagent\\(\\{ action: "resume", id: ${JSON.stringify(childRunId)}, message: "\\.\\.\\." \\}\\)`));
+		assert.match(
+			text,
+			new RegExp(
+				`Direct resumable child for workflow key 'advisor': subagent\\(\\{ action: "resume", id: ${JSON.stringify(childRunId)}, message: "\\.\\.\\." \\}\\)`,
+			),
+		);
 		assert.match(text, /terminal receipt writing failed/);
-		const target = resolveAsyncResumeTarget({ id: childRunId }, {}, { requireSessionFile: true, sessionId: "session-1644" });
+		const target = resolveAsyncResumeTarget(
+			{ id: childRunId },
+			{},
+			{ requireSessionFile: true, sessionId: "session-1644" },
+		);
 		assert.equal(target.kind, "revive");
 		assert.equal(target.runId, childRunId);
 		cleanupRun(parentRunId);
@@ -222,7 +285,10 @@ describe("workflow keyed resume recovery hint", () => {
 		);
 
 		assert.equal(result.isError, true);
-		assert.match(result.content.map((part) => part.text ?? "").join("\n"), /retained managed-worktree children continue in their existing worktree/);
+		assert.match(
+			result.content.map((part) => part.text ?? "").join("\n"),
+			/retained managed-worktree children continue in their existing worktree/,
+		);
 		cleanupRun(childRunId);
 	});
 
@@ -274,7 +340,13 @@ describe("workflow keyed resume recovery hint", () => {
 			{
 				name: "live child",
 				configure(root, parentRunId, childRunId) {
-					writeRetainedChild({ root, childRunId, sessionId: "session-1644", state: "running", stepStatus: "running" });
+					writeRetainedChild({
+						root,
+						childRunId,
+						sessionId: "session-1644",
+						state: "running",
+						stepStatus: "running",
+					});
 					writeWorkflowStatus({ parentRunId, childRunId });
 					return undefined;
 				},
@@ -282,7 +354,13 @@ describe("workflow keyed resume recovery hint", () => {
 			{
 				name: "pending child",
 				configure(root, parentRunId, childRunId) {
-					writeRetainedChild({ root, childRunId, sessionId: "session-1644", state: "running", stepStatus: "pending" });
+					writeRetainedChild({
+						root,
+						childRunId,
+						sessionId: "session-1644",
+						state: "running",
+						stepStatus: "pending",
+					});
 					writeWorkflowStatus({ parentRunId, childRunId });
 					return undefined;
 				},
@@ -290,7 +368,13 @@ describe("workflow keyed resume recovery hint", () => {
 			{
 				name: "stopped child",
 				configure(root, parentRunId, childRunId) {
-					writeRetainedChild({ root, childRunId, sessionId: "session-1644", state: "stopped", stepStatus: "stopped" });
+					writeRetainedChild({
+						root,
+						childRunId,
+						sessionId: "session-1644",
+						state: "stopped",
+						stepStatus: "stopped",
+					});
 					writeWorkflowStatus({ parentRunId, childRunId });
 					return undefined;
 				},
@@ -315,10 +399,14 @@ describe("workflow keyed resume recovery hint", () => {
 				name: "duplicate status key",
 				configure(root, parentRunId, childRunId) {
 					writeRetainedChild({ root, childRunId, sessionId: "session-1644" });
-					writeWorkflowStatus({ parentRunId, childRunId, steps: [
-						{ agent: "worker", workflowKey: "advisor", runId: childRunId, status: "complete" },
-						{ agent: "worker", workflowKey: "advisor", runId: childRunId, status: "complete" },
-					] });
+					writeWorkflowStatus({
+						parentRunId,
+						childRunId,
+						steps: [
+							{ agent: "worker", workflowKey: "advisor", runId: childRunId, status: "complete" },
+							{ agent: "worker", workflowKey: "advisor", runId: childRunId, status: "complete" },
+						],
+					});
 					return undefined;
 				},
 			},
@@ -403,7 +491,9 @@ describe("workflow keyed resume recovery hint", () => {
 		];
 
 		for (const testCase of cases) {
-			const root = fs.mkdtempSync(path.join(os.tmpdir(), `pi-workflow-resume-hint-${testCase.name.replaceAll(" ", "-")}-`));
+			const root = fs.mkdtempSync(
+				path.join(os.tmpdir(), `pi-workflow-resume-hint-${testCase.name.replaceAll(" ", "-")}-`),
+			);
 			cleanupRoots.push(root);
 			const { parentRunId, childRunId } = makeIds(testCase.name.replaceAll(" ", "-"));
 			const state = testCase.configure(root, parentRunId, childRunId);

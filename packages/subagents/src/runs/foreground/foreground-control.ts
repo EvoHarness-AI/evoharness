@@ -1,5 +1,5 @@
 import type { AgentProgress, ForegroundChildControl, ForegroundRunControl } from "../../shared/types.ts";
-import { registerLivePromptAudit, removeLivePromptAudit, type PromptAuditRerunContract } from "./prompt-audit.ts";
+import { type PromptAuditRerunContract, registerLivePromptAudit, removeLivePromptAudit } from "./prompt-audit.ts";
 
 interface BeginForegroundChildInput {
 	index: number;
@@ -136,7 +136,11 @@ export function beginForegroundChild(control: ForegroundRunControl, input: Begin
 	syncCurrentChild(control, child);
 }
 
-export function updateForegroundChild(control: ForegroundRunControl, index: number, progress: AgentProgress | undefined): void {
+export function updateForegroundChild(
+	control: ForegroundRunControl,
+	index: number,
+	progress: AgentProgress | undefined,
+): void {
 	const child = control.activeChildren?.get(index);
 	if (!child) return;
 	copyProgress(child, progress);
@@ -148,8 +152,9 @@ export function finishForegroundChild(control: ForegroundRunControl, index: numb
 	removeLivePromptAudit(control, index);
 	control.activeChildren?.delete(index);
 	if (control.currentIndex === index) {
-		const next = [...(control.activeChildren?.values() ?? [])]
-			.sort((left, right) => right.updatedAt - left.updatedAt || left.index - right.index)[0];
+		const next = [...(control.activeChildren?.values() ?? [])].sort(
+			(left, right) => right.updatedAt - left.updatedAt || left.index - right.index,
+		)[0];
 		if (next) syncCurrentChild(control, next);
 		else clearCurrentChild(control);
 	}

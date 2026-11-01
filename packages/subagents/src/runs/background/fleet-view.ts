@@ -3,22 +3,27 @@ import * as path from "node:path";
 import type { AgentToolResult } from "@evoharness/agent-core";
 import { safeTerminalText, truncateDisplayText } from "../../shared/display-text.ts";
 import { formatDuration, formatModelThinking, formatTokens, shortenPath } from "../../shared/formatters.ts";
+import { isTrustedRecordedSessionFile } from "../../shared/session-file-trust.ts";
 import { formatActivityLabel } from "../../shared/status-format.ts";
 import {
-	DIRS,
 	type ActivityState,
 	type AsyncJobStep,
 	type AsyncStatus,
 	type Details,
+	DIRS,
 	type NestedRunSummary,
 	type SubagentRunMode,
 	type SubagentState,
 } from "../../shared/types.ts";
 import { readStatus } from "../../shared/utils.ts";
-import { formatNestedRunStatusLines } from "../shared/nested-render.ts";
 import { contextModeLabel, summarizeContextModes } from "../shared/context-mode.ts";
-import { formatAsyncRunOutputPath, formatAsyncRunProgressLabel, listAsyncRuns, type AsyncRunSummary } from "./async-status.ts";
-import { isTrustedRecordedSessionFile } from "../../shared/session-file-trust.ts";
+import { formatNestedRunStatusLines } from "../shared/nested-render.ts";
+import {
+	type AsyncRunSummary,
+	formatAsyncRunOutputPath,
+	formatAsyncRunProgressLabel,
+	listAsyncRuns,
+} from "./async-status.ts";
 
 const DEFAULT_TRANSCRIPT_LINES = 80;
 const MAX_TRANSCRIPT_LINES = 500;
@@ -100,10 +105,12 @@ function getErrorMessage(error: unknown): string {
 }
 
 function isNotFoundError(error: unknown): boolean {
-	return typeof error === "object"
-		&& error !== null
-		&& "code" in error
-		&& (error as NodeJS.ErrnoException).code === "ENOENT";
+	return (
+		typeof error === "object" &&
+		error !== null &&
+		"code" in error &&
+		(error as NodeJS.ErrnoException).code === "ENOENT"
+	);
 }
 
 function readTextTail(filePath: string, maxLines: number): TextTailResult {
@@ -135,14 +142,33 @@ function readTextTail(filePath: string, maxLines: number): TextTailResult {
 	}
 }
 
-function readContainedTextTail(filePath: string, maxLines: number, trustedRoots: string[], label: string, trustedFiles: string[] = [], trustedFileRoot?: string): TextTailResult {
-	if (trustedRoots.length === 0 && (!trustedFileRoot || trustedFiles.length === 0)) return { path: filePath, lines: [], truncated: false, error: `Refusing to read ${label} transcript path without a trusted root: ${filePath}` };
+function readContainedTextTail(
+	filePath: string,
+	maxLines: number,
+	trustedRoots: string[],
+	label: string,
+	trustedFiles: string[] = [],
+	trustedFileRoot?: string,
+): TextTailResult {
+	if (trustedRoots.length === 0 && (!trustedFileRoot || trustedFiles.length === 0))
+		return {
+			path: filePath,
+			lines: [],
+			truncated: false,
+			error: `Refusing to read ${label} transcript path without a trusted root: ${filePath}`,
+		};
 	const resolvedPath = path.resolve(filePath);
-	const recordedCandidate = trustedFileRoot
-		&& pathWithin(trustedFileRoot, resolvedPath)
-		&& trustedFiles.some((file) => path.resolve(file) === resolvedPath);
+	const recordedCandidate =
+		trustedFileRoot &&
+		pathWithin(trustedFileRoot, resolvedPath) &&
+		trustedFiles.some((file) => path.resolve(file) === resolvedPath);
 	if (!trustedRoots.some((root) => pathWithin(root, resolvedPath)) && !recordedCandidate) {
-		return { path: filePath, lines: [], truncated: false, error: `Refusing to read ${label} transcript path outside trusted roots: ${filePath}` };
+		return {
+			path: filePath,
+			lines: [],
+			truncated: false,
+			error: `Refusing to read ${label} transcript path outside trusted roots: ${filePath}`,
+		};
 	}
 	let lstat: fs.Stats;
 	try {
@@ -151,8 +177,20 @@ function readContainedTextTail(filePath: string, maxLines: number, trustedRoots:
 		if (isNotFoundError(error)) return { path: filePath, lines: [], truncated: false };
 		return { path: filePath, lines: [], truncated: false, error: getErrorMessage(error) };
 	}
-	if (lstat.isSymbolicLink()) return { path: filePath, lines: [], truncated: false, error: `Refusing to read symlink ${label} transcript path: ${filePath}` };
-	if (!lstat.isFile()) return { path: filePath, lines: [], truncated: false, error: `Refusing to read non-file ${label} transcript path: ${filePath}` };
+	if (lstat.isSymbolicLink())
+		return {
+			path: filePath,
+			lines: [],
+			truncated: false,
+			error: `Refusing to read symlink ${label} transcript path: ${filePath}`,
+		};
+	if (!lstat.isFile())
+		return {
+			path: filePath,
+			lines: [],
+			truncated: false,
+			error: `Refusing to read non-file ${label} transcript path: ${filePath}`,
+		};
 	let realPath: string;
 	let realRoots: string[];
 	try {
@@ -161,8 +199,16 @@ function readContainedTextTail(filePath: string, maxLines: number, trustedRoots:
 	} catch (error) {
 		return { path: filePath, lines: [], truncated: false, error: getErrorMessage(error) };
 	}
-	if (!realRoots.some((root) => pathWithin(root, realPath)) && !isTrustedRecordedSessionFile(realPath, trustedFiles, trustedFileRoot)) {
-		return { path: filePath, lines: [], truncated: false, error: `Refusing to read ${label} transcript path outside trusted roots: ${filePath}` };
+	if (
+		!realRoots.some((root) => pathWithin(root, realPath)) &&
+		!isTrustedRecordedSessionFile(realPath, trustedFiles, trustedFileRoot)
+	) {
+		return {
+			path: filePath,
+			lines: [],
+			truncated: false,
+			error: `Refusing to read ${label} transcript path outside trusted roots: ${filePath}`,
+		};
 	}
 	return readTextTail(resolvedPath, maxLines);
 }
@@ -189,7 +235,10 @@ export interface SessionTranscriptMessage {
 function sessionMessageParts(record: unknown): SessionTranscriptMessage[] {
 	if (!record || typeof record !== "object") return [];
 	const outer = record as { message?: unknown; role?: unknown; content?: unknown; type?: unknown };
-	const message = outer.message && typeof outer.message === "object" ? outer.message as { role?: unknown; content?: unknown } : outer;
+	const message =
+		outer.message && typeof outer.message === "object"
+			? (outer.message as { role?: unknown; content?: unknown })
+			: outer;
 	const role = typeof message.role === "string" ? message.role : undefined;
 	if (!role) return [];
 	const content = message.content;
@@ -198,19 +247,45 @@ function sessionMessageParts(record: unknown): SessionTranscriptMessage[] {
 	const parts: SessionTranscriptMessage[] = [];
 	for (const part of content) {
 		if (!part || typeof part !== "object") continue;
-		const entry = part as { type?: unknown; text?: unknown; name?: unknown; toolName?: unknown; arguments?: unknown; result?: unknown; content?: unknown; isError?: unknown };
+		const entry = part as {
+			type?: unknown;
+			text?: unknown;
+			name?: unknown;
+			toolName?: unknown;
+			arguments?: unknown;
+			result?: unknown;
+			content?: unknown;
+			isError?: unknown;
+		};
 		if (typeof entry.text === "string") {
 			if (entry.text.trim()) parts.push({ role, kind: "text", text: entry.text });
 			continue;
 		}
 		if (entry.type === "toolCall" || entry.type === "tool_call") {
-			const name = typeof entry.name === "string" ? entry.name : typeof entry.toolName === "string" ? entry.toolName : "tool";
-			parts.push({ role, kind: "toolCall", name, text: `[tool: ${name}${entry.arguments === undefined ? "" : ` ${stringifyJsonPreview(entry.arguments)}`}]` });
+			const name =
+				typeof entry.name === "string" ? entry.name : typeof entry.toolName === "string" ? entry.toolName : "tool";
+			parts.push({
+				role,
+				kind: "toolCall",
+				name,
+				text: `[tool: ${name}${entry.arguments === undefined ? "" : ` ${stringifyJsonPreview(entry.arguments)}`}]`,
+			});
 			continue;
 		}
 		if (entry.type === "toolResult" || entry.type === "tool_result") {
-			const name = typeof entry.name === "string" ? entry.name : typeof entry.toolName === "string" ? entry.toolName : undefined;
-			parts.push({ role, kind: "toolResult", ...(name ? { name } : {}), ...(entry.isError === true ? { isError: true } : {}), text: `[tool result${entry.result === undefined ? "" : `: ${stringifyJsonPreview(entry.result)}`}]` });
+			const name =
+				typeof entry.name === "string"
+					? entry.name
+					: typeof entry.toolName === "string"
+						? entry.toolName
+						: undefined;
+			parts.push({
+				role,
+				kind: "toolResult",
+				...(name ? { name } : {}),
+				...(entry.isError === true ? { isError: true } : {}),
+				text: `[tool result${entry.result === undefined ? "" : `: ${stringifyJsonPreview(entry.result)}`}]`,
+			});
 			continue;
 		}
 		if (entry.content !== undefined) {
@@ -224,15 +299,31 @@ function sessionMessageParts(record: unknown): SessionTranscriptMessage[] {
 function sessionMessageLine(record: unknown): string | undefined {
 	const parts = sessionMessageParts(record);
 	if (parts.length === 0) return undefined;
-	const text = parts.map((part) => part.text).join("\n").trim();
+	const text = parts
+		.map((part) => part.text)
+		.join("\n")
+		.trim();
 	if (!text) return undefined;
 	return `${parts[0]!.role}: ${text}`;
 }
 
 /** Structured session tail: parsed content parts, newest last, bounded by
  *  maxMessages. Same trusted-root containment as the prose transcript tail. */
-export function readSessionMessagesTail(sessionFile: string, maxMessages: number, trustedRoots: string[], trustedFiles: string[] = [], trustedFileRoot?: string): { messages: SessionTranscriptMessage[]; warnings: string[]; truncated: boolean } {
-	const tail = readContainedTextTail(sessionFile, Math.max(maxMessages * 4, maxMessages), trustedRoots, "session", trustedFiles, trustedFileRoot);
+export function readSessionMessagesTail(
+	sessionFile: string,
+	maxMessages: number,
+	trustedRoots: string[],
+	trustedFiles: string[] = [],
+	trustedFileRoot?: string,
+): { messages: SessionTranscriptMessage[]; warnings: string[]; truncated: boolean } {
+	const tail = readContainedTextTail(
+		sessionFile,
+		Math.max(maxMessages * 4, maxMessages),
+		trustedRoots,
+		"session",
+		trustedFiles,
+		trustedFileRoot,
+	);
 	const warnings: string[] = [];
 	if (tail.error) warnings.push(`Session read failed for ${sessionFile}: ${tail.error}`);
 	const parsedMessages: SessionTranscriptMessage[] = [];
@@ -253,8 +344,21 @@ export function readSessionMessagesTail(sessionFile: string, maxMessages: number
 	return { messages, warnings, truncated: tail.truncated || parsedMessages.length > messages.length };
 }
 
-function readSessionTranscriptTail(sessionFile: string, maxLines: number, trustedRoots: string[], trustedFiles: string[] = [], trustedFileRoot?: string): { lines: string[]; warnings: string[] } {
-	const tail = readContainedTextTail(sessionFile, Math.max(maxLines * 4, maxLines), trustedRoots, "session", trustedFiles, trustedFileRoot);
+function readSessionTranscriptTail(
+	sessionFile: string,
+	maxLines: number,
+	trustedRoots: string[],
+	trustedFiles: string[] = [],
+	trustedFileRoot?: string,
+): { lines: string[]; warnings: string[] } {
+	const tail = readContainedTextTail(
+		sessionFile,
+		Math.max(maxLines * 4, maxLines),
+		trustedRoots,
+		"session",
+		trustedFiles,
+		trustedFileRoot,
+	);
 	const warnings: string[] = [];
 	if (tail.error) warnings.push(`Session read failed for ${sessionFile}: ${tail.error}`);
 	const lines: string[] = [];
@@ -284,7 +388,8 @@ function formatActivityFacts(input: {
 	tokens?: { total: number };
 }): string | undefined {
 	const facts: string[] = [];
-	if (input.currentTool && input.currentToolStartedAt !== undefined) facts.push(`tool ${input.currentTool} ${formatDuration(Math.max(0, Date.now() - input.currentToolStartedAt))}`);
+	if (input.currentTool && input.currentToolStartedAt !== undefined)
+		facts.push(`tool ${input.currentTool} ${formatDuration(Math.max(0, Date.now() - input.currentToolStartedAt))}`);
 	else if (input.currentTool) facts.push(`tool ${input.currentTool}`);
 	if (input.currentPath) facts.push(shortenPath(input.currentPath));
 	if (input.turnCount !== undefined) facts.push(`${input.turnCount} turns`);
@@ -316,11 +421,19 @@ function formatForegroundFleetLines(controls: ForegroundControl[]): string[] {
 			...(control.tokens !== undefined ? { tokens: { total: control.tokens } } : {}),
 		});
 		const currentDisplayName = control.sessionName?.trim() || control.currentAgent;
-		const current = currentDisplayName ? ` | ${currentDisplayName}${control.currentIndex !== undefined ? ` #${control.currentIndex}` : ""}` : "";
-		lines.push(`- ${control.runId} | running | ${foregroundModeName(control)}${current}${activity ? ` | ${activity}` : ""}`);
+		const current = currentDisplayName
+			? ` | ${currentDisplayName}${control.currentIndex !== undefined ? ` #${control.currentIndex}` : ""}`
+			: "";
+		lines.push(
+			`- ${control.runId} | running | ${foregroundModeName(control)}${current}${activity ? ` | ${activity}` : ""}`,
+		);
 		lines.push(`  status: subagent({ action: "status", id: "${control.runId}" })`);
-		lines.push("  transcript: live in the expanded foreground result; persisted session transcript appears after completion when sessions are enabled.");
-		lines.push(...formatNestedRunStatusLines(control.nestedChildren, { indent: "  ", commandHints: true, maxLines: 12 }));
+		lines.push(
+			"  transcript: live in the expanded foreground result; persisted session transcript appears after completion when sessions are enabled.",
+		);
+		lines.push(
+			...formatNestedRunStatusLines(control.nestedChildren, { indent: "  ", commandHints: true, maxLines: 12 }),
+		);
 	}
 	return lines;
 }
@@ -331,10 +444,14 @@ function formatDetachedForegroundFleetLines(runs: ForegroundRun[]): string[] {
 	const ordered = [...runs].sort((left, right) => right.updatedAt - left.updatedAt);
 	for (const run of ordered) {
 		const detachedChildren = run.children.filter((child) => child.status === "detached");
-		const childSummary = detachedChildren.map((child) => `${fleetChildDisplayName(child)} #${child.index}`).join(", ");
+		const childSummary = detachedChildren
+			.map((child) => `${fleetChildDisplayName(child)} #${child.index}`)
+			.join(", ");
 		lines.push(`- ${run.runId} | detached | ${run.mode}${childSummary ? ` | ${childSummary}` : ""}`);
 		lines.push(`  status: subagent({ action: "status", id: "${run.runId}" })`);
-		lines.push(`  recovery: reply to the supervisor request first, then wait with bg_wait({ id: "${run.runId}" }); do not resume or launch a replacement while any child remains detached.`);
+		lines.push(
+			`  recovery: reply to the supervisor request first, then wait with bg_wait({ id: "${run.runId}" }); do not resume or launch a replacement while any child remains detached.`,
+		);
 	}
 	return lines;
 }
@@ -343,7 +460,7 @@ function externalCliStepFacts(step: AsyncRunSummary["steps"][number], now: numbe
 	if (step.runner?.type !== "external-cli") return undefined;
 	const process = step.externalProcess;
 	const elapsed = process
-		? process.durationMs ?? Math.max(0, (process.endedAt ?? now) - process.startedAt)
+		? (process.durationMs ?? Math.max(0, (process.endedAt ?? now) - process.startedAt))
 		: undefined;
 	return `external-cli${elapsed !== undefined ? ` · ${formatDuration(elapsed)}` : ""}`;
 }
@@ -355,9 +472,13 @@ function formatAsyncFleetLines(runs: AsyncRunSummary[], now = Date.now()): strin
 		const progress = formatAsyncRunProgressLabel(run);
 		const activity = formatActivityFacts(run);
 		const cwd = run.cwd ? shortenPath(run.cwd) : shortenPath(run.asyncDir);
-		const pending = run.pendingAppends ? ` | ${run.pendingAppends} pending append${run.pendingAppends === 1 ? "" : "s"}` : "";
+		const pending = run.pendingAppends
+			? ` | ${run.pendingAppends} pending append${run.pendingAppends === 1 ? "" : "s"}`
+			: "";
 		const runContext = contextModeLabel(run.context);
-		lines.push(`- ${run.id} | ${run.state}${activity ? ` | ${activity}` : ""} | ${run.mode}${runContext ? ` ${runContext}` : ""} | ${progress}${pending} | ${cwd}`);
+		lines.push(
+			`- ${run.id} | ${run.state}${activity ? ` | ${activity}` : ""} | ${run.mode}${runContext ? ` ${runContext}` : ""} | ${progress}${pending} | ${cwd}`,
+		);
 		lines.push(`  status: subagent({ action: "status", id: "${run.id}" })`);
 		lines.push(`  transcript: subagent({ action: "status", id: "${run.id}", options: { view: "transcript" } })`);
 		for (const step of run.steps) {
@@ -366,13 +487,21 @@ function formatAsyncFleetLines(runs: AsyncRunSummary[], now = Date.now()): strin
 			const phase = step.phase ? `[${step.phase}] ` : "";
 			const stepActivity = formatActivityFacts(step);
 			const modelThinking = formatModelThinking(step.model, step.thinking);
-			const parts = [`${step.index}. ${phase}${display}${stepContext ? ` ${stepContext}` : ""}`, step.status, externalCliStepFacts(step, now), stepActivity, modelThinking].filter(Boolean);
+			const parts = [
+				`${step.index}. ${phase}${display}${stepContext ? ` ${stepContext}` : ""}`,
+				step.status,
+				externalCliStepFacts(step, now),
+				stepActivity,
+				modelThinking,
+			].filter(Boolean);
 			lines.push(`  ${parts.join(" | ")}`);
 			const output = path.join(run.asyncDir, `output-${step.index}.log`);
 			if (fs.existsSync(output)) lines.push(`    output: ${shortenPath(output)}`);
 			if (step.sessionFile) lines.push(`    session: ${shortenPath(step.sessionFile)}`);
 			if (step.status === "running" || step.recentOutput?.length || fs.existsSync(output)) {
-				lines.push(`    transcript: subagent({ action: "status", id: "${run.id}", options: { index: ${step.index}, view: "transcript" } })`);
+				lines.push(
+					`    transcript: subagent({ action: "status", id: "${run.id}", options: { index: ${step.index}, view: "transcript" } })`,
+				);
 			}
 			lines.push(...formatNestedRunStatusLines(step.children, { indent: "    ", commandHints: true, maxLines: 12 }));
 		}
@@ -391,7 +520,12 @@ function formatAsyncFleetLines(runs: AsyncRunSummary[], now = Date.now()): strin
 export function inspectSubagentFleet(_params: FleetViewParams, deps: FleetViewDeps = {}): AgentToolResult<Details> {
 	if (deps.childSafe) {
 		return {
-			content: [{ type: "text", text: "Child-safe subagent fleet view is unavailable without an explicit run id. Use subagent({ action: \"status\", id: \"...\" }) for the delegated run you can see." }],
+			content: [
+				{
+					type: "text",
+					text: 'Child-safe subagent fleet view is unavailable without an explicit run id. Use subagent({ action: "status", id: "..." }) for the delegated run you can see.',
+				},
+			],
 			isError: true,
 			details: { mode: "management", results: [] },
 		};
@@ -408,18 +542,32 @@ export function inspectSubagentFleet(_params: FleetViewParams, deps: FleetViewDe
 		});
 	} catch (error) {
 		const message = error instanceof Error ? error.message : String(error);
-		return { content: [{ type: "text", text: message }], isError: true, details: { mode: "management", results: [] } };
+		return {
+			content: [{ type: "text", text: message }],
+			isError: true,
+			details: { mode: "management", results: [] },
+		};
 	}
 
 	const foregroundControls = deps.state ? [...deps.state.foregroundControls.values()] : [];
 	const activeForegroundIds = new Set(foregroundControls.map((control) => control.runId));
 	const detachedForegroundRuns = deps.state?.foregroundRuns
-		? [...deps.state.foregroundRuns.values()].filter((run) => run.sessionId === deps.state?.currentSessionId && !activeForegroundIds.has(run.runId) && run.children.some((child) => child.status === "detached"))
+		? [...deps.state.foregroundRuns.values()].filter(
+				(run) =>
+					run.sessionId === deps.state?.currentSessionId &&
+					!activeForegroundIds.has(run.runId) &&
+					run.children.some((child) => child.status === "detached"),
+			)
 		: [];
 	const total = foregroundControls.length + detachedForegroundRuns.length + asyncRuns.length;
 	if (total === 0) {
 		return {
-			content: [{ type: "text", text: "No active subagent fleet. Background runs that already finished are available through completion notifications or subagent({ action: \"status\", id: \"...\" })." }],
+			content: [
+				{
+					type: "text",
+					text: 'No active subagent fleet. Background runs that already finished are available through completion notifications or subagent({ action: "status", id: "..." }).',
+				},
+			],
 			details: { mode: "management", results: [] },
 		};
 	}
@@ -432,38 +580,59 @@ export function inspectSubagentFleet(_params: FleetViewParams, deps: FleetViewDe
 	const asyncLines = formatAsyncFleetLines(asyncRuns, deps.now?.() ?? Date.now());
 	if (asyncLines.length) lines.push(...asyncLines, "");
 	lines.push("Commands:");
-	lines.push("  Refresh fleet: subagent({ action: \"status\", options: { view: \"fleet\" } })");
-	lines.push("  Tail run transcript: subagent({ action: \"status\", id: \"<run-id>\", options: { view: \"transcript\" } })");
-	lines.push("  Tail child transcript: subagent({ action: \"status\", id: \"<run-id>\", options: { index: 0, view: \"transcript\" } })");
+	lines.push('  Refresh fleet: subagent({ action: "status", options: { view: "fleet" } })');
+	lines.push('  Tail run transcript: subagent({ action: "status", id: "<run-id>", options: { view: "transcript" } })');
+	lines.push(
+		'  Tail child transcript: subagent({ action: "status", id: "<run-id>", options: { index: 0, view: "transcript" } })',
+	);
 
-	return { content: [{ type: "text", text: lines.join("\n").trimEnd() }], details: { mode: "management", results: [] } };
+	return {
+		content: [{ type: "text", text: lines.join("\n").trimEnd() }],
+		details: { mode: "management", results: [] },
+	};
 }
 
 function validateTranscriptIndex(index: number | undefined, steps: AsyncJobStep[]): number | undefined {
 	if (index === undefined) return undefined;
 	if (!Number.isInteger(index)) throw new Error("Transcript index must be an integer.");
-	if (index < 0 || index >= steps.length) throw new Error(`Transcript index ${index} is out of range for ${steps.length} child step${steps.length === 1 ? "" : "s"}.`);
+	if (index < 0 || index >= steps.length)
+		throw new Error(
+			`Transcript index ${index} is out of range for ${steps.length} child step${steps.length === 1 ? "" : "s"}.`,
+		);
 	return index;
 }
 
-function selectTranscriptStep(status: AsyncStatus, options: TranscriptOptions): { index?: number; step?: AsyncJobStep; hint?: string } {
+function selectTranscriptStep(
+	status: AsyncStatus,
+	options: TranscriptOptions,
+): { index?: number; step?: AsyncJobStep; hint?: string } {
 	const steps = status.steps ?? [];
 	let selectedIndex = validateTranscriptIndex(options.index, steps);
 	if (selectedIndex === undefined) {
-		if (status.state === "running" && typeof status.currentStep === "number" && status.currentStep >= 0 && status.currentStep < steps.length) {
+		if (
+			status.state === "running" &&
+			typeof status.currentStep === "number" &&
+			status.currentStep >= 0 &&
+			status.currentStep < steps.length
+		) {
 			selectedIndex = status.currentStep;
 		} else if (steps.length === 1) {
 			selectedIndex = 0;
 		}
 	}
 	const step = selectedIndex !== undefined ? steps[selectedIndex] : undefined;
-	const hint = options.index === undefined && steps.length > 1
-		? `Tip: pass index to inspect a specific child transcript (${steps.map((candidate, index) => `${index}=${fleetChildDisplayName(candidate)}`).join(", ")}).`
-		: undefined;
+	const hint =
+		options.index === undefined && steps.length > 1
+			? `Tip: pass index to inspect a specific child transcript (${steps.map((candidate, index) => `${index}=${fleetChildDisplayName(candidate)}`).join(", ")}).`
+			: undefined;
 	return { index: selectedIndex, step, hint };
 }
 
-function stepStateLine(mode: SubagentRunMode, index: number | undefined, step: AsyncJobStep | undefined): string | undefined {
+function stepStateLine(
+	mode: SubagentRunMode,
+	index: number | undefined,
+	step: AsyncJobStep | undefined,
+): string | undefined {
 	if (index === undefined || !step) return undefined;
 	const modelThinking = formatModelThinking(step.model, step.thinking);
 	const context = contextModeLabel(step.context);
@@ -477,7 +646,10 @@ function stepStateLine(mode: SubagentRunMode, index: number | undefined, step: A
 	return parts.join(" | ");
 }
 
-function appendKnownArtifacts(lines: string[], input: { outputPaths: string[]; sessionFile?: string; eventsPath?: string; logPath?: string; resultPath?: string }): void {
+function appendKnownArtifacts(
+	lines: string[],
+	input: { outputPaths: string[]; sessionFile?: string; eventsPath?: string; logPath?: string; resultPath?: string },
+): void {
 	const artifacts: string[] = [];
 	for (const outputPath of input.outputPaths) artifacts.push(`Output: ${outputPath}`);
 	if (input.sessionFile) artifacts.push(`Session: ${input.sessionFile}`);
@@ -518,9 +690,10 @@ function appendTranscriptBody(lines: string[], sourceLabel: string, sourceLines:
 		// binary placeholder replaces the whole line and must not be reindented.
 		const safe = safeTerminalText(`  ${sourceLines[index]!}`);
 		const lineLimit = MAX_TRANSCRIPT_LINE_CHARS + 2;
-		const line = safe.length <= lineLimit
-			? safe
-			: truncateDisplayText(safe, lineLimit - TRANSCRIPT_LINE_OMISSION.length) + TRANSCRIPT_LINE_OMISSION;
+		const line =
+			safe.length <= lineLimit
+				? safe
+				: truncateDisplayText(safe, lineLimit - TRANSCRIPT_LINE_OMISSION.length) + TRANSCRIPT_LINE_OMISSION;
 		const size = Buffer.byteLength(line) + 1;
 		if (bytes + size > MAX_TRANSCRIPT_BODY_BYTES) {
 			const markerBytes = Buffer.byteLength(TRANSCRIPT_BODY_OMISSION) + 1;
@@ -534,21 +707,34 @@ function appendTranscriptBody(lines: string[], sourceLabel: string, sourceLines:
 	lines.push(...body.reverse());
 }
 
-function resolveWorkflowTranscriptChild(status: AsyncStatus, asyncDir: string, options: TranscriptOptions): { status: AsyncStatus; asyncDir: string } | undefined {
+function resolveWorkflowTranscriptChild(
+	status: AsyncStatus,
+	asyncDir: string,
+	options: TranscriptOptions,
+): { status: AsyncStatus; asyncDir: string } | undefined {
 	if (status.mode !== "workflow" || options.index === undefined) return undefined;
 	const step = status.steps?.[options.index];
-	if (step?.async !== true || typeof step.runId !== "string" || !/^[A-Za-z0-9_-]+$/.test(step.runId) || step.runId === status.runId) return undefined;
+	if (
+		step?.async !== true ||
+		typeof step.runId !== "string" ||
+		!/^[A-Za-z0-9_-]+$/.test(step.runId) ||
+		step.runId === status.runId
+	)
+		return undefined;
 	try {
 		const asyncRoot = fs.realpathSync(path.dirname(asyncDir));
 		const childDir = path.join(asyncRoot, step.runId);
-		if (fs.realpathSync(childDir) !== childDir || fs.lstatSync(path.join(childDir, "status.json")).isSymbolicLink()) return undefined;
+		if (fs.realpathSync(childDir) !== childDir || fs.lstatSync(path.join(childDir, "status.json")).isSymbolicLink())
+			return undefined;
 		const childStatus = readStatus(childDir);
-		return childStatus?.runId === step.runId
-			&& childStatus.parentWorkflowRunId === status.runId
-			&& typeof step.workflowKey === "string" && step.workflowKey.length > 0
-			&& childStatus.workflowKey === step.workflowKey
-			&& typeof status.sessionId === "string" && status.sessionId.length > 0
-			&& childStatus.sessionId === status.sessionId
+		return childStatus?.runId === step.runId &&
+			childStatus.parentWorkflowRunId === status.runId &&
+			typeof step.workflowKey === "string" &&
+			step.workflowKey.length > 0 &&
+			childStatus.workflowKey === step.workflowKey &&
+			typeof status.sessionId === "string" &&
+			status.sessionId.length > 0 &&
+			childStatus.sessionId === status.sessionId
 			? { status: childStatus, asyncDir: childDir }
 			: undefined;
 	} catch (error) {
@@ -557,23 +743,38 @@ function resolveWorkflowTranscriptChild(status: AsyncStatus, asyncDir: string, o
 	}
 }
 
-export function formatAsyncRunTranscript(status: AsyncStatus, asyncDir: string, options: TranscriptOptions = {}): string {
+export function formatAsyncRunTranscript(
+	status: AsyncStatus,
+	asyncDir: string,
+	options: TranscriptOptions = {},
+): string {
 	const workflowChild = resolveWorkflowTranscriptChild(status, asyncDir, options);
-	if (workflowChild) return formatAsyncRunTranscript(workflowChild.status, workflowChild.asyncDir, { ...options, index: undefined });
+	if (workflowChild)
+		return formatAsyncRunTranscript(workflowChild.status, workflowChild.asyncDir, { ...options, index: undefined });
 	const lineLimit = transcriptLineLimit(options.lines);
 	const selected = selectTranscriptStep(status, options);
-	const stepOutputPath = selected.index !== undefined ? path.join(asyncDir, `output-${selected.index}.log`) : undefined;
+	const stepOutputPath =
+		selected.index !== undefined ? path.join(asyncDir, `output-${selected.index}.log`) : undefined;
 	const runOutputPath = resolveMaybeRelative(asyncDir, status.outputFile);
 	const logPath = path.join(asyncDir, `subagent-log-${status.runId}.md`);
-	const outputPaths = selected.index !== undefined
-		? uniqueStrings([selected.step?.externalProcess?.finalOutputPath, stepOutputPath, runOutputPath && stepOutputPath && path.resolve(runOutputPath) === path.resolve(stepOutputPath) ? runOutputPath : undefined])
-		: uniqueStrings([runOutputPath]);
+	const outputPaths =
+		selected.index !== undefined
+			? uniqueStrings([
+					selected.step?.externalProcess?.finalOutputPath,
+					stepOutputPath,
+					runOutputPath && stepOutputPath && path.resolve(runOutputPath) === path.resolve(stepOutputPath)
+						? runOutputPath
+						: undefined,
+				])
+			: uniqueStrings([runOutputPath]);
 	const sessionFile = selected.index !== undefined ? selected.step?.sessionFile : status.sessionFile;
 	const eventsPath = path.join(asyncDir, "events.jsonl");
 	// Synthesized output paths can name files that were never written. Keep the unfiltered paths
 	// below so a present-but-unreadable file still reports its read error.
 
-	const context = contextModeLabel(status.context ?? summarizeContextModes((status.steps ?? []).map((step) => step.context)));
+	const context = contextModeLabel(
+		status.context ?? summarizeContextModes((status.steps ?? []).map((step) => step.context)),
+	);
 	const lines = [
 		`Run: ${status.runId}`,
 		`State: ${status.state}`,
@@ -581,17 +782,24 @@ export function formatAsyncRunTranscript(status: AsyncStatus, asyncDir: string, 
 		stepStateLine(status.mode, selected.index, selected.step),
 		selected.hint,
 	].filter((line): line is string => Boolean(line));
-	appendKnownArtifacts(lines, { outputPaths: outputPaths.filter((outputPath) => fs.existsSync(outputPath)), sessionFile, eventsPath: fs.existsSync(eventsPath) ? eventsPath : undefined, logPath: fs.existsSync(logPath) ? logPath : undefined });
+	appendKnownArtifacts(lines, {
+		outputPaths: outputPaths.filter((outputPath) => fs.existsSync(outputPath)),
+		sessionFile,
+		eventsPath: fs.existsSync(eventsPath) ? eventsPath : undefined,
+		logPath: fs.existsSync(logPath) ? logPath : undefined,
+	});
 
 	const warnings: string[] = [];
 	let transcriptLines: string[] = [];
 	let transcriptSource = "Transcript tail";
 	let truncated = false;
 	const externalProcess = selected.step?.runner?.type === "external-cli" ? selected.step.externalProcess : undefined;
-	const externalLogPaths = externalProcess ? [
-		{ path: externalProcess.stderrPath, label: "External stderr tail" },
-		{ path: externalProcess.stdoutPath, label: "External stdout tail" },
-	] : [];
+	const externalLogPaths = externalProcess
+		? [
+				{ path: externalProcess.stderrPath, label: "External stderr tail" },
+				{ path: externalProcess.stdoutPath, label: "External stdout tail" },
+			]
+		: [];
 	const runningExternal = selected.step?.status === "running" && externalProcess;
 	const sources = runningExternal
 		? [...externalLogPaths, ...outputPaths.map((outputPath) => ({ path: outputPath, label: "Transcript tail" }))]
@@ -611,7 +819,13 @@ export function formatAsyncRunTranscript(status: AsyncStatus, asyncDir: string, 
 		transcriptSource = "Recent output from status.json";
 	}
 	if (transcriptLines.length === 0 && sessionFile) {
-		const sessionTail = readSessionTranscriptTail(sessionFile, lineLimit, options.sessionRoots ?? [], options.trustedSessionFiles, options.trustedSessionFileRoot);
+		const sessionTail = readSessionTranscriptTail(
+			sessionFile,
+			lineLimit,
+			options.sessionRoots ?? [],
+			options.trustedSessionFiles,
+			options.trustedSessionFileRoot,
+		);
 		transcriptLines = sessionTail.lines;
 		warnings.push(...sessionTail.warnings);
 		if (transcriptLines.length > 0) transcriptSource = `Session transcript tail from ${sessionFile}`;
@@ -635,14 +849,26 @@ export function formatNestedRunTranscript(run: NestedRunSummary, options: Transc
 		`Nested run: ${run.id}`,
 		`State: ${run.state}`,
 		run.mode ? `Mode: ${run.mode}` : undefined,
-		run.sessionName?.trim() ? `Agent: ${run.sessionName.trim()}` : run.agent ? `Agent: ${run.agent}` : run.agents?.length ? `Agents: ${run.agents.join(", ")}` : undefined,
+		run.sessionName?.trim()
+			? `Agent: ${run.sessionName.trim()}`
+			: run.agent
+				? `Agent: ${run.agent}`
+				: run.agents?.length
+					? `Agents: ${run.agents.join(", ")}`
+					: undefined,
 	].filter((line): line is string => Boolean(line));
 	appendKnownArtifacts(lines, { outputPaths: [], sessionFile: run.sessionFile });
 	if (!run.sessionFile) {
 		appendTranscriptBody(lines, "Transcript tail", [], false);
 		return safeTranscriptLines(lines);
 	}
-	const sessionTail = readSessionTranscriptTail(run.sessionFile, lineLimit, options.sessionRoots ?? [], options.trustedSessionFiles, options.trustedSessionFileRoot);
+	const sessionTail = readSessionTranscriptTail(
+		run.sessionFile,
+		lineLimit,
+		options.sessionRoots ?? [],
+		options.trustedSessionFiles,
+		options.trustedSessionFileRoot,
+	);
 	if (sessionTail.warnings.length) {
 		lines.push("Warnings:");
 		for (const warning of sessionTail.warnings) lines.push(`  ${warning}`);
@@ -651,42 +877,80 @@ export function formatNestedRunTranscript(run: NestedRunSummary, options: Transc
 	return safeTranscriptLines(lines);
 }
 
-export function formatAsyncResultTranscript(data: {
-	id?: string;
-	runId?: string;
-	state?: string;
-	success?: boolean;
-	summary?: string;
-	output?: string;
-	sessionFile?: string;
-	agent?: string;
-	exitCode?: number | null;
-	results?: Array<{ agent?: string; sessionName?: string; output?: string; summary?: string; sessionFile?: string; state?: string; success?: boolean; exitCode?: number | null }>;
-}, resultPath: string, options: TranscriptOptions = {}): string {
+export function formatAsyncResultTranscript(
+	data: {
+		id?: string;
+		runId?: string;
+		state?: string;
+		success?: boolean;
+		summary?: string;
+		output?: string;
+		sessionFile?: string;
+		agent?: string;
+		exitCode?: number | null;
+		results?: Array<{
+			agent?: string;
+			sessionName?: string;
+			output?: string;
+			summary?: string;
+			sessionFile?: string;
+			state?: string;
+			success?: boolean;
+			exitCode?: number | null;
+		}>;
+	},
+	resultPath: string,
+	options: TranscriptOptions = {},
+): string {
 	const lineLimit = transcriptLineLimit(options.lines);
 	const runId = data.runId ?? data.id ?? path.basename(resultPath, ".json");
 	const children = Array.isArray(data.results)
 		? data.results
 		: data.agent
-			? [{ agent: data.agent, sessionName: undefined, output: data.output, summary: data.summary, sessionFile: data.sessionFile, state: data.state, success: data.success, exitCode: data.exitCode }]
+			? [
+					{
+						agent: data.agent,
+						sessionName: undefined,
+						output: data.output,
+						summary: data.summary,
+						sessionFile: data.sessionFile,
+						state: data.state,
+						success: data.success,
+						exitCode: data.exitCode,
+					},
+				]
 			: [];
 	let index = options.index;
 	if (index !== undefined && !Number.isInteger(index)) throw new Error("Transcript index must be an integer.");
 	if (index === undefined && children.length === 1) index = 0;
-	if (index !== undefined && (index < 0 || index >= children.length)) throw new Error(`Transcript index ${index} is out of range for ${children.length} result child${children.length === 1 ? "" : "ren"}.`);
+	if (index !== undefined && (index < 0 || index >= children.length))
+		throw new Error(
+			`Transcript index ${index} is out of range for ${children.length} result child${children.length === 1 ? "" : "ren"}.`,
+		);
 	const child = index !== undefined ? children[index] : undefined;
-	const output = index !== undefined
-		? child?.output ?? child?.summary ?? (children.length === 1 ? data.output ?? data.summary : undefined) ?? ""
-		: data.output ?? data.summary ?? "";
+	const output =
+		index !== undefined
+			? (child?.output ??
+				child?.summary ??
+				(children.length === 1 ? (data.output ?? data.summary) : undefined) ??
+				"")
+			: (data.output ?? data.summary ?? "");
 	const transcriptLines = output.split(/\r?\n/).slice(-lineLimit);
 	const sessionFile = child?.sessionFile ?? data.sessionFile;
 	const lines = [
 		`Run: ${runId}`,
 		`State: ${data.state ?? (data.success ? "complete" : "failed")}`,
 		index !== undefined && child ? `Child: ${index} (${fleetChildDisplayName(child)})` : undefined,
-		index === undefined && children.length > 1 ? `Tip: pass index to inspect a specific child transcript (${children.map((candidate, childIndex) => `${childIndex}=${fleetChildDisplayName(candidate)}`).join(", ")}).` : undefined,
+		index === undefined && children.length > 1
+			? `Tip: pass index to inspect a specific child transcript (${children.map((candidate, childIndex) => `${childIndex}=${fleetChildDisplayName(candidate)}`).join(", ")}).`
+			: undefined,
 	].filter((line): line is string => Boolean(line));
 	appendKnownArtifacts(lines, { outputPaths: [], sessionFile, resultPath });
-	appendTranscriptBody(lines, "Result transcript tail", transcriptLines.filter((line) => line.trim()), output.split(/\r?\n/).length > lineLimit);
+	appendTranscriptBody(
+		lines,
+		"Result transcript tail",
+		transcriptLines.filter((line) => line.trim()),
+		output.split(/\r?\n/).length > lineLimit,
+	);
 	return safeTranscriptLines(lines);
 }

@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
+import { randomUUID } from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import { randomUUID } from "node:crypto";
-import { nestedRunScope } from "../../src/runs/shared/nested-events.ts";
-import { updateActiveRunIndex } from "../../src/runs/background/active-run-index.ts";
 import { describe, it } from "node:test";
+import { updateActiveRunIndex } from "../../src/runs/background/active-run-index.ts";
 import { drainOutstandingWork } from "../../src/runs/background/auto-drain.ts";
+import { nestedRunScope } from "../../src/runs/shared/nested-events.ts";
 import type { Details, SubagentState } from "../../src/shared/types.ts";
 
 function state(sessionId: string | null = "session-a"): SubagentState {
@@ -20,7 +20,16 @@ function waitResult(text: string, isError = false, windowElapsed = false) {
 		details: {
 			mode: "management" as const,
 			results: [],
-			...(windowElapsed ? { wait: { reason: "window_elapsed" as const, timedOut: true as const, activeRunIds: ["run-a"], activeProviderItems: [] } } : {}),
+			...(windowElapsed
+				? {
+						wait: {
+							reason: "window_elapsed" as const,
+							timedOut: true as const,
+							activeRunIds: ["run-a"],
+							activeProviderItems: [],
+						},
+					}
+				: {}),
 		} satisfies Details,
 	};
 }
@@ -31,10 +40,24 @@ describe("headless background-work auto-drain", () => {
 		const nestedRootRunId = randomUUID();
 		const nested = nestedRunScope(nestedRootRunId);
 		const ordinary = { asyncDirRoot: path.join(root, "runs"), resultsDir: path.join(root, "results") };
-		t.after(() => { for (const dir of [root, nested.asyncDirRoot]) fs.rmSync(dir, { recursive: true, force: true }); });
+		t.after(() => {
+			for (const dir of [root, nested.asyncDirRoot]) fs.rmSync(dir, { recursive: true, force: true });
+		});
 		const writeStatus = (dir: string, sessionId: string, status: "running" | "complete") => {
 			fs.mkdirSync(dir, { recursive: true });
-			fs.writeFileSync(path.join(dir, "status.json"), JSON.stringify({ runId: path.basename(dir), sessionId, mode: "single", state: status, pid: process.pid, startedAt: Date.now(), lastUpdate: Date.now(), steps: [] }));
+			fs.writeFileSync(
+				path.join(dir, "status.json"),
+				JSON.stringify({
+					runId: path.basename(dir),
+					sessionId,
+					mode: "single",
+					state: status,
+					pid: process.pid,
+					startedAt: Date.now(),
+					lastUpdate: Date.now(),
+					steps: [],
+				}),
+			);
 			updateActiveRunIndex(dir, status);
 		};
 		const owned = [path.join(ordinary.asyncDirRoot, "workflow"), path.join(nested.asyncDirRoot, "persona")];
@@ -43,7 +66,9 @@ describe("headless background-work auto-drain", () => {
 		writeStatus(sibling, "sibling-session", "running");
 		let waits = 0;
 		await drainOutstandingWork({
-			state: state("owner"), ...ordinary, nestedRootRunId,
+			state: state("owner"),
+			...ordinary,
+			nestedRootRunId,
 			wait: async (_params, _signal, deps) => {
 				assert.equal(deps.nestedRootRunId, nestedRootRunId);
 				assert.equal(deps.asyncDirRoot, ordinary.asyncDirRoot);
@@ -61,56 +86,92 @@ describe("headless background-work auto-drain", () => {
 		await drainOutstandingWork({
 			state: state(),
 			hasWork: () => false,
-			wait: async () => { waited = true; return waitResult("unexpected"); },
+			wait: async () => {
+				waited = true;
+				return waitResult("unexpected");
+			},
 		});
 		assert.equal(waited, false);
 	});
 
 	it("loops until work added while draining is also gone", async () => {
 		let checks = 0;
-		const waits: Array<{ all?: boolean; timeoutMs?: number; stopOnAttention?: boolean; failOnFailedRuns?: boolean; failOnAttention?: boolean }> = [];
+		const waits: Array<{
+			all?: boolean;
+			timeoutMs?: number;
+			stopOnAttention?: boolean;
+			failOnFailedRuns?: boolean;
+			failOnAttention?: boolean;
+		}> = [];
 		await drainOutstandingWork({
 			state: state(),
 			timeoutMs: 1000,
 			now: () => checks * 10,
 			hasWork: () => checks++ < 2,
 			wait: async (params, _signal, deps) => {
-				waits.push({ ...params, stopOnAttention: deps.stopOnAttention, failOnFailedRuns: deps.failOnFailedRuns, failOnAttention: deps.failOnAttention });
+				waits.push({
+					...params,
+					stopOnAttention: deps.stopOnAttention,
+					failOnFailedRuns: deps.failOnFailedRuns,
+					failOnAttention: deps.failOnAttention,
+				});
 				return waitResult("done");
 			},
 		});
 		assert.equal(waits.length, 2);
-		assert.ok(waits.every((entry) => entry.all === true && entry.stopOnAttention === false && entry.failOnFailedRuns === true && entry.failOnAttention === true));
+		assert.ok(
+			waits.every(
+				(entry) =>
+					entry.all === true &&
+					entry.stopOnAttention === false &&
+					entry.failOnFailedRuns === true &&
+					entry.failOnAttention === true,
+			),
+		);
 		assert.ok((waits[1]!.timeoutMs ?? 0) < (waits[0]!.timeoutMs ?? 0), "each wait must share one absolute deadline");
 	});
 
 	it("preserves wait errors instead of treating them as a successful drain", async () => {
-		await assert.rejects(() => drainOutstandingWork({
-			state: state(),
-			hasWork: () => true,
-			wait: async () => waitResult("provider 'patty' snapshot failed", true),
-		}), /Auto-drain failed.*provider 'patty' snapshot failed/);
+		await assert.rejects(
+			() =>
+				drainOutstandingWork({
+					state: state(),
+					hasWork: () => true,
+					wait: async () => waitResult("provider 'patty' snapshot failed", true),
+				}),
+			/Auto-drain failed.*provider 'patty' snapshot failed/,
+		);
 	});
 
 	it("propagates work-discovery errors", async () => {
-		await assert.rejects(() => drainOutstandingWork({
-			state: state(),
-			hasWork: () => { throw new Error("provider reconcile failed"); },
-		}), /provider reconcile failed/);
+		await assert.rejects(
+			() =>
+				drainOutstandingWork({
+					state: state(),
+					hasWork: () => {
+						throw new Error("provider reconcile failed");
+					},
+				}),
+			/provider reconcile failed/,
+		);
 	});
 
 	it("keeps its absolute deadline strict after a non-error wait window elapses", async () => {
 		let clock = 0;
-		await assert.rejects(() => drainOutstandingWork({
-			state: state(),
-			timeoutMs: 100,
-			now: () => clock,
-			hasWork: () => true,
-			wait: async () => {
-				clock = 101;
-				return waitResult("Wait window elapsed; work remains active.", false, true);
-			},
-		}), /timed out after 100ms.*session 'session-a'/);
+		await assert.rejects(
+			() =>
+				drainOutstandingWork({
+					state: state(),
+					timeoutMs: 100,
+					now: () => clock,
+					hasWork: () => true,
+					wait: async () => {
+						clock = 101;
+						return waitResult("Wait window elapsed; work remains active.", false, true);
+					},
+				}),
+			/timed out after 100ms.*session 'session-a'/,
+		);
 	});
 
 	it("fails without a session identity", async () => {
@@ -119,10 +180,19 @@ describe("headless background-work auto-drain", () => {
 
 	it("does not settle while a remembered detached foreground descendant is still in flight", async () => {
 		const current = state("owner");
-		current.foregroundRuns = new Map([["fg", {
-			runId: "fg", mode: "single", cwd: "/tmp", sessionId: "owner", updatedAt: 1,
-			children: [{ agent: "reviewer", index: 0, status: "detached", updatedAt: 1 }],
-		}]]);
+		current.foregroundRuns = new Map([
+			[
+				"fg",
+				{
+					runId: "fg",
+					mode: "single",
+					cwd: "/tmp",
+					sessionId: "owner",
+					updatedAt: 1,
+					children: [{ agent: "reviewer", index: 0, status: "detached", updatedAt: 1 }],
+				},
+			],
+		]);
 		let waits = 0;
 		await drainOutstandingWork({
 			state: current,
@@ -179,7 +249,16 @@ describe("headless background-work auto-drain", () => {
 				pending = false;
 				return {
 					content: [{ type: "text", text: "Wait yielded for a pending supervisor request." }],
-					details: { mode: "management", results: [], wait: { reason: "supervisor_request", timedOut: false, activeRunIds: ["run-a"], activeProviderItems: [] } },
+					details: {
+						mode: "management",
+						results: [],
+						wait: {
+							reason: "supervisor_request",
+							timedOut: false,
+							activeRunIds: ["run-a"],
+							activeProviderItems: [],
+						},
+					},
 				};
 			},
 		});

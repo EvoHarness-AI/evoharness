@@ -1,11 +1,12 @@
 import { execFile, spawnSync } from "node:child_process";
 import * as path from "node:path";
 import type { AgentTool } from "@evoharness/agent-core";
-import { Type, type Static } from "typebox";
+import { type Static, Type } from "typebox";
 
 export const WATCHDOG_DIFF_TOOL_NAME = "watchdog_diff";
 export const WATCHDOG_DIFF_MAX_CHARS = 24_000;
-export const WATCHDOG_DIFF_UNAVAILABLE_BASELINE = "watchdog_diff unavailable: this cwd has no valid Git HEAD baseline. No diff can be shown; inspect files with independent read-only tools instead.";
+export const WATCHDOG_DIFF_UNAVAILABLE_BASELINE =
+	"watchdog_diff unavailable: this cwd has no valid Git HEAD baseline. No diff can be shown; inspect files with independent read-only tools instead.";
 const MAX_UNTRACKED_FILES = 50;
 
 export interface WatchdogDiffBaseline {
@@ -13,15 +14,24 @@ export interface WatchdogDiffBaseline {
 	ref: string;
 }
 
-const WatchdogDiffParams = Type.Object({
-	path: Type.Optional(Type.String({ description: "Restrict the diff to one file or directory, relative to the repo root." })),
-	stat: Type.Optional(Type.Boolean({ description: "Return per-file change counts instead of the full diff." })),
-}, { additionalProperties: false });
+const WatchdogDiffParams = Type.Object(
+	{
+		path: Type.Optional(
+			Type.String({ description: "Restrict the diff to one file or directory, relative to the repo root." }),
+		),
+		stat: Type.Optional(Type.Boolean({ description: "Return per-file change counts instead of the full diff." })),
+	},
+	{ additionalProperties: false },
+);
 
 type WatchdogDiffParams = Static<typeof WatchdogDiffParams>;
 
 function runGit(root: string, args: string[]): { ok: boolean; stdout: string; stderr: string } {
-	const result = spawnSync("git", ["-C", root, ...args], { encoding: "utf-8", maxBuffer: 16 * 1024 * 1024, windowsHide: true });
+	const result = spawnSync("git", ["-C", root, ...args], {
+		encoding: "utf-8",
+		maxBuffer: 16 * 1024 * 1024,
+		windowsHide: true,
+	});
 	return { ok: result.status === 0, stdout: result.stdout ?? "", stderr: (result.stderr ?? "").trim() };
 }
 
@@ -82,22 +92,41 @@ export function createWatchdogDiffTool(
 		description: !baseline
 			? "Report that a Git HEAD diff baseline is unavailable in this cwd. No diff is generated."
 			: workingTreeAtLaunch
-			? "Show the current staged and unstaged working-tree delta against reviewer-launch HEAD, plus untracked file paths, including edits by other sessions in this checkout. Committed ranges are not included. Optional path narrows it; stat:true returns per-file counts only."
-			: "Show the repository diff since the review baseline, plus untracked file paths, including edits by other sessions in this checkout. Optional path narrows it; stat:true returns per-file counts only.",
+				? "Show the current staged and unstaged working-tree delta against reviewer-launch HEAD, plus untracked file paths, including edits by other sessions in this checkout. Committed ranges are not included. Optional path narrows it; stat:true returns per-file counts only."
+				: "Show the repository diff since the review baseline, plus untracked file paths, including edits by other sessions in this checkout. Optional path narrows it; stat:true returns per-file counts only.",
 		parameters: WatchdogDiffParams,
 		executionMode: "sequential",
 		async execute(_toolCallId, params: WatchdogDiffParams) {
 			if (!baseline) {
-				return { content: [{ type: "text", text: WATCHDOG_DIFF_UNAVAILABLE_BASELINE }], details: { chars: WATCHDOG_DIFF_UNAVAILABLE_BASELINE.length } };
+				return {
+					content: [{ type: "text", text: WATCHDOG_DIFF_UNAVAILABLE_BASELINE }],
+					details: { chars: WATCHDOG_DIFF_UNAVAILABLE_BASELINE.length },
+				};
 			}
 			const pathFilter = validatePath(params.path);
-			const diff = runGit(baseline.root, ["diff", "--no-color", "--no-ext-diff", ...(params.stat === true ? ["--stat"] : []), baseline.ref, "--", ...(pathFilter ? [pathFilter] : [])]);
+			const diff = runGit(baseline.root, [
+				"diff",
+				"--no-color",
+				"--no-ext-diff",
+				...(params.stat === true ? ["--stat"] : []),
+				baseline.ref,
+				"--",
+				...(pathFilter ? [pathFilter] : []),
+			]);
 			if (!diff.ok) throw new Error(`git diff failed: ${diff.stderr || "unknown error"}`);
-			const untrackedResult = runGit(baseline.root, ["ls-files", "--others", "--exclude-standard", "-z", "--", ...(pathFilter ? [pathFilter] : [])]);
+			const untrackedResult = runGit(baseline.root, [
+				"ls-files",
+				"--others",
+				"--exclude-standard",
+				"-z",
+				"--",
+				...(pathFilter ? [pathFilter] : []),
+			]);
 			if (workingTreeAtLaunch) {
 				const currentHead = runGit(baseline.root, ["rev-parse", "HEAD"]);
 				if (!currentHead.ok || currentHead.stdout.trim() !== baseline.ref) {
-					const text = "Reviewer-launch HEAD changed or is unavailable. Committed changes are unsupported; relaunch the reviewer or supply a diff artifact.";
+					const text =
+						"Reviewer-launch HEAD changed or is unavailable. Committed changes are unsupported; relaunch the reviewer or supply a diff artifact.";
 					return { content: [{ type: "text", text }], details: { chars: text.length } };
 				}
 			}
@@ -106,11 +135,14 @@ export function createWatchdogDiffTool(
 			if (untracked.length) {
 				const shown = untracked.slice(0, MAX_UNTRACKED_FILES);
 				sections.push(["Untracked files (use read to inspect):", ...shown.map((file) => ` ${file}`)].join("\n"));
-				if (untracked.length > shown.length) sections.push(`... ${untracked.length - shown.length} more untracked files`);
+				if (untracked.length > shown.length)
+					sections.push(`... ${untracked.length - shown.length} more untracked files`);
 			}
-			const text = bound(sections.filter(Boolean).join("\n\n")) || (workingTreeAtLaunch
-				? `No working-tree changes against reviewer-launch HEAD ${baseline.ref.slice(0, 12)}. Committed changes are not included.`
-				: `No changes since baseline ${baseline.ref.slice(0, 12)}.`);
+			const text =
+				bound(sections.filter(Boolean).join("\n\n")) ||
+				(workingTreeAtLaunch
+					? `No working-tree changes against reviewer-launch HEAD ${baseline.ref.slice(0, 12)}. Committed changes are not included.`
+					: `No changes since baseline ${baseline.ref.slice(0, 12)}.`);
 			return { content: [{ type: "text", text }], details: { chars: text.length } };
 		},
 	};

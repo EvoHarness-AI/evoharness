@@ -45,7 +45,17 @@ export interface McpServerDefinition {
 
 export function isMcpServerDefinition(value: unknown): value is McpServerDefinition {
 	if (!isRecord(value)) return false;
-	for (const field of ["command", "socket", "cwd", "url", "bearerToken", "bearerTokenEnv", "protocolVersion", "httpTransport", "pluginDataDir"] as const) {
+	for (const field of [
+		"command",
+		"socket",
+		"cwd",
+		"url",
+		"bearerToken",
+		"bearerTokenEnv",
+		"protocolVersion",
+		"httpTransport",
+		"pluginDataDir",
+	] as const) {
 		if (value[field] !== undefined && typeof value[field] !== "string") return false;
 	}
 	for (const field of ["args", "includeTools", "excludeTools"] as const) {
@@ -58,7 +68,8 @@ export function isMcpServerDefinition(value: unknown): value is McpServerDefinit
 		if (value[field] !== undefined && typeof value[field] !== "boolean") return false;
 	}
 	if (value.requestHeadersCommand !== undefined && !isRequestHeadersCommand(value.requestHeadersCommand)) return false;
-	if (value.auth !== undefined && value.auth !== "oauth" && value.auth !== "bearer" && value.auth !== false) return false;
+	if (value.auth !== undefined && value.auth !== "oauth" && value.auth !== "bearer" && value.auth !== false)
+		return false;
 	return value.directTools === undefined || typeof value.directTools === "boolean" || isStringArray(value.directTools);
 }
 
@@ -91,11 +102,12 @@ export function loadPackageMcpServers(cwd: string): Record<string, McpServerDefi
 		const packageName = (manifest as { name?: unknown }).name;
 		if (typeof packageName !== "string" || !packageName) continue;
 		const mcpValue = (manifest as { pi?: { mcp?: unknown } }).pi?.mcp;
-		const configPaths = typeof mcpValue === "string"
-			? [mcpValue]
-			: Array.isArray(mcpValue) && mcpValue.every((value): value is string => typeof value === "string")
-				? mcpValue
-				: [];
+		const configPaths =
+			typeof mcpValue === "string"
+				? [mcpValue]
+				: Array.isArray(mcpValue) && mcpValue.every((value): value is string => typeof value === "string")
+					? mcpValue
+					: [];
 		const packagePrefix = formatName(packageName, "package");
 
 		for (const configPath of configPaths) {
@@ -156,11 +168,15 @@ function getConfiguredPackageRoots(cwd: string): string[] {
 		const packages = (settings as { packages?: unknown }).packages;
 		if (!Array.isArray(packages)) continue;
 		for (const entry of packages) {
-			const packageSource = typeof entry === "string"
-				? entry
-				: entry && typeof entry === "object" && !Array.isArray(entry) && typeof (entry as { source?: unknown }).source === "string"
-					? (entry as { source: string }).source
-					: undefined;
+			const packageSource =
+				typeof entry === "string"
+					? entry
+					: entry &&
+							typeof entry === "object" &&
+							!Array.isArray(entry) &&
+							typeof (entry as { source?: unknown }).source === "string"
+						? (entry as { source: string }).source
+						: undefined;
 			if (!packageSource) continue;
 			const root = resolvePackageRoot(packageSource, source.baseDir);
 			if (root && !roots.includes(root)) roots.push(root);
@@ -179,7 +195,9 @@ function resolvePackageRoot(source: string, baseDir: string): string | undefined
 	if (!trimmed) return undefined;
 	if (trimmed.startsWith("npm:")) {
 		const packageName = parseNpmPackageName(trimmed);
-		return packageName ? resolveContainedPath(path.join(baseDir, PACKAGE_CONFIG_ROOT, "node_modules"), packageName) ?? undefined : undefined;
+		return packageName
+			? (resolveContainedPath(path.join(baseDir, PACKAGE_CONFIG_ROOT, "node_modules"), packageName) ?? undefined)
+			: undefined;
 	}
 
 	if (trimmed.startsWith("git:") || /^(?:https?:\/\/|ssh:\/\/|git@[^:]+:)/.test(trimmed)) {
@@ -226,8 +244,15 @@ function parseGitPackagePath(source: string): { host: string; repoPath: string }
 		repoPath = spec.slice(slashIndex + 1);
 	}
 
-	const normalizedPath = stripGitRef(repoPath).replace(/\.git$/, "").replace(/^\/+/, "");
-	if (!host || !isSafePackagePath(host) || !isSafePackagePath(normalizedPath) || normalizedPath.split(/[\\/]/).length < 2) {
+	const normalizedPath = stripGitRef(repoPath)
+		.replace(/\.git$/, "")
+		.replace(/^\/+/, "");
+	if (
+		!host ||
+		!isSafePackagePath(host) ||
+		!isSafePackagePath(normalizedPath) ||
+		normalizedPath.split(/[\\/]/).length < 2
+	) {
 		return undefined;
 	}
 	return { host, repoPath: normalizedPath };
@@ -241,9 +266,11 @@ function stripGitRef(repoPath: string): string {
 }
 
 function isSafePackagePath(value: string): boolean {
-	return value.length > 0
-		&& !path.isAbsolute(value)
-		&& value.split(/[\\/]/).every((part) => part.length > 0 && part !== "." && part !== "..");
+	return (
+		value.length > 0 &&
+		!path.isAbsolute(value) &&
+		value.split(/[\\/]/).every((part) => part.length > 0 && part !== "." && part !== "..")
+	);
 }
 
 function resolvePackageConfigPath(packageRoot: string, configuredPath: string): string | undefined {
@@ -262,7 +289,8 @@ function resolvePackageConfigPath(packageRoot: string, configuredPath: string): 
 function resolveContainedPath(root: string, value: string): string | undefined {
 	const resolved = path.resolve(root, value);
 	const relative = path.relative(root, resolved);
-	return relative === "" || (!relative.startsWith("..") && !relative.startsWith(path.sep) && !path.isAbsolute(relative))
+	return relative === "" ||
+		(!relative.startsWith("..") && !relative.startsWith(path.sep) && !path.isAbsolute(relative))
 		? resolved
 		: undefined;
 }
@@ -276,21 +304,25 @@ function resolvePluginPath(configuredPath: string, cwd: string): string {
 function isValidPluginManifest(value: unknown): value is { name: string } {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return false;
 	const manifest = value as { $schema?: unknown; name?: unknown };
-	return manifest.$schema === PLUGIN_SCHEMA
-		&& typeof manifest.name === "string"
-		&& manifest.name.length >= 1
-		&& manifest.name.length <= 64
-		&& PLUGIN_NAME_PATTERN.test(manifest.name);
+	return (
+		manifest.$schema === PLUGIN_SCHEMA &&
+		typeof manifest.name === "string" &&
+		manifest.name.length >= 1 &&
+		manifest.name.length <= 64 &&
+		PLUGIN_NAME_PATTERN.test(manifest.name)
+	);
 }
 
 function isValidPluginConfig(value: unknown): value is { mcpServers: Record<string, unknown> } {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return false;
 	const config = value as Record<string, unknown>;
-	return config.$schema === PLUGIN_MCP_SCHEMA
-		&& Object.keys(config).every((key) => key === "$schema" || key === "mcpServers")
-		&& !!config.mcpServers
-		&& typeof config.mcpServers === "object"
-		&& !Array.isArray(config.mcpServers);
+	return (
+		config.$schema === PLUGIN_MCP_SCHEMA &&
+		Object.keys(config).every((key) => key === "$schema" || key === "mcpServers") &&
+		!!config.mcpServers &&
+		typeof config.mcpServers === "object" &&
+		!Array.isArray(config.mcpServers)
+	);
 }
 
 function translatePluginServer(
@@ -329,7 +361,12 @@ function translatePluginStdioServer(
 		command,
 		args: (args ?? []).map((value) => expandPluginPlaceholders(value, pluginRoot, pluginDataDir)),
 		env: {
-			...Object.fromEntries(Object.entries(env ?? {}).map(([key, value]) => [key, expandPluginPlaceholders(value, pluginRoot, pluginDataDir)])),
+			...Object.fromEntries(
+				Object.entries(env ?? {}).map(([key, value]) => [
+					key,
+					expandPluginPlaceholders(value, pluginRoot, pluginDataDir),
+				]),
+			),
 			PLUGIN_ROOT: pluginRoot,
 			PLUGIN_DATA: pluginDataDir,
 		},
@@ -364,8 +401,10 @@ function resolvePluginCwd(value: unknown, pluginRoot: string, pluginDataDir: str
 	if (value === undefined) return pluginRoot;
 	if (typeof value !== "string") return undefined;
 	if (value.startsWith("./")) return resolveContainedPath(pluginRoot, value);
-	if (value === "${PLUGIN_ROOT}" || value.startsWith("${PLUGIN_ROOT}/")) return resolveContainedPath(pluginRoot, value.replace("${PLUGIN_ROOT}", "."));
-	if (value === "${PLUGIN_DATA}" || value.startsWith("${PLUGIN_DATA}/")) return resolveContainedPath(pluginDataDir, value.replace("${PLUGIN_DATA}", "."));
+	if (value === "${PLUGIN_ROOT}" || value.startsWith("${PLUGIN_ROOT}/"))
+		return resolveContainedPath(pluginRoot, value.replace("${PLUGIN_ROOT}", "."));
+	if (value === "${PLUGIN_DATA}" || value.startsWith("${PLUGIN_DATA}/"))
+		return resolveContainedPath(pluginDataDir, value.replace("${PLUGIN_DATA}", "."));
 	return undefined;
 }
 
@@ -374,10 +413,12 @@ function expandPluginPlaceholders(value: string, pluginRoot: string, pluginDataD
 }
 
 function isBareCommand(command: string): boolean {
-	return !command.includes("/")
-		&& !command.includes("\\")
-		&& !command.includes("${PLUGIN_ROOT}")
-		&& !command.includes("${PLUGIN_DATA}");
+	return (
+		!command.includes("/") &&
+		!command.includes("\\") &&
+		!command.includes("${PLUGIN_ROOT}") &&
+		!command.includes("${PLUGIN_DATA}")
+	);
 }
 
 function isValidPluginUrl(value: string): boolean {
@@ -392,7 +433,13 @@ function isValidPluginUrl(value: string): boolean {
 	if (url.username || url.password || url.hash) return false;
 	if (url.protocol === "https:") return true;
 	const host = url.hostname.toLowerCase();
-	return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]" || /^127(?:\.\d{1,3}){3}$/.test(host);
+	return (
+		host === "localhost" ||
+		host === "127.0.0.1" ||
+		host === "::1" ||
+		host === "[::1]" ||
+		/^127(?:\.\d{1,3}){3}$/.test(host)
+	);
 }
 
 function stringArray(value: unknown): string[] | undefined {
@@ -416,11 +463,16 @@ function readJson(filePath: string): unknown | undefined {
 		content = fs.readFileSync(filePath, "utf-8");
 	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") return undefined;
-		throw new Error(`Failed to read JSON file '${filePath}': ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+		throw new Error(
+			`Failed to read JSON file '${filePath}': ${error instanceof Error ? error.message : String(error)}`,
+			{ cause: error },
+		);
 	}
 	try {
 		return JSON.parse(content);
 	} catch (error) {
-		throw new Error(`Invalid JSON in '${filePath}': ${error instanceof Error ? error.message : String(error)}`, { cause: error });
+		throw new Error(`Invalid JSON in '${filePath}': ${error instanceof Error ? error.message : String(error)}`, {
+			cause: error,
+		});
 	}
 }

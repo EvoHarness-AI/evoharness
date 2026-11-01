@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { afterEach, describe, it } from "node:test";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { afterEach, describe, it } from "node:test";
 import type { Message, Usage } from "@evoharness/ai";
 import {
 	captureSingleOutputSnapshot,
@@ -77,7 +77,12 @@ describe("resolveSingleOutputPath", () => {
 	});
 
 	it("resolves relative output paths against an explicit artifact base", () => {
-		const resolved = resolveSingleOutputPath("reviews/report.md", "/runtime", "/requested", "/repo/.pi/subagents/artifacts/outputs/run-1");
+		const resolved = resolveSingleOutputPath(
+			"reviews/report.md",
+			"/runtime",
+			"/requested",
+			"/repo/.pi/subagents/artifacts/outputs/run-1",
+		);
 		assert.equal(resolved, path.resolve("/repo/.pi/subagents/artifacts/outputs/run-1", "reviews/report.md"));
 	});
 });
@@ -91,7 +96,10 @@ describe("injectSingleOutputInstruction", () => {
 	});
 
 	it("tells read-only agents, including the bundled reviewer profile, to return the artifact for runtime persistence", () => {
-		for (const tools of [["read", "grep", "find", "ls"], ["read", "grep", "find", "ls", "watchdog_diff", "contact_supervisor"]]) {
+		for (const tools of [
+			["read", "grep", "find", "ls"],
+			["read", "grep", "find", "ls", "watchdog_diff", "contact_supervisor"],
+		]) {
 			const output = injectSingleOutputInstruction("Analyze this", "/tmp/report.md", { tools });
 			assert.match(output, /Return the complete artifact in your final response\./);
 			assert.match(output, /runtime will persist it to exactly this path: \/tmp\/report\.md/);
@@ -103,8 +111,14 @@ describe("injectSingleOutputInstruction", () => {
 
 describe("requestedOutputPathFromTask", () => {
 	it("extracts direct-write and runtime-persisted report paths", () => {
-		assert.equal(requestedOutputPathFromTask("Write your findings to exactly this path: /tmp/direct.md"), "/tmp/direct.md");
-		assert.equal(requestedOutputPathFromTask("The runtime will persist it to exactly this path: `/tmp/persisted.md`"), "/tmp/persisted.md");
+		assert.equal(
+			requestedOutputPathFromTask("Write your findings to exactly this path: /tmp/direct.md"),
+			"/tmp/direct.md",
+		);
+		assert.equal(
+			requestedOutputPathFromTask("The runtime will persist it to exactly this path: `/tmp/persisted.md`"),
+			"/tmp/persisted.md",
+		);
 	});
 });
 
@@ -166,7 +180,14 @@ describe("resolveSingleOutput", () => {
 });
 
 describe("extractChildWrittenOutput", () => {
-	const usage: Usage = { input: 1, output: 1, cacheRead: 0, cacheWrite: 0, totalTokens: 2, cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 } };
+	const usage: Usage = {
+		input: 1,
+		output: 1,
+		cacheRead: 0,
+		cacheWrite: 0,
+		totalTokens: 2,
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+	};
 	const toolCall = (id: string, name: string, args: Record<string, unknown>): Message => ({
 		role: "assistant",
 		content: [{ type: "toolCall", id, name, arguments: args }],
@@ -200,7 +221,10 @@ describe("extractChildWrittenOutput", () => {
 	});
 
 	it("ignores write calls whose tool result failed", () => {
-		const failedOnly = [toolCall("w1", "write", { path: "/tmp/out.md", content: "never landed" }), toolResult("w1", true)];
+		const failedOnly = [
+			toolCall("w1", "write", { path: "/tmp/out.md", content: "never landed" }),
+			toolResult("w1", true),
+		];
 		assert.equal(extractChildWrittenOutput(failedOnly, "/tmp/out.md", "/repo"), undefined);
 
 		const failedAfterSuccess = [
@@ -217,7 +241,13 @@ describe("extractChildWrittenOutput", () => {
 
 		const missingStatus = [
 			toolCall("w1", "write", { path: "/tmp/out.md", content: "unconfirmed" }),
-			{ role: "toolResult", toolCallId: "w1", toolName: "write", content: [{ type: "text", text: "unknown" }], timestamp: 0 } as Message,
+			{
+				role: "toolResult",
+				toolCallId: "w1",
+				toolName: "write",
+				content: [{ type: "text", text: "unknown" }],
+				timestamp: 0,
+			} as Message,
 		];
 		assert.equal(extractChildWrittenOutput(missingStatus, "/tmp/out.md", "/repo"), undefined);
 	});
@@ -228,11 +258,18 @@ describe("extractChildWrittenOutput", () => {
 		assert.equal(extractChildWrittenOutput(messages, "/elsewhere/reports/out.md", "/repo"), undefined);
 	});
 
-	it("matches configured output paths case-insensitively on Windows", { skip: process.platform !== "win32" ? "Windows path comparison" : undefined }, () => {
-		const writePath = path.join("C:\\Repo", "Reports", "Output.md");
-		const configuredPath = writePath.toLowerCase();
-		assert.equal(extractChildWrittenOutput(completedWrite("w1", writePath, "Windows report"), configuredPath, "C:\\Repo"), "Windows report");
-	});
+	it(
+		"matches configured output paths case-insensitively on Windows",
+		{ skip: process.platform !== "win32" ? "Windows path comparison" : undefined },
+		() => {
+			const writePath = path.join("C:\\Repo", "Reports", "Output.md");
+			const configuredPath = writePath.toLowerCase();
+			assert.equal(
+				extractChildWrittenOutput(completedWrite("w1", writePath, "Windows report"), configuredPath, "C:\\Repo"),
+				"Windows report",
+			);
+		},
+	);
 
 	it("ignores non-write tools and missing arguments", () => {
 		const messages = [
@@ -265,7 +302,10 @@ describe("formatSavedOutputReference", () => {
 
 describe("validateFileOnlyOutputMode", () => {
 	it("requires an output path for file-only mode", () => {
-		assert.match(validateFileOnlyOutputMode("file-only", undefined, "Single run") ?? "", /Single run sets outputMode: "file-only"/);
+		assert.match(
+			validateFileOnlyOutputMode("file-only", undefined, "Single run") ?? "",
+			/Single run sets outputMode: "file-only"/,
+		);
 		assert.equal(validateFileOnlyOutputMode("file-only", "/tmp/report.md", "Single run"), undefined);
 		assert.equal(validateFileOnlyOutputMode("inline", undefined, "Single run"), undefined);
 	});

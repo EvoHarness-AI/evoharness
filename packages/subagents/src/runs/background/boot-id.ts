@@ -5,9 +5,16 @@ import type { RecordedPid } from "./stale-run-reconciler.ts";
 
 function readBootIdFromOs(): string | undefined {
 	try {
-		if (process.platform === "linux") return fs.readFileSync("/proc/sys/kernel/random/boot_id", "utf-8").trim() || undefined;
+		if (process.platform === "linux")
+			return fs.readFileSync("/proc/sys/kernel/random/boot_id", "utf-8").trim() || undefined;
 		if (process.platform === "darwin") {
-			return execFileSync("sysctl", ["-n", "kern.bootsessionuuid"], { encoding: "utf-8", timeout: 1000, stdio: ["ignore", "pipe", "ignore"] }).trim() || undefined;
+			return (
+				execFileSync("sysctl", ["-n", "kern.bootsessionuuid"], {
+					encoding: "utf-8",
+					timeout: 1000,
+					stdio: ["ignore", "pipe", "ignore"],
+				}).trim() || undefined
+			);
 		}
 	} catch {
 		// An unreadable boot id only means liveness falls back to probing the pid.

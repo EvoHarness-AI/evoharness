@@ -1,7 +1,12 @@
-import { parseExternalCliJsonlEvent, type ExternalCliParser, type ExternalCliParserProgress, type ExternalCliParserTerminal } from "./external-cli-runner.ts";
-import type { ExternalCliPreflightSpec } from "./external-cli-preflight.ts";
 import { splitKnownThinkingSuffix, THINKING_LEVELS, type ThinkingLevel } from "../../shared/model-info.ts";
 import { assertThinkingWithinCeiling } from "../../shared/thinking-ceiling.ts";
+import type { ExternalCliPreflightSpec } from "./external-cli-preflight.ts";
+import {
+	type ExternalCliParser,
+	type ExternalCliParserProgress,
+	type ExternalCliParserTerminal,
+	parseExternalCliJsonlEvent,
+} from "./external-cli-runner.ts";
 import { checkModelScope, type ResolvedModelScope } from "./model-scope.ts";
 
 const MAX_EVENT_TYPE_LENGTH = 128;
@@ -11,7 +16,9 @@ export const CLAUDE_CODE_ADAPTER_ID = "claude-code" as const;
 export const CLAUDE_CODE_WRITER_ADAPTER_ID = "claude-code-writer" as const;
 
 /** True for the two code-owned adapters that launch the Claude Code CLI. */
-export function isClaudeCodeAdapterId(value: unknown): value is typeof CLAUDE_CODE_ADAPTER_ID | typeof CLAUDE_CODE_WRITER_ADAPTER_ID {
+export function isClaudeCodeAdapterId(
+	value: unknown,
+): value is typeof CLAUDE_CODE_ADAPTER_ID | typeof CLAUDE_CODE_WRITER_ADAPTER_ID {
 	return value === CLAUDE_CODE_ADAPTER_ID || value === CLAUDE_CODE_WRITER_ADAPTER_ID;
 }
 export const CLAUDE_CODE_WRITER_TOOLS = "Read,Write,Edit,Glob,Grep" as const;
@@ -73,7 +80,7 @@ const CLAUDE_CODE_EFFORT_BY_THINKING: Record<ThinkingLevel, string | undefined> 
  */
 const CLAUDE_CODE_MODEL_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._:/-]*$/;
 
-const INVALID_CLAUDE_CODE_MODEL = "expected an alias such as \"opus\" or a model id such as \"claude-opus-5.5\"";
+const INVALID_CLAUDE_CODE_MODEL = 'expected an alias such as "opus" or a model id such as "claude-opus-5.5"';
 
 export interface ClaudeCodeOverride {
 	/** Tokens appended after the adapter's fixed argv. */
@@ -146,7 +153,8 @@ export function resolveClaudeCodeOverride(input: {
 		const { baseModel, thinkingSuffix } = splitKnownThinkingSuffix(requested);
 		level = thinkingSuffix ? thinkingSuffix.slice(1) : undefined;
 		if (baseModel) {
-			if (!CLAUDE_CODE_MODEL_PATTERN.test(baseModel)) throw new Error(`Invalid Claude Code model ${JSON.stringify(requested)}; ${INVALID_CLAUDE_CODE_MODEL}.`);
+			if (!CLAUDE_CODE_MODEL_PATTERN.test(baseModel))
+				throw new Error(`Invalid Claude Code model ${JSON.stringify(requested)}; ${INVALID_CLAUDE_CODE_MODEL}.`);
 			model = baseModel;
 			args.push("--model", baseModel);
 		} else if (!level) {
@@ -156,14 +164,21 @@ export function resolveClaudeCodeOverride(input: {
 	if (!level && input.thinking !== undefined) {
 		const thinking = input.thinking.trim();
 		if (!(THINKING_LEVELS as readonly string[]).includes(thinking)) {
-			throw new Error(`Invalid thinking level ${JSON.stringify(input.thinking)}; expected one of ${THINKING_LEVELS.join(", ")}.`);
+			throw new Error(
+				`Invalid thinking level ${JSON.stringify(input.thinking)}; expected one of ${THINKING_LEVELS.join(", ")}.`,
+			);
 		}
 		level = thinking;
 	}
 	if (level) {
 		// A level can arrive without a model, so it goes to the shared check as the
 		// suffix form that check already understands.
-		assertThinkingWithinCeiling({ model: `:${level}`, ceiling: input.thinkingCeiling, agent: input.agentName, runId: input.runId });
+		assertThinkingWithinCeiling({
+			model: `:${level}`,
+			ceiling: input.thinkingCeiling,
+			agent: input.agentName,
+			runId: input.runId,
+		});
 		const effort = CLAUDE_CODE_EFFORT_BY_THINKING[level as ThinkingLevel];
 		if (effort) args.push("--effort", effort);
 	}
@@ -177,12 +192,19 @@ export function resolveClaudeCodeOverride(input: {
  * A launch that pins nothing cannot be checked at all, and an enforced scope must
  * not be bypassed by staying silent.
  */
-export function assertClaudeCodeModelScope(input: { scopes: readonly ResolvedModelScope[]; model?: string; agent: string; runId?: string }): void {
+export function assertClaudeCodeModelScope(input: {
+	scopes: readonly ResolvedModelScope[];
+	model?: string;
+	agent: string;
+	runId?: string;
+}): void {
 	const enforced = input.scopes.filter((scope) => scope.enforce === true);
 	if (enforced.length === 0) return;
 	if (!input.model) {
 		const subject = input.runId ? `agent '${input.agent}' run '${input.runId}'` : `agent '${input.agent}'`;
-		throw new Error(`${subject} does not name a Claude Code model, so it cannot be checked against an enforced subagent model scope (modelScope). Name the model on the launch, or in the agent's frontmatter, or turn enforcement off.`);
+		throw new Error(
+			`${subject} does not name a Claude Code model, so it cannot be checked against an enforced subagent model scope (modelScope). Name the model on the launch, or in the agent's frontmatter, or turn enforcement off.`,
+		);
 	}
 	for (const scope of enforced) {
 		const violation = checkModelScope(input.model, scope, "explicit");
@@ -195,7 +217,9 @@ function terminalError(event: Record<string, unknown>): string {
 		if (typeof value === "string" && value.trim()) return value.trim().slice(0, MAX_ERROR_LENGTH);
 	}
 	if (Array.isArray(event.errors)) {
-		const messages = event.errors.filter((value): value is string => typeof value === "string" && Boolean(value.trim()));
+		const messages = event.errors.filter(
+			(value): value is string => typeof value === "string" && Boolean(value.trim()),
+		);
 		if (messages.length > 0) return messages.join("; ").slice(0, MAX_ERROR_LENGTH);
 	}
 	const subtype = typeof event.subtype === "string" && event.subtype ? event.subtype : "unknown";
@@ -211,7 +235,12 @@ export function createClaudeCodeJsonlParser(): ExternalCliParser {
 			if (terminal && event.type === "result") throw new Error("Claude Code emitted a duplicate terminal result.");
 			eventCount += 1;
 			if (!terminal && event.type === "result") {
-				if (event.subtype === "success" && event.is_error === false && typeof event.result === "string" && event.result.trim()) {
+				if (
+					event.subtype === "success" &&
+					event.is_error === false &&
+					typeof event.result === "string" &&
+					event.result.trim()
+				) {
 					terminal = { state: "completed", output: event.result.trim() };
 				} else {
 					terminal = { state: "failed", error: terminalError(event) };
@@ -247,14 +276,20 @@ export function resolveClaudeCodeLaunch(input: {
 	const args = [
 		...prefix,
 		"-p",
-		"--input-format", "text",
-		"--output-format", "stream-json",
+		"--input-format",
+		"text",
+		"--output-format",
+		"stream-json",
 		"--verbose",
-		"--permission-mode", writer ? "acceptEdits" : "plan",
-		"--tools", writer ? CLAUDE_CODE_WRITER_TOOLS : "",
+		"--permission-mode",
+		writer ? "acceptEdits" : "plan",
+		"--tools",
+		writer ? CLAUDE_CODE_WRITER_TOOLS : "",
 		"--strict-mcp-config",
-		"--mcp-config", '{"mcpServers":{}}',
-		"--setting-sources", "user",
+		"--mcp-config",
+		'{"mcpServers":{}}',
+		"--setting-sources",
+		"user",
 		"--no-session-persistence",
 		"--disable-slash-commands",
 		"--no-chrome",
@@ -277,9 +312,30 @@ export function resolveClaudeCodeLaunch(input: {
 				// recognizable release identifier here rather than one display format. The
 				// per-launch --model/--effort tokens are not part of this probe; a CLI that
 				// does not know them reports that itself on the launch.
-				if (!/^(?:\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)? \(Claude Code\)|\d{4}\.\d{1,2}\.\d{1,2} [A-Za-z0-9._-]+ \(\d{4}-\d{2}-\d{2}\))$/.test(result.version)) throw new Error(`Unsupported Claude Code version response: ${JSON.stringify(result.version)}.`);
-				for (const required of ["Claude Code - starts an interactive session", "--print", "--input-format", "stream-json", "--verbose", "--permission-mode", writer ? "acceptEdits" : "plan", "--tools", "--strict-mcp-config", "--mcp-config", "--setting-sources", "--no-session-persistence", "--disable-slash-commands", "--no-chrome"]) {
-					if (!result.help.includes(required)) throw new Error(`Claude Code help does not document required option ${JSON.stringify(required)}.`);
+				if (
+					!/^(?:\d+\.\d+\.\d+(?:[-+][0-9A-Za-z.-]+)? \(Claude Code\)|\d{4}\.\d{1,2}\.\d{1,2} [A-Za-z0-9._-]+ \(\d{4}-\d{2}-\d{2}\))$/.test(
+						result.version,
+					)
+				)
+					throw new Error(`Unsupported Claude Code version response: ${JSON.stringify(result.version)}.`);
+				for (const required of [
+					"Claude Code - starts an interactive session",
+					"--print",
+					"--input-format",
+					"stream-json",
+					"--verbose",
+					"--permission-mode",
+					writer ? "acceptEdits" : "plan",
+					"--tools",
+					"--strict-mcp-config",
+					"--mcp-config",
+					"--setting-sources",
+					"--no-session-persistence",
+					"--disable-slash-commands",
+					"--no-chrome",
+				]) {
+					if (!result.help.includes(required))
+						throw new Error(`Claude Code help does not document required option ${JSON.stringify(required)}.`);
 				}
 			},
 		},

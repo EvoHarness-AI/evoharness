@@ -20,13 +20,15 @@ export function hashedSegment(value: string): string {
 }
 
 function isPortableSegment(value: string): boolean {
-	return value.length > 0
-		&& value !== "."
-		&& value !== ".."
-		&& !value.endsWith(".")
-		&& !WINDOWS_RESERVED_NAME.test(value)
-		&& !/%5C/i.test(value)
-		&& !/\.[A-Za-z][A-Za-z0-9]{0,7}$/.test(value);
+	return (
+		value.length > 0 &&
+		value !== "." &&
+		value !== ".." &&
+		!value.endsWith(".") &&
+		!WINDOWS_RESERVED_NAME.test(value) &&
+		!/%5C/i.test(value) &&
+		!/\.[A-Za-z][A-Za-z0-9]{0,7}$/.test(value)
+	);
 }
 
 export function encodeIndexSegment(value: string, maxBytes = MAX_INDEX_SEGMENT_BYTES): string {
@@ -43,7 +45,14 @@ export function encodeIndexSegment(value: string, maxBytes = MAX_INDEX_SEGMENT_B
 function historicallyReadableSegment(value: string, maxBytes: number): string | undefined {
 	try {
 		const encoded = encodeURIComponent(value);
-		if (encoded.length === 0 || encoded === "." || encoded === ".." || encoded.endsWith(".") || WINDOWS_RESERVED_NAME.test(encoded)) return undefined;
+		if (
+			encoded.length === 0 ||
+			encoded === "." ||
+			encoded === ".." ||
+			encoded.endsWith(".") ||
+			WINDOWS_RESERVED_NAME.test(encoded)
+		)
+			return undefined;
 		if (Buffer.byteLength(encoded, "utf-8") > maxBytes) return undefined;
 		return encoded;
 	} catch {

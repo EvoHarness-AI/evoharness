@@ -15,7 +15,17 @@ const originalUserProfile = process.env.USERPROFILE;
 
 function launch(params: Record<string, unknown>): Promise<{ isError?: boolean; content: Array<{ text?: string }> }> {
 	const executor = createSubagentExecutor({
-		pi: { events: { emit() {}, on() { return () => {}; } }, getSessionName() { return "parent"; } } as never,
+		pi: {
+			events: {
+				emit() {},
+				on() {
+					return () => {};
+				},
+			},
+			getSessionName() {
+				return "parent";
+			},
+		} as never,
 		state: createChildSafeState(),
 		config: { maxSubagentDepth: 2, control: {}, intercomBridge: {} } as never,
 		asyncByDefault: false,
@@ -24,10 +34,17 @@ function launch(params: Record<string, unknown>): Promise<{ isError?: boolean; c
 		expandTilde: (value) => value,
 		discoverAgents: (cwd, scope) => discoverAgents(cwd, scope),
 	});
-	return executor.execute("launch", params as never, new AbortController().signal, undefined, makeMinimalCtx(tempProject) as never);
+	return executor.execute(
+		"launch",
+		params as never,
+		new AbortController().signal,
+		undefined,
+		makeMinimalCtx(tempProject) as never,
+	);
 }
 
-const text = (result: { content: Array<{ text?: string }> }) => result.content.map((part) => part.text ?? "").join("\n");
+const text = (result: { content: Array<{ text?: string }> }) =>
+	result.content.map((part) => part.text ?? "").join("\n");
 
 describe("agent choice errors at launch", () => {
 	beforeEach(() => {
@@ -51,8 +68,13 @@ describe("agent choice errors at launch", () => {
 
 		assert.equal(result.isError, true);
 		assert.match(text(result), /^Unknown agent: reviwer\. Did you mean 'reviewer'\?\n/);
-		assert.match(text(result), /\nAvailable agents:\n[\s\S]*- reviewer \(builtin\) — \S[\s\S]*- worker \(builtin\) — \S/);
-		for (const line of text(result).split("\n").filter((entry) => entry.startsWith("- ") && entry.includes(" — "))) {
+		assert.match(
+			text(result),
+			/\nAvailable agents:\n[\s\S]*- reviewer \(builtin\) — \S[\s\S]*- worker \(builtin\) — \S/,
+		);
+		for (const line of text(result)
+			.split("\n")
+			.filter((entry) => entry.startsWith("- ") && entry.includes(" — "))) {
 			assert.ok(line.split(" — ")[1]!.length <= 80, line);
 		}
 	});
@@ -68,7 +90,10 @@ describe("agent choice errors at launch", () => {
 
 	it("names a disabled agent as disabled and lists the agents that can run instead", async () => {
 		fs.mkdirSync(path.join(tempHome, ".pi", "agent"), { recursive: true });
-		fs.writeFileSync(path.join(tempHome, ".pi", "agent", "settings.json"), JSON.stringify({ subagents: { agentOverrides: { reviewer: { disabled: true } } } }));
+		fs.writeFileSync(
+			path.join(tempHome, ".pi", "agent", "settings.json"),
+			JSON.stringify({ subagents: { agentOverrides: { reviewer: { disabled: true } } } }),
+		);
 
 		const result = text(await launch({ agent: "reviewer", task: "Review" }));
 

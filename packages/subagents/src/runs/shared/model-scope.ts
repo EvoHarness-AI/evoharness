@@ -90,9 +90,10 @@ export function checkModelScope(
 	const baseModel = stripThinkingSuffix(model);
 	const severity: ModelScopeViolation["severity"] = source === "explicit" || scope.strict === true ? "error" : "warn";
 	const origin = scope.origin ?? "modelScope";
-	const rendered = allow.length <= MAX_RENDERED_PATTERNS
-		? allow.join(", ")
-		: `${allow.slice(0, MAX_RENDERED_PATTERNS).join(", ")}, … (${allow.length} patterns total)`;
+	const rendered =
+		allow.length <= MAX_RENDERED_PATTERNS
+			? allow.join(", ")
+			: `${allow.slice(0, MAX_RENDERED_PATTERNS).join(", ")}, … (${allow.length} patterns total)`;
 	return {
 		model: baseModel,
 		severity,
@@ -118,7 +119,12 @@ function expandReservedPatterns(
 	return [pattern];
 }
 
-function assertRecord(value: unknown, field: string, meta: { filePath: string }, expected = "an object"): Record<string, unknown> {
+function assertRecord(
+	value: unknown,
+	field: string,
+	meta: { filePath: string },
+	expected = "an object",
+): Record<string, unknown> {
 	if (!value || typeof value !== "object" || Array.isArray(value)) {
 		throw new Error(`Subagent settings in '${meta.filePath}' have invalid '${field}'; expected ${expected}.`);
 	}
@@ -132,13 +138,17 @@ function parseAllowList(value: unknown, field: string, meta: { filePath: string 
 	const allow: string[] = [];
 	for (const entry of value) {
 		if (typeof entry !== "string") {
-			throw new Error(`Subagent settings in '${meta.filePath}' have invalid '${field}'; expected an array of strings.`);
+			throw new Error(
+				`Subagent settings in '${meta.filePath}' have invalid '${field}'; expected an array of strings.`,
+			);
 		}
 		const trimmed = entry.trim();
 		if (trimmed) allow.push(trimmed);
 	}
 	if (allow.length === 0) {
-		throw new Error(`Subagent settings in '${meta.filePath}' have invalid '${field}'; expected a non-empty array of patterns.`);
+		throw new Error(
+			`Subagent settings in '${meta.filePath}' have invalid '${field}'; expected a non-empty array of patterns.`,
+		);
 	}
 	return allow;
 }
@@ -146,11 +156,15 @@ function parseAllowList(value: unknown, field: string, meta: { filePath: string 
 function parseScopeRule(input: Record<string, unknown>, field: string, meta: { filePath: string }): ModelScopeRule {
 	const rule: ModelScopeRule = {};
 	if ("enforce" in input) {
-		if (typeof input.enforce !== "boolean") throw new Error(`Subagent settings in '${meta.filePath}' have invalid '${field}.enforce'; expected a boolean.`);
+		if (typeof input.enforce !== "boolean")
+			throw new Error(
+				`Subagent settings in '${meta.filePath}' have invalid '${field}.enforce'; expected a boolean.`,
+			);
 		rule.enforce = input.enforce;
 	}
 	if ("strict" in input) {
-		if (typeof input.strict !== "boolean") throw new Error(`Subagent settings in '${meta.filePath}' have invalid '${field}.strict'; expected a boolean.`);
+		if (typeof input.strict !== "boolean")
+			throw new Error(`Subagent settings in '${meta.filePath}' have invalid '${field}.strict'; expected a boolean.`);
 		rule.strict = input.strict;
 	}
 	if ("allow" in input) rule.allow = parseAllowList(input.allow, `${field}.allow`, meta);
@@ -192,32 +206,39 @@ export function resolveModelScopesForAgent(
  * Throws a descriptive error for malformed configs (matching the surrounding
  * settings-parsing style). Returns `undefined` when the field is absent.
  */
-export function parseModelScopeConfig(
-	value: unknown,
-	meta: { filePath: string },
-): ModelScopeConfig | undefined {
+export function parseModelScopeConfig(value: unknown, meta: { filePath: string }): ModelScopeConfig | undefined {
 	if (value === undefined) return undefined;
 	const input = assertRecord(value, "modelScope", meta);
 	const config: ModelScopeConfig = parseScopeRule(input, "modelScope", meta);
 
 	if ("agents" in input) {
 		const agents: Record<string, ModelScopeRule> = {};
-		for (const [rawName, rawScope] of Object.entries(assertRecord(input.agents, "modelScope.agents", meta, "an object keyed by agent name"))) {
+		for (const [rawName, rawScope] of Object.entries(
+			assertRecord(input.agents, "modelScope.agents", meta, "an object keyed by agent name"),
+		)) {
 			const name = rawName.trim();
 			const field = `modelScope.agents.${name}`;
-			if (!name) throw new Error(`Subagent settings in '${meta.filePath}' have invalid 'modelScope.agents' key; expected a non-empty agent name.`);
+			if (!name)
+				throw new Error(
+					`Subagent settings in '${meta.filePath}' have invalid 'modelScope.agents' key; expected a non-empty agent name.`,
+				);
 			const agentInput = assertRecord(rawScope, field, meta);
 			if ("agents" in agentInput) {
-				throw new Error(`Subagent settings in '${meta.filePath}' have invalid '${field}.agents'; nested agent scopes are not supported.`);
+				throw new Error(
+					`Subagent settings in '${meta.filePath}' have invalid '${field}.agents'; nested agent scopes are not supported.`,
+				);
 			}
 			agents[name] = parseScopeRule(agentInput, field, meta);
 		}
 		config.agents = agents;
 	}
 
-	const hasAnyAllow = Boolean(config.allow?.length) || Object.values(config.agents ?? {}).some((scope) => Boolean(scope.allow?.length));
+	const hasAnyAllow =
+		Boolean(config.allow?.length) || Object.values(config.agents ?? {}).some((scope) => Boolean(scope.allow?.length));
 	if (config.enforce === true && !hasAnyAllow) {
-		throw new Error(`Subagent settings in '${meta.filePath}' set modelScope.enforce without a non-empty 'allow' list; supply allowed model patterns or disable enforcement.`);
+		throw new Error(
+			`Subagent settings in '${meta.filePath}' set modelScope.enforce without a non-empty 'allow' list; supply allowed model patterns or disable enforcement.`,
+		);
 	}
 
 	return Object.keys(config).length > 0 ? config : undefined;

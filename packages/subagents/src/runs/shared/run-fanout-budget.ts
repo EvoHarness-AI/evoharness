@@ -3,10 +3,10 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { DEFAULT_FILE_SYSTEM_RETRY_DELAYS_MS, waitForFileSystemRetry } from "../../shared/file-system-retry.ts";
 import {
-	TEMP_ROOT_DIR,
 	type RunFanoutBudgetDescriptor,
 	type RunFanoutBudgetSnapshot,
 	type RunFanoutRejection,
+	TEMP_ROOT_DIR,
 } from "../../shared/types.ts";
 
 const RUN_FANOUT_ROOT = path.join(TEMP_ROOT_DIR, "run-fanout-budgets");
@@ -44,9 +44,16 @@ function safeRootRunId(rootRunId: string): string {
 function parseManifest(value: unknown): FanoutBudgetManifest | undefined {
 	if (!value || typeof value !== "object" || Array.isArray(value)) return undefined;
 	const manifest = value as Partial<FanoutBudgetManifest>;
-	if (manifest.version !== 1 || typeof manifest.rootRunId !== "string" || !manifest.rootRunId
-		|| !Number.isInteger(manifest.limit) || (manifest.limit ?? 0) <= 0
-		|| typeof manifest.createdAt !== "number" || !Number.isFinite(manifest.createdAt)) return undefined;
+	if (
+		manifest.version !== 1 ||
+		typeof manifest.rootRunId !== "string" ||
+		!manifest.rootRunId ||
+		!Number.isInteger(manifest.limit) ||
+		(manifest.limit ?? 0) <= 0 ||
+		typeof manifest.createdAt !== "number" ||
+		!Number.isFinite(manifest.createdAt)
+	)
+		return undefined;
 	return manifest as FanoutBudgetManifest;
 }
 
@@ -55,7 +62,9 @@ function readManifest(directory: string): FanoutBudgetManifest {
 	try {
 		parsed = JSON.parse(fs.readFileSync(path.join(directory, "manifest.json"), "utf-8"));
 	} catch (error) {
-		throw new Error(`Run fan-out budget manifest is unreadable at '${directory}': ${error instanceof Error ? error.message : String(error)}`);
+		throw new Error(
+			`Run fan-out budget manifest is unreadable at '${directory}': ${error instanceof Error ? error.message : String(error)}`,
+		);
 	}
 	const manifest = parseManifest(parsed);
 	if (!manifest) throw new Error(`Run fan-out budget manifest is invalid at '${directory}'.`);
@@ -69,7 +78,9 @@ function validateDirectory(directory: string): string {
 		realDirectory = fs.realpathSync(path.resolve(directory));
 		realRoot = fs.realpathSync(path.resolve(RUN_FANOUT_ROOT));
 	} catch (error) {
-		throw new Error(`Run fan-out budget directory is unavailable: ${error instanceof Error ? error.message : String(error)}`);
+		throw new Error(
+			`Run fan-out budget directory is unavailable: ${error instanceof Error ? error.message : String(error)}`,
+		);
 	}
 	if (realDirectory !== realRoot && !realDirectory.startsWith(`${realRoot}${path.sep}`)) {
 		throw new Error("Run fan-out budget directory resolves outside the managed budget root.");
@@ -85,17 +96,27 @@ export function createRunFanoutBudget(rootRunId: string, limit: number): RunFano
 	while (fs.existsSync(directory));
 	fs.mkdirSync(path.join(directory, "claims"), { recursive: true, mode: 0o700 });
 	const manifest: FanoutBudgetManifest = { version: 1, rootRunId, limit, createdAt: Date.now() };
-	fs.writeFileSync(path.join(directory, "manifest.json"), `${JSON.stringify(manifest)}\n`, { mode: 0o600, flag: "wx" });
+	fs.writeFileSync(path.join(directory, "manifest.json"), `${JSON.stringify(manifest)}\n`, {
+		mode: 0o600,
+		flag: "wx",
+	});
 	return { version: 1, rootRunId, directory, limit };
 }
 
 export function validateRunFanoutBudgetDescriptor(value: unknown): RunFanoutBudgetDescriptor {
-	if (!value || typeof value !== "object" || Array.isArray(value)) throw new Error("Run fan-out budget descriptor is missing or invalid.");
+	if (!value || typeof value !== "object" || Array.isArray(value))
+		throw new Error("Run fan-out budget descriptor is missing or invalid.");
 	const descriptor = value as Partial<RunFanoutBudgetDescriptor>;
-	if (descriptor.version !== 1 || typeof descriptor.rootRunId !== "string" || !descriptor.rootRunId
-		|| typeof descriptor.directory !== "string" || !descriptor.directory
-		|| !Number.isInteger(descriptor.limit) || (descriptor.limit ?? 0) <= 0
-		|| (descriptor.parentPath !== undefined && typeof descriptor.parentPath !== "string")) {
+	if (
+		descriptor.version !== 1 ||
+		typeof descriptor.rootRunId !== "string" ||
+		!descriptor.rootRunId ||
+		typeof descriptor.directory !== "string" ||
+		!descriptor.directory ||
+		!Number.isInteger(descriptor.limit) ||
+		(descriptor.limit ?? 0) <= 0 ||
+		(descriptor.parentPath !== undefined && typeof descriptor.parentPath !== "string")
+	) {
 		throw new Error("Run fan-out budget descriptor is invalid.");
 	}
 	const directory = validateDirectory(descriptor.directory);
@@ -103,7 +124,13 @@ export function validateRunFanoutBudgetDescriptor(value: unknown): RunFanoutBudg
 	if (manifest.rootRunId !== descriptor.rootRunId || manifest.limit !== descriptor.limit) {
 		throw new Error("Run fan-out budget descriptor does not match its manifest.");
 	}
-	return { version: 1, rootRunId: descriptor.rootRunId, directory, limit: descriptor.limit, ...(descriptor.parentPath ? { parentPath: descriptor.parentPath } : {}) };
+	return {
+		version: 1,
+		rootRunId: descriptor.rootRunId,
+		directory,
+		limit: descriptor.limit,
+		...(descriptor.parentPath ? { parentPath: descriptor.parentPath } : {}),
+	};
 }
 
 export function writeRunFanoutBudgetDescriptor(asyncDir: string, descriptor: RunFanoutBudgetDescriptor): void {
@@ -119,10 +146,11 @@ export function readRunFanoutBudgetDescriptor(asyncDir: string | undefined): Run
 	try {
 		return validateRunFanoutBudgetDescriptor(JSON.parse(fs.readFileSync(descriptorPath, "utf-8")));
 	} catch (error) {
-		throw new Error(`Invalid persisted run fan-out budget '${descriptorPath}': ${error instanceof Error ? error.message : String(error)}`);
+		throw new Error(
+			`Invalid persisted run fan-out budget '${descriptorPath}': ${error instanceof Error ? error.message : String(error)}`,
+		);
 	}
 }
-
 
 interface AdmissionLockOwner {
 	pid: number;
@@ -133,8 +161,11 @@ const ADMISSION_LOCK_STALE_MS = 60_000;
 
 function readAdmissionLockOwner(lockPath: string): AdmissionLockOwner | undefined {
 	try {
-		const owner = JSON.parse(fs.readFileSync(path.join(lockPath, "owner.json"), "utf-8")) as Partial<AdmissionLockOwner>;
-		if (Number.isSafeInteger(owner.pid) && (owner.pid ?? 0) > 0 && typeof owner.token === "string" && owner.token) return owner as AdmissionLockOwner;
+		const owner = JSON.parse(
+			fs.readFileSync(path.join(lockPath, "owner.json"), "utf-8"),
+		) as Partial<AdmissionLockOwner>;
+		if (Number.isSafeInteger(owner.pid) && (owner.pid ?? 0) > 0 && typeof owner.token === "string" && owner.token)
+			return owner as AdmissionLockOwner;
 	} catch {}
 	return undefined;
 }
@@ -149,8 +180,9 @@ function admissionLockIsStale(lockPath: string): boolean {
 			return (error as NodeJS.ErrnoException).code !== "EPERM";
 		}
 	}
-	try { return Date.now() - fs.statSync(lockPath).mtimeMs > ADMISSION_LOCK_STALE_MS; }
-	catch (error) {
+	try {
+		return Date.now() - fs.statSync(lockPath).mtimeMs > ADMISSION_LOCK_STALE_MS;
+	} catch (error) {
 		if ((error as NodeJS.ErrnoException).code === "ENOENT") return false;
 		throw error;
 	}
@@ -162,8 +194,9 @@ function withAdmissionLock<T>(directory: string, operation: () => T): T {
 	for (let attempt = 0; ; attempt++) {
 		try {
 			fs.mkdirSync(lockPath, { mode: 0o700 });
-			try { fs.writeFileSync(path.join(lockPath, "owner.json"), JSON.stringify(owner), { mode: 0o600 }); }
-			catch (error) {
+			try {
+				fs.writeFileSync(path.join(lockPath, "owner.json"), JSON.stringify(owner), { mode: 0o600 });
+			} catch (error) {
 				fs.rmSync(lockPath, { recursive: true, force: true });
 				throw error;
 			}
@@ -185,18 +218,23 @@ function withAdmissionLock<T>(directory: string, operation: () => T): T {
 			waitForFileSystemRetry(delay);
 		}
 	}
-	try { return operation(); }
-	finally {
-		if (readAdmissionLockOwner(lockPath)?.token === owner.token) fs.rmSync(lockPath, { recursive: true, force: true });
+	try {
+		return operation();
+	} finally {
+		if (readAdmissionLockOwner(lockPath)?.token === owner.token)
+			fs.rmSync(lockPath, { recursive: true, force: true });
 	}
 }
 
 function claimCount(directory: string): number {
 	const claimsDir = path.join(directory, "claims");
 	let entries: fs.Dirent[];
-	try { entries = fs.readdirSync(claimsDir, { withFileTypes: true }); }
-	catch (error) {
-		throw new Error(`Run fan-out claims directory is unreadable at '${claimsDir}': ${error instanceof Error ? error.message : String(error)}`);
+	try {
+		entries = fs.readdirSync(claimsDir, { withFileTypes: true });
+	} catch (error) {
+		throw new Error(
+			`Run fan-out claims directory is unreadable at '${claimsDir}': ${error instanceof Error ? error.message : String(error)}`,
+		);
 	}
 	return entries.filter((entry) => /^\d{6}\.json$/.test(entry.name)).length;
 }
@@ -209,17 +247,26 @@ export function getRunFanoutBudgetSnapshot(descriptor: RunFanoutBudgetDescriptor
 
 function qualifyRunFanoutPaths(descriptor: RunFanoutBudgetDescriptor, paths: string[]): string[] {
 	const prefix = descriptor.parentPath?.trim();
-	return paths.map((item) => prefix ? `${prefix}/${item}` : item);
+	return paths.map((item) => (prefix ? `${prefix}/${item}` : item));
 }
 
-function commitRunFanoutBatch<T>(descriptor: RunFanoutBudgetDescriptor, paths: string[], commit: (snapshot: RunFanoutBudgetSnapshot) => T): T {
+function commitRunFanoutBatch<T>(
+	descriptor: RunFanoutBudgetDescriptor,
+	paths: string[],
+	commit: (snapshot: RunFanoutBudgetSnapshot) => T,
+): T {
 	const valid = validateRunFanoutBudgetDescriptor(descriptor);
 	if (paths.length === 0) return commit(getRunFanoutBudgetSnapshot(valid));
 	const qualified = qualifyRunFanoutPaths(valid, paths);
 	return withAdmissionLock(valid.directory, () => {
 		const before = getRunFanoutBudgetSnapshot(valid);
 		if (qualified.length > before.remaining) {
-			throw new RunFanoutLimitError({ code: "RUN_FANOUT_LIMIT", path: qualified[before.remaining] ?? qualified[0]!, requested: qualified.length, ...before });
+			throw new RunFanoutLimitError({
+				code: "RUN_FANOUT_LIMIT",
+				path: qualified[before.remaining] ?? qualified[0]!,
+				requested: qualified.length,
+				...before,
+			});
 		}
 		const created: string[] = [];
 		try {
@@ -230,9 +277,16 @@ function commitRunFanoutBatch<T>(descriptor: RunFanoutBudgetDescriptor, paths: s
 						const fd = fs.openSync(slotPath, "wx", 0o600);
 						created.push(slotPath);
 						try {
-							const claim: FanoutBudgetClaim = { version: 1, claimId: randomUUID(), path: claimPath, claimedAt: Date.now() };
+							const claim: FanoutBudgetClaim = {
+								version: 1,
+								claimId: randomUUID(),
+								path: claimPath,
+								claimedAt: Date.now(),
+							};
 							fs.writeFileSync(fd, `${JSON.stringify(claim)}\n`, "utf-8");
-						} finally { fs.closeSync(fd); }
+						} finally {
+							fs.closeSync(fd);
+						}
 						break;
 					} catch (error) {
 						if ((error as NodeJS.ErrnoException).code === "EEXIST") continue;
@@ -243,7 +297,9 @@ function commitRunFanoutBatch<T>(descriptor: RunFanoutBudgetDescriptor, paths: s
 			return commit(getRunFanoutBudgetSnapshot(valid));
 		} catch (error) {
 			for (const slotPath of created) {
-				try { fs.unlinkSync(slotPath); } catch {}
+				try {
+					fs.unlinkSync(slotPath);
+				} catch {}
 			}
 			throw error;
 		}
@@ -254,7 +310,11 @@ export function claimRunFanoutBatch(descriptor: RunFanoutBudgetDescriptor, paths
 	return commitRunFanoutBatch(descriptor, paths, (snapshot) => snapshot);
 }
 
-export function claimRunFanoutBatchWithCommit<T>(descriptor: RunFanoutBudgetDescriptor, paths: string[], commit: () => T): T {
+export function claimRunFanoutBatchWithCommit<T>(
+	descriptor: RunFanoutBudgetDescriptor,
+	paths: string[],
+	commit: () => T,
+): T {
 	return commitRunFanoutBatch(descriptor, paths, commit);
 }
 

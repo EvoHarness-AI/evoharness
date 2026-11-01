@@ -109,9 +109,7 @@ export type SubagentDelegationStatus =
 	| "unavailable_context"
 	| "duplicate_node";
 
-export type SubagentDelegationValue =
-	| { kind: "text"; text: string }
-	| { kind: "structured"; value: unknown };
+export type SubagentDelegationValue = { kind: "text"; text: string } | { kind: "structured"; value: unknown };
 
 export interface SubagentDelegationUsage {
 	input: number;
