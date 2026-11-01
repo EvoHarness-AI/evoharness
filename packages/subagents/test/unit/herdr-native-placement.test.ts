@@ -1346,7 +1346,7 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 		fs.mkdirSync(path.dirname(refinement), { recursive: true });
 		fs.writeFileSync(
 			refinement,
-			`<!-- pi-subagents-refinement:v1\n${JSON.stringify({ agent: "remote-worker", revision: 1, updatedAt: new Date().toISOString(), base: { source: "project", filePath: ".evoharness/agents/remote-worker.md", systemPromptSha256: "abc" }, evidence: {} })}\n-->\n\n\`\`.evoharness-subagents-refinement-current\nREMOTE_REFINEMENT_CONTENT\n\`\`\`\n\n\`\`.evoharness-subagents-refinement-snapshots-json\n[]\n\`\`\`\n`,
+			`<!-- pi-subagents-refinement:v1\n${JSON.stringify({ agent: "remote-worker", revision: 1, updatedAt: new Date().toISOString(), base: { source: "project", filePath: ".evoharness/agents/remote-worker.md", systemPromptSha256: "abc" }, evidence: {} })}\n-->\n\n\`\`\`pi-subagents-refinement-current\nREMOTE_REFINEMENT_CONTENT\n\`\`\`\n\n\`\`\`pi-subagents-refinement-snapshots-json\n[]\n\`\`\`\n`,
 		);
 		try {
 			const resolved = resolveRemoteHerdrResources(remote, { agent: "remote-worker" });
