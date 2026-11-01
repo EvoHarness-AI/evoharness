@@ -77,10 +77,34 @@ function findExecutableOnPath(executable: string): string | null {
 }
 
 /**
+ * Candidate bash.exe locations inside the git installation tree.
+ *
+ * Git for Windows ships bash.exe under the install root while PATH usually carries
+ * only `cmd\git.exe`, so a git installed away from the default directory (portable,
+ * per-user, another drive) hides a Git Bash that is right there. Deriving the
+ * location from git itself covers those without growing a hardcoded list that is
+ * always missing someone's install path. Every candidate is inside the git tree, so
+ * a hit can only be that installation's bash.
+ */
+function findGitBashCandidates(): string[] {
+	const git = findExecutableOnPath("git.exe");
+	if (!git) return [];
+	const gitDirectory = win32.dirname(git);
+	const root = win32.dirname(gitDirectory);
+	// gitDirectory\bash.exe covers a git whose directory already is `bin`.
+	return [
+		win32.join(root, "bin", "bash.exe"),
+		win32.join(root, "usr", "bin", "bash.exe"),
+		win32.join(gitDirectory, "bash.exe"),
+	];
+}
+
+/**
  * Resolve shell configuration based on platform and an optional explicit shell path.
  * Resolution order:
  * 1. User-specified shellPath
- * 2. On Windows: Git Bash in known locations, then bash on PATH
+ * 2. On Windows: Git Bash in known locations, then Git Bash beside git on PATH,
+ *    then bash on PATH
  * 3. On Unix: /bin/bash, then bash on PATH, then fallback to sh
  */
 export function getShellConfig(customShellPath?: string): ShellConfig {
@@ -94,23 +118,32 @@ export function getShellConfig(customShellPath?: string): ShellConfig {
 
 	if (process.platform === "win32") {
 		// 2. Try Git Bash in known locations
-		const paths: string[] = [];
+		const searched: string[] = [];
 		const programFiles = process.env.ProgramFiles;
 		if (programFiles) {
-			paths.push(`${programFiles}\\Git\\bin\\bash.exe`);
+			searched.push(`${programFiles}\\Git\\bin\\bash.exe`);
 		}
 		const programFilesX86 = process.env["ProgramFiles(x86)"];
 		if (programFilesX86) {
-			paths.push(`${programFilesX86}\\Git\\bin\\bash.exe`);
+			searched.push(`${programFilesX86}\\Git\\bin\\bash.exe`);
 		}
 
-		for (const path of paths) {
+		for (const path of searched) {
 			if (shellPathExists(path)) {
 				return getBashShellConfig(path);
 			}
 		}
 
-		// 3. Fallback: search bash.exe on PATH (Cygwin, MSYS2, WSL, etc.)
+		// 3. Git elsewhere: look for bash.exe in the installation tree of the git on PATH.
+		const gitBashCandidates = findGitBashCandidates();
+		for (const path of gitBashCandidates) {
+			if (shellPathExists(path)) {
+				return getBashShellConfig(path);
+			}
+		}
+		searched.push(...gitBashCandidates);
+
+		// 4. Fallback: search bash.exe on PATH (Cygwin, MSYS2, WSL, etc.)
 		const bashOnPath = findExecutableOnPath("bash.exe");
 		if (bashOnPath) {
 			return getBashShellConfig(bashOnPath);
@@ -121,7 +154,7 @@ export function getShellConfig(customShellPath?: string): ShellConfig {
 				`  1. Install Git for Windows: https://git-scm.com/download/win\n` +
 				`  2. Add your bash to PATH (Cygwin, MSYS2, etc.)\n` +
 				"  3. Set shellPath in settings.json\n\n" +
-				`Searched Git Bash in:\n${paths.map((p) => `  ${p}`).join("\n")}`,
+				`Searched Git Bash in:\n${searched.map((p) => `  ${p}`).join("\n")}`,
 		);
 	}
 

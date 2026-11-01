@@ -23,6 +23,7 @@
 | D-006 | A | latex 符号表恢复 `pi` / `Pi` | `packages/tui/src/latex.ts` |
 | D-007 | A | vendored marked 的 `\p{Pi}` 修复 | `coding-agent/src/core/export-html/vendor/marked.min.js` |
 | D-008 | B | install telemetry 默认值恢复为开启 | `coding-agent/core/settings-defaults.ts` |
+| D-011 | A | Git Bash 从 PATH 上的 git 反推 | `coding-agent/src/utils/shell.ts` |
 
 ---
 
@@ -119,3 +120,17 @@
 **影响面**：默认向 provider 发送 attribution 头；若将来去掉该端点，这条要重新评估。
 
 **兜底**：`packages/ai/test/identity.test.ts`、`packages/coding-agent/test/sdk-client-identity.test.ts`。
+
+---
+
+## D-011 · A · Git Bash 从 PATH 上的 git 反推
+
+**改了什么**：`packages/coding-agent/src/utils/shell.ts` 的 Windows shell 解析，在「Git Bash 已知安装位置」与「PATH 上的 bash.exe」之间插入一步：用 `where git.exe` 定位 git，再在它的安装树里找 `bin\bash.exe` / `usr\bin\bash.exe`。找不到 git 时行为不变。
+
+**为什么**：原实现的已知位置只有 `%ProgramFiles%\Git\bin\bash.exe` 与 `%ProgramFiles(x86)%\Git\bin\bash.exe` 两条。便携安装、按用户安装、装在非系统盘（本机即 `D:\DevelopTools\Git`）都不在其中，而 PATH 通常只带 `cmd\git.exe`、不带 `bin\`，于是 bash 工具直接抛 `No bash shell found`，唯一出路是手写 `shellPath`。硬编码清单永远会漏掉某个人的安装路径，从 git 自身反推则与安装位置无关。
+
+**影响面**：仅影响「Windows + 未配置 shellPath + Git 不在默认目录」这一种原本直接报错的场景，现变为解析成功。查找顺序仍是优先 Git Bash，其次 PATH 上的 Cygwin / MSYS2 / WSL bash。报错信息现在列出反推出的候选，诊断不再靠猜。非 Windows 路径零改动。
+
+**兜底**：`packages/coding-agent/test/shell-path-exists.test.ts` 的 `Git Bash beside the git on PATH`（四例：反推命中、优先于 PATH 上无关 bash、无 git 时回落、报错含反推候选）。
+
+**为什么编号是 D-011 而不是 D-009**：`D-009` / `D-010` 已被归档分支 `archive/web-port` 占用并推到 origin（打包器豁免注释、根 TypeScript 降级）。账本规定 ID 稳定且不复用，该分支将来若 rebase 回主干会带着这两个 ID，所以这里跳过 009–010。
