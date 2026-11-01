@@ -171,7 +171,7 @@ describe("awaitExistingAsyncRun", () => {
 			const script = String.raw`
 			const { spawn } = require("node:child_process");
 			const fs = require("node:fs");
-			const child = spawn(process.execPath, ["-e", 'process.title = "pi) zombie"; process.exit(0);'], { stdio: "ignore" });
+			const child = spawn(process.execPath, ["-e", 'process.title = "evo) zombie"; process.exit(0);'], { stdio: "ignore" });
 			process.stdout.write(String(child.pid) + "\n");
 			fs.readSync(0, Buffer.alloc(1), 0, 1, null);
 		`;
@@ -189,7 +189,7 @@ describe("awaitExistingAsyncRun", () => {
 					if (stat[stat.lastIndexOf(") ") + 2] === "Z") break;
 					await new Promise((resolve) => setTimeout(resolve, 10));
 				}
-				assert.match(stat, /.evoharness\) zombie\) Z /);
+				assert.match(stat, /.evo\) zombie\) Z /);
 				assert.equal(process.kill(pid, 0), true);
 				const scope = fs.readlinkSync("/proc/self/ns/pid", "utf-8").trim();
 				for (const scenario of [

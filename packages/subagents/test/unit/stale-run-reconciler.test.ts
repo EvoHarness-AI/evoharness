@@ -282,7 +282,7 @@ describe("async stale-run reconciliation", () => {
 			const script = String.raw`
 			const { spawn } = require("node:child_process");
 			const fs = require("node:fs");
-			const child = spawn(process.execPath, ["-e", 'process.title = "pi) zombie"; process.exit(0);'], { stdio: "ignore" });
+			const child = spawn(process.execPath, ["-e", 'process.title = "evo) zombie"; process.exit(0);'], { stdio: "ignore" });
 			process.stdout.write(String(child.pid) + "\n");
 			// Keep libuv from reaping the child until the test releases stdin.
 			fs.readSync(0, Buffer.alloc(1), 0, 1, null);
@@ -301,7 +301,7 @@ describe("async stale-run reconciliation", () => {
 					if (stat[stat.lastIndexOf(") ") + 2] === "Z") break;
 					await new Promise((resolve) => setTimeout(resolve, 10));
 				}
-				assert.match(stat, /.evoharness\) zombie\) Z /);
+				assert.match(stat, /.evo\) zombie\) Z /);
 				assert.equal(process.kill(pid, 0), true);
 				assert.equal(checkPidLiveness(pid, process.kill, true), "dead");
 				const scope = fs.readlinkSync("/proc/self/ns/pid", "utf-8").trim();

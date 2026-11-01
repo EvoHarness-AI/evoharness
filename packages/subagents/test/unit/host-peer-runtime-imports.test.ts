@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs";
+import { createRequire } from "node:module";
 import * as os from "node:os";
 import * as path from "node:path";
 import test from "node:test";
@@ -14,6 +15,25 @@ import {
 import type { JsonSchemaObject } from "../../src/shared/types.ts";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+const requireFromProjectRoot = createRequire(path.join(projectRoot, "package.json"));
+// Resolve a dependency's real package directory through Node's loader, so the fake-install fixture
+// works whether the dependency lives under this package or is hoisted to the monorepo root node_modules.
+function installedPackageDir(name: string): string {
+	let dir = path.dirname(fs.realpathSync(requireFromProjectRoot.resolve(name)));
+	for (;;) {
+		const packageJsonPath = path.join(dir, "package.json");
+		if (fs.existsSync(packageJsonPath)) {
+			try {
+				if ((JSON.parse(fs.readFileSync(packageJsonPath, "utf8")) as { name?: string }).name === name) return dir;
+			} catch {
+				/* keep walking up */
+			}
+		}
+		const parent = path.dirname(dir);
+		if (parent === dir) throw new Error(`cannot resolve installed package directory for ${name}`);
+		dir = parent;
+	}
+}
 
 const hostPeerPackages = [
 	"@evoharness/agent-core",
@@ -246,7 +266,7 @@ test("validateStructuredOutputValue finds typebox/compile through the running Pi
 		for (const dependency of Object.keys(packageJson.dependencies)) {
 			const target = path.join(extension, "node_modules", dependency);
 			fs.mkdirSync(path.dirname(target), { recursive: true });
-			fs.symlinkSync(fs.realpathSync(path.join(projectRoot, "node_modules", dependency)), target, "junction");
+			fs.symlinkSync(installedPackageDir(dependency), target, "junction");
 		}
 		const pi = path.join(root, "pi");
 		fs.mkdirSync(path.join(pi, "dist"), { recursive: true });
@@ -255,11 +275,7 @@ test("validateStructuredOutputValue finds typebox/compile through the running Pi
 			path.join(pi, "package.json"),
 			JSON.stringify({ name: "@evoharness/coding-agent", type: "module" }),
 		);
-		fs.symlinkSync(
-			fs.realpathSync(path.join(projectRoot, "node_modules", "typebox")),
-			path.join(pi, "node_modules", "typebox"),
-			"junction",
-		);
+		fs.symlinkSync(installedPackageDir("typebox"), path.join(pi, "node_modules", "typebox"), "junction");
 		const cli = path.join(pi, "dist", "cli.js");
 		fs.writeFileSync(
 			cli,
