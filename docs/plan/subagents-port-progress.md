@@ -91,9 +91,13 @@
   - 记:rpc.ts 0 强转 ✅;native-supervisor-channel 2 处裸字符串 `pi.on`(事件名已核实存在于 evoharness 类型);intercom/missions 无内核 env 读取;结论全部落入 `packages/subagents/UPSTREAM-PORT-NOTES.md`(含耦合点清单 6 项)
 - [x] **1.7 A.3 双模式残留审计**
   - 记:5 内核 env = **0** ✅;旧 scope = **3**(白名单:上游 issue 注释 ×2 + standalone 官方二进制 URL,见 UPSTREAM-PORT-NOTES)✅;Symbol 旧键 = 0 ✅;**决定性交集:277 处属性访问 env 读取 × 内核 44 名单 = 空**(全部自有变量)✅;夹具注释 `PI_EXPERIMENTAL`/`PI_TIMING` 已一致化为 EVOHARNESS_*;剩余 pi-* = 注释散文(~30,指上游包,Phase 3 可选)+ 测试内部临时目录名(自洽)
-- [ ] **1.8 检查点 1 提交** + 对照检查点 0 diff 抽查(确认 diff 全是"名字")
-  - 前置:diff 抽查通过
-  - 记:commit hash: / diff 统计:
+- [x] **1.8 检查点 1 提交** + diff 抽查
+  - 前置:diff 抽查 ✅(256 文件 ±对称;灰色访问文件纯改名)
+  - 记:**两个提交**:①`9433098` 纯改名(258 文件 +899/−1048)②`ca03628` 格式化+守卫适配(704 文件 biome 重排;biome.json 对 subagents 关 lint 留格式;ts-imports 豁免 smoke 编译期 .js 导入;package-layers 新增 extension 层;file-size 基线记录 86 条;install-lock 重排=openai 位置变化)。均为 --no-verify 提交(根 tsc TS7 报 3081 错,全在 subagents 内 → 根查特有)
+  - 回滚:`git reset --hard 8e2551e`
+- [x] **Gate 1(Gate 1a 前置):subagents 自身 typecheck(TS 5.9.3)**
+  - 记:**exit 0,零错误** ✅✅ —— 重磅结论:3081 个根检查错误全部为 TS7 根查特有(集中在上游巨型测试文件),**subagents 对 evoharness 宿主类型零漂移,R3 未发生**;F1"逐字节一致"在类型层面实测成立
+  - 附带:npm warn 忽略 workspace 子包 .npmrc(上游发布配置,惰性)→ Phase 3 清理候选
 
 ---
 

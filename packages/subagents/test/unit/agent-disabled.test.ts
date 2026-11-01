@@ -42,7 +42,7 @@ describe("builtin agent disabling", () => {
 	});
 
 	it("filters a per-agent disabled builtin from runtime discovery while keeping it in discoverAgentsAll", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					reviewer: { disabled: true },
@@ -60,7 +60,7 @@ describe("builtin agent disabling", () => {
 	});
 
 	it("surfaces malformed disabled overrides instead of silently ignoring them", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		writeJson(settingsPath, {
 			subagents: {
 				agentOverrides: {
@@ -80,7 +80,7 @@ describe("builtin agent disabling", () => {
 	});
 
 	it("bulk disableBuiltins hides builtins at runtime and marks them disabled in discoverAgentsAll", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { disableBuiltins: true },
 		});
 
@@ -96,7 +96,7 @@ describe("builtin agent disabling", () => {
 	});
 
 	it("an explicit user override opts a builtin out of user-scope bulk disable", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				disableBuiltins: true,
 				agentOverrides: {
@@ -113,11 +113,11 @@ describe("builtin agent disabling", () => {
 	});
 
 	it("project disableBuiltins false re-enables builtins hidden by user bulk disable", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { disableBuiltins: true },
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { disableBuiltins: false },
 		});
 
@@ -125,8 +125,8 @@ describe("builtin agent disabling", () => {
 	});
 
 	it("project bulk disable beats user per-agent re-enable overrides", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				disableBuiltins: true,
 				agentOverrides: {
@@ -134,7 +134,7 @@ describe("builtin agent disabling", () => {
 				},
 			},
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { disableBuiltins: true },
 		});
 
@@ -148,7 +148,7 @@ describe("builtin agent disabling", () => {
 	});
 
 	it("surfaces malformed disableBuiltins values instead of silently ignoring them", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		writeJson(settingsPath, {
 			subagents: { disableBuiltins: "true" },
 		});
@@ -161,10 +161,10 @@ describe("builtin agent disabling", () => {
 	});
 
 	it("hides disabled builtins from agent-facing management list output", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { disableBuiltins: true },
 		});
-		const agentsDir = path.join(tempProject, ".pi", "agents");
+		const agentsDir = path.join(tempProject, ".evoharness", "agents");
 		fs.mkdirSync(agentsDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(agentsDir, "helper.md"),

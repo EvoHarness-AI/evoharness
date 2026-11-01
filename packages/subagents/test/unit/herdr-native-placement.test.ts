@@ -1327,26 +1327,26 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 	it("resolves agent instructions, skills, memory, and refinements from a distinct remote fixture", () => {
 		const remote = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-remote-resources-"));
 		fs.mkdirSync(path.join(remote, ".git"));
-		fs.mkdirSync(path.join(remote, ".pi", "agents"), { recursive: true });
+		fs.mkdirSync(path.join(remote, ".evoharness", "agents"), { recursive: true });
 		fs.writeFileSync(
-			path.join(remote, ".pi", "agents", "remote-worker.md"),
+			path.join(remote, ".evoharness", "agents", "remote-worker.md"),
 			"---\nname: remote-worker\ndescription: Remote\ntools: read\nskills:\n  - remote-skill\nmemory: { scope: project, path: remote-worker }\ninheritProjectContext: true\ninheritGlobalContext: false\ninheritSkills: true\n---\nREMOTE_AGENT_INSTRUCTIONS\n",
 		);
-		fs.mkdirSync(path.join(remote, ".pi", "skills", "remote-skill"), { recursive: true });
+		fs.mkdirSync(path.join(remote, ".evoharness", "skills", "remote-skill"), { recursive: true });
 		fs.writeFileSync(
-			path.join(remote, ".pi", "skills", "remote-skill", "SKILL.md"),
+			path.join(remote, ".evoharness", "skills", "remote-skill", "SKILL.md"),
 			"---\ndescription: REMOTE_SKILL_DESCRIPTION\n---\nREMOTE_SKILL_CONTENT\n",
 		);
-		fs.mkdirSync(path.join(remote, ".pi", "agent-memory", "remote-worker"), { recursive: true });
+		fs.mkdirSync(path.join(remote, ".evoharness", "agent-memory", "remote-worker"), { recursive: true });
 		fs.writeFileSync(
-			path.join(remote, ".pi", "agent-memory", "remote-worker", "MEMORY.md"),
+			path.join(remote, ".evoharness", "agent-memory", "remote-worker", "MEMORY.md"),
 			"REMOTE_MEMORY_CONTENT\n",
 		);
-		const refinement = path.join(remote, ".pi", "subagents", "refinements", "remote-worker.md");
+		const refinement = path.join(remote, ".evoharness/subagents", "refinements", "remote-worker.md");
 		fs.mkdirSync(path.dirname(refinement), { recursive: true });
 		fs.writeFileSync(
 			refinement,
-			`<!-- pi-subagents-refinement:v1\n${JSON.stringify({ agent: "remote-worker", revision: 1, updatedAt: new Date().toISOString(), base: { source: "project", filePath: ".pi/agents/remote-worker.md", systemPromptSha256: "abc" }, evidence: {} })}\n-->\n\n\`\`\`pi-subagents-refinement-current\nREMOTE_REFINEMENT_CONTENT\n\`\`\`\n\n\`\`\`pi-subagents-refinement-snapshots-json\n[]\n\`\`\`\n`,
+			`<!-- pi-subagents-refinement:v1\n${JSON.stringify({ agent: "remote-worker", revision: 1, updatedAt: new Date().toISOString(), base: { source: "project", filePath: ".evoharness/agents/remote-worker.md", systemPromptSha256: "abc" }, evidence: {} })}\n-->\n\n\`\`.evoharness-subagents-refinement-current\nREMOTE_REFINEMENT_CONTENT\n\`\`\`\n\n\`\`.evoharness-subagents-refinement-snapshots-json\n[]\n\`\`\`\n`,
 		);
 		try {
 			const resolved = resolveRemoteHerdrResources(remote, { agent: "remote-worker" });
@@ -1367,14 +1367,14 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 	it("uses remote defaults for omitted tools and intersects wider remote tools with the caller ceiling", () => {
 		const remote = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-tools-"));
 		fs.mkdirSync(path.join(remote, ".git"));
-		fs.mkdirSync(path.join(remote, ".pi", "agents"), { recursive: true });
+		fs.mkdirSync(path.join(remote, ".evoharness", "agents"), { recursive: true });
 		fs.writeFileSync(
-			path.join(remote, ".pi", "agents", "defaults.md"),
+			path.join(remote, ".evoharness", "agents", "defaults.md"),
 			"---\nname: defaults\ndescription: defaults\ndefaultReads: remote-only.md\ninheritProjectContext: true\ninheritGlobalContext: true\ninheritSkills: true\n---\nDefaults\n",
 		);
 		fs.writeFileSync(path.join(remote, "remote-only.md"), "remote context\n");
 		fs.writeFileSync(
-			path.join(remote, ".pi", "agents", "wide.md"),
+			path.join(remote, ".evoharness", "agents", "wide.md"),
 			"---\nname: wide\ndescription: wide\ntools: read, bash\ninheritProjectContext: true\ninheritGlobalContext: true\ninheritSkills: true\n---\nWide\n",
 		);
 		try {
@@ -1400,9 +1400,9 @@ describe("pane-native Herdr placement public contracts", { skip: process.platfor
 	it("rejects Pi tool modifier entries in the remote agent's tools instead of filtering or activating them", () => {
 		const remote = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-modifiers-"));
 		fs.mkdirSync(path.join(remote, ".git"));
-		fs.mkdirSync(path.join(remote, ".pi", "agents"), { recursive: true });
+		fs.mkdirSync(path.join(remote, ".evoharness", "agents"), { recursive: true });
 		fs.writeFileSync(
-			path.join(remote, ".pi", "agents", "modifier.md"),
+			path.join(remote, ".evoharness", "agents", "modifier.md"),
 			"---\nname: modifier\ndescription: modifier\ntools: read, +codemode\n---\nModifier\n",
 		);
 		const rejected = {

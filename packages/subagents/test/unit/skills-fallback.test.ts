@@ -21,12 +21,12 @@ function writeSkillFile(skillDir: string, body: string, description = "Test desc
 }
 
 function makeProjectSkill(cwd: string, name: string, body: string, description = "Test description"): void {
-	const skillDir = path.join(cwd, ".pi", "skills", name);
+	const skillDir = path.join(cwd, ".evoharness", "skills", name);
 	writeSkillFile(skillDir, body, description);
 }
 
 function makeProjectPackageSkill(cwd: string, packageName: string, name: string, body: string): void {
-	const packageRoot = path.join(cwd, ".pi", "npm", "node_modules", packageName);
+	const packageRoot = path.join(cwd, ".evoharness", "npm", "node_modules", packageName);
 	makePackageSkill(packageRoot, name, body, packageName);
 }
 
@@ -113,7 +113,7 @@ describe("skills filesystem fallback", () => {
 
 	it("discovers project skills nested below grouping directories", () => {
 		writeSkillFile(
-			path.join(tempDir, ".pi", "skills", "shell", "issue-262-nested-skill"),
+			path.join(tempDir, ".evoharness", "skills", "shell", "issue-262-nested-skill"),
 			"Use nested project skill.",
 			"Nested issue 262 skill",
 		);
@@ -131,7 +131,7 @@ describe("skills filesystem fallback", () => {
 	});
 
 	it("stops recursive project skill discovery at the first SKILL.md anchor", () => {
-		const groupedRoot = path.join(tempDir, ".pi", "skills", "group");
+		const groupedRoot = path.join(tempDir, ".evoharness", "skills", "group");
 		writeSkillFile(path.join(groupedRoot, "issue-262-anchor"), "Use anchor skill.");
 		writeSkillFile(
 			path.join(groupedRoot, "issue-262-anchor", "nested", "issue-262-leaked-skill"),
@@ -146,7 +146,7 @@ describe("skills filesystem fallback", () => {
 	});
 
 	it("skips hidden directories and node_modules while recursing for project skills", () => {
-		const groupedRoot = path.join(tempDir, ".pi", "skills", "group");
+		const groupedRoot = path.join(tempDir, ".evoharness", "skills", "group");
 		writeSkillFile(path.join(groupedRoot, ".hidden", "issue-262-hidden-skill"), "Should stay hidden.");
 		writeSkillFile(path.join(groupedRoot, "node_modules", "issue-262-node-skill"), "Should stay ignored.");
 		writeSkillFile(path.join(groupedRoot, "visible", "issue-262-visible-skill"), "Use visible nested skill.");
@@ -158,11 +158,11 @@ describe("skills filesystem fallback", () => {
 	});
 
 	it("keeps direct markdown skills from explicit settings roots after parent recursion", () => {
-		const groupedRoot = path.join(tempDir, ".pi", "skills", "group");
+		const groupedRoot = path.join(tempDir, ".evoharness", "skills", "group");
 		fs.mkdirSync(groupedRoot, { recursive: true });
 		fs.writeFileSync(path.join(groupedRoot, "issue-262-direct.md"), "Use direct markdown skill.\n", "utf-8");
 		fs.writeFileSync(
-			path.join(tempDir, ".pi", "settings.json"),
+			path.join(tempDir, ".evoharness", "settings.json"),
 			JSON.stringify({ skills: ["./skills/group"] }, null, 2),
 			"utf-8",
 		);
@@ -181,9 +181,9 @@ describe("skills filesystem fallback", () => {
 			JSON.stringify({ name: "fixture", version: "1.0.0", pi: { skills: ["./skills"] } }, null, 2),
 			"utf-8",
 		);
-		fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
+		fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
 		fs.writeFileSync(
-			path.join(tempDir, ".pi", "settings.json"),
+			path.join(tempDir, ".evoharness", "settings.json"),
 			JSON.stringify({ skills: ["../skills/group"] }, null, 2),
 			"utf-8",
 		);
@@ -205,9 +205,9 @@ describe("skills filesystem fallback", () => {
 			JSON.stringify({ name: "fixture", version: "1.0.0", pi: { skills: ["./skills"] } }, null, 2),
 			"utf-8",
 		);
-		fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
+		fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
 		fs.writeFileSync(
-			path.join(tempDir, ".pi", "settings.json"),
+			path.join(tempDir, ".evoharness", "settings.json"),
 			JSON.stringify({ skills: ["../skills"] }, null, 2),
 			"utf-8",
 		);
@@ -300,11 +300,11 @@ describe("skills filesystem fallback", () => {
 	});
 
 	it("discovers skills from project settings packages", () => {
-		const packageRoot = path.join(tempDir, ".pi", "packages", "local-skill-pkg");
+		const packageRoot = path.join(tempDir, ".evoharness", "packages", "local-skill-pkg");
 		makePackageSkill(packageRoot, "settings-package-skill", "Settings package skill.");
-		fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
+		fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
 		fs.writeFileSync(
-			path.join(tempDir, ".pi", "settings.json"),
+			path.join(tempDir, ".evoharness", "settings.json"),
 			JSON.stringify({ packages: ["./packages/local-skill-pkg"] }, null, 2),
 			"utf-8",
 		);
@@ -316,14 +316,14 @@ describe("skills filesystem fallback", () => {
 	});
 
 	it("skips settings package entries that name a single extension file", () => {
-		fs.mkdirSync(path.join(tempDir, ".pi", "extensions"), { recursive: true });
+		fs.mkdirSync(path.join(tempDir, ".evoharness", "extensions"), { recursive: true });
 		fs.writeFileSync(
-			path.join(tempDir, ".pi", "extensions", "my-extension.ts"),
+			path.join(tempDir, ".evoharness", "extensions", "my-extension.ts"),
 			"export default () => {};\n",
 			"utf-8",
 		);
 		fs.writeFileSync(
-			path.join(tempDir, ".pi", "settings.json"),
+			path.join(tempDir, ".evoharness", "settings.json"),
 			JSON.stringify({ packages: ["./extensions/my-extension.ts"] }, null, 2),
 			"utf-8",
 		);
@@ -335,16 +335,16 @@ describe("skills filesystem fallback", () => {
 	});
 
 	it("discovers skills from project settings npm package sources", () => {
-		const packageRoot = path.join(tempDir, ".pi", "npm", "node_modules", "@scope", "skill-package");
+		const packageRoot = path.join(tempDir, ".evoharness", "npm", "node_modules", "@scope", "skill-package");
 		makePackageSkill(
 			packageRoot,
 			"project-settings-scoped-npm-package-skill",
 			"Project settings scoped npm package skill.",
 			"@scope/skill-package",
 		);
-		fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
+		fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
 		fs.writeFileSync(
-			path.join(tempDir, ".pi", "settings.json"),
+			path.join(tempDir, ".evoharness", "settings.json"),
 			JSON.stringify({ packages: ["npm:@scope/skill-package@1.2.3"] }, null, 2),
 			"utf-8",
 		);
@@ -623,7 +623,7 @@ Fallback global agent.
 
 	it("discovers skills from user settings packages", async () => {
 		const fakeHome = path.join(tempDir, "fake-home");
-		const userAgentDir = path.join(fakeHome, ".pi", "agent");
+		const userAgentDir = path.join(fakeHome, ".evoharness", "agent");
 		const userPackageRoot = path.join(userAgentDir, "user-pkg");
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
@@ -655,7 +655,7 @@ Fallback global agent.
 
 	it("discovers skills from user settings git package sources", async () => {
 		const fakeHome = path.join(tempDir, "fake-home");
-		const userAgentDir = path.join(fakeHome, ".pi", "agent");
+		const userAgentDir = path.join(fakeHome, ".evoharness", "agent");
 		const packageRoot = path.join(userAgentDir, "git", "github.com", "user", "repo");
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
@@ -687,7 +687,7 @@ Fallback global agent.
 
 	it("discovers skills from user settings scoped npm package sources", async () => {
 		const fakeHome = path.join(tempDir, "fake-home");
-		const userAgentDir = path.join(fakeHome, ".pi", "agent");
+		const userAgentDir = path.join(fakeHome, ".evoharness", "agent");
 		const packageRoot = path.join(userAgentDir, "npm", "node_modules", "@scope", "skill-package");
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
@@ -752,8 +752,8 @@ Fallback global agent.
 	it("does not read malformed global settings when every selected local skill resolves", () => {
 		const agentDir = path.join(tempDir, "agents", "nested");
 		writeSkillFile(path.join(agentDir, "skills", "local"), "local body");
-		fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
-		fs.writeFileSync(path.join(tempDir, ".pi", "settings.json"), "{bad-json", "utf-8");
+		fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
+		fs.writeFileSync(path.join(tempDir, ".evoharness", "settings.json"), "{bad-json", "utf-8");
 
 		const result = resolveSkills(["local"], tempDir, ["./skills"], agentDir);
 		assert.deepEqual(result.missing, []);
@@ -790,22 +790,22 @@ Fallback global agent.
 	});
 
 	it("surfaces malformed project settings files instead of silently ignoring them", () => {
-		fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
-		fs.writeFileSync(path.join(tempDir, ".pi", "settings.json"), "{bad-json", "utf-8");
+		fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
+		fs.writeFileSync(path.join(tempDir, ".evoharness", "settings.json"), "{bad-json", "utf-8");
 
 		assert.throws(
 			() => resolveSkills(["missing-skill"], tempDir),
-			/Failed to read skills settings file .+\.pi[\\/]settings\.json/,
+			/Failed to read skills settings file .+.evoharness[\\/]settings\.json/,
 		);
 	});
 
 	it("surfaces malformed explicit settings package manifests instead of silently ignoring them", () => {
-		const packageRoot = path.join(tempDir, ".pi", "packages", "broken-package");
+		const packageRoot = path.join(tempDir, ".evoharness", "packages", "broken-package");
 		fs.mkdirSync(packageRoot, { recursive: true });
 		fs.writeFileSync(path.join(packageRoot, "package.json"), "{bad-json", "utf-8");
-		fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
+		fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
 		fs.writeFileSync(
-			path.join(tempDir, ".pi", "settings.json"),
+			path.join(tempDir, ".evoharness", "settings.json"),
 			JSON.stringify({ packages: ["./packages/broken-package"] }, null, 2),
 			"utf-8",
 		);

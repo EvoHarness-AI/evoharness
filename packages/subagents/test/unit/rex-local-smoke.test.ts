@@ -106,9 +106,9 @@ describe("Rex local placement against a private Rex server and a real Pi", { ski
 				log(`private server ${server}, parent session ${session}`);
 
 				const project = fs.realpathSync(fs.mkdtempSync(path.join(scratch, "project-")));
-				fs.mkdirSync(path.join(project, ".pi", "agents"), { recursive: true });
+				fs.mkdirSync(path.join(project, ".evoharness", "agents"), { recursive: true });
 				fs.writeFileSync(
-					path.join(project, ".pi", "agents", "rex-smoke.md"),
+					path.join(project, ".evoharness", "agents", "rex-smoke.md"),
 					"---\nname: rex-smoke\ndescription: Rex placement smoke agent\ntools: read\n---\nYou answer in one short line.\n",
 				);
 				const wrapper = path.join(scratch, "pi"),

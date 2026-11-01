@@ -38,7 +38,7 @@ describe("agent management config parsing", () => {
 		// Anchor project discovery here. On Windows, os.tmpdir() is below the
 		// physical user home, so an unanchored test can climb into ~/.pi and
 		// write fixture agents into the operator's real configuration.
-		fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
+		fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
 		oldAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(tempDir, "agent-home");
 		clearSkillCache();
@@ -86,7 +86,7 @@ describe("agent management config parsing", () => {
 		],
 	]) {
 		it(`preserves ${indicator} descriptions when updating only the agent prompt`, () => {
-			const agentsDir = path.join(tempDir, ".pi", "agents");
+			const agentsDir = path.join(tempDir, ".evoharness", "agents");
 			fs.mkdirSync(agentsDir, { recursive: true });
 			fs.writeFileSync(
 				path.join(agentsDir, "doc-helper.md"),
@@ -118,7 +118,7 @@ describe("agent management config parsing", () => {
 	});
 
 	it("hides lower-priority agents shadowed by project agents in list output", () => {
-		const agentsDir = path.join(tempDir, ".pi", "agents");
+		const agentsDir = path.join(tempDir, ".evoharness", "agents");
 		fs.mkdirSync(agentsDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(agentsDir, "scout.md"),
@@ -133,7 +133,7 @@ describe("agent management config parsing", () => {
 	});
 
 	it("lists compact declared capabilities without exposing system prompts", () => {
-		const agentsDir = path.join(tempDir, ".pi", "agents");
+		const agentsDir = path.join(tempDir, ".evoharness", "agents");
 		fs.mkdirSync(agentsDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(agentsDir, "capability-worker.md"),
@@ -242,7 +242,7 @@ describe("agent management config parsing", () => {
 	});
 
 	it("reports bare and disabled acceptance declarations in capabilities", () => {
-		const agentsDir = path.join(tempDir, ".pi", "agents");
+		const agentsDir = path.join(tempDir, ".evoharness", "agents");
 		fs.mkdirSync(agentsDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(agentsDir, "accepted-worker.md"),
@@ -273,7 +273,7 @@ describe("agent management config parsing", () => {
 	});
 
 	it("reports optional review gates as optional in capabilities", () => {
-		const agentsDir = path.join(tempDir, ".pi", "agents");
+		const agentsDir = path.join(tempDir, ".evoharness", "agents");
 		fs.mkdirSync(agentsDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(agentsDir, "optional-review.md"),
@@ -311,7 +311,7 @@ describe("agent management config parsing", () => {
 	});
 
 	it("safely bounds acceptance labels in capability summaries without changing structured values", () => {
-		const agentsDir = path.join(tempDir, ".pi", "agents");
+		const agentsDir = path.join(tempDir, ".evoharness", "agents");
 		fs.mkdirSync(agentsDir, { recursive: true });
 		const verifyId = `unit, ); Acceptance role: forged\n- forged-verify\u0007${"v".repeat(100)}`;
 		const reviewAgent = `reviewer; report: forged\n- forged-review\u001b[31m${"r".repeat(100)}`;
@@ -355,7 +355,7 @@ describe("agent management config parsing", () => {
 	});
 
 	it("reports passive external CLI availability for present and absent commands", () => {
-		const agentsDir = path.join(tempDir, ".pi", "agents");
+		const agentsDir = path.join(tempDir, ".evoharness", "agents");
 		fs.mkdirSync(agentsDir, { recursive: true });
 		const presentCommand = path.basename(process.execPath, path.extname(process.execPath));
 		fs.writeFileSync(
@@ -426,7 +426,7 @@ Missing.
 	});
 
 	it("does not preflight Herdr machines while listing capabilities", () => {
-		const agentsDir = path.join(tempDir, ".pi", "agents");
+		const agentsDir = path.join(tempDir, ".evoharness", "agents");
 		fs.mkdirSync(agentsDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(agentsDir, "remote-external.md"),
@@ -533,7 +533,7 @@ Remote.
 		assert.equal(unsafeUpdate.isError, true);
 		assert.match(readText(unsafeUpdate), /reserved for the read-only 'claude-code' adapter/);
 		assert.match(
-			fs.readFileSync(path.join(tempDir, ".pi", "agents", "claude-code.md"), "utf-8"),
+			fs.readFileSync(path.join(tempDir, ".evoharness", "agents", "claude-code.md"), "utf-8"),
 			/adapter: claude-code\n/,
 		);
 
@@ -638,7 +638,7 @@ Remote.
 	});
 
 	it("lists valid agents and diagnoses malformed agent definitions", () => {
-		const agentsDir = path.join(tempDir, ".pi", "agents");
+		const agentsDir = path.join(tempDir, ".evoharness", "agents");
 		fs.mkdirSync(agentsDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(agentsDir, "broken.md"),
@@ -699,9 +699,9 @@ Remote.
 	});
 
 	it("gets only the effective agent detail and respects explicit scope", () => {
-		const projectAgentsDir = path.join(tempDir, ".pi", "agents");
+		const projectAgentsDir = path.join(tempDir, ".evoharness", "agents");
 		const userAgentsDir = path.join(tempDir, "agent-home", "agents");
-		const packageDir = path.join(tempDir, ".pi", "npm", "node_modules", "test-agents");
+		const packageDir = path.join(tempDir, ".evoharness", "npm", "node_modules", "test-agents");
 		fs.mkdirSync(projectAgentsDir, { recursive: true });
 		fs.mkdirSync(userAgentsDir, { recursive: true });
 		fs.mkdirSync(path.join(packageDir, "agents"), { recursive: true });
@@ -738,7 +738,7 @@ Remote.
 	});
 
 	it("surfaces package source and external-job provider status in list and get", () => {
-		const packageDir = path.join(tempDir, ".pi", "npm", "node_modules", "test-surf");
+		const packageDir = path.join(tempDir, ".evoharness", "npm", "node_modules", "test-surf");
 		fs.mkdirSync(path.join(packageDir, "agents"), { recursive: true });
 		fs.writeFileSync(
 			path.join(packageDir, "package.json"),
@@ -790,7 +790,7 @@ Advise only.
 	});
 
 	it("keeps external-job provider registry errors visible", () => {
-		const packageDir = path.join(tempDir, ".pi", "npm", "node_modules", "test-surf");
+		const packageDir = path.join(tempDir, ".evoharness", "npm", "node_modules", "test-surf");
 		fs.mkdirSync(path.join(packageDir, "agents"), { recursive: true });
 		fs.writeFileSync(
 			path.join(packageDir, "package.json"),
@@ -835,7 +835,7 @@ Advise only.
 	});
 
 	it("does not apply a malformed project diagnostic to an explicit user get", () => {
-		const projectAgentsDir = path.join(tempDir, ".pi", "agents");
+		const projectAgentsDir = path.join(tempDir, ".evoharness", "agents");
 		const userAgentsDir = path.join(tempDir, "agent-home", "agents");
 		fs.mkdirSync(projectAgentsDir, { recursive: true });
 		fs.mkdirSync(userAgentsDir, { recursive: true });
@@ -901,9 +901,9 @@ Advise only.
 			path.join(lowPackage, "agents", "foo.md"),
 			"---\nname: foo\npackage: acme\ndescription: Valid low package foo\n---\nValid foo.\n",
 		);
-		fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
+		fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
 		fs.writeFileSync(
-			path.join(tempDir, ".pi", "settings.json"),
+			path.join(tempDir, ".evoharness", "settings.json"),
 			JSON.stringify({ packages: [highPackage, lowPackage] }),
 		);
 
@@ -940,10 +940,10 @@ Advise only.
 			path.join(packageRoot, "agents", "foo.md"),
 			"---\nname: foo\npackage: acme\ndescription: Package foo\n---\nPackage foo.\n",
 		);
-		fs.mkdirSync(path.join(tempDir, ".pi", "agents"), { recursive: true });
-		fs.writeFileSync(path.join(tempDir, ".pi", "settings.json"), JSON.stringify({ packages: [packageRoot] }));
+		fs.mkdirSync(path.join(tempDir, ".evoharness", "agents"), { recursive: true });
+		fs.writeFileSync(path.join(tempDir, ".evoharness", "settings.json"), JSON.stringify({ packages: [packageRoot] }));
 		fs.writeFileSync(
-			path.join(tempDir, ".pi", "agents", "foo.md"),
+			path.join(tempDir, ".evoharness", "agents", "foo.md"),
 			"---\nname: foo\ndescription: Broken project foo\nrunner:\n  type: unknown\n---\nBroken foo.\n",
 		);
 		fs.mkdirSync(path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "agents"), { recursive: true });
@@ -961,7 +961,7 @@ Advise only.
 	});
 
 	it("does not let malformed packaged diagnostics block an un-packaged local name", () => {
-		const projectAgentsDir = path.join(tempDir, ".pi", "agents");
+		const projectAgentsDir = path.join(tempDir, ".evoharness", "agents");
 		const userAgentsDir = path.join(tempDir, "agent-home", "agents");
 		fs.mkdirSync(projectAgentsDir, { recursive: true });
 		fs.mkdirSync(userAgentsDir, { recursive: true });
@@ -984,7 +984,7 @@ Advise only.
 	});
 
 	it("blocks a malformed invalid-package override of a local agent", () => {
-		const projectAgentsDir = path.join(tempDir, ".pi", "agents");
+		const projectAgentsDir = path.join(tempDir, ".evoharness", "agents");
 		const userAgentsDir = path.join(tempDir, "agent-home", "agents");
 		fs.mkdirSync(projectAgentsDir, { recursive: true });
 		fs.mkdirSync(userAgentsDir, { recursive: true });
@@ -1004,7 +1004,7 @@ Advise only.
 	});
 
 	it("blocks a malformed .pi agent from falling back to a legacy project agent", () => {
-		const canonicalAgentsDir = path.join(tempDir, ".pi", "agents");
+		const canonicalAgentsDir = path.join(tempDir, ".evoharness", "agents");
 		const legacyAgentsDir = path.join(tempDir, ".agents");
 		fs.mkdirSync(canonicalAgentsDir, { recursive: true });
 		fs.mkdirSync(legacyAgentsDir, { recursive: true });
@@ -1127,7 +1127,7 @@ Advise only.
 
 		assert.equal(created.isError, false);
 		assert.match(readText(created), /Created agent 'code-analysis.scout'/);
-		const filePath = path.join(tempDir, ".pi", "agents", "code-analysis.scout.md");
+		const filePath = path.join(tempDir, ".evoharness", "agents", "code-analysis.scout.md");
 		let content = fs.readFileSync(filePath, "utf-8");
 		assert.match(content, /^name: scout$/m);
 		assert.match(content, /^package: code-analysis$/m);
@@ -1143,7 +1143,7 @@ Advise only.
 		assert.equal(updated.isError, false);
 		assert.match(readText(updated), /code-analysis\.scout' to 'documentation\.scout'/);
 		assert.equal(fs.existsSync(filePath), false);
-		const updatedPath = path.join(tempDir, ".pi", "agents", "documentation.scout.md");
+		const updatedPath = path.join(tempDir, ".evoharness", "agents", "documentation.scout.md");
 		content = fs.readFileSync(updatedPath, "utf-8");
 		assert.match(content, /^name: scout$/m);
 		assert.match(content, /^package: documentation$/m);
@@ -1155,7 +1155,7 @@ Advise only.
 
 	it("creates, reports, and clears agent-local skill paths", () => {
 		const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
-		const skillFile = path.join(tempDir, ".pi", "agents", "skills", "private", "SKILL.md");
+		const skillFile = path.join(tempDir, ".evoharness", "agents", "skills", "private", "SKILL.md");
 		fs.mkdirSync(path.dirname(skillFile), { recursive: true });
 		fs.writeFileSync(skillFile, "---\ndescription: Private skill\n---\nbody\n", "utf-8");
 
@@ -1173,7 +1173,7 @@ Advise only.
 		);
 		assert.equal(created.isError, false);
 		assert.doesNotMatch(readText(created), /skills not found/);
-		const filePath = path.join(tempDir, ".pi", "agents", "local.md");
+		const filePath = path.join(tempDir, ".evoharness", "agents", "local.md");
 		let content = fs.readFileSync(filePath, "utf-8");
 		assert.match(content, /^skillPath: \.\/skills$/m);
 
@@ -1230,7 +1230,7 @@ Advise only.
 
 	it("ignores discovered legacy chains during agent management", () => {
 		const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
-		const chainsDir = path.join(tempDir, ".pi", "chains");
+		const chainsDir = path.join(tempDir, ".evoharness", "chains");
 		fs.mkdirSync(chainsDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(chainsDir, "scout.chain.md"),
@@ -1278,7 +1278,7 @@ Advise only.
 		);
 
 		assert.equal(result.isError, false);
-		const filePath = path.join(tempDir, ".pi", "agents", "background-reviewer.md");
+		const filePath = path.join(tempDir, ".evoharness", "agents", "background-reviewer.md");
 		let content = fs.readFileSync(filePath, "utf-8");
 		assert.match(content, /^async: false$/m);
 		assert.match(content, /^timeoutMs: 120000$/m);
@@ -1372,7 +1372,7 @@ Advise only.
 		);
 
 		assert.equal(result.isError, false);
-		const filePath = path.join(tempDir, ".pi", "agents", "budgeted-reviewer.md");
+		const filePath = path.join(tempDir, ".evoharness", "agents", "budgeted-reviewer.md");
 		let content = fs.readFileSync(filePath, "utf-8");
 		assert.match(content, /^toolBudget: \{"soft":4,"hard":7,"block":\["read","grep"\]\}$/m);
 
@@ -1422,7 +1422,7 @@ Advise only.
 
 	it("rejects an unknown thinking level without writing the agent file", () => {
 		const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
-		const filePath = path.join(tempDir, ".pi", "agents", "thinker.md");
+		const filePath = path.join(tempDir, ".evoharness", "agents", "thinker.md");
 		const created = handleCreate(
 			{ config: { name: "thinker", description: "Think", scope: "project", thinking: "hgih" } },
 			ctx,
@@ -1447,7 +1447,7 @@ Advise only.
 
 	it("saves an explicit thinking: off on create and on a padded update", () => {
 		const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
-		const agentsDir = path.join(tempDir, ".pi", "agents");
+		const agentsDir = path.join(tempDir, ".evoharness", "agents");
 		assert.equal(
 			handleCreate({ config: { name: "quiet", description: "Quiet", scope: "project", thinking: "off" } }, ctx)
 				.isError,
@@ -1473,7 +1473,7 @@ Advise only.
 		);
 		assert.equal(created.isError, false);
 
-		const filePath = path.join(tempDir, ".pi", "agents", "explorer.md");
+		const filePath = path.join(tempDir, ".evoharness", "agents", "explorer.md");
 		assert.match(fs.readFileSync(filePath, "utf-8"), /^acceptanceRole: read-only$/m);
 		assert.match(readText(handleManagementAction("get", { agent: "explorer" }, ctx)), /Acceptance role: read-only/);
 
@@ -1509,16 +1509,16 @@ Advise only.
 		);
 
 		assert.equal(result.isError, false);
-		const filePath = path.join(tempDir, ".pi", "agents", "child-tool-user.md");
+		const filePath = path.join(tempDir, ".evoharness", "agents", "child-tool-user.md");
 		const content = fs.readFileSync(filePath, "utf-8");
-		assert.match(content, /^subagentOnlyExtensions: \.\/tools\/child-only\.ts, \/opt\/pi\/child\.ts$/m);
+		assert.match(content, /^subagentOnlyExtensions: \.\/tools\/child-only\.ts, \/opt.evoharness\/child\.ts$/m);
 
 		const got = handleManagementAction("get", { agent: "child-tool-user" }, ctx);
 		assert.equal(got.isError, false);
 		assert.ok(
 			readText(got).includes(
 				"Subagent-only extensions: " +
-					path.join(tempDir, ".pi", "agents", "tools", "child-only.ts") +
+					path.join(tempDir, ".evoharness", "agents", "tools", "child-only.ts") +
 					", /opt/pi/child.ts",
 			),
 		);
@@ -1526,7 +1526,7 @@ Advise only.
 
 	it("preserves relative extension paths during unrelated updates", () => {
 		const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
-		const agentPath = path.join(tempDir, ".pi", "agents", "portable.md");
+		const agentPath = path.join(tempDir, ".evoharness", "agents", "portable.md");
 		fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 		fs.writeFileSync(
 			agentPath,
@@ -1551,9 +1551,9 @@ Advise only.
 		);
 		assert.equal(created.isError, true);
 		assert.match(readText(created), /config\.launcher is not supported/);
-		assert.equal(fs.existsSync(path.join(tempDir, ".pi", "agents", "netty.md")), false);
+		assert.equal(fs.existsSync(path.join(tempDir, ".evoharness", "agents", "netty.md")), false);
 
-		const agentPath = path.join(tempDir, ".pi", "agents", "sandboxed.md");
+		const agentPath = path.join(tempDir, ".evoharness", "agents", "sandboxed.md");
 		fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 		fs.writeFileSync(
 			agentPath,
@@ -1572,7 +1572,7 @@ Advise only.
 	});
 
 	it("fails when extension frontmatter cannot be reread", () => {
-		const filePath = path.join(tempDir, ".pi", "agents", "removed.md");
+		const filePath = path.join(tempDir, ".evoharness", "agents", "removed.md");
 		assert.throws(
 			() =>
 				editableAgentConfig({
@@ -1584,14 +1584,14 @@ Advise only.
 					systemPrompt: "Original prompt.",
 					source: "project",
 					filePath,
-					extensions: [path.join(tempDir, ".pi", "agents", "tools", "parent.ts")],
+					extensions: [path.join(tempDir, ".evoharness", "agents", "tools", "parent.ts")],
 				}),
 			/ENOENT/,
 		);
 	});
 
 	it("returns a structured error when a definition disappears after discovery", () => {
-		const agentPath = path.join(tempDir, ".pi", "agents", "removed-during-update.md");
+		const agentPath = path.join(tempDir, ".evoharness", "agents", "removed-during-update.md");
 		fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 		fs.writeFileSync(
 			agentPath,
@@ -1624,8 +1624,8 @@ Advise only.
 			modelRegistry: { getAvailable: () => [{ provider: "anthropic", id: "claude-sonnet-4-6" }] },
 		};
 		const userSettingsPath = path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "settings.json");
-		const settingsPath = path.join(tempDir, ".pi", "settings.json");
-		const agentPath = path.join(tempDir, ".pi", "agents", "implementer.md");
+		const settingsPath = path.join(tempDir, ".evoharness", "settings.json");
+		const agentPath = path.join(tempDir, ".evoharness", "agents", "implementer.md");
 		fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 		fs.mkdirSync(path.dirname(userSettingsPath), { recursive: true });
 		fs.writeFileSync(
@@ -1720,8 +1720,8 @@ Drive the failing test first.
 
 	it("does not serialize settings descriptions, fast, or defaults into custom agent frontmatter during updates", () => {
 		const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
-		const settingsPath = path.join(tempDir, ".pi", "settings.json");
-		const agentPath = path.join(tempDir, ".pi", "agents", "implementer.md");
+		const settingsPath = path.join(tempDir, ".evoharness", "settings.json");
+		const agentPath = path.join(tempDir, ".evoharness", "agents", "implementer.md");
 		fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 		fs.writeFileSync(
 			settingsPath,
@@ -1770,7 +1770,7 @@ Drive the failing test first.
 
 	for (const action of ["model", "thinking"]) {
 		it(`awaits an offline registry refresh before opening the ${action} picker over RPC`, async () => {
-			const agentPath = path.join(tempDir, ".pi", "agents", "refresh-worker.md");
+			const agentPath = path.join(tempDir, ".evoharness", "agents", "refresh-worker.md");
 			fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 			fs.writeFileSync(
 				agentPath,
@@ -1886,7 +1886,7 @@ Drive the failing test first.
 			const refusal = "runtime-registered by an extension; edit its source definition instead";
 			assert.match(notified.at(-1) ?? "", new RegExp(refusal));
 			assert.match(sent.at(-1)?.content ?? "", new RegExp(refusal));
-			assert.equal(fs.existsSync(path.join(tempDir, ".pi", "settings.json")), false);
+			assert.equal(fs.existsSync(path.join(tempDir, ".evoharness", "settings.json")), false);
 			assert.equal(fs.existsSync(path.join(tempDir, "agent-home", "settings.json")), false);
 		} finally {
 			registration.dispose();
@@ -1894,7 +1894,7 @@ Drive the failing test first.
 	});
 
 	it("fails closed when a runtime agent collides with a disabled configured definition", async () => {
-		const agentPath = path.join(tempDir, ".pi", "agents", "disabled-runtime-name.md");
+		const agentPath = path.join(tempDir, ".evoharness", "agents", "disabled-runtime-name.md");
 		fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 		fs.writeFileSync(
 			agentPath,
@@ -1930,7 +1930,7 @@ Drive the failing test first.
 
 	for (const outcome of ["returned error", "aborted", "rejected"]) {
 		it(`warns and keeps registry choices when refresh ${outcome}`, async () => {
-			const agentPath = path.join(tempDir, ".pi", "agents", "refresh-worker.md");
+			const agentPath = path.join(tempDir, ".evoharness", "agents", "refresh-worker.md");
 			fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 			fs.writeFileSync(agentPath, "---\nname: refresh-worker\ndescription: Refresh test\n---\nPrompt.\n");
 			const notices: Array<[string, string]> = [];
@@ -1975,8 +1975,8 @@ Drive the failing test first.
 	}
 
 	it("keeps same-value custom override ownership for interactive admin edits", async () => {
-		const settingsPath = path.join(tempDir, ".pi", "settings.json");
-		const agentPath = path.join(tempDir, ".pi", "agents", "implementer.md");
+		const settingsPath = path.join(tempDir, ".evoharness", "settings.json");
+		const agentPath = path.join(tempDir, ".evoharness", "agents", "implementer.md");
 		fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 		fs.writeFileSync(
 			settingsPath,
@@ -2044,8 +2044,8 @@ Drive the failing test first.
 
 	it("promotes cross-scope custom override edits to project settings", async () => {
 		const userSettingsPath = path.join(tempDir, "agent-home", "settings.json");
-		const projectSettingsPath = path.join(tempDir, ".pi", "settings.json");
-		const agentPath = path.join(tempDir, ".pi", "agents", "implementer.md");
+		const projectSettingsPath = path.join(tempDir, ".evoharness", "settings.json");
+		const agentPath = path.join(tempDir, ".evoharness", "agents", "implementer.md");
 		fs.mkdirSync(path.dirname(userSettingsPath), { recursive: true });
 		fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 		fs.writeFileSync(
@@ -2241,8 +2241,8 @@ Base prompt.
 
 	it("preserves blank output and defaultReads frontmatter while settings overrides replace them", () => {
 		const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
-		const settingsPath = path.join(tempDir, ".pi", "settings.json");
-		const agentPath = path.join(tempDir, ".pi", "agents", "implementer.md");
+		const settingsPath = path.join(tempDir, ".evoharness", "settings.json");
+		const agentPath = path.join(tempDir, ".evoharness", "agents", "implementer.md");
 		fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 		fs.writeFileSync(
 			settingsPath,
@@ -2282,8 +2282,8 @@ Drive the failing test first.
 
 	it("preserves explicit default-like frontmatter while settings overrides replace it", () => {
 		const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
-		const settingsPath = path.join(tempDir, ".pi", "settings.json");
-		const agentPath = path.join(tempDir, ".pi", "agents", "implementer.md");
+		const settingsPath = path.join(tempDir, ".evoharness", "settings.json");
+		const agentPath = path.join(tempDir, ".evoharness", "agents", "implementer.md");
 		fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 		fs.writeFileSync(
 			settingsPath,
@@ -2396,9 +2396,9 @@ Drive the failing test first.
 	});
 
 	it("reports effective model mappings for discovered package, user, and project agents", () => {
-		const projectAgentsDir = path.join(tempDir, ".pi", "agents");
+		const projectAgentsDir = path.join(tempDir, ".evoharness", "agents");
 		const userAgentsDir = path.join(tempDir, "agent-home", "agents");
-		const packageDir = path.join(tempDir, ".pi", "npm", "node_modules", "model-agents");
+		const packageDir = path.join(tempDir, ".evoharness", "npm", "node_modules", "model-agents");
 		fs.mkdirSync(projectAgentsDir, { recursive: true });
 		fs.mkdirSync(userAgentsDir, { recursive: true });
 		fs.mkdirSync(path.join(packageDir, "agents"), { recursive: true });
@@ -2440,7 +2440,7 @@ Drive the failing test first.
 				"Explicitly disable thinking.",
 			].join("\n"),
 		);
-		const settingsPath = path.join(tempDir, ".pi", "settings.json");
+		const settingsPath = path.join(tempDir, ".evoharness", "settings.json");
 		fs.writeFileSync(
 			settingsPath,
 			JSON.stringify({ subagents: { agentOverrides: { reviewer: { disabled: true } } } }),
@@ -2485,7 +2485,7 @@ Drive the failing test first.
 	});
 
 	it("reports override source and disabled builtin state in runtime model mappings", () => {
-		const projectSettingsPath = path.join(tempDir, ".pi", "settings.json");
+		const projectSettingsPath = path.join(tempDir, ".evoharness", "settings.json");
 		fs.mkdirSync(path.dirname(projectSettingsPath), { recursive: true });
 		fs.writeFileSync(
 			projectSettingsPath,
@@ -2523,7 +2523,7 @@ Drive the failing test first.
 		assert.match(text, /Source: project override/);
 		assert.match(text, /Requested model setting:\n {2}claude-sonnet-4/);
 		assert.match(text, /Disabled: true/);
-		assert.match(text.replaceAll("\\", "/"), /Override file:\n {2}.*\.pi\/settings\.json/);
+		assert.match(text.replaceAll("\\", "/"), /Override file:\n {2}.*.evoharness\/settings\.json/);
 	});
 
 	it("rejects unknown agents for runtime model mappings", () => {
@@ -2547,7 +2547,7 @@ Drive the failing test first.
 		);
 
 		assert.equal(result.isError, false);
-		const filePath = path.join(tempDir, ".pi", "agents", "delegate.md");
+		const filePath = path.join(tempDir, ".evoharness", "agents", "delegate.md");
 		const content = fs.readFileSync(filePath, "utf-8");
 		assert.match(content, /systemPromptMode: append/);
 		assert.match(content, /inheritProjectContext: true/);
@@ -2556,10 +2556,10 @@ Drive the failing test first.
 
 	it("lists proactive skill subagent suggestions from repeated configured skill use", () => {
 		const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
-		fs.mkdirSync(path.join(tempDir, ".pi", "agents"), { recursive: true });
-		fs.mkdirSync(path.join(tempDir, ".pi", "skills", "deslop"), { recursive: true });
+		fs.mkdirSync(path.join(tempDir, ".evoharness", "agents"), { recursive: true });
+		fs.mkdirSync(path.join(tempDir, ".evoharness", "skills", "deslop"), { recursive: true });
 		fs.writeFileSync(
-			path.join(tempDir, ".pi", "skills", "deslop", "SKILL.md"),
+			path.join(tempDir, ".evoharness", "skills", "deslop", "SKILL.md"),
 			`---
 description: Cleanup review.
 ---
@@ -2570,7 +2570,7 @@ Review for cleanup.
 		);
 		for (const name of ["cleanup-a", "cleanup-b"]) {
 			fs.writeFileSync(
-				path.join(tempDir, ".pi", "agents", `${name}.md`),
+				path.join(tempDir, ".evoharness", "agents", `${name}.md`),
 				`---
 name: ${name}
 description: Cleanup ${name}
@@ -2596,12 +2596,12 @@ Inspect cleanup.
 			modelRegistry: { getAvailable: () => [] },
 			config: { proactiveSkillSubagents: false },
 		};
-		fs.mkdirSync(path.join(tempDir, ".pi", "agents"), { recursive: true });
-		fs.mkdirSync(path.join(tempDir, ".pi", "skills", "deslop"), { recursive: true });
-		fs.writeFileSync(path.join(tempDir, ".pi", "skills", "deslop", "SKILL.md"), "Review for cleanup.\n", "utf-8");
+		fs.mkdirSync(path.join(tempDir, ".evoharness", "agents"), { recursive: true });
+		fs.mkdirSync(path.join(tempDir, ".evoharness", "skills", "deslop"), { recursive: true });
+		fs.writeFileSync(path.join(tempDir, ".evoharness", "skills", "deslop", "SKILL.md"), "Review for cleanup.\n", "utf-8");
 		for (const name of ["cleanup-a", "cleanup-b"]) {
 			fs.writeFileSync(
-				path.join(tempDir, ".pi", "agents", `${name}.md`),
+				path.join(tempDir, ".evoharness", "agents", `${name}.md`),
 				`---
 name: ${name}
 description: Cleanup ${name}

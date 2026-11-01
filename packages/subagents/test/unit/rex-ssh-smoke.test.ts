@@ -38,7 +38,7 @@ describe(
 			{ timeout: 240_000 },
 			async () => {
 				const made = ssh(
-					`umask 077; d=$(mktemp -d /tmp/rex-ssh-smoke.XXXXXX) && mkdir -p "$d/.pi/agents" && printf '%s\\n' '---' 'name: rex-smoke' 'description: Rex placement smoke agent' 'tools: read' '---' 'You answer in one short line.' > "$d/.pi/agents/rex-smoke.md" && cd -P "$d" && pwd -P`,
+					`umask 077; d=$(mktemp -d /tmp/rex-ssh-smoke.XXXXXX) && mkdir -p "$d/.evoharness/agents" && printf '%s\\n' '---' 'name: rex-smoke' 'description: Rex placement smoke agent' 'tools: read' '---' 'You answer in one short line.' > "$d/.evoharness/agents/rex-smoke.md" && cd -P "$d" && pwd -P`,
 				);
 				assert.equal(made.status, 0, made.stderr);
 				const project = made.stdout.trim();
@@ -149,7 +149,7 @@ describe(
 					await factory.dispose();
 					// The remote Pi keeps its session files in its agent dir, under a folder named for the temp project; remove that folder.
 					const removed = ssh(
-						'd="$HOME/.pi/agent/sessions/$1"; case "$1" in --*-tmp-rex-ssh-smoke.*--) test -d "$d" && rm -rf -- "$d" && echo "$d";; *) exit 64;; esac',
+						'd="$HOME/.evoharness/agent/sessions/$1"; case "$1" in --*-tmp-rex-ssh-smoke.*--) test -d "$d" && rm -rf -- "$d" && echo "$d";; *) exit 64;; esac',
 						[`--${project.slice(1).replaceAll("/", "-")}--`],
 					);
 					log(`removed remote Pi session folder: ${removed.stdout.trim() || "none"}`);

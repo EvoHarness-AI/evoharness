@@ -189,7 +189,7 @@ describe("awaitExistingAsyncRun", () => {
 					if (stat[stat.lastIndexOf(") ") + 2] === "Z") break;
 					await new Promise((resolve) => setTimeout(resolve, 10));
 				}
-				assert.match(stat, /\(pi\) zombie\) Z /);
+				assert.match(stat, /.evoharness\) zombie\) Z /);
 				assert.equal(process.kill(pid, 0), true);
 				const scope = fs.readlinkSync("/proc/self/ns/pid", "utf-8").trim();
 				for (const scenario of [

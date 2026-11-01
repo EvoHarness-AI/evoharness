@@ -20,7 +20,7 @@ function projectFixture() {
 	return {
 		root,
 		projectRoot,
-		missionConfig: { directory: ".pi/subagents/missions", globalIndexDir: path.join(root, "global-index") },
+		missionConfig: { directory: ".evoharness/subagents/missions", globalIndexDir: path.join(root, "global-index") },
 	};
 }
 
@@ -175,7 +175,7 @@ describe("mission launch lifecycle", () => {
 				config: test.missionConfig,
 			});
 			assert.ok(binding);
-			const missionDir = path.join(worktreeRoot, ".pi", "subagents", "missions");
+			const missionDir = path.join(worktreeRoot, ".evoharness/subagents", "missions");
 			assert.throws(
 				() =>
 					prepareMissionLaunch({

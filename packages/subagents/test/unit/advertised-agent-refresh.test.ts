@@ -31,7 +31,7 @@ it("emits bounded file-only snapshots, refreshes through management, and perform
 			import { registerSubagentCapabilityCeiling } from "./src/runs/shared/capability-ceiling.ts";
 			const home = process.env.EVOHARNESS_CODING_AGENT_DIR;
 			const cwd = path.join(home, "project");
-			fs.mkdirSync(path.join(cwd, ".pi"), { recursive: true });
+			fs.mkdirSync(path.join(cwd, ".evoharness"), { recursive: true });
 			const dir = path.join(home, "agents");
 			fs.mkdirSync(dir);
 			const write = (file, name, description, advertise = true) => fs.writeFileSync(path.join(dir, file + ".md"),
@@ -199,7 +199,7 @@ it("delivers the catalog as a structured prompt section instead of replacing the
 			import { registerSubagentCapabilityCeiling } from "./src/runs/shared/capability-ceiling.ts";
 			const home = process.env.EVOHARNESS_CODING_AGENT_DIR;
 			const cwd = path.join(home, "project");
-			fs.mkdirSync(path.join(cwd, ".pi"), { recursive: true });
+			fs.mkdirSync(path.join(cwd, ".evoharness"), { recursive: true });
 			const dir = path.join(home, "agents");
 			fs.mkdirSync(dir);
 			fs.writeFileSync(path.join(dir, "specialist.md"), "---\nname: specialist\ndescription: Section specialist\nadvertise: true\n---\nAct narrowly.\n");

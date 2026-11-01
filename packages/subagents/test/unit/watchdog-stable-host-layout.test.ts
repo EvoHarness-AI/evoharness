@@ -5,7 +5,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 
-test("watchdog modules link on the stable host surface without newer pi-ai exports", () => {
+test("watchdog modules link on the stable host surface without newer ai exports", () => {
 	const review = pathToFileURL(path.join(projectRoot, "src", "watchdog", "review.ts")).href;
 	const arbiter = pathToFileURL(path.join(projectRoot, "src", "watchdog", "permission-arbiter.ts")).href;
 	const loader = pathToFileURL(path.join(projectRoot, "test", "support", "watchdog-stable-host-loader.mjs")).href;

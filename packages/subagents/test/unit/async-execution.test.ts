@@ -138,7 +138,7 @@ describe("async runner execution", () => {
 			unknownAgentDiagnosticContext: {
 				cwd: path.resolve(ctx.cwd),
 				scope: "both",
-				directories: [{ source: "project", path: path.join(ctx.cwd, ".pi", "agents"), state: "empty" }],
+				directories: [{ source: "project", path: path.join(ctx.cwd, ".evoharness", "agents"), state: "empty" }],
 				agents: [agent("discovered")],
 			},
 			ctx,
@@ -172,9 +172,9 @@ describe("async runner execution", () => {
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(repo, "agent-home");
 		try {
-			fs.mkdirSync(path.join(app, ".pi"), { recursive: true });
+			fs.mkdirSync(path.join(app, ".evoharness"), { recursive: true });
 			fs.writeFileSync(
-				path.join(app, ".pi", "settings.json"),
+				path.join(app, ".evoharness", "settings.json"),
 				JSON.stringify(
 					{
 						subagents: { watchdog: { rules: { action: "block", roleModels: { worker: { deny: ["mock/*"] } } } } },
@@ -189,7 +189,7 @@ describe("async runner execution", () => {
 				agents: [{ ...agent("worker"), model: "mock/denied" }],
 				ctx: { ...ctx, cwd: repo },
 				cwd: repo,
-				asyncDir: path.join(repo, ".pi", "subagents", "async-step-rules"),
+				asyncDir: path.join(repo, ".evoharness/subagents", "async-step-rules"),
 				maxSubagentDepth: 1,
 			});
 

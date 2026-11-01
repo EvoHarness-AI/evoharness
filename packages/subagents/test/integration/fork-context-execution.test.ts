@@ -265,7 +265,7 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 	}
 
 	function writeAgent(projectRoot: string, name: string, model: string): void {
-		const filePath = path.join(projectRoot, ".pi", "agents", `${name}.md`);
+		const filePath = path.join(projectRoot, ".evoharness", "agents", `${name}.md`);
 		fs.mkdirSync(path.dirname(filePath), { recursive: true });
 		fs.writeFileSync(
 			filePath,
@@ -275,7 +275,7 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 	}
 
 	function writeProjectOverride(projectRoot: string, agentName: string, model: string): void {
-		const settingsPath = path.join(projectRoot, ".pi", "settings.json");
+		const settingsPath = path.join(projectRoot, ".evoharness", "settings.json");
 		fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 		fs.writeFileSync(
 			settingsPath,
@@ -1652,7 +1652,7 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 	it("uses request cwd for management actions", async () => {
 		const executor = makeExecutor();
 		const worktreeDir = path.join(tempDir, "worktree");
-		fs.mkdirSync(path.join(worktreeDir, ".pi"), { recursive: true });
+		fs.mkdirSync(path.join(worktreeDir, ".evoharness"), { recursive: true });
 
 		const result = await executor.execute(
 			"id",
@@ -1667,8 +1667,8 @@ describe("fork context execution wiring", { skip: !available ? "subagent executo
 		);
 
 		assert.equal(result.isError, false);
-		assert.equal(fs.existsSync(path.join(worktreeDir, ".pi", "agents", "local-helper.md")), true);
-		assert.equal(fs.existsSync(path.join(tempDir, ".pi", "agents", "local-helper.md")), false);
+		assert.equal(fs.existsSync(path.join(worktreeDir, ".evoharness", "agents", "local-helper.md")), true);
+		assert.equal(fs.existsSync(path.join(tempDir, ".evoharness", "agents", "local-helper.md")), false);
 	});
 
 	it("uses request cwd for execution-time agent discovery", async () => {

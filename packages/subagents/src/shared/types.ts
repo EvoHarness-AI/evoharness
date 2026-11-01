@@ -3051,7 +3051,7 @@ export interface ExtensionConfig {
 	worktreeProvider?: WorktreeProvider;
 	/** Namespace used by managed worktree branches. Defaults to pi-subagents/. */
 	worktreeBranchPrefix?: string;
-	/** Where to store subagent artifact files. Defaults to "session" (the pi session directory, or OS temp when unavailable). Set to "project" for cwd/.pi/subagents. */
+	/** Where to store subagent artifact files. Defaults to "session" (the pi session directory, or OS temp when unavailable). Set to "project" for cwd/.evoharness/subagents. */
 	artifactDir?: ArtifactDirPreference;
 	/** Artifact cleanup retention. Set cleanupDays to 0 to disable cleanup. */
 	artifactConfig?: Pick<ArtifactConfig, "cleanupDays">;

@@ -68,16 +68,16 @@ describe("thinking ceilings", () => {
 	});
 
 	it("loads maxThinking with project precedence and attaches it to discovered agents", () => {
-		writeJson(path.join(home, ".pi", "agent", "settings.json"), { subagents: { maxThinking: "max" } });
-		fs.mkdirSync(path.join(project, ".pi"), { recursive: true });
-		writeJson(path.join(project, ".pi", "settings.json"), { subagents: { maxThinking: "xhigh" } });
+		writeJson(path.join(home, ".evoharness", "agent", "settings.json"), { subagents: { maxThinking: "max" } });
+		fs.mkdirSync(path.join(project, ".evoharness"), { recursive: true });
+		writeJson(path.join(project, ".evoharness", "settings.json"), { subagents: { maxThinking: "xhigh" } });
 		const discovered = discoverAgents(project, "both");
 		assert.equal(discovered.maxThinking, "xhigh");
 		assert.equal(discovered.agents.find((agent) => agent.name === "worker")?.maxThinking, "xhigh");
 	});
 
 	it("fails closed for invalid maxThinking settings", () => {
-		const settingsPath = path.join(home, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(home, ".evoharness", "agent", "settings.json");
 		for (const value of ["", "turbo", 42, false]) {
 			writeJson(settingsPath, { subagents: { maxThinking: value } });
 			assert.throws(

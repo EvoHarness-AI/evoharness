@@ -518,7 +518,7 @@ describe("result file indexes", () => {
 	it("round-trips results for Windows session file paths", () => {
 		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-win-session-"));
 		try {
-			const sessionId = String.raw`C:\Users\theap\.pi\agent\sessions\leaf.jsonl`;
+			const sessionId = String.raw`C:\Users\theap.evoharness\agent\sessions\leaf.jsonl`;
 			const runId = "win-session-run";
 			const resultPath = path.join(resultsDir, `${runId}.json`);
 			writeAsyncResultFile(resultPath, { id: runId, runId, sessionId, success: true });
@@ -535,7 +535,7 @@ describe("result file indexes", () => {
 
 	it("treats an unaddressable legacy session alias as absent and keeps canonical fallback candidates", (t) => {
 		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-legacy-enametoolong-"));
-		const sessionId = String.raw`C:\Users\theap\.pi\agent\sessions\leaf.jsonl`;
+		const sessionId = String.raw`C:\Users\theap.evoharness\agent\sessions\leaf.jsonl`;
 		const runId = "legacy-alias-fallback";
 		const resultPath = path.join(resultsDir, `${runId}.json`);
 		const legacyDir = path.join(resultsDir, "result-index", "sessions", encodeURIComponent(sessionId));
@@ -584,7 +584,7 @@ describe("result file indexes", () => {
 
 	it("leaves an unaddressable legacy index untouched during cleanup", (t) => {
 		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-cleanup-enametoolong-"));
-		const sessionId = String.raw`C:\Users\theap\.pi\agent\sessions\leaf.jsonl`;
+		const sessionId = String.raw`C:\Users\theap.evoharness\agent\sessions\leaf.jsonl`;
 		const runId = "legacy-cleanup";
 		const originalStatSync = fsDefault.statSync;
 		const originalError = console.error;
@@ -622,7 +622,7 @@ describe("result file indexes", () => {
 	it("reads a pre-hash URI-encoded session index after the encoding change", () => {
 		const resultsDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-result-files-legacy-session-"));
 		try {
-			const sessionId = String.raw`C:\Users\theap\.pi\agent\sessions\leaf.jsonl`;
+			const sessionId = String.raw`C:\Users\theap.evoharness\agent\sessions\leaf.jsonl`;
 			const runId = "legacy-session-run";
 			const resultPath = path.join(resultsDir, `${runId}.json`);
 			writeAsyncResultFile(resultPath, { id: runId, runId, sessionId, success: true });

@@ -11,7 +11,7 @@ const packageRootUrl = new URL("../../", import.meta.url).href;
 const hostModules = path.join(os.tmpdir(), "runner-peer-loader-host", "node_modules", "@evoharness");
 const aliases = {
 	"@evoharness/tui": path.join(hostModules, "tui", "dist", "index.js"),
-	"@evoharness/ai": path.join(hostModules, "pi-ai", "dist", "index.js"),
+	"@evoharness/ai": path.join(hostModules, "ai", "dist", "index.js"),
 };
 test("native preload leaves the SDK extension loader's require.resolve intact", () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "runner-extension-resolve-"));

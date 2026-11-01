@@ -38,7 +38,7 @@ describe("EVOHARNESS_CODING_AGENT_DIR runtime paths", () => {
 		oldAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		oldHome = process.env.HOME;
 		oldUserProfile = process.env.USERPROFILE;
-		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-coding-agent-dir-"));
+		tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "coding-agent-dir-"));
 		tempHome = path.join(tempDir, "home");
 		agentDir = path.join(tempDir, "agent");
 		cwd = path.join(tempDir, "workspace");
@@ -63,9 +63,9 @@ describe("EVOHARNESS_CODING_AGENT_DIR runtime paths", () => {
 
 	it("resolves the agent dir dynamically and loads extension config from it", () => {
 		assert.equal(resolveConfigDirName({ CONFIG_DIR_NAME: ".custom-pi" }), ".custom-pi");
-		assert.equal(resolveConfigDirName({ CONFIG_DIR_NAME: "" }), ".pi");
-		assert.equal(getConfigDirName(), ".pi");
-		assert.equal(getProjectConfigDir(cwd), path.join(cwd, ".pi"));
+		assert.equal(resolveConfigDirName({ CONFIG_DIR_NAME: "" }), ".evoharness");
+		assert.equal(getConfigDirName(), ".evoharness");
+		assert.equal(getProjectConfigDir(cwd), path.join(cwd, ".evoharness"));
 		assert.equal(getAgentDir(), agentDir);
 
 		process.env.EVOHARNESS_CODING_AGENT_DIR = "~";
@@ -75,7 +75,7 @@ describe("EVOHARNESS_CODING_AGENT_DIR runtime paths", () => {
 		assert.equal(getAgentDir(), path.join(tempHome, "custom-agent-dir"));
 
 		delete process.env.EVOHARNESS_CODING_AGENT_DIR;
-		assert.equal(getAgentDir(), path.join(tempHome, ".pi", "agent"));
+		assert.equal(getAgentDir(), path.join(tempHome, ".evoharness", "agent"));
 
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		const configPath = path.join(agentDir, "extensions", "subagent", "config.json");
@@ -194,7 +194,7 @@ Use the configured root agent.
 		);
 		const nestedBackupAgentPath = path.join(
 			userAgentsDir,
-			".pi",
+			".evoharness",
 			"agent",
 			"sync-backups",
 			"20260712-163714",

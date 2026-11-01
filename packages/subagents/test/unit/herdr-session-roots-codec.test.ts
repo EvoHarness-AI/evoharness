@@ -9,7 +9,7 @@ describe("session roots codec", () => {
 		for (const roots of [
 			[],
 			["/tmp/a"],
-			["C:\\Users\\a b\\.pi", "D:\\work"],
+			["C:\\Users\\a b\.evoharness", "D:\\work"],
 			['has "quotes"', "has\\backslashes\\"],
 		]) {
 			assert.deepEqual(decodeSessionRoots(encodeSessionRoots(roots)), roots);
@@ -29,7 +29,7 @@ describe("session roots codec", () => {
 	});
 
 	it("produces plain-ASCII base64 output with no quote, backslash, or space characters for a shell to mangle", () => {
-		const encoded = encodeSessionRoots(["C:\\Users\\a b\\.pi\\sessions", 'contains "quotes"', "D:\\work"]);
+		const encoded = encodeSessionRoots(["C:\\Users\\a b\.evoharness\\sessions", 'contains "quotes"', "D:\\work"]);
 		assert.match(encoded, /^[A-Za-z0-9+/=]+$/);
 	});
 
@@ -53,7 +53,7 @@ describe("session roots codec", () => {
 		}
 
 		it("mangles a raw JSON.stringify payload (documents the bug this PR fixes)", () => {
-			const sessionRoots = ["C:\\Users\\sgerashe\\.pi\\sessions", "D:\\work\\proj"];
+			const sessionRoots = ["C:\\Users\\sgerashe\.evoharness\\sessions", "D:\\work\\proj"];
 			const rawJson = JSON.stringify(sessionRoots);
 			const argv = runThroughPowerShell(echoArgvCommand(rawJson));
 			const received = argv[argv.indexOf("--session-roots") + 1];
@@ -66,7 +66,7 @@ describe("session roots codec", () => {
 		});
 
 		it("survives base64 encoding byte-for-byte", () => {
-			const sessionRoots = ["C:\\Users\\sgerashe\\.pi\\sessions", "D:\\work\\proj", 'C:\\has "quotes"\\dir'];
+			const sessionRoots = ["C:\\Users\\sgerashe\.evoharness\\sessions", "D:\\work\\proj", 'C:\\has "quotes"\\dir'];
 			const encoded = encodeSessionRoots(sessionRoots);
 			const argv = runThroughPowerShell(echoArgvCommand(encoded));
 			const received = argv[argv.indexOf("--session-roots") + 1];

@@ -31,7 +31,7 @@ describe("settings subagents.agentScanDirs", () => {
 		previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		process.env.EVOHARNESS_CODING_AGENT_DIR = agentDir;
 		fs.mkdirSync(path.join(agentDir, "agents"), { recursive: true });
-		fs.mkdirSync(path.join(projectDir, ".pi"), { recursive: true });
+		fs.mkdirSync(path.join(projectDir, ".evoharness"), { recursive: true });
 		clearAgentDiscoveryCache();
 	});
 
@@ -47,7 +47,7 @@ describe("settings subagents.agentScanDirs", () => {
 	}
 
 	function writeProjectSettings(value: unknown): void {
-		fs.writeFileSync(path.join(projectDir, ".pi", "settings.json"), JSON.stringify(value), "utf-8");
+		fs.writeFileSync(path.join(projectDir, ".evoharness", "settings.json"), JSON.stringify(value), "utf-8");
 	}
 
 	it("discovers agents from configured user scan directories", () => {

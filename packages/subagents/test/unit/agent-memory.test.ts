@@ -67,7 +67,7 @@ function withTempHome<T>(fn: (home: string) => T): T {
 // Create a temp project root that findNearestProjectRoot will recognise (.pi dir present).
 function mkProject(): string {
 	const dir = mkdtemp("pi-subagents-mem-project-");
-	fs.mkdirSync(path.join(dir, ".pi", "agents"), { recursive: true });
+	fs.mkdirSync(path.join(dir, ".evoharness", "agents"), { recursive: true });
 	return dir;
 }
 
@@ -277,7 +277,7 @@ describe("buildAgentMemoryInjection", () => {
 
 	it("injects a read-write block with contents for a project scope", () => {
 		const project = mkProject();
-		const memoryDir = path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "security-reviewer");
+		const memoryDir = path.join(project, ".evoharness", AGENT_MEMORY_DIR_NAME, "security-reviewer");
 		writeMemoryFile(memoryDir, "Threat: token leakage in logs.\nGotcha: retry on 429.");
 		const agent = makeAgent({ memory: { scope: "project", path: "security-reviewer" }, tools: ["read", "edit"] });
 		const injection = buildAgentMemoryInjection(agent, project);
@@ -295,7 +295,7 @@ describe("buildAgentMemoryInjection", () => {
 		const project = mkProject();
 		const agent = makeAgent({ memory: { scope: "project", path: "fresh-agent" }, tools: ["read", "write"] });
 		const injection = buildAgentMemoryInjection(agent, project);
-		const memoryFile = path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "fresh-agent", AGENT_MEMORY_FILE);
+		const memoryFile = path.join(project, ".evoharness", AGENT_MEMORY_DIR_NAME, "fresh-agent", AGENT_MEMORY_FILE);
 		assert.match(injection, new RegExp(`Memory file: ${escapeRegex(memoryFile)}`));
 		assert.match(injection, new RegExp(`No ${AGENT_MEMORY_FILE} exists yet`));
 		assert.match(injection, /You may create it/);
@@ -305,13 +305,13 @@ describe("buildAgentMemoryInjection", () => {
 		const root = mkdtemp("pi-subagents-mem-worktree-");
 		const project = path.join(root, "project");
 		const worktree = path.join(root, "worktree");
-		fs.mkdirSync(path.join(project, ".pi", "agents"), { recursive: true });
-		fs.writeFileSync(path.join(project, ".pi", "agents", "probe.md"), "probe\n");
-		commitFixture(project, ".pi/agents/probe.md");
+		fs.mkdirSync(path.join(project, ".evoharness", "agents"), { recursive: true });
+		fs.writeFileSync(path.join(project, ".evoharness", "agents", "probe.md"), "probe\n");
+		commitFixture(project, ".evoharness/agents/probe.md");
 		execFileSync("git", ["worktree", "add", "-qb", "probe", worktree], { cwd: project });
 		const expectedFile = path.join(
 			fs.realpathSync.native(project),
-			".pi",
+			".evoharness",
 			AGENT_MEMORY_DIR_NAME,
 			"probe",
 			AGENT_MEMORY_FILE,
@@ -322,14 +322,14 @@ describe("buildAgentMemoryInjection", () => {
 		process.env.GIT_TRACE = "1";
 		let injection: string;
 		try {
-			injection = buildAgentMemoryInjection(agent, path.join(worktree, ".pi", "agents"));
+			injection = buildAgentMemoryInjection(agent, path.join(worktree, ".evoharness", "agents"));
 		} finally {
 			if (previousGitTrace === undefined) delete process.env.GIT_TRACE;
 			else process.env.GIT_TRACE = previousGitTrace;
 		}
 		assert.match(injection, /marker: shared-main-memory/);
 		assert.match(injection, new RegExp(`Memory file: ${escapeRegex(expectedFile)}`));
-		assert.doesNotMatch(injection, new RegExp(escapeRegex(path.join(worktree, ".pi", AGENT_MEMORY_DIR_NAME))));
+		assert.doesNotMatch(injection, new RegExp(escapeRegex(path.join(worktree, ".evoharness", AGENT_MEMORY_DIR_NAME))));
 
 		const marker = path.join(worktree, ".git");
 		const absoluteGitDir = fs.readFileSync(marker, "utf8").match(/^gitdir:\s*(.+?)\s*$/m)?.[1];
@@ -354,14 +354,14 @@ describe("buildAgentMemoryInjection", () => {
 		const project = path.join(root, "project");
 		const worktree = path.join(root, "worktree");
 		const nested = path.join("packages", "app");
-		fs.mkdirSync(path.join(project, nested, ".pi", "agents"), { recursive: true });
-		fs.writeFileSync(path.join(project, nested, ".pi", "agents", "probe.md"), "probe\n");
-		commitFixture(project, `${nested}/.pi/agents/probe.md`);
+		fs.mkdirSync(path.join(project, nested, ".evoharness", "agents"), { recursive: true });
+		fs.writeFileSync(path.join(project, nested, ".evoharness", "agents", "probe.md"), "probe\n");
+		commitFixture(project, `${nested}/.evoharness/agents/probe.md`);
 		execFileSync("git", ["worktree", "add", "-qb", "nested", worktree], { cwd: project });
 		const expectedFile = path.join(
 			fs.realpathSync.native(project),
 			nested,
-			".pi",
+			".evoharness",
 			AGENT_MEMORY_DIR_NAME,
 			"probe",
 			AGENT_MEMORY_FILE,
@@ -384,8 +384,8 @@ describe("buildAgentMemoryInjection", () => {
 		const otherGitDir = fs.readFileSync(path.join(otherWorktree, ".git"), "utf8").match(/^gitdir:\s*(.+?)\s*$/m)?.[1];
 		assert.ok(otherGitDir);
 		fs.writeFileSync(path.join(project, ".git"), `gitdir: ${otherGitDir}\n`);
-		writeMemoryFile(path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "probe"), "marker: checkout-local\n");
-		writeMemoryFile(path.join(other, ".pi", AGENT_MEMORY_DIR_NAME, "probe"), "marker: other-repository\n");
+		writeMemoryFile(path.join(project, ".evoharness", AGENT_MEMORY_DIR_NAME, "probe"), "marker: checkout-local\n");
+		writeMemoryFile(path.join(other, ".evoharness", AGENT_MEMORY_DIR_NAME, "probe"), "marker: other-repository\n");
 		const injection = buildAgentMemoryInjection(
 			makeAgent({ memory: { scope: "project", path: "probe" }, tools: ["read"] }),
 			project,
@@ -401,8 +401,8 @@ describe("buildAgentMemoryInjection", () => {
 		fs.mkdirSync(fakeWorktreeGitDir, { recursive: true });
 		fs.writeFileSync(path.join(project, ".git"), `gitdir: ${fakeWorktreeGitDir}\n`);
 		fs.writeFileSync(path.join(fakeWorktreeGitDir, "gitdir"), `${path.join(project, ".git")}\n`);
-		writeMemoryFile(path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "probe"), "marker: checkout-local\n");
-		writeMemoryFile(path.join(fakeMain, ".pi", AGENT_MEMORY_DIR_NAME, "probe"), "marker: forged-main\n");
+		writeMemoryFile(path.join(project, ".evoharness", AGENT_MEMORY_DIR_NAME, "probe"), "marker: checkout-local\n");
+		writeMemoryFile(path.join(fakeMain, ".evoharness", AGENT_MEMORY_DIR_NAME, "probe"), "marker: forged-main\n");
 		const injection = buildAgentMemoryInjection(
 			makeAgent({ memory: { scope: "project", path: "probe" }, tools: ["read"] }),
 			project,
@@ -419,7 +419,7 @@ describe("buildAgentMemoryInjection", () => {
 		fs.writeFileSync(path.join(project, "tracked.txt"), "fixture\n");
 		commitFixture(project, "tracked.txt");
 		execFileSync("git", ["worktree", "add", "-qb", "probe", worktree], { cwd: project });
-		writeMemoryFile(path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "probe"), "marker: git-root-memory\n");
+		writeMemoryFile(path.join(project, ".evoharness", AGENT_MEMORY_DIR_NAME, "probe"), "marker: git-root-memory\n");
 		const agent = makeAgent({ memory: { scope: "project", path: "probe" }, tools: ["read"] });
 		assert.equal(findNearestProjectRoot(worktree), null);
 		assert.match(buildAgentMemoryInjection(agent, worktree), /marker: git-root-memory/);
@@ -429,10 +429,10 @@ describe("buildAgentMemoryInjection", () => {
 		const root = mkdtemp("pi-subagents-mem-separate-git-dir-");
 		const project = path.join(root, "project");
 		const gitDir = path.join(root, "metadata");
-		fs.mkdirSync(path.join(project, ".pi", "agents"), { recursive: true });
+		fs.mkdirSync(path.join(project, ".evoharness", "agents"), { recursive: true });
 		execFileSync("git", ["init", "-q", `--separate-git-dir=${gitDir}`, project]);
-		writeMemoryFile(path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "probe"), "marker: checkout-local\n");
-		writeMemoryFile(path.join(root, ".pi", AGENT_MEMORY_DIR_NAME, "probe"), "marker: unsupported-remap\n");
+		writeMemoryFile(path.join(project, ".evoharness", AGENT_MEMORY_DIR_NAME, "probe"), "marker: checkout-local\n");
+		writeMemoryFile(path.join(root, ".evoharness", AGENT_MEMORY_DIR_NAME, "probe"), "marker: unsupported-remap\n");
 		const injection = buildAgentMemoryInjection(
 			makeAgent({ memory: { scope: "project", path: "probe" }, tools: ["read"] }),
 			project,
@@ -442,14 +442,14 @@ describe("buildAgentMemoryInjection", () => {
 		assert.match(
 			injection,
 			new RegExp(
-				`Memory file: ${escapeRegex(path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "probe", AGENT_MEMORY_FILE))}`,
+				`Memory file: ${escapeRegex(path.join(project, ".evoharness", AGENT_MEMORY_DIR_NAME, "probe", AGENT_MEMORY_FILE))}`,
 			),
 		);
 	});
 
 	it("injects a read-only block for agents without write tools", () => {
 		const project = mkProject();
-		const memoryDir = path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "scout");
+		const memoryDir = path.join(project, ".evoharness", AGENT_MEMORY_DIR_NAME, "scout");
 		writeMemoryFile(memoryDir, "Known flake: async timeout test.");
 		const agent = makeAgent({ memory: { scope: "project", path: "scout" }, tools: ["read", "grep", "find", "ls"] });
 		const injection = buildAgentMemoryInjection(agent, project);
@@ -470,14 +470,14 @@ describe("buildAgentMemoryInjection", () => {
 	it("resolves user scope under the agent dir, separate from the owner memory system", () => {
 		withTempHome((home) => {
 			const project = mkProject();
-			const memoryDir = path.join(home, ".pi", "agent", AGENT_MEMORY_DIR_NAME, "release-agent");
+			const memoryDir = path.join(home, ".evoharness", "agent", AGENT_MEMORY_DIR_NAME, "release-agent");
 			writeMemoryFile(memoryDir, "Release gotcha: tag before gh release.");
 			const agent = makeAgent({ memory: { scope: "user", path: "release-agent" }, tools: ["read", "edit"] });
 			const injection = buildAgentMemoryInjection(agent, project);
 			const memoryFile = path.join(memoryDir, AGENT_MEMORY_FILE);
 			assert.match(injection, new RegExp(`Memory file: ${escapeRegex(memoryFile)}`));
 			assert.match(injection, /Release gotcha: tag before gh release\./);
-			// Must not collide with the owner's ~/.pi/agent/memory/{project}/ layout.
+			// Must not collide with the owner's ~/.evoharness/agent/memory/{project}/ layout.
 			assert.doesNotMatch(injection, /agent\/memory\/[^/]+\/release-agent/);
 		});
 	});
@@ -498,7 +498,7 @@ describe("buildAgentMemoryInjection", () => {
 
 	it("returns empty when the memory file is an escaping symlink", () => {
 		const project = mkProject();
-		const memoryDir = path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "leak");
+		const memoryDir = path.join(project, ".evoharness", AGENT_MEMORY_DIR_NAME, "leak");
 		fs.mkdirSync(memoryDir, { recursive: true });
 		const outsideFile = path.join(mkdtemp("pi-subagents-mem-outside-"), "secret.md");
 		fs.writeFileSync(outsideFile, "leaked", "utf-8");
@@ -513,7 +513,7 @@ describe("buildAgentMemoryInjection", () => {
 
 	it("caps memory contents to the first N lines without claiming a byte cap", () => {
 		const project = mkProject();
-		const memoryDir = path.join(project, ".pi", AGENT_MEMORY_DIR_NAME, "capped");
+		const memoryDir = path.join(project, ".evoharness", AGENT_MEMORY_DIR_NAME, "capped");
 		writeMemoryFile(memoryDir, Array.from({ length: 210 }, (_, i) => `l-${i + 1}`).join("\n"));
 		const agent = makeAgent({ memory: { scope: "project", path: "capped" }, tools: ["read", "edit"] });
 		const injection = buildAgentMemoryInjection(agent, project);
@@ -528,7 +528,7 @@ describe("agent memory frontmatter round-trip", () => {
 	it("parses memory frontmatter during discovery and keeps it out of extraFields", () => {
 		const project = mkProject();
 		fs.writeFileSync(
-			path.join(project, ".pi", "agents", "security-reviewer.md"),
+			path.join(project, ".evoharness", "agents", "security-reviewer.md"),
 			`---
 name: security-reviewer
 description: Recurring security reviewer
@@ -558,7 +558,7 @@ Review for threats.
 	it("ignores a malformed memory block without dropping the agent", () => {
 		const project = mkProject();
 		fs.writeFileSync(
-			path.join(project, ".pi", "agents", "bad-memory.md"),
+			path.join(project, ".evoharness", "agents", "bad-memory.md"),
 			`---
 name: bad-memory
 description: Bad memory config
@@ -582,7 +582,7 @@ describe("agent memory in management detail", () => {
 	it("surfaces the memory scope in the get action", () => {
 		const project = mkProject();
 		fs.writeFileSync(
-			path.join(project, ".pi", "agents", "security-reviewer.md"),
+			path.join(project, ".evoharness", "agents", "security-reviewer.md"),
 			`---
 name: security-reviewer
 description: Recurring security reviewer

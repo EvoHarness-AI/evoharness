@@ -32,27 +32,27 @@ describe("project-local artifact paths", () => {
 		assert.match(getProjectArtifactPackagingWarning(packageDir({ name: "unsafe" })) ?? "", /\.npmignore/);
 		assert.equal(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "gitignored" }, { name: ".gitignore", content: ".pi/subagents/\n" }),
+				packageDir({ name: "gitignored" }, { name: ".gitignore", content: ".evoharness/subagents/\n" }),
 			),
 			undefined,
 		);
 		assert.equal(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "globignored" }, { name: ".npmignore", content: "**/.pi/subagents/**\n" }),
+				packageDir({ name: "globignored" }, { name: ".npmignore", content: "**/.evoharness/subagents/**\n" }),
 			),
 			undefined,
 		);
 		assert.equal(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "classignored" }, { name: ".npmignore", content: "[.]pi/subagents/**\n" }),
+				packageDir({ name: "classignored" }, { name: ".npmignore", content: "[.]evoharness/subagents/**\n" }),
 			),
 			undefined,
 		);
 		assert.match(
 			getProjectArtifactPackagingWarning(
 				packageDir(
-					{ name: "explicit-files-over-ignore", files: [".pi/subagents/**"] },
-					{ name: ".npmignore", content: ".pi/subagents/\n" },
+					{ name: "explicit-files-over-ignore", files: [".evoharness/subagents/**"] },
+					{ name: ".npmignore", content: ".evoharness/subagents/\n" },
 				),
 			) ?? "",
 			/artifactDir/,
@@ -74,78 +74,78 @@ describe("project-local artifact paths", () => {
 			/artifactDir/,
 		);
 		assert.match(
-			getProjectArtifactPackagingWarning(packageDir({ name: "included", files: [".pi/subagents/**"] })) ?? "",
+			getProjectArtifactPackagingWarning(packageDir({ name: "included", files: [".evoharness/subagents/**"] })) ?? "",
 			/artifactDir/,
 		);
 		assert.equal(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "excluded-after-include", files: [".pi/subagents/**", "!.pi/subagents/**"] }),
+				packageDir({ name: "excluded-after-include", files: [".evoharness/subagents/**", "!.evoharness/subagents/**"] }),
 			),
 			undefined,
 		);
 		assert.match(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "artifacts-included", files: [".pi/subagents/artifacts/**"] }),
+				packageDir({ name: "artifacts-included", files: [".evoharness/subagents/artifacts/**"] }),
 			) ?? "",
 			/artifactDir/,
 		);
 		assert.match(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "artifacts-directory-included", files: [".pi/subagents/artifacts"] }),
+				packageDir({ name: "artifacts-directory-included", files: [".evoharness/subagents/artifacts"] }),
 			) ?? "",
 			/artifactDir/,
 		);
 		assert.match(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "dynamic-input-included", files: [".pi/subagents/artifacts/*_input.md"] }),
+				packageDir({ name: "dynamic-input-included", files: [".evoharness/subagents/artifacts/*_input.md"] }),
 			) ?? "",
 			/artifactDir/,
 		);
 		assert.match(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "dynamic-output-included", files: [".pi/subagents/artifacts/*_output.md"] }),
+				packageDir({ name: "dynamic-output-included", files: [".evoharness/subagents/artifacts/*_output.md"] }),
 			) ?? "",
 			/artifactDir/,
 		);
 		assert.match(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "dynamic-jsonl-included", files: [".pi/subagents/artifacts/*.jsonl"] }),
+				packageDir({ name: "dynamic-jsonl-included", files: [".evoharness/subagents/artifacts/*.jsonl"] }),
 			) ?? "",
 			/artifactDir/,
 		);
 		assert.match(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "dynamic-meta-included", files: [".pi/subagents/artifacts/*_meta.json"] }),
+				packageDir({ name: "dynamic-meta-included", files: [".evoharness/subagents/artifacts/*_meta.json"] }),
 			) ?? "",
 			/artifactDir/,
 		);
 		assert.match(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "progress-included", files: [".pi/subagents/artifacts/progress/**"] }),
+				packageDir({ name: "progress-included", files: [".evoharness/subagents/artifacts/progress/**"] }),
 			) ?? "",
 			/artifactDir/,
 		);
 		assert.match(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "outputs-included", files: [".pi/subagents/artifacts/outputs/**"] }),
+				packageDir({ name: "outputs-included", files: [".evoharness/subagents/artifacts/outputs/**"] }),
 			) ?? "",
 			/artifactDir/,
 		);
 		assert.match(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "nested-output-included", files: [".pi/subagents/artifacts/outputs/*/*.md"] }),
+				packageDir({ name: "nested-output-included", files: [".evoharness/subagents/artifacts/outputs/*/*.md"] }),
 			) ?? "",
 			/artifactDir/,
 		);
 		assert.match(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "chain-runs-included", files: [".pi/subagents/chain-runs/**"] }),
+				packageDir({ name: "chain-runs-included", files: [".evoharness/subagents/chain-runs/**"] }),
 			) ?? "",
 			/artifactDir/,
 		);
 		assert.match(
 			getProjectArtifactPackagingWarning(
-				packageDir({ name: "chain-runs-directory-included", files: [".pi/subagents/chain-runs"] }),
+				packageDir({ name: "chain-runs-directory-included", files: [".evoharness/subagents/chain-runs"] }),
 			) ?? "",
 			/artifactDir/,
 		);
@@ -153,10 +153,10 @@ describe("project-local artifact paths", () => {
 
 	it("keeps project-scoped paths available as an explicit opt-in", () => {
 		const cwd = path.join("tmp", "repo");
-		assert.equal(getProjectSubagentsDir(cwd), path.join(cwd, ".pi/subagents"));
-		assert.equal(getProjectArtifactsDir(cwd), path.join(cwd, ".pi/subagents", "artifacts"));
-		assert.equal(getProjectChainRunsDir(cwd), path.join(cwd, ".pi/subagents", "chain-runs"));
-		assert.equal(getArtifactsDir(null, cwd, "project"), path.join(cwd, ".pi/subagents", "artifacts"));
+		assert.equal(getProjectSubagentsDir(cwd), path.join(cwd, ".evoharness/subagents"));
+		assert.equal(getProjectArtifactsDir(cwd), path.join(cwd, ".evoharness/subagents", "artifacts"));
+		assert.equal(getProjectChainRunsDir(cwd), path.join(cwd, ".evoharness/subagents", "chain-runs"));
+		assert.equal(getArtifactsDir(null, cwd, "project"), path.join(cwd, ".evoharness/subagents", "artifacts"));
 	});
 
 	it("routes chain scratch files according to the artifact preference", () => {

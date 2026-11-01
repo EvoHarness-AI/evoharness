@@ -49,7 +49,7 @@ describe("agent discovery snapshots", () => {
 		for (const name of managedEnv) previousEnv[name] = process.env[name];
 		process.env.HOME = home;
 		process.env.USERPROFILE = home;
-		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(home, ".pi", "agent");
+		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(home, ".evoharness", "agent");
 		process.env.EVOHARNESS_OFFLINE = "true";
 		delete process.env.PI_SUBAGENT_EXTRA_AGENT_DIRS;
 		pi = makePi();
@@ -68,7 +68,7 @@ describe("agent discovery snapshots", () => {
 	});
 
 	it("does not probe ancestor project markers on cold or warm untrusted discovery", (t) => {
-		const markers = [".pi", ".agents", ".git"].map((name) => path.join(tempRoot, name));
+		const markers = [".evoharness", ".agents", ".git"].map((name) => path.join(tempRoot, name));
 		for (const marker of markers) fs.mkdirSync(marker, { recursive: true });
 		fs.mkdirSync(project, { recursive: true });
 		const mutableFs = createRequire(import.meta.url)("node:fs") as typeof import("node:fs");
@@ -93,12 +93,12 @@ describe("agent discovery snapshots", () => {
 	});
 
 	it("keeps effective and all-source projections distinct in one snapshot", () => {
-		const userAgentPath = path.join(home, ".pi", "agent", "agents", "shared.md");
-		const projectAgentPath = path.join(project, ".pi", "agents", "shared.md");
+		const userAgentPath = path.join(home, ".evoharness", "agent", "agents", "shared.md");
+		const projectAgentPath = path.join(project, ".evoharness", "agents", "shared.md");
 		writeAgent(userAgentPath, "shared", "User shared");
 		writeAgent(projectAgentPath, "shared", "Project shared");
-		writeAgent(path.join(home, ".pi", "agent", "agents", "scope-hidden.md"), "scope-hidden", "User hidden");
-		writeJson(path.join(project, ".pi", "settings.json"), {
+		writeAgent(path.join(home, ".evoharness", "agent", "agents", "scope-hidden.md"), "scope-hidden", "User hidden");
+		writeJson(path.join(project, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { "scope-hidden": { disabled: true } } },
 		});
 
@@ -131,7 +131,7 @@ describe("agent discovery snapshots", () => {
 	});
 
 	it("retains hidden definitions for runtime collision checks", () => {
-		const hiddenPath = path.join(home, ".pi", "agent", "agents", "scope-hidden.md");
+		const hiddenPath = path.join(home, ".evoharness", "agent", "agents", "scope-hidden.md");
 		writeAgent(hiddenPath, "scope-hidden", "User hidden");
 		const registration = registerAgent({
 			pi,
@@ -160,8 +160,8 @@ describe("agent discovery snapshots", () => {
 	});
 
 	it("invalidates agent and chain projections when files change or appear", () => {
-		const agentPath = path.join(project, ".pi", "agents", "fresh.md");
-		const chainPath = path.join(project, ".pi", "chains", "fresh.chain.md");
+		const agentPath = path.join(project, ".evoharness", "agents", "fresh.md");
+		const chainPath = path.join(project, ".evoharness", "chains", "fresh.chain.md");
 		writeAgent(agentPath, "fresh", "Initial agent");
 		fs.mkdirSync(path.dirname(chainPath), { recursive: true });
 		fs.writeFileSync(
@@ -185,7 +185,7 @@ describe("agent discovery snapshots", () => {
 		assert.equal(updated.all.chains.find((chain) => chain.name === "fresh-chain")?.description, "Updated chain");
 
 		fs.rmSync(agentPath);
-		const addedPath = path.join(project, ".pi", "agents", "added.md");
+		const addedPath = path.join(project, ".evoharness", "agents", "added.md");
 		writeAgent(addedPath, "added", "Added agent");
 		const changedFiles = discoverAgents(project, "both");
 		assert.equal(
@@ -199,14 +199,14 @@ describe("agent discovery snapshots", () => {
 	});
 
 	it("matches scoped discovery settings and precedence for user and project views", () => {
-		writeAgent(path.join(home, ".pi", "agent", "agents", "shared.md"), "shared", "User shared");
-		writeAgent(path.join(project, ".pi", "agents", "shared.md"), "shared", "Project shared");
-		writeAgent(path.join(home, ".pi", "agent", "agents", "user-only.md"), "user-only", "User only");
-		writeAgent(path.join(project, ".pi", "agents", "project-only.md"), "project-only", "Project only");
-		writeJson(path.join(home, ".pi", "agent", "settings.json"), {
+		writeAgent(path.join(home, ".evoharness", "agent", "agents", "shared.md"), "shared", "User shared");
+		writeAgent(path.join(project, ".evoharness", "agents", "shared.md"), "shared", "Project shared");
+		writeAgent(path.join(home, ".evoharness", "agent", "agents", "user-only.md"), "user-only", "User only");
+		writeAgent(path.join(project, ".evoharness", "agents", "project-only.md"), "project-only", "Project only");
+		writeJson(path.join(home, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { shared: { description: "User override" } } },
 		});
-		writeJson(path.join(project, ".pi", "settings.json"), {
+		writeJson(path.join(project, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { shared: { description: "Project override" } } },
 		});
 
@@ -218,7 +218,7 @@ describe("agent discovery snapshots", () => {
 	});
 
 	it("invalidates when a new agent appears in a previously inspected nested directory", () => {
-		const nestedDir = path.join(project, ".pi", "agents", "nested");
+		const nestedDir = path.join(project, ".evoharness", "agents", "nested");
 		fs.mkdirSync(nestedDir, { recursive: true });
 
 		const initial = discoverAgents(project, "both");
@@ -236,8 +236,8 @@ describe("agent discovery snapshots", () => {
 	});
 
 	it("does not read out-of-scope user settings for a project snapshot", () => {
-		writeAgent(path.join(project, ".pi", "agents", "project-agent.md"), "project-agent", "Project agent");
-		const userSettingsPath = path.join(home, ".pi", "agent", "settings.json");
+		writeAgent(path.join(project, ".evoharness", "agents", "project-agent.md"), "project-agent", "Project agent");
+		const userSettingsPath = path.join(home, ".evoharness", "agent", "settings.json");
 		fs.mkdirSync(path.dirname(userSettingsPath), { recursive: true });
 		fs.writeFileSync(userSettingsPath, "{ malformed", "utf-8");
 
@@ -256,8 +256,8 @@ describe("agent discovery snapshots", () => {
 		const userPackageRoot = path.join(tempRoot, "user-package");
 		const projectPackageRoot = path.join(tempRoot, "project-package");
 		const sharedAgentDir = path.join(tempRoot, "shared-package-agents");
-		writeJson(path.join(home, ".pi", "agent", "settings.json"), { packages: [userPackageRoot] });
-		writeJson(path.join(project, ".pi", "settings.json"), { packages: [projectPackageRoot] });
+		writeJson(path.join(home, ".evoharness", "agent", "settings.json"), { packages: [userPackageRoot] });
+		writeJson(path.join(project, ".evoharness", "settings.json"), { packages: [projectPackageRoot] });
 		writeJson(path.join(userPackageRoot, "package.json"), {
 			name: "user-package",
 			"pi-subagents": { agents: [path.relative(userPackageRoot, sharedAgentDir)] },
@@ -284,7 +284,7 @@ describe("agent discovery snapshots", () => {
 	});
 
 	it("surfaces malformed in-scope settings while collecting package roots", () => {
-		const settingsPath = path.join(home, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(home, ".evoharness", "agent", "settings.json");
 		fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 		fs.writeFileSync(settingsPath, "{ malformed", "utf-8");
 
@@ -301,12 +301,12 @@ describe("agent discovery snapshots", () => {
 		const outer = path.join(tempRoot, "outer");
 		const nested = path.join(outer, "nested");
 		fs.mkdirSync(path.join(outer, ".git"), { recursive: true });
-		writeAgent(path.join(outer, ".pi", "agents", "outer.md"), "outer", "Outer agent");
-		writeAgent(path.join(nested, ".pi", "agents", "nested.md"), "nested", "Nested agent");
-		writeJson(path.join(nested, ".pi", "settings.json"), { subagents: { projectRootResolution: "git-root" } });
+		writeAgent(path.join(outer, ".evoharness", "agents", "outer.md"), "outer", "Outer agent");
+		writeAgent(path.join(nested, ".evoharness", "agents", "nested.md"), "nested", "Nested agent");
+		writeJson(path.join(nested, ".evoharness", "settings.json"), { subagents: { projectRootResolution: "git-root" } });
 
 		const gitRoot = discoverAgents(nested, "both");
-		assert.equal(gitRoot.projectAgentsDir, path.join(outer, ".pi", "agents"));
+		assert.equal(gitRoot.projectAgentsDir, path.join(outer, ".evoharness", "agents"));
 		assert.equal(
 			gitRoot.agents.some((agent) => agent.name === "outer"),
 			true,
@@ -316,9 +316,9 @@ describe("agent discovery snapshots", () => {
 			false,
 		);
 
-		writeJson(path.join(nested, ".pi", "settings.json"), { subagents: { projectRootResolution: "nearest" } });
+		writeJson(path.join(nested, ".evoharness", "settings.json"), { subagents: { projectRootResolution: "nearest" } });
 		const nearest = discoverAgents(nested, "both");
-		assert.equal(nearest.projectAgentsDir, path.join(nested, ".pi", "agents"));
+		assert.equal(nearest.projectAgentsDir, path.join(nested, ".evoharness", "agents"));
 		assert.equal(
 			nearest.agents.some((agent) => agent.name === "nested"),
 			true,
@@ -330,8 +330,8 @@ describe("agent discovery snapshots", () => {
 	});
 
 	it("does not parse chains on the ordinary effective discovery fast path", () => {
-		const agentPath = path.join(project, ".pi", "agents", "worker.md");
-		const chainPath = path.join(project, ".pi", "chains", "broken.chain.md");
+		const agentPath = path.join(project, ".evoharness", "agents", "worker.md");
+		const chainPath = path.join(project, ".evoharness", "chains", "broken.chain.md");
 		writeAgent(agentPath, "worker", "Worker");
 		fs.mkdirSync(path.dirname(chainPath), { recursive: true });
 		fs.writeFileSync(chainPath, "not a valid chain", "utf-8");
@@ -347,23 +347,23 @@ describe("agent discovery snapshots", () => {
 	});
 
 	it("ignores project settings, agents and chains when the session declined project trust", () => {
-		writeAgent(path.join(home, ".pi", "agent", "agents", "probe.md"), "probe", "User probe");
-		writeJson(path.join(home, ".pi", "agent", "settings.json"), {
+		writeAgent(path.join(home, ".evoharness", "agent", "agents", "probe.md"), "probe", "User probe");
+		writeJson(path.join(home, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: { probe: { model: "openai/luna" } },
 				modelScope: { enforce: true, allow: ["openai/luna"] },
 			},
 		});
-		writeAgent(path.join(project, ".pi", "agents", "project-only.md"), "project-only", "Project only");
-		writeJson(path.join(project, ".pi", "settings.json"), {
+		writeAgent(path.join(project, ".evoharness", "agents", "project-only.md"), "project-only", "Project only");
+		writeJson(path.join(project, ".evoharness", "settings.json"), {
 			subagents: {
 				agentOverrides: { probe: { model: "openai/astra" } },
 				modelScope: { enforce: true, allow: ["openai/astra"] },
 			},
 		});
-		fs.mkdirSync(path.join(project, ".pi", "chains"), { recursive: true });
+		fs.mkdirSync(path.join(project, ".evoharness", "chains"), { recursive: true });
 		fs.writeFileSync(
-			path.join(project, ".pi", "chains", "project.chain.md"),
+			path.join(project, ".evoharness", "chains", "project.chain.md"),
 			"---\nname: project-chain\ndescription: Project chain\n---\n\n## probe\nInspect\n",
 			"utf-8",
 		);
@@ -441,12 +441,12 @@ describe("agent discovery snapshots", () => {
 	});
 
 	it("reads nothing from project settings when the session declined project trust", () => {
-		const userAgents = path.join(home, ".pi", "agent", "agents");
+		const userAgents = path.join(home, ".evoharness", "agent", "agents");
 		writeAgent(path.join(userAgents, "probe.md"), "probe", "User probe");
-		writeJson(path.join(home, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(home, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { probe: { model: "openai/luna" } } },
 		});
-		const projectSettings = path.join(project, ".pi", "settings.json");
+		const projectSettings = path.join(project, ".evoharness", "settings.json");
 		const untrusted = { projectTrusted: false };
 
 		for (const content of ["{ not json", JSON.stringify({ subagents: { projectRootResolution: "bogus" } })]) {

@@ -55,7 +55,7 @@ function writeJson(filePath: string, value: unknown): void {
 }
 
 function writeProjectAgent(name: string, aliases: string[] = []): void {
-	const filePath = path.join(tempProject, ".pi", "agents", `${name}.md`);
+	const filePath = path.join(tempProject, ".evoharness", "agents", `${name}.md`);
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
 	fs.writeFileSync(
 		filePath,
@@ -65,7 +65,7 @@ function writeProjectAgent(name: string, aliases: string[] = []): void {
 }
 
 function writeUserAgent(name: string, aliases: string[] = []): void {
-	const filePath = path.join(tempHome, ".pi", "agent", "agents", `${name}.md`);
+	const filePath = path.join(tempHome, ".evoharness", "agent", "agents", `${name}.md`);
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
 	fs.writeFileSync(
 		filePath,
@@ -97,7 +97,7 @@ describe("runtime agent registration", () => {
 	});
 
 	it("adds runtime agents to extension discovery without writing config", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		const registration = registerAgent({
 			pi,
 			name: "runtime-helper",
@@ -348,7 +348,7 @@ describe("runtime agent registration", () => {
 	});
 
 	it("applies subagent default model and thinking to runtime agents that declare none", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { defaultModel: "openai/gpt-5-mini", defaultThinking: "low" },
 		});
 		const unpinned = registerAgent({
@@ -392,7 +392,7 @@ describe("runtime agent registration", () => {
 	});
 
 	it("applies only model-tier agentOverrides fields to runtime agents, project over user", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				defaultModel: "openai/gpt-5-mini",
 				agentOverrides: {
@@ -407,7 +407,7 @@ describe("runtime agent registration", () => {
 				},
 			},
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					"runtime-override-helper": { thinking: "medium" },
@@ -451,7 +451,7 @@ describe("runtime agent registration", () => {
 	});
 
 	it("reports the subagent default model source for runtime agents", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { defaultModel: "openai/gpt-5-mini" },
 		});
 		const registration = registerAgent({
@@ -477,7 +477,7 @@ describe("runtime agent registration", () => {
 	});
 
 	it("reports provider-scoped model settings for runtime agents", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverridesByProvider: {
 					anthropic: {

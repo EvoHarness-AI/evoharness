@@ -27,13 +27,13 @@ describe("config directory resolution", () => {
 	});
 
 	it("falls back without importing the Pi peer package at runtime", () => {
-		assert.equal(resolveConfigDirName(), ".pi");
-		assert.equal(getConfigDirName(), ".pi");
+		assert.equal(resolveConfigDirName(), ".evoharness");
+		assert.equal(getConfigDirName(), ".evoharness");
 	});
 
 	it("honors an explicitly provided Pi module shape", () => {
 		assert.equal(resolveConfigDirName({ CONFIG_DIR_NAME: ".custom-pi" }), ".custom-pi");
-		assert.equal(resolveConfigDirName({ CONFIG_DIR_NAME: "" }), ".pi");
+		assert.equal(resolveConfigDirName({ CONFIG_DIR_NAME: "" }), ".evoharness");
 	});
 
 	it("honors Pi package metadata without importing the peer package", () => {
@@ -130,6 +130,6 @@ describe("config directory resolution", () => {
 
 	it("does not runtime-import the coding agent peer from shared utils", () => {
 		const source = fs.readFileSync(path.join(repoRoot, "src/shared/utils.ts"), "utf-8");
-		assert.doesNotMatch(source, /import\s+[^;]*from\s+["']@evoharness\/pi-coding-agent["']/);
+		assert.doesNotMatch(source, /import\s+[^;]*from\s+["']@evoharness\/coding-agent["']/);
 	});
 });

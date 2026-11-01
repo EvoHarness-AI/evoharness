@@ -98,7 +98,7 @@ describe("getPiSpawnCommand", () => {
 	for (const [platform, execPath] of [
 		["darwin", "/opt/pi/pi"],
 		["linux", "/opt/pi/pi"],
-		["win32", "C:\\Program Files\\Pi\\pi.exe"],
+		["win32", "C:\\Program Files\\Pi.evoharness.exe"],
 	] as const) {
 		it(`uses the standalone Pi executable directly on ${platform}`, () => {
 			const packageJsonPath = "/opt/pi-package/package.json";
@@ -240,7 +240,7 @@ describe("getPiSpawnCommand", () => {
 						env: { [PI_CODING_AGENT_PACKAGE_ROOT_ENV]: wrongRoot },
 						resolvePackageEntry: () => piEntry,
 					}),
-				/expected "@evoharness\/pi-coding-agent"/,
+				/expected "@evoharness\/coding-agent"/,
 			);
 		} finally {
 			fs.rmSync(tempDir, { recursive: true, force: true });

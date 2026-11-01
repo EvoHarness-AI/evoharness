@@ -41,7 +41,7 @@ function getReadOnlyTestIdentity(): UnixIdentity | undefined {
 
 function createProject(root: string): string {
 	const project = path.join(root, "project");
-	fs.mkdirSync(path.join(project, ".pi"), { recursive: true });
+	fs.mkdirSync(path.join(project, ".evoharness"), { recursive: true });
 	return project;
 }
 
@@ -142,7 +142,7 @@ it("saves settings with the existing JSON format and unrelated values intact", (
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-atomic-controls-"));
 	tempRoots.push(root);
 	const project = createProject(root);
-	const settingsPath = path.join(project, ".pi", "settings.json");
+	const settingsPath = path.join(project, ".evoharness", "settings.json");
 	const before = { topLevelSentinel: "keep-me", packages: ["keep-this-package"] };
 	const expected = {
 		...before,
@@ -164,7 +164,7 @@ it(
 		const before = { topLevelSentinel: "keep-me", packages: ["keep-this-package"] };
 		const expected = { ...before, subagents: { agentOverrides: { reviewer: { disabled: true } } } };
 		const project = createProject(root);
-		const settingsPath = path.join(project, ".pi", "settings.json");
+		const settingsPath = path.join(project, ".evoharness", "settings.json");
 		fs.writeFileSync(settingsPath, `${JSON.stringify(before, null, 2)}\n`, "utf-8");
 		fs.chmodSync(settingsPath, 0o640);
 
@@ -178,8 +178,8 @@ it(
 		assert.equal(fs.statSync(settingsPath).mode & 0o7777, 0o640);
 
 		const linkedProject = path.join(root, "linked-project");
-		fs.mkdirSync(path.join(linkedProject, ".pi"), { recursive: true });
-		const linkedSettingsPath = path.join(linkedProject, ".pi", "settings.json");
+		fs.mkdirSync(path.join(linkedProject, ".evoharness"), { recursive: true });
+		const linkedSettingsPath = path.join(linkedProject, ".evoharness", "settings.json");
 		const settingsTarget = path.join(root, "shared-settings.json");
 		const symlinkText = path.relative(path.dirname(linkedSettingsPath), settingsTarget);
 		fs.writeFileSync(settingsTarget, `${JSON.stringify(before, null, 2)}\n`, "utf-8");
@@ -202,7 +202,7 @@ it(
 		const realConfigDir = path.join(root, "central", "config");
 		fs.mkdirSync(realConfigDir, { recursive: true });
 		fs.mkdirSync(nestedProject, { recursive: true });
-		const nestedProjectConfig = path.join(nestedProject, ".pi");
+		const nestedProjectConfig = path.join(nestedProject, ".evoharness");
 		fs.symlinkSync(realConfigDir, nestedProjectConfig, "dir");
 		const nestedSettingsPath = path.join(nestedProjectConfig, "settings.json");
 		const nestedTarget = path.join(root, "central", "settings.json");
@@ -240,8 +240,8 @@ it(
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-symlink-chain-"));
 		tempRoots.push(root);
 		const project = createProject(root);
-		const settingsPath = path.join(project, ".pi", "settings.json");
-		const intermediatePath = path.join(project, ".pi", "settings-link.json");
+		const settingsPath = path.join(project, ".evoharness", "settings.json");
+		const intermediatePath = path.join(project, ".evoharness", "settings-link.json");
 		const targetPath = path.join(root, "settings-target.json");
 		const linkText = path.relative(path.dirname(intermediatePath), targetPath);
 		fs.symlinkSync("settings-link.json", settingsPath);
@@ -279,7 +279,7 @@ for (const absolute of [false, true]) {
 				const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-physical-path-"));
 				tempRoots.push(root);
 				const project = createProject(root);
-				const configDir = path.join(project, ".pi");
+				const configDir = path.join(project, ".evoharness");
 				const settingsPath = path.join(configDir, "settings.json");
 				const physicalParent = path.join(configDir, "actual");
 				const physicalTarget = path.join(physicalParent, "target.json");
@@ -326,7 +326,7 @@ it(
 			const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-missing-parent-"));
 			tempRoots.push(root);
 			const project = createProject(root);
-			const configDir = path.join(project, ".pi");
+			const configDir = path.join(project, ".evoharness");
 			const settingsPath = path.join(configDir, "settings.json");
 			const decoyPath = path.join(configDir, "target.json");
 			const decoyRaw = `${JSON.stringify({ sentinel: "decoy" }, null, 2)}\n`;
@@ -355,7 +355,7 @@ for (const absolute of [false, true]) {
 					const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-directory-target-"));
 					tempRoots.push(root);
 					const project = createProject(root);
-					const configDir = path.join(project, ".pi");
+					const configDir = path.join(project, ".evoharness");
 					const settingsPath = path.join(configDir, "settings.json");
 					const missingPath = path.join(configDir, "missing");
 					const linkText = `${absolute ? missingPath : "missing"}${suffix}`;
@@ -386,7 +386,7 @@ it(
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-cycle-"));
 		tempRoots.push(root);
 		const project = createProject(root);
-		const settingsPath = path.join(project, ".pi", "settings.json");
+		const settingsPath = path.join(project, ".evoharness", "settings.json");
 		fs.symlinkSync("settings.json", settingsPath);
 		assert.throws(() => saveBuiltinAgentOverride(project, "reviewer", "project", { disabled: true }));
 		assert.equal(fs.readlinkSync(settingsPath), "settings.json");
@@ -405,7 +405,7 @@ it(
 		const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-read-only-"));
 		tempRoots.push(root);
 		const project = createProject(root);
-		const settingsDir = path.join(project, ".pi");
+		const settingsDir = path.join(project, ".evoharness");
 		const settingsPath = path.join(settingsDir, "settings.json");
 		const previous = { topLevelSentinel: "read-only", packages: ["keep-this-package"] };
 		const previousRaw = `${JSON.stringify(previous, null, 2)}\n`;
@@ -444,7 +444,7 @@ it("keeps the previous settings file intact when the real API process exits duri
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-atomic-interrupt-"));
 	tempRoots.push(root);
 	const project = createProject(root);
-	const settingsPath = path.join(project, ".pi", "settings.json");
+	const settingsPath = path.join(project, ".evoharness", "settings.json");
 	const previous = { topLevelSentinel: "previously-readable", packages: ["keep-this-package"] };
 	const previousRaw = `${JSON.stringify(previous, null, 2)}\n`;
 	fs.writeFileSync(settingsPath, previousRaw, "utf-8");
@@ -463,7 +463,7 @@ it("keeps the previous settings file intact and cleans up when replacing it fail
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-settings-atomic-rename-"));
 	tempRoots.push(root);
 	const project = createProject(root);
-	const settingsPath = path.join(project, ".pi", "settings.json");
+	const settingsPath = path.join(project, ".evoharness", "settings.json");
 	const previous = { topLevelSentinel: "previously-readable", packages: ["keep-this-package"] };
 	const previousRaw = `${JSON.stringify(previous, null, 2)}\n`;
 	fs.writeFileSync(settingsPath, previousRaw, "utf-8");

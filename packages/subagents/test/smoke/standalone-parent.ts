@@ -87,7 +87,7 @@ export default function registerSmoke(pi: ExtensionAPI) {
 			const expectedDeclaredTools = mode === "tool-timeout" ? ["bash"] : [];
 			// The default bridge adds upward coordination to nonempty menus, not explicit empty ones.
 			const expectedRuntimeTools = mode === "tool-timeout" ? ["bash", "contact_supervisor"] : [];
-			const profile = parseFrontmatter(fs.readFileSync("/stage/work/.pi/agents/binary-smoke.md", "utf8"));
+			const profile = parseFrontmatter(fs.readFileSync("/stage/work/.evoharness/agents/binary-smoke.md", "utf8"));
 			assert.deepEqual(parseFrontmatterList(profile.frontmatter.tools), expectedDeclaredTools);
 			const workflow = ["workflow", "targeted-controls", "child-timeout"].includes(mode);
 			const expectedState =

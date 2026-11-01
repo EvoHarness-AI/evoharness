@@ -75,10 +75,10 @@ function tonedHeadline(customType: string, details: unknown, content = ""): stri
 	return tokenLine(renderMessage(customType, details, { content, theme: tokenTheme, width: 400 })[1])?.headline;
 }
 
-// keyText resolves Pi's expand key through the pi-tui copy that pi-coding-agent loads.
+// keyText resolves Pi's expand key through the tui copy that coding-agent loads.
 async function bindExpandKey(t: TestContext, keys: string): Promise<void> {
 	const agentEntry = fileURLToPath(import.meta.resolve("@evoharness/coding-agent"));
-	// SAFETY: this path is pi-tui's package entry, resolved from where pi-coding-agent loads it.
+	// SAFETY: this path is tui's package entry, resolved from where coding-agent loads it.
 	const tui = (await import(
 		pathToFileURL(createRequire(agentEntry).resolve("@evoharness/tui")).href
 	)) as typeof import("@evoharness/tui");

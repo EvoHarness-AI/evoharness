@@ -22,11 +22,11 @@ function writeJson(filePath: string, value: unknown): void {
 }
 
 function userSettingsPath(): string {
-	return path.join(tempHome, ".pi", "agent", "settings.json");
+	return path.join(tempHome, ".evoharness", "agent", "settings.json");
 }
 
 function projectSettingsPath(): string {
-	return path.join(tempProject, ".pi", "settings.json");
+	return path.join(tempProject, ".evoharness", "settings.json");
 }
 
 describe("watchdog settings", () => {

@@ -31,7 +31,7 @@ function state(): SubagentState {
 }
 
 function writeProjectAgent(name = "worker"): void {
-	const dir = path.join(tempDir, ".pi", "agents");
+	const dir = path.join(tempDir, ".evoharness", "agents");
 	fs.mkdirSync(dir, { recursive: true });
 	fs.writeFileSync(
 		path.join(dir, `${name}.md`),
@@ -41,7 +41,7 @@ function writeProjectAgent(name = "worker"): void {
 }
 
 function writeEvidence(agent = "worker"): void {
-	const dir = path.join(tempDir, ".pi/subagents", "artifacts");
+	const dir = path.join(tempDir, ".evoharness/subagents", "artifacts");
 	fs.mkdirSync(dir, { recursive: true });
 	fs.writeFileSync(
 		path.join(dir, "run_worker_meta.json"),
@@ -80,7 +80,7 @@ describe("agent refinements", () => {
 	it("uses a project-local path and rejects traversal", () => {
 		assert.equal(
 			getAgentRefinementPath(tempDir, "worker"),
-			path.join(tempDir, ".pi/subagents", "refinements", "worker.md"),
+			path.join(tempDir, ".evoharness/subagents", "refinements", "worker.md"),
 		);
 		assert.throws(() => getAgentRefinementPath(tempDir, "../worker"), /cannot be used/);
 	});

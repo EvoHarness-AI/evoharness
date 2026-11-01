@@ -991,7 +991,7 @@ describe("single sync execution", { skip: !available ? "pi packages not availabl
 				JSON.stringify({ name: "test", pi: { extensions: ["./src/index.ts"] } }),
 				"utf-8",
 			);
-			const agentPath = path.join(tempDir, ".pi", "agents", `${agentName}.md`);
+			const agentPath = path.join(tempDir, ".evoharness", "agents", `${agentName}.md`);
 			fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 			fs.writeFileSync(
 				agentPath,
@@ -1010,7 +1010,7 @@ Answer only from the supplied synthetic text and return the requested structured
 `,
 				"utf-8",
 			);
-			const refinementPath = path.join(tempDir, ".pi", "subagents", "refinements", `${agentName}.md`);
+			const refinementPath = path.join(tempDir, ".evoharness/subagents", "refinements", `${agentName}.md`);
 			fs.mkdirSync(path.dirname(refinementPath), { recursive: true });
 			fs.writeFileSync(
 				refinementPath,
@@ -1117,7 +1117,7 @@ When the task asks for a structured result, keep field names exactly as requeste
 			// widens the tool list only when the agent declares one.
 			for (const declaredTools of ["", "\n  - read"]) {
 				const agentName = `bridge-digest-${declaredTools ? "tools" : "prompt"}-${Date.now().toString(36)}`;
-				const agentPath = path.join(tempDir, ".pi", "agents", `${agentName}.md`);
+				const agentPath = path.join(tempDir, ".evoharness", "agents", `${agentName}.md`);
 				fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 				fs.writeFileSync(
 					agentPath,
@@ -1200,7 +1200,7 @@ Answer only from the supplied synthetic text.
 		async () => {
 			const agentName = `bridge-off-${Date.now().toString(36)}`;
 			const task = "Return the plain result.";
-			const agentPath = path.join(tempDir, ".pi", "agents", `${agentName}.md`);
+			const agentPath = path.join(tempDir, ".evoharness", "agents", `${agentName}.md`);
 			fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 			fs.writeFileSync(
 				agentPath,
@@ -1270,7 +1270,7 @@ Answer only from the supplied synthetic text.
 		async () => {
 			const agentName = `bridge-template-${Date.now().toString(36)}`;
 			const task = "Return the plain result.";
-			const agentPath = path.join(tempDir, ".pi", "agents", `${agentName}.md`);
+			const agentPath = path.join(tempDir, ".evoharness", "agents", `${agentName}.md`);
 			fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 			fs.writeFileSync(
 				agentPath,
@@ -1542,7 +1542,7 @@ Answer only from the supplied synthetic text.
 				config: {},
 				asyncByDefault: false,
 				tempArtifactsDir: tempDir,
-				getSubagentSessionRoot: () => path.join(tempDir, ".pi/subagents", "sessions"),
+				getSubagentSessionRoot: () => path.join(tempDir, ".evoharness/subagents", "sessions"),
 				expandTilde: (value: string) => value,
 				discoverAgents: () => ({ agents: [makeAgent("echo")] }),
 				allowMutatingManagementActions: true,
@@ -3000,7 +3000,7 @@ Answer only from the supplied synthetic text.
 			assert.equal(path.basename(result.details.asyncDir!), workflowRunId);
 			assert.equal(asyncJobs.has(workflowRunId), true);
 			assert.equal(asyncJobs.get(workflowRunId)?.cwd, workflowCwd);
-			assert.equal(asyncJobs.get(workflowRunId)?.sessionRoot, path.join(tempDir, ".pi/subagents", "sessions"));
+			assert.equal(asyncJobs.get(workflowRunId)?.sessionRoot, path.join(tempDir, ".evoharness/subagents", "sessions"));
 			assert.deepEqual(asyncJobs.get(workflowRunId)?.preflight, {
 				version: 1,
 				coverage: "complete",
@@ -3045,7 +3045,7 @@ Answer only from the supplied synthetic text.
 			assert.equal(status.runId, workflowRunId);
 			assert.equal(status.toolCallId, toolCallId);
 			assert.equal(status.cwd, workflowCwd);
-			assert.equal(status.sessionRoot, path.join(tempDir, ".pi/subagents", "sessions"));
+			assert.equal(status.sessionRoot, path.join(tempDir, ".evoharness/subagents", "sessions"));
 			assert.deepEqual(status.preflight, {
 				version: 1,
 				coverage: "complete",
@@ -4659,7 +4659,7 @@ Answer only from the supplied synthetic text.
 					config: {},
 					asyncByDefault: false,
 					tempArtifactsDir: tempDir,
-					getSubagentSessionRoot: () => path.join(tempDir, ".pi/subagents", "sessions"),
+					getSubagentSessionRoot: () => path.join(tempDir, ".evoharness/subagents", "sessions"),
 					expandTilde: (value: string) => value,
 					discoverAgents: () => ({ agents: [makeAgent("echo")] }),
 					refreshResultDelivery: watcher.refreshResultDelivery,
@@ -6155,7 +6155,7 @@ Answer only from the supplied synthetic text.
 			const blockedIndex = path.join(tempDir, "blocked-mission-index");
 			fs.writeFileSync(blockedIndex, "not a directory", "utf-8");
 			const executor = makeExecutor([makeAgent("echo")], {
-				missions: { directory: ".pi/subagents/missions", globalIndexDir: blockedIndex },
+				missions: { directory: ".evoharness/subagents/missions", globalIndexDir: blockedIndex },
 			});
 
 			const result = await executor.execute(
@@ -6177,7 +6177,7 @@ Answer only from the supplied synthetic text.
 			assert.equal(result.details.missionId, undefined);
 			assert.match(result.details.missionWarning ?? "", /Mission tracking unavailable/);
 			assert.equal(result.details.results.length, 2);
-			const missionDir = path.join(tempDir, ".pi/subagents", "missions");
+			const missionDir = path.join(tempDir, ".evoharness/subagents", "missions");
 			const missionFiles = fs.existsSync(missionDir)
 				? fs.readdirSync(missionDir).filter((entry) => entry.endsWith(".json"))
 				: [];

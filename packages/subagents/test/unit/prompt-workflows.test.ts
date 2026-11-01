@@ -58,7 +58,7 @@ User body
 `,
 		);
 		writePrompt(
-			path.join(cwd, ".pi", "prompts"),
+			path.join(cwd, ".evoharness", "prompts"),
 			"native-test",
 			`---
 description: Project version
@@ -104,7 +104,7 @@ Say hi
 
 	it("runs a named workflow through native subagent execution", async () => {
 		writePrompt(
-			path.join(cwd, ".pi", "prompts"),
+			path.join(cwd, ".evoharness", "prompts"),
 			"native-run",
 			`---
 description: Run native prompt
@@ -153,7 +153,7 @@ Review $1 with $ARGUMENTS
 
 	it("runs declared prompt sequences through workflowScript", async () => {
 		writePrompt(
-			path.join(cwd, ".pi", "prompts"),
+			path.join(cwd, ".evoharness", "prompts"),
 			"native-analyze",
 			`---
 description: Analyze
@@ -164,7 +164,7 @@ Analyze $@
 `,
 		);
 		writePrompt(
-			path.join(cwd, ".pi", "prompts"),
+			path.join(cwd, ".evoharness", "prompts"),
 			"native-fix",
 			`---
 description: Fix

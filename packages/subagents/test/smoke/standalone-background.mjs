@@ -61,8 +61,8 @@ for (const name of ["theme", "assets", "export-html", "photon_rs_bg.wasm"]) {
 for (const name of ["standalone-parent.ts", "standalone-provider.ts", "standalone-observer.ts", "standalone-fault.ts", "standalone-revival.ts", "standalone-shared.ts"]) fs.copyFileSync(new URL(name, import.meta.url), path.join(root, "package/test/smoke", name));
 fs.writeFileSync(path.join(root, "work/bunfig.toml"), '[install]\nauto = "disable"\n');
 fs.writeFileSync(path.join(root, "work/negative.ts"), 'import "@evoharness/coding-agent";\n');
-fs.mkdirSync(path.join(root, "work/.pi/agents"), { recursive: true });
-fs.writeFileSync(path.join(root, "work/.pi/agents/binary-smoke.md"), `---\nname: binary-smoke\ndescription: Isolated native async regression\nmodel: standalone-smoke/local\ntools: ${mode === "tool-timeout" ? "bash" : ""}\nextensions:\n  - /stage/package/test/smoke/standalone-observer.ts\n  - /stage/package/test/smoke/standalone-provider.ts\n---\nReturn the scripted response.\n`);
+fs.mkdirSync(path.join(root, "work/.evoharness/agents"), { recursive: true });
+fs.writeFileSync(path.join(root, "work/.evoharness/agents/binary-smoke.md"), `---\nname: binary-smoke\ndescription: Isolated native async regression\nmodel: standalone-smoke/local\ntools: ${mode === "tool-timeout" ? "bash" : ""}\nextensions:\n  - /stage/package/test/smoke/standalone-observer.ts\n  - /stage/package/test/smoke/standalone-provider.ts\n---\nReturn the scripted response.\n`);
 fs.writeFileSync(path.join(root, "agent/settings.json"), JSON.stringify({ defaultProvider: "standalone-smoke", defaultModel: "local", packages: [] }));
 fs.mkdirSync(path.join(root, "agent/extensions"), { recursive: true });
 fs.writeFileSync(path.join(root, "agent/extensions/ambient-sentinel.ts"), 'import fs from "node:fs"; export default function () { fs.writeFileSync("/stage/ambient-loaded", String(process.pid)); }\n');

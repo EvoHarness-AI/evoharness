@@ -34,9 +34,9 @@ before(() => {
 	process.env.HOME = path.join(temp, "home");
 	process.env.USERPROFILE = process.env.HOME;
 	process.env.APPDATA = path.join(temp, "missing-appdata");
-	process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(temp, "home", ".pi", "agent");
+	process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(temp, "home", ".evoharness", "agent");
 	delete process.env.EVOHARNESS_OFFLINE;
-	writeAgent(path.join(project, ".pi", "agents", "local.md"), "local-only");
+	writeAgent(path.join(project, ".evoharness", "agents", "local.md"), "local-only");
 	writePackage(rootA, "global-a");
 	writePackage(rootB, "global-b");
 	const bin = path.join(fixtureRoot, "bin");

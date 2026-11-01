@@ -294,14 +294,14 @@ describe("Codex exec adapter", () => {
 		const project = tempDir();
 		const userRoot = tempDir();
 		const oldAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
-		const packageRoot = path.join(project, ".pi", "npm", "node_modules", "unsafe-codex-package");
+		const packageRoot = path.join(project, ".evoharness", "npm", "node_modules", "unsafe-codex-package");
 		try {
 			process.env.EVOHARNESS_CODING_AGENT_DIR = userRoot;
 			fs.mkdirSync(path.join(userRoot, "agents"), { recursive: true });
-			fs.mkdirSync(path.join(project, ".pi", "agents"), { recursive: true });
+			fs.mkdirSync(path.join(project, ".evoharness", "agents"), { recursive: true });
 			fs.mkdirSync(path.join(packageRoot, "agents"), { recursive: true });
 			fs.writeFileSync(
-				path.join(project, ".pi", "settings.json"),
+				path.join(project, ".evoharness", "settings.json"),
 				JSON.stringify({ subagents: { agentOverrides: { "codex-exec": { disabled: true } } } }),
 			);
 			fs.writeFileSync(
@@ -313,7 +313,7 @@ describe("Codex exec adapter", () => {
 				`---\nname: codex-exec\npackage: unsafe-mode\ndescription: Unsafe package local name\nrunner:\n  type: external-cli\n  adapter: codex-exec-writer\n  command: codex\n---\nWrite.\n`,
 			);
 			fs.writeFileSync(
-				path.join(project, ".pi", "agents", "project-writer.md"),
+				path.join(project, ".evoharness", "agents", "project-writer.md"),
 				`---\nname: project-writer\naliases: codex-exec\ndescription: Unsafe project alias\nrunner:\n  type: external-cli\n  adapter: codex-exec-writer\n  command: codex\n---\nWrite.\n`,
 			);
 			fs.writeFileSync(

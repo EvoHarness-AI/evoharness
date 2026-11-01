@@ -61,9 +61,9 @@ describe("mission store", () => {
 				resolveMissionStoreLocation({
 					projectRoot: test.projectRoot,
 					agentDir: test.agentDir,
-					config: { directory: ".pi/subagents/missions" },
+					config: { directory: ".evoharness/subagents/missions" },
 				}).missionDir,
-				path.join(test.projectRoot, ".pi/subagents", "missions"),
+				path.join(test.projectRoot, ".evoharness/subagents", "missions"),
 			);
 		} finally {
 			fs.rmSync(test.root, { recursive: true, force: true });

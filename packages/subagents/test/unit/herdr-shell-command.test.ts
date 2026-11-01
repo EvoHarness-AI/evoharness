@@ -13,10 +13,10 @@ describe("formatShellCommand on POSIX shells", () => {
 		assert.equal(
 			formatShellCommand(
 				"/usr/bin/node",
-				["/home/u/.pi/inspector-runner.mjs", "--async-dir", "/tmp/run-1|fc_abc"],
+				["/home/u/.evoharness/inspector-runner.mjs", "--async-dir", "/tmp/run-1|fc_abc"],
 				platform,
 			),
-			"/usr/bin/node '/home/u/.pi/inspector-runner.mjs' '--async-dir' '/tmp/run-1|fc_abc'",
+			"/usr/bin/node '/home/u/.evoharness/inspector-runner.mjs' '--async-dir' '/tmp/run-1|fc_abc'",
 		);
 	});
 

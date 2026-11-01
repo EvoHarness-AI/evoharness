@@ -23,7 +23,7 @@ describe("workflow launch params", () => {
 			inheritGlobalContext: false,
 			inheritSkills: false,
 			source: "project",
-			filePath: "/local/workflow/.pi/agents/pinned.md",
+			filePath: "/local/workflow/.evoharness/agents/pinned.md",
 			machine: "workmac",
 		};
 		const discoverAgents = (cwd: string) => {

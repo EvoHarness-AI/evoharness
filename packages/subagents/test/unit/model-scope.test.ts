@@ -204,7 +204,7 @@ describe("expandReservedPatterns via resolveModelScopesForAgent", () => {
 });
 
 describe("parseModelScopeConfig", () => {
-	const meta = { filePath: "~/.pi/agent/settings.json" };
+	const meta = { filePath: "~/.evoharness/agent/settings.json" };
 
 	it("returns undefined when the field is absent", () => {
 		assert.equal(parseModelScopeConfig(undefined, meta), undefined);

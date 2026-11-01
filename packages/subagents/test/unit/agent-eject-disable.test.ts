@@ -32,7 +32,7 @@ function userSettingsPath(): string {
 }
 
 function projectSettingsPath(): string {
-	return path.join(tempDir, ".pi", "settings.json");
+	return path.join(tempDir, ".evoharness", "settings.json");
 }
 
 function userAgentPath(name: string): string {
@@ -40,7 +40,7 @@ function userAgentPath(name: string): string {
 }
 
 function projectAgentPath(name: string): string {
-	return path.join(tempDir, ".pi", "agents", `${name}.md`);
+	return path.join(tempDir, ".evoharness", "agents", `${name}.md`);
 }
 
 function packageAgentPath(name: string): string {
@@ -96,7 +96,7 @@ describe("agent eject/disable/enable/reset management actions", () => {
 		});
 
 		it("ejects to project scope when agentScope is project", () => {
-			fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
+			fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
 			const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
 			const ejected = handleManagementAction("eject", { agent: "scout", agentScope: "project" }, ctx);
 			assert.equal(ejected.isError, false);
@@ -190,7 +190,7 @@ describe("agent eject/disable/enable/reset management actions", () => {
 		});
 
 		it("writes a project-scoped override when agentScope is project", () => {
-			fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
+			fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
 			const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
 			const disabled = handleManagementAction("disable", { agent: "reviewer", agentScope: "project" }, ctx);
 			assert.equal(disabled.isError, false);
@@ -284,7 +284,7 @@ describe("agent eject/disable/enable/reset management actions", () => {
 		});
 
 		it("points to the disabling scope when enabling the wrong scope", () => {
-			fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
+			fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
 			const ctx = { cwd: tempDir, modelRegistry: { getAvailable: () => [] } };
 			handleManagementAction("disable", { agent: "reviewer", agentScope: "project" }, ctx);
 

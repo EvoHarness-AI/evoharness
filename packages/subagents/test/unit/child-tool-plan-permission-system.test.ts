@@ -24,7 +24,7 @@ function createFixture() {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "child-tool-plan-perm-"));
 	tempRoots.push(root);
 	const home = path.join(root, "home");
-	const agentDir = path.join(home, ".pi", "agent");
+	const agentDir = path.join(home, ".evoharness", "agent");
 	const projectDir = path.join(root, "project");
 	fs.mkdirSync(agentDir, { recursive: true });
 	fs.mkdirSync(projectDir, { recursive: true });

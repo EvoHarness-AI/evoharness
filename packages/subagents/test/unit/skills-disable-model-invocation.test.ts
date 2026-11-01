@@ -34,7 +34,7 @@ function makeProjectSkill(
 	body: string,
 	options: { description?: string; disableModelInvocation?: boolean | string } = {},
 ): void {
-	writeSkill(path.join(cwd, ".pi", "skills", name), body, options);
+	writeSkill(path.join(cwd, ".evoharness", "skills", name), body, options);
 }
 
 describe("disable-model-invocation filtering", () => {
@@ -101,14 +101,14 @@ describe("disable-model-invocation filtering", () => {
 
 	it("carries disableModelInvocation through name-level source precedence", () => {
 		// Two DIFFERENT files that share the skill name: a cwd-level settings
-		// skill (project-settings) and a .pi/skills project skill. Name-level
+		// skill (project-settings) and a .evoharness/skills project skill. Name-level
 		// dedup (chooseHigherPrioritySkill in getCachedSkills) keeps the higher-
 		// priority project entry; that entry must carry the flag read from its own
 		// file. This is the real path by which a flagged project skill wins over an
 		// unflagged same-named settings skill.
 		const settingsSkillDir = path.join(tempDir, "skills", "upgrade-skill");
 		writeSkill(settingsSkillDir, "Settings body.");
-		const settingsFile = path.join(tempDir, ".pi", "settings.json");
+		const settingsFile = path.join(tempDir, ".evoharness", "settings.json");
 		fs.mkdirSync(path.dirname(settingsFile), { recursive: true });
 		fs.writeFileSync(settingsFile, JSON.stringify({ skills: ["../skills"] }, null, 2), "utf-8");
 

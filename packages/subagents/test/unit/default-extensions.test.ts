@@ -19,7 +19,7 @@ function writeJson(filePath: string, value: unknown): void {
 }
 
 function writeProjectAgent(name: string, extensionFrontmatter = ""): void {
-	const filePath = path.join(tempProject, ".pi", "agents", `${name}.md`);
+	const filePath = path.join(tempProject, ".evoharness", "agents", `${name}.md`);
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
 	fs.writeFileSync(
 		filePath,
@@ -53,7 +53,7 @@ describe("subagent extension defaults", () => {
 		assert.equal(scout?.extensions, undefined);
 		assert.equal(scout?.subagentOnlyExtensions, undefined);
 
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { defaultExtensions: [] },
 		});
 		scout = discoverAgentsAll(tempProject).builtin.find((agent) => agent.name === "scout");
@@ -61,7 +61,7 @@ describe("subagent extension defaults", () => {
 	});
 
 	it("preserves ambient loading unless extensions defaults are also configured", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { defaultSubagentOnlyExtensions: ["  ./child.ts  "] },
 		});
 		const scout = discoverAgentsAll(tempProject).builtin.find((agent) => agent.name === "scout");
@@ -73,7 +73,7 @@ describe("subagent extension defaults", () => {
 		assert.equal(plan.disableAmbientExtensions, false);
 		assert.ok(plan.extensionArgs.includes("./child.ts"));
 
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				defaultExtensions: ["./allowlisted.ts"],
 				defaultSubagentOnlyExtensions: ["./child.ts"],
@@ -88,7 +88,7 @@ describe("subagent extension defaults", () => {
 	});
 
 	it("preserves an explicit child-only field and applies overrides after defaults", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				defaultSubagentOnlyExtensions: ["./default.ts"],
 				agentOverrides: {
@@ -98,7 +98,7 @@ describe("subagent extension defaults", () => {
 				},
 			},
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					replaced: { subagentOnlyExtensions: ["./replacement.ts"] },
@@ -114,7 +114,7 @@ describe("subagent extension defaults", () => {
 		const agents = discoverAgents(tempProject, "both").agents;
 		assert.deepEqual(agents.find((agent) => agent.name === "empty")?.subagentOnlyExtensions, []);
 		assert.deepEqual(agents.find((agent) => agent.name === "explicit")?.subagentOnlyExtensions, [
-			path.join(tempProject, ".pi", "agents", "explicit.ts"),
+			path.join(tempProject, ".evoharness", "agents", "explicit.ts"),
 		]);
 		assert.deepEqual(agents.find((agent) => agent.name === "replaced")?.subagentOnlyExtensions, ["./replacement.ts"]);
 		assert.equal(agents.find((agent) => agent.name === "cleared")?.subagentOnlyExtensions, undefined);
@@ -122,7 +122,7 @@ describe("subagent extension defaults", () => {
 	});
 
 	it("applies the allowlist only when an agent has no extensions field", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { defaultExtensions: ["./shared.ts"] },
 		});
 		writeProjectAgent("inherited");
@@ -132,13 +132,13 @@ describe("subagent extension defaults", () => {
 		const agents = discoverAgents(tempProject, "both").agents;
 		assert.deepEqual(agents.find((agent) => agent.name === "inherited")?.extensions, ["./shared.ts"]);
 		assert.deepEqual(agents.find((agent) => agent.name === "explicit")?.extensions, [
-			path.join(tempProject, ".pi", "agents", "explicit.ts"),
+			path.join(tempProject, ".evoharness", "agents", "explicit.ts"),
 		]);
 		assert.deepEqual(agents.find((agent) => agent.name === "disabled")?.extensions, []);
 	});
 
 	it("supports per-agent extensions through agentOverrides", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				defaultExtensions: [],
 				agentOverrides: {
@@ -158,7 +158,7 @@ describe("subagent extension defaults", () => {
 	});
 
 	it("does not serialize settings-derived extensions during unrelated updates", () => {
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: {
 				defaultExtensions: ["./default.ts"],
 				defaultSubagentOnlyExtensions: ["./child-default.ts"],
@@ -174,7 +174,7 @@ describe("subagent extension defaults", () => {
 		for (const name of ["defaulted", "overridden"])
 			assert.deepEqual(discovered.get(name)?.subagentOnlyExtensions, ["./child-default.ts"]);
 		assert.deepEqual(discovered.get("declared")?.subagentOnlyExtensions, [
-			path.join(tempProject, ".pi", "agents", "declared.ts"),
+			path.join(tempProject, ".evoharness", "agents", "declared.ts"),
 		]);
 
 		const ctx = {
@@ -184,7 +184,7 @@ describe("subagent extension defaults", () => {
 		for (const agent of ["defaulted", "overridden", "declared"]) {
 			const updated = handleUpdate({ agent, config: { description: `Updated ${agent}` } }, ctx);
 			assert.equal((updated as typeof updated & { isError?: boolean }).isError, false);
-			const content = fs.readFileSync(path.join(tempProject, ".pi", "agents", `${agent}.md`), "utf-8");
+			const content = fs.readFileSync(path.join(tempProject, ".evoharness", "agents", `${agent}.md`), "utf-8");
 			assert.doesNotMatch(content, /^extensions:/m);
 			if (agent === "declared") assert.match(content, /^subagentOnlyExtensions: \.\/declared\.ts$/m);
 			else assert.doesNotMatch(content, /^subagentOnlyExtensions:/m);
@@ -213,13 +213,13 @@ describe("subagent extension defaults", () => {
 	});
 
 	it("uses project settings over user settings while respecting discovery scope", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				defaultExtensions: ["./user.ts"],
 				defaultSubagentOnlyExtensions: ["./user-child.ts"],
 			},
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { defaultExtensions: [] },
 		});
 
@@ -233,7 +233,7 @@ describe("subagent extension defaults", () => {
 		assert.deepEqual(project?.extensions, []);
 		assert.equal(project?.subagentOnlyExtensions, undefined);
 
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { defaultExtensions: [], defaultSubagentOnlyExtensions: [] },
 		});
 		assert.deepEqual(
@@ -243,7 +243,7 @@ describe("subagent extension defaults", () => {
 	});
 
 	it("rejects malformed values", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		for (const settingName of ["defaultExtensions", "defaultSubagentOnlyExtensions"]) {
 			for (const value of ["nope", ["   "], [42], ["valid", 42]]) {
 				writeJson(settingsPath, { subagents: { [settingName]: value } });

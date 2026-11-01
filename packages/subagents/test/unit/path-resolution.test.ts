@@ -27,7 +27,7 @@ before(() => {
 	process.env.HOME = homeDir;
 	process.env.USERPROFILE = homeDir;
 	assert.equal(os.homedir(), homeDir);
-	process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(homeDir, ".pi", "agent");
+	process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(homeDir, ".evoharness", "agent");
 });
 
 after(() => {
@@ -71,9 +71,9 @@ describe("Path resolution for .agents and ~/.agents", () => {
 		assert.strictEqual(resolved?.path, path.join(userSkillsDir, "test-skill-2.md"));
 	});
 
-	test("should resolve project agents from both .agents and .pi/agents", () => {
+	test("should resolve project agents from both .agents and .evoharness/agents", () => {
 		const legacyDir = path.join(cwdDir, ".agents");
-		const agentsDir = path.join(cwdDir, ".pi", "agents");
+		const agentsDir = path.join(cwdDir, ".evoharness", "agents");
 		fs.mkdirSync(path.join(cwdDir, ".agents", "skills"), { recursive: true });
 		fs.mkdirSync(legacyDir, { recursive: true });
 		fs.mkdirSync(agentsDir, { recursive: true });

@@ -40,7 +40,7 @@ describe("settings subagents.agentExcludeDirs", () => {
 		user = path.join(root, "user");
 		project = path.join(root, "project");
 		fs.mkdirSync(user);
-		fs.mkdirSync(path.join(project, ".pi"), { recursive: true });
+		fs.mkdirSync(path.join(project, ".evoharness"), { recursive: true });
 		previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		process.env.EVOHARNESS_CODING_AGENT_DIR = user;
 		clearAgentDiscoveryCache();
@@ -59,7 +59,7 @@ describe("settings subagents.agentExcludeDirs", () => {
 	it("prunes nested sources, diagnostics and explicit roots in every projection while retaining legacy agents", () => {
 		const userPlugins = path.join(user, "agents", "plugins");
 		const projectPlugins = path.join(project, ".agents", "plugins");
-		const fixedProjectRoot = path.join(project, ".pi", "agents");
+		const fixedProjectRoot = path.join(project, ".evoharness", "agents");
 		writeAgent(path.join(user, "agents"), "user-legacy");
 		writeAgent(path.join(project, ".agents"), "project-legacy");
 		fs.mkdirSync(fixedProjectRoot, { recursive: true });
@@ -70,7 +70,7 @@ describe("settings subagents.agentExcludeDirs", () => {
 			fs.writeFileSync(path.join(dir, "invalid.md"), "---\nname: invalid\n---\nbody");
 		}
 		settings(user, { agentExcludeDirs: ["agents/plugins"], agentScanDirs: [userPlugins, projectPlugins] });
-		settings(path.join(project, ".pi"), { agentExcludeDirs: ["../.agents/plugins", "agents"] });
+		settings(path.join(project, ".evoharness"), { agentExcludeDirs: ["../.agents/plugins", "agents"] });
 		for (const scope of ["user", "project", "both"] as const) {
 			for (const result of [
 				discoverAgents(project, scope),
@@ -170,7 +170,7 @@ describe("settings subagents.agentExcludeDirs", () => {
 			const alias = path.join(root, `${scope}-scan-alias`);
 			fs.symlinkSync(hidden, alias, "dir");
 			settings(user, { agentExcludeDirs: [hidden], ...(scope === "user" ? { agentScanDirs: [alias] } : {}) });
-			settings(path.join(project, ".pi"), scope === "project" ? { agentScanDirs: [alias] } : {});
+			settings(path.join(project, ".evoharness"), scope === "project" ? { agentScanDirs: [alias] } : {});
 			const reads = recordReads();
 			for (let attempt = 0; attempt < 2; attempt++) {
 				const initial = discoverAgentSnapshot(project, "both", undefined, { includeChains: false });

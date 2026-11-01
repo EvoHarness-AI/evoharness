@@ -124,7 +124,7 @@ test("every host peer package the detached async runner imports is aliased to th
 	assert.ok(packageRoot, "expected the pi package (or its test shim) to be resolvable");
 	const resolved = resolveHostPeerAliases(packageRoot);
 	assert.deepEqual(resolved.missing, []);
-	// Optional subpaths the installed host does not export (pi-agent-core "./node" on Pi 1.2.0) resolve to no alias.
+	// Optional subpaths the installed host does not export (agent-core "./node" on Pi 1.2.0) resolve to no alias.
 	for (const specifier of aliased)
 		if (specifier in resolved.aliases)
 			assert.ok(fs.existsSync(resolved.aliases[specifier]!), `alias target for ${specifier} exists`);
@@ -143,7 +143,7 @@ test("the standalone inspector runner reaches no host peer package, because its 
 	);
 });
 
-test("resolves pi-agent-core/node to its exact package export instead of appending to the root alias", () => {
+test("resolves agent-core/node to its exact package export instead of appending to the root alias", () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-agent-core-node-alias-"));
 	const packageDir = path.join(root, "node_modules", "@evoharness", "agent-core");
 	const distDir = path.join(packageDir, "dist");
@@ -190,7 +190,7 @@ test("resolveCompileFromPackageRoot loads typebox/compile from a fake Pi host pa
 	try {
 		fs.writeFileSync(
 			path.join(root, "package.json"),
-			JSON.stringify({ name: "fake-pi-coding-agent", version: "0.0.0" }),
+			JSON.stringify({ name: "fake-coding-agent", version: "0.0.0" }),
 		);
 		writeFakeTypeboxPackage(path.join(root, "node_modules", "typebox"));
 
@@ -373,7 +373,7 @@ test("chord is required only when the host declares it, and aliased host-first w
 	}
 });
 
-test("skips the pi-agent-core/node alias when the host package declares no ./node export", () => {
+test("skips the agent-core/node alias when the host package declares no ./node export", () => {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), "pi-subagents-agent-core-no-node-"));
 	const packageDir = path.join(root, "node_modules", "@evoharness", "agent-core");
 	const distDir = path.join(packageDir, "dist");

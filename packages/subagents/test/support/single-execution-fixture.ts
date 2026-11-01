@@ -173,7 +173,7 @@ interface MockPiCallRecord {
 }
 
 function writeWatchdogSettings(projectDir: string, tailMs = 120_000): void {
-	const settingsPath = path.join(projectDir, ".pi", "settings.json");
+	const settingsPath = path.join(projectDir, ".evoharness", "settings.json");
 	fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 	fs.writeFileSync(
 		settingsPath,
@@ -201,7 +201,7 @@ async function withIsolatedWatchdogSettings<T>(projectDir: string, run: () => Pr
 	const previousHome = process.env.HOME;
 	const previousUserProfile = process.env.USERPROFILE;
 	const isolatedHome = path.join(projectDir, "isolated-home");
-	process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(isolatedHome, ".pi", "agent");
+	process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(isolatedHome, ".evoharness", "agent");
 	process.env.HOME = isolatedHome;
 	process.env.USERPROFILE = isolatedHome;
 	try {
@@ -439,7 +439,7 @@ function makeExecutor(
 		config,
 		asyncByDefault,
 		tempArtifactsDir: tempDir,
-		getSubagentSessionRoot: () => path.join(tempDir, ".pi/subagents", "sessions"),
+		getSubagentSessionRoot: () => path.join(tempDir, ".evoharness/subagents", "sessions"),
 		expandTilde: (value: string) => value,
 		discoverAgents: (cwd: string, _scope: unknown, preferredModelProvider?: string) => ({
 			agents: discoverAgentsForCwd ? discoverAgentsForCwd(cwd, preferredModelProvider) : agents,

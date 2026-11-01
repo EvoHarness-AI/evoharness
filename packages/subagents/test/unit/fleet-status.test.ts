@@ -776,7 +776,7 @@ describe("below-editor subagent FleetView", () => {
 				projectRoot,
 				{
 					projectRoot,
-					bindingPath: path.join(projectRoot, ".pi/subagents/project-panes/herdr.json"),
+					bindingPath: path.join(projectRoot, ".evoharness/subagents/project-panes/herdr.json"),
 					paneId: "w1:p50",
 					openedAt: "2026-01-01T00:00:00.000Z",
 					state: "open",

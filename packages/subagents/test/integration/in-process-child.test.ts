@@ -1039,8 +1039,8 @@ describe("default child session factory", () => {
 	it("reads project resources only when the launching session trusts the project", async () => {
 		const host = await import("@evoharness/coding-agent");
 		const projectDir = createTempDir("pi-subagents-project-trust-");
-		fs.mkdirSync(path.join(projectDir, ".pi"));
-		fs.writeFileSync(path.join(projectDir, ".pi", "SYSTEM.md"), "project system prompt");
+		fs.mkdirSync(path.join(projectDir, ".evoharness"));
+		fs.writeFileSync(path.join(projectDir, ".evoharness", "SYSTEM.md"), "project system prompt");
 		try {
 			for (const projectTrusted of [true, false]) {
 				let loader: InstanceType<PiCodingAgentModule["DefaultResourceLoader"]> | undefined;

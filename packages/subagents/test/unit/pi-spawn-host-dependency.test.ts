@@ -262,7 +262,7 @@ test("an invalid host dependency manifest fails closed instead of falling back",
 	const { pi } = fixture(t);
 	for (const [manifest, expected] of [
 		["{", /malformed JSON/],
-		[JSON.stringify({ name: "not-pi" }), /expected "@evoharness\/pi-coding-agent"/],
+		[JSON.stringify({ name: "not-pi" }), /expected "@evoharness\/coding-agent"/],
 		["null", /expected a JSON object/],
 	] as const) {
 		fs.writeFileSync(path.join(pi, "package.json"), manifest);
@@ -277,7 +277,7 @@ test("selected host SDK missing entry, blocked export and import errors never lo
 	await assert.rejects(loadHostPiCodingAgent(), /ENOENT/);
 	let background = await captureBackground(t, tmp);
 	assert.equal(background.calls.length, 0);
-	assert.match(background.result.content[0]!.text, /does not provide @evoharness\/pi-coding-agent/);
+	assert.match(background.result.content[0]!.text, /does not provide @evoharness\/coding-agent/);
 	fs.writeFileSync(
 		path.join(pi, "package.json"),
 		JSON.stringify({ name: PI_CODING_AGENT_PACKAGE, exports: { ".": null } }),

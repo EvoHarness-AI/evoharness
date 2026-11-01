@@ -4,7 +4,7 @@ import { type ArtifactDirPreference, type ArtifactPaths, CHAIN_RUNS_DIR, TEMP_AR
 import { getAgentDir } from "./utils.ts";
 
 const CLEANUP_MARKER_FILE = ".last-cleanup";
-export const PROJECT_SUBAGENTS_RELATIVE_DIR = ".pi/subagents";
+export const PROJECT_SUBAGENTS_RELATIVE_DIR = ".evoharness/subagents";
 
 const PROJECT_ARTIFACT_PATHS = [
 	`${PROJECT_SUBAGENTS_RELATIVE_DIR}/artifacts/output.md`,
@@ -126,7 +126,7 @@ export function getProjectArtifactPackagingWarning(cwd: string): string | undefi
 	const ignorePath = fs.existsSync(npmIgnorePath) ? npmIgnorePath : path.join(cwd, ".gitignore");
 	if (filesIncludeArtifacts === undefined && ignoreFileExcludesProjectArtifacts(ignorePath)) return undefined;
 
-	return "Project-scoped subagent artifacts can be included when this package is published. Add '.pi/subagents/' to .npmignore, restrict package.json files, or set artifactDir to 'session' or 'temp'.";
+	return "Project-scoped subagent artifacts can be included when this package is published. Add '.evoharness/subagents/' to .npmignore, restrict package.json files, or set artifactDir to 'session' or 'temp'.";
 }
 
 export function getProjectSubagentsDir(cwd: string): string {

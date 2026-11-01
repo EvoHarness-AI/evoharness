@@ -136,7 +136,7 @@ async function withIsolatedHome<T>(fn: () => Promise<T>): Promise<T> {
 	const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 	const previousHome = process.env.HOME;
 	const previousUserProfile = process.env.USERPROFILE;
-	process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(home, ".pi", "agent");
+	process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(home, ".evoharness", "agent");
 	process.env.HOME = home;
 	process.env.USERPROFILE = home;
 	try {
@@ -210,8 +210,8 @@ function createCommandContext(
 
 async function withTempProject<T>(prefix: string, fn: (root: string) => Promise<T>): Promise<T> {
 	const root = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-	fs.mkdirSync(path.join(root, ".pi", "agents"), { recursive: true });
-	fs.mkdirSync(path.join(root, ".pi", "chains"), { recursive: true });
+	fs.mkdirSync(path.join(root, ".evoharness", "agents"), { recursive: true });
+	fs.mkdirSync(path.join(root, ".evoharness", "chains"), { recursive: true });
 	try {
 		return await fn(root);
 	} finally {
@@ -220,7 +220,7 @@ async function withTempProject<T>(prefix: string, fn: (root: string) => Promise<
 }
 
 function writeProjectChain(root: string, fileName: string, content: string): void {
-	fs.writeFileSync(path.join(root, ".pi", "chains", fileName), content, "utf-8");
+	fs.writeFileSync(path.join(root, ".evoharness", "chains", fileName), content, "utf-8");
 }
 
 function createWatchdogHarness(review?: WatchdogReviewFunction) {
@@ -350,7 +350,7 @@ describe(
 
 					const recommendation = String((sent[0] as { content?: unknown }).content ?? "");
 					assert.match(recommendation, /Recommended: anthropic\/claude-opus-4-8:high/);
-					const settingsPath = path.join(process.env.HOME!, ".pi", "agent", "settings.json");
+					const settingsPath = path.join(process.env.HOME!, ".evoharness", "agent", "settings.json");
 					const settings = JSON.parse(fs.readFileSync(settingsPath, "utf-8"));
 					assert.equal(settings.subagents.watchdog.main.model, "anthropic/claude-opus-4-8");
 					assert.equal(settings.subagents.watchdog.main.thinking, "high");
@@ -369,7 +369,7 @@ describe(
 					const configured = { provider: "github-copilot", id: "gpt-6-astra", reasoning: true };
 					const gpt = { provider: "openai-codex", id: "gpt-5.5", reasoning: true };
 					const models = [configured, gpt];
-					const projectPath = path.join(root, ".pi", "settings.json");
+					const projectPath = path.join(root, ".evoharness", "settings.json");
 					fs.mkdirSync(path.dirname(projectPath), { recursive: true });
 					const projectSettings = JSON.stringify({
 						subagents: { watchdog: { main: { model: "github-copilot/gpt-6-astra", thinking: "high" } } },
@@ -392,7 +392,7 @@ describe(
 						assert.match(content, /Keep configured watchdog: github-copilot\/gpt-6-astra:high/);
 						assert.doesNotMatch(content, /Recommended strong watchdog|strong independent watchdog/);
 					}
-					const userPath = path.join(process.env.HOME!, ".pi", "agent", "settings.json");
+					const userPath = path.join(process.env.HOME!, ".evoharness", "agent", "settings.json");
 					assert.equal(fs.existsSync(userPath), false);
 					await commands.get("subagents-watchdog")!.handler("model recommended", ctx);
 					assert.deepEqual(JSON.parse(fs.readFileSync(userPath, "utf-8")).subagents.watchdog.main, {
@@ -426,7 +426,7 @@ describe(
 							createCommandContext({ cwd: root, model: opus, modelRegistry }),
 						);
 
-					assert.equal(fs.existsSync(path.join(process.env.HOME!, ".pi", "agent", "settings.json")), false);
+					assert.equal(fs.existsSync(path.join(process.env.HOME!, ".evoharness", "agent", "settings.json")), false);
 					const content = String((sent[0] as { content?: unknown }).content ?? "");
 					assert.match(content, /session model: openai-codex\/gpt-5\.5:high/);
 					assert.match(content, /Main model: openai-codex\/gpt-5\.5 \(session override\)/);
@@ -438,7 +438,7 @@ describe(
 		it("shows explicit watchdog model thinking accurately when no thinking is configured", async () => {
 			await withIsolatedHome(async () => {
 				await withTempProject("pi-watchdog-status-model-", async (root) => {
-					const settingsPath = path.join(process.env.HOME!, ".pi", "agent", "settings.json");
+					const settingsPath = path.join(process.env.HOME!, ".evoharness", "agent", "settings.json");
 					fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 					fs.writeFileSync(
 						settingsPath,
@@ -474,8 +474,8 @@ describe(
 		it("writes only user watchdog enabled settings and preserves existing settings", async () => {
 			await withIsolatedHome(async () => {
 				await withTempProject("pi-watchdog-toggle-", async (root) => {
-					const settingsPath = path.join(process.env.HOME!, ".pi", "agent", "settings.json");
-					const projectSettingsPath = path.join(root, ".pi", "settings.json");
+					const settingsPath = path.join(process.env.HOME!, ".evoharness", "agent", "settings.json");
+					const projectSettingsPath = path.join(root, ".evoharness", "settings.json");
 					fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 					fs.writeFileSync(
 						settingsPath,
@@ -522,8 +522,8 @@ describe(
 		it("uses session on/off overrides without writing settings files", async () => {
 			await withIsolatedHome(async () => {
 				await withTempProject("pi-watchdog-session-", async (root) => {
-					const settingsPath = path.join(process.env.HOME!, ".pi", "agent", "settings.json");
-					const projectSettingsPath = path.join(root, ".pi", "settings.json");
+					const settingsPath = path.join(process.env.HOME!, ".evoharness", "agent", "settings.json");
+					const projectSettingsPath = path.join(root, ".evoharness", "settings.json");
 					const { commands, sent } = createWatchdogHarness();
 
 					await commands.get("subagents-watchdog")!.handler("session on", createCommandContext({ cwd: root }));
@@ -1646,7 +1646,7 @@ describe(
 		it("/run reports discovery evidence for a missing agent", async () => {
 			await withTempProject("pi-slash-missing-agent-", async (root) => {
 				fs.writeFileSync(
-					path.join(root, ".pi", "agents", "worker.md"),
+					path.join(root, ".evoharness", "agents", "worker.md"),
 					"---\nname: worker\ndescription: Worker\n---\n",
 					"utf-8",
 				);
@@ -1663,7 +1663,7 @@ describe(
 		it("/run reports malformed agent configuration", async () => {
 			await withTempProject("pi-slash-invalid-agent-", async (root) => {
 				fs.writeFileSync(
-					path.join(root, ".pi", "agents", "broken.md"),
+					path.join(root, ".evoharness", "agents", "broken.md"),
 					"---\nname: broken\ndescription: Broken\nrunner:\n  type: unknown\n---\nBroken agent.\n",
 				);
 
@@ -1679,7 +1679,7 @@ describe(
 		it("/run blocks a malformed project agent from falling back to builtin", async () => {
 			await withTempProject("pi-slash-invalid-agent-shadow-", async (root) => {
 				fs.writeFileSync(
-					path.join(root, ".pi", "agents", "reviewer.md"),
+					path.join(root, ".evoharness", "agents", "reviewer.md"),
 					"---\nname: reviewer\ndescription: Broken reviewer\nrunner:\n  type: unknown\n---\nBroken agent.\n",
 				);
 
@@ -1695,7 +1695,7 @@ describe(
 		it("/run reports malformed packaged agent configuration by runtime name", async () => {
 			await withTempProject("pi-slash-invalid-packaged-agent-", async (root) => {
 				fs.writeFileSync(
-					path.join(root, ".pi", "agents", "code-analysis.zeta-worker.md"),
+					path.join(root, ".evoharness", "agents", "code-analysis.zeta-worker.md"),
 					"---\nname: zeta-worker\npackage: code-analysis\ndescription: Broken packaged worker\nrunner:\n  type: unknown\n---\nBroken agent.\n",
 				);
 
@@ -1729,7 +1729,7 @@ describe(
 		it("/subagents-models accepts discovered and runtime agent names", async () => {
 			await withTempProject("pi-slash-models-agent-", async (root) => {
 				fs.writeFileSync(
-					path.join(root, ".pi", "agents", "project-helper.md"),
+					path.join(root, ".evoharness", "agents", "project-helper.md"),
 					"---\nname: project-helper\ndescription: Project helper\n---\nProject helper.\n",
 					"utf-8",
 				);
@@ -1787,7 +1787,7 @@ describe(
 		it("/run preserves existing relative reads and omits missing reads", async () => {
 			await withTempProject("pi-slash-reads-", async (root) => {
 				fs.writeFileSync(
-					path.join(root, ".pi", "agents", "scout.md"),
+					path.join(root, ".evoharness", "agents", "scout.md"),
 					`---
 name: scout
 description: Scout
@@ -2005,7 +2005,7 @@ Inspect
 		it("/run accepts dotted packaged runtime agent names", async () => {
 			await withTempProject("pi-packaged-agent-slash-", async (root) => {
 				fs.writeFileSync(
-					path.join(root, ".pi", "agents", "code-analysis.scout.md"),
+					path.join(root, ".evoharness", "agents", "code-analysis.scout.md"),
 					`---
 name: scout
 package: code-analysis
@@ -2082,7 +2082,7 @@ Valid foo.
 					"utf-8",
 				);
 				fs.writeFileSync(
-					path.join(root, ".pi", "settings.json"),
+					path.join(root, ".evoharness", "settings.json"),
 					JSON.stringify({ packages: [highPackage, lowPackage] }),
 				);
 

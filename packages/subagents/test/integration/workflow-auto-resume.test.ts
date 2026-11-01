@@ -835,15 +835,15 @@ describe(
 					elsewhere(withUi).sort(byText),
 					[
 						{
-							text: `2 subagent runs were interrupted in another session. Reopen it to resume them: \`pi --session ${headerIds.get(foreign)}\``,
+							text: `2 subagent runs were interrupted in another session. Reopen it to resume them: .evoharness --session ${headerIds.get(foreign)}\``,
 							level: "info",
 						},
 						{
-							text: `1 subagent run was interrupted in another session. Reopen it to resume it: \`pi --session ${headerIds.get(spaced)}\``,
+							text: `1 subagent run was interrupted in another session. Reopen it to resume it: .evoharness --session ${headerIds.get(spaced)}\``,
 							level: "info",
 						},
 						{
-							text: `1 subagent run was interrupted in another session. Reopen it to resume it: \`pi --session ${headerIds.get(dollar)}\``,
+							text: `1 subagent run was interrupted in another session. Reopen it to resume it: .evoharness --session ${headerIds.get(dollar)}\``,
 							level: "info",
 						},
 					].sort(byText),

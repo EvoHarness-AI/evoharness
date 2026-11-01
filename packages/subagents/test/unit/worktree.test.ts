@@ -443,7 +443,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
-		const extensionsDir = path.join(tempHome, ".pi", "agent", "extensions");
+		const extensionsDir = path.join(tempHome, ".evoharness", "agent", "extensions");
 		try {
 			process.env.HOME = tempHome;
 			process.env.USERPROFILE = tempHome;
@@ -474,7 +474,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
 		const previousUserProfile = process.env.USERPROFILE;
-		const extensionsDir = path.join(tempHome, ".pi", "agent", "extensions");
+		const extensionsDir = path.join(tempHome, ".evoharness", "agent", "extensions");
 		const aliasDir = path.join(tempHome, "extension-alias");
 		try {
 			process.env.HOME = tempHome;
@@ -501,7 +501,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	it("keeps auto-managed extension repository worktrees outside extension discovery", async () => {
 		const sourceRepo = createRepo("pi-worktree-extension-source-");
 		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
-		const agentDir = path.join(tempHome, ".pi", "agent");
+		const agentDir = path.join(tempHome, ".evoharness", "agent");
 		const repoDir = path.join(agentDir, "extensions", "powerline-footer");
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
@@ -539,7 +539,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	it("does not relocate explicitly native extension repository worktrees", async () => {
 		const sourceRepo = createRepo("pi-worktree-extension-native-source-");
 		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
-		const agentDir = path.join(tempHome, ".pi", "agent");
+		const agentDir = path.join(tempHome, ".evoharness", "agent");
 		const repoDir = path.join(agentDir, "extensions", "powerline-footer");
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
@@ -573,7 +573,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 		const sourceRepo = createRepo("pi-worktree-extension-project-");
 		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
 		const repoDir = path.join(tempHome, "extensions");
-		const agentDir = path.join(tempHome, ".pi", "agent");
+		const agentDir = path.join(tempHome, ".evoharness", "agent");
 		const extensionsDir = path.join(agentDir, "extensions");
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		const previousHome = process.env.HOME;
@@ -616,7 +616,7 @@ console.log(JSON.stringify({ action: "created", branch, path: repo, created_bran
 	it("rejects a project directory symlink into Pi extensions", async () => {
 		const repoDir = createRepo("pi-worktree-extension-project-symlink-");
 		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-worktree-home-"));
-		const agentDir = path.join(tempHome, ".pi", "agent");
+		const agentDir = path.join(tempHome, ".evoharness", "agent");
 		const extensionsDir = path.join(agentDir, "extensions");
 		const baseDir = path.join(tempHome, "worktree-root");
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -871,8 +871,8 @@ process.stdout.write(JSON.stringify({ syntheticPaths: [".base-commit"] }));
 		const repoDir = createRepo("pi-worktree-runtime-artifacts-");
 		let setup: WorktreeSetup | undefined;
 		try {
-			fs.mkdirSync(path.join(repoDir, ".pi/subagents", "missions"), { recursive: true });
-			fs.writeFileSync(path.join(repoDir, ".pi/subagents", "missions", "mission.json"), "{}\n", "utf-8");
+			fs.mkdirSync(path.join(repoDir, ".evoharness/subagents", "missions"), { recursive: true });
+			fs.writeFileSync(path.join(repoDir, ".evoharness/subagents", "missions", "mission.json"), "{}\n", "utf-8");
 			setup = await createWorktrees(repoDir, "runtime-artifacts", 1);
 			assert.equal(setup.worktrees.length, 1);
 		} finally {

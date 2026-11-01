@@ -301,7 +301,7 @@ describe("async stale-run reconciliation", () => {
 					if (stat[stat.lastIndexOf(") ") + 2] === "Z") break;
 					await new Promise((resolve) => setTimeout(resolve, 10));
 				}
-				assert.match(stat, /\(pi\) zombie\) Z /);
+				assert.match(stat, /.evoharness\) zombie\) Z /);
 				assert.equal(process.kill(pid, 0), true);
 				assert.equal(checkPidLiveness(pid, process.kill, true), "dead");
 				const scope = fs.readlinkSync("/proc/self/ns/pid", "utf-8").trim();

@@ -998,7 +998,7 @@ export default function() {
 								currentSessionId: "session-file-report",
 							},
 							artifactConfig,
-							artifactsDir: path.join(tempDir, ".pi/subagents", "artifacts"),
+							artifactsDir: path.join(tempDir, ".evoharness/subagents", "artifacts"),
 							shareEnabled: false,
 							maxSubagentDepth: 2,
 							output: outputPath,

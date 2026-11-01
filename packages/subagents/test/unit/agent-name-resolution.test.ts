@@ -15,7 +15,7 @@ function makeAgent(name: string, localName?: string): AgentConfig {
 		inheritSkills: false,
 		systemPrompt: "Inspect",
 		source: "project",
-		filePath: path.join(".pi", "agents", `${name}.md`),
+		filePath: path.join(".evoharness", "agents", `${name}.md`),
 	};
 }
 
@@ -58,11 +58,11 @@ describe("findConfiguredProjectRoot", () => {
 			process.env.HOME = isolatedHome;
 			process.env.USERPROFILE = isolatedHome;
 			const nested = fs.mkdtempSync(path.join(homeAlias, "agent-project-"));
-			fs.mkdirSync(path.join(isolatedHome, ".pi"));
+			fs.mkdirSync(path.join(isolatedHome, ".evoharness"));
 
 			assert.equal(findConfiguredProjectRoot(nested), null);
 
-			fs.mkdirSync(path.join(nested, ".pi"));
+			fs.mkdirSync(path.join(nested, ".evoharness"));
 			assert.equal(findConfiguredProjectRoot(nested), nested);
 		} finally {
 			if (previousHome === undefined) delete process.env.HOME;

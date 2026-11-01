@@ -1184,7 +1184,7 @@ export default function() {
 		"background execution inherits a discovered agent outputSchema",
 		{ skip: !isAsyncAvailable() || !createSubagentExecutor ? "jiti or executor not available" : undefined },
 		async () => {
-			const agentDir = path.join(tempDir, ".pi", "agents");
+			const agentDir = path.join(tempDir, ".evoharness", "agents");
 			fs.mkdirSync(agentDir, { recursive: true });
 			fs.writeFileSync(
 				path.join(agentDir, "typed.md"),
@@ -1212,7 +1212,7 @@ export default function() {
 		"workflow acceptance uses inherited schemas and rejects a false opt-out",
 		{ skip: !isAsyncAvailable() || !createSubagentExecutor ? "jiti or executor not available" : undefined },
 		async () => {
-			const agentDir = path.join(tempDir, ".pi", "agents");
+			const agentDir = path.join(tempDir, ".evoharness", "agents");
 			fs.mkdirSync(agentDir, { recursive: true });
 			fs.writeFileSync(
 				path.join(agentDir, "typed.md"),
@@ -1472,7 +1472,7 @@ export default function() {
 			);
 			assert.equal(fs.existsSync(rejectedAsyncDir), false);
 			assert.equal(fs.existsSync(rejectedResultPath), false);
-			assert.equal(fs.existsSync(path.join(tempDir, ".pi", "subagents")), false);
+			assert.equal(fs.existsSync(path.join(tempDir, ".evoharness/subagents")), false);
 			fs.rmSync(path.join(ACTIVE_ASYNC_CAPACITY_DIR, activeAsyncCapacitySessionKey("session-cap")), {
 				recursive: true,
 				force: true,
@@ -2677,7 +2677,7 @@ syncBuiltinESMExports();
 		async () => {
 			const runId = `append-effective-schema-${Date.now().toString(36)}`;
 			const asyncDir = path.join(ASYNC_DIR, runId);
-			const agentDir = path.join(tempDir, ".pi", "agents");
+			const agentDir = path.join(tempDir, ".evoharness", "agents");
 			const schema = { type: "object", required: ["ok"] };
 			const budget = createRunFanoutBudget(runId, 8);
 			try {

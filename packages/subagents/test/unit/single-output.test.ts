@@ -81,9 +81,9 @@ describe("resolveSingleOutputPath", () => {
 			"reviews/report.md",
 			"/runtime",
 			"/requested",
-			"/repo/.pi/subagents/artifacts/outputs/run-1",
+			"/repo/.evoharness/subagents/artifacts/outputs/run-1",
 		);
-		assert.equal(resolved, path.resolve("/repo/.pi/subagents/artifacts/outputs/run-1", "reviews/report.md"));
+		assert.equal(resolved, path.resolve("/repo/.evoharness/subagents/artifacts/outputs/run-1", "reviews/report.md"));
 	});
 });
 

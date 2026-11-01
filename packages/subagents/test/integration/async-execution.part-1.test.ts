@@ -764,7 +764,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 		async () => {
 			mockPi.onCall({ output: "accounted output" });
 			const id = `async-usage-artifact-${Date.now().toString(36)}`;
-			const artifactsDir = path.join(tempDir, ".pi", "subagents", "artifacts");
+			const artifactsDir = path.join(tempDir, ".evoharness/subagents", "artifacts");
 			executeAsyncSingle(id, {
 				agent: "worker",
 				task: "Persist usage",
@@ -819,7 +819,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 					includeMetadata: true,
 					cleanupDays: 7,
 				},
-				artifactsDir: path.join(tempDir, ".pi", "subagents", "artifacts"),
+				artifactsDir: path.join(tempDir, ".evoharness/subagents", "artifacts"),
 				shareEnabled: false,
 				maxSubagentDepth: 2,
 				acceptance: false,
@@ -918,7 +918,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 				JSON.stringify({ name: "test", pi: { extensions: ["./src/index.ts"] } }),
 				"utf-8",
 			);
-			const agentPath = path.join(tempDir, ".pi", "agents", `${agentName}.md`);
+			const agentPath = path.join(tempDir, ".evoharness", "agents", `${agentName}.md`);
 			fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 			fs.writeFileSync(
 				agentPath,
@@ -1070,13 +1070,13 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 		);
 
 		it(
-			"counts a project's .pi/mcp.json for foreground children only when the project is trusted",
+			"counts a project's .evoharness/mcp.json for foreground children only when the project is trusted",
 			{ skip: !isAsyncAvailable() ? "jiti not available" : undefined },
 			async () => {
 				const agent = makeAgent("worker", { tools: ["read"], mcpDirectTools: ["ext"] });
-				fs.mkdirSync(path.join(tempDir, ".pi"), { recursive: true });
+				fs.mkdirSync(path.join(tempDir, ".evoharness"), { recursive: true });
 				fs.writeFileSync(
-					path.join(tempDir, ".pi", "mcp.json"),
+					path.join(tempDir, ".evoharness", "mcp.json"),
 					JSON.stringify({ mcpServers: { ext: { command: "ext-mcp" } } }),
 				);
 				await assert.rejects(runForeground(agent, false), /extensions registered \(ext\)/);
@@ -1092,7 +1092,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 		async () => {
 			const agentName = `bridge-async-${Date.now().toString(36)}`;
 			const task = "Compare bridged async launch identity.";
-			const agentPath = path.join(tempDir, ".pi", "agents", `${agentName}.md`);
+			const agentPath = path.join(tempDir, ".evoharness", "agents", `${agentName}.md`);
 			fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 			fs.writeFileSync(
 				agentPath,
@@ -1669,7 +1669,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 			const outputPath = payload.results[0]?.artifactPaths?.outputPath;
 			assert.ok(outputPath?.startsWith(`${expectedDir}${path.sep}`));
 			assert.equal(fs.readFileSync(outputPath, "utf-8"), "async session artifact");
-			assert.equal(fs.existsSync(path.join(tempDir, ".pi/subagents", "artifacts")), false);
+			assert.equal(fs.existsSync(path.join(tempDir, ".evoharness/subagents", "artifacts")), false);
 		},
 	);
 
@@ -1831,7 +1831,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 		{ skip: !isAsyncAvailable() || !createSubagentExecutor ? "jiti or executor not available" : undefined },
 		async () => {
 			const home = path.join(tempDir, "trust-home");
-			const agentDir = path.join(home, ".pi", "agent");
+			const agentDir = path.join(home, ".evoharness", "agent");
 			const project = path.join(tempDir, "trust-project");
 			const writeJson = (filePath: string, value: unknown) => {
 				fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -1849,7 +1849,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 					modelScope: { enforce: true, allow: ["openai/luna"] },
 				},
 			});
-			writeJson(path.join(project, ".pi", "settings.json"), {
+			writeJson(path.join(project, ".evoharness", "settings.json"), {
 				subagents: {
 					agentOverrides: { "trust-probe": { model: "openai/astra" } },
 					modelScope: { enforce: true, allow: ["openai/astra"] },
@@ -2132,7 +2132,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 					includeMetadata: true,
 					cleanupDays: 7,
 				},
-				artifactsDir: path.join(tempDir, ".pi/subagents", "artifacts"),
+				artifactsDir: path.join(tempDir, ".evoharness/subagents", "artifacts"),
 				shareEnabled: false,
 				maxSubagentDepth: 2,
 				acceptance: false,
@@ -2180,7 +2180,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 					includeMetadata: true,
 					cleanupDays: 7,
 				},
-				artifactsDir: path.join(tempDir, ".pi/subagents", "artifacts"),
+				artifactsDir: path.join(tempDir, ".evoharness/subagents", "artifacts"),
 				shareEnabled: false,
 				maxSubagentDepth: 2,
 				acceptance: false,
@@ -2204,7 +2204,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 		async () => {
 			mockPi.onCall({ delay: 800, output: "completed after artifact cleanup" });
 			const id = `async-artifact-dir-recovery-${Date.now().toString(36)}`;
-			const artifactsDir = path.join(tempDir, ".pi/subagents", "artifacts");
+			const artifactsDir = path.join(tempDir, ".evoharness/subagents", "artifacts");
 			executeAsyncSingle(id, {
 				agent: "worker",
 				task: "Complete after generated artifacts are cleaned",
@@ -2226,7 +2226,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 
 			await waitForMockPiCall(mockPi, 0);
 			assert.equal(fs.existsSync(artifactsDir), true);
-			fs.rmSync(path.join(tempDir, ".pi/subagents"), { recursive: true, force: true });
+			fs.rmSync(path.join(tempDir, ".evoharness/subagents"), { recursive: true, force: true });
 
 			const payload = await readAsyncPayload(id);
 			assert.equal(payload.success, true);
@@ -2246,7 +2246,7 @@ describe("async execution utilities", { skip: !available ? "pi packages not avai
 		async () => {
 			mockPi.onCall({ delay: 800, output: "artifact write should fail" });
 			const id = `async-artifact-output-failure-${Date.now().toString(36)}`;
-			const artifactsDir = path.join(tempDir, ".pi/subagents", id);
+			const artifactsDir = path.join(tempDir, ".evoharness/subagents", id);
 			executeAsyncSingle(id, {
 				agent: "worker",
 				task: "Report artifact persistence failure",

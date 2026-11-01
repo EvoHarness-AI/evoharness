@@ -127,7 +127,7 @@ console.log(JSON.stringify({ agentDir: getAgentDir(), profilePath: path.join(pro
 				tempDir: string;
 				testParentPid: string;
 			};
-			const isolatedAgentDir = path.join(tempRoot, "home", ".pi", "agent");
+			const isolatedAgentDir = path.join(tempRoot, "home", ".evoharness", "agent");
 			assert.equal(output.agentDir, isolatedAgentDir);
 			assert.equal(output.profilePath, path.join(isolatedAgentDir, "profiles", "pi-subagents", "isolated.json"));
 			assert.equal(output.settingsPath, path.join(isolatedAgentDir, "settings.json"));

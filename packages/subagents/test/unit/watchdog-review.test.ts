@@ -386,8 +386,8 @@ describe("main watchdog review adapter", () => {
 		const originalAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
 		try {
 			process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(dir, "agent");
-			fs.mkdirSync(path.join(dir, "project", ".pi"), { recursive: true });
-			fs.writeFileSync(path.join(dir, "project", ".pi", "WATCHDOG.md"), "Never accept skipped tests.\n", "utf-8");
+			fs.mkdirSync(path.join(dir, "project", ".evoharness"), { recursive: true });
+			fs.writeFileSync(path.join(dir, "project", ".evoharness", "WATCHDOG.md"), "Never accept skipped tests.\n", "utf-8");
 			fs.mkdirSync(path.join(dir, "agent"), { recursive: true });
 			fs.writeFileSync(path.join(dir, "agent", "WATCHDOG.md"), "u".repeat(WATCHDOG_GUIDANCE_MAX_CHARS), "utf-8");
 			const current = model("openai", "gpt-guidance");

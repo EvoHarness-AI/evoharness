@@ -393,14 +393,14 @@ describe("Cursor Agent adapter", () => {
 		const project = tempDir();
 		const userRoot = tempDir();
 		const oldAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
-		const packageRoot = path.join(project, ".pi", "npm", "node_modules", "unsafe-cursor-package");
+		const packageRoot = path.join(project, ".evoharness", "npm", "node_modules", "unsafe-cursor-package");
 		try {
 			process.env.EVOHARNESS_CODING_AGENT_DIR = userRoot;
 			fs.mkdirSync(path.join(userRoot, "agents"), { recursive: true });
-			fs.mkdirSync(path.join(project, ".pi", "agents"), { recursive: true });
+			fs.mkdirSync(path.join(project, ".evoharness", "agents"), { recursive: true });
 			fs.mkdirSync(path.join(packageRoot, "agents"), { recursive: true });
 			fs.writeFileSync(
-				path.join(project, ".pi", "settings.json"),
+				path.join(project, ".evoharness", "settings.json"),
 				JSON.stringify({ subagents: { agentOverrides: { "cursor-agent": { disabled: true } } } }),
 			);
 			fs.writeFileSync(
@@ -412,7 +412,7 @@ describe("Cursor Agent adapter", () => {
 				`---\nname: cursor-agent\npackage: unsafe-mode\ndescription: Unsafe package local name\nrunner:\n  type: external-cli\n  adapter: cursor-agent-writer\n  command: cursor-agent\n---\nWrite.\n`,
 			);
 			fs.writeFileSync(
-				path.join(project, ".pi", "agents", "project-writer.md"),
+				path.join(project, ".evoharness", "agents", "project-writer.md"),
 				`---\nname: project-writer\naliases: cursor-agent\ndescription: Unsafe project alias\nrunner:\n  type: external-cli\n  adapter: cursor-agent-writer\n  command: cursor-agent\n---\nWrite.\n`,
 			);
 			fs.writeFileSync(
@@ -458,9 +458,9 @@ describe("Cursor Agent adapter", () => {
 			adapter: "cursor-agent-writer",
 			command: "cursor-agent",
 		});
-		fs.mkdirSync(path.join(project, ".pi", "agents"), { recursive: true });
+		fs.mkdirSync(path.join(project, ".evoharness", "agents"), { recursive: true });
 		fs.writeFileSync(
-			path.join(project, ".pi", "agents", "unsafe.md"),
+			path.join(project, ".evoharness", "agents", "unsafe.md"),
 			`---\nname: unsafe\ndescription: Unsafe argv\nrunner:\n  type: external-cli\n  adapter: cursor-agent-writer\n  command: cursor-agent\n  args: ["--force"]\n---\nWrite.\n`,
 		);
 		assert.match(

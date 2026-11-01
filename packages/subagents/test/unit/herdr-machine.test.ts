@@ -224,7 +224,7 @@ describe("Herdr machine placement", () => {
 		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "pi-herdr-project-"));
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
-		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(tempHome, ".pi", "agent");
+		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(tempHome, ".evoharness", "agent");
 	});
 
 	afterEach(() => {
@@ -328,15 +328,15 @@ describe("Herdr machine placement", () => {
 						stepCwd: "packages/api",
 						catalogJson: catalog,
 					}),
-				/No root for workmac in this repo\. Set subagents\.machines\.workmac\.cwd in \.pi\/settings\.json or pass an absolute cwd on that machine\./u,
+				/No root for workmac in this repo\. Set subagents\.machines\.workmac\.cwd in .evoharness\/settings\.json or pass an absolute cwd on that machine\./u,
 			);
 		});
 
 		it("reads project machine roots by label or id and rejects locally supplied remote env", () => {
-			writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+			writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 				subagents: { machines: { workmac: { cwd: "/user/root", env: { FOO: "user" } } } },
 			});
-			writeJson(path.join(tempProject, ".pi", "settings.json"), {
+			writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 				subagents: { machines: { [machine.id]: { cwd: "/project/root" } } },
 			});
 			const nested = path.join(tempProject, "nested", "dir");
@@ -345,7 +345,7 @@ describe("Herdr machine placement", () => {
 				() => resolveHerdrMachinePlacement({ machine: "workmac", cwd: nested, catalogJson: catalog }),
 				/configure credentials and environment.*remov/iu,
 			);
-			writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+			writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 				subagents: { machines: { workmac: { cwd: "/user/root" } } },
 			});
 			assert.equal(
@@ -355,14 +355,14 @@ describe("Herdr machine placement", () => {
 		});
 
 		it("rejects malformed machine settings instead of ignoring them", () => {
-			writeJson(path.join(tempProject, ".pi", "settings.json"), {
+			writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 				subagents: { machines: { workmac: { cwd: "relative/path" } } },
 			});
 			assert.throws(
 				() => resolveHerdrMachinePlacement({ machine: "workmac", cwd: tempProject, catalogJson: catalog }),
 				/cwd must be an absolute POSIX path/u,
 			);
-			writeJson(path.join(tempProject, ".pi", "settings.json"), {
+			writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 				subagents: { machines: { workmac: { cwd: "/ok", env: { "bad name": "x" } } } },
 			});
 			assert.throws(

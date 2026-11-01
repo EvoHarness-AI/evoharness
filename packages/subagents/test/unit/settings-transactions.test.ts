@@ -46,7 +46,7 @@ function writer(root: string, project: string, target: string, role: string, ope
 async function race(options: { first: string; second: string; fileAlias?: boolean }): Promise<any> {
 	const root = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "settings-race-")));
 	const project = path.join(root, "project");
-	const config = path.join(project, ".pi");
+	const config = path.join(project, ".evoharness");
 	fs.mkdirSync(path.join(config, "profiles", "pi-subagents"), { recursive: true });
 	fs.writeFileSync(
 		path.join(config, "profiles", "pi-subagents", "race.json"),
@@ -57,8 +57,8 @@ async function race(options: { first: string; second: string; fileAlias?: boolea
 	let secondProject = project;
 	if (options.fileAlias) {
 		secondProject = path.join(root, "alias");
-		fs.mkdirSync(path.join(secondProject, ".pi"), { recursive: true });
-		fs.symlinkSync(target, path.join(secondProject, ".pi", "settings.json"));
+		fs.mkdirSync(path.join(secondProject, ".evoharness"), { recursive: true });
+		fs.symlinkSync(target, path.join(secondProject, ".evoharness", "settings.json"));
 	}
 	const first = writer(root, project, target, "first", options.first, config);
 	const second = writer(root, secondProject, target, "second", options.second, config);

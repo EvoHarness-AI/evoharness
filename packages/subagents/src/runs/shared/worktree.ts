@@ -407,7 +407,7 @@ async function probeWorktreeSource(tx: Pick<SetupTransaction, "git" | "gitChecke
 		throw new Error("worktree isolation requires a git repository");
 	const toplevel = (await tx.gitChecked(cwd, ["rev-parse", "--show-toplevel"])).trim();
 
-	// pi-subagents writes durable runtime state under .pi/subagents/ by default;
+	// pi-subagents writes durable runtime state under .evoharness/subagents/ by default;
 	// that state must not make managed isolation unusable for later runs.
 	const status = await tx.gitChecked(toplevel, ["status", "--porcelain", "--", `:!${PROJECT_SUBAGENTS_RELATIVE_DIR}`]);
 	if (status.trim().length > 0) {

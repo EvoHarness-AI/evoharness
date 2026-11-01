@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { registerHooks } from "node:module";
 import { test } from "node:test";
 
-test("activates against the running Pi when a package-local pi-ai lacks transcript helpers", async () => {
-	// Simulate an older pi-ai installed beside this package, not the running host.
+test("activates against the running Pi when a package-local ai lacks transcript helpers", async () => {
+	// Simulate an older ai installed beside this package, not the running host.
 	const hook = registerHooks({
 		resolve(specifier, context, nextResolve) {
 			if (

@@ -14,7 +14,7 @@ import {
 	type ProjectPaneCommandClient,
 	projectPaneBindingPath,
 	readProjectPaneBinding,
-} from "pi-subagents/project-panes";
+} from "@evoharness/subagents/project-panes";
 
 describe("public project-panes package export", () => {
 	it("exposes the versioned extension-to-extension lifecycle surface", () => {
@@ -170,8 +170,8 @@ describe("public project-panes package export", () => {
 		const previousPiBinary = process.env.PI_SUBAGENT_PI_BINARY;
 		process.env.PI_SUBAGENT_PI_BINARY = path.join(root, "pi-bin");
 		try {
-			fs.mkdirSync(path.join(root, ".pi"));
-			fs.writeFileSync(path.join(root, ".pi/subagents"), "directory collision");
+			fs.mkdirSync(path.join(root, ".evoharness"));
+			fs.writeFileSync(path.join(root, ".evoharness/subagents"), "directory collision");
 			const calls: string[][] = [];
 			const client: ProjectPaneCommandClient = {
 				run: async <T>(args: string[]) => {

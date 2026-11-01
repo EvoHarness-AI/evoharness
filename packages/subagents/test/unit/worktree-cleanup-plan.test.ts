@@ -36,7 +36,7 @@ async function cleanupFixture(
 	let setup: WorktreeSetup | undefined;
 	try {
 		setup = await createWorktrees(repo, "apply", 1, { baseDir });
-		const manifestPath = path.join(repo, ".pi", "subagents", "artifacts", "handoff.json");
+		const manifestPath = path.join(repo, ".evoharness/subagents", "artifacts", "handoff.json");
 		writeManifest({ repo, manifestPath, setup });
 		const { plan } = createWorktreeCleanupPlan({
 			repo,
@@ -428,7 +428,7 @@ describe("reviewed cleanup apply", () => {
 			await assert.rejects(applyReviewedCleanupPlan({ repo, planId, authorized: false }), /authorization/);
 			const plan = loadReviewedCleanupPlan(repo, planId);
 			assert.throws(() => loadReviewedCleanupPlan(repo, planId, plan.expiresAt), /expired/);
-			const file = path.join(repo, ".pi", "subagents", "cleanup-plans", `${planId}.json`);
+			const file = path.join(repo, ".evoharness/subagents", "cleanup-plans", `${planId}.json`);
 			plan.entries[0]!.branch = "changed";
 			fs.writeFileSync(file, JSON.stringify(plan));
 			await assert.rejects(applyReviewedCleanupPlan({ repo, planId, authorized: true }), /invalid|hash/);
@@ -504,7 +504,7 @@ describe("reviewed cleanup apply", () => {
 	it("keeps a single-use applying receipt after an interrupted owner", () =>
 		cleanupFixture(async ({ repo, setup, planId }) => {
 			const plan = loadReviewedCleanupPlan(repo, planId);
-			const claim = path.join(plan.repoRoot, ".pi", "subagents", "cleanup-plans", `${planId}.claim`);
+			const claim = path.join(plan.repoRoot, ".evoharness/subagents", "cleanup-plans", `${planId}.claim`);
 			fs.mkdirSync(claim);
 			fs.writeFileSync(
 				path.join(claim, "receipt.json"),
@@ -757,7 +757,7 @@ describe("worktree cleanup plan", () => {
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "safe", 1, { baseDir });
-			const manifestPath = path.join(repo, ".pi", "subagents", "artifacts", "handoff.json");
+			const manifestPath = path.join(repo, ".evoharness/subagents", "artifacts", "handoff.json");
 			writeManifest({ repo, manifestPath, setup });
 			fs.mkdirSync(path.join(baseDir, "unrelated-directory"));
 
@@ -820,7 +820,7 @@ describe("worktree cleanup plan", () => {
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "unknown", 2, { baseDir });
-			const manifestPath = path.join(repo, ".pi", "subagents", "artifacts", "handoff.json");
+			const manifestPath = path.join(repo, ".evoharness/subagents", "artifacts", "handoff.json");
 			writeManifest({ repo, manifestPath, setup });
 			fs.writeFileSync(path.join(setup.worktrees[0]!.path, "tracked.txt"), "dirty\n", "utf-8");
 
@@ -849,7 +849,7 @@ describe("worktree cleanup plan", () => {
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "active", 1, { baseDir });
-			const asyncDir = path.join(repo, ".pi", "subagents", "async", "active-run");
+			const asyncDir = path.join(repo, ".evoharness/subagents", "async", "active-run");
 			const manifestPath = path.join(asyncDir, "handoff.json");
 			writeManifest({ repo, manifestPath, setup, runId: "active-run", source: "async" });
 			fs.writeFileSync(
@@ -901,7 +901,7 @@ describe("worktree cleanup plan", () => {
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "foreground", 1, { baseDir });
-			const manifestPath = path.join(repo, ".pi", "subagents", "artifacts", "handoff.json");
+			const manifestPath = path.join(repo, ".evoharness/subagents", "artifacts", "handoff.json");
 			writeManifest({ repo, manifestPath, setup, runId: "foreground-run", source: "foreground" });
 			const noProof = buildWorktreeCleanupPlan({
 				repo,
@@ -940,7 +940,7 @@ describe("worktree cleanup plan", () => {
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "divergence", 1, { baseDir });
-			const manifestPath = path.join(repo, ".pi", "subagents", "artifacts", "handoff.json");
+			const manifestPath = path.join(repo, ".evoharness/subagents", "artifacts", "handoff.json");
 			writeManifest({ repo, manifestPath, setup });
 			const worktree = setup.worktrees[0]!;
 			fs.writeFileSync(path.join(worktree.path, "unmerged.txt"), "unmerged\n", "utf-8");
@@ -952,7 +952,7 @@ describe("worktree cleanup plan", () => {
 			assert.equal(unmerged.entries[0]?.state, "ineligible");
 			assert.match(unmerged.entries[0]?.reasons.join(" ") ?? "", /neither preserved.*nor merged/i);
 
-			const patchPath = path.join(repo, ".pi", "subagents", "artifacts", "divergence.patch");
+			const patchPath = path.join(repo, ".evoharness/subagents", "artifacts", "divergence.patch");
 			writeManifest({ repo, manifestPath, setup, patch: { path: patchPath, changed: true } });
 			const captured = buildPlan({ repo, worktreeBaseDir: baseDir, now: 40_000, planId: "captured-plan" });
 			assert.equal(captured.entries[0]?.decision, "remove");
@@ -972,7 +972,7 @@ describe("worktree cleanup plan", () => {
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "external-diff", 1, { baseDir });
-			const manifestPath = path.join(repo, ".pi", "subagents", "artifacts", "handoff.json");
+			const manifestPath = path.join(repo, ".evoharness/subagents", "artifacts", "handoff.json");
 			writeManifest({ repo, manifestPath, setup });
 			const worktree = setup.worktrees[0]!;
 			fs.writeFileSync(path.join(worktree.path, "unmerged.txt"), "unmerged\n", "utf-8");
@@ -998,7 +998,7 @@ describe("worktree cleanup plan", () => {
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "stale", 1, { baseDir });
-			const asyncDir = path.join(repo, ".pi", "subagents", "async", "stale-run");
+			const asyncDir = path.join(repo, ".evoharness/subagents", "async", "stale-run");
 			const manifestPath = path.join(asyncDir, "handoff.json");
 			writeManifest({ repo, manifestPath, setup, runId: "stale-run", source: "async" });
 			fs.writeFileSync(
@@ -1096,7 +1096,7 @@ describe("worktree cleanup plan", () => {
 		let setup: WorktreeSetup | undefined;
 		try {
 			setup = await createWorktrees(repo, "nested-root", 1, { baseDir });
-			const manifestPath = path.join(repo, ".pi", "subagents", "artifacts", "handoff.json");
+			const manifestPath = path.join(repo, ".evoharness/subagents", "artifacts", "handoff.json");
 			writeManifest({ repo, manifestPath, setup });
 			const plan = buildPlan({ repo, worktreeBaseDir: baseDir, now: 60_000, planId: "nested-root-plan" });
 			assert.equal(plan.baseDirs[0], path.join(baseDir, path.basename(repo)));
@@ -1117,7 +1117,7 @@ describe("worktree cleanup plan", () => {
 		try {
 			fs.mkdirSync(path.join(repo, "packages", "app"), { recursive: true });
 			setup = await createWorktrees(repo, "from-subdir", 1, { provider: "native" });
-			const manifestPath = path.join(repo, ".pi", "subagents", "artifacts", "handoff.json");
+			const manifestPath = path.join(repo, ".evoharness/subagents", "artifacts", "handoff.json");
 			writeManifest({ repo, manifestPath, setup });
 			const plan = buildPlan({ repo: path.join(repo, "packages", "app"), now: 61_500, planId: "subdir-root-plan" });
 			const realRepo = __testables.realpathExisting(repo);
@@ -1156,7 +1156,7 @@ describe("worktree cleanup plan", () => {
 				],
 				baseCommit: git(repo, ["rev-parse", "HEAD"]),
 			};
-			const manifestPath = path.join(repo, ".pi", "subagents", "artifacts", "handoff.json");
+			const manifestPath = path.join(repo, ".evoharness/subagents", "artifacts", "handoff.json");
 			writeManifest({ repo, manifestPath, setup, preserved: true });
 			const plan = buildPlan({ repo, worktreeBaseDir: baseDir, now: 62_000, planId: "flat-leaf-plan" });
 			const entry = entriesByPath(plan).get(__testables.realpathExisting(worktreePath)) ?? plan.entries[0];
@@ -1194,7 +1194,7 @@ describe("worktree cleanup plan", () => {
 				],
 				baseCommit: git(repo, ["rev-parse", "HEAD"]),
 			};
-			const manifestPath = path.join(repo, ".pi", "subagents", "artifacts", "handoff.json");
+			const manifestPath = path.join(repo, ".evoharness/subagents", "artifacts", "handoff.json");
 			writeManifest({ repo, manifestPath, setup, preserved: true });
 			const plan = buildPlan({
 				repo,
@@ -1215,7 +1215,7 @@ describe("worktree cleanup plan", () => {
 	it("keeps a worktree whose project directory resolves into Pi extensions", () => {
 		const repo = createRepo("pi-cleanup-plan-extension-project-");
 		const tempHome = fs.mkdtempSync(path.join(os.tmpdir(), "pi-cleanup-plan-home-"));
-		const agentDir = path.join(tempHome, ".pi", "agent");
+		const agentDir = path.join(tempHome, ".evoharness", "agent");
 		const extensionsDir = path.join(agentDir, "extensions");
 		const baseDir = path.join(tempHome, "worktree-root");
 		const previousAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
@@ -1248,7 +1248,7 @@ describe("worktree cleanup plan", () => {
 				],
 				baseCommit: git(repo, ["rev-parse", "HEAD"]),
 			};
-			const manifestPath = path.join(repo, ".pi", "subagents", "artifacts", "handoff.json");
+			const manifestPath = path.join(repo, ".evoharness/subagents", "artifacts", "handoff.json");
 			writeManifest({ repo, manifestPath, setup, preserved: true });
 			const plan = buildPlan({ repo, worktreeBaseDir: baseDir, now: 64_000, planId: "extension-project-plan" });
 			const entry = entriesByPath(plan).get(__testables.realpathExisting(worktreePath)) ?? plan.entries[0];

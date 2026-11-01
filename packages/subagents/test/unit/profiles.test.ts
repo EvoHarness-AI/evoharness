@@ -76,7 +76,7 @@ describe("profiles helpers", () => {
 				2,
 			),
 		);
-		const settingsPath = path.join(homeDir, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(homeDir, ".evoharness", "agent", "settings.json");
 		fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 		fs.writeFileSync(
 			settingsPath,
@@ -128,7 +128,7 @@ describe("profiles helpers", () => {
 				2,
 			),
 		);
-		const settingsPath = path.join(homeDir, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(homeDir, ".evoharness", "agent", "settings.json");
 		fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 		fs.writeFileSync(
 			settingsPath,
@@ -159,12 +159,12 @@ describe("profiles helpers", () => {
 	it("rejects invalid profile machine values before changing settings", () => {
 		const profilesDir = getSubagentProfilesDir();
 		fs.mkdirSync(profilesDir, { recursive: true });
-		const settingsPath = path.join(homeDir, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(homeDir, ".evoharness", "agent", "settings.json");
 		fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 		const originalSettings =
 			'{\n  "defaultModel": "openai/gpt-5",\n  "subagents": {\n    "agentOverrides": {\n      "worker": {\n        "machine": "workmac",\n        "model": "old"\n      }\n    }\n  }\n}\n';
 		fs.writeFileSync(settingsPath, originalSettings);
-		const agentDir = path.join(homeDir, ".pi", "agent", "agents");
+		const agentDir = path.join(homeDir, ".evoharness", "agent", "agents");
 		fs.mkdirSync(agentDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(agentDir, "worker.md"),
@@ -196,7 +196,7 @@ describe("profiles helpers", () => {
 				subagents: { agentOverrides: { worker: { machine: " local-runner " } } },
 			}),
 		);
-		const agentDir = path.join(homeDir, ".pi", "agent", "agents");
+		const agentDir = path.join(homeDir, ".evoharness", "agent", "agents");
 		fs.mkdirSync(agentDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(agentDir, "worker.md"),
@@ -204,7 +204,7 @@ describe("profiles helpers", () => {
 		);
 
 		applySubagentProfile("machine");
-		const settings = JSON.parse(fs.readFileSync(path.join(homeDir, ".pi", "agent", "settings.json"), "utf-8"));
+		const settings = JSON.parse(fs.readFileSync(path.join(homeDir, ".evoharness", "agent", "settings.json"), "utf-8"));
 		assert.equal(settings.subagents.agentOverrides.worker.machine, "local-runner");
 		const worker = discoverAgents(process.cwd(), "both").agents.find((agent) => agent.name === "worker");
 		assert.equal(worker?.machine, "local-runner");
@@ -219,13 +219,13 @@ describe("profiles helpers", () => {
 				subagents: { agentOverrides: { worker: { machine: false } } },
 			}),
 		);
-		const agentDir = path.join(homeDir, ".pi", "agent", "agents");
+		const agentDir = path.join(homeDir, ".evoharness", "agent", "agents");
 		fs.mkdirSync(agentDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(agentDir, "worker.md"),
 			`---\nname: worker\ndescription: Profile-managed worker\n---\n\nDo work.\n`,
 		);
-		const settingsPath = path.join(homeDir, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(homeDir, ".evoharness", "agent", "settings.json");
 		fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 		fs.writeFileSync(
 			settingsPath,
@@ -262,7 +262,7 @@ describe("profiles helpers", () => {
 				2,
 			),
 		);
-		const agentDir = path.join(homeDir, ".pi", "agent", "agents");
+		const agentDir = path.join(homeDir, ".evoharness", "agent", "agents");
 		fs.mkdirSync(agentDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(agentDir, "worker.md"),

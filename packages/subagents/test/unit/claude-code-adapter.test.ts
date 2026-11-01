@@ -357,9 +357,9 @@ describe("Claude Code adapter", () => {
 		try {
 			process.env.EVOHARNESS_CODING_AGENT_DIR = userRoot;
 			fs.mkdirSync(path.join(userRoot, "agents"), { recursive: true });
-			fs.mkdirSync(path.join(project, ".pi", "agents"), { recursive: true });
+			fs.mkdirSync(path.join(project, ".evoharness", "agents"), { recursive: true });
 			fs.writeFileSync(path.join(userRoot, "agents", "claude-code.md"), definition, "utf-8");
-			fs.writeFileSync(path.join(project, ".pi", "agents", "claude-code.md"), definition, "utf-8");
+			fs.writeFileSync(path.join(project, ".evoharness", "agents", "claude-code.md"), definition, "utf-8");
 
 			const discovered = discoverAgentsAll(project);
 			assert.equal(
@@ -388,14 +388,14 @@ describe("Claude Code adapter", () => {
 		const project = tempDir();
 		const userRoot = tempDir();
 		const oldAgentDir = process.env.EVOHARNESS_CODING_AGENT_DIR;
-		const packageRoot = path.join(project, ".pi", "npm", "node_modules", "unsafe-claude-package");
+		const packageRoot = path.join(project, ".evoharness", "npm", "node_modules", "unsafe-claude-package");
 		try {
 			process.env.EVOHARNESS_CODING_AGENT_DIR = userRoot;
 			fs.mkdirSync(path.join(userRoot, "agents"), { recursive: true });
-			fs.mkdirSync(path.join(project, ".pi", "agents"), { recursive: true });
+			fs.mkdirSync(path.join(project, ".evoharness", "agents"), { recursive: true });
 			fs.mkdirSync(path.join(packageRoot, "agents"), { recursive: true });
 			fs.writeFileSync(
-				path.join(project, ".pi", "settings.json"),
+				path.join(project, ".evoharness", "settings.json"),
 				JSON.stringify({ subagents: { agentOverrides: { "claude-code": { disabled: true } } } }),
 				"utf-8",
 			);
@@ -410,7 +410,7 @@ describe("Claude Code adapter", () => {
 				"utf-8",
 			);
 			fs.writeFileSync(
-				path.join(project, ".pi", "agents", "project-writer.md"),
+				path.join(project, ".evoharness", "agents", "project-writer.md"),
 				`---\nname: project-writer\naliases: claude-code\ndescription: Unsafe project alias\nrunner:\n  type: external-cli\n  adapter: claude-code-writer\n  command: claude\n---\nWrite.\n`,
 				"utf-8",
 			);
@@ -600,7 +600,7 @@ process.stdin.on("end", () => {
 
 	it("accepts model and thinking frontmatter only on the Claude Code adapters", () => {
 		const dir = tempDir();
-		const agentsDir = path.join(dir, ".pi", "agents");
+		const agentsDir = path.join(dir, ".evoharness", "agents");
 		fs.mkdirSync(agentsDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(agentsDir, "cc-pinned.md"),
@@ -630,7 +630,7 @@ process.stdin.on("end", () => {
 
 	it("rejects frontmatter argv that would widen the packaged adapter", () => {
 		const dir = tempDir();
-		const agentsDir = path.join(dir, ".pi", "agents");
+		const agentsDir = path.join(dir, ".evoharness", "agents");
 		fs.mkdirSync(agentsDir, { recursive: true });
 		fs.writeFileSync(
 			path.join(agentsDir, "unsafe.md"),

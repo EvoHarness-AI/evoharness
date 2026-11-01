@@ -18,7 +18,7 @@ it("session startup yields to the event loop and both first advertisements await
 		const newerRoot = path.join(fixtureRoot, "newer", "node_modules");
 		const packageDir = path.join(globalRoot, "example");
 		const newerPackage = path.join(newerRoot, "example");
-		const localDir = path.join(fixtureRoot, "project", ".pi", "agents");
+		const localDir = path.join(fixtureRoot, "project", ".evoharness", "agents");
 		fs.mkdirSync(bin, { recursive: true });
 		fs.mkdirSync(path.join(packageDir, "agents"), { recursive: true });
 		fs.mkdirSync(path.join(newerPackage, "agents"), { recursive: true });

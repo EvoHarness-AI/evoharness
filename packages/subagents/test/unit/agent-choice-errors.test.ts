@@ -89,9 +89,9 @@ describe("agent choice errors at launch", () => {
 	});
 
 	it("names a disabled agent as disabled and lists the agents that can run instead", async () => {
-		fs.mkdirSync(path.join(tempHome, ".pi", "agent"), { recursive: true });
+		fs.mkdirSync(path.join(tempHome, ".evoharness", "agent"), { recursive: true });
 		fs.writeFileSync(
-			path.join(tempHome, ".pi", "agent", "settings.json"),
+			path.join(tempHome, ".evoharness", "agent", "settings.json"),
 			JSON.stringify({ subagents: { agentOverrides: { reviewer: { disabled: true } } } }),
 		);
 

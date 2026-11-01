@@ -124,10 +124,10 @@ describe("intercom result delivery cutover", { skip: !available ? "executor not 
 		process.env.USERPROFILE = homeDir;
 		mockPi = createMockPi();
 		mockPi.install();
-		fs.mkdirSync(path.join(os.homedir(), ".pi", "agent", "extensions", "pi-intercom"), { recursive: true });
-		fs.mkdirSync(path.join(os.homedir(), ".pi", "agent", "intercom"), { recursive: true });
+		fs.mkdirSync(path.join(os.homedir(), ".evoharness", "agent", "extensions", "pi-intercom"), { recursive: true });
+		fs.mkdirSync(path.join(os.homedir(), ".evoharness", "agent", "intercom"), { recursive: true });
 		fs.writeFileSync(
-			path.join(os.homedir(), ".pi", "agent", "intercom", "config.json"),
+			path.join(os.homedir(), ".evoharness", "agent", "intercom", "config.json"),
 			JSON.stringify({ enabled: true }),
 			"utf-8",
 		);

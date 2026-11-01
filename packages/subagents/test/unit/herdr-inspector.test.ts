@@ -134,7 +134,7 @@ describe("Herdr inspector", () => {
 		try {
 			const { asyncDir } = writeRun(root);
 			const sessionRoot = path.join(root, "sessions");
-			const missionDir = path.join(root, "other-project", ".pi/subagents", "missions");
+			const missionDir = path.join(root, "other-project", ".evoharness/subagents", "missions");
 			fs.writeFileSync(
 				path.join(asyncDir, "mission.json"),
 				JSON.stringify({
@@ -656,7 +656,7 @@ describe("Herdr inspector", () => {
 			]);
 			assert.equal(readHerdrProjectPaneBinding(root)?.lastFocusedAt, "2026-01-01T00:00:00.000Z");
 			fs.writeFileSync(
-				path.join(ownerRoot, ".pi/subagents/project-panes/herdr-roots.json"),
+				path.join(ownerRoot, ".evoharness/subagents/project-panes/herdr-roots.json"),
 				JSON.stringify({ schemaVersion: 1, kind: "herdr-project-pane-roots", projectRoots: [123] }),
 			);
 			assert.throws(() => listHerdrProjectPaneRoots(ownerRoot), /Invalid Herdr project pane root index/);
@@ -756,7 +756,7 @@ describe("Herdr inspector", () => {
 			assert.match(text(status), /w1:p32 is open/);
 			const legacyBinding = readHerdrProjectPaneBinding(root)!;
 			fs.writeFileSync(
-				path.join(root, ".pi/subagents", "project-panes", "herdr.json"),
+				path.join(root, ".evoharness/subagents", "project-panes", "herdr.json"),
 				JSON.stringify({ ...legacyBinding, startupMessage: 42 }),
 			);
 			const closed = await handleHerdrProjectPaneAction("project.close", { cwd: root }, { cwd: root, client });

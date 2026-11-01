@@ -41,7 +41,7 @@ describe("subagents.modelScope discovery", () => {
 	});
 
 	it("exposes a user modelScope from discoverAgents", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				modelScope: {
 					enforce: true,
@@ -61,7 +61,7 @@ describe("subagents.modelScope discovery", () => {
 	});
 
 	it("accepts enforcement with only named agent allow lists", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { modelScope: { enforce: true, agents: { worker: { allow: ["openai/gpt-5-mini"] } } } },
 		});
 		assert.deepEqual(discoverAgents(tempProject, "both").modelScope, {
@@ -75,12 +75,12 @@ describe("subagents.modelScope discovery", () => {
 	});
 
 	it("prefers project modelScope over user modelScope", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				modelScope: { enforce: true, allow: ["anthropic/*"], agents: { reviewer: { allow: ["inherit"] } } },
 			},
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { modelScope: { enforce: true, agents: { worker: { allow: ["deepseek/*"] } } } },
 		});
 		const result = discoverAgents(tempProject, "both");
@@ -88,7 +88,7 @@ describe("subagents.modelScope discovery", () => {
 	});
 
 	it("falls back to user modelScope when project does not set one", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { modelScope: { enforce: true, allow: ["anthropic/*"] } },
 		});
 		const result = discoverAgents(tempProject, "both");
@@ -96,21 +96,21 @@ describe("subagents.modelScope discovery", () => {
 	});
 
 	it("rejects an invalid modelScope config at discovery time", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { modelScope: { enforce: true } },
 		});
 		assert.throws(() => discoverAgents(tempProject, "both"), /without a non-empty 'allow'/);
 	});
 
 	it("rejects a malformed modelScope value at discovery time", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { modelScope: "anthropic/*" },
 		});
 		assert.throws(() => discoverAgents(tempProject, "both"), /invalid 'modelScope'/);
 	});
 
 	it("rejects malformed per-agent scopes at discovery time", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { modelScope: { agents: { worker: { allow: [] } } } },
 		});
 		assert.throws(() => discoverAgents(tempProject, "both"), /modelScope\.agents\.worker\.allow/);

@@ -24,13 +24,13 @@ function writeJson(filePath: string, value: unknown): void {
 }
 
 function writeProjectAgent(cwd: string, name: string, body: string): void {
-	const filePath = path.join(cwd, ".pi", "agents", `${name}.md`);
+	const filePath = path.join(cwd, ".evoharness", "agents", `${name}.md`);
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
 	fs.writeFileSync(filePath, body, "utf-8");
 }
 
 function writeUserAgent(home: string, name: string, body: string): void {
-	const filePath = path.join(home, ".pi", "agent", "agents", `${name}.md`);
+	const filePath = path.join(home, ".evoharness", "agent", "agents", `${name}.md`);
 	fs.mkdirSync(path.dirname(filePath), { recursive: true });
 	fs.writeFileSync(filePath, body, "utf-8");
 }
@@ -68,7 +68,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("applies subagents.defaultModel to builtin agents with explicit overrides winning", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				defaultModel: "deepseek-v4-flash",
 				agentOverrides: {
@@ -93,7 +93,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("applies machine placement overrides with project beating user and false clearing a pin", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					"claude-code": { machine: "workmac" },
@@ -102,7 +102,7 @@ describe("builtin agent overrides", () => {
 				},
 			},
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { "codex-exec": { machine: "gpu-box" }, "cursor-agent": { machine: false } } },
 		});
 
@@ -122,21 +122,21 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("rejects malformed machine overrides", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { "claude-code": { machine: 7 } } },
 		});
 		assert.throws(() => discoverAgentsAll(tempProject), /field 'machine' must be a non-empty string or false/u);
 	});
 
 	it("rejects launcher in builtin overrides instead of ignoring it", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { worker: { launcher: "net" } } },
 		});
 		assert.throws(() => discoverAgentsAll(tempProject), /Builtin override 'worker'.*sets 'launcher'/u);
 	});
 
 	it("rejects a misspelled override field with the nearest known one, in user and provider overrides", () => {
-		const userSettings = path.join(tempHome, ".pi", "agent", "settings.json");
+		const userSettings = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		writeJson(userSettings, { subagents: { agentOverrides: { worker: { modle: "x/y" } } } });
 		assert.throws(
 			() => discoverAgentsAll(tempProject),
@@ -150,14 +150,14 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("accepts only known thinking levels or false in overrides", () => {
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { worker: { thinking: "hgih" } } },
 		});
 		assert.throws(
 			() => discoverAgentsAll(tempProject),
 			/Builtin override 'worker'.*invalid 'thinking'; expected one of off, minimal, low, medium, high, xhigh, max, or false\./u,
 		);
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { worker: { thinking: "high" } } },
 		});
 		assert.equal(
@@ -172,7 +172,7 @@ describe("builtin agent overrides", () => {
 			"coordinator",
 			"---\nname: coordinator\ndescription: Coordinator\nallowedAgents: scout\n---\n\nCoordinate.\n",
 		);
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { coordinator: { allowedAgents: false } } },
 		});
 		assert.equal(
@@ -180,7 +180,7 @@ describe("builtin agent overrides", () => {
 			undefined,
 		);
 
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { coordinator: { allowedAgents: [] } } },
 		});
 		assert.deepEqual(
@@ -188,7 +188,7 @@ describe("builtin agent overrides", () => {
 			[],
 		);
 
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { coordinator: { allowedAgents: ["worker", "reviewer"] } } },
 		});
 		assert.deepEqual(
@@ -198,7 +198,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("rejects removed fallbackModels in user agent overrides", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { worker: { fallbackModels: ["model/backup"] } } },
 		});
 		assert.throws(
@@ -208,7 +208,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("rejects removed fallbackModels in project agent overrides", () => {
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { worker: { fallbackModels: ["model/backup"] } } },
 		});
 		assert.throws(
@@ -218,7 +218,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("lets a builtin agent inherit Pi's normal tools from an override", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					researcher: { tools: "inherit" },
@@ -232,7 +232,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("keeps strict builtin tools unless a role opts into inheritance", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					researcher: { tools: "inherit" },
@@ -272,7 +272,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("keeps explicit empty builtin tool allowlists distinct from inherited tools", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					researcher: { tools: [] },
@@ -286,7 +286,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("applies excludeTools settings overrides to builtin agents", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					researcher: { excludeTools: ["write", "unknown_tool"] },
@@ -299,7 +299,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("surfaces invalid string tool override settings", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		writeJson(settingsPath, {
 			subagents: {
 				agentOverrides: {
@@ -319,7 +319,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("clears subagents.defaultModel provenance for same-value agent model overrides", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				defaultModel: "deepseek-v4-flash",
 				agentOverrides: {
@@ -334,11 +334,11 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("prefers project subagents.defaultModel over user defaultModel", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { defaultModel: "deepseek-v4-flash" },
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { defaultModel: "deepseek-v4-pro" },
 		});
 
@@ -348,8 +348,8 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("applies default providers with per-agent overrides", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				defaultModel: "llama-3",
 				defaultProvider: "gpu-a",
@@ -359,7 +359,7 @@ describe("builtin agent overrides", () => {
 				},
 			},
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { defaultProvider: "gpu-project" },
 		});
 
@@ -373,7 +373,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("applies default providers to custom agent frontmatter models", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { defaultProvider: "gpu-a" },
 		});
 		writeProjectAgent(
@@ -388,7 +388,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("applies subagents.defaultThinking only when thinking is unset", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				defaultThinking: " low ",
 				agentOverrides: {
@@ -421,11 +421,11 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("prefers project subagents.defaultThinking over user defaultThinking", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { defaultThinking: "low" },
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { defaultThinking: "high" },
 		});
 
@@ -435,7 +435,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("preserves custom-agent thinking when disableThinking clears builtin defaults", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { defaultThinking: "low", disableThinking: true },
 		});
 		writeProjectAgent(
@@ -456,7 +456,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("surfaces malformed defaultThinking settings", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		for (const defaultThinking of ["", 42]) {
 			writeJson(settingsPath, { subagents: { defaultThinking } });
 			assert.throws(
@@ -470,7 +470,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("surfaces malformed default provider settings", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		for (const defaultProvider of ["", 42]) {
 			writeJson(settingsPath, { subagents: { defaultProvider } });
 			assert.throws(
@@ -493,7 +493,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("applies subagents.defaultModel to custom agents without a frontmatter model", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				defaultModel: "deepseek-v4-flash",
 				agentOverrides: {
@@ -524,7 +524,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("overrides builtin and custom agent descriptions from settings", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					reviewer: { description: " Priced reviewer " },
@@ -544,10 +544,10 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("lets a project advertise override beat a user one and clear it again", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { oracle: { advertise: true }, reviewer: { advertise: true } } },
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { oracle: { advertise: false } } },
 		});
 
@@ -557,14 +557,14 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("rejects malformed advertise override values", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { reviewer: { advertise: "yes" } } },
 		});
 		assert.throws(() => discoverAgentsAll(tempProject), /invalid 'advertise'; expected a boolean/u);
 	});
 
 	it("applies user settings overrides to builtin agents", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					reviewer: {
@@ -597,11 +597,11 @@ describe("builtin agent overrides", () => {
 		assert.deepEqual(reviewer.subagentOnlyExtensions, ["./tools/child-review.ts"]);
 		assert.deepEqual(reviewer.mutationTools, ["replace", "undo_last_replace"]);
 		assert.equal(reviewer.override?.scope, "user");
-		assert.equal(reviewer.override?.path, path.join(tempHome, ".pi", "agent", "settings.json"));
+		assert.equal(reviewer.override?.path, path.join(tempHome, ".evoharness", "agent", "settings.json"));
 	});
 
 	it("globally disables builtin thinking suffix defaults from user settings", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				disableThinking: true,
 			},
@@ -615,12 +615,12 @@ describe("builtin agent overrides", () => {
 		);
 		assert.equal(
 			builtins.find((agent) => agent.name === "reviewer")?.override?.path,
-			path.join(tempHome, ".pi", "agent", "settings.json"),
+			path.join(tempHome, ".evoharness", "agent", "settings.json"),
 		);
 	});
 
 	it("lets an explicit same-scope thinking override opt back in when global thinking is disabled", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				disableThinking: true,
 				agentOverrides: {
@@ -641,8 +641,8 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("lets project settings disable builtin thinking even when user overrides request it", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					reviewer: {
@@ -651,7 +651,7 @@ describe("builtin agent overrides", () => {
 				},
 			},
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: {
 				disableThinking: true,
 			},
@@ -663,7 +663,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("surfaces malformed subagent default model settings", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		writeJson(settingsPath, {
 			subagents: {
 				defaultModel: "",
@@ -678,7 +678,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("surfaces malformed global thinking settings", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		writeJson(settingsPath, {
 			subagents: {
 				disableThinking: "yes",
@@ -693,11 +693,11 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("prefers project settings overrides over user settings overrides", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { reviewer: { model: "openai/gpt-5.4" } } },
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { reviewer: { model: "openai-codex/gpt-5.4-mini", thinking: "high" } } },
 		});
 
@@ -706,11 +706,11 @@ describe("builtin agent overrides", () => {
 		assert.equal(reviewer.model, "openai-codex/gpt-5.4-mini");
 		assert.equal(reviewer.thinking, "high");
 		assert.equal(reviewer.override?.scope, "project");
-		assert.equal(reviewer.override?.path, path.join(tempProject, ".pi", "settings.json"));
+		assert.equal(reviewer.override?.path, path.join(tempProject, ".evoharness", "settings.json"));
 	});
 
 	it("layers active-provider overrides over default agentOverrides", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					worker: { model: "openai/gpt-5-mini", thinking: "low" },
@@ -742,12 +742,12 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("keeps project precedence when provider-specific overrides are active", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverridesByProvider: { openrouter: { worker: { model: "openrouter/user-model", thinking: "low" } } },
 			},
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					worker: { thinking: "medium" },
@@ -765,7 +765,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("keeps provider overrides unambiguous for agents named like override fields", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverridesByProvider: {
 					openrouter: {
@@ -775,10 +775,10 @@ describe("builtin agent overrides", () => {
 				},
 			},
 		});
-		fs.mkdirSync(path.join(tempHome, ".pi", "agent", "agents"), { recursive: true });
+		fs.mkdirSync(path.join(tempHome, ".evoharness", "agent", "agents"), { recursive: true });
 		for (const name of ["model", "tools"]) {
 			fs.writeFileSync(
-				path.join(tempHome, ".pi", "agent", "agents", `${name}.md`),
+				path.join(tempHome, ".evoharness", "agent", "agents", `${name}.md`),
 				`---\nname: ${name}\ndescription: ${name}\n---\n`,
 				"utf-8",
 			);
@@ -797,7 +797,7 @@ describe("builtin agent overrides", () => {
 		// subagentOnlyExtensions). Previously the project override for this agent
 		// name replaced the user override wholesale, silently dropping model /
 		// thinking with no error.
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					"persona-reviewer": {
@@ -807,8 +807,8 @@ describe("builtin agent overrides", () => {
 				},
 			},
 		});
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					"persona-reviewer": {
@@ -840,7 +840,7 @@ describe("builtin agent overrides", () => {
 		// silently blocked the project override from ever changing `disabled`
 		// once the user override had already set it — breaking this PR's own
 		// "project wins" precedence for that one field. Cover both directions.
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					"disable-flip-a": { disabled: true },
@@ -848,8 +848,8 @@ describe("builtin agent overrides", () => {
 				},
 			},
 		});
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					"disable-flip-a": { disabled: false },
@@ -887,7 +887,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("applies acceptance role precedence and false clearing to builtin and custom agents", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					reviewer: { acceptanceRole: "read-only" },
@@ -896,8 +896,8 @@ describe("builtin agent overrides", () => {
 				},
 			},
 		});
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					reviewer: { acceptanceRole: "writer" },
@@ -920,11 +920,11 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("does not apply project settings overrides when scope is user", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { reviewer: { model: "openai/gpt-5.4" } } },
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { reviewer: { model: "openai-codex/gpt-5.4-mini" } } },
 		});
 
@@ -935,8 +935,8 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("does not apply user settings overrides when scope is project", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { reviewer: { model: "openai/gpt-5.4" } } },
 		});
 
@@ -947,10 +947,10 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("does not read malformed out-of-scope settings files", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		fs.mkdirSync(path.join(tempHome, ".pi", "agent"), { recursive: true });
-		fs.writeFileSync(path.join(tempHome, ".pi", "agent", "settings.json"), '{"subagents":', "utf-8");
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		fs.mkdirSync(path.join(tempHome, ".evoharness", "agent"), { recursive: true });
+		fs.writeFileSync(path.join(tempHome, ".evoharness", "agent", "settings.json"), '{"subagents":', "utf-8");
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { reviewer: { model: "openai-codex/gpt-5.4-mini" } } },
 		});
 
@@ -961,8 +961,8 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("agentOverrides replace frontmatter for a shadowing project agent", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { reviewer: { model: "openai/gpt-5.4" } } },
 		});
 		writeProjectAgent(
@@ -979,8 +979,8 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("applies project agentOverrides to a custom project agent", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					implementer: {
@@ -1027,11 +1027,11 @@ describe("builtin agent overrides", () => {
 		assert.deepEqual(implementer.skills, ["tdd"]);
 		assert.deepEqual(implementer.subagentOnlyExtensions, ["./tools/child-review.ts"]);
 		assert.equal(implementer.override?.scope, "project");
-		assert.equal(implementer.override?.path, path.join(tempProject, ".pi", "settings.json"));
+		assert.equal(implementer.override?.path, path.join(tempProject, ".evoharness", "settings.json"));
 	});
 
 	it("applies user agentOverrides to a custom user agent", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { implementer: { model: "anthropic/claude-sonnet-4-6" } } },
 		});
 		writeUserAgent(
@@ -1048,7 +1048,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("applies user agentOverrides to a custom project agent when project settings have no entry", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { implementer: { model: "anthropic/claude-sonnet-4-6" } } },
 		});
 		writeProjectAgent(
@@ -1065,15 +1065,15 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("prefers project agentOverrides over user agentOverrides on a custom project agent", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					implementer: { model: "anthropic/claude-sonnet-4-6", output: "user.md", defaultReads: ["user.md"] },
 				},
 			},
 		});
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					implementer: { model: "openai/gpt-5.4", output: "project.md", defaultReads: ["project.md"] },
@@ -1095,8 +1095,8 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("agentOverrides replace explicit custom frontmatter fields", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					implementer: {
@@ -1141,8 +1141,8 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("lets false overrides clear explicit output and defaultReads frontmatter", () => {
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			subagents: { agentOverrides: { implementer: { output: false, defaultReads: false } } },
 		});
 		writeProjectAgent(
@@ -1157,7 +1157,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("keeps an explicit empty defaultReads override distinct from false", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { implementer: { defaultReads: [] } } },
 		});
 		writeProjectAgent(
@@ -1171,7 +1171,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("leaves a custom agent untouched when no agentOverrides entry matches its name", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { agentOverrides: { reviewer: { model: "openai/gpt-5.4" } } },
 		});
 		writeProjectAgent(
@@ -1187,7 +1187,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("disableBuiltins does not disable custom agents", () => {
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: { disableBuiltins: true },
 		});
 		writeProjectAgent(
@@ -1202,14 +1202,14 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("does not create a settings file when removing a non-existent override", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		assert.equal(fs.existsSync(settingsPath), false);
 		removeBuiltinAgentOverride(tempProject, "reviewer", "user");
 		assert.equal(fs.existsSync(settingsPath), false);
 	});
 
 	it("does not preserve empty or whitespace machine values when clearing other override fields", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		for (const machine of ["", " \t "]) {
 			writeJson(settingsPath, { subagents: { agentOverrides: { reviewer: { machine, model: "openai/gpt-5.4" } } } });
 			removeBuiltinAgentOverride(tempProject, "reviewer", "user", { preserveMachine: true });
@@ -1221,7 +1221,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("surfaces malformed settings files instead of silently ignoring them", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 		fs.writeFileSync(settingsPath, '{"subagents":', "utf-8");
 
@@ -1235,7 +1235,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("surfaces settings read failures without mislabeling them as parse errors", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		fs.mkdirSync(settingsPath, { recursive: true });
 
 		assert.throws(
@@ -1248,7 +1248,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("surfaces malformed builtin override entries instead of silently ignoring them", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		writeJson(settingsPath, {
 			subagents: {
 				agentOverrides: {
@@ -1270,7 +1270,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("surfaces malformed acceptance role override values", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		writeJson(settingsPath, {
 			subagents: {
 				agentOverrides: {
@@ -1292,7 +1292,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("surfaces malformed description override values", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		for (const description of ["", 42]) {
 			writeJson(settingsPath, {
 				subagents: { agentOverrides: { reviewer: { description } } },
@@ -1309,7 +1309,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("rejects unsupported outputMode override values", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		for (const outputMode of ["artifact-only", false]) {
 			writeJson(settingsPath, {
 				subagents: {
@@ -1339,11 +1339,11 @@ describe("builtin agent overrides", () => {
 			`---\nname: package-scout\ndescription: Package scout\noutput: package-frontmatter.md\ndefaultReads: PACKAGE-FRONTMATTER.md\n---\n\nScout the package.\n`,
 			"utf-8",
 		);
-		writeJson(path.join(tempProject, ".pi", "settings.json"), {
+		writeJson(path.join(tempProject, ".evoharness", "settings.json"), {
 			packages: [packageRoot],
 			subagents: { agentOverrides: { "package-scout": { output: "package.md", defaultReads: ["PACKAGE.md"] } } },
 		});
-		writeJson(path.join(tempHome, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(tempHome, ".evoharness", "agent", "settings.json"), {
 			subagents: {
 				agentOverrides: {
 					scout: { output: "research-scout-results.md", defaultReads: ["AGENTS.md"] },
@@ -1362,7 +1362,7 @@ describe("builtin agent overrides", () => {
 	});
 
 	it("surfaces malformed output and defaultReads override values", () => {
-		const settingsPath = path.join(tempHome, ".pi", "agent", "settings.json");
+		const settingsPath = path.join(tempHome, ".evoharness", "agent", "settings.json");
 		for (const [field, value] of [
 			["output", 42],
 			["output", ""],
@@ -1437,9 +1437,9 @@ describe("builtin agent overrides", () => {
 			subagentOnlyExtensions: false,
 		});
 		assert.ok(override);
-		fs.mkdirSync(path.join(tempProject, ".pi"), { recursive: true });
+		fs.mkdirSync(path.join(tempProject, ".evoharness"), { recursive: true });
 		saveBuiltinAgentOverride(tempProject, "reviewer", "project", override);
-		const savedOverride = JSON.parse(fs.readFileSync(path.join(tempProject, ".pi", "settings.json"), "utf-8"));
+		const savedOverride = JSON.parse(fs.readFileSync(path.join(tempProject, ".evoharness", "settings.json"), "utf-8"));
 		assert.equal(savedOverride.subagents.agentOverrides.reviewer.output, false);
 		assert.equal(savedOverride.subagents.agentOverrides.reviewer.defaultReads, false);
 		assert.equal(

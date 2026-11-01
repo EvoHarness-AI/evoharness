@@ -42,7 +42,7 @@ describe("watchdog tool actions", () => {
 		tempProject = fs.mkdtempSync(path.join(os.tmpdir(), "pi-watchdog-tool-project-"));
 		process.env.HOME = tempHome;
 		process.env.USERPROFILE = tempHome;
-		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(tempHome, ".pi", "agent");
+		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(tempHome, ".evoharness", "agent");
 	});
 
 	afterEach(() => {
@@ -67,7 +67,7 @@ describe("watchdog tool actions", () => {
 
 		assert.equal(result.isError, undefined);
 		assert.match(text(result), /session model configured: anthropic\/claude-opus-4-8:high/);
-		assert.equal(fs.existsSync(path.join(tempHome, ".pi", "agent", "settings.json")), false);
+		assert.equal(fs.existsSync(path.join(tempHome, ".evoharness", "agent", "settings.json")), false);
 		assert.equal(runtime.getSnapshot(tempProject).config.main.model, "anthropic/claude-opus-4-8");
 		assert.equal(runtime.getSnapshot(tempProject).config.main.thinking, "high");
 	});
@@ -88,7 +88,7 @@ describe("watchdog tool actions", () => {
 		const suffixed = handleWatchdogToolAction("watchdog.configure", { model: "recommended" }, ctx, runtime);
 		assert.equal(suffixed.isError, undefined);
 		assert.equal(runtime.getSnapshot(tempProject).config.main.thinking, "low");
-		assert.equal(fs.existsSync(path.join(tempHome, ".pi", "agent", "settings.json")), false);
+		assert.equal(fs.existsSync(path.join(tempHome, ".evoharness", "agent", "settings.json")), false);
 	});
 
 	it("does not replace an unavailable configured model with a strong recommendation", () => {
@@ -104,7 +104,7 @@ describe("watchdog tool actions", () => {
 		assert.equal(result.isError, true);
 		assert.match(text(result), /was not found/);
 		assert.equal(runtime.getSnapshot(tempProject).config.main.model, "custom/unavailable");
-		assert.equal(fs.existsSync(path.join(tempHome, ".pi", "agent", "settings.json")), false);
+		assert.equal(fs.existsSync(path.join(tempHome, ".evoharness", "agent", "settings.json")), false);
 	});
 
 	it("preserves omitted session model fields when configuring thinking", () => {
@@ -138,8 +138,8 @@ describe("watchdog tool actions", () => {
 			assert.match(text(result), /Unsupported watchdog thinking 'true'/);
 			assert.deepEqual(runtime.getSnapshot(tempProject).config.main, before);
 		}
-		assert.equal(fs.existsSync(path.join(tempHome, ".pi", "agent", "settings.json")), false);
-		assert.equal(fs.existsSync(path.join(tempProject, ".pi", "settings.json")), false);
+		assert.equal(fs.existsSync(path.join(tempHome, ".evoharness", "agent", "settings.json")), false);
+		assert.equal(fs.existsSync(path.join(tempProject, ".evoharness", "settings.json")), false);
 	});
 
 	it("persists the recommended model when user scope is explicit", () => {
@@ -152,7 +152,7 @@ describe("watchdog tool actions", () => {
 		);
 
 		assert.equal(result.isError, undefined);
-		const settings = JSON.parse(fs.readFileSync(path.join(tempHome, ".pi", "agent", "settings.json"), "utf-8"));
+		const settings = JSON.parse(fs.readFileSync(path.join(tempHome, ".evoharness", "agent", "settings.json"), "utf-8"));
 		assert.equal(settings.subagents.watchdog.main.model, "openai-codex/gpt-5.5");
 		assert.equal(settings.subagents.watchdog.main.thinking, "high");
 	});

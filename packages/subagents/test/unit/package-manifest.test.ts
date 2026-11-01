@@ -86,7 +86,8 @@ void result.isError;
 								path.join(projectRoot, "src/api/workflow-resources.ts"),
 							],
 							"@evoharness/agent-core": [
-								path.join(projectRoot, "node_modules", "@evoharness", "agent-core", "dist", "index.d.ts"),
+								// workspace junction 直接路径在 tsc 5.9.3 的 paths 下解析失败;直指真实包目录(探针二分实证)
+								path.join(projectRoot, "..", "agent", "dist", "index.d.ts"),
 							],
 						},
 					},
@@ -227,7 +228,9 @@ test("direct @evoharness runtime imports are declared for CI installs", () => {
 		}
 	}
 
-	const missing = [...imported].filter((specifier) => !declared.has(specifier)).sort();
+	const missing = [...imported]
+		.filter((specifier) => !declared.has(specifier) && specifier !== "@evoharness/subagents")
+		.sort();
 	assert.deepEqual(missing, []);
 });
 

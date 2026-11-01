@@ -24,7 +24,7 @@ function writeAgent(filePath: string, body: string): void {
 }
 
 function writeSkill(cwd: string, name: string): void {
-	const skillDir = path.join(cwd, ".pi", "skills", name);
+	const skillDir = path.join(cwd, ".evoharness", "skills", name);
 	fs.mkdirSync(skillDir, { recursive: true });
 	fs.writeFileSync(path.join(skillDir, "SKILL.md"), `---\ndescription: ${name}\n---\n\nUse ${name}.\n`, "utf-8");
 }
@@ -61,7 +61,7 @@ describe("public launch contract preflight", () => {
 		const home = path.join(tempDir, "home");
 		process.env.HOME = home;
 		process.env.USERPROFILE = home;
-		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(home, ".pi", "agent");
+		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(home, ".evoharness", "agent");
 		clearSkillCache();
 	});
 
@@ -78,9 +78,9 @@ describe("public launch contract preflight", () => {
 
 	it("exposes required host IDs without exposing their private paths", async () => {
 		const cwd = path.join(tempDir, "repo");
-		fs.mkdirSync(path.join(cwd, ".pi", "agents"), { recursive: true });
+		fs.mkdirSync(path.join(cwd, ".evoharness", "agents"), { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "required.md"),
+			path.join(cwd, ".evoharness", "agents", "required.md"),
 			"---\nname: required\ndescription: Required extension fixture\n---\nFixture.\n",
 		);
 		const extensionPath = path.join(tempDir, "required-provider.mjs");
@@ -108,7 +108,7 @@ describe("public launch contract preflight", () => {
 		const cwd = path.join(tempDir, "cc-repo");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "cc.md"),
+			path.join(cwd, ".evoharness", "agents", "cc.md"),
 			`---\nname: cc\ndescription: Claude Code agent\nrunner:\n  type: external-cli\n  adapter: claude-code\n  command: claude\n---\nReview.\n`,
 		);
 
@@ -159,7 +159,7 @@ describe("public launch contract preflight", () => {
 				modelScope: { enforce: true, allow: ["openai/luna"] },
 			},
 		});
-		writeJson(path.join(cwd, ".pi", "settings.json"), {
+		writeJson(path.join(cwd, ".evoharness", "settings.json"), {
 			subagents: {
 				agentOverrides: { probe: { model: "openai/astra" } },
 				modelScope: { enforce: true, allow: ["openai/astra"] },
@@ -209,7 +209,7 @@ describe("public launch contract preflight", () => {
 		fs.mkdirSync(cwd, { recursive: true });
 		writeSkill(cwd, "project-skill");
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -298,7 +298,7 @@ Project prompt.
 			assert.equal(repeated.ok, true);
 			assert.equal(repeated.contract.digest, result.contract.digest);
 			assert.equal(fs.existsSync(sessionRoot), false);
-			assert.equal(fs.existsSync(path.join(cwd, ".pi/subagents")), false);
+			assert.equal(fs.existsSync(path.join(cwd, ".evoharness/subagents")), false);
 		} finally {
 			handle.dispose();
 		}
@@ -308,7 +308,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "repo-session-dir-keying");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---\nname: worker\ndescription: Project worker\n---\nWorker.\n`,
 		);
 		const sessionDir = path.join(tempDir, "caller-sessions");
@@ -355,7 +355,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "bindings-repo");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "binding-worker.md"),
+			path.join(cwd, ".evoharness", "agents", "binding-worker.md"),
 			`---\nname: binding-worker\ndescription: Binding worker\n---\nWorker.\n`,
 		);
 		const omitted = await resolveSubagentLaunchContract({ agent: "binding-worker", cwd, task: "Inspect" });
@@ -382,7 +382,7 @@ Project prompt.
 	it("uses the parent provider for provider-scoped agent overrides", async () => {
 		const cwd = path.join(tempDir, "provider-overrides");
 		fs.mkdirSync(cwd, { recursive: true });
-		writeJson(path.join(cwd, ".pi", "settings.json"), {
+		writeJson(path.join(cwd, ".evoharness", "settings.json"), {
 			subagents: {
 				agentOverridesByProvider: {
 					"github-copilot": { worker: { model: "github-copilot/gpt-5-mini" } },
@@ -418,7 +418,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "workspace-scope-repo");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---\nname: worker\ndescription: Project worker\n---\nWorker.\n`,
 		);
 
@@ -443,7 +443,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "fast-repo");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "fast-worker.md"),
+			path.join(cwd, ".evoharness", "agents", "fast-worker.md"),
 			`---
 name: fast-worker
 description: Fast worker
@@ -478,9 +478,9 @@ Worker.
 	it("enforces maxThinking before a child launch and accepts levels at the ceiling", async () => {
 		const cwd = path.join(tempDir, "thinking-repo");
 		fs.mkdirSync(cwd, { recursive: true });
-		writeJson(path.join(cwd, ".pi", "settings.json"), { subagents: { maxThinking: "xhigh" } });
+		writeJson(path.join(cwd, ".evoharness", "settings.json"), { subagents: { maxThinking: "xhigh" } });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---\nname: worker\ndescription: Project worker\nmodel: test/worker\nthinking: xhigh\n---\nWorker.\n`,
 		);
 		const accepted = await resolveSubagentLaunchContract({
@@ -509,7 +509,7 @@ Worker.
 		const cwd = path.join(tempDir, "repo-output-mode");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -535,7 +535,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "repo-unresolved-model");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -559,7 +559,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "repo-explicit-unknown-model");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -584,7 +584,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "repo-parent-model");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -607,11 +607,11 @@ Project prompt.
 	it("uses subagents.defaultProvider when resolving launch model ids", async () => {
 		const cwd = path.join(tempDir, "repo-default-provider");
 		fs.mkdirSync(cwd, { recursive: true });
-		writeJson(path.join(process.env.HOME!, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(process.env.HOME!, ".evoharness", "agent", "settings.json"), {
 			subagents: { defaultProvider: "gpu-b" },
 		});
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -638,11 +638,11 @@ Project prompt.
 	it("bypasses native model validation for external CLI runners", async () => {
 		const cwd = path.join(tempDir, "repo-external-model");
 		fs.mkdirSync(cwd, { recursive: true });
-		writeJson(path.join(process.env.HOME!, ".pi", "agent", "settings.json"), {
+		writeJson(path.join(process.env.HOME!, ".evoharness", "agent", "settings.json"), {
 			subagents: { defaultModel: "mock/default-model" },
 		});
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "external.md"),
+			path.join(cwd, ".evoharness", "agents", "external.md"),
 			`---
 name: external
 description: External runner
@@ -668,7 +668,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "repo-alias");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -692,7 +692,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "repo-alias-collision");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -702,7 +702,7 @@ Project prompt.
 `,
 		);
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "reviewer.md"),
+			path.join(cwd, ".evoharness", "agents", "reviewer.md"),
 			`---
 name: reviewer
 description: Project reviewer
@@ -725,7 +725,7 @@ Review prompt.
 	it("changes definition and launch digests when selected agent content changes", async () => {
 		const cwd = path.join(tempDir, "repo");
 		fs.mkdirSync(cwd, { recursive: true });
-		const agentPath = path.join(cwd, ".pi", "agents", "worker.md");
+		const agentPath = path.join(cwd, ".evoharness", "agents", "worker.md");
 		writeAgent(
 			agentPath,
 			`---
@@ -762,7 +762,7 @@ Changed prompt.
 		fs.mkdirSync(cwd, { recursive: true });
 		writeSkill(cwd, "digest-skill");
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -777,7 +777,7 @@ Project prompt.
 		const before = await resolveSubagentLaunchContract({ agent: "worker", cwd, runId: "skill-digest-test" });
 		assert.equal(before.ok, true);
 		fs.writeFileSync(
-			path.join(cwd, ".pi", "skills", "digest-skill", "SKILL.md"),
+			path.join(cwd, ".evoharness", "skills", "digest-skill", "SKILL.md"),
 			"---\ndescription: updated digest-skill\n---\n\nUse digest-skill.\n",
 			"utf-8",
 		);
@@ -794,7 +794,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "repo");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -811,10 +811,10 @@ Project prompt.
 		assert.deepEqual(missingAgent.diagnostics, []);
 		assert.match(missingAgent.message, /^Unknown agent: missing\nEffective cwd: /);
 		assert.match(missingAgent.message, /Consulted agent-definition directories:/);
-		assert.match(missingAgent.message, /project: .*\.pi[\\/]agents \(1 candidate\)/);
+		assert.match(missingAgent.message, /project: .*.evoharness[\\/]agents \(1 candidate\)/);
 		assert.match(missingAgent.message, /Available agents:\n[\s\S]*worker \(project\)/);
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "broken.md"),
+			path.join(cwd, ".evoharness", "agents", "broken.md"),
 			`---
 name: broken
 description: Broken worker
@@ -835,7 +835,7 @@ Broken prompt.
 			{ code: "missing_agent", severity: "error", message: brokenAgent.message },
 		]);
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "code-analysis.zeta-worker.md"),
+			path.join(cwd, ".evoharness", "agents", "code-analysis.zeta-worker.md"),
 			`---
 name: zeta-worker
 package: code-analysis
@@ -861,7 +861,7 @@ Broken prompt.
 			{ code: "missing_agent", severity: "error", message: brokenPackagedAgent.message },
 		]);
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "reviewer.md"),
+			path.join(cwd, ".evoharness", "agents", "reviewer.md"),
 			`---
 name: reviewer
 description: Broken reviewer
@@ -899,7 +899,7 @@ User prompt.
 `,
 		);
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "acme.foo.md"),
+			path.join(cwd, ".evoharness", "agents", "acme.foo.md"),
 			`---
 name: foo
 package: acme
@@ -928,7 +928,7 @@ User prompt.
 `,
 		);
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "package-shadow.md"),
+			path.join(cwd, ".evoharness", "agents", "package-shadow.md"),
 			`---
 name: package-shadow
 package: !!!
@@ -957,7 +957,7 @@ Legacy prompt.
 `,
 		);
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "shared.md"),
+			path.join(cwd, ".evoharness", "agents", "shared.md"),
 			`---
 name: shared
 description: Broken canonical shared
@@ -992,7 +992,7 @@ Package prompt.
 			path.join(packageRoot, "package.json"),
 			JSON.stringify({ "pi-subagents": { agents: ["agents"] } }),
 		);
-		fs.writeFileSync(path.join(cwd, ".pi", "settings.json"), JSON.stringify({ packages: [packageRoot] }));
+		fs.writeFileSync(path.join(cwd, ".evoharness", "settings.json"), JSON.stringify({ packages: [packageRoot] }));
 		writeAgent(
 			path.join(process.env.EVOHARNESS_CODING_AGENT_DIR!, "agents", "ambiguous.md"),
 			`---
@@ -1003,7 +1003,7 @@ User prompt.
 `,
 		);
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "ambiguous.md"),
+			path.join(cwd, ".evoharness", "agents", "ambiguous.md"),
 			`---
 name: ambiguous
 description: Broken project ambiguous
@@ -1035,7 +1035,7 @@ Broken prompt.
 		const cwd = path.join(tempDir, "repo");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -1066,7 +1066,7 @@ Project prompt.
 		fs.mkdirSync(cwd, { recursive: true });
 		writeMcpFixture();
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "fanout.md"),
+			path.join(cwd, ".evoharness", "agents", "fanout.md"),
 			`---
 name: fanout
 description: Project fanout
@@ -1129,7 +1129,7 @@ Project prompt.
 	it("resolves mcp: selectors against the built-in MCP of the given host", async () => {
 		const cwd = path.join(tempDir, "builtin-mcp-repo");
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "docs.md"),
+			path.join(cwd, ".evoharness", "agents", "docs.md"),
 			"---\nname: docs\ndescription: Docs\ntools:\n  - read\n  - mcp:docs/search\n---\n",
 		);
 		const result = await resolveSubagentLaunchContract({
@@ -1149,7 +1149,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "schema-default-repo");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "typed.md"),
+			path.join(cwd, ".evoharness", "agents", "typed.md"),
 			`---\nname: typed\ndescription: Typed\noutputSchema: {"type":"object","required":["ok"]}\n---\nPrompt.\n`,
 		);
 		const inherited = await resolveSubagentLaunchContract({ agent: "typed", cwd, task: "Inspect" });
@@ -1168,7 +1168,7 @@ Project prompt.
 		assert.notEqual(inherited.contract.launchContractDigest, disabled.contract.launchContractDigest);
 
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "external.md"),
+			path.join(cwd, ".evoharness", "agents", "external.md"),
 			`---\nname: external\ndescription: External\noutputSchema: {"type":"object"}\nrunner:\n  type: external-cli\n  command: ${JSON.stringify(process.execPath)}\n---\nPrompt.\n`,
 		);
 		const rejected = await resolveSubagentLaunchContract({ agent: "external", cwd });
@@ -1181,7 +1181,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "exclude-tools-repo");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -1204,7 +1204,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "bridge-repo");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -1256,7 +1256,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "bridge-template-repo");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -1296,7 +1296,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "bridge-invalid-repo");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -1333,7 +1333,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "repo-implicit-fork");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -1384,7 +1384,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "repo-global-fork");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -1431,7 +1431,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "repo-global-fresh");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -1459,7 +1459,7 @@ Project prompt.
 		fs.mkdirSync(cwd, { recursive: true });
 		writeSkill(cwd, "project-skill");
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker
@@ -1486,7 +1486,7 @@ Project prompt.
 		const cwd = path.join(tempDir, "repo-unresolved-runtime-mcp");
 		fs.mkdirSync(cwd, { recursive: true });
 		writeAgent(
-			path.join(cwd, ".pi", "agents", "worker.md"),
+			path.join(cwd, ".evoharness", "agents", "worker.md"),
 			`---
 name: worker
 description: Project worker

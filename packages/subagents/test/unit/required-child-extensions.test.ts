@@ -199,8 +199,8 @@ describe("ordinary extension failures next to required child extensions", () => 
 			const cwd = path.join(dir, "project");
 			const agentDir = path.join(dir, "agent");
 			fs.mkdirSync(agentDir);
-			fs.mkdirSync(path.join(cwd, ".pi", "extensions"), { recursive: true });
-			const broken = path.join(cwd, ".pi", "extensions", "broken.ts");
+			fs.mkdirSync(path.join(cwd, ".evoharness", "extensions"), { recursive: true });
+			const broken = path.join(cwd, ".evoharness", "extensions", "broken.ts");
 			if (failure === "broken ambient") fs.writeFileSync(broken, "throw new Error('ambient broken');\n");
 			const missing = path.join(dir, "does-not-exist.mjs");
 			const input = {

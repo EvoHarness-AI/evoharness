@@ -233,7 +233,7 @@ test(
 		await tab.creationSettled;
 		const args = JSON.parse(fs.readFileSync(capture, "utf-8")) as string[];
 		assert.equal(args[args.indexOf("--title") + 1], "subagents · subagent · 1");
-		const manifestDir = path.join(dir, ".pi", "subagents", "views", "orca");
+		const manifestDir = path.join(dir, ".evoharness/subagents", "views", "orca");
 		const [manifestName] = fs.readdirSync(manifestDir);
 		const manifest = JSON.parse(fs.readFileSync(path.join(manifestDir, manifestName!), "utf-8"));
 		assert.equal(manifest.state, "open");
@@ -292,7 +292,7 @@ test(
 		void tab.creationSettled.then(() => {
 			settled = true;
 		});
-		const manifestDir = path.join(dir, ".pi", "subagents", "views", "orca");
+		const manifestDir = path.join(dir, ".evoharness/subagents", "views", "orca");
 		const [manifestName] = fs.readdirSync(manifestDir);
 		const manifestPath = path.join(manifestDir, manifestName!);
 		try {
@@ -354,7 +354,7 @@ test(
 		assert.doesNotMatch(viewer, /(?:&|;)\s*exit(?:\s|$)/);
 
 		const progressDir = path.join(TEMP_ROOT_DIR, "orca-progress");
-		const manifestDir = path.join(dir, ".pi", "subagents", "views", "orca");
+		const manifestDir = path.join(dir, ".evoharness/subagents", "views", "orca");
 		const manifestName = fs
 			.readdirSync(manifestDir)
 			.find((name) => name.startsWith(`${runId}-2-`) && name.endsWith(".json"));
@@ -375,7 +375,7 @@ test(
 		assert.match(text, /done output/);
 		const quotedSessionFile = `'${fs.realpathSync(sessionFile).replace(/'/g, `'"'"'`)}'`;
 		assert.ok(text.includes(`completed. To remove the Pi session for this run, run rm -- ${quotedSessionFile}`));
-		assert.doesNotMatch(text, /find ~\/\.pi\/agent\/sessions/);
+		assert.doesNotMatch(text, /find ~\/.evoharness\/agent\/sessions/);
 
 		const nestedCwd = path.join(dir, "packages", "app");
 		fs.mkdirSync(nestedCwd, { recursive: true });
@@ -784,7 +784,7 @@ test(
 		});
 		assert.ok(tab);
 		await tab.creationSettled;
-		const manifestDir = path.join(dir, ".pi", "subagents", "views", "orca");
+		const manifestDir = path.join(dir, ".evoharness/subagents", "views", "orca");
 		const manifestName = fs
 			.readdirSync(manifestDir)
 			.find((name) => name.startsWith(`${runId}-0-`) && name.endsWith(".json"));

@@ -35,9 +35,9 @@ describe("Rex SSH machine resolution", () => {
 		project = fs.mkdtempSync(path.join(os.tmpdir(), "rex-ssh-project-"));
 		process.env.HOME = home;
 		process.env.USERPROFILE = home;
-		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(home, ".pi", "agent");
-		userSettings = path.join(home, ".pi", "agent", "settings.json");
-		projectSettings = path.join(project, ".pi", "settings.json");
+		process.env.EVOHARNESS_CODING_AGENT_DIR = path.join(home, ".evoharness", "agent");
+		userSettings = path.join(home, ".evoharness", "agent", "settings.json");
+		projectSettings = path.join(project, ".evoharness", "settings.json");
 		noHerdr = path.join(home, "no-herdr");
 	});
 	afterEach(() => {

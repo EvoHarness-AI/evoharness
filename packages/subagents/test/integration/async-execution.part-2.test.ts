@@ -1512,7 +1512,7 @@ syncBuiltinESMExports();
 					includeMetadata: true,
 					cleanupDays: 7,
 				},
-				artifactsDir: path.join(tempDir, ".pi/subagents", "artifacts"),
+				artifactsDir: path.join(tempDir, ".evoharness/subagents", "artifacts"),
 				shareEnabled: false,
 				maxSubagentDepth: 2,
 				timeoutMs,
@@ -1571,7 +1571,7 @@ syncBuiltinESMExports();
 					includeMetadata: true,
 					cleanupDays: 7,
 				},
-				artifactsDir: path.join(tempDir, ".pi/subagents", "artifacts"),
+				artifactsDir: path.join(tempDir, ".evoharness/subagents", "artifacts"),
 				shareEnabled: false,
 				maxSubagentDepth: 2,
 				acceptance: {
@@ -1951,7 +1951,7 @@ syncBuiltinESMExports();
 					includeMetadata: false,
 					cleanupDays: 7,
 				},
-				artifactsDir: path.join(tempDir, ".pi/subagents", "artifacts"),
+				artifactsDir: path.join(tempDir, ".evoharness/subagents", "artifacts"),
 				shareEnabled: false,
 				maxSubagentDepth: 2,
 			});
@@ -1959,7 +1959,7 @@ syncBuiltinESMExports();
 			assert.equal(launch.isError, undefined);
 			const payload = await readAsyncPayload(id);
 			assert.equal(payload.success, true);
-			const outputDir = path.join(tempDir, ".pi/subagents", "artifacts", "outputs", id);
+			const outputDir = path.join(tempDir, ".evoharness/subagents", "artifacts", "outputs", id);
 			const authoritativePaths = [
 				path.join(outputDir, "parallel-0", "0-worker", "context.md"),
 				path.join(outputDir, "parallel-0", "1-worker", "context.md"),
@@ -2021,7 +2021,7 @@ syncBuiltinESMExports();
 					includeMetadata: false,
 					cleanupDays: 7,
 				},
-				artifactsDir: path.join(tempDir, ".pi/subagents", "artifacts"),
+				artifactsDir: path.join(tempDir, ".evoharness/subagents", "artifacts"),
 				shareEnabled: false,
 				maxSubagentDepth: 2,
 			});
@@ -2426,7 +2426,7 @@ syncBuiltinESMExports();
 					includeMetadata: false,
 					cleanupDays: 7,
 				},
-				artifactsDir: path.join(tempDir, ".pi/subagents", "artifacts"),
+				artifactsDir: path.join(tempDir, ".evoharness/subagents", "artifacts"),
 				shareEnabled: false,
 				maxSubagentDepth: 2,
 			});
@@ -2459,7 +2459,7 @@ syncBuiltinESMExports();
 				collected.map((item) => item.structured),
 				[{ ok: "a" }, { ok: "b" }],
 			);
-			const outputDir = path.join(tempDir, ".pi/subagents", "artifacts", "outputs", id);
+			const outputDir = path.join(tempDir, ".evoharness/subagents", "artifacts", "outputs", id);
 			const dynamicOutputPaths = [
 				path.join(outputDir, "dynamic-1", "0-reviewer", "context.md"),
 				path.join(outputDir, "dynamic-1", "1-reviewer", "context.md"),

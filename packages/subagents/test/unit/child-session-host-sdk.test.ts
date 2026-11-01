@@ -18,7 +18,7 @@ function writeManifest(root: string, manifest: unknown): void {
 
 function fakeHostRoot(
 	base: string,
-	directory = "fake-pi-coding-agent",
+	directory = "fake-coding-agent",
 	source = [
 		"globalThis.__fakeHostSdkLoads = (globalThis.__fakeHostSdkLoads ?? 0) + 1;",
 		"export const __fakeHostSdk = true;",
@@ -136,8 +136,8 @@ describe("loadHostPiCodingAgent", () => {
 	});
 
 	it("prefers the running host over the environment override", async () => {
-		const runningRoot = fakeHostRoot(tmp, "running-pi-coding-agent", "export const owner = 'running';\n");
-		const overrideRoot = fakeHostRoot(tmp, "override-pi-coding-agent", "export const owner = 'override';\n");
+		const runningRoot = fakeHostRoot(tmp, "running-coding-agent", "export const owner = 'running';\n");
+		const overrideRoot = fakeHostRoot(tmp, "override-coding-agent", "export const owner = 'override';\n");
 		process.argv[1] = path.join(runningRoot, "dist", "index.js");
 		process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = overrideRoot;
 
@@ -148,7 +148,7 @@ describe("loadHostPiCodingAgent", () => {
 	it("propagates dependency failures from an existing auto-discovered entry", async () => {
 		const runningRoot = fakeHostRoot(
 			tmp,
-			"broken-running-pi-coding-agent",
+			"broken-running-coding-agent",
 			"import 'definitely-missing-pr2348-dependency';\n",
 		);
 		process.argv[1] = path.join(runningRoot, "dist", "index.js");
@@ -158,7 +158,7 @@ describe("loadHostPiCodingAgent", () => {
 	});
 
 	it("rejects when an auto-discovered root's selected entry is missing", async () => {
-		const runningRoot = fakeHostRoot(tmp, "missing-entry-pi-coding-agent");
+		const runningRoot = fakeHostRoot(tmp, "missing-entry-coding-agent");
 		writeManifest(runningRoot, {
 			name: "@evoharness/coding-agent",
 			version: "0.0.0-fake",
@@ -184,7 +184,7 @@ describe("loadHostPiCodingAgent", () => {
 	it("uses the host loader when the default factory creates a child", async () => {
 		const runningRoot = fakeHostRoot(
 			tmp,
-			"factory-owner-pi-coding-agent",
+			"factory-owner-coding-agent",
 			[
 				"export const ModelRuntime = { create: async () => { throw new Error('factory loaded host-owned SDK'); } };",
 				"",
@@ -210,7 +210,7 @@ describe("loadHostPiCodingAgent", () => {
 	});
 
 	it("rethrows when the override root cannot be imported", async () => {
-		const broken = path.join(tmp, "broken-pi-coding-agent");
+		const broken = path.join(tmp, "broken-coding-agent");
 		fs.mkdirSync(path.join(broken, "dist"), { recursive: true });
 		writeManifest(broken, {
 			name: "@evoharness/coding-agent",
@@ -224,7 +224,7 @@ describe("loadHostPiCodingAgent", () => {
 	});
 
 	it("rejects an override root whose package name differs", async () => {
-		const wrong = path.join(tmp, "wrong-pi-coding-agent");
+		const wrong = path.join(tmp, "wrong-coding-agent");
 		fs.mkdirSync(path.join(wrong, "dist"), { recursive: true });
 		writeManifest(wrong, {
 			name: "some-other-package",
@@ -234,6 +234,6 @@ describe("loadHostPiCodingAgent", () => {
 		});
 		fs.writeFileSync(path.join(wrong, "dist", "index.js"), "throw new Error('must not be imported');");
 		process.env[PI_CODING_AGENT_PACKAGE_ROOT_ENV] = wrong;
-		await assert.rejects(loadHostPiCodingAgent(), /expected "@evoharness\/pi-coding-agent"/);
+		await assert.rejects(loadHostPiCodingAgent(), /expected "@evoharness\/coding-agent"/);
 	});
 });

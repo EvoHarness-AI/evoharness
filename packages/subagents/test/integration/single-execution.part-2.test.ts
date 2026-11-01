@@ -675,7 +675,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 				config: {},
 				asyncByDefault: false,
 				tempArtifactsDir: tempDir,
-				getSubagentSessionRoot: () => path.join(tempDir, ".pi/subagents", "sessions"),
+				getSubagentSessionRoot: () => path.join(tempDir, ".evoharness/subagents", "sessions"),
 				expandTilde: (value: string) => value,
 				discoverAgents: () => ({ agents: [makeAgent("echo", { toolBudget })] }),
 				allowMutatingManagementActions: true,
@@ -2167,7 +2167,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 			execFileSync("git", ["commit", "-m", "base"], { cwd: repo, stdio: "ignore" });
 			const setup = await createWorktrees(repo, "action", 1, { baseDir });
 			const worktree = setup.worktrees[0]!;
-			const manifestPath = path.join(repo, ".pi", "subagents", "artifacts", "handoff.json");
+			const manifestPath = path.join(repo, ".evoharness/subagents", "artifacts", "handoff.json");
 			const baseCommit = execFileSync("git", ["-C", repo, "rev-parse", "HEAD"], { encoding: "utf-8" }).trim();
 			fs.mkdirSync(path.dirname(manifestPath), { recursive: true });
 			fs.writeFileSync(
@@ -2194,7 +2194,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 										status: "completed",
 										summary: "done",
 										patch: {
-											path: path.join(repo, ".pi", "subagents", "artifacts", "worktree.patch"),
+											path: path.join(repo, ".evoharness/subagents", "artifacts", "worktree.patch"),
 											branch: worktree.branch,
 											changed: false,
 											diffStat: "",
@@ -2228,7 +2228,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 				"utf-8",
 			);
 			fs.writeFileSync(
-				path.join(repo, ".pi", "subagents", "artifacts", "status.json"),
+				path.join(repo, ".evoharness/subagents", "artifacts", "status.json"),
 				JSON.stringify({ runId: "cleanup-action-run", state: "complete" }),
 				"utf-8",
 			);
@@ -2245,7 +2245,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 				const text = result.content[0]?.text ?? "";
 				assert.match(text, /Will remove/);
 				assert.match(text, /Plan-only mode: no worktrees or branches were removed/);
-				const planFiles = fs.readdirSync(path.join(repo, ".pi", "subagents", "cleanup-plans"));
+				const planFiles = fs.readdirSync(path.join(repo, ".evoharness/subagents", "cleanup-plans"));
 				assert.equal(planFiles.length, 1);
 				const planId = planFiles[0]!.replace(/\.json$/, "");
 				const childSafe = makeExecutor([makeAgent("echo")], { worktreeBaseDir: baseDir }, false, undefined, false);
@@ -2366,7 +2366,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 				},
 				asyncByDefault: false,
 				tempArtifactsDir: tempDir,
-				getSubagentSessionRoot: () => path.join(tempDir, ".pi/subagents", "sessions"),
+				getSubagentSessionRoot: () => path.join(tempDir, ".evoharness/subagents", "sessions"),
 				expandTilde: (value: string) => value,
 				discoverAgents: () => ({ agents: [makeAgent("echo")] }),
 				allowMutatingManagementActions: true,
@@ -3072,7 +3072,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 		"retains inherited and disabled discovered schemas across definition changes",
 		{ skip: !createSubagentExecutor ? "executor not importable" : undefined },
 		async () => {
-			const agentPath = path.join(tempDir, ".pi", "agents", "typed.md");
+			const agentPath = path.join(tempDir, ".evoharness", "agents", "typed.md");
 			fs.mkdirSync(path.dirname(agentPath), { recursive: true });
 			const definition = (required: string) =>
 				`---\nname: typed\ndescription: Typed output\noutputSchema: {"type":"object","required":["${required}"]}\n---\nReturn data.\n`;
@@ -3795,7 +3795,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 		"enforces a discovered agent outputSchema and lets false opt out",
 		{ skip: !createSubagentExecutor ? "executor not importable" : undefined },
 		async () => {
-			const agentDir = path.join(tempDir, ".pi", "agents");
+			const agentDir = path.join(tempDir, ".evoharness", "agents");
 			fs.mkdirSync(agentDir, { recursive: true });
 			fs.writeFileSync(
 				path.join(agentDir, "typed.md"),
@@ -5456,7 +5456,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 				fs.readFileSync(result.details.artifacts.files[0].outputPath, "utf-8"),
 				"session artifact result",
 			);
-			assert.equal(fs.existsSync(path.join(tempDir, ".pi/subagents", "artifacts")), false);
+			assert.equal(fs.existsSync(path.join(tempDir, ".evoharness/subagents", "artifacts")), false);
 		},
 	);
 
@@ -6572,7 +6572,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 
 	it("blocks or warns on launches that violate configured watchdog rules", async () => {
 		await withIsolatedWatchdogSettings(tempDir, async () => {
-			const settingsPath = path.join(tempDir, ".pi", "settings.json");
+			const settingsPath = path.join(tempDir, ".evoharness", "settings.json");
 			const writeRules = (action: "warn" | "block") => {
 				fs.mkdirSync(path.dirname(settingsPath), { recursive: true });
 				fs.writeFileSync(
@@ -6614,7 +6614,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 				asyncByDefault: false,
 				watchdog,
 				tempArtifactsDir: tempDir,
-				getSubagentSessionRoot: () => path.join(tempDir, ".pi/subagents", "sessions"),
+				getSubagentSessionRoot: () => path.join(tempDir, ".evoharness/subagents", "sessions"),
 				expandTilde: (value: string) => value,
 				discoverAgents: () => ({ agents: [makeAgent("echo")] }),
 				allowMutatingManagementActions: true,
@@ -6637,7 +6637,7 @@ if (!fs.existsSync(${JSON.stringify(holdPath)})) { console.log('{}'); } else {
 			assert.equal(mockPi.callCount(), callsBefore, "a blocked launch never starts the child");
 			assert.equal(sent.length, 0);
 
-			const nestedSettings = path.join(tempDir, "packages", "app", ".pi", "settings.json");
+			const nestedSettings = path.join(tempDir, "packages", "app", ".evoharness", "settings.json");
 			fs.mkdirSync(path.dirname(nestedSettings), { recursive: true });
 			fs.writeFileSync(
 				nestedSettings,

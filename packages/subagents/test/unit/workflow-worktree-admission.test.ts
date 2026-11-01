@@ -12,8 +12,8 @@ it("rechecks effective relative sources after changes without applying fresh def
 	fs.mkdirSync(repo);
 	assert.equal(spawnSync("git", ["init", repo]).status, 0);
 	// Admission deliberately does not resolve HEAD: base refs remain allocation-time checks.
-	fs.mkdirSync(path.join(repo, ".pi", "subagents"), { recursive: true });
-	fs.writeFileSync(path.join(repo, ".pi", "subagents", "runtime.json"), "{}");
+	fs.mkdirSync(path.join(repo, ".evoharness/subagents"), { recursive: true });
+	fs.writeFileSync(path.join(repo, ".evoharness/subagents", "runtime.json"), "{}");
 	const signal = new AbortController().signal;
 	const calls = [
 		{ key: "a", params: { agent: "worker", task: "Inspect" } },
