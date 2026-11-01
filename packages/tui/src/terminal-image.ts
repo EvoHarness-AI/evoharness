@@ -757,7 +757,16 @@ export function hyperlink(text: string, url: string): string {
 function shortenImagePath(filename: string): string {
 	const home = homedir();
 	if (home && (filename === home || filename.startsWith(`${home}/`) || filename.startsWith(`${home}\\`))) {
-		return `~${filename.slice(home.length)}`;
+		// `~` only means anything to a POSIX shell, so the remainder keeps `/`: Windows
+		// would otherwise produce `~\dir\file`, which no shell expands and which
+		// contradicts the ~/... form documented here and asserted in the tests.
+		// The OSC 8 link still carries the real absolute path, so nothing is less openable.
+		const rest = filename
+			.slice(home.length)
+			.replace(/^[/\\]+/u, "")
+			.split("\\")
+			.join("/");
+		return rest ? `~/${rest}` : "~";
 	}
 	return filename;
 }
