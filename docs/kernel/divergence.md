@@ -24,6 +24,7 @@
 | D-007 | A | vendored marked 的 `\p{Pi}` 修复 | `coding-agent/src/core/export-html/vendor/marked.min.js` |
 | D-008 | B | install telemetry 默认值恢复为开启 | `coding-agent/core/settings-defaults.ts` |
 | D-011 | A | Git Bash 从 PATH 上的 git 反推 | `coding-agent/src/utils/shell.ts`、`durable/src/env/node.ts` |
+| D-012 | 决策 | 多智能体底座自研，不移植 `pi-subagents` | 未来的 `feature-subagent`；参考件在 `archive/subagents-port` |
 
 ---
 
@@ -134,3 +135,25 @@
 **兜底**：`packages/coding-agent/test/shell-path-exists.test.ts` 的 `Git Bash beside the git on PATH`（四例：反推命中、优先于 PATH 上无关 bash、无 git 时回落、报错含反推候选）；`packages/durable/test/env-node.test.ts` 的 `Windows shell discovery beside git`（不传 `shellPath` 直接跑一次 POSIX 命令，仅当 git 在 PATH 上时运行）。
 
 **为什么编号是 D-011 而不是 D-009**：`D-009` / `D-010` 已被归档分支 `archive/web-port` 占用并推到 origin（打包器豁免注释、根 TypeScript 降级）。账本规定 ID 稳定且不复用，该分支将来若 rebase 回主干会带着这两个 ID，所以这里跳过 009–010。
+
+---
+
+## D-012 · 决策 · 多智能体底座自研，不移植 `pi-subagents`
+
+**改了什么**：本条不改任何代码，只定路线。`feature-subagent` 的运行时段（委派、并行、后台、监督、取消、恢复、预算）用本仓已有底座实现：`packages/chord` v2 的 child host 与 replicated state、`chord/context` 的显式取消、`packages/durable` 的持久化、`packages/agent` 的唯一 loop。已完成的移植分支 `feat/subagents-port`（PR #2，19 个提交、+363,745 行）**不合入 main**，归档为 `archive/subagents-port`，身份降为三样：参考实现、需求规格（unit 4235 例）、内容库（`agents/*.md` 七个角色、`prompts/`、`skills/`、编排范式文档）。
+
+**为什么**：判据是「这块正确性归谁负责」，三条都指向上游形态不可持续。
+
+1. **分层不兼容。** [`docs/structure.md`](../structure.md) §1 公理 1 要求多 agent 挂在唯一 loop 的扩展机制上，公理 3 规定 `features` 不得依赖 `product`，而 §2 目标树里 `feature-subagent` 明确标 `[未建]`。移植件依赖宿主全栈，为让它过守卫才在 `scripts/check-package-layers.mjs` 里加了一个目标树中不存在的 `extension` 层。它永远成不了 `feature-subagent`：要么保持外挂，要么造成 manifest 循环。
+2. **正确性寄存在没有测试权的私有实现上。** 六处反射点各带 `SAFETY` 注释，全在 `archive/subagents-port` 的 `packages/subagents/src/` 下：`child-session.ts` 写 loader 的私有 `loaded` 字段、`tool-activation.ts` 与 `declaration-pinning.ts` 强转取 `buildSessionContext`、`fleet-status.ts` 结构探测 TUI 的 `focusedComponent`、`child-cache-retention.ts` 包装 `agent.streamFunction`。已付过账：宿主 1.2.0→1.4.0 的一次正常演进（同一文件双拼写加载两次）就让上游测试的 SAFETY 前提失效，排障花掉整个 wave 3。
+3. **与 [`KERNEL.md`](../../KERNEL.md) §3.1 正面冲突。** 该条规定 `turn_request` / `storage` / `schedule` 三个扩展点未落地前，扩展不得自造 timer、上下文拼装、消息注入，否则会静默绕过 policy 与审计。移植件全部自造：`scheduled-runs.ts` 自带 `setTimeout` 调度器并直接起一轮，另有约 15 处 `setInterval` 轮询文件协议。
+
+**影响面**：main 不接收 1041 文件的 vendored 快照，也不接收为它开的六处根配置豁免（`biome.json` 对该包关 lint、`check-ts-relative-imports` 豁免、`file-size.baseline.json` +51 行即 86 条超限基线、根 `tsconfig` 排除其测试、`extension` 层、`ci.yml` 的 subagents job）。`packages/subagents` 不在 main，其 env 前缀与协议常量的改名成果留在归档分支上。上游同步（移植计划里的 R12）不再是义务，改为按需取内容与测试。后续 `feature-subagent` 必须自带契约测试，且 §3.1 三个扩展点是它的前置工作而非可选项。
+
+**兜底**：本条无代码，兜底 = 三条可复现实测，都是这一刀在归档分支上量出来的，会被 `feature-subagent` 直接继承：
+
+1. 后台子代理是独立进程，靠宿主 `package.json` 的 `bin` 解析出可 spawn 的 JS 入口，且 Windows 分支只接受 `.mjs` / `.cjs` / `.js`；解析不到直接抛 `Could not resolve the evoharness CLI on Windows`。因此源码直载的宿主（未构建 `packages/coding-agent/dist/bundle/cli.js`）跑后台子代理必然失败，与有没有 API key 无关。
+2. `packages/subagents/src/extension/tool-activation.ts` 的 `auto` 只在会话历史为空时 eager；一旦有历史，声明的只有 `subagents_enable`。所以「扩展已加载但模型说没有子代理工具」是设计行为，不是加载失败。
+3. 移植件把「工具注册成功」当成 Gate 5 的通过标准，但注册不等于端到端跑通；真实 spawn 从未验证过。后续每一刀验收必须跑到模型真的收到子代理结果为止，不接受只断接口存在的空壳测试。
+
+**引用它的正确方式**：写 `D-012`，不写标题。将来若路线翻转（真的把移植件合进 main），在本条标题标 `superseded by D-xxx` 并保留正文，新条目必须说明这六处豁免与 §3.1 的冲突如何处置。
