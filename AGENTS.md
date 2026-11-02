@@ -148,6 +148,22 @@ When closing issues via commit:
 
 - Include `fixes #<number>` or `closes #<number>` in the message so merging auto-closes the issue. For multiple issues, repeat the keyword per issue (`closes #1, closes #2`); a shared keyword (`closes #1, #2`) only closes the first.
 
+## 本仓的 GitHub 写入身份
+
+PR 的创建、评论、关闭走仓内脚本 `scripts/github-pr.mjs`（子命令 `whoami` / `view` / `create` / `comment` / `close`），**不走 `gh` 写**。分支、tag、push 仍走 git，SSH 别名 `github-evoharness` 带着仓主身份。
+
+为什么不用 `gh` 写：本机 `gh` 的 active account 是另一个账号，而 active account 是**机器级单一状态**，没有 git 那种 `includeIf` 目录级路由；那个账号对本仓只有 `pull=true`，任何写操作都会 403。上面的读法（`gh pr view` / `gh pr diff` / `gh api`、`git show <ref>:<path>`）照旧可用，审 PR 不切分支那条规则不变。
+
+凭据按这个顺序取，脚本只读文件，绝不从命令行参数拿 token：
+
+1. `--token-file <绝对路径>`。显式给了却读不到时**不回落**到其它来源，以免用未选定的身份写入。本机该文件是 `D:\DEVELOP\Project-main\TypeScript\evoharness.txt`（fine-grained PAT：限单仓 + 仅 Pull requests 读写 + 90 天到期）。它是**本机路径，不在仓库里**：不要把 token 内容写进任何输出、提交或 issue。
+2. `$EVOHARNESS_GH_TOKEN`。
+3. `~/.config/evoharness/github-pat`。长期放置点，换机器就靠这一项，不用改本文。
+
+脚本自带的两道保险不要绕：每次写操作前先 `GET /user` 比对 login，不是仓主就拒且零个写请求发出；仓被钉死，要动别的仓必须显式 `--allow-repo`。多行文本走 `--body-file` / `--comment-file`，不塞命令行；`create` 可先加 `--dry-run` 看请求体再真发。
+
+报错顺序：先确认 token 路径是**绝对路径**（相对路径在这条链路上会被静默读成空，报 "No usable token in …"，那是路径不是凭据），再跑 `whoami` 看身份与权限，最后才怀疑 token 失效。
+
 ## Changelog
 
 Location: `packages/*/CHANGELOG.md` (one per package).
