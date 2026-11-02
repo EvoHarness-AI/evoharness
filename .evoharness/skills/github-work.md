@@ -17,5 +17,5 @@ Rules:
 
 - `is.md` analyzes and proposes only. Implement only when the user asks for it, then keep following AGENTS.md (checks, tests, changelog rules).
 - `pr.md` never checks out or switches to the PR branch.
-- Run `wr.md` only when the user asks to wrap up, commit, or push. Post at most one final GitHub comment per session, ending with the exact disclaimer line it specifies.
+- Run `wr.md` only when the user asks to wrap up, commit, or push. Wrapping up is not itself a request to speak publicly: post a GitHub comment only when the user asked for one, at most one per session, ending with the exact disclaimer line `wr.md` specifies. Without that request the reasoning goes in the commit message.
 - When a request spans several steps, for example "fix issue X and wrap it up", read every template involved before starting.
