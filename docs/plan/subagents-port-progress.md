@@ -1,6 +1,7 @@
 # pi-subagents → evoharness 移植进度跟踪
 
 - 配套计划:`docs/plan/subagents-port.md`(v2,映射表/风险登记册/验证矩阵的唯一权威来源)
+- 路线状态(2026-11-02)：本移植已由账本条目 `D-012`（`docs/kernel/divergence.md`，在 main 上）判为**不合入 main**，归档为 `archive/subagents-port`。本文是历史执行日志，不逐条改写；文中多处 `packages/subagents/UPSTREAM-PORT-NOTES.md` 引用已失效——该文件被去品牌化提交 `a57cdc1` 主动删除，内容取 `git show b5a02d4:packages/subagents/UPSTREAM-PORT-NOTES.md`。待办与阅读入口看 `subagents-port-handover.md` §0。
 - 执行纪律:每步动手前 = ①核对上一步退出条件 ②`git status` 与预期一致 ③写明[动什么/预期产出/回滚命令]再执行;动手中 = 与预期不符立即停;动手后 = 结果写入本文件,计划外发现写入"发现登记"
 - 提交纪律:只在检查点提交,提交信息带检查点编号
 

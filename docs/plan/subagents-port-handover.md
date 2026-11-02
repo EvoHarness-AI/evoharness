@@ -2,8 +2,16 @@
 
 - 写作时间:2026-11-01
 - 分支:`feat/subagents-port`(基于 main @ `172143d`)
-- 配套文档(三份必读):`docs/plan/subagents-port.md`(策略 v2/映射表/风险登记册)、`docs/plan/subagents-port-progress.md`(逐步执行日志)、`packages/subagents/UPSTREAM-PORT-NOTES.md`(改名映射+内核耦合点+审计白名单)
+- 配套文档(三份必读):`docs/plan/subagents-port.md`(策略 v2/映射表/风险登记册)、`docs/plan/subagents-port-progress.md`(逐步执行日志)。~~`packages/subagents/UPSTREAM-PORT-NOTES.md`~~ **已被去品牌化提交 `a57cdc1` 删除**，不在盘上也不在 `git ls-files`；内容（改名映射表 + 6 项内核耦合点清单 + 审计白名单）用 `git show b5a02d4:packages/subagents/UPSTREAM-PORT-NOTES.md` 取，耦合点本身在源码里以 `SAFETY` 注释就地自解释。
 - 本文读者:接手移植收尾/后续迭代的人
+
+---
+
+## 0. 路线已变更（2026-11-02）：本分支归档，不合并
+
+多智能体的运行时段改为自研（`feature-subagent` 建在 chord v2 + durable + 唯一 agent loop 上），本移植分支**不合入 main**，归档为 `archive/subagents-port`，两个 ref（`feat/subagents-port` 与 `archive/subagents-port`）都保留不删。判据与三条可复现实测见账本条目 **`D-012`**（`docs/kernel/divergence.md`，在 main 上）。
+
+本文余下部分仍是事实记录，但它的**行动指引已失效**：§6 的“立即”三项不再适用（§6 已就地标作废），“合回 main”与“上游同步”两个前提已被推翻。本文对接手人的新用处是：当参考实现、需求规格（unit 4235 例）与内容库（`agents/*.md` 七个角色、`prompts/`、`skills/`）的索引。
 
 ---
 
@@ -17,7 +25,7 @@
 > ① **Gate 4 已用串行全量实测量化**(`--test-concurrency=1`,tests 1300 / pass 1217 / **fail 13** / skipped 70,约 21 分钟):并发首跑的 25 失败里约 12 个确为竞争 flake(串行消失),但 **13 个串行仍红 → 推翻"25 全为并发 flake"**。
 > ② 发现并修复 **2 处改名 sweep 误伤**:refinement fence `pi-subagents-refinement-*` 与测试期望 `` `pi --session `` 被错改成 `.evoharness-…`/`.evoharness ` 并吞掉一个反引号;`workflow-auto-resume.test.ts` 修复后复跑 **11/11 绿**。
 > ③ 13 个稳定失败仍需分诊:`external-cli-runner`(缺 claude/codex/cursor 二进制)+ 11× `jiti-cli.mjs` `Cannot find module`(monorepo hoisting,jiti 不在包内 `node_modules`,即 R1 真实 spawn 信号)+ `workflow-result-publication` ×2 `ENOTDIR`(Windows 临时目录类)+ `single-execution.part-1` ×2。
-> ④ **真实模型端到端(含 R1 后台 `bg_wait`)仍未验证**(本机无 API key)——`smoke 核心项通过`只到"工具注册",不等于子代理可真实跑通。
+> ④ **真实模型端到端（含 R1 后台 `bg_wait`）仍未验证**——`smoke 核心项通过`只到“工具注册”，不等于子代理可真实跑通。**归因修正（2026-11-02）：阻塞不是“本机无 API key”**。真成因在 `src/runs/shared/host-spawn.ts`：后台子代理是独立进程，靠宿主 `package.json` 的 `bin` 解析可 spawn 的 JS 入口，且 Windows 分支只接受 `.mjs`/`.cjs`/`.js`（指 `src/cli.ts` 不算 node 脚本，会被当可执行文件直接 spawn）；只要 `packages/coding-agent/dist/bundle/cli.js` 未构建，解析就失败并抛 `Could not resolve the evoharness CLI on Windows`。**前台子代理不受影响**（同进程内起 session）。集成测试里那 11 个 `jiti-cli.mjs` 包内路径缺失属同一类问题：上游假设宿主是 npm 安装的独立包，而本仓是源码 monorepo 直载形态，这条隐含前提没人补。
 
 ## 2. 提交链(每个都是独立可回滚单元)
 
@@ -41,10 +49,10 @@
 | Gate 2 unit | **4126/4235,判定绿** | 20 失败 = 基线 19 环境类(Windows symlink EPERM×15/npm×4,用户授权跳过)+ 1 轮换波动成员;**稳定真新失败 = 0** |
 | Gate 3 分诊 | 已落盘 | smoke×7 默认 skip;spawn-mock×17;纯本地×31 |
 | Gate 4 integration | **确定性缺陷已清零** | 串行全量曾 13 fail(≠ 并发 25 全 flake 的说法)。处置:`workflow-auto-resume` 改名误伤已修(11/11);`external-cli-runner` 12 fail = 测试硬编码包内 jiti 路径,已改指 hoisted 根(隔离 12 pass/0 fail/4 skip,含 1 例 Windows 冷启超时 skip);`result-publication`/`single-execution` 隔离均 0 fail = 跨文件状态 artifact。真实模型端到端仍待 key |
-| Gate 5 smoke | S1/S2/S4/S5 ✅ | S2:真实 SDK 加载扩展 0 错误、`subagent`+`subagents_enable` 工具注册成功(仅到注册,未跑真实子代理);**R1 后台 spawn 未经端到端验证**——串行集成里子进程报 `jiti-cli.mjs` 包内路径缺失(hoisting),需真实 key 跑 `bg_wait` 定论 |
+| Gate 5 smoke | S1/S2/S4/S5 ✅ | S2：真实 SDK 加载扩展 0 错误、`subagent`+`subagents_enable` 工具注册成功（仅到注册，未跑真实子代理）；**R1 后台 spawn 未经端到端验证**——阻塞主因不是缺 key，而是宿主无可解析的 JS 入口（见 §1 复核修正 ④ 与 `docs/kernel/divergence.md` 的 `D-012`）；补测前先 `npm run build:offline` 产出 `dist/bundle/cli.js` |
 | 根检查 `npm run check` | **exit 0 全链绿** | biome+守卫+tsc(TS7)+browser-smoke;`3ee1002` 起钩子恢复正常 |
 
-**已知未测**:真实模型端到端(前台子代理调用/bg_wait 真实循环/council 真实辩论/theme 人工观察)——**本机无 API key**,用户授权 API 类跳过;拿到 key 后按 progress 文档 2.5 的"待 key 补测"清单执行。
+**已知未测**：真实模型端到端（前台子代理调用/bg_wait 真实循环/council 真实辩论/theme 人工观察）——当时记的是“本机无 API key”，用户授权 API 类跳过。**2026-11-02 修正**：本机已有可用 provider（`~/.evoharness/agent/models.json` 里的 deepseek），所以补测的真正前置是先跑 `npm run build:offline` 产出 `dist/bundle/cli.js`（见 §1 复核修正 ④），再按 progress 文档 2.5 的“待 key 补测”清单执行。
 
 ## 4. 遇到的问题与解决(接手人重点阅读)
 
@@ -92,10 +100,13 @@
 
 ## 6. 还需要做什么(按优先级)
 
-### 立即(收尾 Gate 4/检查点 2)
-1. **Gate 4b 交集分析**:后台任务 `exec_554453ac` 完成后,`grep -E "✖" /tmp/gate4b-integration.log | sed … | sort -u > /tmp/now-fails-i2.txt` 再与首跑名单 `comm -12` 交集。交集内稳定失败 → 逐个分诊(预期为空或极少数);对称差 → 记为并发 flake。若想根除 flake:降低并发(`node --test --test-concurrency=4`)或分片跑,属于测试基建优化,非移植缺陷。
-2. **检查点 2 提交**:进度文档 + 4b 结论写入 `subagents-port-progress.md`(2.4/2.7 两节还空着),提交信息按检查点 2。当前工作区仅剩进度文档未提交(`docs/structure.md` 是用户的,永远不要提交)。
-3. **合并决策**:全绿后由用户决定是否合回 main(建议等真实模型 smoke 补测后)。
+### 立即(收尾 Gate 4/检查点 2)—— **2026-11-02：以下三项全部作废**
+
+作废理由：把 Gate 4 从 13 fail 修到 0 的唯一价值就是“能合回 main”，而路线已按 `D-012` 转为自研。**重开条件**：在 `docs/kernel/divergence.md` 立一条把 `D-012` 标 `superseded` 的新决策，且该决策必须说明六处根配置豁免（见 §4.10）与 `KERNEL.md` §3.1 的冲突如何处置。不满足这个条件就不要再执行下面三项。
+
+1. **（已作废）Gate 4b 交集分析**：后台任务 `exec_554453ac` 完成后,`grep -E "✖" /tmp/gate4b-integration.log | sed … | sort -u > /tmp/now-fails-i2.txt` 再与首跑名单 `comm -12` 交集。交集内稳定失败 → 逐个分诊(预期为空或极少数);对称差 → 记为并发 flake。若想根除 flake:降低并发(`node --test --test-concurrency=4`)或分片跑,属于测试基建优化,非移植缺陷。保留的是方法本身：**两轮全量取交集 = 真失败**，对任何 integration 套件都适用。
+2. **（已作废）检查点 2 提交**：进度文档 + 4b 结论写入 `subagents-port-progress.md`(2.4/2.7 两节还空着),提交信息按检查点 2。当前工作区仅剩进度文档未提交(`docs/structure.md` 是用户的,永远不要提交)。
+3. **（已定作）合并决策**：由 `D-012` 定——不合入 main，归档为 `archive/subagents-port`，两个 ref 都不删。
 
 ### 待用户提供 API key 后(smoke 补测清单)
 前台子代理真实模型调用、bg_wait 真实循环、council 真实辩论、theme/widget 人工观察(R2)、cache retention 端到端、模型目录回退(D-005:evoharness.dev 不可达时回退内置目录)。
@@ -107,7 +118,7 @@
 - D4 相关:如果未来想做 `.pi` 遗留目录兼容,再评估
 
 ### Phase 4 转正(独立迭代,改内核)
-把 UPSTREAM-PORT-NOTES.md 列的 6 项耦合点转正为内核正式 API:
+把 6 项耦合点转正为内核正式 API（清单原在 `UPSTREAM-PORT-NOTES.md`，该文件已被 `a57cdc1` 删除，取 `git show b5a02d4:packages/subagents/UPSTREAM-PORT-NOTES.md`，并以源码里的 `SAFETY` 注释为现势依据）：
 1. `(loader as {loaded}).loaded` → `DefaultResourceLoader.resetExtensionCache()`
 2. `buildSessionContext()` 强转 ×4 → ExtensionContext 放宽或 `getSessionSnapshot()`
 3. `agent.streamFunction` 包装 → Agent 官方 `providerEnv`/`cacheRetention` 选项
@@ -117,7 +128,7 @@
 配套:把这些位置记入 `docs/kernel/divergence.md`;**以后每次改内核,先跑 `packages/subagents` 的测试套件当合同测试**。
 
 ### 长期
-- **上游同步(R12)**:与 nicobailon/pi-subagents 永久分叉;上游发新版时按 UPSTREAM-PORT-NOTES 的映射机械重放。
+- **上游同步（R12）**：按 `D-012`，同步上游不再是义务。与 nicobailon/pi-subagents 已是永久分叉；只在需要从上游取某个修复或某块内容时，按改名映射机械重放（映射取 `git show b5a02d4:packages/subagents/UPSTREAM-PORT-NOTES.md`），不拉入它的运行时。
 - **波动治理**:integration 全量 ~6 分钟且并发敏感;可考虑 CI 上限并发或分片。
 
 ## 7. 速查
