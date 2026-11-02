@@ -207,6 +207,8 @@ src/client/     依赖 contract、packages/tui 原语、surface 的注册点
 
 **`durable` 是 platform 里的例外**：它仍包含一条**未启用**的 agent 循环（`src/harness/`）。"不启用"是运行期约定，不是物理事实，所以靠守卫兜住：除 `runtime-kit` / `env` 外，任何包 import `durable/src/harness` 即失败（规则见 §10 的 `check:package-layers` 第③条）。
 
+但这条守卫**按 import 路径匹配**：`@evoharness/durable` 的根导出把 `Harness`、`InboxDoc`、compaction 与调度那一侧的符号 re-export 了出来，从根 barrel 读到同一批东西不会红。所以"只有一个内核"今天只是一条文字约束加一条不完整的守卫，不要把前者当成已被机器守住；补口径是解封那一刀开工前的前置，记在 [`docs/plan/feature-roadmap.md`](./plan/feature-roadmap.md) 末节。
+
 `tui` 与 `mcp` 之所以在 platform 而不是 surface/capability：它们是**可被多个上层复用的工具包**，本身不认识 agent 语义。
 
 ---
@@ -378,7 +380,7 @@ node -e "console.log(Object.keys(require('./package.json').scripts).filter(k => 
 | `check:pinned-deps` / `check:runtime-deps` | 依赖未钉版或运行时依赖未声明 |
 | `check:browser-smoke` / `check:package-install` | 浏览器构建与打包安装的冒烟 |
 | `scripts/check-lockfile-commit.mjs`（pre-commit 直接调用） | 锁文件变更需要显式开关 |
-| `check:package-layers` | 层间反向依赖。同时锁三条现状规则：① `coding-agent` 只能依赖它现有的内部包；② `ai`/`telemetry`/`chord`/`mcp`/`tui`/`codemode` 不得依赖 `coding-agent`/`durable`/`env`；③ 除 `runtime-kit`/`env` 外任何包 import `durable/src/harness` 即失败 |
+| `check:package-layers` | 层间反向依赖。同时锁三条现状规则：① `coding-agent` 只能依赖它现有的内部包；② `ai`/`telemetry`/`chord`/`mcp`/`tui`/`codemode` 不得依赖 `coding-agent`/`durable`/`env`；③ 除 `runtime-kit`/`env` 外任何包 import `durable/src/harness` 即失败（只匹配 import 路径，经 durable 根导出的再导出不在这条范围内） |
 | `check:capability-boundaries` | 能力 descriptor 的注册与依赖。出现条件：`packages/capability` 落地 |
 | `check:file-size` | 新文件 > 1500 行即红；存量按 `scripts/file-size.baseline.json` 只降不跟涨（涨一行即红，降到阈值下需显式 `--write` 销账）；基线条目对应的文件消失也算红，防止账本腐烂。`--write` 不提高已有条目，必要的增长走 `--write --allow-grow` 并在改动说明里写理由。生成物（`*.generated.*`）豁免 |
 | `check:doc-links` | `docs/` 与根级 md 里的相对链接必须解析到存在的文件；外链、纯锚点、目录链接不拦 |
