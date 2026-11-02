@@ -14,35 +14,35 @@
 
 ## Task Routing
 
-Three questions decide which process a change owes. Answer them before editing, not after a guard turns red. The order matters for one reason: two of the three gates can only be satisfied inside the same change as the code, and a missing one is invisible afterwards.
+三个问题决定一次改动欠哪套流程。在动手前回答，而不是等守卫红了再回答。顺序之所以要紧，是因为其中两道门只能与代码在同一次改动里满足，事后补等于没补。
 
-1. **Does it touch the kernel?** Anything in the table in [`KERNEL.md`](KERNEL.md) §1: `packages/agent`, and `packages/coding-agent/src/core/`'s `agent-session*`, `session-*`, `system-prompt.ts`, `resource-loader.ts`, `event-bus.ts`, `project-trust.ts`, `trust-manager.ts`, `compaction/`, `extensions/`, `tools/`.
-   → Pick a tier in `KERNEL.md` §3 first, then bring its evidence in the same change: tier A a contract test for the mechanism touched; tiers B and C a new `## D-xxx` entry in `docs/kernel/divergence.md`. `npm run check:kernel-audit` enforces exactly this.
-2. **Is it a new capability or feature?** A new `packages/cap-*` or `packages/feature-*`.
-   → Read `docs/structure.md` §7 (arrival conditions) and §4 (the ownership tree) before creating the directory, then copy the one-page spec in §5.4 to `packages/<name>/docs/spec.md`. `npm run check:feature-spec` requires the page to exist; whether its answers hold is a review question, not a grep question.
-3. **Is it a feature that spans packages?**
-   → Build it in vertical slices, the process `packages/chord/docs/next/slices.md` documents: a one-page spec naming the real callers each API will have, approval of the spec, build, review of the uncommitted diff, commit, with deferred work recorded in the same change. Bottom-up layers that guess their callers get deleted; Chord's L2 was.
+1. **碰内核了吗？** 指 [`KERNEL.md`](KERNEL.md) §1 表里列的任何位置：`packages/agent`，以及 `packages/coding-agent/src/core/` 下的 `agent-session*`、`session-*`、`system-prompt.ts`、`resource-loader.ts`、`event-bus.ts`、`project-trust.ts`、`trust-manager.ts`、`compaction/`、`extensions/`、`tools/`。
+   → 先在 `KERNEL.md` §3 选定档位，再在同一次改动里带上那一档的证据：A 档给出所碰机制的契约测试；B、C 档在 `docs/kernel/divergence.md` 新增一条 `## D-xxx`。`npm run check:kernel-audit` 拦的就是这个。
+2. **是新的能力或功能吗？** 即新建 `packages/cap-*` 或 `packages/feature-*`。
+   → 建目录之前先读 `docs/structure.md` §7（出现条件）与 §4（归属决策树），再把 §5.4 的一页规格复制到 `packages/<name>/docs/spec.md`。`npm run check:feature-spec` 只要求这页存在；它的答案成不成立是评审问题，不是 grep 问题。
+3. **是跨包的大功能吗？**
+   → 按纵向切片来做，也就是 `packages/chord/docs/next/slices.md` 那套流程：一页规格写清每个 API 的真实调用者、规格获批、构建、审未提交的 diff、提交，延迟的工作记在同一次改动里。自底向上猜调用者的层会被删掉；Chord 的 L2 就是。
 
-A change that answers no to all three owes none of the above; `CONTRIBUTING.md` and the rules below still apply to it.
+三问全答"否"的改动不欠上面任何一套；`CONTRIBUTING.md` 与本文其余规则照样适用。
 
-### Host-neutral entry points
+### 宿主中立的入口
 
-`.evoharness/prompts/` and `.evoharness/skills/` are auto-discovered only when evoharness is the host running them. Under any other agent, read the file and perform its steps; each file's frontmatter `description` says when it applies.
+`.evoharness/prompts/` 与 `.evoharness/skills/` 只有在宿主是 evoharness 自身时才会被自动发现。换任何别的宿主，就按下表读文件并照它执行；每个文件 frontmatter 的 `description` 说明了它在什么时候适用。
 
-| Task | Read |
+| 要做的事 | 读哪个 |
 |---|---|
-| Work on GitHub issues and PRs generally | `.evoharness/skills/github-work.md` |
-| Analyze a GitHub issue (propose only; implement when asked) | `.evoharness/prompts/is.md` |
-| Review a pull request (never check out the PR branch) | `.evoharness/prompts/pr.md` |
-| Finish a task end-to-end: changelog, one comment, commit, push, close | `.evoharness/prompts/wr.md` |
-| Simplify a completed work package (significant removals need approval) | `.evoharness/prompts/deslop.md` |
-| Audit changelog entries before a release | `.evoharness/prompts/cl.md` |
-| Find duplicates of an issue (reads only; posts nothing) | `.evoharness/prompts/dup.md` |
-| Draft or apply a security advisory | `.evoharness/prompts/sa.md` |
-| Add an LLM provider, including the test matrix | `.evoharness/skills/add-llm-provider.md` |
-| Test or smoke-test interactive mode in tmux | `.evoharness/skills/interactive-testing.md` |
-| Prepare, publish, or recover a release | `.evoharness/skills/release.md` |
-| What to build next, and in what order (order and dependencies only) | `docs/plan/feature-roadmap.md` |
+| 处理本仓的 GitHub issue 与 PR（总入口） | `.evoharness/skills/github-work.md` |
+| 分析 issue（只提方案，被要求才实现） | `.evoharness/prompts/is.md` |
+| 审 PR（不 checkout 或切到 PR 分支） | `.evoharness/prompts/pr.md` |
+| 收尾：changelog、提交、push、关 issue（评论只在用户要求时发） | `.evoharness/prompts/wr.md` |
+| 简化一个已完成的工作包（显著删除需先批准） | `.evoharness/prompts/deslop.md` |
+| 发布前审 changelog 条目 | `.evoharness/prompts/cl.md` |
+| 找 issue 的疑似重复（只读，不发任何东西） | `.evoharness/prompts/dup.md` |
+| 起草或应用安全公告 | `.evoharness/prompts/sa.md` |
+| 加一个 LLM provider，含测试矩阵 | `.evoharness/skills/add-llm-provider.md` |
+| 在 tmux 里测或冒烟交互模式 | `.evoharness/skills/interactive-testing.md` |
+| 准备、发布、恢复一个 release | `.evoharness/skills/release.md` |
+| 接下来做哪个功能、按什么顺序（只答顺序与依赖） | `docs/plan/feature-roadmap.md` |
 
 ## Code Quality
 
@@ -168,6 +168,6 @@ Attribution:
 
 Load and follow [.evoharness/skills/release.md](.evoharness/skills/release.md) for release preparation, publishing, verification, or recovery. The Task Routing table above lists the same file for agents whose host cannot discover skills.
 
-## User Override
+## 用户覆盖
 
-If the user's instructions conflict with any rule in this document, ask for explicit confirmation before overriding. Only then execute their instructions.
+用户的指令与本文任何一条规则冲突时，先取得明确确认再执行覆盖；拿到确认后才动手。
