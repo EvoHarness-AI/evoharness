@@ -96,6 +96,7 @@ evoharness/
 │   ├── ai-failure-modes.md                   失效模式与对策库：问题 → 解 → 出处 → 为何最优
 │   ├── kernel/divergence.md                  内核决策与偏离账本（D-xxx）
 │   ├── plan/parked.md                        现在不做的点子 + 叫醒条件（`check:parked` 守）
+│   ├── plan/feature-roadmap.md               要做什么功能、按什么顺序，以及每项的依赖（只答顺序）
 │   ├── capabilities.md                       [未建] 能力清单与状态
 │   └── decisions/                            [未建] 架构决策记录
 │
@@ -259,6 +260,24 @@ packages/feature-memory/
 
 分级不是为了少写测试，而是避免让"挂一个 /goal 命令"这类小功能背上与 shell 同重的仪式。
 
+### 5.4 一页规格（新包的入场券）
+
+`check:feature-spec` 要求每个 `packages/cap-*` 与 `packages/feature-*` 带一份 `docs/spec.md`。它只证明这页存在，不证明答案是对的 —— 内容质不质由审的人判，机器管不到那一层；拿空标题糊过这道门是可行的，代价是评审时被打回来。
+
+复制这一段，不建生成器（§8 的理由在这儿同样成立：生成器会固化错误形状，而模板复制错了能看出来）：
+
+```markdown
+# <能力或功能名>
+
+**内核档位**：A / B / C / 不改内核。判断问题在 `KERNEL.md` §3。
+**DoD 档位**：动作型六件 / 上下文型三件 / feature 三层（§5.3）。
+**硬前置**：开工前必须已经存在的东西，以及它凭什么必须在前。
+**验收**：命令与判据。写不出判据就是还没想清楚这个功能是什么。
+**Carry-over**：这一刀故意留给后面的事，每条写清留给谁、凭什么。
+```
+
+这页回答的是"现在值不值得做"，不是"怎么实现"。前两项决定要不要写代码，第三项决定顺序能不能成立，第四项决定完成后能不能相信它，第五项防止遗留工作只存在于会话记录里。
+
 ---
 
 ## 6. 命名与编码约定
@@ -363,6 +382,8 @@ node -e "console.log(Object.keys(require('./package.json').scripts).filter(k => 
 | `check:capability-boundaries` | 能力 descriptor 的注册与依赖。出现条件：`packages/capability` 落地 |
 | `check:file-size` | 新文件 > 1500 行即红；存量按 `scripts/file-size.baseline.json` 只降不跟涨（涨一行即红，降到阈值下需显式 `--write` 销账）；基线条目对应的文件消失也算红，防止账本腐烂。`--write` 不提高已有条目，必要的增长走 `--write --allow-grow` 并在改动说明里写理由。生成物（`*.generated.*`）豁免 |
 | `check:doc-links` | `docs/` 与根级 md 里的相对链接必须解析到存在的文件；外链、纯锚点、目录链接不拦 |
+| `check:kernel-audit` | 动了 `KERNEL.md` §1 列的内核位置却没带那一档的证据：A 档要同包的 `test/**` 改动，B/C 档要账本新增一条 `## D-xxx`。纯注释与空行改动不触发（它们不改变已写进存储的事实，也不改变别人的语义）；`packages/chord` 不拦，它自己有一套切片与审查流程 |
+| `check:feature-spec` | `cap-*` / `feature-*` 包缺 `docs/spec.md`，或那页缺 §5.4 模板的字段名。只看存不存在，不看内容对不对 |
 | `check:parked` | `docs/plan/parked.md` 每条必须有 条件/复核/前提/判断依据 四行；触发条件成立或复核日期到点即红，逼一次决策（做 / 改条件 / 作废） |
 
 守卫的**现状**是机器可读的，不要手写第二份；下表只写“这条守卫拦什么语义、在什么条件下才存在”，不再标“已建/未建”—— 建没建看 `package.json` 的 `check*` 脚本。带条件的规则不是待办清单：条件未满足就不做。**不写生成器**：守卫读事实（manifest、文件图），不读语义。

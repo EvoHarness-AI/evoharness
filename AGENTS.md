@@ -12,6 +12,38 @@
 - When the user asks a question, answer it first before making edits or running implementation commands.
 - When responding to user feedback or an analysis, explicitly say whether you agree or disagree before saying what you changed.
 
+## Task Routing
+
+Three questions decide which process a change owes. Answer them before editing, not after a guard turns red. The order matters for one reason: two of the three gates can only be satisfied inside the same change as the code, and a missing one is invisible afterwards.
+
+1. **Does it touch the kernel?** Anything in the table in [`KERNEL.md`](KERNEL.md) §1: `packages/agent`, and `packages/coding-agent/src/core/`'s `agent-session*`, `session-*`, `system-prompt.ts`, `resource-loader.ts`, `event-bus.ts`, `project-trust.ts`, `trust-manager.ts`, `compaction/`, `extensions/`, `tools/`.
+   → Pick a tier in `KERNEL.md` §3 first, then bring its evidence in the same change: tier A a contract test for the mechanism touched; tiers B and C a new `## D-xxx` entry in `docs/kernel/divergence.md`. `npm run check:kernel-audit` enforces exactly this.
+2. **Is it a new capability or feature?** A new `packages/cap-*` or `packages/feature-*`.
+   → Read `docs/structure.md` §7 (arrival conditions) and §4 (the ownership tree) before creating the directory, then copy the one-page spec in §5.4 to `packages/<name>/docs/spec.md`. `npm run check:feature-spec` requires the page to exist; whether its answers hold is a review question, not a grep question.
+3. **Is it a feature that spans packages?**
+   → Build it in vertical slices, the process `packages/chord/docs/next/slices.md` documents: a one-page spec naming the real callers each API will have, approval of the spec, build, review of the uncommitted diff, commit, with deferred work recorded in the same change. Bottom-up layers that guess their callers get deleted; Chord's L2 was.
+
+A change that answers no to all three owes none of the above; `CONTRIBUTING.md` and the rules below still apply to it.
+
+### Host-neutral entry points
+
+`.evoharness/prompts/` and `.evoharness/skills/` are auto-discovered only when evoharness is the host running them. Under any other agent, read the file and perform its steps; each file's frontmatter `description` says when it applies.
+
+| Task | Read |
+|---|---|
+| Work on GitHub issues and PRs generally | `.evoharness/skills/github-work.md` |
+| Analyze a GitHub issue (propose only; implement when asked) | `.evoharness/prompts/is.md` |
+| Review a pull request (never check out the PR branch) | `.evoharness/prompts/pr.md` |
+| Finish a task end-to-end: changelog, one comment, commit, push, close | `.evoharness/prompts/wr.md` |
+| Simplify a completed work package (significant removals need approval) | `.evoharness/prompts/deslop.md` |
+| Audit changelog entries before a release | `.evoharness/prompts/cl.md` |
+| Find duplicates of an issue (reads only; posts nothing) | `.evoharness/prompts/dup.md` |
+| Draft or apply a security advisory | `.evoharness/prompts/sa.md` |
+| Add an LLM provider, including the test matrix | `.evoharness/skills/add-llm-provider.md` |
+| Test or smoke-test interactive mode in tmux | `.evoharness/skills/interactive-testing.md` |
+| Prepare, publish, or recover a release | `.evoharness/skills/release.md` |
+| What to build next, and in what order (order and dependencies only) | `docs/plan/feature-roadmap.md` |
+
 ## Code Quality
 
 - Read files in full before wide-ranging changes, before editing files you have not fully inspected, and when asked to investigate or audit. Do not rely on search snippets for broad changes.
@@ -115,10 +147,6 @@ When closing issues via commit:
 
 - Include `fixes #<number>` or `closes #<number>` in the message so merging auto-closes the issue. For multiple issues, repeat the keyword per issue (`closes #1, closes #2`); a shared keyword (`closes #1, #2`) only closes the first.
 
-## Testing evoharness Interactive Mode with tmux
-
-For testing evoharness's interactive mode, load and follow [.evoharness/skills/interactive-testing.md](.evoharness/skills/interactive-testing.md).
-
 ## Changelog
 
 Location: `packages/*/CHANGELOG.md` (one per package).
@@ -138,7 +166,7 @@ Attribution:
 
 ## Releasing
 
-For release preparation, publishing, verification, or recovery, load and follow [.evoharness/skills/release.md](.evoharness/skills/release.md).
+Load and follow [.evoharness/skills/release.md](.evoharness/skills/release.md) for release preparation, publishing, verification, or recovery. The Task Routing table above lists the same file for agents whose host cannot discover skills.
 
 ## User Override
 
