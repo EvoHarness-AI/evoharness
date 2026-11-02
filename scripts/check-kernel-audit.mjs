@@ -123,6 +123,23 @@ for (let index = 0; index < argv.length; index += 1) {
 const names = (args) => git(args).split("\n").filter(Boolean);
 const staged = names(["diff", "--cached", "--name-only", "--diff-filter=ACMR", "HEAD"]);
 
+// A base ref only helps if the checkout actually has it: CI actions/checkout defaults to a single
+// commit, so `origin/main` may be absent and the diff would throw instead of reporting. Skipping out
+// loud is the honest answer; guessing a shallower base would silently widen what the guard sees.
+function refExists(ref) {
+	try {
+		git(["rev-parse", "--verify", "--quiet", `${ref}^{commit}`]);
+		return true;
+	} catch {
+		return false;
+	}
+}
+if (baseRef && !refExists(baseRef)) {
+	console.log(`check:kernel-audit: skipped; base ref ${baseRef} is not in this checkout (shallow or single-commit).`);
+	console.log("Fetch the base before running it, or pass --base <ref> that exists.");
+	process.exit(0);
+}
+
 /** The change set and the two reads the evidence check needs, per caller situation. */
 let changed;
 let diffOf;
