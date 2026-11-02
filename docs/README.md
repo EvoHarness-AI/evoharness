@@ -11,12 +11,14 @@
 | 内核能改到什么程度、改动怎么记账 | `KERNEL.md` | 根 |
 | 提交代码的门槛是什么 | `CONTRIBUTING.md` | 根 |
 | 怎么报安全漏洞 | `SECURITY.md` | 根 |
+| 我这次改动欠哪套流程（内核？新包？跳包？） | `AGENTS.md` 的 Task Routing | 根 |
 | 这个文件该放哪、什么还不该建、什么时候才能建 | [`structure.md`](./structure.md) | docs |
 | 现在有哪些包、改一个需求落在哪个目录（现状） | [`packages/README.md`](../packages/README.md) | packages |
 | 系统现在怎么运行（一次请求经过哪些环节） | [`architecture.md`](./architecture.md) | docs |
 | 内核做过哪些决策与偏离（D-xxx） | [`kernel/divergence.md`](./kernel/divergence.md) | docs |
 | 怎么用 CLI / 配置 / 扩展 / SDK（使用者文档） | `packages/coding-agent/docs/` | 包内 |
-| 要做什么功能、先做什么 | [`structure.md`](./structure.md) §9 过渡条件表；长期路线待 `docs/decisions/` | docs |
+| 要做哪个功能、按什么顺序、谁是谁的前置 | [`plan/feature-roadmap.md`](./plan/feature-roadmap.md)（只答顺序，不答落点） | docs |
+| 已有代码什么时候才能搬到目标分层 | [`structure.md`](./structure.md) §9 过渡条件表 | docs |
 | 现在不做、将来什么条件成立才值得做 | [`plan/parked.md`](./plan/parked.md) | docs |
 | 某条决定当初为什么这么定 | `docs/decisions/`（未建，出现条件见 `structure.md` §7） | — |
 | 某类 AI 开发失效该怎么防、别人怎么解的 | [`ai-failure-modes.md`](./ai-failure-modes.md) | docs |
