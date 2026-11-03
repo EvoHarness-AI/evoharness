@@ -24,6 +24,13 @@
  *      *unknown*, which policy reads as its strictest case), but the count must not creep upward.
  *      A baseline entry whose file has gone is stale and fails, so the ledger cannot rot.
  *
+ * Left for later, on purpose:
+ *   - call validateCapability() on each `packages/cap-<name>/src/capability.ts` once the first cap
+ *     exists, so a descriptor cannot overstate or understate its own tools. The function and its
+ *     tests already live in @evoharness/capability (roadmap item 1 carry-over).
+ *   - forbid `cap-*` importing another `cap-*` (docs/structure.md §1 principle 3, KERNEL.md §2).
+ *     Nothing does it today; a rule with no subject is a guess at someone else's shape.
+ *
  * Rules 2 and 3 are vacuous today because no `cap-*` package exists yet; they are here so the first
  * one is born inside the boundary. A page of empty headings passes this guard and should fail its
  * review: whether a declaration is *true* is a human call, and no grep can make that decision.
