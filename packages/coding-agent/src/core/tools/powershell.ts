@@ -44,6 +44,8 @@ const powershellToolConfig: ShellToolConfig = {
 	promptSnippet: powershellToolSystemPromptContribution.snippet,
 	promptGuidelines: powershellToolSystemPromptContribution.guidelines,
 	tempFilePrefix: "evoharness-powershell",
+	// Same ceiling as bash: a process the OS account owns, plus the scratch file.
+	permissions: ["process.exec", "fs.scratch"],
 };
 
 export function createPowerShellToolDefinition(

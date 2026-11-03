@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { allToolNames, createToolDefinition, type ToolName } from "../src/core/tools/index.ts";
 import { createCodemodeToolDefinition } from "../src/extensions/codemode/tool.ts";
 import { createMcpResourceToolDefinitions } from "../src/extensions/mcp/resources.ts";
+import { createMcpToolDefinition } from "../src/extensions/mcp/tools.ts";
 import { createToolSearchToolDefinition } from "../src/extensions/tool-search/tool.ts";
 
 /**
@@ -54,6 +55,21 @@ describe("built-in extension declarations", () => {
 		const definition = createToolSearchToolDefinition({ tools: [] as never });
 		expect(definition.permissions).toEqual(["tool.delegate"]);
 		expect(definition.reachesTools?.({ query: "x" })).toBe("all");
+	});
+
+	it("MCP server tools declare the network call and the spill, not what the server claims", () => {
+		const definition = createMcpToolDefinition({
+			server: "docs",
+			tool: { name: "search", annotations: { readOnlyHint: true }, inputSchema: { type: "object" } } as never,
+			name: "mcp__docs__search",
+			exposure: "direct" as never,
+			namespace: { name: "docs" } as never,
+			timeoutMs: 1000,
+			getClient: async () => ({ callTool: async () => ({ content: [] }) }) as never,
+		});
+		expect([...(definition.permissions ?? [])].sort()).toEqual(["fs.scratch", "net.out"]);
+		// The server's own hint is kept, and stays a hint.
+		expect(definition.annotations).toEqual({ readOnlyHint: true });
 	});
 
 	it("MCP resource tools reach the server, and reading one can spill a binary to a temp file", () => {

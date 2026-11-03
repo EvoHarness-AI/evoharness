@@ -2,6 +2,7 @@ import { constants } from "node:fs";
 import { access as fsAccess } from "node:fs/promises";
 import { constants as osConstants } from "node:os";
 import type { AgentTool } from "@evoharness/agent-core";
+import type { PermissionId } from "@evoharness/capability";
 import { spawn } from "child_process";
 import { type Static, Type } from "typebox";
 import { waitForChildProcess } from "../../utils/child-process.ts";
@@ -238,6 +239,8 @@ export interface ShellToolConfig {
 	promptSnippet: string;
 	promptGuidelines?: readonly string[];
 	tempFilePrefix: string;
+	/** The ceiling this shell states; the shared factory only forwards it. */
+	permissions: readonly PermissionId[];
 }
 
 export function createShellToolDefinition(
@@ -254,11 +257,7 @@ export function createShellToolDefinition(
 		label: config.label,
 		description: `Execute a ${config.shellName} command in the current working directory. Returns stdout and stderr. Output is truncated to last ${DEFAULT_MAX_LINES} lines or ${DEFAULT_MAX_BYTES / 1024}KB (whichever is hit first). If truncated, full output is saved to a temp file. Optionally provide a timeout in seconds.`,
 		promptSnippet: config.promptSnippet,
-		// The shell can read, write, and reach the network with whatever the account running evoharness
-		// can; naming those separately would promise a boundary only the OS or a container provides, as
-		// docs/security.md already says. The ceiling is starting the process; the temp file the truncated
-		// output spills into is this tool's own scratch write, not a user-visible change.
-		permissions: ["process.exec", "fs.scratch"],
+		permissions: config.permissions,
 		promptGuidelines: exposeSessionEnvironment && config.promptGuidelines ? [...config.promptGuidelines] : undefined,
 		parameters: bashSchema,
 		outputSchema: bashOutputSchema,
@@ -427,6 +426,10 @@ const bashToolConfig: ShellToolConfig = {
 	promptSnippet: bashToolSystemPromptContribution.snippet,
 	promptGuidelines: bashToolSystemPromptContribution.guidelines,
 	tempFilePrefix: "evoharness-bash",
+	// The shell can read, write, and reach the network with whatever the account running evoharness
+	// can; naming those separately would promise a boundary only the OS or a container provides, as
+	// docs/security.md already says. The ceiling is starting the process.
+	permissions: ["process.exec", "fs.scratch"],
 };
 
 export function createBashToolDefinition(

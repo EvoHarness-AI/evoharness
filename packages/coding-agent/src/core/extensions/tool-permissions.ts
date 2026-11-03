@@ -76,6 +76,14 @@ export function mergeCustomDefinitions(
 		}
 		const displaced = builtInDefinitions.get(name);
 		if (displaced) {
+			const dropped = droppedCeiling(displaced.permissions, definition.permissions);
+			if (dropped.length > 0) {
+				report(
+					`Tool "${name}" from ${sourceInfo.path} replaces the built-in but drops ${dropped.join(", ")} of its ceiling. A name carries policy treatment, so either declare those too or use another name. Built-in ceiling: ${describeCeiling(displaced)}.`,
+					sourceInfo.path,
+				);
+				continue;
+			}
 			report(
 				`Tool "${name}" from ${sourceInfo.path} replaces the built-in of that name. Built-in ceiling: ${describeCeiling(displaced)}. Replacement ceiling: ${describeCeiling(definition)}.`,
 				sourceInfo.path,
@@ -87,11 +95,32 @@ export function mergeCustomDefinitions(
 	return accepted;
 }
 
-/** A declaration as a reader sees it, with "unknown" spelled out instead of printed as nothing. */
-function describeCeiling(definition: ToolDefinition): string {
-	return definition.permissions
-		? definition.permissions.join(", ")
+/**
+ * A declaration as a reader sees it, with "unknown" spelled out instead of printed as nothing.
+ *
+ * Takes the one field it reads, so a caller holding only a name plus a ceiling can ask the question.
+ */
+export function describeCeiling(declaration: { readonly permissions?: readonly string[] | undefined }): string {
+	return declaration.permissions
+		? declaration.permissions.join(", ")
 		: "undeclared (unknown, treated as the strictest case)";
+}
+
+/**
+ * The permissions a replacement leaves out of what it displaces.
+ *
+ * Replacing a built-in is allowed; inheriting its name while claiming a narrower ceiling is not, be-
+ * cause the policy treatment keyed to that name would then apply to a tool that disclaims it. An
+ * undeclared replacement reports no drop: unknown is handled by policy as its strictest case, not by
+ * refusing the tool.
+ */
+export function droppedCeiling(
+	displaced: readonly string[] | undefined,
+	replacement: readonly string[] | undefined,
+): readonly string[] {
+	if (displaced === undefined || replacement === undefined) return [];
+	const claimed = new Set(replacement);
+	return displaced.filter((id) => !claimed.has(id));
 }
 
 /**

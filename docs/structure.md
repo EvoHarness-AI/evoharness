@@ -382,7 +382,7 @@ node -e "console.log(Object.keys(require('./package.json').scripts).filter(k => 
 | `check:browser-smoke` / `check:package-install` | 浏览器构建与打包安装的冒烟 |
 | `scripts/check-lockfile-commit.mjs`（pre-commit 直接调用） | 锁文件变更需要显式开关 |
 | `check:package-layers` | 层间反向依赖。同时锁三条现状规则：① `coding-agent` 只能依赖它现有的内部包；② `ai`/`telemetry`/`chord`/`mcp`/`tui`/`codemode` 不得依赖 `coding-agent`/`durable`/`env`；③ 除 `runtime-kit`/`env` 外任何包 import `durable/src/harness` 即失败（只匹配 import 路径，经 durable 根导出的再导出不在这条范围内） |
-| `check:capability-boundaries` | 已生效（`packages/capability` 落地）：契约包不得依赖任何工作区包；`cap-*` / `feature-*` 不得依赖 `durable`；`cap-*` 必须依赖 `@evoharness/capability`。descriptor 内容的对不对仍是评审问题，不是 grep 问题 |
+| `check:capability-boundaries` | 已生效（`packages/capability` 落地）：契约包不得依赖任何工作区包；`cap-*` / `feature-*` 不得依赖 `durable`；`cap-*` 必须依赖 `@evoharness/capability`；八个内建工具必须在自己的文件里声明 `permissions[]`；未声明的注册站点记在 `scripts/capability-permissions.baseline.json`，按与 `check:file-size` 同样的棘轮只降不涨（涨一行即红，条目对应文件消失也算红，`--write` 只销账，必要的增长走 `--write --allow-grow`）。descriptor 内容的对不对仍是评审问题，不是 grep 问题 |
 | `check:file-size` | 新文件 > 1500 行即红；存量按 `scripts/file-size.baseline.json` 只降不跟涨（涨一行即红，降到阈值下需显式 `--write` 销账）；基线条目对应的文件消失也算红，防止账本腐烂。`--write` 不提高已有条目，必要的增长走 `--write --allow-grow` 并在改动说明里写理由。生成物（`*.generated.*`）豁免 |
 | `check:doc-links` | `docs/` 与根级 md 里的相对链接必须解析到存在的文件；外链、纯锚点、目录链接不拦 |
 | `check:kernel-audit` | 动了 `KERNEL.md` §1 列的内核位置却没带那一档的证据：A 档要同包的 `test/**` 改动，B/C 档要账本新增一条 `## D-xxx`。纯注释与空行改动不触发（它们不改变已写进存储的事实，也不改变别人的语义）；`packages/chord` 不拦，它自己有一套切片与审查流程 |

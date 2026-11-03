@@ -17,6 +17,7 @@ import {
 	loadExtensionFromFactory,
 	loadExtensionsCached,
 } from "./extensions/loader.ts";
+import { describeCeiling } from "./extensions/tool-permissions.ts";
 import type {
 	Extension,
 	ExtensionFactory,
@@ -1278,21 +1279,25 @@ export class DefaultResourceLoader implements ResourceLoader {
 	private detectExtensionConflicts(extensions: Extension[]): Array<{ path: string; message: string }> {
 		const conflicts: Array<{ path: string; message: string }> = [];
 
-		// Track which extension registered each tool and flag
-		const toolOwners = new Map<string, string>();
+		// Track which extension registered each tool, with the ceiling it declared: two tools under one
+		// name differ in permissions as much as in names, and the reader cannot tell them apart without it.
+		const toolOwners = new Map<string, { path: string; permissions?: readonly string[] }>();
 		const flagOwners = new Map<string, string>();
 
 		for (const ext of extensions) {
 			// Check tools
-			for (const toolName of ext.tools.keys()) {
+			for (const [toolName, registered] of ext.tools) {
 				const existingOwner = toolOwners.get(toolName);
-				if (existingOwner && existingOwner !== ext.path) {
+				if (existingOwner && existingOwner.path !== ext.path) {
 					conflicts.push({
 						path: ext.path,
-						message: `Tool "${toolName}" conflicts with ${existingOwner}`,
+						message: `Tool "${toolName}" conflicts with ${existingOwner.path}: declared ${describeCeiling(existingOwner)} there, ${describeCeiling(registered.definition)} here`,
 					});
 				} else {
-					toolOwners.set(toolName, ext.path);
+					toolOwners.set(toolName, {
+						path: ext.path,
+						...(registered.definition.permissions ? { permissions: registered.definition.permissions } : {}),
+					});
 				}
 			}
 

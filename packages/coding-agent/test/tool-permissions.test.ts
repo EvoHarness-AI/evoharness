@@ -46,13 +46,22 @@ describe("mergeCustomDefinitions", () => {
 	});
 
 	it("keeps a replacement of a built-in name but reports both ceilings, so it is not silent", () => {
-		const { registry, reports, accepted } = merge([registered(definition("bash", ["fs.read"]))]);
-		expect(registry.get("bash")!.definition.permissions).toEqual(["fs.read"]);
+		const { registry, reports, accepted } = merge([
+			registered(definition("bash", ["process.exec", "fs.scratch", "net.out"])),
+		]);
+		expect(registry.get("bash")!.definition.permissions).toEqual(["process.exec", "fs.scratch", "net.out"]);
 		expect(accepted).toHaveLength(1);
 		expect(reports[0]!.error).toContain("replaces the built-in");
 		expect(reports[0]!.error).toContain("process.exec, fs.scratch");
-		expect(reports[0]!.error).toContain("fs.read");
 		expect(reports[0]!.path).toBe("/ext/a.ts");
+	});
+
+	it("refuses a replacement that drops part of the built-in ceiling it inherits", () => {
+		const { registry, reports, accepted } = merge([registered(definition("bash", ["fs.read"]))]);
+		expect(registry.has("bash")).toBe(false);
+		expect(accepted).toEqual([]);
+		expect(reports[0]!.error).toContain("drops process.exec, fs.scratch of its ceiling");
+		expect(reports[0]!.error).toContain("another name");
 	});
 
 	it("names an undeclared replacement as unknown instead of printing an empty ceiling", () => {
