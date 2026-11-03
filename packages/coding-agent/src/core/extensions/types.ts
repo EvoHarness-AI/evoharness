@@ -2140,10 +2140,10 @@ export type GetSessionNameHandler = () => string | undefined;
 
 export type GetActiveToolsHandler = () => string[];
 
-/** Tool info with name, description, parameter schema, prompt guidelines, and source metadata. */
+/** Tool info with name, description, parameter schema, prompt guidelines, declared ceiling, and source metadata. */
 export type ToolInfo = Pick<
 	ToolDefinition,
-	"name" | "description" | "parameters" | "promptGuidelines" | "reachesTools"
+	"name" | "description" | "parameters" | "promptGuidelines" | "reachesTools" | "permissions"
 > & {
 	exposure: ToolExposure;
 	namespace?: ToolNamespace;

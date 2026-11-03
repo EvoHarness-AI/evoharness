@@ -1539,6 +1539,7 @@ export class AgentSession {
 			...(definition.namespace ? { namespace: definition.namespace } : {}),
 			...(definition.annotations ? { annotations: { ...definition.annotations } } : {}),
 			...(definition.reachesTools ? { reachesTools: definition.reachesTools } : {}),
+			...(definition.permissions ? { permissions: definition.permissions } : {}),
 			sourceInfo,
 		}));
 	}

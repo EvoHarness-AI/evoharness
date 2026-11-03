@@ -1,11 +1,17 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
+import { getModel } from "@evoharness/ai/compat";
+import { Type } from "typebox";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { AuthStorage } from "../src/core/auth-storage.ts";
 import { loadExtensions } from "../src/core/extensions/loader.ts";
 import { ExtensionRunner } from "../src/core/extensions/runner.ts";
+import { DefaultResourceLoader } from "../src/core/resource-loader.ts";
+import { createAgentSession } from "../src/core/sdk.ts";
 import { SessionManager } from "../src/core/session-manager.ts";
+import { SettingsManager } from "../src/core/settings-manager.ts";
+
 import { createInMemoryModelRegistry } from "./model-runtime-test-utils.ts";
 
 /**
@@ -121,5 +127,37 @@ ${body}
 
 		expect(result.errors).toEqual([]);
 		expect(runner.getToolDefinition("shrinking_tool")?.permissions).toEqual(["fs.read"]);
+	});
+
+	// The read path item 2 must use: the ceiling and its provenance come from the definition-first
+	// registry, not from the AgentTool the kernel loop runs, which drops definition-only fields.
+	it("exposes the ceiling and its provenance to a policy reader", async () => {
+		const agentDir = path.join(tempDir, "agent");
+		const settingsManager = SettingsManager.create(tempDir, agentDir);
+		const resourceLoader = new DefaultResourceLoader({ cwd: tempDir, agentDir, settingsManager });
+		await resourceLoader.reload();
+		const { session } = await createAgentSession({
+			cwd: tempDir,
+			agentDir,
+			model: getModel("anthropic", "claude-sonnet-4-5")!,
+			settingsManager,
+			sessionManager: SessionManager.inMemory(),
+			resourceLoader,
+			customTools: [
+				{
+					name: "reader_tool",
+					label: "reader",
+					description: "Reads one file",
+					parameters: Type.Object({}),
+					permissions: ["fs.read"],
+					execute: async () => ({ content: [{ type: "text", text: "ok" }], details: undefined }),
+				},
+			],
+		});
+		const declared = session.getAllTools().find((tool) => tool.name === "reader_tool");
+		expect(declared?.permissions).toEqual(["fs.read"]);
+		expect(declared?.sourceInfo).toMatchObject({ path: "<sdk:reader_tool>", source: "sdk" });
+		expect(session.getToolDefinition("reader_tool")?.permissions).toEqual(["fs.read"]);
+		session.dispose();
 	});
 });
