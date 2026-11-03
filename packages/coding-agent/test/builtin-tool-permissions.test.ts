@@ -1,3 +1,4 @@
+import { validateToolDeclaration } from "@evoharness/capability";
 import { describe, expect, it } from "vitest";
 import { allToolNames, createToolDefinition, type ToolName } from "../src/core/tools/index.ts";
 import { createCodemodeToolDefinition } from "../src/extensions/codemode/tool.ts";
@@ -55,6 +56,33 @@ describe("built-in extension declarations", () => {
 		const definition = createToolSearchToolDefinition({ tools: [] as never });
 		expect(definition.permissions).toEqual(["tool.delegate"]);
 		expect(definition.reachesTools?.({ query: "x" })).toBe("all");
+	});
+
+	// Extensions compose definitions before registering: tool-search/index.ts spreads the factory's
+	// output to set defaultActive, and the MCP host does the same to hide a dropped server's tools.
+	// What has to hold is that the judgment runs on the final object, so a wrapper can neither drop a
+	// declaration on the way in nor leave a delegation claim without the reach that justifies it.
+	it("is judged on the definition as registered, not as authored", () => {
+		const authored = createToolSearchToolDefinition({ tools: [] as never });
+		const wrapped = { ...authored, defaultActive: false };
+
+		expect(wrapped.permissions).toEqual(["tool.delegate"]);
+		expect(validateToolDeclaration(wrapped, { kind: "extension", path: "<inline:tool-search>" })).toEqual([]);
+
+		const { reachesTools: _omitted, ...withoutReach } = wrapped;
+		expect(
+			validateToolDeclaration(withoutReach, { kind: "extension", path: "<inline:tool-search>" }).map(
+				(failure) => failure.code,
+			),
+		).toEqual(["delegation-without-reach"]);
+
+		const { permissions: _dropped, ...undeclared } = wrapped;
+		expect(validateToolDeclaration(undeclared, { kind: "extension", path: "<inline:tool-search>" })).toEqual([]);
+		expect(
+			validateToolDeclaration(undeclared, { kind: "builtin", path: "builtin:tool_search" }).map(
+				(failure) => failure.code,
+			),
+		).toEqual(["missing-declaration"]);
 	});
 
 	it("MCP server tools declare the network call and the spill, not what the server claims", () => {
