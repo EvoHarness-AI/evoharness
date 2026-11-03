@@ -8,6 +8,7 @@ import { createRequire } from "node:module";
 import * as path from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Provider } from "@evoharness/ai";
+import { formatDeclarationFailures, validateToolDeclaration } from "@evoharness/capability";
 import type { KeyId } from "@evoharness/tui";
 import type { createJiti } from "jiti";
 import { CONFIG_DIR_NAME, getAgentDir, isBunBinary, isBundledNode } from "../../config.ts";
@@ -20,6 +21,7 @@ import { type McpServerConfig, McpServerRegistry, mcpNamespace, validateMcpServe
 import { createSyntheticSourceInfo, getSyntheticPathSource, isSyntheticPath } from "../source-info.ts";
 import { time } from "../timings.ts";
 import type { ModelRouteRequest, VirtualModelDefinition } from "../virtual-models.ts";
+import { widenedPermissions } from "./tool-permissions.ts";
 import type {
 	EntryRenderer,
 	Extension,
@@ -286,6 +288,14 @@ function createExtensionAPI(
 			if (typeof tool.parameters !== "object" || tool.parameters === null || Array.isArray(tool.parameters)) {
 				throw new Error(
 					`Tool "${tool.name}" registered by extension "${extension.path}" must define an object parameter schema.`,
+				);
+			}
+			const failures = validateToolDeclaration(tool, { kind: "extension", path: extension.path });
+			if (failures.length > 0) throw new Error(formatDeclarationFailures(failures));
+			const widened = widenedPermissions(extension.tools.get(tool.name)?.definition.permissions, tool.permissions);
+			if (widened.length > 0) {
+				throw new Error(
+					`Tool "${tool.name}" registered by extension "${extension.path}" re-registers with wider permissions (${widened.join(", ")}); a tool that needs more reach gets a new name.`,
 				);
 			}
 			extension.tools.set(tool.name, {

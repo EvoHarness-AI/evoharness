@@ -64,6 +64,7 @@ let
       mkdir -p "$out"
       pack_package packages/telemetry telemetry
       pack_package packages/ai ai
+      pack_package packages/capability capability
       pack_package packages/tui tui
       pack_package packages/agent agent
       pack_package packages/codemode codemode
@@ -81,6 +82,7 @@ let
     packageSourceOverrides = {
       "node_modules/@evoharness/agent-core" = workspacePackages + "/agent.tgz";
       "node_modules/@evoharness/ai" = workspacePackages + "/ai.tgz";
+      "node_modules/@evoharness/capability" = workspacePackages + "/capability.tgz";
       "node_modules/@evoharness/codemode" = workspacePackages + "/codemode.tgz";
       "node_modules/@evoharness/coding-agent" = workspacePackages + "/coding-agent.tgz";
       "node_modules/@evoharness/mcp" = workspacePackages + "/mcp.tgz";

@@ -85,6 +85,7 @@ import {
 	type AgentActivityOutcome,
 	type BoundaryContextPreview,
 	type ContextUsage,
+	collectCustomTools,
 	type ExecuteToolOptions,
 	type ExtensionCommandContextActions,
 	type ExtensionErrorListener,
@@ -95,6 +96,7 @@ import {
 	type MessageEndEvent,
 	type MessageStartEvent,
 	type MessageUpdateEvent,
+	mergeCustomDefinitions,
 	type ReplacedSessionContext,
 	type SessionBeforeCompactResult,
 	type SessionBeforeTreeResult,
@@ -3582,14 +3584,11 @@ export class AgentSession {
 		const previousActiveToolNames = this.getActiveToolNames();
 		const allowedTools = this._allowedTools;
 
-		const registeredTools = this._extensionRunner.getAllRegisteredTools();
-		const allCustomTools = [
-			...registeredTools,
-			...this._customTools.map((definition) => ({
-				definition,
-				sourceInfo: createSyntheticSourceInfo(`<sdk:${definition.name}>`, { source: "sdk" }),
-			})),
-		].filter((tool) => this._isAllowedTool(tool.definition.name));
+		const allCustomTools = collectCustomTools(
+			this._extensionRunner.getAllRegisteredTools(),
+			this._customTools,
+			(name) => this._isAllowedTool(name),
+		);
 		const definitionRegistry = new Map<string, ToolDefinitionEntry>(
 			Array.from(this._baseToolDefinitions.entries())
 				.filter(([name]) => this._isAllowedTool(name))
@@ -3601,12 +3600,12 @@ export class AgentSession {
 					},
 				]),
 		);
-		for (const tool of allCustomTools) {
-			definitionRegistry.set(tool.definition.name, {
-				definition: tool.definition,
-				sourceInfo: tool.sourceInfo,
-			});
-		}
+		const acceptedCustomTools = mergeCustomDefinitions(
+			definitionRegistry,
+			this._baseToolDefinitions,
+			allCustomTools,
+			(error, extensionPath) => this._extensionRunner.emitError({ extensionPath, event: "register_tool", error }),
+		);
 		this._toolDefinitions = definitionRegistry;
 		this._toolPromptSnippets = new Map(
 			Array.from(definitionRegistry.values())
@@ -3625,7 +3624,7 @@ export class AgentSession {
 				.filter((entry): entry is readonly [string, string[]] => entry !== undefined),
 		);
 		const runner = this._extensionRunner;
-		const wrappedExtensionTools = wrapRegisteredTools(allCustomTools, runner);
+		const wrappedExtensionTools = wrapRegisteredTools(acceptedCustomTools, runner);
 		const wrappedBuiltInTools = wrapRegisteredTools(
 			Array.from(this._baseToolDefinitions.values())
 				.filter((definition) => this._isAllowedTool(definition.name))

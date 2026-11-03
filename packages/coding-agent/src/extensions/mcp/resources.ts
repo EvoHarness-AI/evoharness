@@ -258,6 +258,7 @@ export function createMcpResourceToolDefinitions(options: {
 		parameters: LIST_PARAMETERS as unknown as TSchema,
 		outputSchema: LIST_OUTPUT_SCHEMA as unknown as TSchema,
 		exposure: toToolExposure(options.exposure),
+		permissions: ["net.out"],
 		annotations: readOnly,
 		async execute(_toolCallId, params, signal) {
 			const payload = await list(
@@ -282,6 +283,7 @@ export function createMcpResourceToolDefinitions(options: {
 		parameters: LIST_PARAMETERS as unknown as TSchema,
 		outputSchema: LIST_TEMPLATES_OUTPUT_SCHEMA as unknown as TSchema,
 		exposure: toToolExposure(options.exposure),
+		permissions: ["net.out"],
 		annotations: readOnly,
 		async execute(_toolCallId, params, signal) {
 			const payload = await list(
@@ -305,6 +307,8 @@ export function createMcpResourceToolDefinitions(options: {
 		parameters: READ_PARAMETERS as unknown as TSchema,
 		outputSchema: READ_OUTPUT_SCHEMA as unknown as TSchema,
 		exposure: toToolExposure(options.exposure),
+		// A resource body can be binary, and the result conversion saves it to a temp file.
+		permissions: ["net.out", "fs.scratch"],
 		annotations: readOnly,
 		async execute(_toolCallId, params, signal) {
 			const serverName = stringArgument(params, "server");

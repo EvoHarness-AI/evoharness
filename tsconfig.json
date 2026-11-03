@@ -41,6 +41,7 @@
 			],
 			"@evoharness/env": ["./packages/env/src/index.ts"],
 			"@evoharness/agent-core": ["./packages/agent/src/index.ts"],
+			"@evoharness/capability": ["./packages/capability/src/index.ts"],
 			"@evoharness/coding-agent": ["./packages/coding-agent/src/index.ts"],
 			"@evoharness/coding-agent/hooks": ["./packages/coding-agent/src/core/hooks/index.ts"],
 			"@evoharness/coding-agent/*": ["./packages/coding-agent/src/*"],

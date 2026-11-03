@@ -67,8 +67,8 @@ session 落盘 + platform.telemetry 记录
 | `loop` | 推进 turn、串行化工具调用、处理中断与重试边界 | 同一时刻只有一个 turn 在跑；中断不会留下"半条"工具结果 |
 | `session` | 消息树、分支、当前分支游标、恢复、导出 | 每条消息有唯一父子关系；恢复后的分支与崩溃前一致 |
 | `context` | 组装 system 片段与历史，决定哪些能力片段进入请求 | 片段来源可追溯：每条片段能说出"谁给的" |
-| `registry` | 能力与工具的注册、查找、按会话过滤 | 注册是显式的；不存在按名字的隐式分支 |
-| `policy` | 权限判定与审批（路径、网络、进程、屏幕） | 任何有副作用的动作都先过 policy，没有旁路 |
+| `registry` | 能力与工具的注册、查找、按会话过滤 | 注册是显式的，并且工具得带着 `@evoharness/capability` 词表里的 `permissions[]` 进来；判定读这份声明，不读名字派生出来的假设 |
+| `policy` | 权限判定与审批（路径、网络、进程、屏幕） | 任何有副作用的动作都先过 policy，没有旁路；权限 id 由 `@evoharness/capability` 定义，policy 是读者 |
 | `events` | 生命周期事件总线（turn/tool/message/session） | 事件只读、失败不影响主流程 |
 | `compaction` | 按阈值压缩历史，保留可回溯的摘要 | 压缩不丢事实：原始消息仍在会话文件里 |
 | `hooks` | 扩展挂点：tools / events / sections（以及待建的 turn_request、storage、schedule） | 挂点是唯一入口；新增用法先归档到 `KERNEL.md` |

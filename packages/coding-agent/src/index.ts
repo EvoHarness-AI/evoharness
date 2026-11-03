@@ -1,7 +1,8 @@
 // Core session management
 
+// The permission vocabulary tools declare against
+export { ALL_PERMISSIONS, PERMISSION_SCHEMA_VERSION, type PermissionId } from "@evoharness/capability";
 export { type Args, parseArgs } from "./cli/args.ts";
-
 // Config paths
 export {
 	CONFIG_DIR_NAME,

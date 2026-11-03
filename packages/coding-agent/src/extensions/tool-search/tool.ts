@@ -316,6 +316,8 @@ export function createToolSearchToolDefinition(
 		description: TOOL_SEARCH_DESCRIPTION,
 		promptSnippet: "Search for tools that are not loaded yet and load the matches",
 		parameters: toolSearchSchema,
+		// Loading a tool changes what the model can reach, which is delegation without running it.
+		permissions: ["tool.delegate"],
 		// Searching is not something scripts need; it changes what the model sees.
 		exposure: "model-only",
 		// A query can match any tool that is not declared yet.

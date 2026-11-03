@@ -402,6 +402,10 @@ export function createCodemodeToolDefinition(
 		promptSnippet: codemodeToolSystemPromptContribution.snippet,
 		promptGuidelines: [...codemodeToolSystemPromptContribution.guidelines],
 		parameters: codemodeSchema,
+		// A script reaches other tools through ctx.executeTool, keeps its store in the session (an
+		// appended entry, not a file), and spills truncated output to a temp file. It writes no user
+		// file itself: only the tools it calls do, and those declare their own ceiling.
+		permissions: ["tool.delegate", "session.write", "fs.scratch"],
 		// Scripts must not start other scripts.
 		exposure: "model-only",
 		prepareLoadout: (loadout) => prepareCodemodeLoadout(loadout, options),

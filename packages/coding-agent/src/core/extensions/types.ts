@@ -43,6 +43,7 @@ import type {
 	TranscriptContext,
 	Usage,
 } from "@evoharness/ai";
+import type { PermissionId } from "@evoharness/capability";
 import type {
 	AutocompleteItem,
 	AutocompleteProvider,
@@ -586,16 +587,11 @@ export interface ToolLoadout {
 export interface ToolLoadoutChanges {
 	/** Model-facing descriptions of declared tools, by tool name. */
 	descriptions?: Readonly<Record<string, string>>;
-	/**
-	 * Declared tools whose declarations requests leave out. They stay active and callable, and the
-	 * transcript still declares them, so the active set survives `/tree` and resume.
-	 */
+	/** Declared tools a request leaves out. They stay active, callable, and transcript-declared, so the set survives `/tree` and resume. */
 	hiddenDeclarations?: readonly string[];
 }
 
-/**
- * Tool definition for registerTool().
- */
+/** Tool definition for registerTool(). */
 export interface ToolDefinition<TParams extends TSchema = TSchema, TDetails = unknown, TState = any> {
 	/** Tool name (used in LLM tool calls) */
 	name: string;
@@ -640,8 +636,10 @@ export interface ToolDefinition<TParams extends TSchema = TSchema, TDetails = un
 	 */
 	reachesTools?: (input: Record<string, unknown>) => "all" | readonly string[];
 
-	/** Hints about what the tool does, for example from an MCP server. */
+	/** Hints about what the tool does, from its author and unverified. Not a permission declaration. */
 	annotations?: ToolAnnotations;
+	/** Ceiling of what the tool affects. Declaring it grants nothing; ids live in `@evoharness/capability`. */
+	permissions?: readonly PermissionId[];
 
 	/**
 	 * Whether registering the tool activates it. Default: `true` for `direct` and `model-only` tools;

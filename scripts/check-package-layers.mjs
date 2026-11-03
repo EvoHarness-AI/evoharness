@@ -37,6 +37,8 @@ const SKIPPED_PATH_SEGMENTS = ["/examples/", "/install-lock/", "/test/", "/dist/
 const PRODUCT_INTERNAL_ALLOWLIST = new Set([
 	"@evoharness/agent-core",
 	"@evoharness/ai",
+	// The permission contract: the product registers tools, so it must read the vocabulary they declare.
+	"@evoharness/capability",
 	"@evoharness/codemode",
 	"@evoharness/mcp",
 	"@evoharness/tui",

@@ -23,6 +23,7 @@ const WORKSPACE = {
 	"@evoharness/ai": "packages/ai/src",
 	"@evoharness/durable": "packages/durable/src",
 	"@evoharness/agent-core": "packages/agent/src",
+	"@evoharness/capability": "packages/capability/src",
 	"@evoharness/codemode": "packages/codemode/src",
 	"@evoharness/telemetry": "packages/telemetry/src",
 	"@evoharness/mcp": "packages/mcp/src",

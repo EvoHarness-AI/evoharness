@@ -254,6 +254,11 @@ export function createShellToolDefinition(
 		label: config.label,
 		description: `Execute a ${config.shellName} command in the current working directory. Returns stdout and stderr. Output is truncated to last ${DEFAULT_MAX_LINES} lines or ${DEFAULT_MAX_BYTES / 1024}KB (whichever is hit first). If truncated, full output is saved to a temp file. Optionally provide a timeout in seconds.`,
 		promptSnippet: config.promptSnippet,
+		// The shell can read, write, and reach the network with whatever the account running evoharness
+		// can; naming those separately would promise a boundary only the OS or a container provides, as
+		// docs/security.md already says. The ceiling is starting the process; the temp file the truncated
+		// output spills into is this tool's own scratch write, not a user-visible change.
+		permissions: ["process.exec", "fs.scratch"],
 		promptGuidelines: exposeSessionEnvironment && config.promptGuidelines ? [...config.promptGuidelines] : undefined,
 		parameters: bashSchema,
 		outputSchema: bashOutputSchema,

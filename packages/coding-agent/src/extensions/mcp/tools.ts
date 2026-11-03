@@ -332,6 +332,10 @@ export function createMcpToolDefinition(options: {
 		outputSchema: createMcpResultSchema(tool.outputSchema),
 		exposure: toToolExposure(options.exposure),
 		namespace: options.namespace,
+		// Every call is a request to another process, and truncated output spills to a temp file. What
+		// the server says about itself stays in `annotations`: unverified, so it can inform a policy
+		// rule but cannot be one.
+		permissions: ["net.out", "fs.scratch"],
 		...(annotations ? { annotations } : {}),
 		...createMcpToolRenderers(label),
 		async execute(_toolCallId, params, signal, onUpdate) {

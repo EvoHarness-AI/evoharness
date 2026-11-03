@@ -17,6 +17,7 @@
 | `tui` | `@evoharness/tui` | 终端渲染原语：差分渲染、editor、layout、keybindings | `platform`；应用壳是 `surface-tui` |
 | `telemetry` | `@evoharness/telemetry` | 遥测契约与 typed schema，含内存 / 测试 adapter | `platform`，不迁移 |
 | `evals` | `@evoharness/evals` | 评测夹具与运行器：`evals/*.eval.ts`、docker 沙箱、报告 | `platform` |
+| `capability` | `@evoharness/capability` | 能力 descriptor 与权限词表；注册期的声明校验，不含任何判定 | `platform`，不迁移 |
 
 ## `coding-agent` 内部（日常改动最常落到这里）
 

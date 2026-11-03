@@ -19,6 +19,7 @@ export type {
 	SwitchSessionHandler,
 } from "./runner.ts";
 export { ExtensionRunner } from "./runner.ts";
+export { collectCustomTools, mergeCustomDefinitions, ownerKindOf, widenedPermissions } from "./tool-permissions.ts";
 export type {
 	AfterProviderResponseEvent,
 	AgentActivityOutcome,
